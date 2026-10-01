@@ -202,8 +202,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                         }
                     }
                 })
-        finally:
-            return cap
+        return cap
 
     @property
     def client(self) -> OgcClient:

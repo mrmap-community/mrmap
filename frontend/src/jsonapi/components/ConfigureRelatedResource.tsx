@@ -1,85 +1,102 @@
-import _ from 'lodash';
-import { Fragment, useCallback, useMemo, useState } from 'react';
-import { RaRecord, SaveButton, Toolbar, useNotify, useShowController, useTranslate } from 'react-admin';
-import CreateGuesser from './CreateGuesser';
-import EditGuesser from './EditGuesser';
-
+import { Alert } from "@mui/material";
+import {
+  Loading,
+  SaveButton,
+  Toolbar,
+  useGetList,
+  useNotify,
+  useShowContext,
+  useTranslate,
+} from "react-admin";
+import { useFieldsForOperation } from "../hooks/useFieldsForOperation";
+import useOperation from "../hooks/useOperation";
+import CreateGuesser from "./CreateGuesser";
+import EditGuesser from "./EditGuesser";
+import SchemaAutocompleteInput from "./SchemaAutocompleteInput";
 
 export interface ConfigureRelatedResourceProps {
-  relatedResource: string
-  relatedName: string
-  relatedResourceReverseName: string
+  relatedResource: string;
 }
 
-const CustomToolbar = () => (
-  <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-      <SaveButton alwaysEnable/>
-  </Toolbar>
-);
-
-const ConfigureRelatedResource = (
-  {
-    relatedResource,
-    relatedName,
-    relatedResourceReverseName,
-  }: ConfigureRelatedResourceProps
-) => {
+/** Configure a service's related settings, querying the relationship so record switches stay fresh. */
+export default function ConfigureRelatedResource({
+  relatedResource,
+}: ConfigureRelatedResourceProps) {
+  const { resource, record, refetch: refetchService } = useShowContext();
   const translate = useTranslate();
   const notify = useNotify();
-  
-  // this is the wms service record with all includes layers which are fetched in the parent component.
-  const { record, refetch } = useShowController();
-  const [relatedObject, setRelatedObject] = useState(_.get(record, relatedName))
-
-  const onSuccess = useCallback((data: any, variables: any, context:any)=>{
-    refetch()
-    setRelatedObject(data)
-    notify(`resources.${relatedResource}.notifications.created`, {
-      type: 'info',
-      messageArgs: {
-          smart_count: 1,
-          _: translate(`ra.notification.created`, {
-              smart_count: 1,
-          }),
-      },
+  const canCreate = useOperation(`create_${relatedResource}`);
+  const canEdit = useOperation(`partial_update_${relatedResource}`);
+  const fields = useFieldsForOperation({
+    operationId: `create_${relatedResource}`,
   });
-  },[])
-
-  const defaultValues = useMemo(()=> {
-    const _defaultValues: any =  {}
-    _defaultValues[relatedResourceReverseName] = record;
-    return _defaultValues
-  },[relatedName, record])
-  
-  const isMultiple = useMemo(()=> (Array.isArray(relatedObject)), [relatedObject])
-
-  const editForms = useMemo(()=>(
-    isMultiple ? relatedObject.map((obj: RaRecord) => (
-      <EditGuesser
-        key={`edit-${relatedResource}-${obj?.id}`}
-        resource={relatedResource}
-        id={obj?.id}
-        simpleFormProps={{toolbar:<CustomToolbar/>}}
-        redirect={false}
-      /> 
-    )) : <EditGuesser 
-          resource={relatedResource}
-          id={relatedObject?.id}
-          simpleFormProps={{toolbar:<CustomToolbar/>}}
-          redirect={false}
-        /> 
-  ), [isMultiple])
-
-  if (relatedObject === null || relatedObject === undefined)
+  const source = fields.find(
+    (field) =>
+      !field.props.multiple &&
+      field.component === SchemaAutocompleteInput &&
+      field.props.reference === resource,
+  )?.props.source;
+  const { data, isPending, error, refetch } = useGetList(
+    relatedResource,
+    {
+      pagination: { page: 1, perPage: 25 },
+      sort: { field: "id", order: "ASC" },
+      filter: {},
+      meta: { relatedResource: { resource, id: record?.id } },
+    },
+    { enabled: record?.id != null },
+  );
+  const onSuccess = () => {
+    void refetch();
+    void refetchService();
+    notify("ra.notification.updated", {
+      type: "info",
+      messageArgs: { smart_count: 1 },
+    });
+  };
+  if (!record || isPending) return <Loading />;
+  if (error)
+    return <Alert severity="error">{translate("serviceShow.loadError")}</Alert>;
+  const overrides = source
+    ? [{ component: SchemaAutocompleteInput, props: { source, hidden: true } }]
+    : undefined;
+  if (!data?.length) {
+    if (!canCreate || !source)
+      return <Alert severity="info">{translate("serviceShow.empty")}</Alert>;
     return (
       <CreateGuesser
+        key={`${resource}:${record.id}`}
         resource={relatedResource}
-        defaultValues={defaultValues}
-        mutationOptions={{onSuccess}}
+        defaultValues={{ [source]: record }}
+        updateFieldDefinitions={overrides}
         redirect={false}
+        actions={false}
+        mutationOptions={{ onSuccess }}
       />
-    )
-  return (<Fragment>{editForms}</Fragment>)
+    );
+  }
+  if (!canEdit)
+    return <Alert severity="info">{translate("serviceShow.readOnly")}</Alert>;
+  return (
+    <>
+      {data.map((setting) => (
+        <EditGuesser
+          key={`${resource}:${record.id}:${setting.id}`}
+          resource={relatedResource}
+          id={setting.id}
+          redirect={false}
+          actions={false}
+          mutationOptions={{ onSuccess }}
+          updateFieldDefinitions={overrides}
+          simpleFormProps={{
+            toolbar: (
+              <Toolbar>
+                <SaveButton />
+              </Toolbar>
+            ),
+          }}
+        />
+      ))}
+    </>
+  );
 }
-
-export default ConfigureRelatedResource

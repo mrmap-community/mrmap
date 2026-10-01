@@ -33,12 +33,8 @@ def create_harvesting_job(*args, **kwargs):
     queue="db-routines",
 )
 def finish_harvesting_job(*args, **kwargs):
-    from registry.models.harvest import HarvestingJob
-    harvesting_job = HarvestingJob.objects.get(
-        pk=kwargs.get("harvesting_job_id"))
-    harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
-    harvesting_job.done_at = now()
-    harvesting_job.save(skip_history_when_saving=False)
+    from registry.querys.harvest_history import complete_harvest
+    complete_harvest(kwargs.get("harvesting_job_id"))
 
 
 @shared_task(
@@ -125,7 +121,9 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
         harvesting_job.phase = HarvestingPhaseEnum.RECORDS_TO_DB.value
         harvesting_job.append_celery_task_ids(task_ids + [callback_id])
     else:
-        harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
+        from registry.querys.harvest_history import complete_harvest
+        complete_harvest(harvesting_job_id)
+        return
     harvesting_job.save(skip_history_when_saving=False)
 
 

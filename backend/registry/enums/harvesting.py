@@ -8,6 +8,7 @@ class CollectingStatenEnum(IntegerChoices):
     NEW = 1, _("new")
     UPDATED = 2, _("updated")
     EXISTING = 3, _("existing")
+    REMOVED = 4, _("removed")
     DUPLICATED = 0, _("duplicated")
 
 

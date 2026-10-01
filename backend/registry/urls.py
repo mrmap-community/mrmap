@@ -220,6 +220,8 @@ wms_update_jobs_routes.register(r'layer-mappings', update_views.NestedLayerMappi
 router.register(r'update/layer-mappings',
                 update_views.LayerMappingViewSet, basename='layermapping')
 
+router.register(r'update/webfeatureservice-update-settings',
+                update_views.WebFeatureServiceUpdateSettingViewSet, basename='webfeatureserviceupdatesetting')
 wfs_updating_routes = router.register(
     r"update/webfeatureservice-update-jobs",
     update_views.WebFeatureServiceUpdateJobViewSet,
@@ -230,6 +232,8 @@ wfs_updating_routes.register(r'featuretype-mappings', update_views.NestedFeature
 router.register(r'update/featuretype-mappings',
                 update_views.FeatureTypeMappingViewSet, basename='featuretypemapping')
 
+router.register(r'update/catalogueservice-update-settings',
+                update_views.CatalogueServiceUpdateSettingViewSet, basename='catalogueserviceupdatesetting')
 router.register(r'update/catalogueservice-update-jobs',
                 update_views.CatalogueServiceUpdateJobViewSet, basename='catalogueserviceupdatejob')
 

@@ -32,13 +32,14 @@ const ListAllowedWebMapServiceOperation = (
 
   return (
     <ListWithDialogs
-      editGuesserProps={guesserProps}
-      createGuesserProps={guesserProps}
+      {...props}
+      editGuesserProps={props.editGuesserProps ?? guesserProps}
+      createGuesserProps={props.createGuesserProps ?? guesserProps}
       listGuesserProps={{
         actions: actions,
         defaultSelectedColumns:["allowedArea", "description", "allowedGroups", "operations"],
+        ...props.listGuesserProps,
       }}
-      {...props}
     />
   )
 

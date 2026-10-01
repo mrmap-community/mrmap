@@ -1,7 +1,7 @@
 import { type ReactElement } from 'react';
 import { Create, type CreateProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, useResourceDefinition } from 'react-admin';
 import { FieldDefinition } from '../utils';
-import { ReferenceManyErrorsProvider } from './ReferenceManyErrorsProvider';
+import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 import SchemaFormFields from './SchemaFormFields';
 import useGuesserSuccess from '../hooks/useGuesserSuccess';
 
@@ -37,13 +37,18 @@ const CreateGuesserBase = (
 ): ReactElement => {
 
   const { name, options } = useResourceDefinition({ resource: rest.resource })
+  const { getErrors } = useReferenceManyErrors();
   const onSuccess = useGuesserSuccess({ resource: name, action: 'created', redirectTo: rest.redirect, undoable: false });
 
   // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
-  const _mutationOptions = {
+  const _mutationOptions: CreateGuesserProps['mutationOptions'] = {
     ...mutationOptions,
     meta: { ...mutationOptions?.meta, type: options?.type },
-    onSuccess,
+    onSuccess: (...args) => {
+      // Keep partial relationship failures visible even when a screen supplies its own success action.
+      if (getErrors().length || !mutationOptions?.onSuccess) return onSuccess(args[0]);
+      return mutationOptions.onSuccess(...args);
+    },
   }
 
   return (

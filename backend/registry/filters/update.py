@@ -45,6 +45,16 @@ class LayerMappingFilterSet(FilterSet):
 
 
 class WebFeatureServiceUpdateJobFilterSet(FilterSet):
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
+
     class Meta:
         model = WebFeatureServiceUpdateJob
         fields = {
@@ -70,6 +80,16 @@ class FeatureTypeMappingFilterSet(FilterSet):
 
 
 class CatalogueServiceUpdateJobFilterSet(FilterSet):
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
+
     class Meta:
         model = CatalogueServiceUpdateJob
         fields = {

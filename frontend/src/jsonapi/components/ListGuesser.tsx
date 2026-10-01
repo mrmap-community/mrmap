@@ -51,7 +51,7 @@ const ListGuesser = ({
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, options } = useResourceDefinition(props)
-  const listOptions = useMemo(()=>(options.list),[options])
+  const listOptions = useMemo(()=>(options?.list),[options])
 
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
@@ -125,8 +125,6 @@ const ListGuesser = ({
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
     return <div />
   }
-
-  console.log(queryOptions, relatedResource)
 
   return (
     <ListComponent

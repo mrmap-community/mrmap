@@ -3,17 +3,18 @@ import ListGuesser from "../../../../../../jsonapi/components/ListGuesser";
 import MonitoringRunsCardBase from "./MonitoringRunsCardBase";
 import MonitoringRunsList from "./MonitoringRunsList";
 
-const MonitoringRunsCard = () => {
-  const resource = useResourceContext();
-  const nestedResource = "WebMapServiceMonitoringRun";
+const MonitoringRunsCard = ({
+  resource
+}: { resource: string }) => {
+  const parentResource = useResourceContext();
   const record = useRecordContext();
   const relatedResource = {
-    resource: resource,
+    resource: parentResource,
     id: record?.id,
   };
   return (
     <ListGuesser
-      resource={nestedResource}
+      resource={resource}
       relatedResource={relatedResource}
       disableSyncWithLocation
       sort={{ field: "dateDone", order: "DESC" }}
@@ -24,7 +25,8 @@ const MonitoringRunsCard = () => {
       pagination={false}
       empty={false}
       component={MonitoringRunsCardBase}
-      storeKey="wms_overview_monitoring_runs"
+      storeKey={`_${resource}_overview_monitoring_runs`}
+
       defaultSelectedColumns={["id", "dateCreated", "dateDone", "status"]}
       dataGridProps={{
         component: MonitoringRunsList,

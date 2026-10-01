@@ -6,16 +6,18 @@ from registry.filters.update import (CatalogueServiceUpdateJobFilterSet,
                                      LayerMappingFilterSet,
                                      WebFeatureServiceUpdateJobFilterSet,
                                      WebMapServiceUpdateJobFilterSet)
-from registry.models import (CatalogueServiceUpdateJob, FeatureTypeMapping,
+from registry.models import (CatalogueServiceUpdateJob,
+                             CatalogueServiceUpdateSetting, FeatureTypeMapping,
                              LayerMapping, WebFeatureServiceUpdateJob,
+                             WebFeatureServiceUpdateSetting,
                              WebMapServiceUpdateJob,
                              WebMapServiceUpdateSetting)
-from registry.serializers.update import (CatalogueServiceUpdateJobSerializer,
-                                         FeatureTypeMappingSerializer,
-                                         LayerMappingSerializer,
-                                         WebFeatureServiceUpdateJobSerializer,
-                                         WebMapServiceUpdateJobSerializer,
-                                         WebMapServiceUpdateSettingSerializer)
+from registry.serializers.update import (
+    CatalogueServiceUpdateJobSerializer,
+    CatalogueServiceUpdateSettingSerializer, FeatureTypeMappingSerializer,
+    LayerMappingSerializer, WebFeatureServiceUpdateJobSerializer,
+    WebFeatureServiceUpdateSettingSerializer, WebMapServiceUpdateJobSerializer,
+    WebMapServiceUpdateSettingSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -53,7 +55,8 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
         "mappings": [
             Prefetch(
                 "mappings",
-                queryset=LayerMapping.objects.select_related("job", "new_layer", "old_layer"),
+                queryset=LayerMapping.objects.select_related(
+                    "job", "new_layer", "old_layer"),
             ),
         ],
     }
@@ -107,6 +110,26 @@ class NestedLayerMappingViewSet(
         LayerMappingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `LayerMapping` """
+
+
+class WebFeatureServiceUpdateSettingViewSetMixing:
+    queryset = WebFeatureServiceUpdateSetting.objects.select_related('crontab')
+    serializer_class = WebFeatureServiceUpdateSettingSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_fields = ('service', )
+    ordering_fields = ("id", "service")
+
+
+class WebFeatureServiceUpdateSettingViewSet(
+        WebFeatureServiceUpdateSettingViewSetMixing,
+        ModelViewSet):
+    """ Endpoints for resource `WebFeatureServiceUpdateSetting`"""
+
+
+class NestedWebFeatureServiceUpdateSettingViewSet(
+        WebFeatureServiceUpdateSettingViewSetMixing,
+        NestedModelViewSet):
+    """ Nested list endpoint for resource `WebFeatureServiceUpdateSetting` """
 
 
 class WebFeatureServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
@@ -173,6 +196,26 @@ class FeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, ModelViewSet):
 
 class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedModelViewSet):
     """Nested list endpoint for resource `FeatureTypeMapping`"""
+
+
+class CatalogueServiceUpdateSettingViewSetMixing:
+    queryset = CatalogueServiceUpdateSetting.objects.select_related('crontab')
+    serializer_class = CatalogueServiceUpdateSettingSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_fields = ('service', )
+    ordering_fields = ("id", "service")
+
+
+class CatalogueServiceUpdateSettingViewSet(
+        CatalogueServiceUpdateSettingViewSetMixing,
+        ModelViewSet):
+    """ Endpoints for resource `CatalogueServiceUpdateSetting`"""
+
+
+class NestedCatalogueServiceUpdateSettingViewSet(
+        CatalogueServiceUpdateSettingViewSetMixing,
+        NestedModelViewSet):
+    """ Nested list endpoint for resource `CatalogueServiceUpdateSetting` """
 
 
 class CatalogueServiceUpdateJobViewSetMixin:

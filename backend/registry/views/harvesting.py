@@ -492,9 +492,10 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
     queryset = HarvestedMetadataRelation.objects.all()
     serializer_class = HarvestedMetadataRelationSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
+    ordering_fields = ["id", "history_date"]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
+        'harvesting_job__service': ['exact'],
         'collecting_state': ['exact', 'icontains', 'contains', 'in'],
         'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
         "dataset_metadata_record": ["isnull"],

@@ -8,7 +8,9 @@ from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
                              LayerMapping, WebFeatureService,
                              WebFeatureServiceUpdateJob, WebMapService,
                              WebMapServiceUpdateJob)
-from registry.models.update import WebMapServiceUpdateSetting
+from registry.models.update import (CatalogueServiceUpdateSetting,
+                                    WebFeatureServiceUpdateSetting,
+                                    WebMapServiceUpdateSetting)
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
@@ -21,18 +23,11 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  Serializer)
 
 
-class WebMapServiceUpdateSettingSerializer(
-    StringRepresentationSerializer,
-    SystemInfoSerializerMixin,
-    ModelSerializer
+class UpdateSettingSerializer(
+    Serializer
 ):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoringsetting-detail',
-    )
-    service = ResourceRelatedField(
-        label=_("web map service"),
-        help_text=_("the web map service for that this settings are."),
-        queryset=WebMapService.objects,
     )
     schedule_interval = CrontabStringField(
         source='crontab',
@@ -53,7 +48,61 @@ class WebMapServiceUpdateSettingSerializer(
         return expected_at is not None and expected_at < current_time
 
     class Meta:
+        fields = ('url', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
+class WebMapServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_("the web map service for that this settings are."),
+        queryset=WebMapService.objects,
+    )
+
+    class Meta:
         model = WebMapServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
+class WebFeatureServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    service = ResourceRelatedField(
+        label=_("web feature service"),
+        help_text=_("the web feature service for that this settings are."),
+        queryset=WebFeatureService.objects,
+    )
+
+    class Meta:
+        model = WebFeatureServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
+class CatalogueServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+
+    service = ResourceRelatedField(
+        label=_("catalogue service"),
+        help_text=_("the catalogue service for that this settings are."),
+        queryset=CatalogueService.objects,
+    )
+
+    class Meta:
+        model = CatalogueServiceUpdateSetting
         fields = ('url', 'service', 'schedule_interval', 'enabled',
                   'last_run_at', 'next_run_expected_at', 'run_overdue')
 

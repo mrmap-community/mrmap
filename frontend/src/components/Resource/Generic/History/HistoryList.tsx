@@ -54,7 +54,7 @@ const HistoryList = ({
   const { name } = useResourceDefinition()
   
   const { api } = useHttpClientContext()
-  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
+  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
   
   if (!hasHistoricalEndpoint){
     return <Fragment></Fragment>

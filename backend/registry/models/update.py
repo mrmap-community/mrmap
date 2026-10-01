@@ -124,6 +124,34 @@ class WebMapServiceUpdateConfig(models.Model):
         verbose_name_plural = _("Web Map Service Update Configs")
 
 
+class WebFeatureServiceUpdateSetting(PeriodicTask):
+    @property
+    def next_run_expected_at(self):
+        return next_run_expected_at(self)
+
+    service: WebFeatureService = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        related_name="web_feature_service_update_settings",
+        related_query_name="web_feature_service_update_setting",
+        verbose_name=_("web feature service"),
+        help_text=_("this is the service which shall be updated"))
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.update.create_wfs_update_job"
+            if not self.queue:
+                self.queue = "update"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                self.kwargs = json.dumps({
+                    "name": str(self.name),
+                })
+
+
 class WebFeatureServiceUpdateConfig(models.Model):
     service = models.OneToOneField(
         to=WebFeatureService,
@@ -137,6 +165,34 @@ class WebFeatureServiceUpdateConfig(models.Model):
     class Meta:
         verbose_name = _("Web Feature Service Update Config")
         verbose_name_plural = _("Web Feature Service Update Configs")
+
+
+class CatalogueServiceUpdateSetting(PeriodicTask):
+    @property
+    def next_run_expected_at(self):
+        return next_run_expected_at(self)
+
+    service: CatalogueService = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="catalogue_service_update_settings",
+        related_query_name="catalogue_service_update_setting",
+        verbose_name=_("catalogue service"),
+        help_text=_("this is the service which shall be updated"))
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.update.create_csw_update_job"
+            if not self.queue:
+                self.queue = "update"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                self.kwargs = json.dumps({
+                    "name": str(self.name),
+                })
 
 
 class CatalogueServiceUpdateConfig(models.Model):
@@ -405,7 +461,8 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
             # clean up everthing we do not longer need
             layers_to_delete = Layer.objects.filter(id__in=deleteable_layers)
-            collector = Collector(using=layers_to_delete.db, origin=layers_to_delete)
+            collector = Collector(
+                using=layers_to_delete.db, origin=layers_to_delete)
             collector.collect(layers_to_delete)
             # Set the reason on the instances passed to the history deletion signal.
             # Keep bulk deletion: Node.delete() would adjust the updated tree again.

@@ -87,6 +87,10 @@ class WebFeatureServiceHistoricalFilterSet(HistoricalFilterSet):
 class FeatureTypeHistoricalFilterSet(HistoricalFilterSet):
     class Meta(HistoricalFilterSet.Meta):
         model = FeatureType.change_log.model
+        fields = {
+            **HistoricalFilterSet.Meta.fields,
+            "service": ["exact"],
+        }
 
 
 class CatalogueServiceHistoricalFilterSet(HistoricalFilterSet):

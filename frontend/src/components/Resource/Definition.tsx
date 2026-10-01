@@ -26,10 +26,11 @@ import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
-import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
+import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListSystemInfo from './System/ListSystemInfo';
+import WfsShow from './WebFeatureService/Show/WfsShow';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import { WmsShow } from './WebMapService/Show/WmsShow';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
@@ -57,7 +58,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
-  {name: "WebFeatureService", icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
+  {name: "WebFeatureService", show: WfsShow, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   
@@ -93,6 +94,13 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate, options: { menu: { group: "WMS", order: 40 } }},
   {name: "LayerMapping", icon: SyncAltIcon},
 
+  {name: "WebFeatureServiceUpdateSetting", icon: UpdateIcon},
+  {name: "WebFeatureServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "WFS", order: 40 } }},
+  
+
+  {name: "CatalogueServiceUpdateSetting", icon: UpdateIcon},
+  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "CSW", order: 40 } }},
+  
 
   // monitoring
   {
@@ -111,6 +119,26 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "GetCapabilitiesProbeResult"},
   {name: "GetMapProbeResult"},
 
+
+  /*
+  // TODO: add WFS and csw monitoring resources if backend supports it
+  {
+    name: "WebFeatureServiceMonitoringSetting", 
+    icon: LegendToggleIcon,
+    options: { menu: { group: "WFS", order: 50 } }
+  },
+
+  
+
+  {name: "WebFeatureServiceMonitoringRun"},
+
+
+
+*/
+
+
+
+  
   {name: "ReferenceSystem"},
 
 

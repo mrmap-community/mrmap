@@ -24,10 +24,13 @@ const service = {
   historyRelation: { id: "service-id" },
 };
 
+const layerData = [layer];
+const serviceData = [service];
+
 beforeEach(() => {
   vi.mocked(useGetList).mockReset();
   vi.mocked(useGetList, { partial: true }).mockImplementation((resource) => ({
-    data: resource === "HistoricalLayer" ? [layer] : [service],
+    data: resource === "HistoricalLayer" ? layerData : serviceData,
     isLoading: false,
   }));
 });

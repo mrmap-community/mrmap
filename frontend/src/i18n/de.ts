@@ -2,6 +2,29 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  serviceShow: {
+      featureTypeChanges: "Änderungen an Feature-Typen",
+      harvestedChanges: "Änderungen an geharvesteten Datensätzen",
+    overview: "Übersicht",
+    details: "Dienstdetails",
+    metadata: "Metadaten",
+    capabilities: "GetCapabilities-URL",
+    operationUrls: "Operations-URLs",
+    layers: "Layer",
+    featureTypes: "Feature-Typen",
+    records: "Datensätze",
+    proxy: "Proxy-Einstellungen",
+    access: "Zugriffsregeln",
+    monitoring: "Monitoring",
+    updates: "Aktualisierungseinstellungen",
+    harvesting: "Harvesting-Aktivität",
+    schedules: "Harvesting-Zeitpläne",
+    history: "Letzte Änderungen",
+    empty: "Noch keine Einträge.",
+    configure: "Verwalten",
+    loadError: "Konfiguration konnte nicht geladen werden.",
+    readOnly: "Diese Konfiguration ist schreibgeschützt.",
+  },
   systemInfo: {
     "title": "Systeminformationen",
     "unavailable": "Systeminformationen sind nicht verfügbar.",

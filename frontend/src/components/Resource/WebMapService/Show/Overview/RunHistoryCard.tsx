@@ -1,4 +1,3 @@
-import SimpleCard from "../../../../MUI/SimpleCard";
 import {
   Alert,
   alpha,
@@ -15,8 +14,9 @@ import {
   useGetList,
   useListContext,
   useRecordContext,
-  useTranslate,
+  useTranslate
 } from "react-admin";
+import SimpleCard from "../../../../MUI/SimpleCard";
 
 interface RunSetting extends RaRecord {
   enabled: boolean;
@@ -24,8 +24,6 @@ interface RunSetting extends RaRecord {
 }
 
 interface RunHistoryCardProps extends PropsWithChildren {
-  resource: string;
-  settingsResource: string;
   serviceFilter: string;
   color?: "success" | "warning" | "error";
   getHeader: (
@@ -35,19 +33,23 @@ interface RunHistoryCardProps extends PropsWithChildren {
 
 const RunHistoryCard = ({
   children,
-  resource,
-  settingsResource,
   serviceFilter,
   color: statusColor,
   getHeader,
 }: RunHistoryCardProps) => {
-  const { data, isPending, error } = useListContext();
+  const { data, isPending, error, resource } = useListContext();
+  const [prefix, suffix] = resource.split(/(?=Job|Run$)/);
+  const settingsResource = `${prefix}Setting`;
+
   const service = useRecordContext();
+  
   const createPath = useCreatePath();
   const translate = useTranslate();
   const message = (key: string) => translate(`resources.${resource}.${key}`);
   const hasRuns = (data?.length ?? 0) > 0;
   const empty = !isPending && !error && data !== undefined && !hasRuns;
+  
+  
   const settings = useGetList<RunSetting>(
     settingsResource,
     {

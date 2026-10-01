@@ -3,7 +3,7 @@ import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, S
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
-import { ReferenceManyErrorsProvider } from './ReferenceManyErrorsProvider';
+import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 import SchemaAutocompleteInput from './SchemaAutocompleteInput';
 import type { JsonApiQueryParams } from '../types/jsonapi';
 import SchemaFormFields from './SchemaFormFields';
@@ -90,10 +90,11 @@ const EditGuesserBase = (
     return _meta
   },[ fieldDefinitions, options?.type, sparseFieldsPerResource, includeAbleResources])
   
+  const { getErrors } = useReferenceManyErrors();
   const onSuccess = useGuesserSuccess({ resource: name, action: 'update', redirectTo: props.redirect, undoable: props.mutationMode === 'undoable' });
 
   // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
-  const _mutationOptions = useMemo(() => {
+  const _mutationOptions = useMemo<EditGuesserProps['mutationOptions']>(() => {
     return {
       ...mutationOptions,
       meta: {
@@ -101,9 +102,13 @@ const EditGuesserBase = (
         ...mutationOptions?.meta,
         type: options?.type,
       },
-      onSuccess,
+      onSuccess: (...args) => {
+        // Keep partial relationship failures visible even when a screen supplies its own success action.
+        if (getErrors().length || !mutationOptions?.onSuccess) return onSuccess(args[0]);
+        return mutationOptions.onSuccess(...args);
+      },
     }
-  }, [meta, mutationOptions, onSuccess, options?.type])
+  }, [meta, mutationOptions, onSuccess, options?.type, getErrors])
   
   return (
     <Edit

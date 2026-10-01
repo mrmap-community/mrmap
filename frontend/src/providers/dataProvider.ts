@@ -8,7 +8,7 @@ import { WebSocketLike } from 'react-use-websocket/dist/lib/types'
 import axios, { AxiosError } from 'axios'
 import { isEqual } from 'lodash'
 import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi'
-import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
+import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
 import { getAuthToken } from './authProvider'
 import i18nProvider from './i18nProvider'
 import { updateSystemTime } from './systemTimeProvider'
@@ -151,9 +151,7 @@ const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfi
     const jsonApiDocument = response.data as JsonApiDocument
     const resources = jsonApiDocument.data as JsonApiPrimaryData[]
     return {
-      data: resources.map((data: JsonApiPrimaryData) => Object.assign(
-        encapsulateJsonApiPrimaryData(jsonApiDocument, data)
-      )),
+      data: encapsulateJsonApiDocumentData(jsonApiDocument, resources),
       total: getTotal(jsonApiDocument, totalPath),
       pageInfo: {
         hasNextPage: jsonApiDocument.links && jsonApiDocument.links.next !== null,

@@ -1,77 +1,44 @@
-import Dialog, { DialogProps } from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import { Fragment } from 'react/jsx-runtime';
-import { useDialogContextBase } from './DialogContextBase';
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import { useId } from "react";
+import { useDialogContextBase } from "./DialogContextBase";
 
-export interface ContextBasedDialogProps extends Omit<DialogProps,'open'> {
+export interface ContextBasedDialogProps extends Omit<DialogProps, "open"> {}
 
-}
+const ContextBasedDialog = ({ children, ...rest }: ContextBasedDialogProps) => {
+  const { isOpen, close, title, content, actions } = useDialogContextBase();
+  const id = useId();
+  const titleId = `${id}-title`;
+  const contentId = `${id}-content`;
 
-const DefaultChildren = () => {
-  const {title, content, actions} = useDialogContextBase()
-
-  return (
-    <Fragment>
-      <DialogTitle id="scroll-dialog-title">
-        {title}
-      </DialogTitle>
-
-      <DialogContent 
-        dividers={true} 
-        id="scroll-dialog-description"
-      >
-        {content}
-      </DialogContent>
-
-      <DialogActions style={{ justifyContent: "space-between" }}>
-        {actions}
-      </DialogActions>
-    </Fragment>
-  )
-}
-
-
-const ContextBasedDialog = (
-{
-  children = <DefaultChildren/>,
-  ...rest
-}: ContextBasedDialogProps
-) => {
-  const {isOpen, close, title, actions} = useDialogContextBase()
-  
   /* Edit and Form component needed to be outside the Dialog component. 
   Otherwise the scroll feature is broken.
   See: https://github.com/mui/material-ui/issues/13253 
   */
   return (
-    <Dialog 
+    <Dialog
       open={isOpen}
       onClose={close}
-      scroll={'paper'}
-      maxWidth={'xl'}
+      scroll={"paper"}
+      maxWidth={"xl"}
       fullWidth
-      aria-labelledby="scroll-dialog-title"
-      aria-describedby="scroll-dialog-description"
+      aria-labelledby={titleId}
+      aria-describedby={contentId}
       {...rest}
     >
-      <DialogTitle id="scroll-dialog-title">
-        {title}
-      </DialogTitle>
+      <DialogTitle id={titleId}>{title}</DialogTitle>
 
-      <DialogContent 
-        dividers={true} 
-        id="scroll-dialog-description"
-      >
-        {children}
+      <DialogContent dividers={true} id={contentId}>
+        {children === undefined ? content : children}
       </DialogContent>
 
       <DialogActions style={{ justifyContent: "space-between" }}>
         {actions}
       </DialogActions>
     </Dialog>
-  )
-}
+  );
+};
 
-export default ContextBasedDialog
+export default ContextBasedDialog;

@@ -1,12 +1,13 @@
 import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson';
 
+// Geoman extends the Leaflet global during module initialization.
+import L from 'leaflet';
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import { Fragment, type ReactNode, useCallback, useEffect, useRef } from 'react';
 
 
 
-import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 import { GeomanControl } from '../GeomanControl';
 import Events from '../GeomanControl/Events';
@@ -44,7 +45,7 @@ const FeatureGroupEditor = ({
       }
     })
     geoJsonCallback && geoJsonCallback(multiPolygon)
-  }, [map])
+  }, [map, geoJsonCallback])
 
   useEffect(() => {
     if (geoJson !== undefined) {

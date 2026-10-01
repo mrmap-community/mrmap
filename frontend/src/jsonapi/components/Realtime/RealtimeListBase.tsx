@@ -1,94 +1,100 @@
 import { useCallback, useEffect, useState } from "react";
-import { ListBaseProps, ListContextProvider, OptionalResourceContextProvider, RaRecord, useDataProvider, useIsAuthPending, useListController } from "react-admin";
-import { CrudEvent, Subscription } from "../../../providers/dataProvider";
+import {
+  type ListBaseProps,
+  ListContextProvider,
+  OptionalResourceContextProvider,
+  type RaRecord,
+  useDataProvider,
+  useIsAuthPending,
+  useListController,
+} from "react-admin";
+import type { CrudEvent } from "../../../providers/dataProvider";
 
-
-
-const RealtimeListBase = <RecordType extends RaRecord = any>({
+const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
   children,
   loading = null,
   resource,
   ...props
 }: ListBaseProps<RecordType>) => {
-  const {data, ...controllerProps} = useListController<RecordType>({resource, ...props});
-
-  const [realtimeData, setRealtimeData] = useState<RaRecord[]>(data || []);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-
+  const controller = useListController<RecordType>({ resource, ...props });
+  const { data } = controller;
+  const [snapshot, setSnapshot] = useState<{
+    source: typeof data;
+    resource: string;
+    records: RecordType[];
+  }>();
   const dataProvider = useDataProvider();
-
   const isAuthPending = useIsAuthPending({
-    resource: controllerProps.resource,
-    action: 'list',
+    resource: controller.resource,
+    action: "list",
   });
-  
-  const handleBusEvent = useCallback((event: CrudEvent) => {
-    
-    if (event.type === "updated"){
-      event.payload.ids.forEach(id => {
-        const index = realtimeData?.findIndex(record => String(record.id) === String(id))
-        const updatedRecord = event.payload.records?.find(record => String(record.id) === String(id))
-        if (updatedRecord !== undefined && index && index > -1 ) {
-          const newRealtimeData = [...realtimeData]
-          const newRecordData = event.payload.records?.find(record => String(record.id) === String(id))
-          if (newRecordData !== undefined){
-            newRealtimeData[index] = newRecordData
-          } 
-          setRealtimeData(newRealtimeData)
-        }
-      })
-    }
-    
-  }, [realtimeData])
 
-  useEffect(()=>{
-    setRealtimeData([])
-  },[controllerProps.page])
+  const handleBusEvent = useCallback(
+    (event: CrudEvent) => {
+      if (event.type !== "updated" || !data) return;
+      const ids = new Set(event.payload.ids.map(String));
+      const updates = new Map(
+        event.payload.records
+          ?.filter((record) => ids.has(String(record.id)))
+          .map((record) => [String(record.id), record]),
+      );
+      setSnapshot((previous) => ({
+        source: data,
+        resource: controller.resource,
+        records: (previous?.source === data &&
+        previous.resource === controller.resource
+          ? previous.records
+          : data
+        ).map(
+          (record) =>
+            // Events on this resource's topics carry records of the controller's type.
+            (updates.get(String(record.id)) as RecordType | undefined) ??
+            record,
+        ),
+      }));
+    },
+    [data, controller.resource],
+  );
 
-  useEffect(()=>{
-    setRealtimeData(data)
+  useEffect(() => {
+    if (isAuthPending && !props.disableAuthentication) return;
+    const topics =
+      data?.map((record) => `resource/${controller.resource}/${record.id}`) ??
+      [];
+    topics.forEach((topic) => dataProvider.subscribe(topic, handleBusEvent));
+    return () => {
+      topics.forEach((topic) =>
+        dataProvider.unsubscribe(topic, handleBusEvent),
+      );
+    };
+  }, [
+    data,
+    controller.resource,
+    dataProvider,
+    handleBusEvent,
+    isAuthPending,
+    props.disableAuthentication,
+  ]);
 
-    // data is always the current page data
-    const newSubscriptions = data?.map((record): Subscription  => ({
-        topic: `resource/${resource}/${record.id}`,
-        callback: handleBusEvent
-      }
-    )) || []
+  if (isAuthPending && !props.disableAuthentication) return loading;
 
-    // unsubscribe every unmounted record column
-    subscriptions.filter(record => !newSubscriptions.some(r => r.topic === record.topic)).forEach(subscription => {
-      dataProvider.unsubscribe(subscription.topic, subscription.callback)
-    })
-    
-    setSubscriptions(newSubscriptions)
-    
-  }, [data])
-
-  useEffect(()=>{
-    // push subscriptions to dataprovider
-    subscriptions.forEach(subscription => dataProvider.subscribe(subscription.topic, subscription.callback))
-  }, [subscriptions])
-
-  // useEffect(() => {
-  //   // subscribe on mount
-  //   resource && dataProvider.subscribe(`resource/${resource}`, handleBusEvent)
-  //   // unsubscribe on unmount
-  //   return () => resource && dataProvider.unsubscribe(`resource/${resource}`, handleBusEvent)
-  // }, [dataProvider, handleBusEvent])
-
-  if (isAuthPending && !props.disableAuthentication) {
-    return loading;
-  }
-
+  const value =
+    controller.data === undefined
+      ? controller
+      : {
+          ...controller,
+          data:
+            snapshot &&
+            snapshot.source === data &&
+            snapshot.resource === controller.resource
+              ? snapshot.records
+              : controller.data,
+        };
   return (
-    // We pass props.resource here as we don't need to create a new ResourceContext if the props is not provided
     <OptionalResourceContextProvider value={resource}>
-      <ListContextProvider value={{data: realtimeData, ...controllerProps}}>
-          {children}
-      </ListContextProvider>
+      <ListContextProvider value={value}>{children}</ListContextProvider>
     </OptionalResourceContextProvider>
-  )
+  );
+};
 
-}
-
-export default RealtimeListBase
+export default RealtimeListBase;

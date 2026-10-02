@@ -1,5 +1,10 @@
 import { useCallback } from "react";
-import { type RaRecord, ShowButton, SimpleList } from "react-admin";
+import {
+  BasenameContextProvider,
+  type RaRecord,
+  ShowButton,
+  SimpleList,
+} from "react-admin";
 
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 
@@ -44,14 +49,16 @@ const UpdateJobsList = () => {
         />
       )}
       rightIcon={(record) => (
-        <ShowButton
-          record={record}
-          resource="WebMapServiceUpdateJob"
-          label="ra.action.show"
-          variant="contained"
-          color={record.statusCode === 2 ? "warning" : "primary"}
-          icon={false}
-        />
+        <BasenameContextProvider basename="">
+          <ShowButton
+            record={record}
+            resource="WebMapServiceUpdateJob"
+            label="ra.action.show"
+            variant="contained"
+            color={record.statusCode === 2 ? "warning" : "primary"}
+            icon={false}
+          />
+        </BasenameContextProvider>
       )}
       primaryText={(record) =>
         formatMonitoringRun(record.doneAt ?? record.dateCreated)

@@ -100,3 +100,8 @@ Run commands from frontend/.
 npm run lint and npm run format modify files across src/.
 Keep formatting changes scoped to the task.
 
+
+## Function style
+
+Use anonymous arrow functions for all new functions. Assign reusable functions to `const` bindings (for example, `const formatName = (name: string) => ...`) and use arrow functions for callbacks. Do not use `function` declarations or named function expressions.
+Put default exports on a separate line after the declaration (for example, `export default Component;`).

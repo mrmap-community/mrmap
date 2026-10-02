@@ -1,4 +1,4 @@
-import { FilterPayload, List, SimpleList, useRecordContext, useResourceContext } from 'react-admin';
+import { FilterPayload, List, SimpleList, useResourceContext } from 'react-admin';
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Accordion from '@mui/material/Accordion';
@@ -10,12 +10,6 @@ export interface ResourceSearchAccordionProps {
   filter: FilterPayload
 }
 
-const ResourcePanel = () => {
-  const record = useRecordContext();
-  return (
-      <div dangerouslySetInnerHTML={{ __html: record?.abstract }} />
-  );
-};
 
 export const ResourceSearchAccordion = ({
   name,

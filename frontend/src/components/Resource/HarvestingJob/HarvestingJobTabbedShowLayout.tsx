@@ -1,8 +1,5 @@
-import DoneAllIcon from '@mui/icons-material/DoneAll';
-import PauseIcon from '@mui/icons-material/Pause';
-import RemoveDoneIcon from '@mui/icons-material/RemoveDone';
-import { Chip, CircularProgress, Typography } from '@mui/material';
-import { ReactNode, useCallback, useMemo } from 'react';
+import { Chip, Typography } from '@mui/material';
+import { useCallback, useMemo } from 'react';
 import { BooleanField, DateField, Identifier, Loading, NumberField, TabbedShowLayout, TextField, useCreatePath, useShowContext } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
@@ -10,21 +7,7 @@ import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import ProgressField from '../../Field/ProgressField';
 
-const renderStatus = (status: string): ReactNode => {
-  switch(status){
-    case 'aborted':
-      return <Typography component='span'><RemoveDoneIcon/> aborted </Typography>
-       
-    case 'completed':
-      return <Typography component='span'><DoneAllIcon/> completed </Typography>
-    case 'running':
-      return <Typography component='span'><CircularProgress/> running </Typography>
-    case 'pending':
-      return <Typography component='span'><PauseIcon/> pending </Typography>
-    default:
-      return <PauseIcon />
-  }
-}
+
 
 const HarvestingJobTabbedShowLayout = () => {
   const { error, isPending, record } = useShowContext();

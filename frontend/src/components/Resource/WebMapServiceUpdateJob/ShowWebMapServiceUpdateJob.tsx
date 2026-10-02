@@ -120,31 +120,6 @@ const DiffWmsLayerTree = (
     )
 }
 
-const LayerDiffPanel = (
-    {
-        updateCandidate,
-        currentServiceState
-    }: DiffWmsLayer
-) =>{
-    const contextRecord  = useRecordContext();
-    const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
-    const selectedMapping = useMemo(() => (
-        contextRecord?.mappings?.find((mapping: RaRecord)=> mapping?.newLayer?.id === selectedLayer)
-    ),[contextRecord, selectedLayer])
-
-    const newLayer = useMemo(() => (updateCandidate?.layers.find((layer: RaRecord) => layer.id === selectedMapping?.newLayer?.id)),[updateCandidate, selectedMapping])
-    const oldLayer = useMemo(() => (currentServiceState?.layers.find((layer: RaRecord) => layer.id === selectedMapping?.oldLayer?.id)),[currentServiceState, selectedMapping])
-
-    return (
-        <SimpleCard
-            title={newLayer?.stringRepresentation}
-        >       
-            <Stack direction="row" >
-
-            </Stack>
-        </SimpleCard>
-    )
-}
 
 
 

@@ -12,6 +12,12 @@ from registry.models import (CatalogueServiceUpdateJob,
                              WebFeatureServiceUpdateSetting,
                              WebMapServiceUpdateJob,
                              WebMapServiceUpdateSetting)
+from registry.models.metadata import Keyword
+from registry.models.monitoring import WebMapServiceMonitoringSetting
+from registry.models.security import (AllowedWebMapServiceOperation,
+                                      WebMapServiceProxySetting)
+from registry.models.service import (Layer, WebMapService,
+                                     WebMapServiceOperationUrl)
 from registry.serializers.update import (
     CatalogueServiceUpdateJobSerializer,
     CatalogueServiceUpdateSettingSerializer, FeatureTypeMappingSerializer,
@@ -48,10 +54,95 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
     filterset_class = WebMapServiceUpdateJobFilterSet
     ordering_fields = ("id", "date_created", "done_at", "status")
     select_for_includes = {
-        "service": ["service"],
-        "update_candidate": ["update_candidate"],
+        # "service": ["webmapservice_update_candidate"],
     }
     prefetch_for_includes = {
+        "service": [
+            Prefetch(
+                "service",
+                queryset=WebMapService.objects.select_related(
+                    "proxy_setting", "webmapservice_update_candidate"
+                ).prefetch_related(
+                    Prefetch(
+                        "keywords",
+                        queryset=Keyword.objects.only("id")
+                    ),
+                    Prefetch(
+                        "allowed_operations",
+                        queryset=AllowedWebMapServiceOperation.objects.only(
+                            "id", "secured_service")
+                    ),
+                    Prefetch(
+                        "operation_urls",
+                        queryset=WebMapServiceOperationUrl.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "web_map_service_monitorings",
+                        queryset=WebMapServiceMonitoringSetting.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "web_map_service_update_settings",
+                        queryset=WebMapServiceUpdateSetting.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "layers",
+                        queryset=Layer.objects.only(
+                            "id",
+                            "service_id",
+                            "mptt_tree_id",
+                            "mptt_lft",
+                        ),
+                    ),
+                    "languages",
+                )
+            )
+        ],
+        "update_candidate": [
+            Prefetch(
+                "service__webmapservice_update_candidate",
+                queryset=WebMapService.objects.select_related(
+                    "proxy_setting",
+                ).prefetch_related(
+                    Prefetch(
+                        "keywords",
+                        queryset=Keyword.objects.only("id")
+                    ),
+                    Prefetch(
+                        "allowed_operations",
+                        queryset=AllowedWebMapServiceOperation.objects.only(
+                            "id", "secured_service")
+                    ),
+                    Prefetch(
+                        "operation_urls",
+                        queryset=WebMapServiceOperationUrl.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "web_map_service_monitorings",
+                        queryset=WebMapServiceMonitoringSetting.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "web_map_service_update_settings",
+                        queryset=WebMapServiceUpdateSetting.objects.only(
+                            "id", "service"),
+                    ),
+                    Prefetch(
+                        "layers",
+                        queryset=Layer.objects.only(
+                            "id",
+                            "service_id",
+                            "mptt_tree_id",
+                            "mptt_lft",
+                        ),
+                    ),
+                    "languages",
+                )
+            )
+        ],
         "mappings": [
             Prefetch(
                 "mappings",
@@ -72,6 +163,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
                 ),
             ),
         ],
+
     }
 
 

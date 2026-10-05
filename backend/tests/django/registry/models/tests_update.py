@@ -4,10 +4,13 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
+from registry.models.monitoring import WebMapServiceMonitoringRun, WebMapServiceMonitoringSetting
 from registry.models.update import WebFeatureServiceUpdateJob, WebMapServiceUpdateJob
+from registry.tasks.update import run_wms_update
 from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse
@@ -87,6 +90,51 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             with transaction.atomic():
                 WebMapServiceUpdateJob.objects.create(
                     service=self.wms)
+
+    @patch.object(Session, "send", side_effect=[ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE])
+    @patch("registry.models.update.run_wms_update.apply_async")
+    def test_review_completion_runs_after_commit(self, enqueue, remote):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+        self.assertIsNone(self.update_job.done_at)
+
+        interval = IntervalSchedule.objects.create(every=1, period="days")
+        candidate_setting = WebMapServiceMonitoringSetting.objects.create(
+            service=self.update_job.new_service, interval=interval,
+        )
+        # bulk_create avoids queuing unrelated monitoring tasks in this test.
+        run = WebMapServiceMonitoringRun.objects.bulk_create([
+            WebMapServiceMonitoringRun(setting=candidate_setting),
+        ])[0]
+
+        # Pending reviews must leave the candidate and mappings intact.
+        run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+
+        mapping = self.update_job.mappings.get(is_confirmed=False)
+        with self.captureOnCommitCallbacks(execute=True):
+            mapping.is_confirmed = True
+            mapping.save(update_fields=["is_confirmed"])
+            enqueue.assert_not_called()
+        enqueue.assert_called_once_with(kwargs={"update_job_id": self.update_job.pk})
+
+        run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertIsNotNone(self.update_job.done_at)
+        self.assertFalse(self.update_job.mappings.exists())
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
+        candidate_setting.refresh_from_db()
+        self.assertEqual(candidate_setting.service_id, self.wms.pk)
+        self.assertFalse(candidate_setting.enabled)
+        self.assertTrue(WebMapServiceMonitoringRun.objects.filter(pk=run.pk).exists())
+
+        # Duplicate deliveries must not try to update a deleted candidate.
+        done_at = self.update_job.done_at
+        run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.done_at, done_at)
 
     @patch.object(
         target=Session,

@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { RaRecord, RecordRepresentation, useRecordContext, useShowContext } from 'react-admin';
 
 import { Tooltip } from '@mui/material';
+import { useSimpleTreeViewApiRef } from '@mui/x-tree-view/hooks';
 import { SimpleTreeView, SimpleTreeViewProps } from '@mui/x-tree-view/SimpleTreeView';
 
 import ToggleOffIcon from '@mui/icons-material/ToggleOff';
@@ -14,7 +15,7 @@ import SimpleUpdateButton from '../../../../jsonapi/components/SimpleUpdateButto
 import { getAnchestors } from '../../../MapViewer/utils';
 import { getSubTree, useQueryParam } from '../../../utils';
 
-export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps, 'children'> {
+export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps<false>, 'children'> {
   getLayerProps?: (record: RaRecord) => TreeItemProps;
   record?: RaRecord
   focusSelectedLayer?: boolean
@@ -82,7 +83,8 @@ const WmsTreeView = ({
   ...props
 }: WmsTreeViewProps) => {
 
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLUListElement>(null);
+  const apiRef = useSimpleTreeViewApiRef();
   // this is the wms service record with all includes layers which are fetched in the parent component.
   const contextRecord = useRecordContext();
   const record = wmsRecord ?? contextRecord;
@@ -102,13 +104,13 @@ const WmsTreeView = ({
   
   const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer', record?.layers?.[0]?.id.toString());
 
-  const defaultExpandedItems = useMemo<string[]>(()=>{
-    if (selectedLayer !== undefined && selectedLayer !== null) {
-        const anchestors = getAnchestors(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), record?.layers.find((layer: RaRecord) => layer.id === selectedLayer))
-        return anchestors?.map(layer => layer.id.toString())
-    }
-    return []
-  },[selectedLayer])
+  const effectiveSelectedLayer = props.selectedItems !== undefined
+    ? props.selectedItems
+    : selectedLayer;
+  const defaultExpandedItems = useMemo<string[]>(() => {
+    const layer = sortedLayers.find((item) => String(item.id) === effectiveSelectedLayer);
+    return layer ? getAnchestors(sortedLayers, layer).map((item) => String(item.id)) : [];
+  }, [sortedLayers, effectiveSelectedLayer]);
 
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
 
@@ -132,33 +134,47 @@ const WmsTreeView = ({
     if(focusSelectedLayer && defaultExpandedItems?.length > 0){
       setExpandedItems(defaultExpandedItems);
     }
-  },[defaultExpandedItems])
+  },[defaultExpandedItems, focusSelectedLayer])
 
 
   useEffect(() => {
-    if (!focusSelectedLayer || !selectedLayer) return;
+    if (!focusSelectedLayer || !effectiveSelectedLayer) return;
 
     let attempts = 0;
-
+    let frame: number;
     const tryScroll = () => {
-      const el = containerRef.current?.querySelector(
-        `[id$="${selectedLayer}"]`
-      );
-
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (attempts < 10) {
-        attempts++;
-        requestAnimationFrame(tryScroll);
+      const container = containerRef.current;
+      if (!container) return;
+      const el = apiRef.current?.getItemDOMElement(effectiveSelectedLayer);
+      const content = el?.querySelector('.MuiTreeItem-content') ?? el;
+      const itemBounds = content?.getBoundingClientRect();
+      if (!itemBounds || itemBounds.height === 0) {
+        if (attempts++ < 30) frame = requestAnimationFrame(tryScroll);
+        return;
+      }
+      const containerBounds = container.getBoundingClientRect();
+      if (itemBounds.top < containerBounds.top || itemBounds.bottom > containerBounds.bottom) {
+        container.scrollTo({
+          top: container.scrollTop + itemBounds.top - containerBounds.top
+            - (container.clientHeight - itemBounds.height) / 2,
+          behavior: 'smooth',
+        });
       }
     };
 
-    tryScroll();
-  }, [selectedLayer, focusSelectedLayer]);
+    const container = containerRef.current;
+    container?.addEventListener('transitionend', tryScroll);
+    frame = requestAnimationFrame(tryScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      container?.removeEventListener('transitionend', tryScroll);
+    };
+  }, [effectiveSelectedLayer, focusSelectedLayer, tree, props.expandedItems, expandedItems]);
 
   return (
     <SimpleTreeView
       ref={containerRef}
+      apiRef={apiRef}
       selectedItems={selectedLayer ?? null}
       
       onSelectedItemsChange={onSelectedItemsChange}

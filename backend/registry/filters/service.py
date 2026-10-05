@@ -122,14 +122,16 @@ class FeatureTypeFilterSet(GeoFilterSet):
 
     has_mapping = BooleanFilter(
         label=_("has mapping"),
-        help_text=_("returns featuretypes that are not mapped to any featuretype mapping"),
+        help_text=_(
+            "returns featuretypes that are not mapped to any featuretype mapping"),
         field_name="mapping",
         lookup_expr="isnull",
         exclude=True,
     )
     has_reverse_mapping = BooleanFilter(
         label=_("has reverse mapping"),
-        help_text=_("returns featuretypes that are mapped to a featuretype mapping"),
+        help_text=_(
+            "returns featuretypes that are mapped to a featuretype mapping"),
         field_name="reverse_mapping",
         lookup_expr="isnull",
         exclude=True,

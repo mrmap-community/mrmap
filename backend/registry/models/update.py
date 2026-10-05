@@ -511,7 +511,11 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         self.update_service()
         status = self.update_layers()
 
-        self.finish(status)
+        if status == UpdateJobStatusEnum.REVIEW_REQUIRED:
+            self.done_at = None
+            self.interrupt()
+        else:
+            self.finish(status)
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
@@ -835,6 +839,12 @@ class ServiceElementMapping(models.Model):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding:
+            if isinstance(self, LayerMapping):
+                # Check readiness in the worker after all review changes commit.
+                job_id = self.job_id
+                on_commit(lambda: run_wms_update.apply_async(
+                    kwargs={"update_job_id": job_id}))
+                return
             # try to resume the job if all elements are updateable and the job is currently interrupted
             try:
                 self.job.resume()

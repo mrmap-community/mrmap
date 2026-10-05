@@ -3,6 +3,28 @@ import { TranslationMessages } from "ra-core";
 // @ts-ignore
 const germanMessages: TranslationMessages = {
   updateReview: {
+      changeSummary: "Zusammenfassung der Layeränderungen",
+      summaryScope: "Die Zahlen beziehen sich auf den gesamten Aktualisierungsauftrag, unabhängig vom Tabellenfilter.",
+      countLoadError: "Anzahl konnte nicht geladen werden.",
+      summary: {"modified": "Geändert", "unchanged": "Unverändert", "added": "Hinzugefügt", "removed": "Gelöscht"},
+      "completedTitle": "Dienstaktualisierung abgeschlossen",
+      "failedTitle": "Dienstaktualisierung fehlgeschlagen",
+      "completedMessage": "Die Aktualisierung ist abgeschlossen. Es ist keine Aktion erforderlich.",
+      "failedMessage": "Die Aktualisierung ist fehlgeschlagen. Aufgezeichnete Änderungen werden unten angezeigt.",
+      "jobDetails": "Auftragsdetails",
+      "createdAt": "Erstellt",
+      "finishedAt": "Abgeschlossen",
+      "changesMade": "Durchgeführte Änderungen",
+      "change": "Änderung",
+      "before": "Vorher",
+      "after": "Nachher",
+      "recordedDetails": "Aufgezeichnete Details",
+      "noFieldChanges": "Keine Feldänderungen aufgezeichnet.",
+      "noRecordedChanges": "Keine Änderungen für diesen Auftrag aufgezeichnet.",
+      "historyLoadError": "Die aufgezeichneten Änderungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "viewService": "Dienst anzeigen",
+      "backToJobs": "Zurück zu den Aktualisierungsaufträgen",
+
     "title": "Dienstaktualisierung prüfen",
     "job": "Aktualisierungsauftrag #%{id}",
     "needsReview": "Prüfung erforderlich",

@@ -29,6 +29,7 @@ import {
 } from "react-admin";
 import WmsTreeView from "../WebMapService/TreeView/WmsTreeView";
 import { useQueryParam } from "../../utils";
+import CompletedUpdateJob from "./CompletedUpdateJob";
 import { EditLayerMapping } from "./EditLayerMapping";
 
 const label = (record?: RaRecord) =>
@@ -128,7 +129,8 @@ const WebMapServiceUpdateJobCard = () => {
     }),
     [],
   );
-  const candidateId = job?.updateCandidate?.id;
+  const finished = Boolean(job?.doneAt) && [0, 3, 5].includes(job?.statusCode);
+  const candidateId = finished ? undefined : job?.updateCandidate?.id;
   const serviceId = job?.service?.id;
   const candidateQuery = useGetOne(
     "WebMapService",
@@ -138,7 +140,7 @@ const WebMapServiceUpdateJobCard = () => {
   const currentQuery = useGetOne(
     "WebMapService",
     { id: serviceId, meta },
-    { enabled: serviceId != null },
+    { enabled: serviceId != null && !finished },
   );
   const newLayers: RaRecord[] = candidateQuery.data?.layers ?? [];
   const oldLayers: RaRecord[] = currentQuery.data?.layers ?? [];
@@ -231,7 +233,10 @@ const WebMapServiceUpdateJobCard = () => {
     [mappings, treeSearch, matchingLayers],
   );
   if (!job) return null;
-  const loading = candidateQuery.isPending || currentQuery.isPending;
+  if (finished) return <CompletedUpdateJob job={job} />;
+  const loading =
+    (candidateId != null && candidateQuery.isPending) ||
+    (serviceId != null && currentQuery.isPending);
   const error = candidateQuery.error || currentQuery.error;
   return (
     <Stack

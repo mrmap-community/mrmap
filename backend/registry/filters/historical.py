@@ -71,6 +71,24 @@ class WebMapServiceHistoricalFilterSet(HistoricalFilterSet):
 
 
 class LayerHistoricalFilterSet(HistoricalFilterSet):
+    change_type = ChoiceFilter(
+        choices=(("modified", _("Changed")), ("unchanged", _("Unchanged")),
+                 ("removed", _("Deleted")), ("added", _("Added"))),
+        method="filter_change_type",
+        help_text=_("Filter layer history by the kind of recorded change."),
+    )
+
+    def filter_change_type(self, queryset, name, value):
+        if value == "removed":
+            return queryset.filter(history_type="-")
+        added = Q(history_type="+") | Q(prev_record_id__isnull=True)
+        if value == "added":
+            return queryset.exclude(history_type="-").filter(added)
+        queryset = with_delta_size(queryset.filter(history_type="~").exclude(added))
+        return queryset.filter(**{
+            "_delta_size__gt" if value == "modified" else "_delta_size": 0,
+        })
+
     class Meta(HistoricalFilterSet.Meta):
         model = Layer.change_log.model
         fields = {

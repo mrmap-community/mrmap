@@ -6,6 +6,8 @@ import { ShowWebMapServiceUpdate } from "./ShowWebMapServiceUpdateJob";
 const { job, current, incoming, refetch, queryState } = vi.hoisted(() => ({
   job: {
     id: 2,
+    doneAt: null as string | null,
+    statusCode: 2,
     service: { id: "service" },
     updateCandidate: { id: "candidate" },
     mappings: [
@@ -60,6 +62,9 @@ vi.mock("react-admin", async (importOriginal) => ({
 vi.mock("../WebMapService/TreeView/WmsTreeView", () => ({
   default: () => <div>Layer tree</div>,
 }));
+vi.mock("./CompletedUpdateJob", () => ({
+  default: () => <div>Completed job summary</div>,
+}));
 vi.mock("./EditLayerMapping", () => ({
   EditLayerMapping: ({
     mapping,
@@ -75,6 +80,8 @@ vi.mock("./EditLayerMapping", () => ({
 }));
 beforeEach(() => {
   queryState.error = null;
+  job.doneAt = null;
+  job.statusCode = 2;
   window.history.replaceState(null, "", window.location.pathname);
 });
 const renderReview = () =>
@@ -84,6 +91,17 @@ const renderReview = () =>
     </AdminContext>,
   );
 describe("update job review", () => {
+  it("replaces review controls with the completed summary", () => {
+    job.doneAt = "2026-10-05T08:01:00Z";
+    job.statusCode = 5;
+    renderReview();
+    expect(screen.getByText("Completed job summary")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Layer tree")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Save mapping/ }),
+    ).not.toBeInTheDocument();
+  });
   it("shows a load error without offering an incomplete review", () => {
     queryState.error = new Error("Offline");
     renderReview();

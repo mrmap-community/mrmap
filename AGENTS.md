@@ -9,29 +9,7 @@ MrMap is a web application with a Django backend and a React/TypeScript frontend
 
 Before implementing changes, inspect the surrounding code and existing project patterns. Prefer extending existing abstractions over introducing new ones.
 
-## Backend
-
-The backend uses:
-
-- Django
-- Django REST Framework
-- `rest_framework_json_api`
-- `drf-spectacular`
-- PostgreSQL / PostGIS
-
-### API conventions
-
-The API follows JSON:API 1.1.
-
-When working on API code:
-
-- Follow existing serializers, viewsets, filtersets, managers, and queryset patterns.
-- Preserve JSON:API conventions and response structure.
-- Keep OpenAPI schemas compatible with `drf-spectacular`.
-- Prefer Django ORM / QuerySet solutions over Python-side filtering or processing when practical.
-- Avoid unnecessary database queries and N+1 query patterns.
-- Do not change existing API contracts unless explicitly requested.
-- Do not introduce migrations unless the requested change requires a database schema change.
+Backend conventions and test commands are documented in `backend/AGENTS.md`. Read that file before modifying backend code.
 
 ## Frontend
 
@@ -92,40 +70,6 @@ If a requested change would require a significant architectural change, API cont
 
 The project uses dedicated Docker containers for running tests. Prefer the test containers instead of running test commands directly in the application containers.
 
-### Backend tests
-
-Run Django tests using the `django-tests` container:
-
-```bash
-docker compose run --rm django-tests
-```
-
-When working on backend code, prefer running targeted tests when possible before running the complete test suite.
-
-### Behavior / integration tests
-
-Run Behave tests using the `behave` container:
-
-```bash
-docker compose run --rm behave
-```
-
-Use these tests when changes affect API behavior, workflows, or other functionality covered by the feature tests.
-
-### Django management commands
-
-Run Django management commands in the backend application container as defined by the project's Docker Compose configuration.
-
-Examples:
-
-```bash
-python manage.py check
-python manage.py makemigrations
-python manage.py migrate
-```
-
-Before creating migrations, verify that the requested change actually requires a database schema change.
-
 ### Frontend
 
 Run frontend commands from `frontend/`.
@@ -144,15 +88,4 @@ npm run dev
 
 Use the scripts defined in `frontend/package.json` for linting, type checking, testing, and building. Do not assume a script exists without checking `package.json`.
 
-### Verification after changes
-
-Run checks appropriate to the modified area:
-
-- Backend implementation changes → `django-tests`
-- API/workflow behavior changes → `django-tests` and relevant `behave` tests
-- Frontend changes → relevant scripts from `frontend/package.json`
-- Cross-stack changes → verify both backend and frontend
-
-Prefer targeted tests during development. Run broader test suites when the scope or risk of the change warrants it.
-
-If a test or verification command cannot be run, report this explicitly rather than assuming the change is correct.
+For cross-stack changes, verify both backend and frontend. Prefer targeted tests during development; run broader suites when the scope or risk warrants it.

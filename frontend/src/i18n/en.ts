@@ -5,6 +5,37 @@ import lodashMerge from 'lodash/merge';
 const en = lodashMerge(
   englishMessages,
   {
+    monitoringRun: {
+      notRecorded: "Not recorded",
+      notRecordedMessage: "No check result was recorded. This check may not have run.",
+      checksPassed: "%{count} checks passed.",
+      validXml: "Valid XML",
+      requiredContent: "Required content present",
+      noExceptions: "No exception markers",
+      imageResponse: "Image response",
+      noMessage: "No explanation was recorded.",
+      resultsLoadError: "Unable to load probe results. Please try again.",
+      noResults: "No probe results recorded for this run.",
+      noMatchingResults: "No probes match this filter.",
+
+      "title": "Monitoring run",
+      "run": "Run %{id}",
+      "running": "Running",
+      "passed": "Passed",
+      "failed": "Failed",
+      "runningMessage": "This monitoring run has not finished yet.",
+      "passedMessage": "All monitoring probes passed.",
+      "failedMessage": "One or more monitoring probes failed. Review the results below.",
+      "details": "Run details",
+      "started": "Started",
+      "finished": "Finished",
+      "duration": "Duration",
+      "setting": "Monitoring setting",
+      "settingUnavailable": "Monitoring setting is no longer available.",
+      "probeResults": "Probe results",
+      "capabilitiesResults": "GetCapabilities results",
+      "mapResults": "GetMap results"
+},
     updateReview: {
       changeSummary: "Layer change summary",
       summaryScope: "Counts cover the entire update job, regardless of table filters.",

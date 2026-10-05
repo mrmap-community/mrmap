@@ -2,7 +2,38 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
-  updateReview: {
+  monitoringRun: {
+      notRecorded: "Nicht aufgezeichnet",
+      notRecordedMessage: "Kein Prüfergebnis aufgezeichnet. Diese Prüfung wurde möglicherweise nicht ausgeführt.",
+      checksPassed: "%{count} Prüfungen erfolgreich.",
+      validXml: "Gültiges XML",
+      requiredContent: "Erforderliche Inhalte vorhanden",
+      noExceptions: "Keine Fehlermeldungsmarker",
+      imageResponse: "Bildantwort",
+      noMessage: "Keine Erklärung aufgezeichnet.",
+      resultsLoadError: "Prüfergebnisse konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      noResults: "Keine Prüfergebnisse für diesen Lauf aufgezeichnet.",
+      noMatchingResults: "Keine Prüfungen entsprechen diesem Filter.",
+
+      "title": "Monitoringlauf",
+      "run": "Lauf %{id}",
+      "running": "Läuft",
+      "passed": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "runningMessage": "Dieser Monitoringlauf ist noch nicht abgeschlossen.",
+      "passedMessage": "Alle Monitoringprüfungen waren erfolgreich.",
+      "failedMessage": "Mindestens eine Monitoringprüfung ist fehlgeschlagen. Prüfen Sie die Ergebnisse unten.",
+      "details": "Laufdetails",
+      "started": "Gestartet",
+      "finished": "Abgeschlossen",
+      "duration": "Dauer",
+      "setting": "Monitoringeinstellung",
+      "settingUnavailable": "Die Monitoringeinstellung ist nicht mehr verfügbar.",
+      "probeResults": "Prüfergebnisse",
+      "capabilitiesResults": "GetCapabilities-Ergebnisse",
+      "mapResults": "GetMap-Ergebnisse"
+},
+    updateReview: {
       changeSummary: "Zusammenfassung der Layeränderungen",
       summaryScope: "Die Zahlen beziehen sich auf den gesamten Aktualisierungsauftrag, unabhängig vom Tabellenfilter.",
       countLoadError: "Anzahl konnte nicht geladen werden.",

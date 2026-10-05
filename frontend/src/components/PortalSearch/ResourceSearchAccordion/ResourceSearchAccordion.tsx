@@ -30,7 +30,9 @@ export const ResourceSearchAccordion = ({
           {resource}
         </AccordionSummary>
         <AccordionDetails>
-          <List resource={resource} filter={filter}>
+          <List resource={resource} filter={resource === 'WebMapService'
+            ? { ...filter, is_update_candidate: false }
+            : filter}>
             <SimpleList
               primaryText={record => record.title}
               secondaryText={record => record.abstract}

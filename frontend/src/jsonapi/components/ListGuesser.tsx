@@ -156,6 +156,9 @@ const ListGuesser = ({
         </AsideCard>: undefined
       }
       {...props}
+      filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
+        ? { is_update_candidate: false, ...props.filter }
+        : props.filter}
     >
       <DatagridConfigurable
         bulkActionButtons={false}

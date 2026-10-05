@@ -44,6 +44,16 @@ from simple_history.models import HistoricalRecords
 logger: Logger = settings.ROOT_LOGGER
 
 
+class ServiceHistoricalRecords(HistoricalRecords):
+    """Record published services and elements, excluding temporary candidates."""
+
+    def create_historical_record(self, instance, history_type, using=None):
+        service = instance.service if isinstance(instance, ServiceElement) else instance
+        if service.update_candidate_of_id is not None:
+            return
+        return super().create_historical_record(instance, history_type, using=using)
+
+
 class CommonServiceInfo(models.Model):
     hits = models.PositiveIntegerField(
         default=0,
@@ -220,7 +230,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -312,7 +322,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -629,7 +639,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         ),
     )
 
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -864,7 +874,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         help_text=_("the default reference system for this feature type"),
     )
 
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],

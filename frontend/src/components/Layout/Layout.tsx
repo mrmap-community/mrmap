@@ -55,6 +55,22 @@ const MyLayout = (
           
           display: 'flex',
           flexDirection: 'column',
+          '& .RaLayout-contentWithSidebar': {
+            flex: 1,
+            minHeight: 0,
+          },
+          '& .RaSidebar-docked': {
+            height: 'auto',
+            minHeight: 0,
+            marginBottom: '40px',
+            '& .MuiPaper-root': {
+              height: '100%',
+            },
+            '& .RaSidebar-fixed': {
+              position: 'absolute',
+              height: '100%',
+            },
+          },
           '& .RaLayout-appFrame': {
             marginTop: '0 !important',
             display: 'flex',
@@ -88,7 +104,7 @@ const MyLayout = (
             marginBottom: "1em",
           },
           '& .RaDatagrid-tableWrapper': {
-            overflowX: 'scroll',
+            overflowX: 'auto',
             margin: "1em",
           }
         }}
@@ -110,7 +126,7 @@ const MyLayout = (
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden',
+            overflow: 'auto',
           }}>
             {children}
           </Box>

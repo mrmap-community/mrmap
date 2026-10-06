@@ -3,6 +3,35 @@
 Django / Django REST Framework backend using `rest_framework_json_api`,
 `drf-spectacular`, PostgreSQL/PostGIS, and django-simple-history.
 
+## Architecture
+
+Business logic should generally live in:
+
+- model methods
+- QuerySets/managers
+- service/mapping classes
+
+Keep ViewSets and serializers thin.
+
+
+## History
+
+Models using django-simple-history must preserve history when
+performing bulk operations.
+
+Prefer the project's existing history-aware bulk utilities.
+
+
+## Database
+
+Avoid N+1 queries.
+
+Use select_related/prefetch_related where appropriate.
+
+Prefer database-side filtering/annotations over Python filtering when
+practical.
+
+
 ## Code navigation
 
 Paths below are relative to `backend/`:
@@ -67,3 +96,22 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm behave
 - Run Django management commands in the `backend` application service using the development Compose configuration; inspect its entrypoint before overriding commands.
 - Before creating migrations, verify that the requested change requires them.
 - Report commands run, results, and any checks that could not run.
+
+
+## Feature specifications
+
+Application behavior is specified using Cucumber/Behave.
+
+Feature files are located under:
+
+    tests/behave/features/
+
+Treat existing feature scenarios as authoritative descriptions of
+expected application behavior.
+
+When implementing new user-visible behavior:
+
+1. Look for an existing feature covering the behavior.
+2. Update or add scenarios when requirements change.
+3. Implement the change.
+4. Run the affected scenarios.

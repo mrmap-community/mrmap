@@ -2,6 +2,22 @@
 
 Paths are relative to frontend/src/ unless stated otherwise”
 
+The frontend uses:
+
+- React
+- TypeScript
+- React-Admin
+- Material UI (MUI)
+
+When working on frontend code:
+
+- Prefer React-Admin abstractions and hooks over custom implementations.
+- Prefer MUI components and styling APIs over custom HTML/CSS.
+- Keep TypeScript types strict; avoid `any` unless there is a strong reason.
+- Reuse existing project components, hooks, utilities, and patterns.
+- Follow existing routing and resource conventions.
+- Preserve existing API contracts and JSON:API behavior.
+
 ## Architecture: schema-driven React-Admin
 
 The frontend uses React-Admin with schema-driven resource behavior.
@@ -99,6 +115,28 @@ Run commands from frontend/.
 
 npm run lint and npm run format modify files across src/.
 Keep formatting changes scoped to the task.
+
+
+## Commands
+
+Run frontend commands from `frontend/`.
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Use the scripts defined in `frontend/package.json` for linting, type checking, testing, and building. Do not assume a script exists without checking `package.json`.
+
+For cross-stack changes, verify both backend and frontend. Prefer targeted tests during development; run broader suites when the scope or risk warrants it.
+
 
 
 ## Function style

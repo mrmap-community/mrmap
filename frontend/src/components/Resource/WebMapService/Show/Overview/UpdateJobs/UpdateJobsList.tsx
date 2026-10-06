@@ -4,13 +4,18 @@ import {
   type RaRecord,
   ShowButton,
   SimpleList,
+  useResourceContext,
 } from "react-admin";
 
+import { Box } from "@mui/material";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+
+import UpdateJobChangeSummary from "../../../../WebMapServiceUpdateJob/UpdateJobChangeSummary";
 
 import { formatMonitoringRun } from "../MonitoringRuns/formatMonitoringRun";
 
 const UpdateJobsList = () => {
+  const resource = useResourceContext();
   const changes = useCallback((record: RaRecord) => {
     const changes = [];
     const layersChanged = (record.mappings ?? []).filter(
@@ -40,7 +45,7 @@ const UpdateJobsList = () => {
       dense
       disablePadding
       sx={{
-        "& .MuiListItem-root": { py: 0.5 },
+        "& .MuiListItem-root": { py: 0.25 },
         "& .MuiListItemText-root": { my: 0 },
       }}
       leftIcon={(record) => (
@@ -63,9 +68,30 @@ const UpdateJobsList = () => {
       primaryText={(record) =>
         formatMonitoringRun(record.doneAt ?? record.dateCreated)
       }
-      secondaryText={(record) =>
-        [record.status, changes(record)].filter(Boolean).join(" · ")
-      }
+      secondaryText={(record) => (
+        <Box
+          component="span"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap",
+          }}
+        >
+          <span>
+            {[record.status, changes(record)].filter(Boolean).join(" · ")}
+          </span>
+          {resource === "WebMapServiceUpdateJob" &&
+            record.doneAt &&
+            record.service?.id && (
+              <UpdateJobChangeSummary
+                jobId={record.id}
+                serviceId={record.service.id}
+                compact
+              />
+            )}
+        </Box>
+      )}
       rowClick={false}
     />
   );

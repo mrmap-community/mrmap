@@ -1,6 +1,9 @@
 from pathlib import Path
 from unittest.mock import patch
 
+from celery.exceptions import Retry
+from requests.exceptions import ConnectionError
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -9,8 +12,9 @@ from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
 from registry.models.monitoring import WebMapServiceMonitoringRun, WebMapServiceMonitoringSetting
-from registry.models.update import WebFeatureServiceUpdateJob, WebMapServiceUpdateJob
-from registry.tasks.update import run_wms_update
+from registry.models.update import (WebFeatureServiceUpdateJob, WebMapServiceUpdateJob,
+                                    WebMapServiceUpdateSetting)
+from registry.tasks.update import create_wms_update_job, run_wms_update
 from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse
@@ -90,6 +94,78 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             with transaction.atomic():
                 WebMapServiceUpdateJob.objects.create(
                     service=self.wms)
+
+    @patch("registry.tasks.update.run_wms_update.apply_async")
+    def test_schedule_recovers_unfinished_job_after_commit(self, enqueue):
+        interval = IntervalSchedule.objects.create(every=1, period="days")
+        setting = WebMapServiceUpdateSetting.objects.create(
+            service=self.wms, interval=interval,
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job_id = create_wms_update_job(name=setting.name)
+            enqueue.assert_not_called()
+        self.assertEqual(job_id, self.update_job.pk)
+        self.assertEqual(self.wms.update_jobs.count(), 1)
+        enqueue.assert_called_once_with(kwargs={"update_job_id": job_id})
+
+    @patch("registry.tasks.update.run_wms_update.apply_async")
+    def test_schedule_creates_job_after_previous_job_finished(self, enqueue):
+        self.update_job.finish()
+        interval = IntervalSchedule.objects.create(every=1, period="days")
+        setting = WebMapServiceUpdateSetting.objects.create(
+            service=self.wms, interval=interval,
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job_id = create_wms_update_job(name=setting.name)
+            enqueue.assert_not_called()
+        self.assertNotEqual(job_id, self.update_job.pk)
+        self.assertEqual(self.wms.update_jobs.count(), 2)
+        enqueue.assert_called_once_with(kwargs={"update_job_id": job_id})
+
+    @patch.object(Session, "send", side_effect=ConnectionError("unavailable"))
+    def test_transient_failure_retries_without_finishing_job(self, remote):
+        # Invoke directly: Celery's task signals close connections, which would
+        # discard the outer transaction owned by Django's TestCase.
+        with patch.object(run_wms_update, "retry", side_effect=Retry()) as retry:
+            with self.assertRaises(Retry):
+                run_wms_update(update_job_id=self.update_job.pk)
+        retry.assert_called_once()
+        self.assertIsInstance(retry.call_args.kwargs["exc"], ConnectionError)
+        self.update_job.refresh_from_db()
+        self.assertIsNone(self.update_job.done_at)
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value)
+
+    @patch.object(Session, "send", return_value=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE)
+    @patch("registry.tasks.update.run_wms_update.apply_async")
+    def test_recovered_job_preserves_pending_review(self, enqueue, remote):
+        run_wms_update(update_job_id=self.update_job.pk)
+        interval = IntervalSchedule.objects.create(every=1, period="days")
+        setting = WebMapServiceUpdateSetting.objects.create(service=self.wms, interval=interval)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(create_wms_update_job(name=setting.name), self.update_job.pk)
+        enqueue.assert_called_once_with(kwargs={"update_job_id": self.update_job.pk})
+        run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertIsNone(self.update_job.done_at)
+        self.assertTrue(self.update_job.mappings.filter(is_confirmed=False).exists())
+        remote.assert_called_once()
+
+    @patch.object(Session, "send", side_effect=[SIMPLE_UPDATE_REMOTE_RESPONSE, SIMPLE_UPDATE_REMOTE_RESPONSE])
+    def test_interrupted_update_rolls_back_and_can_run_again(self, remote):
+        with patch.object(WebMapServiceUpdateJob, "update_layers", side_effect=RuntimeError("interrupted")):
+            with self.assertRaisesMessage(RuntimeError, "interrupted"):
+                run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value)
+        self.assertIsNone(self.update_job.done_at)
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
+        self.assertFalse(self.update_job.mappings.exists())
+
+        run_wms_update(update_job_id=self.update_job.pk)
+        self.update_job.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertIsNotNone(self.update_job.done_at)
 
     @patch.object(Session, "send", side_effect=[ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE])
     @patch("registry.models.update.run_wms_update.apply_async")

@@ -3,11 +3,7 @@ import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import UpdateJobsCardBase from "../../WebMapService/Show/Overview/UpdateJobs/UpdateJobsCardBase";
 import UpdateJobsList from "../../WebMapService/Show/Overview/UpdateJobs/UpdateJobsList";
 
-
-
-const ServiceUpdateJobsCard = ({
-  resource
-}: { resource: string }) => {
+const ServiceUpdateJobsCard = ({ resource }: { resource: string }) => {
   const parentResource = useResourceContext();
   const record = useRecordContext();
   const queryOptions = {
@@ -22,7 +18,6 @@ const ServiceUpdateJobsCard = ({
     id: record?.id,
   };
   return (
-
     <ListGuesser
       resource={resource}
       relatedResource={relatedResource}
@@ -32,8 +27,11 @@ const ServiceUpdateJobsCard = ({
         service: record?.id,
         status_code__ne: 4,
       }}
-      queryOptions={parentResource !== "CatalogueService" ? queryOptions : undefined}
-      perPage={5}
+      queryOptions={
+        parentResource !== "CatalogueService" ? queryOptions : undefined
+      }
+      perPage={30}
+      refetchInterval={5_000}
       actions={false}
       filters={undefined}
       aside={undefined}
@@ -44,7 +42,6 @@ const ServiceUpdateJobsCard = ({
         component: UpdateJobsList,
       }}
       empty={false}
-
     />
   );
 };

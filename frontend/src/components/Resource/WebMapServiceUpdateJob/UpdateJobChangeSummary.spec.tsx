@@ -44,28 +44,35 @@ describe("update job change summary", () => {
       );
     }
   });
-  it("does not show failed counts as zero", async () => {
-    const getList = vi.fn().mockRejectedValue(new Error("Offline"));
-    render(
-      <AdminContext
-        queryClient={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
-        dataProvider={testDataProvider({ getList })}
-      >
-        <UpdateJobChangeSummary jobId={2} serviceId="service" />
-      </AdminContext>,
-    );
-    const region = screen.getByRole("region", {
-      name: "updateReview.changeSummary",
-    });
-    await waitFor(
-      () =>
-        expect(
-          within(region).getAllByText("updateReview.countLoadError"),
-        ).toHaveLength(4),
-      { timeout: 10000 },
-    );
-    expect(within(region).queryByText("0")).not.toBeInTheDocument();
-  });
+  it.each([false, true])(
+    "does not show failed counts as zero (compact=%s)",
+    async (compact) => {
+      const getList = vi.fn().mockRejectedValue(new Error("Offline"));
+      render(
+        <AdminContext
+          queryClient={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+          dataProvider={testDataProvider({ getList })}
+        >
+          <UpdateJobChangeSummary
+            jobId={2}
+            serviceId="service"
+            compact={compact}
+          />
+        </AdminContext>,
+      );
+      const region = screen.getByRole("region", {
+        name: "updateReview.changeSummary",
+      });
+      await waitFor(
+        () =>
+          expect(
+            within(region).getAllByText("updateReview.countLoadError"),
+          ).toHaveLength(compact ? 3 : 4),
+        { timeout: 10000 },
+      );
+      expect(within(region).queryByText("0")).not.toBeInTheDocument();
+    },
+  );
 });

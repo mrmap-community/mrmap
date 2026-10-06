@@ -1,3 +1,4 @@
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
@@ -14,6 +15,7 @@ from registry.models.update import (CatalogueServiceUpdateSetting,
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
@@ -108,6 +110,38 @@ class CatalogueServiceUpdateSettingSerializer(
 
 
 class UpdateJobBaseSerializer(Serializer):
+    def validate_service(self, service):
+        if self.instance is None:
+            user = self.context["request"].user
+            permission = f"registry.change_{service._meta.model_name}"
+            if not (user.has_perm(permission) or user.has_perm(permission, service)):
+                raise PermissionDenied(_("You may not update this service."))
+            if self.Meta.model.objects.filter(
+                service=service, done_at__isnull=True
+            ).exists():
+                raise ValidationError(_("There is an existing noncompleted job for this service."))
+        return service
+
+    def create(self, validated_data):
+        try:
+            with transaction.atomic():
+                return super().create(validated_data)
+        except IntegrityError as error:
+            # A scheduled or manual request may have created a job after validation.
+            constraint = (
+                f"registry_{self.Meta.model._meta.model_name}"
+                "_only_one_unfinished_update_per_service"
+            )
+            violated_constraint = getattr(
+                getattr(error.__cause__, "diag", None), "constraint_name", None
+            )
+            # PostgreSQL truncates identifiers to 63 bytes.
+            if violated_constraint not in (constraint, constraint[:63]):
+                raise
+            raise ValidationError({
+                "service": _("There is an existing noncompleted job for this service.")
+            }) from error
+
     date_created = DateTimeField(
         label=_("Created"),
         help_text=_("The date and time when this update job was created."),

@@ -89,6 +89,13 @@ const germanMessages: TranslationMessages = {
     "mapping": "Layerzuordnung #%{id}",
     "loadError": "Die Layerstruktur konnte nicht geladen werden. Bitte versuchen Sie es erneut."
   },
+  manualUpdate: {
+    run: "Jetzt aktualisieren",
+    queued: "Aktualisierung eingereiht.",
+    failed: "Die Aktualisierung konnte nicht eingereiht werden.",
+    existing: "Offene Aktualisierung anzeigen",
+    loadError: "Offene Aktualisierungen konnten nicht geprüft werden.",
+  },
   serviceShow: {
       featureTypeChanges: "Änderungen an Feature-Typen",
       harvestedChanges: "Änderungen an geharvesteten Datensätzen",

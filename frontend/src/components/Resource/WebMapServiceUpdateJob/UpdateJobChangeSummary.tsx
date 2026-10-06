@@ -1,4 +1,12 @@
-import { Alert, Box, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Chip,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { type Identifier, useGetList, useTranslate } from "react-admin";
 
 const categories = [
@@ -8,17 +16,19 @@ const categories = [
   { type: "removed", color: "error.main" },
 ] as const;
 
-function CategoryCount({
+const CategoryCount = ({
   jobId,
   serviceId,
   type,
   color,
+  compact = false,
 }: {
   jobId: Identifier;
   serviceId: Identifier;
   type: (typeof categories)[number]["type"];
   color: string;
-}) {
+  compact?: boolean;
+}) => {
   const translate = useTranslate();
   // Query totals across the entire job, independently of table filters and pages.
   const { total, isPending, error } = useGetList("HistoricalLayer", {
@@ -31,6 +41,24 @@ function CategoryCount({
     sort: { field: "historyDate", order: "DESC" },
   });
   const label = translate(`updateReview.summary.${type}`);
+  if (compact) {
+    return error ? (
+      <Typography component="span" variant="caption" color="error">
+        {translate("updateReview.countLoadError")}
+      </Typography>
+    ) : isPending ? (
+      <Skeleton width={80} sx={{ display: "inline-block" }} />
+    ) : (
+      <Chip
+        component="span"
+        size="small"
+        variant="outlined"
+        sx={{ color, height: 20, "& .MuiChip-label": { px: 0.75 } }}
+        label={`${label}: ${total?.toLocaleString() ?? "—"}`}
+        aria-label={`${label}: ${total ?? "—"}`}
+      />
+    );
+  }
   return (
     <Paper
       variant="outlined"
@@ -56,16 +84,40 @@ function CategoryCount({
       )}
     </Paper>
   );
-}
+};
 
-export default function UpdateJobChangeSummary({
+const UpdateJobChangeSummary = ({
   jobId,
   serviceId,
+  compact = false,
 }: {
   jobId: Identifier;
   serviceId: Identifier;
-}) {
+  compact?: boolean;
+}) => {
   const translate = useTranslate();
+  if (compact) {
+    return (
+      <Box
+        component="span"
+        role="region"
+        aria-label={translate("updateReview.changeSummary")}
+        sx={{ display: "inline-flex", gap: 0.5, flexWrap: "wrap" }}
+      >
+        {categories
+          .filter((category) => category.type !== "unchanged")
+          .map((category) => (
+            <CategoryCount
+              key={category.type}
+              jobId={jobId}
+              serviceId={serviceId}
+              compact
+              {...category}
+            />
+          ))}
+      </Box>
+    );
+  }
   return (
     <Stack spacing={1}>
       <Box
@@ -94,4 +146,6 @@ export default function UpdateJobChangeSummary({
       </Typography>
     </Stack>
   );
-}
+};
+
+export default UpdateJobChangeSummary;

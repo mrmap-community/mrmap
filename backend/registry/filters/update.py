@@ -25,7 +25,7 @@ class WebMapServiceUpdateJobFilterSet(FilterSet):
             "id": ['exact', 'icontains', 'contains', 'in'],
             "service": ['exact', ],
             "date_created": ['exact', 'icontains', 'contains', 'in'],
-            "done_at": ['exact', 'icontains', 'contains', 'in'],
+            "done_at": ['exact', 'icontains', 'contains', 'in', 'isnull'],
 
         }
 
@@ -62,7 +62,7 @@ class WebFeatureServiceUpdateJobFilterSet(FilterSet):
             "service": ["exact"],
             "status": ["exact", "icontains", "contains", "in"],
             "date_created": ["exact", "icontains", "contains", "in"],
-            "done_at": ["exact", "icontains", "contains", "in"],
+            "done_at": ["exact", "icontains", "contains", "in", "isnull"],
         }
 
 
@@ -97,5 +97,5 @@ class CatalogueServiceUpdateJobFilterSet(FilterSet):
             "service": ["exact"],
             "status": ["exact", "icontains", "contains", "in"],
             "date_created": ["exact", "icontains", "contains", "in"],
-            "done_at": ["exact", "icontains", "contains", "in"],
+            "done_at": ["exact", "icontains", "contains", "in", "isnull"],
         }

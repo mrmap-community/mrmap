@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import {
@@ -8,8 +9,9 @@ import {
   type RaRecord,
   ResourceContextProvider,
   useList,
+  testDataProvider,
 } from "react-admin";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import MonitoringRunsList from "./MonitoringRuns/MonitoringRunsList";
 import UpdateJobsList from "./UpdateJobs/UpdateJobsList";
 
@@ -96,3 +98,70 @@ describe.each(["", "/WebMapService/service-1/show"])(
     });
   },
 );
+
+it("shows recorded changes for each completed job even after mappings are removed", async () => {
+  const getList = vi.fn().mockImplementation((_resource, params) =>
+    Promise.resolve({
+      data: [],
+      total: params.filter.history_change_reason === "updatejob_id: 1" ? 12 : 0,
+    }),
+  );
+  render(
+    <AdminContext
+      queryClient={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+      dataProvider={testDataProvider({ getList })}
+    >
+      <ResourceContextProvider value="WebMapServiceUpdateJob">
+        <RunList
+          data={[
+            {
+              id: 1,
+              ...dates,
+              status: "Updated",
+              statusCode: 3,
+              service: { id: "service-1" },
+              mappings: [],
+            },
+            {
+              id: 2,
+              ...dates,
+              status: "Updated",
+              statusCode: 3,
+              service: { id: "service-1" },
+              mappings: [],
+            },
+          ]}
+        >
+          <UpdateJobsList />
+        </RunList>
+      </ResourceContextProvider>
+    </AdminContext>,
+  );
+  for (const type of ["modified", "added", "removed"]) {
+    expect(
+      await screen.findByLabelText(`updateReview.summary.${type}: 12`),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText(`updateReview.summary.${type}: 0`),
+    ).toBeInTheDocument();
+    for (const jobId of [1, 2]) {
+      expect(getList).toHaveBeenCalledWith(
+        "HistoricalLayer",
+        expect.objectContaining({
+          filter: {
+            history_change_reason: `updatejob_id: ${jobId}`,
+            service: "service-1",
+            change_type: type,
+          },
+          pagination: { page: 1, perPage: 1 },
+        }),
+      );
+    }
+  }
+  expect(getList).toHaveBeenCalledTimes(6);
+  expect(
+    screen.queryByText("updateReview.summaryScope"),
+  ).not.toBeInTheDocument();
+});

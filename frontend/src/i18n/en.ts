@@ -92,6 +92,13 @@ const en = lodashMerge(
       "mapping": "Layer mapping #%{id}",
       "loadError": "Unable to load the layer structure. Please try again."
     },
+    manualUpdate: {
+      run: "Run update now",
+      queued: "Update queued.",
+      failed: "Unable to queue the update.",
+      existing: "View unfinished update",
+      loadError: "Unable to check for unfinished updates.",
+    },
     serviceShow: {
       featureTypeChanges: "Feature type changes",
       harvestedChanges: "Harvested record changes",

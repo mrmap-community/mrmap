@@ -1,17 +1,18 @@
 from attrs import field
+from django.core.exceptions import FieldError
+from django.db.models import ForeignKey
+from django.db.models.sql.query import Query
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
+from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from extras.viewsets import NestedModelViewSet
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
-from rest_framework_json_api.utils import format_field_name, get_resource_name, get_resource_type_from_model
-from django.db.models import ForeignKey
-from django.core.exceptions import FieldError
-
-from django.db.models.sql.query import Query
-from django.utils.translation import gettext_lazy as _
+from rest_framework_json_api.utils import (format_field_name,
+                                           get_resource_name,
+                                           get_resource_type_from_model)
 
 LOOKUP_LABELS = {
     "exact": _("is exactly"),
@@ -75,7 +76,7 @@ class CustomOperationId(JsonApiAutoSchema):
         related_fields = {}
         for field in model._meta.get_fields():
             if isinstance(field, ForeignKey):
-                related_fields[field.name] = field.related_model
+                related_fields[field.name] = field
         for rel in model._meta.related_objects:
             related_fields[rel.related_query_name] = rel
         for m2m in model._meta.local_many_to_many:

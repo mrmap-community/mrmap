@@ -40,7 +40,7 @@ const en = lodashMerge(
       changeSummary: "Layer change summary",
       summaryScope: "Counts cover the entire update job, regardless of table filters.",
       countLoadError: "Unable to load count.",
-      summary: {"modified": "Changed", "unchanged": "Unchanged", "added": "Added", "removed": "Deleted"},
+      summary: {"changedLayers": "Changed", "unchangedLayers": "Unchanged", "addedLayers": "Added", "deletedLayers": "Deleted"},
       "completedTitle": "Service update completed",
       "failedTitle": "Service update failed",
       "completedMessage": "The update process has finished. No action is required.",

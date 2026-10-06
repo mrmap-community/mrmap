@@ -1,4 +1,5 @@
-from django.db.models import Prefetch
+from django.db.models import (Case, IntegerField, OuterRef, Prefetch, Q,
+                              Subquery, Sum, Value, When)
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
 from registry.filters.update import (CatalogueServiceUpdateJobFilterSet,
@@ -18,13 +19,16 @@ from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebMapServiceProxySetting)
 from registry.models.service import (Layer, WebMapService,
                                      WebMapServiceOperationUrl)
+from registry.querys.historical import with_delta_size
 from registry.serializers.update import (
     CatalogueServiceUpdateJobSerializer,
     CatalogueServiceUpdateSettingSerializer, FeatureTypeMappingSerializer,
     LayerMappingSerializer, WebFeatureServiceUpdateJobSerializer,
     WebFeatureServiceUpdateSettingSerializer, WebMapServiceUpdateJobSerializer,
     WebMapServiceUpdateSettingSerializer)
+from rest_framework.response import Response
 from rest_framework_json_api.views import ModelViewSet
+from simple_history.utils import get_history_manager_for_model
 
 
 class WebMapServiceUpdateSettingViewSetMixing:
@@ -163,8 +167,105 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
                 ),
             ),
         ],
+        "service": [
+            Prefetch(
+                "service",
+                queryset=WebMapService.objects.only("id")
+            )
+        ],
+        "update_candidate": [
+            Prefetch(
+                "service__webmapservice_update_candidate",
+                queryset=WebMapService.objects.only("id")
+            )
+        ]
 
     }
+
+    def _prefill_layer_change_aggregates(self, jobs):
+        if not jobs:
+            return
+
+        reasons = [f"updatejob_id: {job.pk}" for job in jobs]
+        previous_records = (
+            get_history_manager_for_model(Layer)
+            .filter(
+                id=OuterRef("id"),
+                history_date__lt=OuterRef("history_date"),
+            )
+            .order_by("-history_date")
+        )
+        history_qs = Layer.change_log.model.objects.filter(
+            history_change_reason__in=reasons,
+        ).annotate(
+            prev_record_id=Subquery(previous_records.values("history_id")[:1])
+        )
+        aggregates = (
+            with_delta_size(history_qs)
+            .annotate(
+                is_added=Case(
+                    When(Q(history_type="+") |
+                         Q(prev_record_id__isnull=True), then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                is_deleted=Case(
+                    When(history_type="-", then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                is_changed=Case(
+                    When(Q(history_type="~") & Q(
+                        _delta_size__gt=0), then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                is_unchanged=Case(
+                    When(Q(history_type="~") & Q(_delta_size=0), then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            )
+            .values("history_change_reason")
+            .annotate(
+                changed_layers=Sum("is_changed"),
+                unchanged_layers=Sum("is_unchanged"),
+                added_layers=Sum("is_added"),
+                deleted_layers=Sum("is_deleted"),
+            )
+        )
+
+        totals_by_reason = {
+            row["history_change_reason"]: row
+            for row in aggregates
+        }
+        for job in jobs:
+            reason = f"updatejob_id: {job.pk}"
+            totals = totals_by_reason.get(reason, {})
+            job._layer_change_aggregates_cache = {
+                "changed_layers": totals.get("changed_layers") or 0,
+                "unchanged_layers": totals.get("unchanged_layers") or 0,
+                "added_layers": totals.get("added_layers") or 0,
+                "deleted_layers": totals.get("deleted_layers") or 0,
+            }
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            self._prefill_layer_change_aggregates(page)
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        self._prefill_layer_change_aggregates(queryset)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._prefill_layer_change_aggregates([instance])
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
 
 class WebMapServiceUpdateJobViewSet(

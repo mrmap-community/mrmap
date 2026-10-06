@@ -11,18 +11,19 @@ import {
   DataTable,
   DateField,
   FilterForm,
-  SelectInput,
   ListBase,
   Pagination,
   type RaRecord,
+  RecordContext,
+  SelectInput,
   useCreatePath,
   useListContext,
   useRecordContext,
   useTranslate,
 } from "react-admin";
 import { Link as RouterLink } from "react-router-dom";
-import UpdateJobChangeSummary from "./UpdateJobChangeSummary";
 import type { HistoryRecord } from "../Generic/History/HistoryTimeline";
+import UpdateJobChangeSummary from "./UpdateJobChangeSummary";
 
 interface LayerHistoryRecord extends HistoryRecord {
   title?: string;
@@ -226,7 +227,9 @@ export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
           {translate("updateReview.changesMade")}
         </Typography>
         <Box sx={{ mb: 2 }}>
-          <UpdateJobChangeSummary jobId={job.id} serviceId={job.service.id} />
+          <RecordContext value={job}>
+            <UpdateJobChangeSummary/>
+          </RecordContext>
         </Box>
         <ListBase
           resource="HistoricalLayer"

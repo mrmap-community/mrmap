@@ -37,7 +37,7 @@ const germanMessages: TranslationMessages = {
       changeSummary: "Zusammenfassung der Layeränderungen",
       summaryScope: "Die Zahlen beziehen sich auf den gesamten Aktualisierungsauftrag, unabhängig vom Tabellenfilter.",
       countLoadError: "Anzahl konnte nicht geladen werden.",
-      summary: {"modified": "Geändert", "unchanged": "Unverändert", "added": "Hinzugefügt", "removed": "Gelöscht"},
+      summary: {"changedLayers": "Geändert", "unchangedLayers": "Unverändert", "addedLayers": "Hinzugefügt", "deletedLayers": "Gelöscht"},
       "completedTitle": "Dienstaktualisierung abgeschlossen",
       "failedTitle": "Dienstaktualisierung fehlgeschlagen",
       "completedMessage": "Die Aktualisierung ist abgeschlossen. Es ist keine Aktion erforderlich.",

@@ -1,52 +1,37 @@
 import {
-  Alert,
   Box,
   Chip,
   Paper,
   Skeleton,
   Stack,
-  Typography,
+  Typography
 } from "@mui/material";
-import { type Identifier, useGetList, useTranslate } from "react-admin";
+import { useRecordContext, useTranslate } from "react-admin";
 
 const categories = [
-  { type: "modified", color: "info.main" },
-  { type: "unchanged", color: "text.secondary" },
-  { type: "added", color: "success.main" },
-  { type: "removed", color: "error.main" },
+  { type: "changedLayers", color: "info.main" },
+  { type: "unchangedLayers", color: "text.secondary" },
+  { type: "addedLayers", color: "success.main" },
+  { type: "deletedLayers", color: "error.main" },
 ] as const;
 
 const CategoryCount = ({
-  jobId,
-  serviceId,
   type,
   color,
   compact = false,
 }: {
-  jobId: Identifier;
-  serviceId: Identifier;
   type: (typeof categories)[number]["type"];
   color: string;
   compact?: boolean;
 }) => {
   const translate = useTranslate();
   // Query totals across the entire job, independently of table filters and pages.
-  const { total, isPending, error } = useGetList("HistoricalLayer", {
-    filter: {
-      history_change_reason: `updatejob_id: ${jobId}`,
-      service: serviceId,
-      change_type: type,
-    },
-    pagination: { page: 1, perPage: 1 },
-    sort: { field: "historyDate", order: "DESC" },
-  });
+  const record = useRecordContext()
+  const total = record?.[type] || 0
+
   const label = translate(`updateReview.summary.${type}`);
   if (compact) {
-    return error ? (
-      <Typography component="span" variant="caption" color="error">
-        {translate("updateReview.countLoadError")}
-      </Typography>
-    ) : isPending ? (
+    return record === undefined ? (
       <Skeleton width={80} sx={{ display: "inline-block" }} />
     ) : (
       <Chip
@@ -67,11 +52,7 @@ const CategoryCount = ({
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      {error ? (
-        <Alert severity="error">
-          {translate("updateReview.countLoadError")}
-        </Alert>
-      ) : isPending ? (
+      {record === undefined ? (
         <Skeleton width={64} height={48} />
       ) : (
         <Typography
@@ -87,12 +68,8 @@ const CategoryCount = ({
 };
 
 const UpdateJobChangeSummary = ({
-  jobId,
-  serviceId,
   compact = false,
 }: {
-  jobId: Identifier;
-  serviceId: Identifier;
   compact?: boolean;
 }) => {
   const translate = useTranslate();
@@ -105,12 +82,10 @@ const UpdateJobChangeSummary = ({
         sx={{ display: "inline-flex", gap: 0.5, flexWrap: "wrap" }}
       >
         {categories
-          .filter((category) => category.type !== "unchanged")
+          .filter((category) => category.type !== "unchangedLayers")
           .map((category) => (
             <CategoryCount
               key={category.type}
-              jobId={jobId}
-              serviceId={serviceId}
               compact
               {...category}
             />
@@ -135,8 +110,6 @@ const UpdateJobChangeSummary = ({
         {categories.map((category) => (
           <CategoryCount
             key={category.type}
-            jobId={jobId}
-            serviceId={serviceId}
             {...category}
           />
         ))}

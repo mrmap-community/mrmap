@@ -38,7 +38,7 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from requests import Request, Response, Session
+from requests import Request, Session
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
@@ -48,7 +48,8 @@ class ServiceHistoricalRecords(HistoricalRecords):
     """Record published services and elements, excluding temporary candidates."""
 
     def create_historical_record(self, instance, history_type, using=None):
-        service = instance.service if isinstance(instance, ServiceElement) else instance
+        service = instance.service if isinstance(
+            instance, ServiceElement) else instance
         if service.update_candidate_of_id is not None:
             return
         return super().create_historical_record(instance, history_type, using=using)

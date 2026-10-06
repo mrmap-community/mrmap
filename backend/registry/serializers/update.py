@@ -1,4 +1,7 @@
 from django.db import IntegrityError, transaction
+from django.db.models import Case
+from django.db.models import IntegerField as DjangoIntegerField
+from django.db.models import OuterRef, Q, Subquery, Sum, Value, When
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
@@ -12,6 +15,7 @@ from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
 from registry.models.update import (CatalogueServiceUpdateSetting,
                                     WebFeatureServiceUpdateSetting,
                                     WebMapServiceUpdateSetting)
+from registry.querys.historical import with_delta_size
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
@@ -23,6 +27,7 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  HyperlinkedIdentityField,
                                                  IntegerField, ModelSerializer,
                                                  Serializer)
+from simple_history.utils import get_history_manager_for_model
 
 
 class UpdateSettingSerializer(
@@ -119,7 +124,8 @@ class UpdateJobBaseSerializer(Serializer):
             if self.Meta.model.objects.filter(
                 service=service, done_at__isnull=True
             ).exists():
-                raise ValidationError(_("There is an existing noncompleted job for this service."))
+                raise ValidationError(
+                    _("There is an existing noncompleted job for this service."))
         return service
 
     def create(self, validated_data):
@@ -284,11 +290,14 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     )
     mappings = ResourceRelatedField(
         model=LayerMapping,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # related_link_view_name="registry:wms-layers-list",
-        # related_link_url_kwarg="parent_lookup_service",
+        many=True,
         read_only=True,
     )
+
+    changed_layers = SerializerMethodField()
+    unchanged_layers = SerializerMethodField()
+    added_layers = SerializerMethodField()
+    deleted_layers = SerializerMethodField()
 
     included_serializers = {
         "service": WebMapServiceSerializer,
@@ -298,8 +307,75 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
 
     class Meta:
         model = WebMapServiceUpdateJob
-        fields = ("url", "service", "date_created", "done_at",
-                  "status", "status_code", "update_candidate", "mappings")
+        fields = (
+            "url", "service", "date_created", "done_at",
+            "status", "status_code", "update_candidate", "mappings",
+            "changed_layers", "unchanged_layers", "added_layers",
+            "deleted_layers",
+        )
+
+    def _layer_change_aggregates(self, obj):
+        cache = getattr(obj, "_layer_change_aggregates_cache", None)
+        if cache is not None:
+            return cache
+
+        previous_records = (
+            get_history_manager_for_model(Layer)
+            .filter(
+                id=OuterRef("id"),
+                history_date__lt=OuterRef("history_date"),
+            )
+            .order_by("-history_date")
+        )
+        queryset = Layer.change_log.model._default_manager.filter(
+            service=obj.service,
+            history_change_reason=f"updatejob_id: {obj.pk}",
+        ).annotate(
+            prev_record_id=Subquery(previous_records.values("history_id")[:1])
+        )
+        queryset = with_delta_size(queryset).annotate(
+            is_added=Case(
+                When(Q(history_type="+") |
+                     Q(prev_record_id__isnull=True), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_deleted=Case(
+                When(history_type="-", then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_changed=Case(
+                When(Q(history_type="~") & Q(_delta_size__gt=0), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_unchanged=Case(
+                When(Q(history_type="~") & Q(_delta_size=0), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+        )
+        aggregates = queryset.aggregate(
+            changed_layers=Sum("is_changed"),
+            unchanged_layers=Sum("is_unchanged"),
+            added_layers=Sum("is_added"),
+            deleted_layers=Sum("is_deleted"),
+        )
+        setattr(obj, "_layer_change_aggregates_cache", aggregates)
+        return aggregates
+
+    def get_changed_layers(self, obj):
+        return self._layer_change_aggregates(obj)["changed_layers"] or 0
+
+    def get_unchanged_layers(self, obj):
+        return self._layer_change_aggregates(obj)["unchanged_layers"] or 0
+
+    def get_added_layers(self, obj):
+        return self._layer_change_aggregates(obj)["added_layers"] or 0
+
+    def get_deleted_layers(self, obj):
+        return self._layer_change_aggregates(obj)["deleted_layers"] or 0
 
 
 class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -322,9 +398,7 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     )
     mappings = ResourceRelatedField(
         model=FeatureTypeMapping,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # related_link_view_name="registry:wfs-featuretypes-list",
-        # related_link_url_kwarg="parent_lookup_service",
+        many=True,
         read_only=True,
     )
 

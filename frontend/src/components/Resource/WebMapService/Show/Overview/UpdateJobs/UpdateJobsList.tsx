@@ -2,13 +2,14 @@ import { useCallback } from "react";
 import {
   BasenameContextProvider,
   type RaRecord,
+  RecordContext,
   ShowButton,
   SimpleList,
   useResourceContext,
 } from "react-admin";
 
-import { Box } from "@mui/material";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+import { Box } from "@mui/material";
 
 import UpdateJobChangeSummary from "../../../../WebMapServiceUpdateJob/UpdateJobChangeSummary";
 
@@ -84,11 +85,11 @@ const UpdateJobsList = () => {
           {resource === "WebMapServiceUpdateJob" &&
             record.doneAt &&
             record.service?.id && (
-              <UpdateJobChangeSummary
-                jobId={record.id}
-                serviceId={record.service.id}
-                compact
-              />
+              <RecordContext value={record}>
+                <UpdateJobChangeSummary
+                  compact
+                />
+              </RecordContext>
             )}
         </Box>
       )}

@@ -109,14 +109,16 @@ class TimeUntilNextRunMixin:
         now_local = timezone.localtime(timezone.now())
 
         # Zeitzone aus Crontab (oder fallback UTC)
-        tz = obj.crontab.timezone or zoneinfo.ZoneInfo("UTC")
+        tz = obj.crontab.timezone if obj.crontab is not None else zoneinfo.ZoneInfo(
+            "UTC")
 
         # Jetzt in Crontab-Zeitzone konvertieren
         now_tz = now_local.astimezone(tz)
 
-        schedule = obj.crontab.schedule
+        schedule = obj.crontab.schedule if obj.crontab is not None else None
 
-        remaining = schedule.remaining_estimate(now_tz)
+        remaining = schedule.remaining_estimate(
+            now_tz) if schedule is not None else None
         if remaining is None:
             return "unbekannt"
 

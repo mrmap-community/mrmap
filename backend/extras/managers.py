@@ -50,9 +50,6 @@ class DefaultHistoryManager(models.Manager):
     def _stats_per_day_queryset(self, group_by_service: bool = False):
         history_model = self.model.change_log.model
 
-        # Find the previous historical record for each history entry.
-        # This deliberately uses the complete history table, independently
-        # of filters applied to the outer queryset.
         previous_records = (
             history_model._default_manager
             .filter(id=OuterRef("id"))
@@ -75,11 +72,8 @@ class DefaultHistoryManager(models.Manager):
             )
         )
 
-        # Adds the _delta_size alias based on prev_record_id.
         history = with_delta_size(history)
 
-        # Keep the definitions in one place so filtering and aggregation
-        # use exactly the same semantics.
         new_filter = (
             Q(history_type="+")
             | Q(
@@ -88,23 +82,27 @@ class DefaultHistoryManager(models.Manager):
             )
         )
 
-        deleted_filter = Q(history_type="-")
-
         updated_filter = Q(
             history_type="~",
             prev_record_id__isnull=False,
             _delta_size__gt=0,
         )
 
-        # Drop history records that don't represent an actual change,
-        # especially "~" records with delta_size == 0.
+        deleted_filter = Q(history_type="-")
+
+        # Remove unchanged "~" entries, but always retain + and -.
         history = history.filter(
-            new_filter
-            | deleted_filter
+            Q(history_type="+")
+            | Q(history_type="-")
             | updated_filter
+            | Q(
+                history_type="~",
+                prev_record_id__isnull=True,
+            )
         )
 
         group_fields = ["history_day"]
+
         if group_by_service:
             group_fields.append("service")
 
@@ -114,19 +112,16 @@ class DefaultHistoryManager(models.Manager):
             .annotate(
                 id=F("history_day"),
                 new=Count(
-                    "id",
+                    "history_id",
                     filter=new_filter,
-                    distinct=True,
                 ),
                 deleted=Count(
-                    "id",
+                    "history_id",
                     filter=deleted_filter,
-                    distinct=True,
                 ),
                 updated=Count(
-                    "id",
+                    "history_id",
                     filter=updated_filter,
-                    distinct=True,
                 ),
             )
             .order_by(*group_fields)

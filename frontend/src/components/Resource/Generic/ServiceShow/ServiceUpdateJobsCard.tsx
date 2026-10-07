@@ -30,7 +30,7 @@ const ServiceUpdateJobsCard = ({ resource }: { resource: string }) => {
       queryOptions={
         parentResource !== "CatalogueService" ? queryOptions : undefined
       }
-      perPage={30}
+      perPage={5}
       refetchInterval={5_000}
       actions={false}
       filters={undefined}

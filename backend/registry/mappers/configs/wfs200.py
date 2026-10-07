@@ -131,7 +131,7 @@ XPATH_MAP = {
                 "featuretypes": {
                     "_model": "registry.FeatureType",
                     "_base_xpath": "./wfs:FeatureTypeList/wfs:FeatureType",
-                    "_create_mode": "bulk",
+                    "_create_mode": "bulk_with_history",
                     "_reverse": {
                         "_identifier": {
                             "xpath": "./wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='{identifier}']",

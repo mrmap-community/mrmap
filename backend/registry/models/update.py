@@ -252,51 +252,106 @@ class ServiceUpdateJob(models.Model):
         self.status = UpdateJobStatusEnum.REVIEW_REQUIRED.value
         self.save()
 
-    def update_field(self, field_name, instance_a, instance_b):
-        mode = self.get_field_mode(instance_a.__class__, field_name)
+    @property
+    def default_change_reason(self):
+        return f"updatejob_id: {self.pk}"
+
+    def update_field(self, field_name, instance_a, instance_b) -> bool:
+        """Apply the configured mode and report whether the value changed."""
+        mode = self.get_field_mode(type(instance_a), field_name)
         if mode == UpdateModeEnum.IGNORE:
-            return
+            return False
 
-        m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
-        reverse_fields = [rel.get_accessor_name()
-                          for rel in instance_a._meta.related_objects]
+        m2m_fields = {field.name for field in instance_a._meta.many_to_many}
+        reverse_fields = {
+            rel.get_accessor_name() for rel in instance_a._meta.related_objects
+        }
+        if field_name in m2m_fields or field_name in reverse_fields:
+            target = getattr(instance_a, field_name)
+            source = getattr(instance_b, field_name)
+            old_ids = set(target.all().values_list("pk", flat=True))
+            new_objects = list(source.all())
+            new_ids = {obj.pk for obj in new_objects}
+            if mode == UpdateModeEnum.OVERWRITE:
+                if old_ids == new_ids:
+                    return False
+                if field_name in reverse_fields:
+                    # Preserve the original ownership-transfer semantics. Materialize
+                    # the source first, before deleting the old owned objects.
+                    target.exclude(pk__in=new_ids).delete()
+                target.set(new_objects)
+                return True
+            if mode == UpdateModeEnum.MERGE and field_name in m2m_fields:
+                additions = [
+                    obj for obj in new_objects if obj.pk not in old_ids]
+                if additions:
+                    target.add(*additions)
+                    return True
+            return False
 
-        # -------------------------
-        # MANY-TO-MANY
-        # -------------------------
-        if field_name in m2m_fields:
-            instance_a_m2m_field = getattr(instance_a, field_name)
-            instance_b_m2m_field = getattr(instance_b, field_name)
-            match mode:
-                case UpdateModeEnum.OVERWRITE:
-                    instance_a_m2m_field.set(instance_b_m2m_field.all())
-                case UpdateModeEnum.MERGE:
-                    instance_a_m2m_field.add(*instance_b_m2m_field.all())
-                case _:
-                    pass
-            return
+        if mode != UpdateModeEnum.OVERWRITE:
+            return False
+        field = instance_a._meta.get_field(field_name)
+        attribute = field.attname
+        old_value = getattr(instance_a, attribute)
+        new_value = getattr(instance_b, attribute)
+        if old_value == new_value:
+            return False
+        setattr(instance_a, attribute, new_value)
+        return True
 
-        # -------------------------
-        # REVERSE RELATIONS
-        # -------------------------
-        elif field_name in reverse_fields:
-            instance_a_reverse_field = getattr(instance_a, field_name)
-            instance_b_reverse_field = getattr(instance_b, field_name)
-            match mode:
-                case UpdateModeEnum.OVERWRITE:
-                    instance_a_reverse_field.all().delete()
-                    instance_a_reverse_field.set(
-                        instance_b_reverse_field.all())
-                case UpdateModeEnum.MERGE:
-                    pass
-                case _:
-                    pass
+    def update_metadata(self, model):
+        changed = False
+        self.service._change_reason = self.default_change_reason
+        for field_name in self.get_fields_by_model(model):
+            changed |= self.update_field(
+                field_name, self.service, self.new_service)
+        if changed:
+            self.service.save()
+        return UpdateJobStatusEnum.UPDATED
+
+    def bulk_update_changed(self, objects, model, configured_fields, extra_fields=()):
+        if not objects:
             return
-        # -------------------------
-        # SCALAR FIELDS (default)
-        # -------------------------
-        if mode == UpdateModeEnum.OVERWRITE:
-            setattr(instance_a, field_name, getattr(instance_b, field_name))
+        field_names = set(configured_fields) | set(extra_fields)
+        fields = [field.name for field in model._meta.concrete_fields
+                  if field.name in field_names and not field.primary_key]
+        if not fields:
+            model.history.bulk_history_create(
+                objects, update=True,
+                default_change_reason=self.default_change_reason, batch_size=500,
+            )
+            return
+        bulk_update_with_history(
+            objects, model, fields,
+            default_change_reason=self.default_change_reason,
+            batch_size=500,
+        )
+
+    def adopt_candidate(self, instance):
+        """Persist a promoted candidate, then record its addition to the real service."""
+        instance._change_reason = self.default_change_reason
+        had_skip = hasattr(instance, "skip_history_when_saving")
+        previous_skip = getattr(instance, "skip_history_when_saving", None)
+        instance.skip_history_when_saving = True
+        try:
+            instance.save()
+        finally:
+            if had_skip:
+                instance.skip_history_when_saving = previous_skip
+            else:
+                del instance.skip_history_when_saving
+        # bulk_history_create defaults to '+'; it does not insert the live object.
+        instance.history.bulk_history_create(
+            [instance], default_change_reason=self.default_change_reason,
+        )
+
+    def delete_with_reason(self, queryset, model):
+        collector = Collector(using=queryset.db, origin=queryset)
+        collector.collect(queryset)
+        for instance in collector.data.get(model, ()):
+            instance._change_reason = self.default_change_reason
+        collector.delete()
 
     @cached_property
     def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
@@ -408,86 +463,67 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
+    @atomic
     def update_layers(self):
-
-        if self.are_all_layers_updateable():
-            # store deleteable layers, cause after Layer moving to old service,
-            # the deleteable layers query would change and we would loose the information which layers we wanted to delete
-            deleteable_layers = list(
-                self.deleteable_layers().values_list("id", flat=True))
-
-            old_by_identifier = {
-                layer.identifier: layer for layer in self.old_service.layers.all()}
-
-            updateable_layers = []
-
-            fields = self.get_fields_by_model(Layer).keys()
-
-            for mapping in self.mappings.exclude(new_layer__isnull=True).all():
-                if mapping.old_layer is None:
-                    # This is a new layer without old match. Inject it by changing the service and adjust parent.
-                    mapping.new_layer.service = self.service
-
-                    # adjust parent if exists, because the parent might also be a new layer without old match and therefore the parent needs to be set to the new created parent layer (which has the same identifier as the old parent layer)
-                    parent = mapping.new_layer.mptt_parent.mapping.old_layer if mapping.new_layer.mptt_parent else None
-                    mapping.new_layer.mptt_parent = parent
-                    mapping.new_layer.mptt_tree = self.service.root_layer.mptt_tree
-                    mapping.new_layer._change_reason = self.default_change_reason
-                    mapping.new_layer.save()
-                    continue
-
-                # regular updating processing of an existing layer with old match. Update the existing layer by adjusting the parent and updating the fields.
-                updateable_layer = mapping.old_layer
-                new_layer = mapping.new_layer
-                updateable_layer._change_reason = self.default_change_reason
-                updateable_layers.append(updateable_layer)
-
-                # adjust parent
-                updateable_layer.mptt_parent = old_by_identifier.get(
-                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else ""
-                )
-
-                for field_name in fields:
-                    self.update_field(field_name, updateable_layer, new_layer)
-
-            bulk_update_with_history(
-                objs=updateable_layers,
-                model=Layer,
-                fields=[
-                    field.name for field in Layer._meta.concrete_fields if field.name in fields],
-                default_change_reason=self.default_change_reason,
-                batch_size=500,
-            )
-
-            # clean up everthing we do not longer need
-            layers_to_delete = Layer.objects.filter(id__in=deleteable_layers)
-            collector = Collector(
-                using=layers_to_delete.db, origin=layers_to_delete)
-            collector.collect(layers_to_delete)
-            # Set the reason on the instances passed to the history deletion signal.
-            # Keep bulk deletion: Node.delete() would adjust the updated tree again.
-            for layer in collector.data.get(Layer, ()):
-                layer._change_reason = self.default_change_reason
-            collector.delete()
-
-            WebMapService.objects.filter(
-                update_candidate_of=self.service).delete()
-
-            self.mappings.all().delete()
-
-            return UpdateJobStatusEnum.UPDATED
-        else:
+        if not self.are_all_layers_updateable():
             return UpdateJobStatusEnum.REVIEW_REQUIRED
 
-    def update_service(self):
-        """Updates Service metadata if keep customized metadata is not configured.
-           Otherwise the user needs to review the processing.
-        """
-        for field_name in self.get_fields_by_model(WebMapService).keys():
-            self.update_field(field_name, self.service, self.new_service)
-        self.service._change_reason = f"updatejob_id: {self.pk}"
-        self.service.save()
+        deleteable_layers = list(
+            self.deleteable_layers().values_list("id", flat=True))
+        mappings = list(self.mappings.filter(
+            is_confirmed=True, new_layer__isnull=False,
+        ).select_related("new_layer", "old_layer"))
+        # Resolve by candidate ID, so renamed and newly adopted parents both work.
+        targets = {
+            mapping.new_layer_id: (
+                mapping.old_layer if mapping.old_layer_id else mapping.new_layer
+            ) for mapping in mappings
+        }
+        fields = self.get_fields_by_model(Layer)
+        updateable_layers = []
+        adopted_layers = []
+        tree = self.service.root_layer.mptt_tree
+        for mapping in mappings:
+            new_layer = mapping.new_layer
+            target = targets[mapping.new_layer_id]
+            parent = targets[new_layer.mptt_parent_id] if new_layer.mptt_parent_id else None
+            if mapping.old_layer_id is None:
+                target.service = self.service
+                target.mptt_parent = parent
+                target.mptt_tree = tree
+                adopted_layers.append(target)
+                continue
+
+            target._change_reason = self.default_change_reason
+            changed = target.mptt_parent_id != (parent.pk if parent else None)
+            target.mptt_parent = parent
+            for field_name in fields:
+                changed |= self.update_field(field_name, target, new_layer)
+            if changed:
+                updateable_layers.append(target)
+
+        self.bulk_update_changed(
+            updateable_layers, Layer, fields, ("mptt_parent",))
+        # Update directly to retain the candidate's supplied tree coordinates;
+        # Node.save() may otherwise recalculate them during adoption.
+        if adopted_layers:
+            for layer in adopted_layers:
+                layer._change_reason = self.default_change_reason
+            Layer.objects.bulk_update(
+                adopted_layers, ["service", "mptt_parent", "mptt_tree"], batch_size=500,
+            )
+            Layer.history.bulk_history_create(
+                adopted_layers, default_change_reason=self.default_change_reason,
+                batch_size=500,
+            )
+        self.delete_with_reason(Layer.objects.filter(
+            id__in=deleteable_layers), Layer)
+        WebMapService.objects.filter(update_candidate_of=self.service).delete()
+        self.mappings.all().delete()
         return UpdateJobStatusEnum.UPDATED
+
+    def update_service(self):
+        return self.update_metadata(WebMapService)
 
     @atomic
     def update(self):
@@ -634,60 +670,42 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
         return self.old_service.featuretypes.exclude(pk__in=mapped_old_featuretypes_ids)
 
+    @atomic
     def update_featuretypes(self) -> UpdateJobStatusEnum:
         if not self.are_all_featuretypes_updateable():
             return UpdateJobStatusEnum.REVIEW_REQUIRED
-
-        # store deleteable featuretypes, cause after FeatureType moving to old service,
-        # the deleteable featuretypes query would change and we would loose the information which featuretypes we wanted to delete
         deleteable_featuretypes = list(
-            self.deleteable_featuretypes().values_list("id", flat=True))
-
-        updateable_featuretypes = []
-
-        fields = self.get_fields_by_model(FeatureType).keys()
-
-        for mapping in self.mappings.exclude(new_featuretype__isnull=True).all():
-            if mapping.old_featuretype is None:
-                # This is a new featuretype without old match. Inject it by changing the service.
-                mapping.new_featuretype.service = self.service
-                continue
-
-            # regular updating processing of an existing featuretype with old match. Update the existing featuretype by updating the fields.
-            updateable_featuretype = mapping.old_featuretype
-            new_featuretype = mapping.new_featuretype
-
-            updateable_featuretypes.append(updateable_featuretype)
-
-            for field_name in fields:
-                self.update_field(
-                    field_name, updateable_featuretype, new_featuretype)
-
-        bulk_update_with_history(
-            updateable_featuretypes,
-            FeatureType,
-            [field.name for field in FeatureType._meta.concrete_fields if field.name in fields],
-            batch_size=500,
+            self.deleteable_featuretypes().values_list("id", flat=True)
         )
-
-        # clean up everthing we do not longer need
-        FeatureType.objects.filter(id__in=deleteable_featuretypes).delete()
-
+        fields = self.get_fields_by_model(FeatureType)
+        updateable_featuretypes = []
+        for mapping in self.mappings.filter(
+            is_confirmed=True, new_featuretype__isnull=False,
+        ).select_related("new_featuretype", "old_featuretype"):
+            if mapping.old_featuretype_id is None:
+                mapping.new_featuretype.service = self.service
+                self.adopt_candidate(mapping.new_featuretype)
+                continue
+            target = mapping.old_featuretype
+            target._change_reason = self.default_change_reason
+            changed = False
+            for field_name in fields:
+                changed |= self.update_field(
+                    field_name, target, mapping.new_featuretype)
+            if changed:
+                updateable_featuretypes.append(target)
+        self.bulk_update_changed(updateable_featuretypes, FeatureType, fields)
+        self.delete_with_reason(
+            FeatureType.objects.filter(
+                id__in=deleteable_featuretypes), FeatureType,
+        )
         WebFeatureService.objects.filter(
             update_candidate_of=self.service).delete()
-
         self.mappings.all().delete()
-
         return UpdateJobStatusEnum.UPDATED
 
     def update_service(self):
-        """Updates Service metadata if keep customized metadata is not configured.
-        Otherwise the user needs to review the processing.
-        """
-        for field_name in self.get_fields_by_model(WebFeatureService).keys():
-            self.update_field(field_name, self.service, self.new_service)
-        self.service.save()
-        return UpdateJobStatusEnum.UPDATED
+        return self.update_metadata(WebFeatureService)
 
     @atomic
     def update(self):
@@ -710,7 +728,11 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         self.update_service()
         status = self.update_featuretypes()
 
-        self.finish(status)
+        if status == UpdateJobStatusEnum.REVIEW_REQUIRED:
+            self.done_at = None
+            self.interrupt()
+        else:
+            self.finish(status)
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
@@ -780,13 +802,7 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
         return CatalogueService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
 
     def update_service(self):
-        """Updates Service metadata if keep customized metadata is not configured.
-        Otherwise the user needs to review the processing.
-        """
-        for field_name in self.get_fields_by_model(CatalogueService).keys():
-            self.update_field(field_name, self.service, self.new_service)
-        self.service.save()
-        return UpdateJobStatusEnum.UPDATED
+        return self.update_metadata(CatalogueService)
 
     @atomic
     def update(self):

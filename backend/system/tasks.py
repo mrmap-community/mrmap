@@ -6,6 +6,7 @@ from registry.models.materialized_views import (
     MaterializedCatalogueServiceStatsPerDay,
     MaterializedDatasetMetadataRecordStatsPerDay,
     MaterializedFeatureTypeStatsPerDay, MaterializedLayerStatsPerDay,
+    MaterializedLayerStatsPerDayAndService,
     MaterializedServiceMetadataRecordStatsPerDay,
     MaterializedWebFeatureServiceStatsPerDay,
     MaterializedWebMapServiceStatsPerDay)
@@ -32,6 +33,7 @@ def refresh_materialized_views(self, *args, **kwargs):
     MaterializedCatalogueServiceStatsPerDay.refresh()
     MaterializedFeatureTypeStatsPerDay.refresh()
     MaterializedLayerStatsPerDay.refresh()
+    MaterializedLayerStatsPerDayAndService.refresh()
     MaterializedServiceMetadataRecordStatsPerDay.refresh()
     MaterializedWebFeatureServiceStatsPerDay.refresh()
     MaterializedWebMapServiceStatsPerDay.refresh()

@@ -111,7 +111,7 @@ XPATH_MAP = {
                 "layers": {
                     "_model": "registry.Layer",
                     "_base_xpath": "./wms:Capability//wms:Layer",
-                    "_create_mode": "bulk",
+                    "_create_mode": "bulk_with_history",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.layer_identifier",

@@ -1,5 +1,5 @@
 from django.db.models import (BooleanField, Case, F, Func, IntegerField,
-                              OuterRef, Subquery, Value, When)
+                              OuterRef, Q, Subquery, Value, When)
 
 
 class IsDistinctFrom(Func):
@@ -9,6 +9,30 @@ class IsDistinctFrom(Func):
     arg_joiner = " IS DISTINCT FROM "
     arity = 2
     output_field = BooleanField()
+
+
+def with_prev_record_id(queryset):
+    history_model = queryset.model
+
+    previous_records = (
+        history_model._default_manager
+        .using(queryset.db)
+        .filter(id=OuterRef("id"))
+        .filter(
+            Q(history_date__lt=OuterRef("history_date"))
+            | Q(
+                history_date=OuterRef("history_date"),
+                history_id__lt=OuterRef("history_id"),
+            )
+        )
+        .order_by("-history_date", "-history_id")
+    )
+
+    return queryset.annotate(
+        prev_record_id=Subquery(
+            previous_records.values("history_id")[:1]
+        )
+    )
 
 
 def with_delta_size(queryset):

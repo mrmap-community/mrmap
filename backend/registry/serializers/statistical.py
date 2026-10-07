@@ -41,6 +41,14 @@ class StatisticalLayerSerializer(HistoricalRecordDependingMixin, StatisticalSeri
         resource_name = 'StatisticalLayer'
 
 
+class StatisticalLayerPerServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
+    service = UUIDField()
+
+    class Meta:
+        resource_name = 'StatisticalLayerPerService'
+        fields = ("id", "day", "new", "deleted", "updated", "service")
+
+
 class StatisticalWebFeatureServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:

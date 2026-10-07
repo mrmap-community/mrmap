@@ -273,6 +273,11 @@ urlpatterns = router.urls + [
         name='statistical-layer'
     ),
     path(
+        route=r'statistical/layers-per-service',
+        view=stats_views.StatisticalLayerPerServiceListView.as_view(),
+        name='statistical-layer-per-service'
+    ),
+    path(
         route=r'statistical/webfeatureservices',
         view=stats_views.StatisticalWebFeatureServiceListView.as_view(),
         name='statistical-webfeatureservice'

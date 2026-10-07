@@ -9,6 +9,7 @@ from lxml import etree
 from registry.mappers.utils import (find_spec_for_instance, get_key_fields,
                                     get_unique_fields, make_instance_key)
 from registry.models.document import DocumentModelMixin
+from simple_history.utils import bulk_create_with_history
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -355,6 +356,10 @@ class PersistenceHandler:
                 self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "bulk":
                 objs = model_cls.objects.bulk_create(instances)
+                final_key_map = self.build_final_key_map(objs)
+                self.final_instances_map[model_cls] = final_key_map
+            elif create_mode == "bulk_with_history":
+                objs = bulk_create_with_history(instances, model_cls)
                 final_key_map = self.build_final_key_map(objs)
                 self.final_instances_map[model_cls] = final_key_map
             else:  # default save every instance

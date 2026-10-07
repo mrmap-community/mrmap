@@ -2,14 +2,16 @@ from registry.models.materialized_views import (
     MaterializedCatalogueServiceStatsPerDay,
     MaterializedDatasetMetadataRecordStatsPerDay,
     MaterializedFeatureTypeStatsPerDay, MaterializedHarvestingStatsPerDay,
-    MaterializedLayerStatsPerDay, MaterializedServiceMetadataRecordStatsPerDay,
+    MaterializedLayerStatsPerDay, MaterializedLayerStatsPerDayAndService,
+    MaterializedServiceMetadataRecordStatsPerDay,
     MaterializedWebFeatureServiceStatsPerDay,
     MaterializedWebMapServiceStatsPerDay)
 from registry.serializers.statistical import (
     StatisticalCatalogueServiceSerializer,
     StatisticalDatasetMetadataRecordSerializer,
     StatisticalFeatureTypeSerializer,
-    StatisticalHarvestedMetadataRelationSerializer, StatisticalLayerSerializer,
+    StatisticalHarvestedMetadataRelationSerializer,
+    StatisticalLayerPerServiceSerializer, StatisticalLayerSerializer,
     StatisticalServiceMetadataRecordSerializer,
     StatisticalWebFeatureServiceSerializer, StatisticalWebMapServiceSerializer)
 from rest_framework_json_api.views import generics
@@ -37,6 +39,12 @@ class StatisticalWebMapServiceListView(StatisticalListView):
 class StatisticalLayerListView(StatisticalListView):
     queryset = MaterializedLayerStatsPerDay.objects.all()
     serializer_class = StatisticalLayerSerializer
+
+
+class StatisticalLayerPerServiceListView(StatisticalListView):
+    queryset = MaterializedLayerStatsPerDayAndService.objects.all()
+    serializer_class = StatisticalLayerPerServiceSerializer
+    filterset_fields = ('service',)
 
 
 class StatisticalWebFeatureServiceListView(StatisticalListView):

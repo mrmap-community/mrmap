@@ -15,7 +15,7 @@ from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
 from registry.models.update import (CatalogueServiceUpdateSetting,
                                     WebFeatureServiceUpdateSetting,
                                     WebMapServiceUpdateSetting)
-from registry.querys.historical import with_delta_size
+from registry.querys.historical import with_delta_size, with_prev_record_id
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
@@ -319,21 +319,10 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
         if cache is not None:
             return cache
 
-        previous_records = (
-            get_history_manager_for_model(Layer)
-            .filter(
-                id=OuterRef("id"),
-                history_date__lt=OuterRef("history_date"),
-            )
-            .order_by("-history_date")
-        )
-        queryset = Layer.change_log.model._default_manager.filter(
-            service=obj.service,
-            history_change_reason=f"updatejob_id: {obj.pk}",
-        ).annotate(
-            prev_record_id=Subquery(previous_records.values("history_id")[:1])
-        )
-        queryset = with_delta_size(queryset).annotate(
+        history = Layer.change_log.all()
+        history = with_prev_record_id(history)
+        history = with_delta_size(history)
+        queryset = history.annotate(
             is_added=Case(
                 When(Q(history_type="+") |
                      Q(prev_record_id__isnull=True), then=Value(1)),

@@ -5,12 +5,14 @@ import ServiceHistoryCard from "./ServiceHistoryCard";
 
 const ServiceOverview = ({
   protocol,
-  history=<ServiceHistoryCard/>,
+  history = <ServiceHistoryCard />,
   children,
+  spatialSecurity,
 }: {
   protocol: ServiceProtocol;
   history?: ReactNode;
   children?: ReactNode;
+  spatialSecurity?: ReactNode;
 }) => {
   return (
     <Grid
@@ -28,12 +30,13 @@ const ServiceOverview = ({
         <ServiceDetailsCard protocol={protocol} />
       </Grid>
       {history && <Grid size={{ xs: 12, md: 6 }}>{history}</Grid>}
+      {spatialSecurity && <Grid size={12}>{spatialSecurity}</Grid>}
       {Children.map(
         children,
         (child) => child && <Grid size={{ xs: 12, md: 6 }}>{child}</Grid>,
       )}
     </Grid>
   );
-}
+};
 
 export default ServiceOverview;

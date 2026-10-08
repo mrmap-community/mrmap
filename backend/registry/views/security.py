@@ -1,4 +1,5 @@
 from django.contrib.auth.models import Group
+from django.db.models import F
 from django.db.models.query import Prefetch
 from extras.viewsets import NestedModelViewSet
 from registry.filters.security import (AllowedWebMapServiceOperationFilterSet,
@@ -45,10 +46,10 @@ class NestedWebMapServiceAuthenticationViewSet(
 
 
 class WebMapServiceOperationViewSetMixin:
-    queryset = WebMapServiceOperation.objects.with_label()
+    queryset = WebMapServiceOperation.objects.with_label().annotate(id=F("value"))
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('value', 'label')
-    ordering_fields = ["value", "label"]
+    ordering_fields = ["id", "value", "label"]
 
     filterset_class = WebMapServiceOperationFilterSet
 

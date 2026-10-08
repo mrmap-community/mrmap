@@ -20,6 +20,8 @@ When working on frontend code:
 
 ## Architecture: schema-driven React-Admin
 
+Use schema-driven React-Admin list filters for resource-backed exploration and testing tools as well as CRUD screens. Before introducing custom selectors or fetching option lists, establish why existing list/filter abstractions cannot support the workflow.
+
 The frontend uses React-Admin with schema-driven resource behavior.
 components/Resource/Definition.tsx explicitly registers resources and
 their UI customizations. components/MrMapFrontend.tsx enriches these
@@ -38,6 +40,10 @@ on top of that foundation.
 When implementing frontend changes:
 
 - Inspect existing schema hooks and components in jsonapi/ first.
+- For resource-backed exploration and testing tools, reuse schema-driven
+  React-Admin lists and filters. Before adding custom selectors or fetching
+  option lists, establish why existing list/filter abstractions cannot support
+  the workflow.
 - Derive resource metadata from the schema using existing abstractions.
 - Avoid duplicating schema-defined fields, relationships, validation
   constraints, or supported operations in hardcoded frontend definitions.

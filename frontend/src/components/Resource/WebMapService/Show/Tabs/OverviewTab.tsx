@@ -3,13 +3,14 @@ import ServiceOverview from "../../../Generic/ServiceShow/ServiceOverview";
 import ServiceUpdateJobsCard from "../../../Generic/ServiceShow/ServiceUpdateJobsCard";
 import MonitoringRunsCard from "../Overview/MonitoringRuns/MonitoringRunsCard";
 
+import SpatialSecurityCard from "../Overview/SpatialSecurity/SpatialSecurityCard";
+
 const OverviewTab = () => {
   return (
     <ServiceOverview
       protocol="WMS"
-      history={
-        <ServiceHistoryCard/>
-      }
+      spatialSecurity={<SpatialSecurityCard />}
+      history={<ServiceHistoryCard />}
     >
       <ServiceUpdateJobsCard resource="WebMapServiceUpdateJob" />
       <MonitoringRunsCard resource="WebMapServiceMonitoringRun" />

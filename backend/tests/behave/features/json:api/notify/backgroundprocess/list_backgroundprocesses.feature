@@ -5,6 +5,7 @@ Feature: BackgroundProcess List Endpoint
 
     Background: Setup base url
         Given I use the endpoint http://localhost:8000/api/notify/background-processes
+        And I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
 
 
     Scenario: Can get list of current background processes
@@ -34,3 +35,6 @@ Feature: BackgroundProcess List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+
+        Then I expect that response json has an attribute "data.[0].attributes.status" with value "failed"
+        Then I expect that response json has an attribute "data.[0].attributes.progress" with value "0.0"

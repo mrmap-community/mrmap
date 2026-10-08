@@ -7,11 +7,16 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.celery import app
-from notify.enums import LogTypeEnum, ProcessNameEnum
+from notify.enums import LogTypeEnum, ProcessNameEnum, ProcessStatusEnum
 from notify.managers import BackgroundProcessManager
 
 
 class BackgroundProcess(models.Model):
+    status = models.PositiveSmallIntegerField(
+        choices=ProcessStatusEnum.choices,
+        default=ProcessStatusEnum.PENDING,
+        editable=False)
+
     threads = models.ManyToManyField(
         to=TaskResult,
         related_name='processes',
@@ -99,6 +104,9 @@ class BackgroundProcess(models.Model):
     def save(self, *args, **kwargs):
         if self.phase == "abort":
             self.done_at = now()
+            self.status = ProcessStatusEnum.ABORTED
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"status", "done_at"}
 
             related_tasks = self.get_related_task_ids()
             if related_tasks:

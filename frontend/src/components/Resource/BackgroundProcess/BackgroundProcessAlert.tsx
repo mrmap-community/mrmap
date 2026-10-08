@@ -74,7 +74,7 @@ const BackgroundProcessAlert = (
       default:
         return record?.phase
     }
-  },[])
+  },[record?.status, record?.phase])
 
   const stepInfo = useMemo(()=>{
     return record?.doneSteps && record?.totalSteps && `${record?.doneSteps ?? 0} of ${record?.totalSteps ?? 0} steps done.`

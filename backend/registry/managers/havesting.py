@@ -5,6 +5,7 @@ from django.db.models.functions import Ceil, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
+from notify.enums import ProcessStatusEnum
 from notify.tasks import finish_background_process
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 
@@ -131,6 +132,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
         else:
             BackgroundProcess.objects.filter(pk=bp.pk).update(
                 phase=HarvestingPhaseEnum.COMPLETED.value,
+                status=ProcessStatusEnum.COMPLETED,
                 done_at=now(),
                 done_steps=F('total_steps')
             )

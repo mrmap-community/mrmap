@@ -2,6 +2,22 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  datasetExplorer: {
+    title: "Datensätze erkunden",
+    count: "%{count} Datensätze",
+    coverage: "Geografische Abdeckung",
+    scope: "Abdeckung von %{count} Datensätzen auf dieser Seite",
+    legend: "Blau: Datensatzausdehnung · Orange: ausgewählter Datensatz. Metadatengrenzen können größer als die tatsächliche Datenabdeckung sein.",
+    noCoverage: "Für diese Ergebnisse ist keine geografische Abdeckung erfasst.",
+    select: "Datensatz auswählen",
+    view: "Ergebnisansicht",
+    results: "Datensatzergebnisse",
+    list: "Liste",
+    split: "Geteilt",
+    map: "Karte",
+    hasCoverage: "Geografische Abdeckung",
+    missingCoverage: "Keine Ausdehnung erfasst"
+  },
   harvestRun: {
       stopFailed: "Datenübernahme konnte nicht gestoppt werden.",
     "title": "Datenübernahme #%{id}",

@@ -5,6 +5,22 @@ import lodashMerge from 'lodash/merge';
 const en = lodashMerge(
   englishMessages,
   {
+    datasetExplorer: {
+      "title": "Dataset explorer",
+      "count": "%{count} datasets",
+      "coverage": "Geographic coverage",
+      "scope": "Coverage of %{count} datasets on this page",
+      "legend": "Blue: dataset extent · Orange: selected dataset. Metadata bounds may be broader than actual data coverage.",
+      "noCoverage": "No geographic coverage recorded for these results.",
+      "select": "Select dataset",
+      "view": "Result view",
+      "results": "Dataset results",
+      "list": "List",
+      "split": "Split",
+      "map": "Map",
+      "hasCoverage": "Geographic coverage",
+      "missingCoverage": "No extent recorded"
+    },
     harvestRun: {
       stopFailed: "Unable to stop harvesting.",
       "title": "Harvest #%{id}",

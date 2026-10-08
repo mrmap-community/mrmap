@@ -22,6 +22,8 @@ import RealtimeList from './Realtime/RealtimeList'
 
 
 export interface ListGuesserProps extends Partial<ListProps> {
+  listContent?: ReactElement
+  additionalFilters?: ReactElement[]
   realtime?: boolean
   relatedResource?: Partial<RelatedResource>
   rowActions?: ReactNode
@@ -37,6 +39,8 @@ export interface ListGuesserProps extends Partial<ListProps> {
 
 
 const ListGuesser = ({
+  listContent,
+  additionalFilters,
   realtime=false,
   relatedResource = undefined,
   rowActions = undefined,
@@ -77,7 +81,7 @@ const ListGuesser = ({
   ,[fieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
-  const filters = useMemo(() => fieldSchemas.map(def => createElement(def.component, def.props)), [fieldSchemas])
+  const filters = useMemo(() => [...(additionalFilters ?? []), ...fieldSchemas.map(def => createElement(def.component, def.props))], [fieldSchemas, additionalFilters])
   
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
@@ -160,7 +164,7 @@ const ListGuesser = ({
         ? { is_update_candidate: false, ...props.filter }
         : props.filter}
     >
-      <DatagridConfigurable
+      {listContent ?? <DatagridConfigurable
         bulkActionButtons={false}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)
@@ -183,7 +187,7 @@ const ListGuesser = ({
             {additionalActions || listOptions?.additionalActions && createElement(listOptions?.additionalActions)}
           </WrapperField >
         }
-      </DatagridConfigurable >
+      </DatagridConfigurable >}
 
     </ListComponent >
   )

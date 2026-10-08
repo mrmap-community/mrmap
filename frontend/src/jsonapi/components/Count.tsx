@@ -8,7 +8,7 @@ import {
     useResourceContext,
     useTimeout,
 } from 'ra-core';
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent } from 'react';
 import { Link } from 'react-admin';
 
 
@@ -42,6 +42,7 @@ export const Count = ({
         link,
         resource: resourceFromProps,
         timeout = 1000,
+        refetchInterval,
         ...rest
     } = props;
     const resource = useResourceContext(props);
@@ -82,7 +83,7 @@ export const Count = ({
           ...meta
 
         }
-    });
+    }, { refetchInterval });
 
     const body = isPending ? (
         oneSecondHasPassed ? (
@@ -104,7 +105,7 @@ export const Count = ({
                 search: filter ? `filter=${JSON.stringify(filter)}` : undefined,
             }}
             variant="body2"
-            onClick={e => e.stopPropagation()}
+            onClick={(e: MouseEvent<HTMLAnchorElement>) => e.stopPropagation()}
             {...rest}
         >
             {body}
@@ -117,6 +118,7 @@ export const Count = ({
 };
 
 export interface CountProps extends TypographyProps {
+    refetchInterval?: number | false;
     filter?: any;
     sort?: SortPayload;
     link?: Boolean;

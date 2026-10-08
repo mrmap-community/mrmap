@@ -1,4 +1,5 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import CronInput from "../../../Input/CronInput";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
@@ -64,6 +65,12 @@ const tabs: ServiceTab[] = [
       <ServiceRelatedTab
         resource="PeriodicHarvestingJob"
         defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
+        formFieldOverrides={[
+          {
+            component: CronInput,
+            props: { source: "scheduling" },
+          },
+        ]}
       />
     ),
   },

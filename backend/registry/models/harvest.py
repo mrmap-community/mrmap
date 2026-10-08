@@ -106,7 +106,8 @@ class ProcessingData(models.Model):
         with transaction.atomic():
             current = self._meta.model.objects.select_for_update().get(pk=self.pk)
             self.celery_task_ids = current.celery_task_ids + ids
-            self._meta.model.objects.filter(pk=self.pk).update(celery_task_ids=self.celery_task_ids)
+            self._meta.model.objects.filter(pk=self.pk).update(
+                celery_task_ids=self.celery_task_ids)
 
 
 class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
@@ -561,7 +562,8 @@ class HarvestingJob(ProcessingData):
             if job.done_at is not None or job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
                 return 0
             if check_existing:
-                existing_count = TemporaryMdMetadataFile.objects.filter(job=self, requested_url=request.url).count()
+                existing_count = TemporaryMdMetadataFile.objects.filter(
+                    job=self, requested_url=request.url).count()
                 if existing_count:
                     return existing_count
             db_md_metadata_file_list = []
@@ -755,7 +757,8 @@ class TemporaryMdMetadataFile(models.Model):
                                         created_instance,
                                         'fileimport'if self.job.service is None else f'csw:{self.job.service}'
                                     )
-                            result.append((created_instance, update, not created))
+                            result.append(
+                                (created_instance, update, not created))
                             self.delete()
                     return result
             except OperationalError:
@@ -839,54 +842,30 @@ class PeriodicHarvestingJob(PeriodicTask):
         verbose_name=_("catalogue service"),
         help_text=_("this is the service which shall be harvested"))
 
-    def parse_kwargs(self):
-        if not self.kwargs:
-            return {}
-
-        if isinstance(self.kwargs, dict):
-            return self.kwargs
-
-        try:
-            return json.loads(self.kwargs)
-        except json.JSONDecodeError:
-            pass
-        # fallback: python dict string
-        try:
-            return ast.literal_eval(self.kwargs)
-        except Exception:
-            return {}
-
     def __init__(self, *args, **kwargs) -> None:
         # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
         super().__init__(*args, **kwargs)
-        if not self.pk and not self.name:
-            # we do not need this field now... just generate random data
-            self.name = uuid4()
-        if not self.pk and not self.task:
-            self.task = "registry.tasks.harvest.create_harvesting_job"
-        if not self.pk and self.kwargs and "service_id" not in self.kwargs:
-            self.kwargs = {
-                "service_id": str(self.service.pk)
-            }
-        if not self.pk and not self.queue:
-            self.queue = "default"
-
-        system_user, _ = get_user_model().objects.get_or_create(username="system")
-        http_request = {
-            "path": "/periodic-harvesting-job",
-            "method": "GET",
-            "content_type": "application/json",
-            "data": {},
-            "user_pk": system_user.pk
-        }
-
-        self.kwargs = self.parse_kwargs()
-        self.kwargs.update({
-            "http_request": http_request,
-        })
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.harvest.create_harvesting_job"
+            if not self.queue:
+                self.queue = "default"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                system_user, _ = get_user_model().objects.get_or_create(username="system")
+                http_request = {
+                    "path": "/periodic-harvesting-job",
+                    "method": "GET",
+                    "content_type": "application/json",
+                    "data": {},
+                    "user_pk": str(system_user.pk)
+                }
+                self.kwargs = json.dumps({
+                    "service_id": str(self.service.pk),
+                    "http_request": http_request,
+                })
 
     class Meta:
-        verbose_name = _('Periodic Harvesting Job')
-        verbose_name_plural = _('Periodic Harvesting Jobs')
         verbose_name = _('Periodic Harvesting Job')
         verbose_name_plural = _('Periodic Harvesting Jobs')

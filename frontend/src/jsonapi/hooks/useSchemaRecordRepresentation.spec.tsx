@@ -38,3 +38,23 @@ it("uses schema field precedence and falls back when a schema disappears", () =>
   rerender();
   expect(result.current(record)).toBe("Service (1)");
 });
+
+it("returns a string when the schema uses a numeric ID", () => {
+  state.schema = { properties: { attributes: { properties: {} } } };
+  const { result } = renderHook(() => useSchemaRecordRepresentation({}));
+  expect(result.current({ id: 20 })).toBe("20");
+  expect(result.current({ id: 0 })).toBe("0");
+});
+
+it.each([null, undefined, {}])(
+  "falls back for a missing or non-text label: %s",
+  (value) => {
+    state.schema = {
+      properties: { attributes: { properties: { stringRepresentation: {} } } },
+    };
+    const { result } = renderHook(() => useSchemaRecordRepresentation({}));
+    expect(result.current({ id: 20, stringRepresentation: value })).toBe(
+      "Service (20)",
+    );
+  },
+);

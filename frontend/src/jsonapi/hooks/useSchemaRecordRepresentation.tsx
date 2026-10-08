@@ -40,13 +40,11 @@ const useSchemaRecordRepresentation = ({
 
   const optionTextFunc = useCallback(
     (record: RaRecord) => {
-      if (representation !== undefined) {
-        return Object.hasOwn(record, representation)
-          ? record[representation]
-          : `${name} (${record.id})`;
-      } else {
-        return `${name} (${record.id})`;
-      }
+      const value =
+        representation !== undefined ? record[representation] : undefined;
+      return typeof value === "string" || typeof value === "number"
+        ? String(value)
+        : `${name} (${record.id})`;
     },
     [representation, name],
   );

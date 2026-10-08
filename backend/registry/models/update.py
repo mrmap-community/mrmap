@@ -317,7 +317,7 @@ class ServiceUpdateJob(models.Model):
         fields = [field.name for field in model._meta.concrete_fields
                   if field.name in field_names and not field.primary_key]
         if not fields:
-            model.history.bulk_history_create(
+            model.change_log.bulk_history_create(
                 objects, update=True,
                 default_change_reason=self.default_change_reason, batch_size=500,
             )
@@ -342,7 +342,7 @@ class ServiceUpdateJob(models.Model):
             else:
                 del instance.skip_history_when_saving
         # bulk_history_create defaults to '+'; it does not insert the live object.
-        instance.history.bulk_history_create(
+        instance.change_log.bulk_history_create(
             [instance], default_change_reason=self.default_change_reason,
         )
 
@@ -512,7 +512,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             Layer.objects.bulk_update(
                 adopted_layers, ["service", "mptt_parent", "mptt_tree"], batch_size=500,
             )
-            Layer.history.bulk_history_create(
+            Layer.change_log.bulk_history_create(
                 adopted_layers, default_change_reason=self.default_change_reason,
                 batch_size=500,
             )

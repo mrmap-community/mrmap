@@ -1,6 +1,7 @@
 from django.test import TestCase
 from mptt2.models import Tree
 from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
+from registry.models.update import WebFeatureServiceUpdateJob, WebMapServiceUpdateJob
 from registry.views.service import (
     FeatureTypeViewSet, LayerViewSet, WebFeatureServiceViewSet,
     WebMapServiceViewSet,
@@ -97,3 +98,29 @@ class UpdateCandidatesTest(TestCase):
                 child_id = child.pk
                 child_model.objects.filter(pk=child_id).delete()
                 self.assertTrue(child_model.change_log.filter(id=child_id, history_type="-").exists())
+
+    def test_update_job_records_adoption_and_history_only_changes(self):
+        for model, child_model, _, _ in self.service_pairs():
+            with self.subTest(model=model.__name__):
+                service, candidate = self.create_candidate(model)
+                child = self.create_element(child_model, candidate, "New element")
+                job_model = (WebMapServiceUpdateJob if model is WebMapService
+                             else WebFeatureServiceUpdateJob)
+                job = job_model.objects.create(service=service)
+                child.service = service
+
+                job.adopt_candidate(child)
+
+                child.refresh_from_db()
+                self.assertEqual(child.service_id, service.pk)
+                record = child_model.change_log.get(id=child.pk)
+                self.assertEqual(record.history_type, "+")
+                self.assertEqual(record.history_change_reason, job.default_change_reason)
+
+                job.bulk_update_changed([child], child_model, ["keywords"])
+
+                history = child_model.change_log.filter(id=child.pk)
+                self.assertEqual(history.count(), 2)
+                record = history.first()
+                self.assertEqual(record.history_type, "~")
+                self.assertEqual(record.history_change_reason, job.default_change_reason)

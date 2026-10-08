@@ -99,6 +99,18 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
             job__id=1).count()
         self.assertEqual(temporary_md_files_count, 10)
 
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_recovered_page_is_not_duplicated(self, send_request):
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+        before = list(TemporaryMdMetadataFile.objects.filter(job_id=1).values_list('pk', flat=True))
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1, recovering=True)
+        self.assertCountEqual(
+            TemporaryMdMetadataFile.objects.filter(job_id=1).values_list('pk', flat=True), before)
+
+
 
 class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
 

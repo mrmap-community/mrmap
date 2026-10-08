@@ -1,6 +1,5 @@
 import ast
 import json
-import os
 import sys
 from uuid import uuid4
 
@@ -9,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import UniqueConstraint
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
@@ -104,9 +103,10 @@ class ProcessingData(models.Model):
 
     def append_celery_task_ids(self, ids):
         """thread safe append function"""
-        self._meta.model.objects.filter(pk=self.pk).select_for_update().update(
-            celery_task_ids=self.celery_task_ids + ids
-        )
+        with transaction.atomic():
+            current = self._meta.model.objects.select_for_update().get(pk=self.pk)
+            self.celery_task_ids = current.celery_task_ids + ids
+            self._meta.model.objects.filter(pk=self.pk).update(celery_task_ids=self.celery_task_ids)
 
 
 class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
@@ -303,7 +303,8 @@ class HarvestingJob(ProcessingData):
             kwargs.pop("service_metadata_record")
             kwargs.update({"dataset_metadata_record": related_object})
         try:
-            return model.objects.create(**kwargs)
+            with transaction.atomic():
+                return model.objects.create(**kwargs)
         except IntegrityError as e:
             if "unique constraint" in str(e.args).lower():
                 kwargs.update(
@@ -332,7 +333,7 @@ class HarvestingJob(ProcessingData):
             transaction.on_commit(func=lambda: task.apply_async())
             return ret
 
-    def handle_total_records_defined(self):
+    def handle_total_records_defined(self, recovering=False):
         """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
         with transaction.atomic():
             self.phase = HarvestingPhaseEnum.DOWNLOAD_RECORDS.value
@@ -350,6 +351,7 @@ class HarvestingJob(ProcessingData):
                 task = call_fetch_records.s(
                     harvesting_job_id=self.pk,
                     start_position=number * self.max_step_size + 1,
+                    recovering=recovering,
                     http_request=self._http_request()
                 )
                 task.set(task_id=str(task_id))
@@ -513,7 +515,7 @@ class HarvestingJob(ProcessingData):
     def _check_xml_is_parseable(self, xml: str) -> bool:
         try:
             XML(xml, XMLParser())
-        except:
+        except Exception:
             return False
         return True
 
@@ -525,7 +527,7 @@ class HarvestingJob(ProcessingData):
             return True
         return False
 
-    def fetch_records(self, start_position) -> int | None:
+    def fetch_records(self, start_position, check_existing=True) -> int | None:
         client = self.service.client
         request = client.get_records_request(
             max_records=self.max_step_size,
@@ -554,33 +556,40 @@ class HarvestingJob(ProcessingData):
         # Alle MD_Metadata-Elemente finden
         md_elements = tree.xpath("//gmd:MD_Metadata", namespaces=ns)
 
-        db_md_metadata_file_list = []
-        records_count = len(md_elements)
-
-        for idx, md_metadata in enumerate(md_elements, start=1):
-            db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
-                job=self,
-                request_id=datestamp,
-                requested_url=response.url,
-                download_duration=response.elapsed / records_count
-            )
-
-            # save the file without saving the instance in db... this will be done with bulk_create
-            xml_bytes = etree.tostring(
-                md_metadata,
-                xml_declaration=True,
-                encoding="UTF-8",
-                pretty_print=True
-            )
-
-            db_md_metadata_file.md_metadata_file.save(
-                name=f"record_nr_{idx + start_position}",
-                content=ContentFile(content=xml_bytes),
-                save=False)
-            db_md_metadata_file_list.append(db_md_metadata_file)
-        db_objs = 0
-
         with transaction.atomic():
+            job = HarvestingJob.objects.select_for_update().get(pk=self.pk)
+            if job.done_at is not None or job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
+                return 0
+            if check_existing:
+                existing_count = TemporaryMdMetadataFile.objects.filter(job=self, requested_url=request.url).count()
+                if existing_count:
+                    return existing_count
+            db_md_metadata_file_list = []
+            records_count = len(md_elements)
+
+            for idx, md_metadata in enumerate(md_elements, start=1):
+                db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
+                    job=self,
+                    request_id=datestamp,
+                    requested_url=request.url,
+                    download_duration=response.elapsed / records_count
+                )
+
+                # save the file without saving the instance in db... this will be done with bulk_create
+                xml_bytes = etree.tostring(
+                    md_metadata,
+                    xml_declaration=True,
+                    encoding="UTF-8",
+                    pretty_print=True
+                )
+
+                db_md_metadata_file.md_metadata_file.save(
+                    name=f"record_nr_{idx + start_position}",
+                    content=ContentFile(content=xml_bytes),
+                    save=False)
+                db_md_metadata_file_list.append(db_md_metadata_file)
+            db_objs = 0
+
             db_objs = TemporaryMdMetadataFile.objects.bulk_create(
                 objs=db_md_metadata_file_list,
                 ignore_conflicts=True,
@@ -598,8 +607,7 @@ class HarvestingJob(ProcessingData):
                     extented_description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                     f"URL: {request.url}"
                 )
-
-        return len(db_objs)
+            return len(db_objs)
 
 
 def response_file_path(instance, filename):
@@ -658,6 +666,9 @@ class TemporaryMdMetadataFile(models.Model):
         from registry.tasks.harvest import \
             call_md_metadata_file_to_db  # to avoid circular import errors
         adding = self._state.adding or self.re_schedule
+        if self.re_schedule:
+            self.has_import_error = False
+            self.import_error = ""
         self.re_schedule = False
 
         ret = super().save(*args, **kwargs)
@@ -665,7 +676,7 @@ class TemporaryMdMetadataFile(models.Model):
         if adding:
             task_id = uuid4()
 
-            task = call_md_metadata_file_to_db.delay(
+            task = call_md_metadata_file_to_db.s(
                 md_metadata_file_id=self.pk,
                 harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
                 http_request=self.job._http_request(),
@@ -678,75 +689,77 @@ class TemporaryMdMetadataFile(models.Model):
         return ret
 
     def delete(self, *args, **kwargs):
-        try:
-            if os.path.isfile(self.md_metadata_file.path):
-                os.remove(self.md_metadata_file.path)
-        except (ValueError, FileNotFoundError):
-            # filepath is broken
-            pass
-        return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
+        storage = self.md_metadata_file.storage
+        name = self.md_metadata_file.name
+        ret = super().delete(*args, **kwargs)
+        if name:
+            transaction.on_commit(lambda: storage.delete(name))
+        return ret
 
     def md_metadata_file_to_db(self):
         with self.md_metadata_file.open('rb') as _file:
             try:
-                start_db_processing = now()
+                with transaction.atomic():
+                    start_db_processing = now()
 
-                mappers = MDMetadataXmlMapper.from_xml(_file.read())
-                instances = mappers[0].xml_to_django()
-                result = []
-                for instance in instances:
-                    handler = PersistenceHandler(
-                        mapper=mappers[0],
-                        defaults={
-                            "dataset": {
-                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
-                            },
-                            "service": {
-                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
-                            }
-                        }
-                    )
-                    created_instances = handler.persist_all()
-                    key = make_instance_key(instance)
-
-                    created_instance = created_instances.get(
-                        instance.__class__, {}).get(key, None)
-                    # after persit handler has created the instances on db side, the objects are no longer identical
-
-                    if created_instance:
-                        created, update = created_instance._custom_state
-                        if self.job:
-                            end_db_processing = now()
-                            relation = self.update_relations(
-                                not created,
-                                update,
-                                created_instance,
-                                end_db_processing - start_db_processing
-                            )
-                            if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
-                                # do not delete this entries for analyze purposes
-                                import_error = {
-                                    "reason": "duplicated",
-                                    "db_metadata.pk": created_instance.pk,
-                                    "db_metadata.file_identifier": created_instance.file_identifier,
-                                    "db_metadata.code_space": created_instance.code_space,
-                                    "db_metadata.code": created_instance.code,
+                    mappers = MDMetadataXmlMapper.from_xml(_file.read())
+                    instances = mappers[0].xml_to_django()
+                    result = []
+                    for instance in instances:
+                        handler = PersistenceHandler(
+                            mapper=mappers[0],
+                            defaults={
+                                "dataset": {
+                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                },
+                                "service": {
+                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                                 }
-                                self.has_import_error = True
-                                self.import_error = str(import_error)
-                                self.save()
-                                return created_instance, update, not created
-                            elif update or created:
-                                # something has changed... so tell us from what service this changes come from
-                                update_change_reason(
+                            }
+                        )
+                        created_instances = handler.persist_all()
+                        key = make_instance_key(instance)
+
+                        created_instance = created_instances.get(
+                            instance.__class__, {}).get(key, None)
+                        # after persit handler has created the instances on db side, the objects are no longer identical
+
+                        if created_instance:
+                            created, update = created_instance._custom_state
+                            if self.job:
+                                end_db_processing = now()
+                                relation = self.update_relations(
+                                    not created,
+                                    update,
                                     created_instance,
-                                    'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                                    end_db_processing - start_db_processing
                                 )
-                        result.append((created_instance, update, not created))
-                        self.delete()
-                return result
+                                if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                                    # do not delete this entries for analyze purposes
+                                    import_error = {
+                                        "reason": "duplicated",
+                                        "db_metadata.pk": created_instance.pk,
+                                        "db_metadata.file_identifier": created_instance.file_identifier,
+                                        "db_metadata.code_space": created_instance.code_space,
+                                        "db_metadata.code": created_instance.code,
+                                    }
+                                    self.has_import_error = True
+                                    self.import_error = str(import_error)
+                                    self.save()
+                                    return created_instance, update, not created
+                                elif update or created:
+                                    # something has changed... so tell us from what service this changes come from
+                                    update_change_reason(
+                                        created_instance,
+                                        'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                                    )
+                            result.append((created_instance, update, not created))
+                            self.delete()
+                    return result
+            except OperationalError:
+                raise
             except Exception as e:
                 import traceback
                 exc_info = sys.exc_info()

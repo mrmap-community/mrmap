@@ -5,6 +5,18 @@ import lodashMerge from 'lodash/merge';
 const en = lodashMerge(
   englishMessages,
   {
+    backgroundActivity: {
+      title: "Background activity",
+      recent: "10 most recent processes",
+      empty: "No background processes yet.",
+      loadError: "Unable to load background activity.",
+      process: "Process #%{id}",
+      progress: "Workflow progress",
+      steps: "%{done} of %{total} steps",
+      viewDetails: "View details",
+      viewAll: "View all background processes",
+      status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+    },
     monitoringRun: {
       notRecorded: "Not recorded",
       notRecordedMessage: "No check result was recorded. This check may not have run.",

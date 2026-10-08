@@ -2,6 +2,18 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  backgroundActivity: {
+    title: "Hintergrundaktivität",
+    recent: "Die 10 neuesten Prozesse",
+    empty: "Noch keine Hintergrundprozesse vorhanden.",
+    loadError: "Hintergrundaktivität konnte nicht geladen werden.",
+    process: "Prozess #%{id}",
+    progress: "Fortschritt des Prozesses",
+    steps: "%{done} von %{total} Schritten",
+    viewDetails: "Details anzeigen",
+    viewAll: "Alle Hintergrundprozesse anzeigen",
+    status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
+  },
   monitoringRun: {
       notRecorded: "Nicht aufgezeichnet",
       notRecordedMessage: "Kein Prüfergebnis aufgezeichnet. Diese Prüfung wurde möglicherweise nicht ausgeführt.",

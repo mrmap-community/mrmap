@@ -128,5 +128,21 @@ documents:
 | --- | --- |
 | Django unit tests, Behave scenarios, flake8, migration and translation checks | `backend/AGENTS.md` |
 | Frontend type checking, tests, production build | `frontend/AGENTS.md` |
+| Frontend resource screens and their specs | `frontend/src/components/AGENTS.md` |
+| Writing or debugging backend tests | `backend/tests/AGENTS.md` |
 | Starting the development stack | `.vscode/tasks.json`, `docs/source/development/getting-started.rst` |
 | Debugging WebSocket notifications | `backend/cheatsheet.md` |
+
+## Verification reality check
+
+- `flake8` runs in ~1 s from the host virtualenv (`backend/../.venv/bin/flake8`); everything else
+  needs Docker, because `backend/MrMap/settings.py` calls `gdal_info()` and GDAL/GEOS are not
+  installed on a plain host.
+- Backend Docker test runs must not overlap: they all create the same `test_mrmap` database and
+  destroy each other mid-run.
+- `npm run type-check` and the frontend unit tests are **not clean on `main`** and nothing in CI
+  enforced them before 2026-10; treat both as baseline comparisons, not green/red gates. See
+  `frontend/AGENTS.md` for the current counts.
+- The backend `pre-commit-check` job **is** red on `main`: flake8 finds 71 pre-existing violations
+  outside `tests/`. Scope lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
+  `backend/`) instead of trying to read a whole-tree report; see `backend/AGENTS.md`.

@@ -42,7 +42,13 @@ def complete_harvest(job_id):
     snapshots = complete_snapshots(job.service_id)
     if not snapshots.filter(pk=job.pk).exists():
         return
-    previous = snapshots.exclude(pk=job.pk).filter(done_at__lte=job.date_created).order_by('-done_at', '-pk').first()
+    # date_created is nullable and only set explicitly (see ProcessingData), so
+    # jobs created by HarvestingJobManager come without it. Fall back to this
+    # job's own completion time, which is always set above, instead of querying
+    # with None - Django rejects that with "Cannot use None as a query value".
+    previous_snapshot_boundary = job.date_created or job.done_at
+    previous = snapshots.exclude(pk=job.pk).filter(
+        done_at__lte=previous_snapshot_boundary).order_by('-done_at', '-pk').first()
     if previous is None:
         return
     current = HarvestedMetadataRelation.objects.filter(harvesting_job=job, collecting_state__in=PRESENT_STATES)

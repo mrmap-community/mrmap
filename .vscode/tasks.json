@@ -240,6 +240,22 @@
             ]
         },
         {
+            "label": "Docker Compose: run frontend-tests",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "run",
+                "--rm",
+                "frontend-tests"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "Docker Compose: run behave tests",
             "type": "shell",
             "command": "docker",

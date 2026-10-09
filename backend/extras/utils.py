@@ -92,3 +92,16 @@ class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
         rendered HTML, so let's simply return an empty string.
         """
         return ""
+
+    def get_filter_form(self, data, view, request):
+        """Skip the filters form for views without a queryset.
+
+        DRF builds it from ``view.get_queryset()``, which asserts when the view
+        has no ``queryset`` - e.g. the system status endpoint, which renders a
+        plain snapshot. Without this the whole browsable response failed with
+        an AssertionError instead of the documented payload. Views that do
+        expose a queryset keep their filters form.
+        """
+        if getattr(view, "queryset", None) is None:
+            return None
+        return super().get_filter_form(data, view, request)

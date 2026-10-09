@@ -111,21 +111,56 @@ When implementing frontend changes:
 ## Verification and commands
 
 Run commands from `frontend/`. Scripts are defined in `package.json`; do not assume a script exists
-without checking it.
+without checking it. If `node`/`npm` are not installed on the host, use the `frontend-tests` service
+from the repository root; it keeps its dependencies in a named volume, so only the first run pays
+for `npm ci` (~20 s):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests
+docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+  run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
+docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+  run --rm frontend-tests npm run type-check
+```
 
 ```bash
 npm install                                          # install dependencies, once
 npm run dev                                          # development server
-npm run type-check                                   # tsc --noEmit
+npm run type-check                                   # tsc --noEmit, ~1 min
 npm run test -- --run src/jsonapi/utils.spec.tsx     # targeted tests
+npm run test -- --run                                # all specs, ~80 s
 npm run test-coverage                                # all tests with coverage
 npm run build                                        # production build, when relevant
 ```
 
 - Tests are Vitest specs colocated with the code they test and named `*.spec.ts` or `*.spec.tsx`.
-  `frontend/tests/` only holds the Vitest setup. Name new tests the same way.
+  `frontend/tests/` only holds the Vitest setup. Name new tests the same way. Vitest's default
+  collection pattern also matches hidden files, so a spec literally named `.spec.ts` is collected
+  but is excluded from `tsconfig.json`; both problems disappeared once the two dotfile specs in
+  `ows-lib` were renamed — do not reintroduce one.
 - `npm run lint` and `npm run format` modify files across `src/`. Keep formatting changes scoped to
   the task.
 - For cross-stack changes, verify both backend and frontend. Prefer targeted tests during
   development; run broader suites when the scope or risk warrants it.
 - Backend changes are verified separately; see `../backend/AGENTS.md`.
+
+## Known red baselines
+
+No CI job gated on these checks before 2026-10; the `frontend-tests` job in
+`.github/workflows/quality-assurance.yml` now runs them with `continue-on-error: true`. Neither is
+clean on `main`, so treat both as baselines to compare against instead of expecting green:
+
+- `npm run type-check`: 114 errors, spread over `components/` (largest clusters in
+  `MapViewer/OwsContextGuiActions/EditAuthenticationsDialog.tsx`, `Resource/HarvestingJob/HarvestingJobTimingCharts.tsx`),
+  `jsonapi/`, `providers/`, `i18n/de.ts` and `ows-lib` test fixtures.
+- `npm run test -- --run`: 52 to 56 failing of 268 tests, in 12 to 14 of 47 files; the exact count
+  moves between runs because several specs are timing sensitive, so treat the range as the
+  baseline. Clusters:
+  `Resource/WebMapService/Show/Overview/MonitoringRuns` and `.../UpdateJobs` (empty-state and
+  error-state cards), `LayerTree`, `Resource/Generic/ServiceShow`,
+  `Resource/WebMapServiceUpdateJob`, and `ows-lib/OwsContext/tests/OwsContext.spec.ts` (16 tests
+  asserting folder semantics the current `ows-lib` move/insert code does not implement; that file
+  collected zero tests until 2026-10, because it imported `describe` from `node:test`).
+
+Removing failures is welcome; the goal of this section is to make a failing run interpretable. When
+the CI job stops being informational, these are the numbers to clear first.

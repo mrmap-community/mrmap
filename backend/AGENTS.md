@@ -97,6 +97,31 @@ Use the path form for directories that cannot be imported as modules, for exampl
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm django-tests python manage.py test tests/django/registry/mrmap-proxy --noinput
 ```
 
+Repeat run of the same tests, reusing the already created test database:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm django-tests python manage.py test tests.django.registry.tests_update_candidates --noinput --keepdb
+```
+
+Drop `--keepdb` after changing models or migrations, or whenever a failure mentions the database
+schema; a kept database is not brought up to date with model edits made after it was created.
+
+What this loop costs, measured on this checkout:
+
+- Targeted Django tests: ~18 s cold, ~92 s when a stale test database has to be dropped first,
+  ~20 s with `--keepdb`.
+- The full `tests/django` suite (183 tests) reports ~216 s of test time but takes ~15 min wall
+  clock, because most test classes rebuild the PostGIS test database; CI budgets 40 min.
+- Run only **one** `django-tests` container at a time. Every run creates the same `test_mrmap`
+  database, so overlapping runs drop each other's tables and fail with unrelated errors such as
+  `relation "django_migrations" does not exist` or `source database "mrmap" is being accessed by
+  other users`. Those failures are not real.
+
+Django code needs Docker on hosts without GDAL/GEOS, because `MrMap/settings.py` calls `gdal_info()`
+at import time. Postgres and Redis are published on the host at `127.0.0.1:5555` and
+`127.0.0.1:5556` (`docker-compose.yml`), which matches `MRMAP_DB_PORT` and `DJANGO_REDIS_PORT` in
+`docker/backend/.mrmap.env` and the env recipe in `.vscode/launch.json`.
+
 API/workflow integration suite:
 
 ```bash
@@ -121,12 +146,17 @@ done:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pre-commit-check /bin/sh -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
 ```
 
-Targeted flake8 with the CI settings. The project configures no Python formatter, only flake8 and
-autopep8 in `.requirements/dev.txt`:
+flake8 is the only linter configured (`.requirements/dev.txt` also lists autopep8, but no formatter
+is wired up). `setup.cfg` mirrors the flags and exclusion CI passes in
+`.bash_scripts/pre_commit_check.sh`, so a bare `flake8` reports what CI reports:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pre-commit-check flake8 --ignore E501,W503,W504 registry/models/service.py
+../.venv/bin/flake8 registry/models/service.py    # from backend/, ~1 s, same findings as CI
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pre-commit-check flake8 --ignore E501,W503,W504 registry/models/service.py   # ~90 s
 ```
+
+Use the host virtualenv for the loop and the container only when you also want the migration and
+translation checks.
 
 ### Test and command rules
 
@@ -138,6 +168,25 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm pre-comm
 - Run Django management commands in the `backend` application service using the development Compose configuration. Its image entrypoint waits for the database and applies migrations when the hostname contains `backend`, so a one-off `run --rm backend python manage.py ...` migrates before running the command.
 - Before creating migrations, verify that the requested change requires them.
 - Report commands run, results, and any checks that could not run.
+
+### Known red baseline
+
+CI gates on `pre_commit_check.sh`, and that gate is red on `main` for reasons unrelated to any
+single change:
+
+- flake8 reports 71 violations outside `tests/` and exits non-zero (verified in the
+  `pre-commit-check` container: `FLAKE8_EXIT=1`). The host virtualenv and the container run
+  identical versions (flake8 7.1.2, pycodestyle 2.12.1, pyflakes 3.2.0), so `.venv/bin/flake8`
+  predicts CI exactly. Most are cosmetic: 16 × `W291` trailing whitespace, 7 × `E114` comment
+  indentation, the rest mostly unused imports and spacing. `registry/models/metadata.py` (14),
+  `registry/serializers/harvesting.py` (7) and `extras/schema.py` (7) hold more than a third of
+  them, and `autopep8` — already in `.requirements/dev.txt` — clears the whitespace findings
+  mechanically.
+- Because the baseline is not zero, only a scoped run answers whether *your* change is clean:
+  `../.venv/bin/flake8 <changed files>` from `backend/` has to print nothing new.
+- The Django unit suite itself is green: `tests/django` ran 183 tests with `OK (skipped=1)`
+  (verified 2026-10). A unit test failure is therefore caused by the change under test, not by the
+  baseline.
 
 ## Translations
 

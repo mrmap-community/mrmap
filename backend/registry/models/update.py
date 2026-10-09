@@ -14,6 +14,7 @@ from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.tasks.update import (run_csw_update, run_wfs_update,
@@ -518,6 +519,13 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             )
         self.delete_with_reason(Layer.objects.filter(
             id__in=deleteable_layers), Layer)
+        # Monitoring settings are user configuration of the service, not of the
+        # temporary candidate. They must survive the candidate deletion and
+        # continue to point at the published service, but stay disabled until
+        # the monitoring was reviewed against the updated service.
+        WebMapServiceMonitoringSetting.objects.filter(
+            service__update_candidate_of=self.service).update(
+            service=self.service, enabled=False)
         WebMapService.objects.filter(update_candidate_of=self.service).delete()
         self.mappings.all().delete()
         return UpdateJobStatusEnum.UPDATED

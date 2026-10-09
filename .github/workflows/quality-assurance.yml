@@ -72,6 +72,30 @@ jobs:
           name: coverage-reports
           path: ./backend/unit-tests-coverage-report.xml
 
+  frontend-tests:
+    name: frontend-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+
+      - name: Type check frontend
+        # Informational for now: tsc reports 114 errors on main (see
+        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
+        # once they are fixed.
+        continue-on-error: true
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run type-check
+
+      - name: Run frontend tests
+        # Informational for now: 52-56 of 268 specs fail on main (see
+        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
+        # once the failing specs are fixed.
+        continue-on-error: true
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests
+
   sonar-scanner:
     needs: [acceptance-tests, unit-tests]
     name: sonar-scanner

@@ -19,7 +19,7 @@ class HarvestHistoryTest(TestCase):
         cls.service = CatalogueService(id='11111111-1111-1111-1111-111111111111', title='Catalogue', version=202, origin=1,
             service_url='https://example.com/csw', metadata_contact=contact, service_contact=contact)
         CatalogueService.objects.bulk_create([cls.service])
-        cls.dataset = DatasetMetadataRecord(metadata_contact=contact, title='Dataset')
+        cls.dataset = DatasetMetadataRecord(metadata_contact=contact, dataset_contact=contact, title='Dataset')
         cls.metadata = ServiceMetadataRecord(metadata_contact=contact, title='Service metadata')
         DatasetMetadataRecord.objects.bulk_create([cls.dataset])
         ServiceMetadataRecord.objects.bulk_create([cls.metadata])

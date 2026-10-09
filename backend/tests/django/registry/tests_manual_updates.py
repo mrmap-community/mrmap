@@ -25,6 +25,11 @@ class ManualUpdateTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
             username="manual-updates", password="test")
+        # django-guardian resolves an AnonymousUser request to the user configured by
+        # ANONYMOUS_USER_NAME and creates that user on post_migrate. A TransactionTestCase
+        # running before this one flushes all tables and the post_migrate signal of that flush
+        # never fires inside the test transaction, so create the user here.
+        get_user_model().objects.get_or_create(username="AnonymousUser")
         self.client = APIClient()
         self.client.force_authenticate(self.user)
         self.service = WebMapService.objects.first()

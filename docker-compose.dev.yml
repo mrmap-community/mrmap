@@ -206,9 +206,34 @@ services:
     ports:
       - 5655:5555
 
+  # Runs the frontend type check and unit tests without a host node/npm. Reads
+  # no backend services, so it can be started standalone:
+  # docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests
+  # Pass another command to run a single spec or the type check, e.g.:
+  # ... run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
+  # ... run --rm frontend-tests npm run type-check
+  frontend-tests:
+    image: node:22-alpine
+    hostname: "mrmap-frontend-tests"
+    container_name: "mrmap-frontend-tests"
+    working_dir: /opt/mrmap/frontend
+    volumes:
+      - type: bind
+        source: ./frontend
+        target: /opt/mrmap/frontend
+      # Keeps npm dependencies out of the host checkout and warm between runs.
+      - type: volume
+        source: frontend-node-modules
+        target: /opt/mrmap/frontend/node_modules
+    command: >
+      /bin/sh -c "npm ci --no-audit --no-fund && npm run test -- --run"
+    networks:
+      - mrmap-internal
+
 networks:
   sonar:
 
     null
 volumes:
   sonar-db: null
+  frontend-node-modules: null

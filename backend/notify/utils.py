@@ -3,18 +3,39 @@ from collections import OrderedDict
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db import transaction
 from rest_framework_json_api.renderers import JSONRenderer
 
 
-def send_msg(msg, group="default"):
+def send_msg(msg, group=None, immediate=False):
+    """Publishes msg to the channel layer group named after its topic.
+
+    Connections join the group of every topic they display (see
+    DefaultConsumer.receive_json), so a message is only written to the
+    websockets that listen for it. immediate marks the messages the consumer
+    must not collapse into its debounce window.
+    """
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
-        group,
+        group or msg["topic"],
         {
             "type": "send.msg",
                     "json": msg,
+                    "immediate": immediate,
         },
     )
+
+
+def send_msg_on_commit(msg, group=None, immediate=False):
+    """Sends msg once the data it describes is visible to other connections.
+
+    Clients refetch as soon as the message arrives, so a message that is sent
+    while a transaction is still open makes them read the state from before the
+    update. Outside of a transaction Django runs the callback immediately, so
+    this only defers sends that happen inside atomic blocks.
+    """
+    transaction.on_commit(
+        lambda: send_msg(msg=msg, group=group, immediate=immediate))
 
 
 def build_action_payload(request, instance, resource_type, serializer_cls, action):

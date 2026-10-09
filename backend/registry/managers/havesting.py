@@ -78,7 +78,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                 default=Case(
                     When(
                         total_steps__gt=0,
-                        then=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precission=2),  # noqa
+                        then=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precision=2),  # noqa
 
                     ),
                     default=0.0

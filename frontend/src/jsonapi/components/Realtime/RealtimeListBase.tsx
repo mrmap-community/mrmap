@@ -31,6 +31,16 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
 
   const handleBusEvent = useCallback(
     (event: CrudEvent) => {
+      if (
+        event.type === "created" ||
+        event.type === "delete" ||
+        event.type === "deleted"
+      ) {
+        // whether a new or removed record shows up on this page at all can only
+        // be decided by the server's ordering and filtering
+        void controller.refetch();
+        return;
+      }
       if (event.type !== "updated" || !data) return;
       const ids = new Set(event.payload.ids.map(String));
       const updates = new Map(
@@ -53,14 +63,17 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
         ),
       }));
     },
-    [data, controller.resource],
+    [data, controller.resource, controller.refetch],
   );
 
   useEffect(() => {
     if (isAuthPending && !props.disableAuthentication) return;
-    const topics =
-      data?.map((record) => `resource/${controller.resource}/${record.id}`) ??
-      [];
+    const topics = [
+      // the resource wide topic carries the create and delete messages
+      `resource/${controller.resource}`,
+      ...(data?.map((record) => `resource/${controller.resource}/${record.id}`) ??
+        []),
+    ];
     topics.forEach((topic) => dataProvider.subscribe(topic, handleBusEvent));
     return () => {
       topics.forEach((topic) =>

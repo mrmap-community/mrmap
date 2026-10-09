@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import type { RaRecord } from "react-admin";
+import { ReadyState } from "react-use-websocket";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BackgroundActivityPanel from "./BackgroundActivityPanel";
 
@@ -9,23 +10,29 @@ const state = vi.hoisted(() => ({
   isPending: false,
   error: null as Error | null,
   refetch: vi.fn(),
-  callbacks: new Set<() => void>(),
-  unsubscribe: vi.fn(),
+  queryOptions: undefined as
+    | { refetchInterval?: number | false }
+    | undefined,
 }));
-const provider = {
-  subscribe: (_topic: string, callback: () => void) =>
-    state.callbacks.add(callback),
-  unsubscribe: (_topic: string, callback: () => void) => {
-    state.callbacks.delete(callback);
-    state.unsubscribe();
-  },
-};
+// ReadyState.OPEN ist 1, ReadyState.CONNECTING ist 0
+const realtime = vi.hoisted(() => ({ ready: 1 }));
+vi.mock("../../../context/HttpClientContext", () => ({
+  useHttpClientContext: () => ({ realtimeIsReady: realtime.ready }),
+}));
 vi.mock("../../../jsonapi/components/Realtime/RealtimeListBase", () => ({
-  default: ({ children }: { children: ReactNode }) => children,
+  default: ({
+    children,
+    queryOptions,
+  }: {
+    children: ReactNode;
+    queryOptions?: { refetchInterval?: number | false };
+  }) => {
+    state.queryOptions = queryOptions;
+    return <>{children}</>;
+  },
 }));
 vi.mock("react-admin", () => ({
   useListContext: () => state,
-  useDataProvider: () => provider,
   useTranslate: () => (key: string, options?: Record<string, unknown>) =>
     key === "backgroundActivity.steps"
       ? `${options?.done} of ${options?.total} steps`
@@ -45,7 +52,8 @@ beforeEach(() => {
   state.data = [];
   state.isPending = false;
   state.error = null;
-  state.callbacks.clear();
+  state.queryOptions = undefined;
+  realtime.ready = ReadyState.OPEN;
   vi.clearAllMocks();
 });
 afterEach(() => vi.useRealTimers());
@@ -128,22 +136,12 @@ describe("BackgroundActivityPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "ra.action.refresh" }));
     expect(state.refetch).toHaveBeenCalledOnce();
   });
-  it("coalesces realtime events and cleans up its subscription and pending refresh", () => {
-    vi.useFakeTimers();
-    const { unmount } = render(<BackgroundActivityPanel />);
-    act(() => {
-      state.callbacks.forEach((callback) => {
-        callback();
-        callback();
-      });
-      vi.advanceTimersByTime(1000);
-    });
-    expect(state.refetch).toHaveBeenCalledOnce();
-    act(() => state.callbacks.forEach((callback) => callback()));
-    unmount();
-    act(() => vi.advanceTimersByTime(1000));
-    expect(state.refetch).toHaveBeenCalledOnce();
-    expect(state.unsubscribe).toHaveBeenCalledOnce();
-    expect(state.callbacks.size).toBe(0);
+  it("polls only while the realtime bus is not connected", () => {
+    const { rerender } = render(<BackgroundActivityPanel />);
+    expect(state.queryOptions?.refetchInterval).toBe(false);
+
+    realtime.ready = ReadyState.CONNECTING;
+    rerender(<BackgroundActivityPanel />);
+    expect(state.queryOptions?.refetchInterval).toBe(20000);
   });
 });

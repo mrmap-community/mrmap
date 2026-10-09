@@ -8,7 +8,10 @@ from notify.enums import ProcessStatusEnum
 class BackgroundProcessManager(models.Manager):
 
     def process_info(self):
-        qs = self.get_queryset()
+        # related_resource_type is rendered as a JSON:API relationship, so it is
+        # always needed; without this the list endpoint and every websocket
+        # payload triggers one ContentType query per BackgroundProcess.
+        qs = self.get_queryset().select_related("related_resource_type")
         qs = qs.annotate(
             progress=Case(
                 When(
@@ -22,7 +25,7 @@ class BackgroundProcessManager(models.Manager):
                 default=Case(
                     When(
                         total_steps__gt=0,
-                        then=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precission=2),  # noqa
+                        then=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precision=2),  # noqa
 
                     ),
                     default=0.0

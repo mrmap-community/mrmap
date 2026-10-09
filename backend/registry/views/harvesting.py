@@ -351,7 +351,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                             then=Round(
                                 F("done_steps") * 1.0 /
                                 F("total_steps") * 100.0,
-                                precission=2,
+                                precision=2,
                                 output_field=FloatField()
                             ),
                         ),

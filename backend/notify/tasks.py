@@ -4,7 +4,6 @@ from celery import Task, shared_task
 from celery.signals import task_prerun
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
@@ -93,12 +92,21 @@ class BackgroundProcessBased(Task):
                     active_query = query.filter(
                         done_at__isnull=True,
                         status__in=[ProcessStatusEnum.PENDING, ProcessStatusEnum.RUNNING])
-                    with transaction.atomic():
-                        updated = active_query.update(**kwargs)
+                    if kwargs == {"status": ProcessStatusEnum.RUNNING}:
+                        # get_background_process fires on every task start; for a
+                        # process which is already running this writes nothing and
+                        # must not broadcast anything either.
+                        active_query = active_query.exclude(
+                            status=ProcessStatusEnum.RUNNING)
+                    updated = active_query.update(**kwargs)
 
                     if updated:
                         try:
-                            instance = query.get()
+                            # process_info provides the progress annotation and
+                            # the related resource type in one go, so the
+                            # post_save receiver doesn't have to reload.
+                            instance = BackgroundProcess.objects.process_info().get(
+                                pk=self.background_process_pk)
                             post_save.send(
                                 BackgroundProcess,
                                 instance=instance,

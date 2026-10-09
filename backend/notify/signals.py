@@ -5,7 +5,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
-from notify.utils import build_action_payload, send_msg
+from notify.utils import build_action_payload, send_msg_on_commit
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
@@ -36,7 +36,8 @@ def update_background_process_listeners_on_background_process_delete(**kwargs):
             serializer_cls=BackgroundProcessSerializer,
             action="delete"
         )
-        send_msg(msg=reducer_action)
+        # a record which is gone has to disappear from every open list
+        send_msg_on_commit(msg=reducer_action, immediate=True)
     except Exception as e:
         log_exception(e)
 
@@ -51,8 +52,12 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
     else:
         return
     try:
-        background_process = BackgroundProcess.objects.process_info().get(
-            pk=kwargs['instance'].pk)
+        background_process = kwargs['instance']
+        if getattr(background_process, "progress", None) is None:
+            # senders that wrote through QuerySet.update() hand over an instance
+            # without annotation; process_info adds progress and the resource type
+            background_process = BackgroundProcess.objects.process_info().get(
+                pk=background_process.pk)
         reducer_action = build_action_payload(
             request=request,
             instance=background_process,
@@ -60,7 +65,13 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
             serializer_cls=BackgroundProcessSerializer,
             action="created" if kwargs.get("created", False) else "updated"
         )
-        send_msg(msg=reducer_action)
+        # done_at is set by every terminal status (completed, failed, aborted):
+        # the message which announces it must never be collapsed away
+        send_msg_on_commit(
+            msg=reducer_action,
+            immediate=kwargs.get("created", False)
+            or background_process.done_at is not None
+        )
     except Exception as e:
         log_exception(e)
 

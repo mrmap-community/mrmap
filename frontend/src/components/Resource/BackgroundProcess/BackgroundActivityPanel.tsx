@@ -1,11 +1,11 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import {
   Link,
   useCreatePath,
-  useDataProvider,
   useListContext,
   useTranslate,
 } from "react-admin";
+import { ReadyState } from "react-use-websocket";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
 import {
@@ -24,10 +24,10 @@ import {
   Typography,
 } from "@mui/material";
 import RealtimeListBase from "../../../jsonapi/components/Realtime/RealtimeListBase";
+import { useHttpClientContext } from "../../../context/HttpClientContext";
 
 const BackgroundActivityContent = () => {
   const { data = [], isPending, error, refetch } = useListContext();
-  const dataProvider = useDataProvider();
   const translate = useTranslate();
   const createPath = useCreatePath();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -35,22 +35,6 @@ const BackgroundActivityContent = () => {
   const active = data.some((record) =>
     ["pending", "running"].includes(record.status),
   );
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
-      if (timer !== undefined) return;
-      timer = setTimeout(() => {
-        timer = undefined;
-        void refetch();
-      }, 1000);
-    };
-    dataProvider.subscribe("resource/BackgroundProcess", refresh);
-    return () => {
-      clearTimeout(timer);
-      dataProvider.unsubscribe("resource/BackgroundProcess", refresh);
-    };
-  }, [dataProvider, refetch]);
 
   return (
     <>
@@ -236,16 +220,23 @@ const BackgroundActivityContent = () => {
   );
 };
 
-const BackgroundActivityPanel = () => (
-  <RealtimeListBase
-    resource="BackgroundProcess"
-    perPage={10}
-    sort={{ field: "id", order: "DESC" }}
-    disableSyncWithLocation
-    queryOptions={{ refetchInterval: 20000 }}
-  >
-    <BackgroundActivityContent />
-  </RealtimeListBase>
-);
+const BackgroundActivityPanel = () => {
+  // Polling is only the fallback: while the realtime bus is up the backend
+  // pushes every change of the processes this panel shows.
+  const { realtimeIsReady } = useHttpClientContext();
+  return (
+    <RealtimeListBase
+      resource="BackgroundProcess"
+      perPage={10}
+      sort={{ field: "id", order: "DESC" }}
+      disableSyncWithLocation
+      queryOptions={{
+        refetchInterval: realtimeIsReady === ReadyState.OPEN ? false : 20000,
+      }}
+    >
+      <BackgroundActivityContent />
+    </RealtimeListBase>
+  );
+};
 
 export default BackgroundActivityPanel;

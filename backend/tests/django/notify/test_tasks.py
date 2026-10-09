@@ -24,6 +24,25 @@ class BackgroundProcessTaskTests(TestCase):
         send.assert_called_once()
 
     @patch('notify.tasks.post_save.send')
+    def test_start_does_not_broadcast_a_running_process(self, send):
+        self.process.status = ProcessStatusEnum.RUNNING
+        self.process.save(update_fields=['status'])
+        # der Patch liegt auf dem Signal-Objekt, das save() oben hat also schon
+        # einmal ausgeloesen
+        send.reset_mock()
+        get_background_process(self.task, kwargs={'background_process_pk': self.process.pk})
+        self.assertFalse(send.called)
+        self.assertEqual(self.info().status, ProcessStatusEnum.RUNNING)
+
+    @patch('notify.tasks.post_save.send')
+    def test_broadcast_carries_annotation_and_related_type(self, send):
+        self.task.update_background_process(step_done=True)
+        instance = send.call_args.kwargs['instance']
+        self.assertEqual(instance.progress, 50)
+        with self.assertNumQueries(0):
+            instance.related_resource_type
+
+    @patch('notify.tasks.post_save.send')
     def test_failure_preserves_progress_and_error(self, send):
         self.task.on_failure(ValueError('broken'), 'task-id', (), {}, None)
         process = self.info()

@@ -1,13 +1,9 @@
 # MrMap frontend
 
-Paths are relative to frontend/src/ unless stated otherwise”
+React, TypeScript, React-Admin and Material UI (MUI), tested with Vitest and bundled by Vite.
 
-The frontend uses:
-
-- React
-- TypeScript
-- React-Admin
-- Material UI (MUI)
+Paths in this file are relative to `frontend/src/` unless stated otherwise; commands run from
+`frontend/`. The schema layer is described in more detail in `jsonapi/AGENTS.md`.
 
 When working on frontend code:
 
@@ -17,15 +13,16 @@ When working on frontend code:
 - Reuse existing project components, hooks, utilities, and patterns.
 - Follow existing routing and resource conventions.
 - Preserve existing API contracts and JSON:API behavior.
+- Use anonymous arrow functions for all new functions. Assign reusable functions to `const` bindings
+  (for example, `const formatName = (name: string) => ...`) and use arrow functions for callbacks.
+  Do not use `function` declarations or named function expressions.
+- Put default exports on a separate line after the declaration (for example,
+  `export default Component;`).
 
 ## Architecture: schema-driven React-Admin
 
-Use schema-driven React-Admin list filters for resource-backed exploration and testing tools as well as CRUD screens. Before introducing custom selectors or fetching option lists, establish why existing list/filter abstractions cannot support the workflow.
-
-The frontend uses React-Admin with schema-driven resource behavior.
-components/Resource/Definition.tsx explicitly registers resources and
-their UI customizations. components/MrMapFrontend.tsx enriches these
-registrations using the backend's OpenAPI schema.
+`components/Resource/Definition.tsx` explicitly registers resources and their UI customizations.
+`components/MrMapFrontend.tsx` enriches these registrations using the backend's OpenAPI schema.
 
 Resource fields and API metadata are interpreted at runtime through
 jsonapi/ hooks and components, avoiding separately maintained copies
@@ -111,41 +108,24 @@ When implementing frontend changes:
 - Avoid reorganizing folders as part of unrelated changes.
 
 
-## Verification
+## Verification and commands
 
-Run commands from frontend/.
-
-- Type checking: npm run type-check
-- Targeted tests: npm run test -- --run `<test-file>`
-- Production build when relevant: npm run build
-
-npm run lint and npm run format modify files across src/.
-Keep formatting changes scoped to the task.
-
-
-## Commands
-
-Run frontend commands from `frontend/`.
-
-Install dependencies:
+Run commands from `frontend/`. Scripts are defined in `package.json`; do not assume a script exists
+without checking it.
 
 ```bash
-npm install
+npm install                                          # install dependencies, once
+npm run dev                                          # development server
+npm run type-check                                   # tsc --noEmit
+npm run test -- --run src/jsonapi/utils.spec.tsx     # targeted tests
+npm run test-coverage                                # all tests with coverage
+npm run build                                        # production build, when relevant
 ```
 
-Run the development server:
-
-```bash
-npm run dev
-```
-
-Use the scripts defined in `frontend/package.json` for linting, type checking, testing, and building. Do not assume a script exists without checking `package.json`.
-
-For cross-stack changes, verify both backend and frontend. Prefer targeted tests during development; run broader suites when the scope or risk warrants it.
-
-
-
-## Function style
-
-Use anonymous arrow functions for all new functions. Assign reusable functions to `const` bindings (for example, `const formatName = (name: string) => ...`) and use arrow functions for callbacks. Do not use `function` declarations or named function expressions.
-Put default exports on a separate line after the declaration (for example, `export default Component;`).
+- Tests are Vitest specs colocated with the code they test and named `*.spec.ts` or `*.spec.tsx`.
+  `frontend/tests/` only holds the Vitest setup. Name new tests the same way.
+- `npm run lint` and `npm run format` modify files across `src/`. Keep formatting changes scoped to
+  the task.
+- For cross-stack changes, verify both backend and frontend. Prefer targeted tests during
+  development; run broader suites when the scope or risk warrants it.
+- Backend changes are verified separately; see `../backend/AGENTS.md`.

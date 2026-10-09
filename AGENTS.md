@@ -25,6 +25,13 @@ Frontend conventions and test commands are documented in `frontend/AGENTS.md`. R
 - Preserve backwards compatibility unless explicitly instructed otherwise.
 - Do not silently change behavior outside the requested scope.
 
+### Running shell commands
+
+- Never wrap commands in `sleep` or other artificial waits, and never poll with sleep loops (`sleep 5 && ...`, `sleep && tail ...`, retry-until-sleep patterns).
+- Run commands without any delay and read the exit code and output directly.
+- For long-running commands, start them in the background with the output redirected to a temp file, then read that file when the result is actually needed.
+- Batch independent commands, searches, and reads into a single call instead of spacing them out over time.
+
 ### Before modifying code
 
 1. Inspect the relevant files and surrounding implementation.

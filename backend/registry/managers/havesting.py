@@ -1,6 +1,6 @@
 from celery import chord
 from django.db import models, transaction
-from django.db.models import Case, Count, F, Q, Value, When
+from django.db.models import Case, Count, F, FloatField, Q, Value, When
 from django.db.models.functions import Ceil, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
@@ -36,10 +36,32 @@ class HarvestedMetadataRelationManager(models.Manager.from_queryset(HarvestedMet
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
 
     def with_process_info(self):
+        """Adds the progress information of a harvesting job to the queryset.
+
+        total_steps, done_steps, progress and the two record counters are no
+        model fields but annotations, so an instance which was not selected
+        through this method has no progress to tell. The websocket payload of a
+        HarvestingJob is rendered by the same serializer as the API endpoint -
+        fields without a value are simply left out of it, so senders that
+        announce a job have to select it here first. The same is done for
+        background processes with BackgroundProcess.objects.process_info().
+
+        The annotations are the ones of HarvestingJobViewSet
+        (with_unhandled_records), which derives the steps of the running phase
+        from the temporary md metadata files that are still waiting to be
+        imported: while records are downloaded their count grows, while they
+        are written to the database it shrinks.
+        """
         qs = self.get_queryset()
 
         qs = qs.annotate(
-            unhandled_records_count=Count("temporary_md_metadata_file"),
+            unhandled_records_count=Count(
+                "temporary_md_metadata_file",
+                filter=Q(temporary_md_metadata_file__has_import_error=False)),
+            import_error_count=Count(
+                "temporary_md_metadata_file",
+                filter=Q(temporary_md_metadata_file__has_import_error=True)),
+            records_count=Count("temporary_md_metadata_file"),
             download_tasks_count=Ceil(
                 F("total_records") / F("max_step_size"))
         ).annotate(
@@ -50,29 +72,29 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             done_steps=Case(
                 When(
                     condition=Q(
-                        background_process__phase__lte=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
-                    then=1 + Ceil(F("unhandled_records_count") /
+                        phase__gte=HarvestingPhaseEnum.COMPLETED.value),
+                    then=F("total_steps")
+                ),
+                When(
+                    condition=Q(
+                        phase=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
+                    then=1 + Ceil(F("records_count") /
                                   F("max_step_size"))
                 ),
                 When(
                     condition=Q(
-                        background_process__phase__lte=HarvestingPhaseEnum.RECORDS_TO_DB.value),
+                        phase=HarvestingPhaseEnum.RECORDS_TO_DB.value),
                     then=1 + F("download_tasks_count") +
                                F("total_records") -
-                                 F("unhandled_records_count")
-                ),
-                When(
-                    condition=Q(
-                        background_process__phase__gte=HarvestingPhaseEnum.COMPLETED.value),
-                    then=F("total_steps")
+                                 F("records_count")
                 ),
                 default=0
             )
         ).annotate(
             progress=Case(
                 When(
-                    ~Q(background_process__phase=HarvestingPhaseEnum.ABORT.value) & Q(
-                        background_process__done_at__isnull=False),
+                    ~Q(phase=HarvestingPhaseEnum.ABORTED.value) & Q(
+                        done_at__isnull=False),
                     then=Value(100.0)
                 ),
                 default=Case(
@@ -83,6 +105,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                     ),
                     default=0.0
                 ),
+                output_field=FloatField()
             )
         )
 

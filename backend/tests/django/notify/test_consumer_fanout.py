@@ -7,7 +7,8 @@ desselben worker-Prozesses teilten sich dadurch das Debounce-Fenster (ein Client
 entwedert die anderen) und das Dict wuchs unbegrenzt, weil disconnect() nicht
 aufgeraeumt hat. Beide Eigenschaften sind hier getestet, ebenso das
 Subscribe-Protokoll, mit dem sich Verbindungen zu den Topics ihrer Anzeigen
-zusammenschalten.
+zusammenschalten, und dass aus einem Topic ein Gruppennamen wird, den die
+Kanaldiele akzeptiert (Topics enthalten ein "/", Gruppennamen nicht).
 
 Diese Tests laufen ohne Datenbank und ohne echten Websocket-Stack. Ausfuehren:
 
@@ -16,18 +17,21 @@ Diese Tests laufen ohne Datenbank und ohne echten Websocket-Stack. Ausfuehren:
         -v 3 --noinput
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from channels.layers import BaseChannelLayer
 from django.test import SimpleTestCase
 from notify.consumers import DefaultConsumer
+from notify.utils import group_name, send_msg
 
 
 class RecordingChannelLayer:
-    """Kanaldiele, die Gruppenbeitritte und -verlasse aufzeichnet."""
+    """Kanaldiele, die Gruppenbeitritte, -verlasse und Sends aufzeichnet."""
 
     def __init__(self):
         self.added = []
         self.discarded = []
+        self.sent = []
 
     async def group_add(self, group, channel):
         self.added.append((group, channel))
@@ -35,10 +39,14 @@ class RecordingChannelLayer:
     async def group_discard(self, group, channel):
         self.discarded.append((group, channel))
 
+    async def group_send(self, group, message):
+        self.sent.append((group, message))
+
 
 class DefaultConsumerTests(SimpleTestCase):
 
     CHANNEL_NAME = "this-connections-channel"
+    PROCESS_PK = "0f5b0dc8-3d3f-4c0a-9b1e-0d4d0f9d0a11"
 
     def consumer(self, channel_layer=None):
         consumer = DefaultConsumer()
@@ -110,18 +118,49 @@ class DefaultConsumerTests(SimpleTestCase):
     def test_subscribed_topic_is_joined_once_and_left(self):
         layer = RecordingChannelLayer()
         consumer = self.consumer(layer)
+        topic = f"resource/BackgroundProcess/{self.PROCESS_PK}"
 
-        self.subscribe(consumer, "resource/BackgroundProcess/1")
-        self.subscribe(consumer, "resource/BackgroundProcess/1")
+        self.subscribe(consumer, topic)
+        self.subscribe(consumer, topic)
         self.assertEqual(
-            layer.added, [("resource/BackgroundProcess/1", self.CHANNEL_NAME)],
+            layer.added, [(group_name(topic), self.CHANNEL_NAME)],
             "ein Topic mehrfach zu joinen ist uberfluessig")
 
-        self.subscribe(consumer, "resource/BackgroundProcess/1",
-                       action="unsubscribe")
+        self.subscribe(consumer, topic, action="unsubscribe")
         self.assertEqual(
-            layer.discarded,
-            [("resource/BackgroundProcess/1", self.CHANNEL_NAME)])
+            layer.discarded, [(group_name(topic), self.CHANNEL_NAME)])
+
+    def test_a_topic_is_joined_as_a_group_name_the_layer_accepts(self):
+        """Gruppennamen einer Kanaldiele duerfen kein Slash enthalten."""
+        layer = BaseChannelLayer()
+
+        for topic in ("resource/BackgroundProcess",
+                      f"resource/BackgroundProcess/{self.PROCESS_PK}"):
+            with self.subTest(topic=topic):
+                self.assertTrue(
+                    layer.require_valid_group_name(group_name(topic)),
+                    "der Topic wurde unveraendelt als Gruppenname benutzt, was "
+                    "channels/layers.py mit TypeError ablehnt und der Verbindung "
+                    "den WebSocket schliesst")
+
+    def test_the_publisher_sends_to_the_group_the_subscriber_joined(self):
+        """send_msg und der Abonnent treffen sich im selben Gruppennamen."""
+        topic = f"resource/BackgroundProcess/{self.PROCESS_PK}"
+        layer = RecordingChannelLayer()
+        consumer = self.consumer(layer)
+        self.subscribe(consumer, topic)
+
+        with patch("notify.utils.get_channel_layer", return_value=layer):
+            send_msg(self.event(pk=self.PROCESS_PK)["json"])
+
+        self.assertEqual(
+            [(group, message["json"]["topic"])
+             for group, message in layer.sent],
+            [(group_name(topic), topic)],
+            "die Nachricht muss in der Gruppe landen, die der Client joined hat, "
+            "und muss dem Client ihren Topic unveraendelt nennen, weil er seine "
+            "Abonnements an genau diesem String erkennt")
+        self.assertEqual(consumer.topics, {topic})
 
     def test_topics_of_other_applications_are_rejected(self):
         layer = RecordingChannelLayer()
@@ -133,6 +172,24 @@ class DefaultConsumerTests(SimpleTestCase):
             layer.added, [],
             "Gruppennamen sind ein gemeinsamer Namespace aller Verbindungen, "
             "deshalb werden nur resource/-Topics akzeptiert")
+
+    def test_topics_which_cannot_become_a_group_name_are_rejected(self):
+        """Nur Topics, die Gruppenname werden koennen, werden gejoint."""
+        layer = RecordingChannelLayer()
+        consumer = self.consumer(layer)
+
+        for topic in ("resource/BackgroundProcess/1?all=1",
+                      "resource/BackgroundProcess/1 2",
+                      "resource/BackgroundProcess/1/2",
+                      "resource/" + "x" * 100):
+            with self.subTest(topic=topic):
+                self.assertIsNone(group_name(topic))
+                self.subscribe(consumer, topic)
+
+        self.assertEqual(
+            layer.added, [],
+            "die Kanaldiele wirft solche Namen mit TypeError aus und beendet "
+            "damit die Verbindung, also lieber gar nicht erst joinen")
 
     def test_disconnect_leaves_topics_and_forgets_state(self):
         layer = RecordingChannelLayer()

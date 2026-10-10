@@ -5,7 +5,6 @@ Feature: BackgroundProcess List Endpoint
 
     Background: Setup base url
         Given I use the endpoint http://localhost:8000/api/notify/background-processes
-        And I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
 
 
     Scenario: Can get list of current background processes

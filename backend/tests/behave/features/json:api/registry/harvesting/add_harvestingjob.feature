@@ -6,7 +6,6 @@ Feature: HarvestingJob Add Endpoint
     Background: Setup baseurl, content-type and payload
         Given I use the endpoint http://localhost:8000/api/registry/harvesting/harvesting-jobs
         Given I set the content type of the request to application/vnd.api+json
-        And I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
 
     Scenario: Can add as authenticated user
         Given I am logged in as User1 with password User1

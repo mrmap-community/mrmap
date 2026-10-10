@@ -138,9 +138,13 @@ Both are production fixes in the OWS layer, not scenario fixes; the reason is al
    A workflow that crosses resources goes into the folder of the resource it is about.
 4. The `Feature:` title is an identifier: `<Resource> <Verb> Endpoint`, unique across the suite
    (titles are used to pick fixtures, see below).
-5. `Background:` holds only the endpoint, the content type and the payload template — plus the
-   `HTTP_ACCEPT` header of an endpoint that does not serve JSON:API (see "The suite is green"). Login
-   belongs to the scenario, because "anonymous" is often the behaviour under test.
+5. `Background:` holds the endpoint, the `HTTP_ACCEPT` header of an endpoint that does not serve
+   JSON:API (see "The suite is green"), the content type and the payload template of the endpoints
+   that take one, plus the login or the mock that *every* scenario in the file needs
+   (`logout.feature`, `add_webmapservices.feature`). Nothing else: request parameters that carry the
+   behaviour belong to the scenario, because a `filter[...]` in a `Background` hides what the
+   assertions are counting. Login stays in the scenario whenever "anonymous" is the behaviour under
+   test.
 6. One scenario per observable behaviour, named after the behaviour
    ("Anonymous users cannot queue updates"), not after the status code. Use `Scenario Outline` +
    `Examples` for permission or filter matrices instead of copy-paste scenarios.

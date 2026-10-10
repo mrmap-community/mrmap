@@ -3,9 +3,8 @@ Feature: WebMapServiceOperation List Endpoint
     I want to add new allowed operation configurations,
     so that I can secure services.
 
-    Background: Setup baseurl, content-type and payload
+    Background: Setup base url
         Given I use the endpoint http://localhost:8000/api/registry/security/wms-operations
-        Given I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

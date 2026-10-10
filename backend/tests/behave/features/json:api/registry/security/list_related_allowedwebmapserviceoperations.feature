@@ -3,9 +3,8 @@ Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
     I want to add new allowed operation configurations,
     so that I can secure services.
 
-    Background: Setup baseurl, content-type and payload
+    Background: Setup base url
         Given I use the endpoint http://localhost:8000/api/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/allowed-wms-operations
-        Given I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
 
     Scenario: Can retrieve list as authenticated user
         Given I am logged in as User1 with password User1

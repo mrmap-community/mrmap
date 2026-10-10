@@ -72,7 +72,7 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "outputSchema"
 
-    Scenario: GetRecords results response with unsupported outputSchema
+    Scenario: GetRecords validate response is acknowledged
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
         Given I set a queryparam "service" with value "CSW"

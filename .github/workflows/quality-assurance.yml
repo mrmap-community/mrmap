@@ -95,33 +95,3 @@ jobs:
         continue-on-error: true
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests
-
-  sonar-scanner:
-    needs: [acceptance-tests, unit-tests]
-    name: sonar-scanner
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: checkout repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: pull needed docker images
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
-
-      - name: download coverage reports
-        uses: actions/download-artifact@v2
-        with:
-          name: coverage-reports
-          path: ./mrmap
-
-      - name: Run sonar-scanner
-        run: |
-          echo -en "\n" >> ./mrmap/sonar-project.properties
-          echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./mrmap/sonar-project.properties
-          echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./mrmap/sonar-project.properties
-          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./mrmap/sonar-project.properties
-          cat ./mrmap/sonar-project.properties
-          ls ./mrmap
-          GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner

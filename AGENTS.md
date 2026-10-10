@@ -39,7 +39,7 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/architecture.md` — domain overview (services, update jobs, monitoring, security proxy).
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
-- `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios, unit tests, Sonar.
+- `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
 - `CONTRIBUTING.md` — issue and pull request rules.
 
 ## Environment

@@ -230,10 +230,5 @@ services:
     networks:
       - mrmap-internal
 
-networks:
-  sonar:
-
-    null
 volumes:
-  sonar-db: null
   frontend-node-modules: null

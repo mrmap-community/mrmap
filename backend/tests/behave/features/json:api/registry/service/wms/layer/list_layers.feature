@@ -19,36 +19,22 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "9"
         Then I expect that response json has an attribute "data.[0].attributes.mpttLft" with value "1"
 
-    Scenario: Can search by title
-        Given I set a queryparam "filter[search]" with value "node1.3.1"
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
 
-    Scenario: Can search by abstract
-        Given I set a queryparam "filter[search]" with value "node1.3.1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | action             | param                      | value       | count |
+            | search by title    | filter[search]             | node1.3.1   | 1     |
+            | search by abstract | filter[search]             | node1.3.1   | 1     |
+            | search by keywords | filter[search]             | meteorology | 1     |
+            | filter by title    | filter[title.icontains]    | node1.3.1   | 1     |
+            | filter by abstract | filter[abstract.icontains] | node1.3.1   | 1     |
 
-    Scenario: Can search by keywords
-        Given I set a queryparam "filter[search]" with value "meteorology"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by title
-        Given I set a queryparam "filter[title.icontains]" with value "node1.3.1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract.icontains]" with value "node1.3.1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
+    # The filter value is a whole GeoJSON polygon; it stays on its own step instead of blowing the
+    # examples table above up to 220 characters per row.
     Scenario: Can filter by bbox
         Given I set a queryparam "filter[bboxLatLon.contains]" with value "{'type': 'Polygon', 'coordinates': [[[7.062835693359375, 50.043911679834615], [7.568206787109375, 50.043911679834615], [7.568206787109375, 50.39451208023374], [7.062835693359375, 50.39451208023374], [7.062835693359375, 50.043911679834615]]]}"
         When I send the request with GET method
@@ -69,32 +55,16 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
         Then I expect that "22" queries where made
 
-    Scenario: Can include service.operationUrls
-        Given I set a queryparam "include" with value "service.operationUrls"
+    Scenario Outline: Can include <relation>
+        Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[3].type" with value "WebMapServiceOperationUrl"
+        Then I expect that response json has an attribute "<attribute>" with value "<type>"
 
-    Scenario: Can include styles
-        Given I set a queryparam "include" with value "styles"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Style"
-
-    Scenario: Can include createdBy
-        Given I set a queryparam "include" with value "createdBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include lastModifiedBy
-        Given I set a queryparam "include" with value "lastModifiedBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include referenceSystems
-        Given I set a queryparam "include" with value "referenceSystems"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "ReferenceSystem"
+        Examples:
+            | relation              | attribute         | type                      |
+            | service.operationUrls | included.[3].type | WebMapServiceOperationUrl |
+            | styles                | included.[0].type | Style                     |
+            | createdBy             | included.[0].type | User                      |
+            | lastModifiedBy        | included.[0].type | User                      |
+            | referenceSystems      | included.[0].type | ReferenceSystem           |

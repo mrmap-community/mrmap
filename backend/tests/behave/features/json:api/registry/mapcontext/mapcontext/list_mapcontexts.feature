@@ -17,29 +17,18 @@ Feature: MapContext List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.[0].relationships.mapContextLayers.meta.count" with value "5"
 
-    Scenario: Can search by title
-        Given I set a queryparam "filter[search]" with value "MapContext1"
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
 
-    Scenario: Can search by abstract
-        Given I set a queryparam "filter[search]" with value "MapContext1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by title
-        Given I set a queryparam "filter[title__icontains]" with value "MapContext1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract.icontains]" with value "MapContext1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | action             | param                      | value       | count |
+            | search by title    | filter[search]             | MapContext1 | 1     |
+            | search by abstract | filter[search]             | MapContext1 | 1     |
+            | filter by title    | filter[title__icontains]   | MapContext1 | 1     |
+            | filter by abstract | filter[abstract.icontains] | MapContext1 | 1     |
 
     Scenario: Can include mapContextLayers
         Given I set a queryparam "include" with value "mapContextLayers"

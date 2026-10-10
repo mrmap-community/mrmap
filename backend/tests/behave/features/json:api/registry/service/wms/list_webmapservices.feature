@@ -3,7 +3,7 @@ Feature: WebMapService List Endpoint
     I want to search for web map services,
     so that I can find relevant map content.
 
-    Background: Setup baseurl, content-type and payload
+    Background: Setup base url
         Given I use the endpoint http://localhost:8000/api/registry/wms
 
     Scenario: Can retrieve list as anonymous user
@@ -12,36 +12,22 @@ Feature: WebMapService List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
         Then I expect that "22" queries where made
 
-    Scenario: Can search by title
-        Given I set a queryparam "filter[search]" with value "WMS1"
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
 
-    Scenario: Can search by abstract
-        Given I set a queryparam "filter[search]" with value "wms1 abstract"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | action             | param                      | value         | count |
+            | search by title    | filter[search]             | WMS1          | 1     |
+            | search by abstract | filter[search]             | wms1 abstract | 1     |
+            | search by keywords | filter[search]             | meteorology   | 1     |
+            | filter by title    | filter[title.icontains]    | WMS1          | 1     |
+            | filter by abstract | filter[abstract.icontains] | wms1 abstract | 1     |
 
-    Scenario: Can search by keywords
-        Given I set a queryparam "filter[search]" with value "meteorology"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by title
-        Given I set a queryparam "filter[title.icontains]" with value "WMS1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract.icontains]" with value "wms1 abstract"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
+    # The filter value is a whole GeoJSON polygon; it stays on its own step instead of blowing the
+    # examples table above up to 220 characters per row.
     Scenario: Can filter by bbox
         Given I set a queryparam "filter[bboxLatLon.contains]" with value "{'type': 'Polygon', 'coordinates': [[[7.062835693359375, 50.043911679834615], [7.568206787109375, 50.043911679834615], [7.568206787109375, 50.39451208023374], [7.062835693359375, 50.39451208023374], [7.062835693359375, 50.043911679834615]]]}"
         When I send the request with GET method
@@ -55,38 +41,17 @@ Feature: WebMapService List Endpoint
     #     Then I expect that response json has an attribute "included.[0].type" with value "Layer"
     #     Then I expect that "14" queries where made
 
-    Scenario: Can include keywords
-        Given I set a queryparam "include" with value "keywords"
+    Scenario Outline: Can include <relation>
+        Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
+        Then I expect that response json has an attribute "included.[0].type" with value "<type>"
 
-    Scenario: Can include operationUrls
-        Given I set a queryparam "include" with value "operationUrls"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "WebMapServiceOperationUrl"
-
-    Scenario: Can include serviceContact
-        Given I set a queryparam "include" with value "serviceContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include metadataContact
-        Given I set a queryparam "include" with value "metadataContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include createdBy
-        Given I set a queryparam "include" with value "createdBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include lastModifiedBy
-        Given I set a queryparam "include" with value "lastModifiedBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
+        Examples:
+            | relation        | type                       |
+            | keywords        | Keyword                    |
+            | operationUrls   | WebMapServiceOperationUrl  |
+            | serviceContact  | MetadataContact            |
+            | metadataContact | MetadataContact            |
+            | createdBy       | User                       |
+            | lastModifiedBy  | User                       |

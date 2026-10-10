@@ -11,35 +11,19 @@ Feature: CatalogueService List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "4"
 
-    Scenario: Can search by title
-        Given I set a queryparam "filter[search]" with value "CSW1"
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
 
-    Scenario: Can search by abstract
-        Given I set a queryparam "filter[search]" with value "abstract1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can search by keywords
-        Given I set a queryparam "filter[search]" with value "meteorology"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "2"
-
-    Scenario: Can filter by title
-        Given I set a queryparam "filter[title.icontains]" with value "CSW1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract.icontains]" with value "abstract1"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | action             | param                      | value       | count |
+            | search by title    | filter[search]             | CSW1        | 1     |
+            | search by abstract | filter[search]             | abstract1   | 1     |
+            | search by keywords | filter[search]             | meteorology | 2     |
+            | filter by title    | filter[title.icontains]    | CSW1        | 1     |
+            | filter by abstract | filter[abstract.icontains] | abstract1   | 1     |
 
     # We no longer support this, cause it could be over 600k of items
     # Scenario: Can include dataset metadata
@@ -48,38 +32,17 @@ Feature: CatalogueService List Endpoint
     #     Then I expect the response status is 200
     #     Then I expect that response json has an attribute "included.[0].type" with value "DatasetMetadataRecord"
 
-    Scenario: Can include keywords
-        Given I set a queryparam "include" with value "keywords"
+    Scenario Outline: Can include <relation>
+        Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
+        Then I expect that response json has an attribute "included.[0].type" with value "<type>"
 
-    Scenario: Can include operationUrls
-        Given I set a queryparam "include" with value "operationUrls"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "CatalogueServiceOperationUrl"
-
-    Scenario: Can include serviceContact
-        Given I set a queryparam "include" with value "serviceContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include metadataContact
-        Given I set a queryparam "include" with value "metadataContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include createdBy
-        Given I set a queryparam "include" with value "createdBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include lastModifiedBy
-        Given I set a queryparam "include" with value "lastModifiedBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
+        Examples:
+            | relation        | type                         |
+            | keywords        | Keyword                      |
+            | operationUrls   | CatalogueServiceOperationUrl |
+            | serviceContact  | MetadataContact              |
+            | metadataContact | MetadataContact              |
+            | createdBy       | User                         |
+            | lastModifiedBy  | User                         |

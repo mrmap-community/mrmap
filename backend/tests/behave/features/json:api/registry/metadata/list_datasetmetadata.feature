@@ -17,26 +17,15 @@ Feature: DatasetMetadataRecord List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
 
-    Scenario: Can search
-        Given I set a queryparam "filter[search]" with value "niederschlag"
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
 
-    Scenario: Can filter by keywords
-        Given I set a queryparam "filter[keywords__keyword__icontains]" with value "niederschlag"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by title
-        Given I set a queryparam "filter[title__icontains]" with value "Relative Feuchte"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-
-    Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract__icontains]" with value "Messwerte der relativen Feuchte"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | action             | param                                | value                           | count |
+            | search             | filter[search]                       | niederschlag                    | 1     |
+            | filter by keywords | filter[keywords__keyword__icontains] | niederschlag                    | 1     |
+            | filter by title    | filter[title__icontains]             | Relative Feuchte                | 1     |
+            | filter by abstract | filter[abstract__icontains]          | Messwerte der relativen Feuchte | 1     |

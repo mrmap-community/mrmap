@@ -123,11 +123,14 @@ Tests are run using the ``django-test`` container which runs the django test sui
 
 
 To test the `json:api <https://jsonapi.org/>`_ we are using the `behave <https://behave.readthedocs.io/en/stable/>`_ suite with the `gherkin language <https://cucumber.io/docs/gherkin/reference/>`_.
-You can run the test suite by starting the ``behave tests`` containter by using the following command:
+Run the whole suite with the ``behave`` container:
 
 .. code-block:: console
 
-    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
+    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml run --rm behave
+
+The commands for single scenarios, the step vocabulary and the conventions of those scenarios are
+documented in ``backend/tests/behave/AGENTS.md``.
 
 
 Test documentation builds properly

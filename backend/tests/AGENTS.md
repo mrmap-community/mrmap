@@ -10,7 +10,8 @@ written.
   `tests/django/notify/` and `tests/django/system/`. Follow the folder you edit, otherwise the
   runner will not discover the file.
 - Behave scenarios (Gherkin) live in `tests/behave/features/`; most paths contain a colon
-  (`features/json:api/...`), so quote them on the command line.
+  (`features/json:api/...`), so quote them on the command line. The run commands, the step
+  vocabulary and the green baseline of that suite are in `tests/behave/AGENTS.md`.
 
 ## Data
 

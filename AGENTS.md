@@ -142,6 +142,7 @@ documents:
 | Task | Documented in |
 | --- | --- |
 | Django unit tests, Behave scenarios, flake8, migration and translation checks | `backend/AGENTS.md` |
+| Behave run tiers, step vocabulary, fixture tags and the green baseline | `backend/tests/behave/AGENTS.md` |
 | Frontend type checking, tests, production build | `frontend/AGENTS.md` |
 | Frontend resource screens and their specs | `frontend/src/components/AGENTS.md` |
 | Writing or debugging backend tests | `backend/tests/AGENTS.md` |

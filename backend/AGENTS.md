@@ -220,3 +220,8 @@ When implementing new user-visible behavior:
 2. Update or add scenarios when requirements change.
 3. Implement the change.
 4. Run the affected scenarios.
+
+`tests/behave/AGENTS.md` describes that loop in detail: the run tiers and their commands, the step
+vocabulary and where a new step belongs, how a scenario declares its fixtures with `@fixtures:` tags,
+which assertions are enforced by the harness instead of the scenario, and why the two `/csw`
+features are the only skipped ones. The suite is green on `main`, so Behave is a green/red gate.

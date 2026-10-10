@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: coverage-reports
-          path: ./mrmap/acceptance-tests-coverage-report.xml
+          path: ./backend/acceptance-tests-coverage-report.xml
 
   unit-tests:
     name: unit-tests

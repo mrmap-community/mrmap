@@ -19,6 +19,14 @@ We provide configuration files for `vscode <https://code.visualstudio.com/>`_.
     Cause everthing is running with docker, all management commands need to be called inside the corresponding container.
     See :ref:`Running Management Commands <running_management_commands>`
 
+.. note::
+    Do not install build or runtime dependencies on the host operating system. GDAL/GEOS, Node.js and
+    the Python requirements are provided by the Docker images; a host side copy at a different version
+    produces checks that do not match CI, and the development containers are the sanctioned way to run
+    them. The only host side setup that is expected is a repository local virtualenv for ``flake8``.
+    This applies equally to automated coding assistants working on the repository: they run checks
+    through the provided compose services instead of provisioning the machine.
+
  
 Branch structure
 ================

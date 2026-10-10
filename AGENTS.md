@@ -50,7 +50,22 @@ Link to these instead of copying them into an `AGENTS.md`:
   fail early with a `Please configure ...` message; ask for them instead of inventing values.
 - Application and test services share one image (`docker/backend/alpine.Dockerfile`), so any Django
   management command can be run in a one-off container.
-- Frontend commands run from `frontend/` and need `npm install` once.
+- Frontend commands run from `frontend/`. `node`/`npm` are usually not on the host; use the
+  `frontend-tests` service instead (see `frontend/AGENTS.md`).
+
+### Workspace bootstrap
+
+Only relevant in a fresh checkout — check before re-running, a normal development workspace already
+satisfies most of it.
+
+- Backend lint loop only: `python3 -m venv .venv && .venv/bin/pip install -r backend/.requirements/dev.txt`
+  (`dev.txt` brings flake8 and autopep8; `backend/requirements.txt` adds base and docs on top).
+- Nothing further is provisioned on the host. GDAL/GEOS and Node are deliberately absent and must not
+  be installed — everything that needs them runs in Docker
+  (`docs/source/development/getting-started.rst`), and a host copy at a different version yields
+  results that disagree with CI. Node dependencies belong to the `frontend-tests` named volume, not
+  to the host checkout.
+- Installing MrMap itself is out of scope for agent work; see `docs/source/installation/`.
 
 ## Development guidelines
 

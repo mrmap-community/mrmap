@@ -6,6 +6,8 @@ Feature: Logout Endpoint
     Background: create user and prepare request
         Given I am logged in as User1 with password User1
         Given I use the endpoint http://localhost:8000/api/auth/logout
+        # the knox views render plain JSON, not json:api
+        Given I set the header "HTTP_ACCEPT" with value "application/json"
 
     Scenario: Logout the current user
         Given I use token based authentication for user "User1"

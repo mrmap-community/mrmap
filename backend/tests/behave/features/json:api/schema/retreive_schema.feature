@@ -5,6 +5,8 @@ Feature: OpenApi Schema
 
     Background: Setup baseurl, content-type and payload
         Given I use the endpoint http://localhost:8000/api/schema
+        # the openapi schema view renders the schema document, not json:api
+        Given I set the header "HTTP_ACCEPT" with value "application/json"
 
     Scenario: Can retreive as authenticated user
         Given I am logged in as User1 with password User1

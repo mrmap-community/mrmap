@@ -1,4 +1,7 @@
-@skip
+# Skipped on purpose: every GetRecords request answers with a 500, so none of the responses below
+# can be verified. registry/ows_lib/csw/builder.py:208 raises "TypeError: can only join an
+# iterable" while building the query for a request that arrives as GET query parameters.
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @skip
 Feature: MrMap CatalogueService Endpoint
     As an API client,
     I want to retreive metadata records,

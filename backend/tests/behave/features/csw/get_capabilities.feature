@@ -1,3 +1,8 @@
+# Skipped on purpose: /csw answers a missing SERVICE or REQUEST parameter with a 500 instead of
+# the OGC exception report below. csw/views.py:54 and csw/views.py:56 instantiate the exception
+# without the service_type and service_version arguments that OGCServiceException requires.
+# Unskip together with that fix; the exception report body is built from owsExceptionReport.xsd
+# and is empty for ("csw", "Exception", "2.0.2"), so the xml comparison needs attention too.
 @skip
 Feature: CSW Endpoint
     As an API client,

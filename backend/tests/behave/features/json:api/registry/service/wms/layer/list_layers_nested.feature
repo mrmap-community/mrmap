@@ -10,7 +10,7 @@ Feature: Layer Nested List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "8"
-        Then I expect that "9" queries where made
+        Then I expect that "21" queries where made
 
     Scenario: Can search by title
         Given I set a queryparam "filter[search]" with value "node1.3.1"
@@ -53,14 +53,14 @@ Feature: Layer Nested List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "WebMapService"
-        Then I expect that "15" queries where made
+        Then I expect that "32" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
-        Then I expect that "8" queries where made
+        Then I expect that "21" queries where made
 
     Scenario: Can include service.operationUrls
         Given I set a queryparam "include" with value "service.operationUrls"

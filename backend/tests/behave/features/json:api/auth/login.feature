@@ -5,6 +5,8 @@ Feature: Login Endpoint
 
     Background: create user and prepare request
         Given I use the endpoint http://localhost:8000/api/auth/login
+        # the knox views render plain JSON, not json:api
+        Given I set the header "HTTP_ACCEPT" with value "application/json"
 
     Scenario: Login with correct credentials.
         # User1:User1

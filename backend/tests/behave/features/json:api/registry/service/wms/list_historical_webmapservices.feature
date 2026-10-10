@@ -14,7 +14,7 @@ Feature: Historical WebMapService List Endpoint
         # TODO: results in slow sql requests
         #Then I expect that response json has an attribute "data.[0].attributes.delta" with value "[{'field': 'abstract', 'old': 'wms1 abstract', 'new': 'wms1 abstract hihi'}, {'field': 'title', 'old': 'WMS1', 'new': 'WMS1 huhu'}]"
 
-        Then I expect that "13" queries where made
+        Then I expect that "7" queries where made
 
     Scenario: Can include historyUser
         Given I set a queryparam "include" with value "historyUser"

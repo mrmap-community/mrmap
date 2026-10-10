@@ -12,9 +12,6 @@ Feature: WebFeatureService Add Endpoint
                 "id": "62832ac8-692d-4a8b-b8d1-22cd22f7386c"
             }
             """
-
-    Scenario: Can add as authenticated user
-        Given I am logged in as User1 with password User1
         Given I set the request payload to:
             """
             {
@@ -35,30 +32,13 @@ Feature: WebFeatureService Add Endpoint
                 }
             }
             """
+
+    Scenario: Can add as authenticated user
+        Given I am logged in as User1 with password User1
         When I send the request with POST method
         Then I expect the response status is 202
 
     Scenario: Can't add as anonymous user
-        Given I set the request payload to:
-            """
-            {
-                "data": {
-                    "type": "WebFeatureService",
-                    "attributes": {
-                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=2.0.0",
-                        "collect_metadata_records": "true"
-                    },
-                    "relationships": {
-                        "owner": {
-                            "data": {
-                                "id": "1",
-                                "type": "Organization"
-                            }
-                        }
-                    }
-                }
-            }
-            """
         When I send the request with POST method
         Then I expect the response status is 403
 

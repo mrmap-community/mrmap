@@ -17,17 +17,16 @@ Feature: BackgroundProcess List Endpoint
         Then I expect that response json has an attribute "data.[2].attributes.progress" with value "0.0"
         Then I expect that response json has an attribute "data.[3].attributes.progress" with value "0.0"
 
-    Scenario: Can filter by process_type
-        Given I set a queryparam "filter[processType.icontains]" with value "process 2"
+    Scenario Outline: Can filter by <field>
+        Given I set a queryparam "filter[<field>.icontains]" with value "<value>"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
-    Scenario: Can filter by description
-        Given I set a queryparam "filter[description.icontains]" with value "description 2"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Examples:
+            | field       | value         |
+            | processType | process 2     |
+            | description | description 2 |
 
     Scenario: Can filter by phase
         Given I set a queryparam "filter[phase.icontains]" with value "failed"

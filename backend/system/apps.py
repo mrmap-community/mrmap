@@ -12,7 +12,7 @@ def create_default_system_tasks(sender, **kwargs):
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
     schedule, _ = CrontabSchedule.objects.get_or_create(
-        minute="0,15,30,45",
+        minute="0,10,15,20,25,30,35,40,45,50,55",
     )
 
     PeriodicTask.objects.get_or_create(

@@ -1,3 +1,4 @@
+@fixtures:test_crs.json @fixtures:test_wfs.json @fixtures:test_keywords.json
 Feature: WebFeatureService Retrieve Endpoint
     As an API client,
     I want to search for web feature services,
@@ -11,44 +12,18 @@ Feature: WebFeatureService Retrieve Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data"
 
-    Scenario: Can include featuretypes
-        Given I set a queryparam "include" with value "featuretypes"
+    Scenario Outline: Can include <relation>
+        Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "FeatureType"
+        Then I expect that response json has an attribute "included.[0].type" with value "<type>"
 
-    Scenario: Can include keywords
-        Given I set a queryparam "include" with value "keywords"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
-
-    Scenario: Can include operationUrls
-        Given I set a queryparam "include" with value "operationUrls"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "WebFeatureServiceOperationUrl"
-
-    Scenario: Can include serviceContact
-        Given I set a queryparam "include" with value "serviceContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include metadataContact
-        Given I set a queryparam "include" with value "metadataContact"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "MetadataContact"
-
-    Scenario: Can include createdBy
-        Given I set a queryparam "include" with value "createdBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include lastModifiedBy
-        Given I set a queryparam "include" with value "lastModifiedBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
+        Examples:
+            | relation        | type                          |
+            | featuretypes    | FeatureType                   |
+            | keywords        | Keyword                       |
+            | operationUrls   | WebFeatureServiceOperationUrl |
+            | serviceContact  | MetadataContact               |
+            | metadataContact | MetadataContact               |
+            | createdBy       | User                          |
+            | lastModifiedBy  | User                          |

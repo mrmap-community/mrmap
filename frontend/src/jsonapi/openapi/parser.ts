@@ -37,3 +37,16 @@ export const buildChoices = (property: OpenAPIV3.SchemaObject): Object[] => {
     }
   }).filter(item => item !== undefined)
 }
+
+/** Index nested operations by their exact parent resource, in schema order. */
+export const indexRelatedOperations = (operations: AxiosOperation[]): Map<string, AxiosOperation[]> => {
+  const related = new Map<string, AxiosOperation[]>();
+  for (const operation of operations) {
+    const parent = operation.operationId?.match(/_of_(.+)$/)?.[1];
+    if (!parent) continue;
+    const entries = related.get(parent) ?? [];
+    entries.push(operation);
+    related.set(parent, entries);
+  }
+  return related;
+};

@@ -38,10 +38,21 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from requests import Request, Response, Session
+from requests import Request, Session
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
+
+
+class ServiceHistoricalRecords(HistoricalRecords):
+    """Record published services and elements, excluding temporary candidates."""
+
+    def create_historical_record(self, instance, history_type, using=None):
+        service = instance.service if isinstance(
+            instance, ServiceElement) else instance
+        if service.update_candidate_of_id is not None:
+            return
+        return super().create_historical_record(instance, history_type, using=using)
 
 
 class CommonServiceInfo(models.Model):
@@ -202,8 +213,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                         }
                     }
                 })
-        finally:
-            return cap
+        return cap
 
     @property
     def client(self) -> OgcClient:
@@ -221,7 +231,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -313,7 +323,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -630,7 +640,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         ),
     )
 
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -865,7 +875,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         help_text=_("the default reference system for this feature type"),
     )
 
-    change_log = HistoricalRecords(
+    change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],

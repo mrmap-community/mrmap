@@ -1,3 +1,7 @@
+export type JsonApiMetadata = Record<string, unknown>
+export type JsonApiLink = string | { href: string; meta?: JsonApiMetadata }
+export type JsonApiLinks = Record<string, JsonApiLink | null>
+
 export const JsonApiMimeType = 'application/vnd.api+json'
 
 /** Non standardized jsonapi pagination info */
@@ -10,8 +14,8 @@ export interface JsonApiPaginationInfo {
 export interface JsonApiDocument {
   data?: JsonApiPrimaryData[] | JsonApiPrimaryData
   errors?: JsonApiErrorObject[]
-  meta?: any
-  links?: any
+  meta?: JsonApiMetadata
+  links?: JsonApiLinks
   included?: JsonApiPrimaryData[]
 }
 
@@ -22,7 +26,7 @@ export interface JsonApiErrorSource {
 
 export interface JsonApiErrorObject {
   id: string
-  links: any // TODO: add JsonApiLinkObject
+  links: JsonApiLinks
   status: string
   code: string
   title: string
@@ -33,24 +37,25 @@ export interface JsonApiErrorObject {
 export interface ResourceIdentifierObject {
   type: string
   id: string | number
-  meta?: any
+  meta?: JsonApiMetadata
 }
 
 export interface ResourceLinkage {
-  links?: any
+  links?: JsonApiLinks
   data: null | ResourceIdentifierObject | ResourceIdentifierObject[]
-  meta?: any
+  meta?: JsonApiMetadata
 }
 
 export interface JsonApiPrimaryData {
   type: string
   id: string | number // TODO: only on patch needed (update)
-  links?: any // TODO: add JsonApiLinkObject
-  attributes: any
+  links?: JsonApiLinks
+  attributes: Record<string, unknown>
   relationships?: Record<string, ResourceLinkage>
 }
 
 export interface JsonApiQueryParams {
+  [parameter: string]: string | undefined
   include?: string
   fields?: string
 }

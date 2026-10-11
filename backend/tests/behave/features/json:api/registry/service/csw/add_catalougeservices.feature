@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json
 Feature: CatalogueService Add Endpoint
     As an API client,
     I want to add catalogue services,
@@ -12,9 +13,6 @@ Feature: CatalogueService Add Endpoint
                 "id": "62832ac8-692d-4a8b-b8d1-22cd22f7386c"
             }
             """
-
-    Scenario: Can add as authenticated user
-        Given I am logged in as User1 with password User1
         Given I set the request payload to:
             """
             {
@@ -34,29 +32,13 @@ Feature: CatalogueService Add Endpoint
                 }
             }
             """
+
+    Scenario: Can add as authenticated user
+        Given I am logged in as User1 with password User1
         When I send the request with POST method
         Then I expect the response status is 202
 
     Scenario: Can't add as anonymous user
-        Given I set the request payload to:
-            """
-            {
-                "data": {
-                    "type": "CatalogueService",
-                    "attributes": {
-                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=CSW&VERSION=2.0.2"
-                    },
-                    "relationships": {
-                        "owner": {
-                            "data": {
-                                "id": "1",
-                                "type": "Organization"
-                            }
-                        }
-                    }
-                }
-            }
-            """
         When I send the request with POST method
         Then I expect the response status is 403
 

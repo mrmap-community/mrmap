@@ -25,7 +25,7 @@ class WebMapServiceUpdateJobFilterSet(FilterSet):
             "id": ['exact', 'icontains', 'contains', 'in'],
             "service": ['exact', ],
             "date_created": ['exact', 'icontains', 'contains', 'in'],
-            "done_at": ['exact', 'icontains', 'contains', 'in'],
+            "done_at": ['exact', 'icontains', 'contains', 'in', 'isnull'],
 
         }
 
@@ -45,6 +45,16 @@ class LayerMappingFilterSet(FilterSet):
 
 
 class WebFeatureServiceUpdateJobFilterSet(FilterSet):
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
+
     class Meta:
         model = WebFeatureServiceUpdateJob
         fields = {
@@ -52,7 +62,7 @@ class WebFeatureServiceUpdateJobFilterSet(FilterSet):
             "service": ["exact"],
             "status": ["exact", "icontains", "contains", "in"],
             "date_created": ["exact", "icontains", "contains", "in"],
-            "done_at": ["exact", "icontains", "contains", "in"],
+            "done_at": ["exact", "icontains", "contains", "in", "isnull"],
         }
 
 
@@ -70,6 +80,16 @@ class FeatureTypeMappingFilterSet(FilterSet):
 
 
 class CatalogueServiceUpdateJobFilterSet(FilterSet):
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
+
     class Meta:
         model = CatalogueServiceUpdateJob
         fields = {
@@ -77,5 +97,5 @@ class CatalogueServiceUpdateJobFilterSet(FilterSet):
             "service": ["exact"],
             "status": ["exact", "icontains", "contains", "in"],
             "date_created": ["exact", "icontains", "contains", "in"],
-            "done_at": ["exact", "icontains", "contains", "in"],
+            "done_at": ["exact", "icontains", "contains", "in", "isnull"],
         }

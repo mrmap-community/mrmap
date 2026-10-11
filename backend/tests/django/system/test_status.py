@@ -100,7 +100,10 @@ class StatusTests(SimpleTestCase):
         client.force_authenticate(User(username='admin', is_staff=True))
         with patch('system.status.requests.Session') as session:
             session.return_value.__enter__.return_value.get.return_value.json.return_value = []
-            response = client.get('/status/current')
+            # Without an Accept header DRF serves the browsable API, which is
+            # the first configured renderer. Tests speak JSON:API, matching
+            # TEST_REQUEST_DEFAULT_FORMAT.
+            response = client.get('/status/current', HTTP_ACCEPT='application/vnd.api+json')
         self.assertEqual(response.status_code, 200)
         data = response.json()['data']
         self.assertEqual((data['type'], data['id']), ('SystemStatus', 'current'))

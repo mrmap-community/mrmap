@@ -1,23 +1,10 @@
-import { ShowViewProps } from 'react-admin';
-import SimpleList from '../../Generic/List/SimpleList';
+import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 
-export interface SettingsProps extends Partial<ShowViewProps> {
-
-}
-
-const Settings = ({
-  
-  ...rest
-}: SettingsProps) => {
-
+export default function Settings() {
   return (
-    <SimpleList 
-      resource='CatalogueServiceOperationUrl'
-      relatedResource='CatalogueService'
-      defaultSelectedColumns={['id', 'httpMethod', 'operation', 'url']}
+    <ServiceRelatedTab
+      resource="CatalogueServiceOperationUrl"
+      defaultSelectedColumns={["operation", "url", "method"]}
     />
-  )
-};
-
-
-export default Settings;
+  );
+}

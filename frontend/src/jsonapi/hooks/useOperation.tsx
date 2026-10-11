@@ -1,26 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from "react";
+import { type Operation } from "openapi-client-axios";
+import { useHttpClientContext } from "../../context/HttpClientContext";
 
-import { type Operation } from 'openapi-client-axios'
+const useOperation = (
+  operationId: string | undefined,
+): Operation | undefined => {
+  const { api } = useHttpClientContext();
+  return useMemo(
+    () => (operationId ? api?.getOperation(operationId) : undefined),
+    [api, operationId],
+  );
+};
 
-import { useHttpClientContext } from '../../context/HttpClientContext'
-
-
-const useOperation = (operationId: string| undefined): Operation | undefined => {
-  const { api } = useHttpClientContext()
-  const [operation, setOperation] = useState<Operation>()
-
-  useEffect(() => {
-    if (operationId !== undefined && operationId !== '' && api !== undefined) {
-      const _operation = api.getOperation(operationId)
-      if (_operation === undefined) {
-        setOperation(undefined)
-        return
-      }
-      setOperation(_operation)
-    }
-  }, [operationId, api])
-
-  return operation
-}
-
-export default useOperation
+export default useOperation;

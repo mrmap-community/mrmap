@@ -22,6 +22,8 @@ import RealtimeList from './Realtime/RealtimeList'
 
 
 export interface ListGuesserProps extends Partial<ListProps> {
+  listContent?: ReactElement
+  additionalFilters?: ReactElement[]
   realtime?: boolean
   relatedResource?: Partial<RelatedResource>
   rowActions?: ReactNode
@@ -37,6 +39,8 @@ export interface ListGuesserProps extends Partial<ListProps> {
 
 
 const ListGuesser = ({
+  listContent,
+  additionalFilters,
   realtime=false,
   relatedResource = undefined,
   rowActions = undefined,
@@ -51,7 +55,7 @@ const ListGuesser = ({
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, options } = useResourceDefinition(props)
-  const listOptions = useMemo(()=>(options.list),[options])
+  const listOptions = useMemo(()=>(options?.list),[options])
 
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
@@ -77,7 +81,7 @@ const ListGuesser = ({
   ,[fieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
-  const filters = useMemo(() => fieldSchemas.map(def => createElement(def.component, def.props)), [fieldSchemas])
+  const filters = useMemo(() => [...(additionalFilters ?? []), ...fieldSchemas.map(def => createElement(def.component, def.props))], [fieldSchemas, additionalFilters])
   
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
@@ -126,8 +130,6 @@ const ListGuesser = ({
     return <div />
   }
 
-  console.log(queryOptions, relatedResource)
-
   return (
     <ListComponent
       filters={filters}
@@ -158,8 +160,11 @@ const ListGuesser = ({
         </AsideCard>: undefined
       }
       {...props}
+      filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
+        ? { is_update_candidate: false, ...props.filter }
+        : props.filter}
     >
-      <DatagridConfigurable
+      {listContent ?? <DatagridConfigurable
         bulkActionButtons={false}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)
@@ -182,7 +187,7 @@ const ListGuesser = ({
             {additionalActions || listOptions?.additionalActions && createElement(listOptions?.additionalActions)}
           </WrapperField >
         }
-      </DatagridConfigurable >
+      </DatagridConfigurable >}
 
     </ListComponent >
   )

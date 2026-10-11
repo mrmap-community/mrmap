@@ -39,6 +39,9 @@ const ResourceListCard = (
   return (
       <ListBase
           resource={resource}
+          filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(resource)
+            ? { is_update_candidate: false }
+            : undefined}
           sort={sort}
           perPage={withList ? 100 : 1}
           queryOptions={{meta: meta}}

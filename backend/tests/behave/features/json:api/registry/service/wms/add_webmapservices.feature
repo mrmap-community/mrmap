@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: WebMapService Add Endpoint
     As an API client,
     I want to add web map services,
@@ -12,9 +13,6 @@ Feature: WebMapService Add Endpoint
                 "id": "62832ac8-692d-4a8b-b8d1-22cd22f7386c"
             }
             """
-
-    Scenario: Can add as authenticated user
-        Given I am logged in as User1 with password User1
         Given I set the request payload to:
             """
             {
@@ -35,32 +33,17 @@ Feature: WebMapService Add Endpoint
                 }
             }
             """
+
+    Scenario: Can add as authenticated user
+        Given I am logged in as User1 with password User1
         When I send the request with POST method
         Then I expect the response status is 202
 
     Scenario: Can't add as anonymous user
-        Given I set the request payload to:
-            """
-            {
-                "data": {
-                    "type": "WebMapService",
-                    "attributes": {
-                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0",
-                        "collect_metadata_records": "true"
-                    },
-                    "relationships": {
-                        "owner": {
-                            "data": {
-                                "id": "1",
-                                "type": "Organization"
-                            }
-                        }
-                    }
-                }
-            }
-            """
+        Given I am an anonymous user
         When I send the request with POST method
         Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
 
     Scenario: Wrong capabilities url
         Given I am logged in as User1 with password User1

@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_mapcontext.json @fixtures:test_wms.json
 Feature: MapContext Related MapContexLayers Endpoint
     As an API client,
     I want to get all related MapContextLayers for a given MapContext object,

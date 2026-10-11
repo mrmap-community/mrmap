@@ -65,6 +65,31 @@ class ResourceHistroyStatsPerDay(DynamicMaterializedView):
         return cls.base_model.history.stats_per_day()
 
 
+class ResourceHistoryStatsPerDayAndService(DynamicMaterializedView):
+    id = DateField(primary_key=True)
+    history_day = DateField()
+    new = IntegerField()
+    updated = IntegerField()
+    deleted = IntegerField()
+    service = UUIDField()
+
+    class Meta:
+        managed = False
+        abstract = True
+        indexes = [
+            Index(fields=["id"]),
+            Index(fields=["history_day"]),
+            Index(fields=["new"]),
+            Index(fields=["updated"]),
+            Index(fields=["deleted"]),
+            Index(fields=["service"]),
+        ]
+
+    @classmethod
+    def get_queryset(cls):
+        return cls.base_model.history.stats_per_day_per_service()
+
+
 class MaterializedDatasetMetadataRecordStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = DatasetMetadataRecord
 
@@ -95,6 +120,14 @@ class MaterializedLayerStatsPerDay(ResourceHistroyStatsPerDay):
     class Meta:
         managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedLayerStatsPerDayAndService(ResourceHistoryStatsPerDayAndService):
+    base_model = Layer
+
+    class Meta:
+        managed = False
+        indexes = ResourceHistoryStatsPerDayAndService.Meta.indexes
 
 
 class MaterializedWebFeatureServiceStatsPerDay(ResourceHistroyStatsPerDay):

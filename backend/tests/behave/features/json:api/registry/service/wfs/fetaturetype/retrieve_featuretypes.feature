@@ -1,3 +1,4 @@
+@fixtures:test_crs.json @fixtures:test_wfs.json @fixtures:test_keywords.json
 Feature: Featuretype List Endpoint
     As an API client,
     I want to search for featuretype,
@@ -11,32 +12,16 @@ Feature: Featuretype List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data"
 
-    Scenario: Can include service
-        Given I set a queryparam "include" with value "service"
+    Scenario Outline: Can include <relation>
+        Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "WebFeatureService"
+        Then I expect that response json has an attribute "<attribute>" with value "<type>"
 
-    Scenario: Can include keywords
-        Given I set a queryparam "include" with value "keywords"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
-
-    Scenario: Can include service.operationUrls
-        Given I set a queryparam "include" with value "service.operationUrls"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[1].type" with value "WebFeatureServiceOperationUrl"
-
-    Scenario: Can include createdBy
-        Given I set a queryparam "include" with value "createdBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
-
-    Scenario: Can include lastModifiedBy
-        Given I set a queryparam "include" with value "lastModifiedBy"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "User"
+        Examples:
+            | relation              | attribute         | type                          |
+            | service               | included.[0].type | WebFeatureService             |
+            | keywords              | included.[0].type | Keyword                       |
+            | service.operationUrls | included.[1].type | WebFeatureServiceOperationUrl |
+            | createdBy             | included.[0].type | User                          |
+            | lastModifiedBy        | included.[0].type | User                          |

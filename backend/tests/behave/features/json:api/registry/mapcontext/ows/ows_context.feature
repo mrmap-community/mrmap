@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_mapcontext.json @fixtures:test_wms.json
 Feature: OwsContext detail view
     As an API client,
     I want to retrieve mapcontext documents according to the OGC OWS Context GeoJSON Encoding Standard,

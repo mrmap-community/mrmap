@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: coverage-reports
-          path: ./mrmap/acceptance-tests-coverage-report.xml
+          path: ./backend/acceptance-tests-coverage-report.xml
 
   unit-tests:
     name: unit-tests
@@ -72,32 +72,26 @@ jobs:
           name: coverage-reports
           path: ./backend/unit-tests-coverage-report.xml
 
-  sonar-scanner:
-    needs: [acceptance-tests, unit-tests]
-    name: sonar-scanner
+  frontend-tests:
+    name: frontend-tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: pull needed docker images
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
-
-      - name: download coverage reports
-        uses: actions/download-artifact@v2
-        with:
-          name: coverage-reports
-          path: ./mrmap
-
-      - name: Run sonar-scanner
+      - name: Type check frontend
+        # Informational for now: tsc reports 114 errors on main (see
+        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
+        # once they are fixed.
+        continue-on-error: true
         run: |
-          echo -en "\n" >> ./mrmap/sonar-project.properties
-          echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./mrmap/sonar-project.properties
-          echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./mrmap/sonar-project.properties
-          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./mrmap/sonar-project.properties
-          cat ./mrmap/sonar-project.properties
-          ls ./mrmap
-          GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run type-check
+
+      - name: Run frontend tests
+        # Informational for now: 52-56 of 268 specs fail on main (see
+        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
+        # once the failing specs are fixed.
+        continue-on-error: true
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests

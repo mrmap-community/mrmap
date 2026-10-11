@@ -11,8 +11,8 @@ from django.db.models.fields import BooleanField, CharField
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
-from extras.scheduling import next_run_expected_at
 from epsg_cache.utils import adjust_axis_order
+from extras.scheduling import next_run_expected_at
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
 from registry.managers.monitoring import WebMapServiceMonitoringRunManager
@@ -61,7 +61,7 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
 class WebMapServiceMonitoringRun(models.Model):
     setting: WebMapServiceMonitoringSetting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
     )
     date_created = models.DateTimeField(
         # Do not use this setting.

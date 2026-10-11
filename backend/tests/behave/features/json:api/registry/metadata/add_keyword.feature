@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: Keyword Add Endpoint
     As an administrator,
     I want to add new keywords,

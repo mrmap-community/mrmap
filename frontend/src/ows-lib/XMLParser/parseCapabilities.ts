@@ -13,13 +13,6 @@ const getChild = (parent: Element | Document | undefined, localName: string): El
   })
 }
 
-const getChildren = (parent: Element | Document | undefined, localName: string): Element[] => {
-  if (!parent) return []
-  return Array.from(parent.childNodes).filter((node): node is Element => {
-    return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName
-  })
-}
-
 const getDescendantByPath = (parent: Element | Document | undefined, path: string[]): Element | undefined => {
   let node: Element | Document | undefined = parent
   for (const name of path) {

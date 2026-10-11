@@ -1,6 +1,6 @@
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from django_filters import BaseInFilter, FilterSet, NumberFilter
+from django_filters import BaseInFilter, FilterSet, NumberFilter, UUIDFilter
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebMapServiceOperation)
 from rest_framework_gis.filters import GeometryFilter
@@ -41,6 +41,30 @@ class WebMapServiceOperationFilterSet(FilterSet):
 
 
 class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):
+    access_group = NumberFilter(
+        field_name="allowed_groups__id",
+        method="filter_access_group",
+        label=_("access for group"),
+        help_text=_("Rules for this group, including rules without a group restriction."),
+    )
+
+    access_user = UUIDFilter(
+        field_name="allowed_groups__user__id",
+        method="filter_access_user",
+        label=_("access for user"),
+        help_text=_("Rules for any group this user belongs to, including rules without a group restriction."),
+    )
+
+    def filter_access_user(self, queryset, name, value):
+        return queryset.filter(
+            Q(allowed_groups__user__pk=value) | Q(allowed_groups__isnull=True)
+        ).distinct()
+
+    def filter_access_group(self, queryset, name, value):
+        return queryset.filter(
+            Q(allowed_groups__pk=value) | Q(allowed_groups__isnull=True)
+        ).distinct()
+
     allowed_area__contains = GeometryFilter(
         label=_('allowed area contains'),
         help_text=_(

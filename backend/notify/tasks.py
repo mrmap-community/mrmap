@@ -4,11 +4,11 @@ from celery import Task, shared_task
 from celery.signals import task_prerun
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.utils.timezone import now
+from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.exceptions.harvesting import InternalServerError
 from requests.exceptions import ConnectionError, Timeout
@@ -21,6 +21,8 @@ def get_background_process(task, *args, **kwargs):
     """To automaticly get the BackgroundProcess object on task runtime."""
     task.background_process_pk = kwargs["kwargs"].get(
         "background_process_pk", None)
+    if isinstance(task, BackgroundProcessBased) and task.background_process_pk is not None:
+        task.update_background_process()
 
 
 class BackgroundProcessBased(Task):
@@ -33,8 +35,8 @@ class BackgroundProcessBased(Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         self.update_background_process(
-            phase=f"An error occours: {einfo}",
-            completed=True
+            phase=f"An error occurred: {exc}"[:512],
+            failed=True
         )
 
     def update_state(self, task_id=None, state=None, meta=None, **kwargs):
@@ -48,26 +50,25 @@ class BackgroundProcessBased(Task):
         total_steps=None,
         step_done=False,
         completed=False,
+        failed=False,
     ):
         # will be provided by get_background_process signal if the pk is provided by kwargs
-        if hasattr(self, "background_process_pk"):
+        if getattr(self, "background_process_pk", None) is not None:
             try:
                 query = BackgroundProcess.objects.filter(
                     pk=self.background_process_pk)
-                kwargs = {}
-                send_post_save = False
+                kwargs = {"status": ProcessStatusEnum.RUNNING}
 
                 if phase:
                     kwargs.update({
                         "phase": phase
                     })
-                    send_post_save = True
                 if service:
                     kwargs.update({
                         "related_resource_type": ContentType.objects.get_for_model(service),
                         "related_id": service.pk
                     })
-                if total_steps:
+                if total_steps is not None:
                     kwargs.update({
                         "total_steps": total_steps
                     })
@@ -75,27 +76,37 @@ class BackgroundProcessBased(Task):
                     kwargs.update({
                         "done_steps": F("done_steps") + 1
                     })
-                    send_post_save = True
-                if completed:
+                if failed:
+                    kwargs.update({"status": ProcessStatusEnum.FAILED, "done_at": now()})
+                elif completed:
                     kwargs.update({
                         "total_steps": Coalesce(F("total_steps"), 1),
                         "done_steps": Coalesce(F("total_steps"), 1),
                         "done_at": now(),
-                        "phase": "completed"
+                        "phase": "completed",
+                        "status": ProcessStatusEnum.COMPLETED
                     })
-                    send_post_save = True
 
                 if kwargs:
-                    if not completed:
-                        # only update step changes on non completed objects.
-                        # this results in non updated records for nonsense
-                        query = query.filter(done_at__isnull=True)
-                    with transaction.atomic():
-                        query.update(**kwargs)
+                    # A terminal outcome cannot be overwritten by sibling tasks.
+                    active_query = query.filter(
+                        done_at__isnull=True,
+                        status__in=[ProcessStatusEnum.PENDING, ProcessStatusEnum.RUNNING])
+                    if kwargs == {"status": ProcessStatusEnum.RUNNING}:
+                        # get_background_process fires on every task start; for a
+                        # process which is already running this writes nothing and
+                        # must not broadcast anything either.
+                        active_query = active_query.exclude(
+                            status=ProcessStatusEnum.RUNNING)
+                    updated = active_query.update(**kwargs)
 
-                    if send_post_save:
+                    if updated:
                         try:
-                            instance = query.get()
+                            # process_info provides the progress annotation and
+                            # the related resource type in one go, so the
+                            # post_save receiver doesn't have to reload.
+                            instance = BackgroundProcess.objects.process_info().get(
+                                pk=self.background_process_pk)
                             post_save.send(
                                 BackgroundProcess,
                                 instance=instance,

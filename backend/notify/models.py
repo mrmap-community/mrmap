@@ -7,11 +7,16 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.celery import app
-from notify.enums import LogTypeEnum, ProcessNameEnum
+from notify.enums import LogTypeEnum, ProcessNameEnum, ProcessStatusEnum
 from notify.managers import BackgroundProcessManager
 
 
 class BackgroundProcess(models.Model):
+    status = models.PositiveSmallIntegerField(
+        choices=ProcessStatusEnum.choices,
+        default=ProcessStatusEnum.PENDING,
+        editable=False)
+
     threads = models.ManyToManyField(
         to=TaskResult,
         related_name='processes',
@@ -73,6 +78,14 @@ class BackgroundProcess(models.Model):
     class Meta:
         verbose_name = _('Background Process')
         verbose_name_plural = _('Background Processes')
+        indexes = [
+            # process_info() orders by -date_created and every list request of
+            # the frontend (including its polling) runs that ordering; without
+            # this the whole table is sorted on each request
+            models.Index(
+                fields=["date_created"],
+                name="bgproc_date_created_idx"),
+        ]
 
     objects = BackgroundProcessManager()
 
@@ -80,13 +93,20 @@ class BackgroundProcess(models.Model):
         return f"{self.process_type} {self.related_id}"
 
     def get_related_task_ids(self):
+        """All task ids which belong to this process and are not finished yet.
+
+        The worker reports the kwargs it received from the broker, and the
+        broker transports the uuid as a string, so self.pk has to be stringified
+        for the comparison to ever match.
+        """
         task_ids = []
+        related_pk = str(self.pk)
 
         i = app.control.inspect()
         for queues in list(filter(lambda q: q is not None, (i.active(), i.reserved(), i.scheduled()))):
             for task_list in queues.values():
                 for task in task_list:
-                    if ("background_process_pk", self.pk) in task.get("kwargs", {}).items():
+                    if task.get("kwargs", {}).get("background_process_pk") == related_pk:
                         task_id = task.get("request", {}).get(
                             "id", None) or task.get("id", None)
                         task_ids.append(task_id)
@@ -97,16 +117,24 @@ class BackgroundProcess(models.Model):
         return list(set(list(unready_tasks) + task_ids + self.celery_task_ids))
 
     def save(self, *args, **kwargs):
-        if self.phase == "abort":
+        aborted = self.phase == "abort"
+        if aborted:
             self.done_at = now()
+            self.status = ProcessStatusEnum.ABORTED
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"status", "done_at"}
 
+        saved = super(BackgroundProcess, self).save(*args, **kwargs)
+
+        if aborted:
+            # finding the tasks costs one blocking broadcast round trip per
+            # inspector call; run it after the abort is stored, so a slow or
+            # unreachable broker cannot keep the process looking alive
             related_tasks = self.get_related_task_ids()
             if related_tasks:
                 app.control.revoke(related_tasks, terminate=True)
 
-                return super(BackgroundProcess, self).save(*args, **kwargs)
-
-        return super(BackgroundProcess, self).save(*args, **kwargs)
+        return saved
 
 
 def extented_description_file_path(instance, filename):

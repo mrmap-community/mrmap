@@ -29,7 +29,7 @@ const useGuesserProps = () => {
       />
     ]            
   }),[
-    fieldDefinitions
+    fieldDefinitions, record
   ])
   return guesserProps
 }

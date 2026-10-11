@@ -5,7 +5,9 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
-from notify.utils import build_action_payload, send_msg
+from notify.utils import build_action_payload, send_msg_on_commit
+from registry.models.harvest import HarvestingJob
+from registry.serializers.harvesting import HarvestingJobSerializer
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
@@ -36,7 +38,8 @@ def update_background_process_listeners_on_background_process_delete(**kwargs):
             serializer_cls=BackgroundProcessSerializer,
             action="delete"
         )
-        send_msg(msg=reducer_action)
+        # a record which is gone has to disappear from every open list
+        send_msg_on_commit(msg=reducer_action, immediate=True)
     except Exception as e:
         log_exception(e)
 
@@ -51,8 +54,12 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
     else:
         return
     try:
-        background_process = BackgroundProcess.objects.process_info().get(
-            pk=kwargs['instance'].pk)
+        background_process = kwargs['instance']
+        if getattr(background_process, "progress", None) is None:
+            # senders that wrote through QuerySet.update() hand over an instance
+            # without annotation; process_info adds progress and the resource type
+            background_process = BackgroundProcess.objects.process_info().get(
+                pk=background_process.pk)
         reducer_action = build_action_payload(
             request=request,
             instance=background_process,
@@ -60,7 +67,53 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
             serializer_cls=BackgroundProcessSerializer,
             action="created" if kwargs.get("created", False) else "updated"
         )
-        send_msg(msg=reducer_action)
+        # done_at is set by every terminal status (completed, failed, aborted):
+        # the message which announces it must never be collapsed away
+        send_msg_on_commit(
+            msg=reducer_action,
+            immediate=kwargs.get("created", False)
+            or background_process.done_at is not None
+        )
+    except Exception as e:
+        log_exception(e)
+
+
+@receiver(post_save, sender=HarvestingJob, dispatch_uid='update_HarvestingJob_listeners_on_post_save')
+def update_harvesting_job_listeners_on_harvesting_job_save(**kwargs):
+    """
+    Send the information to the channel group when a HarvestingJob is created/modified
+
+    A job writes itself on every step of its workflow (see HarvestingJob.save,
+    registry/tasks/harvest.py and registry/querys/harvest_history.py), which are
+    exactly what the harvesting views of the frontend are waiting for.
+    """
+    if hasattr(HistoricalRecords.context, "request"):
+        request = HistoricalRecords.context.request
+    else:
+        return
+    try:
+        # total_steps, done_steps and progress are no fields but annotations: a
+        # payload built from the instance the signal hands over would not carry
+        # them. They have to be read after the save, because an instance which
+        # was selected before it (the API's get_object does so) still holds the
+        # progress of the state before the update, and a client which received
+        # the terminal message of a job would keep showing that frozen value.
+        harvesting_job = HarvestingJob.objects.with_process_info().get(
+            pk=kwargs['instance'].pk)
+        reducer_action = build_action_payload(
+            request=request,
+            instance=harvesting_job,
+            resource_type="HarvestingJob",
+            serializer_cls=HarvestingJobSerializer,
+            action="created" if kwargs.get("created", False) else "updated"
+        )
+        # done_at is set by every terminal phase (completed, aborted):
+        # the message which announces it must never be collapsed away
+        send_msg_on_commit(
+            msg=reducer_action,
+            immediate=kwargs.get("created", False)
+            or harvesting_job.done_at is not None
+        )
     except Exception as e:
         log_exception(e)
 

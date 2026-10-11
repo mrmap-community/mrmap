@@ -227,3 +227,68 @@ class HistoricalFiltersTest(TestCase):
         qs = layer_view.filter_queryset(layer_view.get_queryset())
         self.assertIn(str(self.object_id).replace("-", ""),
                       str(qs.query).replace("-", ""))
+
+
+class LayerChangeTypeFiltersTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.model = LayerHistoricalViewSet.queryset.model
+        cls.start = timezone.now() - timedelta(days=1)
+        cls.records = {}
+        layer_id = uuid4()
+        values = dict(id=layer_id, title="Original", service_id=uuid4(),
+                      mptt_lft=1, mptt_rgt=2, mptt_depth=0,
+                      history_change_reason="updatejob_id: 2")
+        for index, (name, changes) in enumerate([
+            ("added", {"history_type": "~"}),
+            ("unchanged", {}),
+            ("modified", {"title": "Changed"}),
+            ("removed", {"history_type": "-"}),
+            ("created", {"id": uuid4(), "history_type": "+"}),
+            ("deleted_without_predecessor", {"id": uuid4(), "history_type": "-"}),
+        ]):
+            values.update(changes)
+            values["history_relation_id"] = values["id"]
+            cls.records[name] = cls.model.objects.create(
+                **values, history_date=cls.start + timedelta(minutes=index))
+
+    def view(self, change_type):
+        view = LayerHistoricalViewSet()
+        view.queryset = view.queryset.filter(pk__in=[r.pk for r in self.records.values()])
+        view.request = Request(APIRequestFactory().get("/", {
+            "filter[changeType]": change_type,
+            "filter[historyChangeReason]": "updatejob_id: 2",
+            "page[size]": "1",
+        }))
+        view.action = "list"
+        return view
+
+    def test_categories_are_disjoint_and_use_one_query(self):
+        expected = {"added": ["added", "created"], "modified": ["modified"],
+                    "unchanged": ["unchanged"],
+                    "removed": ["removed", "deleted_without_predecessor"]}
+        for change_type, names in expected.items():
+            with self.subTest(change_type=change_type):
+                view = self.view(change_type)
+                with self.assertNumQueries(0):
+                    qs = view.filter_queryset(view.get_queryset())
+                with self.assertNumQueries(1):
+                    self.assertSetEqual(set(qs.values_list("pk", flat=True)),
+                                        {self.records[name].pk for name in names})
+
+    def test_filter_runs_before_pagination(self):
+        view = self.view("added")
+        page = view.paginate_queryset(view.filter_queryset(view.get_queryset()))
+        self.assertEqual(view.paginator.page.paginator.count, 2)
+        self.assertEqual(len(page), 1)
+
+    def test_invalid_category_is_rejected(self):
+        view = self.view("invalid")
+        with self.assertRaises(ValidationError):
+            view.filter_queryset(view.get_queryset())
+
+    def test_change_reason_remains_scoped(self):
+        record = self.records["modified"]
+        self.model.objects.filter(pk=record.pk).update(history_change_reason="updatejob_id: 3")
+        view = self.view("modified")
+        self.assertFalse(view.filter_queryset(view.get_queryset()).exists())

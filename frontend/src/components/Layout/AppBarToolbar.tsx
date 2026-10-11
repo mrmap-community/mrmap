@@ -1,6 +1,8 @@
 import { Stack } from "@mui/material";
 import { LoadingIndicator, LocalesMenuButton, ToggleThemeButton, useLocales, useThemesContext } from "react-admin";
 
+import BackgroundActivityPanel from '../Resource/BackgroundProcess/BackgroundActivityPanel';
+
 import SystemStatusIndicator from './SystemStatusIndicator';
 
 const AppBarToolbar = () => {
@@ -11,6 +13,7 @@ const AppBarToolbar = () => {
         <Stack
             direction="row"       
         >
+            <BackgroundActivityPanel />
             <SystemStatusIndicator />
             {locales && locales.length > 1 ? <LocalesMenuButton /> : null}
             {darkTheme && <ToggleThemeButton />}

@@ -9,7 +9,7 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (ChoiceField, DurationField,
+from rest_framework_json_api.serializers import (CharField, ChoiceField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
@@ -122,6 +122,7 @@ class HarvestingJobSerializer(
     done_steps = IntegerField(read_only=True)
     progress = FloatField(read_only=True)
 
+    phase_label = CharField(source="get_phase_display", read_only=True)
     phase = IntegerField(required=False)
     # TODO: use IntegerChoices instead
     log_level = ChoiceField(default=LogLevelEnum.INFO,

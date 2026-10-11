@@ -15,6 +15,7 @@
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -22,9 +23,7 @@
   },
   "include": [
     "src/**/*",
-    "__tests__/**/*",
-    "src/ows-lib/OwsContext/tests/.spec.ts",
-    "src/ows-lib/XMLParser/tests/.spec.js"
+    "__tests__/**/*"
   ],
   "exclude": [
     "node_modules",

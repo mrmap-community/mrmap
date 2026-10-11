@@ -1,4 +1,7 @@
-@skip
+# Skipped on purpose: every GetRecords request answers with a 500, so none of the responses below
+# can be verified. registry/ows_lib/csw/builder.py:208 raises "TypeError: can only join an
+# iterable" while building the query for a request that arrives as GET query parameters.
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @skip
 Feature: MrMap CatalogueService Endpoint
     As an API client,
     I want to retreive metadata records,
@@ -69,7 +72,7 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "outputSchema"
 
-    Scenario: GetRecords results response with unsupported outputSchema
+    Scenario: GetRecords validate response is acknowledged
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
         Given I set a queryparam "service" with value "CSW"

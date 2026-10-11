@@ -1,3 +1,7 @@
+from django.db import IntegrityError, transaction
+from django.db.models import Case
+from django.db.models import IntegerField as DjangoIntegerField
+from django.db.models import OuterRef, Q, Subquery, Sum, Value, When
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
@@ -8,10 +12,14 @@ from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
                              LayerMapping, WebFeatureService,
                              WebFeatureServiceUpdateJob, WebMapService,
                              WebMapServiceUpdateJob)
-from registry.models.update import WebMapServiceUpdateSetting
+from registry.models.update import (CatalogueServiceUpdateSetting,
+                                    WebFeatureServiceUpdateSetting,
+                                    WebMapServiceUpdateSetting)
+from registry.querys.historical import with_delta_size, with_prev_record_id
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
@@ -19,20 +27,14 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  HyperlinkedIdentityField,
                                                  IntegerField, ModelSerializer,
                                                  Serializer)
+from simple_history.utils import get_history_manager_for_model
 
 
-class WebMapServiceUpdateSettingSerializer(
-    StringRepresentationSerializer,
-    SystemInfoSerializerMixin,
-    ModelSerializer
+class UpdateSettingSerializer(
+    Serializer
 ):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoringsetting-detail',
-    )
-    service = ResourceRelatedField(
-        label=_("web map service"),
-        help_text=_("the web map service for that this settings are."),
-        queryset=WebMapService.objects,
     )
     schedule_interval = CrontabStringField(
         source='crontab',
@@ -53,12 +55,99 @@ class WebMapServiceUpdateSettingSerializer(
         return expected_at is not None and expected_at < current_time
 
     class Meta:
+        fields = ('url', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
+class WebMapServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_("the web map service for that this settings are."),
+        queryset=WebMapService.objects,
+    )
+
+    class Meta:
         model = WebMapServiceUpdateSetting
         fields = ('url', 'service', 'schedule_interval', 'enabled',
                   'last_run_at', 'next_run_expected_at', 'run_overdue')
 
 
+class WebFeatureServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    service = ResourceRelatedField(
+        label=_("web feature service"),
+        help_text=_("the web feature service for that this settings are."),
+        queryset=WebFeatureService.objects,
+    )
+
+    class Meta:
+        model = WebFeatureServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
+class CatalogueServiceUpdateSettingSerializer(
+    UpdateSettingSerializer,
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+
+    service = ResourceRelatedField(
+        label=_("catalogue service"),
+        help_text=_("the catalogue service for that this settings are."),
+        queryset=CatalogueService.objects,
+    )
+
+    class Meta:
+        model = CatalogueServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+
+
 class UpdateJobBaseSerializer(Serializer):
+    def validate_service(self, service):
+        if self.instance is None:
+            user = self.context["request"].user
+            permission = f"registry.change_{service._meta.model_name}"
+            if not (user.has_perm(permission) or user.has_perm(permission, service)):
+                raise PermissionDenied(_("You may not update this service."))
+            if self.Meta.model.objects.filter(
+                service=service, done_at__isnull=True
+            ).exists():
+                raise ValidationError(
+                    _("There is an existing noncompleted job for this service."))
+        return service
+
+    def create(self, validated_data):
+        try:
+            with transaction.atomic():
+                return super().create(validated_data)
+        except IntegrityError as error:
+            # A scheduled or manual request may have created a job after validation.
+            constraint = (
+                f"registry_{self.Meta.model._meta.model_name}"
+                "_only_one_unfinished_update_per_service"
+            )
+            violated_constraint = getattr(
+                getattr(error.__cause__, "diag", None), "constraint_name", None
+            )
+            # PostgreSQL truncates identifiers to 63 bytes.
+            if violated_constraint not in (constraint, constraint[:63]):
+                raise
+            raise ValidationError({
+                "service": _("There is an existing noncompleted job for this service.")
+            }) from error
+
     date_created = DateTimeField(
         label=_("Created"),
         help_text=_("The date and time when this update job was created."),
@@ -201,11 +290,14 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     )
     mappings = ResourceRelatedField(
         model=LayerMapping,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # related_link_view_name="registry:wms-layers-list",
-        # related_link_url_kwarg="parent_lookup_service",
+        many=True,
         read_only=True,
     )
+
+    changed_layers = SerializerMethodField()
+    unchanged_layers = SerializerMethodField()
+    added_layers = SerializerMethodField()
+    deleted_layers = SerializerMethodField()
 
     included_serializers = {
         "service": WebMapServiceSerializer,
@@ -215,8 +307,64 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
 
     class Meta:
         model = WebMapServiceUpdateJob
-        fields = ("url", "service", "date_created", "done_at",
-                  "status", "status_code", "update_candidate", "mappings")
+        fields = (
+            "url", "service", "date_created", "done_at",
+            "status", "status_code", "update_candidate", "mappings",
+            "changed_layers", "unchanged_layers", "added_layers",
+            "deleted_layers",
+        )
+
+    def _layer_change_aggregates(self, obj):
+        cache = getattr(obj, "_layer_change_aggregates_cache", None)
+        if cache is not None:
+            return cache
+
+        history = Layer.change_log.all()
+        history = with_prev_record_id(history)
+        history = with_delta_size(history)
+        queryset = history.annotate(
+            is_added=Case(
+                When(Q(history_type="+") |
+                     Q(prev_record_id__isnull=True), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_deleted=Case(
+                When(history_type="-", then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_changed=Case(
+                When(Q(history_type="~") & Q(_delta_size__gt=0), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+            is_unchanged=Case(
+                When(Q(history_type="~") & Q(_delta_size=0), then=Value(1)),
+                default=Value(0),
+                output_field=DjangoIntegerField(),
+            ),
+        )
+        aggregates = queryset.aggregate(
+            changed_layers=Sum("is_changed"),
+            unchanged_layers=Sum("is_unchanged"),
+            added_layers=Sum("is_added"),
+            deleted_layers=Sum("is_deleted"),
+        )
+        setattr(obj, "_layer_change_aggregates_cache", aggregates)
+        return aggregates
+
+    def get_changed_layers(self, obj):
+        return self._layer_change_aggregates(obj)["changed_layers"] or 0
+
+    def get_unchanged_layers(self, obj):
+        return self._layer_change_aggregates(obj)["unchanged_layers"] or 0
+
+    def get_added_layers(self, obj):
+        return self._layer_change_aggregates(obj)["added_layers"] or 0
+
+    def get_deleted_layers(self, obj):
+        return self._layer_change_aggregates(obj)["deleted_layers"] or 0
 
 
 class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -239,9 +387,7 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     )
     mappings = ResourceRelatedField(
         model=FeatureTypeMapping,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # related_link_view_name="registry:wfs-featuretypes-list",
-        # related_link_url_kwarg="parent_lookup_service",
+        many=True,
         read_only=True,
     )
 

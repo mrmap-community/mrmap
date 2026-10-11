@@ -1,5 +1,10 @@
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
-import { ShowButton, SimpleList, useTranslate } from "react-admin";
+import {
+  BasenameContextProvider,
+  ShowButton,
+  SimpleList,
+  useTranslate,
+} from "react-admin";
 import { formatMonitoringRun, getDuration } from "./formatMonitoringRun";
 
 const MonitoringRunsList = () => {
@@ -16,13 +21,15 @@ const MonitoringRunsList = () => {
         <FiberManualRecordIcon color={record.success ? "success" : "error"} />
       )}
       rightIcon={(record) => (
-        <ShowButton
-          record={record}
-          resource="WebMapServiceMonitoringRun"
-          label="ra.action.show"
-          variant="contained"
-          icon={false}
-        />
+        <BasenameContextProvider basename="">
+          <ShowButton
+            record={record}
+            resource="WebMapServiceMonitoringRun"
+            label="ra.action.show"
+            variant="contained"
+            icon={false}
+          />
+        </BasenameContextProvider>
       )}
       primaryText={(record) =>
         formatMonitoringRun(record.dateDone ?? record.dateCreated)

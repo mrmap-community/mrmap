@@ -1,7 +1,7 @@
 import uuid
 from collections import OrderedDict
 
-from camel_converter import to_camel
+from camel_converter import to_camel, to_snake
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db.models.query import Prefetch, QuerySet
@@ -49,6 +49,11 @@ class ObjectPermissionCheckerViewSetMixin:
                     objects = self.paginate_queryset(objects)
                 if objects:
                     perm_checker.prefetch_perms(objects)
+            # the json:api renderer does not hand the serializer context to the
+            # serializers of included resources but only the view, so the checker
+            # has to be reachable through the view for objects of this model
+            self.perm_checker = perm_checker
+            self.perm_checker_model = queryset.model
             context.update({'perm_checker': perm_checker})
         return context
 
@@ -62,31 +67,33 @@ class HistoryInformationViewSetMixin:
             sparse_fields = get_sparse_fields(self.request)
             resource_based_sparse_fields = sparse_fields.get(
                 self.queryset.model.__name__, [])
-            include_resources_param = get_included_resources(
-                self.request, self.get_serializer_class())
+            # an include is written with the field names of the api, the
+            # relations of a model are named with the names of python
+            include_resources_param = [
+                to_snake(include) for include in get_included_resources(
+                    self.request, self.get_serializer_class())]
 
             HistoryModel = apps.get_model(
                 self.queryset.model._meta.app_label,
                 f"Historical{self.queryset.model.__name__}"
             )
             prefetches = []
-            select_related = [
-                "history_user"] if "created_by" in include_resources_param or "last_modified_by" in include_resources_param else []
+            # created_by and last_modified_by always dereference the user of the
+            # history record, so the user is always joined. A history row carries
+            # a copy of every column of the object it belongs to, so only the
+            # columns of the history fields are loaded for the other case.
+            user_is_included = "created_by" in include_resources_param \
+                or "last_modified_by" in include_resources_param
+            only_for_history = ['history_relation', 'history_date',
+                                'history_user']
 
             if not resource_based_sparse_fields \
                     or any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields)\
                     or "created_by" in include_resources_param:
-                only_for_created_prefetch = ['history_relation']
-
-                if "created_at" in resource_based_sparse_fields:
-                    only_for_created_prefetch.append("history_date")
-                if (not resource_based_sparse_fields or "created_by" in resource_based_sparse_fields) and "created_by" not in include_resources_param:
-                    only_for_created_prefetch.append("history_user__id")
-                prefetch_qs = HistoryModel.objects.filter(history_type='+')
-                if select_related:
-                    prefetch_qs = prefetch_qs.select_related(*select_related)
-                if only_for_created_prefetch and not select_related:
-                    prefetch_qs = prefetch_qs.only(*only_for_created_prefetch)
+                prefetch_qs = HistoryModel.objects.filter(
+                    history_type='+').select_related('history_user')
+                if not user_is_included:
+                    prefetch_qs = prefetch_qs.only(*only_for_history)
                 prefetches.append(
                     Prefetch(
                         'change_logs',
@@ -98,17 +105,10 @@ class HistoryInformationViewSetMixin:
                     or any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields)\
                     or "last_modified_by" in include_resources_param:
 
-                only_for_last_modified_prefetch = ['history_relation']
-
-                if "last_modified_at" in resource_based_sparse_fields:
-                    only_for_last_modified_prefetch.append("history_date")
-                if (not resource_based_sparse_fields or "last_modified_by" in resource_based_sparse_fields) and "last_modified_by" not in include_resources_param:
-                    only_for_last_modified_prefetch.append("history_user__id")
-                prefetch_qs = HistoryModel.objects.all()
-                if select_related:
-                    prefetch_qs = prefetch_qs.select_related(*select_related)
-                if only_for_created_prefetch and not select_related:
-                    prefetch_qs = prefetch_qs.only(*only_for_created_prefetch)
+                prefetch_qs = HistoryModel.objects.all().select_related(
+                    'history_user')
+                if not user_is_included:
+                    prefetch_qs = prefetch_qs.only(*only_for_history)
                 prefetches.append(
                     Prefetch(
                         'change_logs',
@@ -258,14 +258,17 @@ class PreloadNotIncludesMixin:
         if not resource_name:
             return qs
 
-        included_resources = get_included_resources(
-            self.request, self.get_serializer_class()
-        )
+        # an include is written with the field names of the api, the keys of
+        # prefetch_for_includes and prefetch_for_not_includes are the names of
+        # the relations of the model
+        included_resources = [
+            to_snake(include) for include in get_included_resources(
+                self.request, self.get_serializer_class())]
 
-        fields_snake = self.request.GET.get(
-            f"fields[{resource_name}]", "").split(',')
-        # FIXME: depends on JSON_API_FORMAT_FIELD_NAMES setting
-        fields = [to_camel(field) for field in fields_snake if field.strip()]
+        # A sparse fieldset is written with the field names of the api, the keys
+        # of prefetch_for_not_includes are the names of python.
+        # extras.utils.parse_sparse_fieldsets turns one into the other.
+        fields = get_sparse_fields(self.request).get(resource_name, [])
 
         for key in list(self.get_prefetch_for_not_includes().keys()) + ['__all__']:
             prefetch_related = self.get_prefetch_related_for_not_includes(key)

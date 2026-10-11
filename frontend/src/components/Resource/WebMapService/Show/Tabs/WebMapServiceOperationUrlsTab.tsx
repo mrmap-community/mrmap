@@ -1,22 +1,10 @@
-import { ResourceContext, useRecordContext } from 'react-admin';
-import ListWithDialogs from '../../../../../jsonapi/components/ListWithDialogs';
+import ServiceRelatedTab from "../../../Generic/ServiceShow/ServiceRelatedTab";
 
+export const WebMapServiceOperationUrlsTab = () => (
+  <ServiceRelatedTab
+    resource="WebMapServiceOperationUrl"
+    defaultSelectedColumns={["operation", "url", "method"]}
+  />
+);
 
-export const WebMapServiceOperationUrlsTab = () => {
-  const record = useRecordContext();
-  return (
-    <ResourceContext
-          value='WebMapServiceOperationUrl'
-        >
-      <ListWithDialogs
-        listGuesserProps={{
-          relatedResource: 'WebMapService',
-          relatedResourceId: record?.id,
-          defaultSelectedColumns:["operation", "url", "method"],
-        }}
-              />
-      </ResourceContext>
-  )
-}
-
-export default WebMapServiceOperationUrlsTab
+export default WebMapServiceOperationUrlsTab;

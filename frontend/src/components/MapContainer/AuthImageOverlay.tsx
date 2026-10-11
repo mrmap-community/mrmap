@@ -1,34 +1,33 @@
-import { useQuery } from '@tanstack/react-query'
-import type L from 'leaflet'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ImageOverlay, ImageOverlayProps } from 'react-leaflet'
-import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
-import { useMapViewerBase } from '../MapViewer/MapViewerBase'
-
+import { useQuery } from "@tanstack/react-query";
+import type L from "leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
+import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { useMapViewerBase } from "../MapViewer/MapViewerBase";
 
 export interface AuthOptions {
-  headers?: Record<string, string>
-  credentials?: RequestCredentials
+  headers?: Record<string, string>;
+  credentials?: RequestCredentials;
 }
 
-export interface AuthImageOverlayProps extends Partial<ImageOverlayProps>{
-  bounds: L.LatLngBounds
-  optimiuedUrl: OptimizedUrlsMap
-  interactive?: boolean
-  auth?: AuthOptions | (() => AuthOptions) | Headers
+export interface AuthImageOverlayProps extends Partial<ImageOverlayProps> {
+  bounds: L.LatLngBounds;
+  optimiuedUrl: OptimizedUrlsMap;
+  interactive?: boolean;
+  auth?: AuthOptions | (() => AuthOptions) | Headers;
 }
 
 /**
  * Converts Headers object to Record<string, string>
  */
 const headersToObject = (headers?: Headers): Record<string, string> => {
-  if (!headers) return {}
-  const obj: Record<string, string> = {}
+  if (!headers) return {};
+  const obj: Record<string, string> = {};
   headers.forEach((value, key) => {
-    obj[key] = value
-  })
-  return obj
-}
+    obj[key] = value;
+  });
+  return obj;
+};
 
 /**
  * Gets authentication options. Supports:
@@ -36,45 +35,48 @@ const headersToObject = (headers?: Headers): Record<string, string> => {
  * 2. Auth function that returns auth options
  * 3. Headers object that gets converted to auth options
  */
-const getAuthOptions = (auth?: AuthOptions | (() => AuthOptions) | Headers): AuthOptions => {
+const getAuthOptions = (
+  auth?: AuthOptions | (() => AuthOptions) | Headers,
+): AuthOptions => {
   // If auth is a function, call it
-  if (typeof auth === 'function') {
-    return auth()
+  if (typeof auth === "function") {
+    return auth();
   }
 
   // If auth is a Headers object, convert it
   if (auth instanceof Headers) {
     return {
-      headers: headersToObject(auth)
-    }
+      headers: headersToObject(auth),
+    };
   }
 
   // If auth is an object, return it
   if (auth) {
-    return auth
+    return auth;
   }
-  return {}
-}
+  return {};
+};
 
 const getServiceExceptionMessage = (xml: string): string | undefined => {
-  if (!xml.trimStart().startsWith('<')) return undefined
+  if (!xml.trimStart().startsWith("<")) return undefined;
 
   try {
-    const document = new DOMParser().parseFromString(xml, 'application/xml')
-    const exception = Array.from(document.getElementsByTagName('*'))
-      .find((element) => element.localName === 'ServiceException')
+    const document = new DOMParser().parseFromString(xml, "application/xml");
+    const exception = Array.from(document.getElementsByTagName("*")).find(
+      (element) => element.localName === "ServiceException",
+    );
 
-    if (!exception) return undefined
+    if (!exception) return undefined;
 
-    const code = exception.getAttribute('code')
-    const message = exception.textContent?.trim()
+    const code = exception.getAttribute("code");
+    const message = exception.textContent?.trim();
 
-    if (code && message) return `${code}: ${message}`
-    return message || code || 'OGC service exception'
+    if (code && message) return `${code}: ${message}`;
+    return message || code || "OGC service exception";
   } catch {
-    return undefined
+    return undefined;
   }
-}
+};
 
 export const AuthImageOverlay = ({
   bounds,
@@ -83,79 +85,92 @@ export const AuthImageOverlay = ({
   auth,
   ...rest
 }: AuthImageOverlayProps) => {
-  
-  const { reportMapLoading, removeMapLoading } = useMapViewerBase()
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const startedAt = useRef(performance.now())
+  const { reportMapLoading, removeMapLoading } = useMapViewerBase();
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const startedAt = useRef(performance.now());
 
-  const authOptions = useMemo(()=>getAuthOptions(auth),[auth])
-  const url = optimiuedUrl.url.href
+  const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
+  const url = optimiuedUrl.url.href;
 
-  const loadingId = `image:${url}`
+  const loadingId = `image:${url}`;
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ['remoteImage', url, authOptions.headers, authOptions.credentials],
+    queryKey: [
+      "remoteImage",
+      url,
+      authOptions.headers,
+      authOptions.credentials,
+    ],
     retry: false,
     retryOnMount: false,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const response = await fetch(url, {
+        signal,
         ...(authOptions.headers && { headers: authOptions.headers }),
-        ...(authOptions.credentials && { credentials: authOptions.credentials }),
-      })
+        ...(authOptions.credentials && {
+          credentials: authOptions.credentials,
+        }),
+      });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const blob = await response.blob()
-      const serviceExceptionMessage = getServiceExceptionMessage(await blob.text())
+      const blob = await response.blob();
+      // WMS servers can label XML errors as images. Sniff a bounded prefix even
+      // for image content types, and decode the full body only when it may be XML.
+      const prefix = (await blob.slice(0, 512).text()).trimStart();
+      const mayBeXml =
+        blob.type.includes("xml") || prefix.startsWith("<") || prefix === "";
+      const serviceExceptionMessage = mayBeXml
+        ? getServiceExceptionMessage(await blob.text())
+        : undefined;
       if (serviceExceptionMessage) {
-        throw new Error(serviceExceptionMessage)
+        throw new Error(serviceExceptionMessage);
       }
 
-      return blob
+      return blob;
     },
-  })
+  });
 
   useEffect(() => {
-    const timing = performance.now() - startedAt.current
+    const timing = performance.now() - startedAt.current;
     if (isFetching) {
-      reportMapLoading(loadingId, 'loading')
+      reportMapLoading(loadingId, "loading");
     } else if (error) {
       const mapError = {
         message: error instanceof Error ? error.message : String(error),
-        features: optimiuedUrl.features
-      }
-      reportMapLoading(loadingId, 'error', mapError, timing)
+        features: optimiuedUrl.features,
+      };
+      reportMapLoading(loadingId, "error", mapError, timing);
     } else if (data) {
-      reportMapLoading(loadingId, 'ready', undefined, timing)
+      reportMapLoading(loadingId, "ready", undefined, timing);
     }
-  }, [data, error, isFetching, loadingId, reportMapLoading])
+  }, [data, error, isFetching, loadingId, reportMapLoading]);
 
   useEffect(() => {
-    return () => removeMapLoading(loadingId)
-  }, [loadingId, removeMapLoading])
+    return () => removeMapLoading(loadingId);
+  }, [loadingId, removeMapLoading]);
 
   useEffect(() => {
     if (!data) {
-      setImageUrl(null)
-      return
+      setImageUrl(null);
+      return;
     }
 
-    const nextImageUrl = URL.createObjectURL(data)
-    setImageUrl(nextImageUrl)
+    const nextImageUrl = URL.createObjectURL(data);
+    setImageUrl(nextImageUrl);
 
     return () => {
-      URL.revokeObjectURL(nextImageUrl)
-    }
-  }, [data])
-
+      URL.revokeObjectURL(nextImageUrl);
+    };
+  }, [data]);
 
   if (error) {
-    return null
+    return null;
   }
 
   if (isFetching || !imageUrl) {
-    return null
+    return null;
   }
 
   return (
@@ -165,5 +180,5 @@ export const AuthImageOverlay = ({
       interactive={interactive}
       {...rest}
     />
-  )
-}
+  );
+};

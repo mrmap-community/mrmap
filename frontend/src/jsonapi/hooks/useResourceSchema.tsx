@@ -1,47 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from "react";
 
-import { type OpenAPIV3, type Operation } from 'openapi-client-axios'
+import { type OpenAPIV3, type Operation } from "openapi-client-axios";
 
-import { SortPayload } from 'react-admin'
-import { getEncapsulatedSchema } from '../openapi/parser'
-import { getIncludeOptions, getSortOptions, getSparseFieldOptionsPerResourceType } from '../utils'
-import useOperation from './useOperation'
+import { SortPayload } from "react-admin";
+import { getEncapsulatedSchema } from "../openapi/parser";
+import {
+  getIncludeOptions,
+  getSortOptions,
+  getSparseFieldOptionsPerResourceType,
+} from "../utils";
+import useOperation from "./useOperation";
 
 export interface OperationSchema {
-  schema?: OpenAPIV3.NonArraySchemaObject
-  operation?: Operation,
-  sortValues?: SortPayload[],
-  sparseFieldsPerResource?: {[key: string]: string[]}
-  includeAbleResources?: string[]
+  schema?: OpenAPIV3.NonArraySchemaObject;
+  operation?: Operation;
+  sortValues?: SortPayload[];
+  sparseFieldsPerResource?: { [key: string]: string[] };
+  includeAbleResources?: string[];
 }
 
-const useResourceSchema = (operationId: string | undefined): OperationSchema => {
-  const [schema, setSchema] = useState<OpenAPIV3.NonArraySchemaObject>()
-  const [sortValues, setSortValues] = useState<SortPayload[]>([])
-  const [sparseFieldsPerResource, setsparseFieldsPerResource] = useState<{[key: string]: string[]}>()
-  const [includeAbleResources, setIncludeAbleResources] = useState<string[]>()
+const useResourceSchema = (
+  operationId: string | undefined,
+): OperationSchema => {
+  const operation = useOperation(operationId);
+  return useMemo(
+    () => ({
+      operation,
+      schema: operation ? getEncapsulatedSchema(operation) : undefined,
+      sortValues: operation ? getSortOptions(operation) : [],
+      sparseFieldsPerResource: operation
+        ? getSparseFieldOptionsPerResourceType(operation)
+        : undefined,
+      includeAbleResources: operation
+        ? getIncludeOptions(operation)
+        : undefined,
+    }),
+    [operation],
+  );
+};
 
-  const operation = useOperation(operationId)
-
-  useEffect(() => {
-    if (operation) {
-
-      setSortValues(getSortOptions(operation))
-      setsparseFieldsPerResource(getSparseFieldOptionsPerResourceType(operation))
-      setIncludeAbleResources(getIncludeOptions(operation))
-
-      if (operation === undefined) {
-        setSchema(undefined)
-        return
-      }
-      const encapsulatedSchema = getEncapsulatedSchema(operation)
-      setSchema({ ...encapsulatedSchema })
-
-      
-    }
-  }, [operation])
-
-  return { schema, operation, sortValues, sparseFieldsPerResource, includeAbleResources }
-}
-
-export default useResourceSchema
+export default useResourceSchema;

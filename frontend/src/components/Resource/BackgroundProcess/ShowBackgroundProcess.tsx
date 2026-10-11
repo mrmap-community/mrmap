@@ -7,7 +7,7 @@ export const IS_STALE_CHECK_INTERVAL = 10
 export const isStale = (timestamp: number, record: RaRecord) => {
   const stateTime = new Date(timestamp).getTime()
   const nowTime = new Date(Date.now()).getTime()
-  if (record?.status === 'completed') return false;
+  if (['completed', 'failed', 'aborted'].includes(record?.status)) return false;
 
   if (nowTime - stateTime > IS_STALE_CHECK_INTERVAL){
     return true

@@ -1,3 +1,4 @@
+import type { JsonApiQueryParams } from '../jsonapi/types/jsonapi';
 import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin'
 
 import jsonpointer from 'jsonpointer'
@@ -7,7 +8,7 @@ import { WebSocketLike } from 'react-use-websocket/dist/lib/types'
 import axios, { AxiosError } from 'axios'
 import { isEqual } from 'lodash'
 import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi'
-import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
+import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
 import { getAuthToken } from './authProvider'
 import i18nProvider from './i18nProvider'
 import { updateSystemTime } from './systemTimeProvider'
@@ -45,7 +46,7 @@ export interface RelatedResource {
 export interface GetListJsonApiParams extends GetListParams {
   meta?: {
     relatedResource?: RelatedResource
-    jsonApiParams?: any
+    jsonApiParams?: JsonApiQueryParams
   }
 }
 
@@ -56,7 +57,9 @@ export interface JsonApiDataProviderOptions extends Options {
   realtimeBus?: WebSocketLike
 }
 
-type EventTypes = 'created' | 'updated' | 'deleted'
+// 'delete' is what the backend's post_delete signal puts into the event, the
+// other spellings are the react-admin realtime convention
+type EventTypes = 'created' | 'updated' | 'deleted' | 'delete'
 
 export interface MrMapMessage {
   topic: string
@@ -95,6 +98,18 @@ class OperationNotFoundError extends Error {
 }
 
 let subscriptions: Subscription[] = []
+let realtimeSocket: WebSocket | undefined = undefined
+
+// The backend sends a message only to the connections that subscribed to its
+// topic (notify/consumers.py joins the channel layer group named after the
+// topic), so the local subscription list has to be mirrored to the server.
+// Topics subscribed while the socket is still connecting are sent when it opens
+// (see attachRealtimeOnMessage).
+const sendSubscriptionFrame = (topic: string, action: 'subscribe' | 'unsubscribe'): void => {
+  if (realtimeSocket?.readyState === WebSocket.OPEN) {
+    realtimeSocket.send(JSON.stringify({ action, topic }))
+  }
+}
 
 
 const handleOperationNotFoundError = (): void => {
@@ -150,9 +165,7 @@ const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfi
     const jsonApiDocument = response.data as JsonApiDocument
     const resources = jsonApiDocument.data as JsonApiPrimaryData[]
     return {
-      data: resources.map((data: JsonApiPrimaryData) => Object.assign(
-        encapsulateJsonApiPrimaryData(jsonApiDocument, data)
-      )),
+      data: encapsulateJsonApiDocumentData(jsonApiDocument, resources),
       total: getTotal(jsonApiDocument, totalPath),
       pageInfo: {
         hasNextPage: jsonApiDocument.links && jsonApiDocument.links.next !== null,
@@ -493,7 +506,12 @@ const dataProvider = ({
     // async realtime features
     subscribe: async (topic: string, callback: (event: CrudEvent) => void) => {
       //createRealtimeSocket(realtimeBus)
+      const isKnownTopic = subscriptions.some(
+        subscription => subscription.topic === topic)
       subscriptions.push({ topic, callback })
+      if (!isKnownTopic) {
+        sendSubscriptionFrame(topic, 'subscribe')
+      }
       return await Promise.resolve({ data: null })
     },
     unsubscribe: async (topic: string, callback: (event: CrudEvent) => void) => {
@@ -502,6 +520,10 @@ const dataProvider = ({
           subscription.topic !== topic ||
           subscription.callback !== callback
       )
+      // only drop the topic when the last observer of it is gone
+      if (!subscriptions.some(subscription => subscription.topic === topic)) {
+        sendSubscriptionFrame(topic, 'unsubscribe')
+      }
       return await Promise.resolve({ data: null })
     },
     publish: async (topic: string, event: CrudEvent) => {
@@ -520,7 +542,15 @@ const dataProvider = ({
       return await Promise.resolve({ data: null })
     },
     attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
-      realtimeBus && (realtimeBus.onmessage = realtimeOnMessage)
+      realtimeSocket = realtimeBus
+      if (!realtimeBus) {
+        return
+      }
+      realtimeBus.onmessage = realtimeOnMessage
+      // the server does not know the topics of a former or still connecting
+      // socket, so announce all currently observed ones
+      new Set(subscriptions.map(subscription => subscription.topic))
+        .forEach(topic => sendSubscriptionFrame(topic, 'subscribe'))
     },
     search: async (query: string, options?: SearchOptions): Promise<SearchResults>=> {
       const targets = options?.targets || []

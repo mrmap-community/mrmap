@@ -67,11 +67,12 @@ class BackgroundProcessSerializer(
     progress = FloatField(
         read_only=True,
         label=_("progress"),
-        help_text=_("the current progress aggregated from all threads from 0 to 100"))
+        help_text=_("the current workflow progress from 0 to 100"))
     status = CharField(
+        source="get_status_display",
         read_only=True,
         label=_("status"),
-        help_text=_("the current status, aggregated from all threads."))
+        help_text=_("the current workflow status."))
     # logs = ResourceRelatedField(
     #    queryset=BackgroundProcessLog.objects,
     #    many=True,

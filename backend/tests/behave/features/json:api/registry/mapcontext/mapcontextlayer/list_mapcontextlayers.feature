@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: MapContexLayers List Endpoint
     As an API client,
     I want to get all MapContextLayers,

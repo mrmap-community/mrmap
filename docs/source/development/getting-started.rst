@@ -19,6 +19,14 @@ We provide configuration files for `vscode <https://code.visualstudio.com/>`_.
     Cause everthing is running with docker, all management commands need to be called inside the corresponding container.
     See :ref:`Running Management Commands <running_management_commands>`
 
+.. note::
+    Do not install build or runtime dependencies on the host operating system. GDAL/GEOS, Node.js and
+    the Python requirements are provided by the Docker images; a host side copy at a different version
+    produces checks that do not match CI, and the development containers are the sanctioned way to run
+    them. The only host side setup that is expected is a repository local virtualenv for ``flake8``.
+    This applies equally to automated coding assistants working on the repository: they run checks
+    through the provided compose services instead of provisioning the machine.
+
  
 Branch structure
 ================
@@ -115,11 +123,14 @@ Tests are run using the ``django-test`` container which runs the django test sui
 
 
 To test the `json:api <https://jsonapi.org/>`_ we are using the `behave <https://behave.readthedocs.io/en/stable/>`_ suite with the `gherkin language <https://cucumber.io/docs/gherkin/reference/>`_.
-You can run the test suite by starting the ``behave tests`` containter by using the following command:
+Run the whole suite with the ``behave`` container:
 
 .. code-block:: console
 
-    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
+    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml run --rm behave
+
+The commands for single scenarios, the step vocabulary and the conventions of those scenarios are
+documented in ``backend/tests/behave/AGENTS.md``.
 
 
 Test documentation builds properly

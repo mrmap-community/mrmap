@@ -1,4 +1,4 @@
-import { FilterPayload, List, SimpleList, useRecordContext, useResourceContext } from 'react-admin';
+import { FilterPayload, List, SimpleList, useResourceContext } from 'react-admin';
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Accordion from '@mui/material/Accordion';
@@ -10,12 +10,6 @@ export interface ResourceSearchAccordionProps {
   filter: FilterPayload
 }
 
-const ResourcePanel = () => {
-  const record = useRecordContext();
-  return (
-      <div dangerouslySetInnerHTML={{ __html: record?.abstract }} />
-  );
-};
 
 export const ResourceSearchAccordion = ({
   name,
@@ -36,7 +30,9 @@ export const ResourceSearchAccordion = ({
           {resource}
         </AccordionSummary>
         <AccordionDetails>
-          <List resource={resource} filter={filter}>
+          <List resource={resource} filter={resource === 'WebMapService'
+            ? { ...filter, is_update_candidate: false }
+            : filter}>
             <SimpleList
               primaryText={record => record.title}
               secondaryText={record => record.abstract}

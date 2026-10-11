@@ -165,8 +165,8 @@ class XmlMapper:
                 logging.error(
                     f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
                 parsed = None
-            finally:
-                return parsed
+
+            return parsed
         else:
             # Einfache XPath-Auswertung
             values = element.xpath(xpath_or_spec, namespaces=namespaces)

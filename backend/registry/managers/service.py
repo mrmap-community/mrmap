@@ -17,6 +17,16 @@ SIBLING_INDEX = Coalesce(
 
 
 class WebMapServiceQuerySet(QuerySet):
+    def update_candidates(self):
+        return self.filter(
+            update_candidate_of__isnull=False
+        )
+
+    def real_services(self):
+        return self.filter(
+            update_candidate_of__isnull=True
+        )
+
     def prefetch_whole_service(
         self,
     ) -> "WebMapServiceQuerySet":

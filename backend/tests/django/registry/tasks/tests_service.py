@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
+from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -133,6 +134,10 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
         self.assertEqual(1, service_count)
         dataset_count = DatasetMetadataRecord.objects.count()
         self.assertEqual(6, dataset_count)
+        self.background_process.refresh_from_db()
+        self.assertEqual(self.background_process.status, ProcessStatusEnum.COMPLETED)
+        self.assertEqual(self.background_process.related_id, db_service.pk)
+        self.assertGreater(self.background_process.total_steps, 0)
         # group_result = GroupResult.objects.latest('date_created')
 
         expected_result = {

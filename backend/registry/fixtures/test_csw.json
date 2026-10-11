@@ -218,7 +218,8 @@
         "model": "registry.harvestingjob",
         "pk": "2",
         "fields": {
-            "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
+            "service": "57cf66c2-3bde-49ad-b76e-bae49da57516",
+            "phase": 4
         }
     },
     {

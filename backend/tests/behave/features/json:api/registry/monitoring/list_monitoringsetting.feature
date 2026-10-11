@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json @fixtures:test_monitoring.json
 Feature: WebMapServiceMonitoringSetting List Endpoint
     As an API client,
     I want to search for monitoring settings,

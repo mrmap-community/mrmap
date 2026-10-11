@@ -1,6 +1,7 @@
 from django.db.models import Model
 from django.db.models.expressions import F, Func
-from django.db.models.fields import DateField, IntegerField, PositiveSmallIntegerField
+from django.db.models.fields import (DateField, IntegerField,
+                                     PositiveSmallIntegerField)
 from django.db.models.fields.generated import GeneratedField
 from django.utils.translation import gettext_lazy as _
 

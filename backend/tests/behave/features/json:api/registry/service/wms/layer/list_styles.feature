@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: Layer Style List Endpoint
     As an API client,
     I want to search for layer,

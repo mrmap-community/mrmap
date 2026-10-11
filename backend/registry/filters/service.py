@@ -8,6 +8,10 @@ from rest_framework_gis.filterset import GeoFilterSet
 
 
 class WebMapServiceFilterSet(FilterSet):
+    is_update_candidate = BooleanFilter(
+        field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
+    )
+
     bbox_lat_lon__contains = GeometryFilter(
         field_name='layer__bbox_lat_lon', lookup_expr='contains')
     bbox_lat_lon__covers = GeometryFilter(
@@ -27,6 +31,10 @@ class WebMapServiceFilterSet(FilterSet):
 
 
 class LayerFilterSet(GeoFilterSet):
+    is_update_candidate = BooleanFilter(
+        field_name="service__update_candidate_of", lookup_expr="isnull", exclude=True,
+    )
+
     bbox_lat_lon__contains = GeometryFilter(
         label=_('bbox contains'),
         help_text=_(
@@ -92,6 +100,10 @@ class LayerFilterSet(GeoFilterSet):
 
 
 class WebFeatureServiceFilterSet(GeoFilterSet):
+    is_update_candidate = BooleanFilter(
+        field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
+    )
+
     bbox_lat_lon__contains = GeometryFilter(
         field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
     bbox_lat_lon__covers = GeometryFilter(
@@ -111,6 +123,10 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
 
 
 class FeatureTypeFilterSet(GeoFilterSet):
+    is_update_candidate = BooleanFilter(
+        field_name="service__update_candidate_of", lookup_expr="isnull", exclude=True,
+    )
+
     bbox_lat_lon__contains = GeometryFilter(
         field_name='bbox_lat_lon', lookup_expr='contains')
     bbox_lat_lon__covers = GeometryFilter(
@@ -122,14 +138,16 @@ class FeatureTypeFilterSet(GeoFilterSet):
 
     has_mapping = BooleanFilter(
         label=_("has mapping"),
-        help_text=_("returns featuretypes that are not mapped to any featuretype mapping"),
+        help_text=_(
+            "returns featuretypes that are not mapped to any featuretype mapping"),
         field_name="mapping",
         lookup_expr="isnull",
         exclude=True,
     )
     has_reverse_mapping = BooleanFilter(
         label=_("has reverse mapping"),
-        help_text=_("returns featuretypes that are mapped to a featuretype mapping"),
+        help_text=_(
+            "returns featuretypes that are mapped to a featuretype mapping"),
         field_name="reverse_mapping",
         lookup_expr="isnull",
         exclude=True,

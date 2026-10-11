@@ -16,7 +16,7 @@ import JsonApiReferenceField from './components/ReferenceField'
 import JsonApiReferenceManyField from './components/ReferenceManyField'
 import SchemaAutocompleteInput from './components/SchemaAutocompleteInput'
 import { buildChoices, getEncapsulatedSchema } from './openapi/parser'
-import { type JsonApiDocument, type JsonApiPrimaryData, type ResourceIdentifierObject, type ResourceLinkage } from './types/jsonapi'
+import { type JsonApiDocument, type JsonApiPrimaryData, type ResourceLinkage } from './types/jsonapi'
 
 export interface FieldSchema {
   name: string
@@ -78,13 +78,6 @@ export const capsulateJsonApiPrimaryData = (data: RaRecord | Partial<any>, type:
   return primaryData
 }
 
-export const findIncludedData = (resourceIdentifierObject: ResourceIdentifierObject, document?: JsonApiDocument): JsonApiPrimaryData => {
-  /** Searches for included object and returns it insted of the ResourceIdentifierObject */
-  const founded = document?.included?.find((data: JsonApiPrimaryData) => data.id === resourceIdentifierObject.id && data.type === resourceIdentifierObject.type)
-  const returnVal = founded ?? resourceIdentifierObject as JsonApiPrimaryData
-  return returnVal
-}
-
 export const encapsulateJsonApiRelationship = (
   relationships: Record<string, ResourceLinkage>,
   allRecords: any,
@@ -125,43 +118,32 @@ export const encapsulateJsonApiRelationship = (
   }
 }
 
-export const encapsulateJsonApiPrimaryData = (document: JsonApiDocument, data: JsonApiPrimaryData): RaRecord => {
-  /** helper to transform json:api primary data object to react admin record
-   *
-   */
+/** Normalize included resources once per response, retaining id-only nested relationships. */
+export const encapsulateJsonApiDocumentData = (
+  document: JsonApiDocument | undefined,
+  resources: JsonApiPrimaryData[],
+): RaRecord[] => {
+  const included: Record<string, RaRecord> = {};
+  document?.included?.forEach(data => {
+    const key = `${data.type}:${data.id}`;
+    included[key] = { id: data.id, ...data.attributes };
+    encapsulateJsonApiRelationship(data.relationships ?? {}, included, key, true);
+  });
 
-  const currentObjectId = `${data.type}:${data.id}`
-  // lookup object for all resolved objects; doesn't matter if full described object of inclueded data or not
-  const allRecords: any = {}
-  allRecords[currentObjectId] = {
-      id: data.id,
-      ...data.attributes,
-    }
+  return resources.map(data => {
+    const key = `${data.type}:${data.id}`;
+    // A per-record overlay keeps relationship expansion isolated without copying the lookup.
+    const records: Record<string, RaRecord> = Object.create(included);
+    records[key] = { ...(included[key] ?? { id: data.id, ...data.attributes }) };
+    encapsulateJsonApiRelationship(data.relationships ?? {}, records, key);
+    return records[key];
+  });
+};
 
-  // encapsulate included data first
-  document?.included?.forEach(primaryData => {
-    const id = `${primaryData.type}:${primaryData.id}`
-    allRecords[id] = {
-      id: primaryData.id,
-      ...primaryData.attributes,
-       
-    }
-    encapsulateJsonApiRelationship(primaryData.relationships || {}, allRecords, id, true)
-  })
-
-  encapsulateJsonApiRelationship(data.relationships || {}, allRecords, currentObjectId)
-  return allRecords[currentObjectId]
-}
-
-export const jsonApiToRaAdmin = (document: JsonApiDocument): RaRecord => {
-  const includedMap: any = {}
-  document?.included?.forEach(item => {
-    includedMap[`${item.type}:${item.id}`] = item
-  })
-
-
-  return encapsulateJsonApiPrimaryData(document, document.data as JsonApiPrimaryData) 
-}
+export const encapsulateJsonApiPrimaryData = (
+  document: JsonApiDocument | undefined,
+  data: JsonApiPrimaryData,
+): RaRecord => encapsulateJsonApiDocumentData(document, [data])[0];
 
 export const getIncludeOptions = (operation: Operation): string[] => {
   if (operation !== undefined) {

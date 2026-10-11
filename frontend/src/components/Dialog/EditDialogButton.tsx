@@ -1,100 +1,78 @@
-import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import { ButtonOwnProps, IconButton, Stack, Typography } from '@mui/material';
-import { Fragment, useCallback } from "react";
-import { Button, DeleteButton, EditProps, RecordRepresentation, SaveButton, useListContext, useNotify, useRecordContext, useResourceContext, useResourceDefinition, useTranslate } from "react-admin";
-import EditGuesser, { EditGuesserProps } from '../../jsonapi/components/EditGuesser';
-import { FieldDefinition } from '../../jsonapi/utils';
-import ContextBasedDialog from './Dialog';
-import { DialogBase, useDialogContextBase } from './DialogContextBase';
+import DialogHeader from "./DialogHeader";
+import useDialogMutationSuccess from "./useDialogMutationSuccess";
+import EditIcon from "@mui/icons-material/Edit";
+import { type ButtonOwnProps } from "@mui/material";
+import { Fragment } from "react";
+import {
+  Button,
+  DeleteButton,
+  EditProps,
+  RecordRepresentation,
+  SaveButton,
+  useRecordContext,
+  useResourceDefinition,
+  useTranslate,
+} from "react-admin";
+import EditGuesser, {
+  EditGuesserProps,
+} from "../../jsonapi/components/EditGuesser";
+import { FieldDefinition } from "../../jsonapi/utils";
+import ContextBasedDialog from "./Dialog";
+import { DialogBase, useDialogContextBase } from "./DialogContextBase";
 
-
-export interface EditDialogProps extends Partial<EditProps>{
-  isOpen?: boolean
-  onClose?: () => void
+export interface EditDialogProps extends Partial<EditProps> {
+  isOpen?: boolean;
+  onClose?: () => void;
   updateFieldDefinitions?: FieldDefinition[];
 }
 
 export interface EditDialogButtonProps {
-  buttonProps?: ButtonOwnProps
-  guesserProps?: EditGuesserProps
+  buttonProps?: ButtonOwnProps;
+  guesserProps?: EditGuesserProps;
 }
-
 
 const DefaultTitle = () => {
   const translate = useTranslate();
-  const {close} = useDialogContextBase();
 
   return (
-    <Stack 
-      direction="row"
-      sx={{
-        justifyContent: "space-between"
-      }}
-    >
-      <Typography variant='h5'>{translate('ra.action.edit')} <RecordRepresentation /></Typography>
-      <IconButton onClick={close}>
-        <CloseIcon />
-      </IconButton>
-    </Stack>
-  )
-}
+    <DialogHeader>
+      {translate("ra.action.edit")} <RecordRepresentation />
+    </DialogHeader>
+  );
+};
 
 const DefaultActions = () => {
-  const translate = useTranslate();
-  const { refetch } = useListContext()
-  const resource = useResourceContext();
-  const notify = useNotify();
-  const {close} = useDialogContextBase();
-  const onEditSuccess = useCallback(()=>{
-      refetch()
-      close()
-      
-      notify(`resources.${resource}.notifications.updated`, {
-        type: 'success',
-        messageArgs: {
-            smart_count: 1,
-            _: translate('ra.notification.updated', {
-                smart_count: 1,
-            })
-        },
-        undoable: false,
-    });
-    },[resource])
-  
-    const onDeleteSuccess = useCallback(()=>{
-      refetch()
-      close()
-      
-      notify(`resources.${resource}.notifications.deleted`, {
-        type: 'success',
-        messageArgs: {
-            smart_count: 1,
-            _: translate('ra.notification.deleted', {
-                smart_count: 1,
-            })
-        },
-        undoable: false,
-    });
-    },[resource])
+  const onEditSuccess = useDialogMutationSuccess("updated");
+  const onDeleteSuccess = useDialogMutationSuccess("deleted");
   return (
     <Fragment>
-      <SaveButton mutationOptions={{onSuccess: onEditSuccess}} type='button' alwaysEnable/>
-      <DeleteButton redirect={false} mutationOptions={{onSuccess: onDeleteSuccess}}/>
+      <SaveButton
+        mutationOptions={{ onSuccess: onEditSuccess }}
+        type="button"
+        alwaysEnable
+      />
+      <DeleteButton
+        redirect={false}
+        mutationOptions={{ onSuccess: onDeleteSuccess }}
+      />
     </Fragment>
-  )
-}
+  );
+};
 
 const EditDialogButtonCore = ({
   buttonProps,
-  guesserProps
+  guesserProps,
 }: EditDialogButtonProps) => {
-const record = useRecordContext();
-const {open} = useDialogContextBase();
+  const record = useRecordContext();
+  const { open } = useDialogContextBase();
 
   return (
     <Fragment>
-      <Button label="Edit" onClick={() => open(<DefaultTitle/>, null, <DefaultActions/>)} {...buttonProps}>
+      <Button
+        label="Edit"
+        onClick={() => open(<DefaultTitle />, null, <DefaultActions />)}
+        {...buttonProps}
+      >
         <EditIcon />
       </Button>
       <EditGuesser
@@ -102,41 +80,33 @@ const {open} = useDialogContextBase();
         redirect={false}
         sx={{
           // otherwise the EditGuesser div will create some spacing behind the edit button...
-          display: 'none !important'
+          display: "none !important",
         }}
         simpleFormProps={{
           component: ContextBasedDialog,
           children: null,
-          toolbar: false
-          
+          toolbar: false,
         }}
-        
+
         {...guesserProps}
-      >
-      </EditGuesser>
+      ></EditGuesser>
     </Fragment>
-  )
-}
+  );
+};
 
-
-const EditDialogButton = ({
-  ...rest
-}: EditDialogButtonProps) => {
-
+const EditDialogButton = ({ ...rest }: EditDialogButtonProps) => {
   const record = useRecordContext();
-  const {hasEdit} = useResourceDefinition();
+  const { hasEdit } = useResourceDefinition();
 
   if (!hasEdit || record === undefined) {
-    return null
+    return null;
   }
 
   return (
     <DialogBase>
-      <EditDialogButtonCore {...rest}/>
+      <EditDialogButtonCore {...rest} />
     </DialogBase>
-  )
-}
-
-
+  );
+};
 
 export default EditDialogButton;

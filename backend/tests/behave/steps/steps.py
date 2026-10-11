@@ -3,8 +3,9 @@ from unittest.mock import Mock, patch
 
 from behave import given, step, then
 from django.contrib.auth import get_user_model
-from django.db import reset_queries
+from django.db import connection
 from django.http import SimpleCookie
+from django.test.utils import CaptureQueriesContext
 from knox.models import AuthToken
 from lxml import etree
 from lxml.etree import fromstring
@@ -17,6 +18,13 @@ def step_impl(context, username, password):
     if not success:
         raise Exception(
             f"can't log in user {username} with password {password}")
+
+
+# The counterpart of the login step. A denial scenario that simply omits the login step does not say
+# what it tests, and it can not be folded into an outline that names the actor in a table column.
+@step('I am an anonymous user')
+def step_impl(context):
+    context.client.logout()
 
 
 @step('I logout the current user')
@@ -56,56 +64,70 @@ def step_impl(context, content_type):
     context.content_type = content_type
 
 
+# The json:api views answer JSON only when the client asks for it. Without an Accept header DRF
+# answers with the browsable API renderer and the json steps can not read the response. A scenario
+# that wants another media type sets the header itself, which wins over this default.
+JSON_API_ACCEPT = {'HTTP_ACCEPT': 'application/vnd.api+json'}
+
+
 @step('I send the request with GET method')
 def step_impl(context):
-    reset_queries()
     request = {
         "path": context.endpoint,
         "data": context.query_params or None,
     }
+    request.update(JSON_API_ACCEPT)
     if hasattr(context, "headers"):
         request.update(**context.headers)
-    context.response = context.client.get(**request)
+    with CaptureQueriesContext(connection) as queries:
+        context.response = context.client.get(**request)
+    context.queries = queries
 
 
 @step('I send the request with PATCH method')
 def step_impl(context):
-    reset_queries()
     request = {
         "path": context.endpoint,
         "data": context.payload if hasattr(context, "payload") else None,
         "content_type": context.content_type if hasattr(
             context, 'content_type') else 'application/json',
     }
+    request.update(JSON_API_ACCEPT)
     if hasattr(context, "headers"):
         request.update(**context.headers)
-    context.response = context.client.patch(**request)
+    with CaptureQueriesContext(connection) as queries:
+        context.response = context.client.patch(**request)
+    context.queries = queries
 
 
 @step('I send the request with POST method')
 def step_impl(context):
-    reset_queries()
     request = {
         "path": context.endpoint,
         "data": context.payload if hasattr(context, "payload") else None,
         "content_type": context.content_type if hasattr(
             context, 'content_type') else 'application/json',
     }
+    request.update(JSON_API_ACCEPT)
     if hasattr(context, "headers"):
         request.update(**context.headers)
-    context.response = context.client.post(**request)
+    with CaptureQueriesContext(connection) as queries:
+        context.response = context.client.post(**request)
+    context.queries = queries
 
 
 @step('I send the request with DELETE method')
 def step_impl(context):
-    reset_queries()
     request = {
         "path": context.endpoint,
     }
+    request.update(JSON_API_ACCEPT)
     if hasattr(context, "headers"):
         request.update(**context.headers)
 
-    context.response = context.client.delete(**request)
+    with CaptureQueriesContext(connection) as queries:
+        context.response = context.client.delete(**request)
+    context.queries = queries
 
 
 @then('I expect the response status is {expected_status}')
@@ -143,8 +165,10 @@ def _traverse_json(context, attribute):
 def step_impl(context, attribute, expected_value=None):
     value = _traverse_json(context=context, attribute=attribute)
     if expected_value:
-        if expected_value == 'false' or expected_value == 'true':
-            context.test.assertEqual(bool(value), bool(expected_value))
+        if expected_value.lower() in ('true', 'false'):
+            # bool("false") is True, so compare the textual representation instead
+            context.test.assertEqual(
+                str(bool(value)).lower(), expected_value.lower())
         else:
             try:
                 context.test.assertJSONEqual(str(value), expected_value)
@@ -163,7 +187,8 @@ def step_impl(context):
 
 @then('I expect that "{expected_value}" queries where made')
 def step_impl(context, expected_value):
-    context.test.assertNumQueries(expected_value)
+    # the send steps capture the queries of the request they performed
+    context.test.assertEqual(len(context.queries), int(expected_value))
 
 
 @given('I mock the function "{func_name}" of the module "{module_name}" with return value as object')

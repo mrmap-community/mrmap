@@ -33,5 +33,7 @@ Feature: WebMapService manual updates
         Then I expect the response status is 400
 
     Scenario: Anonymous users cannot queue updates
+        Given I am an anonymous user
         When I send the request with POST method
         Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"

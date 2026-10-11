@@ -20,6 +20,13 @@ def step_impl(context, username, password):
             f"can't log in user {username} with password {password}")
 
 
+# The counterpart of the login step. A denial scenario that simply omits the login step does not say
+# what it tests, and it can not be folded into an outline that names the actor in a table column.
+@step('I am an anonymous user')
+def step_impl(context):
+    context.client.logout()
+
+
 @step('I logout the current user')
 def step_impl(context,):
     context.client.logout()

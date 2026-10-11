@@ -11,7 +11,9 @@ Feature: Permissions List Endpoint
 
     Scenario: Access denied as anonymous user
         Given I use the endpoint http://localhost:8000/api/accounts/permissions
+        Given I am an anonymous user
         When I send the request with GET method
         Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
 
 # TODO: check filter params

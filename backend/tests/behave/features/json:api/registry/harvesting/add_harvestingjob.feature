@@ -30,8 +30,10 @@ Feature: HarvestingJob Add Endpoint
         And I expect that response json has an attribute "data.attributes.phaseLabel" with value "pending"
 
     Scenario: Can't add as anonymous user
+        Given I am an anonymous user
         When I send the request with POST method
         Then I expect the response status is 403
+        And I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
 
     Scenario: Can't add another if there is one running job
         Given I am logged in as User1 with password User1

@@ -26,5 +26,7 @@ Feature: MapContextLayer Update Endpoint
         Then I expect that response json has an attribute "data.attributes.title" with value "mc2_node1.2 bla"
 
     Scenario: Can't update as anonymous user
+        Given I am an anonymous user
         When I send the request with PATCH method
         Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"

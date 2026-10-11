@@ -39,8 +39,10 @@ Feature: WebFeatureService Add Endpoint
         Then I expect the response status is 202
 
     Scenario: Can't add as anonymous user
+        Given I am an anonymous user
         When I send the request with POST method
         Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
 
     Scenario: Wrong capabilities url
         Given I am logged in as User1 with password User1

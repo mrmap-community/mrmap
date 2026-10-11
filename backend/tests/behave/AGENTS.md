@@ -55,6 +55,22 @@ Rules that these commands encode:
 - **`--keepdb` (`-k`) is Django's**, not behave's, and is the difference between minutes and seconds
   on a repeat run. Drop it after any model or migration change, or when a failure mentions the
   database schema — a kept database is not migrated.
+- **A kept database also accumulates rows.** `loaddata` only writes the fields a fixture names, so a
+  value a fixture dropped stays in the table, and `before_all` creates its users again on every run,
+  which pushes the integer pks forward. A scenario that addresses a fixed pk — the `Organization` `1`
+  in `add_webmapservices.feature` — can then fail with `Invalid pk "1" - object does not exist`
+  although nothing is broken. Recreate the database instead of arguing with it; a `--simple` run never
+  creates one, so do it in two steps:
+
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -e SQL_DATABASE=postgres behave /bin/sh -c \
+    "python -c \"import os,psycopg; psycopg.connect(host=os.environ['SQL_HOST'],user=os.environ['SQL_USER'],password=os.environ['SQL_PASSWORD'],dbname='postgres',autocommit=True).execute('DROP DATABASE IF EXISTS test_mrmap WITH (FORCE)')\""
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm -e SQL_DATABASE=mrmap behave /bin/sh -c \
+    "python manage.py shell -c \"from django.test.utils import setup_databases; setup_databases(verbosity=0, interactive=False)\""
+  ```
+
+  The T3 command has no `--keepdb` and destroys the test database itself, which is why CI can not see
+  any of this.
 - **`--dry-run` runs without a test database.** behave-django switches to
   `ExistingDatabaseTestRunner`, and behave skips all environment hooks during a dry run — that is why
   no fixture is loaded there. Keep every hook free of writes you would not want in the development
@@ -80,8 +96,8 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (47) | 45 | 0 | 0 | 2 |
-| scenarios | 216 | 0 | 0 | 10 |
+| features (48) | 46 | 0 | 0 | 2 |
+| scenarios | 302 | 0 | 0 | 10 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
 `definition_of_done.rst` is answered by the four counts. The 10 skipped scenarios are the two `/csw`
@@ -209,6 +225,70 @@ Scenario Outline: Can <action>
 - Keep a value out of the table when it is wider than the table is long — the GeoJSON polygon of a
   `filter[bboxLatLon.contains]` — and leave that scenario on its own, with a comment saying why.
 
+## Filter and sort scenarios
+
+A list endpoint with a filterset advertises dozens of `filter[...]` parameters, and the schema
+documents fewer `sort` fields than the endpoint accepts. One scenario per parameter would be hundreds
+of scenarios that all run the same code, so the suite covers **one row per filter class and per
+hand written method**, not one row per parameter:
+
+| Code path | Covered in | Measured detail |
+| --- | --- | --- |
+| auto generated `exact`, `contains`, `icontains`, `in` | `registry/service/wms/list_webmapservices.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | `contains` is case sensitive and `icontains` is not, which is why both are listed next to each other |
+| typed filters (`CharFilter`, `NumberFilter`, `BooleanFilter`, `UUIDFilter`, `DateTimeFilter` with `gte` / `lte` / `range`) | `registry/service/wms/list_webmapservices.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/harvesting/list_harvestingjobs.feature` | `filter[historyDate.range]` takes two ISO 8601 values separated by a comma |
+| collection filters (`NumberInFilter`, `UUIDInFilter`) | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/harvesting/list_harvestingjobs.feature` | the allowed-operations filterset declares its lookups inside the field name (`filter[id.in]`), the others as lookups of a parameter |
+| GIS lookups `contains`, `covers`, `intersects`, `equals` | `registry/service/wms/layer/list_layers.feature`, `registry/service/wms/list_webmapservices.feature` | one whole-world polygon and one small rectangle is what separates the four; the counts differ per lookup |
+| choice and relation filters | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | a filter whose model field has choices answers `invalid_choice`, not an empty list |
+| hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
+| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
+
+Three rules make such a table worth having:
+
+- Assert the **count or the first id**. A filter that is wired to the wrong column answers `200` with
+  everything, and a sort that is ignored answers `200` in table order. `meta.pagination.count == 2`
+  on a list of two rows says nothing about the order the scenario claims to test.
+- Take every value from the fixture the feature already loads. A made-up uuid asserts that the lookup
+  returns nothing, which is exactly what a broken lookup returns.
+- Sort scenarios follow a caller. `grep -rn "sort=" ../../../frontend/src` is the short list of fields
+  that have to keep working; do not add a scenario for a column nobody orders by.
+
+A rejected parameter belongs to the contract, so an endpoint that got a new filter also gets one
+scenario that asks for a parameter which does not exist. The code names where the value failed:
+
+| Value refused | `errors.[0].code` | Example |
+| --- | --- | --- |
+| a `filter[...]` or `sort` that was never configured | `invalid` | `filter[not_a_field]`, `sort=not_a_field` |
+| a value outside the choices of the field | `invalid_choice` | `filter[processType]` with free text |
+| anything but a complete uuid for a uuid filter | `invalid` | `filter[id.contains]` with eight hex digits — the uuid validator runs before the lookup, so a uuid filter can not search *inside* a uuid |
+
+**A generated test over the whole schema was tried and dropped.** Looping the parameters of
+`/api/schema` through one scenario can only assert "answered", which is the one thing a filter
+scenario must not assert, and it turns every schema edit into a red suite without naming a behaviour.
+
+Two gaps are worth knowing before reading too much into a green list scenario:
+
+- `sort` is validated against `ordering_fields`, and where a viewset does not set it, the accepted set
+  is broader than the `sort` enum of the schema — the same field can be sortable on one endpoint and
+  refused on the next (`wms-operations` and `wfs-operations` differ in their sort surface).
+- Two number filters that look the same are not: `contains` on a generated filterset falls back to a
+  char filter and compares the integer primary key as text, so `filter[id.contains]` with `2` finds the
+  second harvesting job. The allowed operations declare `id__contains` by hand as a `NumberInFilter`,
+  which parses the value into a list, and there the same parameter answers with nothing. Both are
+  asserted with their measured count, because a schema reader can not tell the two apart.
+
+- A declared filter can break the endpoint instead of refusing the value.
+  `registry/filters/security.py` declares `id__exact` of the allowed operations as a `NumberInFilter`
+  with `lookup_expr="exact"`, so the list it produces reaches a lookup that expects one number and
+  `filter[id.exact]` answers `500` with `TypeError: int() argument must be ... not 'list'`. The scenario
+  that would cover it is written out as a comment in
+  `features/json:api/registry/security/list_related_allowedwebmapserviceoperations.feature`; assert it
+  as a `200` together with the fix, never as a `500`.
+
+Diagnosing a red filter scenario needs `--no-capture -f plain`: behave re-formats the log records it
+captured for the scenario it is about to report, and formatting one of mrmap's records raises
+`TypeError: not all arguments converted during string formatting` inside behave, which stops the run
+before the failing assertion is ever printed.
+
 ## Step vocabulary
 
 Search before adding a step: `grep -rn "<wording>" steps/`. Reuse beats invention, and a step that
@@ -297,6 +377,14 @@ probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
 and `historical-featuretypes`. `/csw` has no executed scenario at all, see "Why the CSW features stay
 skipped" above.
+
+Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
+and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort
+fields of the frontend that order those lists — `sort=doneAt` of `ServiceUpdateJobsCard` and
+`sort=dateDone` of `MonitoringRunsCard` — are not asserted anywhere, and neither is
+`sort=dateCreated` of `HarvestingActivityCard`, which would be unstable anyway because the loaded jobs
+have no `date_created`. `periodic-harvesting-jobs` is ordered by id in the frontend and has no feature
+at all. Adding one of them starts with a fixture, not with a scenario.
 
 To re-check that list without a database:
 

@@ -32,6 +32,8 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
 
     def get_perm_checker(self):
         perm_checker = self.context.get('perm_checker', None)
+        if not perm_checker:
+            perm_checker = self._perm_checker_of_view_or_request()
         if not perm_checker and 'request' in self.context:
             # fallback with slow solution if no perm_checker is in the context
             perm_checker = ObjectPermissionChecker(
@@ -56,6 +58,34 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
                 extra=extra
             )
         return perm_checker
+
+    def _perm_checker_of_view_or_request(self):
+        """Find a permission checker that is already built for this request.
+
+        The json:api renderer creates the serializers of included resources with
+        the context of the renderer, which only knows the view and not the
+        serializer context of the endpoint. The checker of the view is therefore
+        only usable for objects of the model of the endpoint, because it only
+        knows the permissions of the objects of the endpoint. For all other
+        objects one checker is shared for the whole request, so that the
+        permissions of an object that is included more than once are only
+        determined once.
+        """
+        view = self.context.get('view', None)
+        view_checker = getattr(view, 'perm_checker', None)
+        if view_checker is not None and getattr(view, 'perm_checker_model', None) is not None \
+                and getattr(view, 'perm_checker_model', None) is getattr(self.Meta, 'model', None):
+            return view_checker
+
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        if user is not None:
+            shared_checker = getattr(request, 'shared_perm_checker', None)
+            if shared_checker is None:
+                shared_checker = ObjectPermissionChecker(user_or_group=user)
+                setattr(request, 'shared_perm_checker', shared_checker)
+            return shared_checker
+        return None
 
     def get_is_accessible(self, obj) -> bool:
         perm_checker = self.get_perm_checker()

@@ -18,9 +18,11 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, MimeType,
-                                      ReferenceSystem, Style)
+from registry.models.harvest import (HarvestedMetadataRelation,
+                                     HarvestingJob, PeriodicHarvestingJob)
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
+                                      MimeType, ReferenceSystem, Style,
+                                      TimeExtent)
 from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
@@ -40,6 +42,58 @@ from registry.serializers.service import (
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_json_api.views import ModelViewSet
+
+
+# The relations of a service that is only serialized because it was included in the
+# answer of another resource: the service itself is answered in full, but its own
+# relations are answered as related resources, which need the id of the related
+# object and, for a relation of the other side, the column that points back to the
+# service. The names of the relations are prefixed with "service__", so that the
+# same list can be used while the service of an object is prefetched.
+WMS_SERVICE_RELATIONS = [
+    Prefetch("service__keywords", queryset=Keyword.objects.only("id")),
+    Prefetch("service__languages", queryset=Language.objects.only("value")),
+    Prefetch(
+        "service__layers",
+        queryset=Layer.objects.only("id", "service_id", "mptt_tree_id", "mptt_lft"),
+    ),
+    Prefetch(
+        "service__allowed_operations",
+        queryset=AllowedWebMapServiceOperation.objects.only("id", "secured_service"),
+    ),
+    Prefetch(
+        "service__proxy_setting",
+        queryset=WebMapServiceProxySetting.objects.only("id"),
+    ),
+    Prefetch(
+        "service__web_map_service_monitorings",
+        queryset=WebMapServiceMonitoringSetting.objects.only("id", "service"),
+    ),
+    Prefetch(
+        "service__web_map_service_update_settings",
+        queryset=WebMapServiceUpdateSetting.objects.only("id", "service"),
+    ),
+]
+WMS_OPERATION_URLS_AS_RELATION = Prefetch(
+    "service__operation_urls",
+    queryset=WebMapServiceOperationUrl.objects.only("id", "service"),
+)
+WFS_SERVICE_RELATIONS = [
+    Prefetch("service__keywords", queryset=Keyword.objects.only("id")),
+    Prefetch("service__languages", queryset=Language.objects.only("value")),
+    Prefetch(
+        "service__featuretypes",
+        queryset=FeatureType.objects.only("id", "service_id"),
+    ),
+]
+WFS_OPERATION_URLS_AS_RELATION = Prefetch(
+    "service__operation_urls",
+    queryset=WebFeatureServiceOperationUrl.objects.only("id", "service"),
+)
+# the mime types of an operation url are never serialized, they are only answered
+# as related resources of the operation url
+MIME_TYPES_AS_RELATION = Prefetch(
+    "mime_types", queryset=MimeType.objects.only("id"))
 
 
 class WebMapServiceViewSet(
@@ -85,7 +139,7 @@ class WebMapServiceViewSet(
                 "operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.select_related(
                     "service",
-                ).prefetch_related("mime_types"),
+                ).prefetch_related(MIME_TYPES_AS_RELATION),
             )
         ],
     }
@@ -138,6 +192,9 @@ class WebMapServiceViewSet(
                 queryset=WebMapServiceUpdateSetting.objects.only(
                     "id", "service"),
             )
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ],
     }
     filterset_class = WebMapServiceFilterSet
@@ -213,20 +270,24 @@ class LayerViewSetMixin(
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     select_for_includes = {
-        "service": ["service"],
-        "service.operation_urls": ["service"]
+        "service": ["service", "service__service_contact", "service__metadata_contact"],
+        "service.operation_urls": ["service", "service__service_contact",
+                                   "service__metadata_contact"]
     }
     prefetch_for_includes = {
-        "service": ["service__keywords", "service__layers"],
+        # the service of a layer is serialized, all relations of that service are
+        # only answered as related resources
+        "service": [*WMS_SERVICE_RELATIONS, WMS_OPERATION_URLS_AS_RELATION],
         "service.operation_urls": [
+            # only the operation urls are serialized, their mime types and the other
+            # relations of the service are answered as related resources
             Prefetch(
                 "service__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.prefetch_related(
-                    "mime_types"
+                    MIME_TYPES_AS_RELATION
                 ),
             ),
-            "service__keywords",
-            "service__layers"
+            *WMS_SERVICE_RELATIONS
         ],
         "styles": ["styles"],
         "keywords": ["keywords"],
@@ -257,6 +318,9 @@ class LayerViewSetMixin(
             Prefetch(
                 "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
             )
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -373,12 +437,16 @@ class WebFeatureServiceViewSet(
     }
     prefetch_for_includes = {
         "featuretypes": [
+            # the feature types are serialized, their relations are only answered as
+            # related resources
             Prefetch(
                 "featuretypes",
                 queryset=FeatureType.objects.prefetch_related(
-                    "keywords",
-                    "reference_systems",
-                    "output_formats",
+                    Prefetch("keywords", queryset=Keyword.objects.only("id")),
+                    Prefetch("reference_systems",
+                             queryset=ReferenceSystem.objects.only("id")),
+                    Prefetch("output_formats",
+                             queryset=MimeType.objects.only("id")),
                 ),
             ),
         ],
@@ -395,7 +463,7 @@ class WebFeatureServiceViewSet(
                 "operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.select_related(
                     "service"
-                ).prefetch_related("mime_types"),
+                ).prefetch_related(MIME_TYPES_AS_RELATION),
             )
         ],
     }
@@ -432,6 +500,9 @@ class WebFeatureServiceViewSet(
                 queryset=WebFeatureServiceProxySetting.objects.only(
                     "id", )
             )
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ]
     }
     filterset_class = WebFeatureServiceFilterSet
@@ -502,27 +573,33 @@ class FeatureTypeViewSetMixin(
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
 ):
-    queryset = FeatureType.objects.all()
+    # the default reference system is always serialized
+    queryset = FeatureType.objects.all().select_related(
+        "default_reference_system")
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
 
     select_for_includes = {
-        "service": ["service"],
-        "service.operation_urls": ["service"]
+        "service": ["service", "service__service_contact", "service__metadata_contact"],
+        "service.operation_urls": ["service", "service__service_contact",
+                                   "service__metadata_contact"]
     }
     prefetch_for_includes = {
-        "service": ["service__keywords", "service__featuretypes"],
+        # the service of a feature type is serialized, all relations of that service
+        # are only answered as related resources
+        "service": [*WFS_SERVICE_RELATIONS, WFS_OPERATION_URLS_AS_RELATION],
         "service.operation_urls": [
+            # only the operation urls are serialized, their mime types and the other
+            # relations of the service are answered as related resources
             Prefetch(
                 "service__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.prefetch_related(
-                    "mime_types"
+                    MIME_TYPES_AS_RELATION
                 ),
             ),
-            "service__keywords",
-            "service__featuretypes"
+            *WFS_SERVICE_RELATIONS
         ],
         "output_formats": ["output_formats"],
         "keywords": ["keywords"],
@@ -541,6 +618,12 @@ class FeatureTypeViewSetMixin(
             Prefetch(
                 "output_formats", queryset=MimeType.objects.only("id")
             )
+        ],
+        "time_extents": [
+            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -624,7 +707,7 @@ class CatalogueServiceViewSetMixin(
                 "operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.select_related(
                     "service"
-                ).prefetch_related("mime_types"),
+                ).prefetch_related(MIME_TYPES_AS_RELATION),
             )
         ],
     }
@@ -647,11 +730,20 @@ class CatalogueServiceViewSetMixin(
                     "id", "service_id"),
             )
         ],
-        "harvesting_job": [
+        "harvesting_jobs": [
             Prefetch(
                 "harvesting_jobs",
                 queryset=HarvestingJob.objects.only("id", "service")
             )
+        ],
+        "periodic_harvesting_jobs": [
+            Prefetch(
+                "periodic_harvesting_jobs",
+                queryset=PeriodicHarvestingJob.objects.only("id", "service")
+            )
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

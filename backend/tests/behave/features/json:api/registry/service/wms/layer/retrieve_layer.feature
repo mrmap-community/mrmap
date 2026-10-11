@@ -11,7 +11,7 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data"
-        Then I expect that "12" queries where made
+        Then I expect that "8" queries where made
 
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"

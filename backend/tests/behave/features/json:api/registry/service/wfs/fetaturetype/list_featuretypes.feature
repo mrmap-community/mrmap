@@ -11,7 +11,7 @@ Feature: Featuretype List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "5"
-        Then I expect that "26" queries where made
+        Then I expect that "9" queries where made
 
     Scenario Outline: Can <action>
         Given I set a queryparam "<param>" with value "<value>"

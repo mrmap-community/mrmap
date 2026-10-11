@@ -2,10 +2,11 @@ from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
+from registry.models.metadata import (DatasetMetadataRecord, IsoCategory,
+                                      Keyword, Language, Licence,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
-                                      Style)
+                                      Style, TimeExtent)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
@@ -260,6 +261,9 @@ class DatasetMetadataViewSetMixin(
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
+        "categories": [
+            Prefetch("categories", queryset=IsoCategory.objects.only("value"))
+        ],
         "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
@@ -290,6 +294,12 @@ class DatasetMetadataViewSetMixin(
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
+        ],
+        "time_extents": [
+            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -504,6 +514,12 @@ class ServiceMetadataViewSetMixin(
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
+        ],
+        "time_extents": [
+            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+        ],
+        "languages": [
+            Prefetch("languages", queryset=Language.objects.only("value"))
         ],
         "self_pointing_wms": [
             Prefetch(

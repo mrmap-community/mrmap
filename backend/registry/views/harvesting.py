@@ -15,7 +15,7 @@ from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
-from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
@@ -113,13 +113,20 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         # "backgroundProcess": ["background_process"]
     }
     prefetch_for_includes = {
+        # the service of a harvesting job is serialized, all relations of that
+        # service are only answered as related resources
         "service": [
             Prefetch("service__keywords",
                      queryset=Keyword.objects.only("id")),
+            Prefetch("service__languages",
+                     queryset=Language.objects.only("value")),
             Prefetch("service__harvesting_jobs",
-                     queryset=HarvestingJob.objects.all()),
+                     queryset=HarvestingJob.objects.only("id", "service")),
+            Prefetch("service__periodic_harvesting_jobs",
+                     queryset=PeriodicHarvestingJob.objects.only("id", "service")),
             Prefetch("service__operation_urls",
-                     queryset=CatalogueServiceOperationUrl.objects.all()),
+                     queryset=CatalogueServiceOperationUrl.objects.only(
+                         "id", "service_id")),
         ],
         # "backgroundProcess": BACKGROUND_PROCESS_PREFETCHES,
         # "backgroundProcess.logs": [

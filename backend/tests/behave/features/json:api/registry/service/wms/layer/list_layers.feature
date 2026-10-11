@@ -11,7 +11,7 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "9"
-        Then I expect that "22" queries where made
+        Then I expect that "10" queries where made
 
     Scenario: Can sort by lft
         Given I set a queryparam "sort" with value "mpttLft"
@@ -97,14 +97,14 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "WebMapService"
-        Then I expect that "42" queries where made
+        Then I expect that "23" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
-        Then I expect that "22" queries where made
+        Then I expect that "10" queries where made
 
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"

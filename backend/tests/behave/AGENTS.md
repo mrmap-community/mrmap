@@ -13,7 +13,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `features/csw/`, `features/json:api/<area>/...` | the scenarios, one file per endpoint or workflow |
 | `steps/steps.py` | the generic vocabulary: endpoint, payload, query params, headers, cookies, one step per HTTP method, status / JSON / XPath assertions |
 | `steps/manual_updates.py` | the pattern for domain steps: state setup and state assertions of one workflow |
-| `environment.py` | fixture loading (`before_all`, `before_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
+| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |
 
@@ -156,6 +156,59 @@ Both are production fixes in the OWS layer, not scenario fixes; the reason is al
    reverted by its own domain step (`remove_update_settings` does that) instead of relying on
    scenario order. Features run in alphabetical path order; do not exploit it.
 
+9. A denial asserts *why* it was denied, not only the status code. A JSON:API endpoint answers a 4xx
+   with `{"errors": [{"detail": ..., "status": "403", "code": ...}]}` — there is no `title` — so the
+   status step is followed by the code that names the reason:
+
+   ```gherkin
+   Scenario: Can't delete as anonymous user
+       Given I am an anonymous user
+       When I send the request with DELETE method
+       Then I expect the response status is 403
+       Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
+   ```
+
+   `not_authenticated` is a client that never identified itself, `permission_denied` a client that may
+   not do this, `not_found` a resource that is gone. Naming the actor with `I am an anonymous user`,
+   instead of leaving the login out, is what lets a table column carry it. `auth/login`, `auth/logout`
+   and `/api/schema` answer plain `application/json` (see "The suite is green"), so they have no
+   `errors` array. A scenario that deletes something reads the resource back afterwards, so that its
+   204 is followed by a 404.
+
+## Scenario outlines
+
+An endpoint is usually probed with the same steps once per search, filter or include parameter. Those
+families are `Scenario Outline`s with one `Examples` table, so covering a new parameter means adding a
+row:
+
+```gherkin
+Scenario Outline: Can <action>
+    Given I set a queryparam "<param>" with value "<value>"
+    When I send the request with GET method
+    Then I expect the response status is 200
+    Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+    Examples:
+        | action          | param                   | value | count |
+        | search by title | filter[search]          | WMS1  | 1     |
+        | filter by title | filter[title.icontains] | WMS1  | 1     |
+```
+
+- Name the columns after what varies and put the readable case name into the first one: behave
+  substitutes `<action>` when it prints `Scenario Outline: Can search by title -- @1.1`, so the report
+  stays as readable as the files that had one scenario per row.
+- One row is one scenario, run with all `Background` steps. **An outline saves no runtime and no HTTP
+  calls**, it only removes the duplicated text. `feature.feature:12` still addresses a single row, and
+  every row inserted above it shifts that line number.
+- Fold only scenarios that are the same behaviour over different inputs. A scenario that asserts more
+  than the outline does — a query count, a second attribute, an attribute path that differs per case —
+  stays on its own, because a table column can not make a step optional. The same holds when similar
+  shapes carry different meanings, such as a group filter and a user filter that keeps shared rules.
+- A request payload can not become a column, since it is a docstring and a cell is one line. Keep the
+  payload the scenarios share in the `Background` and let the scenarios that deviate set their own.
+- Keep a value out of the table when it is wider than the table is long — the GeoJSON polygon of a
+  `filter[bboxLatLon.contains]` — and leave that scenario on its own, with a comment saying why.
+
 ## Step vocabulary
 
 Search before adding a step: `grep -rn "<wording>" steps/`. Reuse beats invention, and a step that
@@ -164,7 +217,7 @@ reads like the existing ones is what keeps the scenarios reviewable.
 | Vocabulary (`steps/steps.py`) | Steps |
 | --- | --- |
 | request target | `I use the endpoint {url}`, `I set the content type of the request to {content_type}`, `I set the request payload to:`, `I set a queryparam "{param}" with value "{value}"`, `I set the header "{name}" with value "{value}"`, `I set the cookie "{name}" with value "{value}"` |
-| authentication | `I am logged in as {user} with password {password}`, `I use token based authentication for user "{user}"`, `I use token authentication as {user}`, `I enforce csrf checks`, `I logout the current user` |
+| authentication | `I am logged in as {user} with password {password}`, `I am an anonymous user`, `I use token based authentication for user "{user}"`, `I use token authentication as {user}`, `I enforce csrf checks`, `I logout the current user` |
 | execution | `I send the request with GET/POST/PATCH/DELETE method` |
 | assertions | `I expect the response status is {status}`, `I expect that response json has an attribute "{path}"[ with value "{value}"]`, `I expect that there is a xpath "{xpath}"[ with value "{value}"]`, `I expect that response xml content is:`, `I expect that "{n}" queries where made` |
 | mocking | `I mock the function "{func}" of the module "{module}" with return value as object` (stopped in `after_scenario`) |
@@ -192,11 +245,18 @@ reads like the existing ones is what keeps the scenarios reviewable.
   `tests/django/test_data/`), `test_keywords.json` (159 keywords), `test_crs.json`,
   `test_monitoring.json`, `test_allowed_wms_operation.json`, `test_allowed_wfs_operation.json` and
   `test_background.json`.
-- A feature declares its data with tags: `@fixtures:test_keywords.json @fixtures:test_wms.json`.
-  Without such a tag the legacy chain in `environment.py` derives the fixtures from the `Feature:`
-  title, which is why titles have to stay unique. **New features always carry the tags**: matching
-  nothing means the scenarios run against an empty database and can pass on
-  `meta.pagination.count == 0` without testing anything.
+- A feature declares its data with one tag per file: `@fixtures:test_keywords.json
+  @fixtures:test_wms.json`, in the order `loaddata` should read them — that order is what resolves
+  foreign keys between fixture files, so copy it when a new feature needs the same set.
+  `@no_fixtures` says the scenarios need nothing beyond those users. `before_feature` refuses a feature
+  with neither tag, and one with both, so a feature can no longer run against an empty database and
+  pass on `meta.pagination.count == 0` without testing anything. These tags replaced a mapping that
+  picked the files out of the `Feature:` title; with that mapping gone, a title no longer has to stay
+  unique for the suite to work.
+- The tags were generated from what each feature actually loaded, which was not always what its title
+  suggested: `mapcontextlayer/list_mapcontextlayers.feature` never matched the old mapping (its title
+  reads `MapContexLayers`) and therefore still runs without `test_mapcontext.json`. Adding that fixture
+  means re-measuring every count in that feature, so do it on its own.
 - Fixture UUIDs are referenced by scenarios and by steps (the WMS
   `cd16cc1f-3abb-4625-bb96-fbe80dbe23e3` is also `SERVICE_ID` in `steps/manual_updates.py`), and some
   scenarios address integer pks such as `mapcontextlayers/9`. Changing a fixture therefore means
@@ -268,7 +328,7 @@ choosing work, not a coverage report.
   reports nothing new for the files you touched. CI excludes `tests/` from its tree-wide run, and
   `steps/steps.py` carries pre-existing `F811` findings from its `step_impl` naming — do not add to
   them, and do not rename them on the side.
-- Every new `Feature:` has `@fixtures:` tags and a unique title, and no `@skip` was added without a
-  tracked reason.
+- Every new `Feature:` carries `@fixtures:` tags or `@no_fixtures`, its scenarios and outlines read as
+  the rules above say, and no `@skip` was added without a tracked reason.
 
 

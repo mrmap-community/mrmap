@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_mapcontext.json @fixtures:test_wms.json
 Feature: MapContextLayer Update Endpoint
     As an API client,
     I want to add mapcontextlayers,

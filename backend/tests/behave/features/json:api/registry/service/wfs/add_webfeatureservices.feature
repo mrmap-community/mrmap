@@ -1,3 +1,4 @@
+@fixtures:test_crs.json @fixtures:test_wfs.json @fixtures:test_keywords.json
 Feature: WebFeatureService Add Endpoint
     As an API client,
     I want to add web feature services,

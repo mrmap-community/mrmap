@@ -9,6 +9,9 @@ from rest_framework.test import APIClient
 #: Prefix of the feature tag that requests one fixture file, e.g. ``@fixtures:test_wms.json``.
 FIXTURE_TAG_PREFIX = "fixtures:"
 
+#: Tag of a feature that needs no data at all beyond the users ``before_all`` loads.
+NO_FIXTURES_TAG = "no_fixtures"
+
 
 def before_all(context):
     # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
@@ -52,56 +55,24 @@ def load_fixtures(fixtures):
 
 
 def before_feature(context, feature):
-    # A feature declares its data with @fixtures: tags. Features without a tag fall back to the
-    # legacy mapping below, which derives the fixtures from the title of the feature.
+    """Load the data a feature declared with its tags.
+
+    The order of the ``@fixtures:`` tags is the order ``loaddata`` reads them in, which is what
+    resolves foreign keys between fixture files; keep it if you edit the tags.
+    """
     requested = requested_fixtures(feature)
-    if requested:
-        load_fixtures(requested)
+    if NO_FIXTURES_TAG in getattr(feature, "tags", []):
+        if requested:
+            raise AssertionError(
+                f"{feature.filename}: @no_fixtures contradicts the requested {requested}")
         return
-
-    # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
-    fixtures = []
-    if (
-        'MapContext' in feature.name
-        or 'OwsContext' in feature.name
-        or 'MapContextLayer' in feature.name
-    ):
-        fixtures.extend(
-            ['test_keywords.json', 'test_mapcontext.json', 'test_wms.json'])
-    elif 'DatasetMetadataRecord' in feature.name:
-        fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
-    elif (
-        'AllowedWebMapServiceOperation' in feature.name
-
-        or 'WebMapService' in feature.name
-        or 'Layer' in feature.name
-    ):
-        fixtures.extend(['test_wms.json', 'test_keywords.json'])
-    elif (
-        'AllowedWebFeatureServiceOperation' in feature.name
-        or 'WebFeatureService' in feature.name
-        or 'Featuretype' in feature.name
-    ):
-        fixtures.extend(
-            ['test_crs.json', 'test_wfs.json', 'test_keywords.json'])
-    elif (
-        'HarvestingJob' in feature.name
-        or 'CatalogueService' in feature.name
-    ):
-        fixtures.extend(
-            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json'])
-    elif 'BackgroundProcess' in feature.name:
-        fixtures.extend(['test_background.json'])
-
-    if ('AllowedWebMapServiceOperation' in feature.name
-            and 'Related' in feature.name):
-        fixtures.extend(['test_wms.json', 'test_allowed_wms_operation.json'])
-
-    if ('Monitoring' in feature.name):
-        fixtures.extend(['test_wms.json', 'test_monitoring.json'])
-
-    if fixtures:
-        load_fixtures(fixtures)
+    if not requested:
+        raise AssertionError(
+            f"{feature.filename}: declare one @fixtures:<file>.json tag per fixture, or "
+            f"@{NO_FIXTURES_TAG} if the scenarios really need no rows. Loading nothing used to "
+            f"happen silently whenever a title did not match the legacy mapping, and a feature "
+            f"without data passes on 'meta.pagination.count == 0' without testing anything.")
+    load_fixtures(requested)
 
 
 def before_scenario(context, scenario):

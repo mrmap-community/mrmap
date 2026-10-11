@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: WebMapService manual updates
     Users can queue a one-off update without changing the automatic schedule.
 

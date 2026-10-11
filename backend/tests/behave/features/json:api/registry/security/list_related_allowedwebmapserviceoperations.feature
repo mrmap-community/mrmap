@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json @fixtures:test_allowed_wms_operation.json
 Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
     As an API client,
     I want to add new allowed operation configurations,

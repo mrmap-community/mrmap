@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: Logout Endpoint
     As an API client,
     I want to logout the current user,

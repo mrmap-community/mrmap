@@ -3,7 +3,7 @@
 # without the service_type and service_version arguments that OGCServiceException requires.
 # Unskip together with that fix; the exception report body is built from owsExceptionReport.xsd
 # and is empty for ("csw", "Exception", "2.0.2"), so the xml comparison needs attention too.
-@skip
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @skip
 Feature: CSW Endpoint
     As an API client,
     I want to retreive the capabilities document,

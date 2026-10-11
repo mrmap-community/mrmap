@@ -1,3 +1,4 @@
+@fixtures:test_background.json
 Feature: BackgroundProcess List Endpoint
     As an API client,
     I want to get backgroundprocesses,

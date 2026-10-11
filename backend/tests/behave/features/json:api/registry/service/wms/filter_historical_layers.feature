@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: Filter historical layers by change type
     As an API client,
     I want to filter completed update-job changes by category.

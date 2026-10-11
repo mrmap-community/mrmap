@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json
 Feature: CatalogueService Add Endpoint
     As an API client,
     I want to add catalogue services,

@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: WebMapService Add Endpoint
     As an API client,
     I want to add web map services,

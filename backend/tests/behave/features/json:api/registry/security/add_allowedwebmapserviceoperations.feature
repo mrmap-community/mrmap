@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json
 Feature: AllowedWebMapServiceOperation Add Endpoint
     As an API client,
     I want to add new allowed operation configurations,

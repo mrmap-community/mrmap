@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: Permissions List Endpoint
     As an API client,
     I want to search permissions,

@@ -1,3 +1,4 @@
+@fixtures:test_wms.json @fixtures:test_keywords.json @fixtures:test_monitoring.json
 Feature: WebMapServiceMonitoringSetting Add Endpoint
     As an API client,
     I want to add monitoring setting,

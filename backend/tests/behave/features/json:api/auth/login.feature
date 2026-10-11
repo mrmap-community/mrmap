@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: Login Endpoint
     As an API client,
     I want to login a user,

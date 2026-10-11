@@ -1,3 +1,4 @@
+@fixtures:test_keywords.json @fixtures:test_mapcontext.json @fixtures:test_wms.json
 Feature: MapContext List Endpoint
     As an API client,
     I want to search mapcontexts,

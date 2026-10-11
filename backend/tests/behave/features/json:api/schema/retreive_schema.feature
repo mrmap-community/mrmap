@@ -1,3 +1,4 @@
+@no_fixtures
 Feature: OpenApi Schema
     As an API client,
     I want to fetch the openapi schema,

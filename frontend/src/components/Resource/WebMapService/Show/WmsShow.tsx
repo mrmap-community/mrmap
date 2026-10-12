@@ -1,14 +1,14 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
+import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
-import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
-import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
+import UpdateSettingTab from "../../Generic/ServiceShow/UpdateSettingTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 import ProxySettingsTab from "./Tabs/ProxySettingsTab";
 import SpatialSecureTab from "./Tabs/SpatialSecureTab";
-import UpdateSettingTab from "./Tabs/UpdateSettingTab";
 import WmsLayers from "./Tabs/WmsLayerTab";
 
 const tabs: ServiceTab[] = [
@@ -73,7 +73,7 @@ const tabs: ServiceTab[] = [
     resource: "WebMapServiceUpdateSetting",
     countSource: "webMapServiceUpdateSettings",
     operation: "list_related_WebMapServiceUpdateSetting_of_WebMapService",
-    content: <UpdateSettingTab />,
+    content: <UpdateSettingTab resource="WebMapServiceUpdateSetting" />,
   },
 ];
 

@@ -8,8 +8,9 @@ import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
-import OverviewTab from "./Tabs/OverviewTab";
+import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
+import OverviewTab from "./Tabs/OverviewTab";
 
 function OperationUrls() {
   const record = useRecordContext();
@@ -114,6 +115,14 @@ const tabs: ServiceTab[] = [
       "list_related_WebFeatureServiceMonitoringSetting_of_WebFeatureService",
     content: <MonitoringTab />,
   },
+  {
+      path: "WebFeatureServiceUpdateSetting/*",
+      label: "serviceShow.updates",
+      resource: "WebFeatureServiceUpdateSetting",
+      countSource: "webFeatureServiceUpdateSettings",
+      operation: "list_related_WebFeatureServiceUpdateSetting_of_WebFeatureService",
+      content: <UpdateSettingTab resource="WebFeatureServiceUpdateSetting" />,
+    },
 ];
 
 export default function WfsShow() {

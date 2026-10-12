@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
-import { useRecordContext } from 'react-admin';
-import useWebMapServiceMonitoringUpdateFieldDefinitions from './useWebMapServiceUpdateSettingFieldDefinitions';
+import { useRecordContext, useResourceContext } from 'react-admin';
+import useMonitoringUpdateFieldDefinitions from './useUpdateSettingFieldDefinitions';
 
 
 
 const useGuesserProps = () => {
   const record = useRecordContext()
-
-  const fieldDefinitions = useWebMapServiceMonitoringUpdateFieldDefinitions()
+  const resource = useResourceContext()
+  const fieldDefinitions = useMonitoringUpdateFieldDefinitions()
   const guesserProps = useMemo(()=> ({
-    resource: "WebMapServiceUpdateSetting",
+    resource: resource,
     updateFieldDefinitions: fieldDefinitions,
     defaultValues:{
       service: record

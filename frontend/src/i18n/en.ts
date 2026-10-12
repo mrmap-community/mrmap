@@ -87,6 +87,9 @@ const en = lodashMerge(
       steps: "%{done} of %{total} steps",
       viewDetails: "View details",
       viewAll: "View all background processes",
+      abort: "Abort process",
+      abortAsked: "The process was asked to abort.",
+      abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
     monitoringRun: {

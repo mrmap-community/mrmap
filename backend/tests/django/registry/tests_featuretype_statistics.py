@@ -20,6 +20,10 @@ class FeatureTypeStatisticsTest(TestCase):
         start = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
         model = FeatureType.change_log.model
 
+        # Proxy tests leave audit records after deleting their live services.
+        # Isolate the unfiltered statistics inside this TestCase's transaction.
+        model.objects.all().delete()
+
         # Create audit records directly: the statistics must also work after a
         # feature type or its service has been deleted from the live tables.
         for service_id, snapshots in (

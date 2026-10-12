@@ -1,6 +1,7 @@
 from celery import chain, group, shared_task
 from django.apps import apps
 from django.utils import timezone
+from notify.enums import ProcessStatusEnum
 
 WMS_RUN_MODEL = "registry.webmapservicemonitoringrun"
 
@@ -20,9 +21,17 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
     """
 
     probe = apps.get_model(probe_model).objects.get(pk=probe_pk)
-    return probe.run_checks(
-        run=apps.get_model(run_model).objects.get(pk=run_pk),
-    ).pk
+    run = apps.get_model(run_model).objects.get(pk=run_pk)
+    try:
+        result = probe.run_checks(run=run).pk
+    except Exception as error:
+        # the task which finishes a run is never reached when a probe raises:
+        # report the failure of the run, otherwise it stays as running in the
+        # overview of the background activity
+        run.fail_process(error)
+        raise
+    run.report_process(ProcessStatusEnum.RUNNING, step_done=True)
+    return result
 
 
 @shared_task(bind=True)
@@ -30,6 +39,7 @@ def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kw
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     run.date_done = timezone.now()
     run.save()
+    run.report_process(ProcessStatusEnum.COMPLETED)
     return run.pk
 
 
@@ -53,6 +63,10 @@ def start_run(run, probes, task):
             run_pk=run.pk)
         for probe in probes
     ]
+    run.report_process(
+        ProcessStatusEnum.RUNNING,
+        phase=f"Running {len(tasks)} checks",
+        total_steps=len(tasks))
     chain(group(tasks), finish_run.s(
         run_pk=run.pk, run_model=run._meta.label_lower)).apply_async()
     return run.pk

@@ -84,6 +84,9 @@ const germanMessages: TranslationMessages = {
     steps: "%{done} von %{total} Schritten",
     viewDetails: "Details anzeigen",
     viewAll: "Alle Hintergrundprozesse anzeigen",
+    abort: "Prozess abbrechen",
+    abortAsked: "Der Prozess wurde zum Abbrechen aufgefordert.",
+    abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
   monitoringRun: {

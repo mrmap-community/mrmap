@@ -3,6 +3,7 @@ from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
 
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
@@ -14,6 +15,7 @@ from django_celery_beat.models import PeriodicTask
 from epsg_cache.utils import adjust_axis_order
 from extras.scheduling import next_run_expected_at
 from lxml import etree
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from PIL import Image, UnidentifiedImageError
 from registry.managers.monitoring import MonitoringRunManager
 from registry.models.metadata import MimeType, ReferenceSystem
@@ -133,6 +135,18 @@ class MonitoringRun(models.Model):
 
     objects = MonitoringRunManager()
 
+    background_process = models.ForeignKey(
+        to="notify.BackgroundProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        # the field is defined on an abstract base model, so the names of the
+        # relations have to be unique per concrete model
+        related_name='%(class)s_processes',
+        related_query_name='%(class)s_process',
+        verbose_name=_('background process'),
+        help_text=_('the background process which reports this run'))
+
     class Meta:
         abstract = True
 
@@ -152,12 +166,69 @@ class MonitoringRun(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding
+        if adding and self.background_process_id is None:
+            self.background_process = self.build_process()
         ret = super().save(*args, **kwargs)
         if adding:
             transaction.on_commit(
                 lambda: self.dispatch_run()
             )
         return ret
+
+    def build_process(self):
+        """Build the process which reports this run in the background activity.
+
+        Returns:
+            BackgroundProcess: a pending process naming the monitored service
+        """
+        # imported here, because the process only reports this run and is not a
+        # part of its result
+        from notify.models import BackgroundProcess
+
+        service = self.setting.service if self.setting_id else None
+        title = getattr(service, 'title', None)
+        return BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.MONITORING.value,
+            description=f"Monitoring of the service {title}"[:512] if title
+            else "Monitoring of a registered service",
+            related_resource_type=ContentType.objects.get_for_model(service)
+            if service else None,
+            related_id=service.pk if service else None)
+
+    def report_process(self, status, phase=None, total_steps=None,
+                       step_done=False):
+        """Mirror the state of this run in the process which reports it.
+
+        Args:
+            status (ProcessStatusEnum): the status to report
+            phase (str): current phase of the run, optional
+            total_steps (int): amount of steps the run is made of, optional
+            step_done (bool): whether a step of the run was done, optional
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        return BackgroundProcess.objects.report(
+            self.background_process_id, status, phase=phase,
+            total_steps=total_steps, step_done=step_done)
+
+    def fail_process(self, error):
+        """Report that the checks of this run cannot be executed at all.
+
+        A probe which raises does not reach the task which finishes a run, so
+        without this report the run would stay as running in the overview
+        of the background activity although it ended.
+        """
+        from notify.models import BackgroundProcess
+
+        BackgroundProcess.objects.log(
+            self.background_process_id, f"An error occurred: {error}")
+        return self.report_process(
+            ProcessStatusEnum.FAILED,
+            phase=f"An error occurred: {str(error)[:400]}")
 
 
 class WebMapServiceMonitoringRun(MonitoringRun):

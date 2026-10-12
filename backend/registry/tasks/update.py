@@ -61,9 +61,10 @@ def create_wfs_update_job(*args, **kwargs):
     from registry.models.update import (WebFeatureServiceUpdateJob,
                                         WebFeatureServiceUpdateSetting)
 
-    job = WebFeatureServiceUpdateJob.objects.create(
+    job, _ = WebFeatureServiceUpdateJob.objects.get_or_create(
         service=WebFeatureServiceUpdateSetting.objects.get(
-            name=kwargs.get("name")).service
+            name=kwargs.get("name")).service,
+        done_at__isnull=True,
     )
     return job.pk
 
@@ -88,9 +89,10 @@ def create_csw_update_job(*args, **kwargs):
     from registry.models.update import (CatalogueServiceUpdateJob,
                                         CatalogueServiceUpdateSetting)
 
-    job = CatalogueServiceUpdateJob.objects.create(
+    job, _ = CatalogueServiceUpdateJob.objects.get_or_create(
         service=CatalogueServiceUpdateSetting.objects.get(
-            name=kwargs.get("name")).service
+            name=kwargs.get("name")).service,
+        done_at__isnull=True,
     )
     return job.pk
 

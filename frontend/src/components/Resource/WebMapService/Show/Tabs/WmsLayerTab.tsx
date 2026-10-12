@@ -9,16 +9,24 @@ import WmsTreeView from '../../TreeView/WmsTreeView';
 
 export const WmsLayers = () => {
 
+  const record = useRecordContext();
 
     const meta = useMemo(()=>{
-        const jsonApiParams: any = {}
+        const jsonApiParams: any = {
+
+        }
         const _meta = {
-            jsonApiParams: jsonApiParams
+            jsonApiParams: jsonApiParams,
+            relatedResource: {
+                resource: "WebMapService",
+                id: record?.id
+            }
         }
         jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,is_active,is_searchable'
         return _meta
     },[])
-  const record = useRecordContext();
+
+
   const {data, refetch} = useGetMany("Layer", {ids:record?.layers.map((layer: RaRecord) => layer.id), meta: meta});
 
   const notify = useNotify(); 
@@ -26,7 +34,7 @@ export const WmsLayers = () => {
 
     const wmsRecord = useMemo<RaRecord>(()=> ({
     ...record,
-    id: record.id,
+    id: record?.id || 1,
     layers: data
     }), [record, data])
 

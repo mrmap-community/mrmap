@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from celery.exceptions import Retry
+from lxml import etree
 from requests.exceptions import ConnectionError
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -9,6 +10,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
+from notify.enums import ProcessStatusEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
 from registry.models.monitoring import WebMapServiceMonitoringRun, WebMapServiceMonitoringSetting
@@ -33,6 +35,10 @@ ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_
 
 ONE_NEW_STRUCTURE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
     Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_new_structure_update_fixture_1.3.0.xml')))
+
+RENAMED_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(
+    content=REMOTE_RESPONSE.text.replace("<Name>node1.3.1</Name>", "<Name>node1.3.1_renamed</Name>"),
+)
 
 WFS_REMOTE_RESPONSE = MockResponse(
     status_code=status.HTTP_200_OK,
@@ -63,6 +69,10 @@ WFS_ONE_REMOVED_FEATURETYPE_UPDATE_REMOTE_RESPONSE = MockResponse(
             "../../test_data/capabilities/wfs/one_removed_featuretype_update_fixture_2.0.0.xml",
         )
     ),
+)
+
+WFS_RENAMED_FEATURETYPE_UPDATE_REMOTE_RESPONSE = MockResponse(
+    content=WFS_REMOTE_RESPONSE.text.replace("<Name>node3</Name>", "<Name>node3_renamed</Name>"),
 )
 
 
@@ -135,7 +145,7 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.assertIsNone(self.update_job.done_at)
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value)
 
-    @patch.object(Session, "send", return_value=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE)
+    @patch.object(Session, "send", return_value=RENAMED_LAYER_UPDATE_REMOTE_RESPONSE)
     @patch("registry.tasks.update.run_wms_update.apply_async")
     def test_recovered_job_preserves_pending_review(self, enqueue, remote):
         run_wms_update(update_job_id=self.update_job.pk)
@@ -167,9 +177,10 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
         self.assertIsNotNone(self.update_job.done_at)
 
-    @patch.object(Session, "send", side_effect=[ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE])
+    @patch.object(Session, "send", side_effect=[RENAMED_LAYER_UPDATE_REMOTE_RESPONSE])
     @patch("registry.models.update.run_wms_update.apply_async")
     def test_review_completion_runs_after_commit(self, enqueue, remote):
+        original_layer_id = self.wms.layers.get(identifier="node1.3.1").pk
         self.update_job.update()
         self.update_job.refresh_from_db()
         self.assertIsNone(self.update_job.done_at)
@@ -189,9 +200,11 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
 
         mapping = self.update_job.mappings.get(is_confirmed=False)
+        self.assertIsNone(mapping.old_layer_id)
         with self.captureOnCommitCallbacks(execute=True):
+            mapping.old_layer_id = original_layer_id
             mapping.is_confirmed = True
-            mapping.save(update_fields=["is_confirmed"])
+            mapping.save(update_fields=["old_layer", "is_confirmed"])
             enqueue.assert_not_called()
         enqueue.assert_called_once_with(kwargs={"update_job_id": self.update_job.pk})
 
@@ -201,6 +214,7 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.assertIsNotNone(self.update_job.done_at)
         self.assertFalse(self.update_job.mappings.exists())
         self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
+        self.assertEqual(self.wms.layers.get(identifier="node1.3.1_renamed").pk, original_layer_id)
         candidate_setting.refresh_from_db()
         self.assertEqual(candidate_setting.service_id, self.wms.pk)
         self.assertFalse(candidate_setting.enabled)
@@ -318,33 +332,17 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         attribute="send",
         side_effect=[ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE],
     )
-    def test_interupt_if_one_layer_where_added(self, mock):
-        self.update_job.update()
-        self.update_job.refresh_from_db()
-
-        self.assertEqual(self.update_job.status,
-                         UpdateJobStatusEnum.REVIEW_REQUIRED.value,
-                         "Job should be interrupted with status review required")
-
-        self.assertTrue(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
-                        "Update candidate should exist after update")
-
-        self.assertEqual(
-            self.update_job.new_service.layers.count(),
-            9,
-            "There should be 9 layers in the new service")
-        self.assertEqual(
-            self.update_job.mappings.count(),
-            9,
-            "There should be 9 mappings")
-
-        self.update_job.mappings.update(is_confirmed=True)
+    def test_automatically_finishes_if_one_layer_is_added(self, mock):
+        original_ids = dict(self.wms.layers.values_list("identifier", "pk"))
         self.update_job.update()
         self.update_job.refresh_from_db()
 
         self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.UPDATED.value,
-                         "Job should be finished with status updated after confirming the new layer")
+                         "An addition without removals should finish automatically")
+        self.assertIsNotNone(self.update_job.done_at)
+        self.update_job.background_process.refresh_from_db()
+        self.assertEqual(self.update_job.background_process.status, ProcessStatusEnum.COMPLETED.value)
         self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
                          "Update candidate should not exist after update")
 
@@ -352,6 +350,16 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             self.update_job.mappings.count(),
             0,
             "There should be 0 mappings after update")
+        self.assertEqual(
+            dict(self.wms.layers.exclude(identifier="node1.4").values_list("identifier", "pk")),
+            original_ids,
+        )
+        added_layer = self.wms.layers.get(identifier="node1.4")
+        self.assertFalse(added_layer.is_active)
+        self.assertFalse(added_layer.is_searchable)
+        addition_history = Layer.change_log.get(id=added_layer.pk, service_id=self.wms.pk, history_type="+")
+        self.assertEqual(addition_history.history_type, "+")
+        self.assertEqual(addition_history.history_change_reason, self.update_job.default_change_reason)
 
         self.assertListEqual(
             list(self.update_job.service.layers.values_list(
@@ -369,6 +377,155 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             ],
             "MPTT Tree structure should be correct after update"
         )
+
+    def test_automatically_adopts_new_parent_and_child_layers(self):
+        original_ids = dict(self.wms.layers.values_list("identifier", "pk"))
+        response = MockResponse(content=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text.replace(
+            "<Name>node1.4</Name>",
+            "<Name>node1.4</Name><Layer><Title>node1.4.1</Title><Name>node1.4.1</Name></Layer>",
+        ))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertFalse(self.update_job.mappings.exists())
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
+        parent = self.wms.layers.get(identifier="node1.4")
+        child = self.wms.layers.get(identifier="node1.4.1")
+        root = self.wms.layers.get(identifier="node1")
+        self.assertEqual(parent.mptt_parent_id, root.pk)
+        self.assertEqual(child.mptt_parent_id, parent.pk)
+        self.assertEqual(parent.mptt_tree_id, root.mptt_tree_id)
+        self.assertEqual(child.mptt_tree_id, root.mptt_tree_id)
+        self.assertEqual((parent.mptt_lft, parent.mptt_rgt, parent.mptt_depth), (16, 19, 1))
+        self.assertEqual((child.mptt_lft, child.mptt_rgt, child.mptt_depth), (17, 18, 2))
+        self.assertEqual(root.mptt_rgt, 20)
+        self.assertEqual(
+            dict(self.wms.layers.exclude(identifier__in=["node1.4", "node1.4.1"]).values_list("identifier", "pk")),
+            original_ids,
+        )
+        for layer in (parent, child):
+            with self.subTest(identifier=layer.identifier):
+                addition_history = Layer.change_log.get(id=layer.pk, service_id=self.wms.pk, history_type="+")
+                self.assertEqual(addition_history.history_type, "+")
+                self.assertEqual(addition_history.history_change_reason, self.update_job.default_change_reason)
+
+    def test_addition_preserves_existing_unnamed_root(self):
+        root = self.wms.layers.get(identifier="node1")
+        Layer.objects.filter(pk=root.pk).update(identifier=None)
+        self.wms.xml_backup_file = SimpleUploadedFile(
+            "capabilities.xml", REMOTE_RESPONSE.text.replace("<Name>node1</Name>", "").encode("UTF-8"),
+        )
+        self.wms.save()
+        response = MockResponse(content=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text.replace("<Name>node1</Name>", ""))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertEqual(self.wms.layers.get(mptt_parent=None).pk, root.pk)
+        self.assertEqual(self.wms.layers.get(identifier="node1.4").mptt_parent_id, root.pk)
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
+
+    def test_new_unnamed_group_requires_review(self):
+        response = MockResponse(content=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text.replace("<Name>node1.4</Name>", ""))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertIsNone(self.update_job.done_at)
+        mapping = self.update_job.mappings.get(is_confirmed=False)
+        self.assertIsNone(mapping.old_layer_id)
+        self.assertIsNone(mapping.new_layer.identifier)
+        self.assertEqual(Layer.objects.filter(service=self.wms).count(), 8)
+
+    def test_unnamed_root_is_not_matched_to_new_unnamed_child(self):
+        root = self.wms.layers.get(identifier="node1")
+        Layer.objects.filter(pk=root.pk).update(identifier=None)
+        self.wms.xml_backup_file = SimpleUploadedFile(
+            "capabilities.xml", REMOTE_RESPONSE.text.replace("<Name>node1</Name>", "").encode("UTF-8"),
+        )
+        self.wms.save()
+        response = MockResponse(content=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text.replace("<Name>node1.4</Name>", ""))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertFalse(self.update_job.mappings.filter(old_layer_id=root.pk).exists())
+        mapping = self.update_job.mappings.get(new_layer__identifier__isnull=True)
+        self.assertIsNone(mapping.old_layer_id)
+        self.assertFalse(mapping.is_confirmed)
+
+    def test_unnamed_root_is_matched_when_new_unnamed_group_requires_review(self):
+        root = self.wms.layers.get(identifier="node1")
+        Layer.objects.filter(pk=root.pk).update(identifier=None)
+        self.wms.xml_backup_file = SimpleUploadedFile(
+            "capabilities.xml", REMOTE_RESPONSE.text.replace("<Name>node1</Name>", "").encode("UTF-8"),
+        )
+        self.wms.save()
+        response = MockResponse(content=ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text.replace(
+            "<Name>node1</Name>", "",
+        ).replace("<Name>node1.4</Name>", ""))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        root_mapping = self.update_job.mappings.get(new_layer__mptt_parent=None)
+        self.assertEqual(root_mapping.old_layer_id, root.pk)
+        self.assertTrue(root_mapping.is_confirmed)
+        mapping = self.update_job.mappings.get(is_confirmed=False)
+        self.assertIsNone(mapping.old_layer_id)
+        self.assertIsNone(mapping.new_layer.identifier)
+
+    def test_unnamed_group_moved_to_different_parent_requires_review(self):
+        group = self.wms.layers.get(identifier="node1.1")
+        Layer.objects.filter(pk=group.pk).update(identifier=None)
+        namespaces = {"wms": "http://www.opengis.net/wms"}
+        document = etree.fromstring(REMOTE_RESPONSE.content)
+        xml_group = document.xpath("//wms:Layer[wms:Name='node1.1']", namespaces=namespaces)[0]
+        xml_group.remove(xml_group.find("wms:Name", namespaces))
+        self.wms.xml_backup_file = SimpleUploadedFile("capabilities.xml", etree.tostring(document))
+        self.wms.save()
+        new_parent = document.xpath("//wms:Layer[wms:Name='node1.3']", namespaces=namespaces)[0]
+        new_parent.append(xml_group)
+        response = MockResponse(content=etree.tostring(document, encoding="unicode"))
+        with patch.object(Session, "send", return_value=response):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertFalse(self.update_job.mappings.filter(old_layer_id=group.pk).exists())
+        mapping = self.update_job.mappings.get(is_confirmed=False)
+        self.assertIsNone(mapping.old_layer_id)
+        self.assertIsNone(mapping.new_layer.identifier)
+        group.refresh_from_db()
+        self.assertEqual(group.mptt_parent_id, self.wms.layers.get(identifier="node1").pk)
+
+    def test_ambiguous_unnamed_groups_require_review(self):
+        unnamed_ids = set(self.wms.layers.filter(identifier__in=["node1.1", "node1.3"]).values_list("pk", flat=True))
+        Layer.objects.filter(pk__in=unnamed_ids).update(identifier=None)
+        old_document = REMOTE_RESPONSE.text
+        new_document = ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE.text
+        for identifier in ("node1.1", "node1.3"):
+            old_document = old_document.replace(f"<Name>{identifier}</Name>", "")
+            new_document = new_document.replace(f"<Name>{identifier}</Name>", "")
+        self.wms.xml_backup_file = SimpleUploadedFile("capabilities.xml", old_document.encode("UTF-8"))
+        self.wms.save()
+        with patch.object(Session, "send", return_value=MockResponse(content=new_document)):
+            self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertIsNone(self.update_job.done_at)
+        self.assertEqual(self.update_job.mappings.filter(
+            new_layer__identifier__isnull=True, old_layer__isnull=True, is_confirmed=False,
+        ).count(), 2)
+        self.assertEqual(set(self.wms.layers.filter(identifier=None).values_list("pk", flat=True)), unnamed_ids)
+        self.assertFalse(self.wms.layers.filter(identifier="node1.4").exists())
 
     @patch.object(
         target=Session,
@@ -438,12 +595,12 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             "There should be 7 layers in the new service")
 
         """
-        node1       -> node1    
+        node1       -> node1
         node1.1     ->
-                    -> node1.1_new 
+                    -> node1.1_new
         node1.1.1   -> node1.1.1
-        node1.1.2   -> 
-        node1.1.3   -> 
+        node1.1.2   ->
+        node1.1.3   ->
         node1.2     -> node1.2
         node1.3     -> node1.3
         node1.3.1   -> node1.3.1
@@ -564,47 +721,81 @@ class WfsUpdateJobTest(TestCase):
         )
 
     @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_NEW_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
-    def test_interupt_if_one_featuretype_is_added(self, mock):
-        self.update_job.update()
-        self.update_job.refresh_from_db()
-
-        self.assertEqual(
-            self.update_job.status,
-            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
-            "Job should be interrupted with status review required",
-        )
-
-        self.assertTrue(
-            WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
-            "Update candidate should exist after update",
-        )
-
-        self.assertEqual(
-            self.update_job.new_service.featuretypes.count(), 5, "There should be 5 featuretypes in the new service"
-        )
-        self.assertEqual(self.update_job.mappings.count(), 5, "There should be 5 mappings")
-
-        self.update_job.mappings.update(is_confirmed=True)
+    def test_automatically_finishes_if_one_featuretype_is_added(self, mock):
+        original_ids = dict(self.wfs.featuretypes.values_list("identifier", "pk"))
         self.update_job.update()
         self.update_job.refresh_from_db()
 
         self.assertEqual(
             self.update_job.status,
             UpdateJobStatusEnum.UPDATED.value,
-            "Job should be finished with status updated after confirming the new layer",
+            "An addition without removals should finish automatically",
         )
+        self.assertIsNotNone(self.update_job.done_at)
+        self.update_job.background_process.refresh_from_db()
+        self.assertEqual(self.update_job.background_process.status, ProcessStatusEnum.COMPLETED.value)
         self.assertFalse(
             WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
             "Update candidate should not exist after update",
         )
 
         self.assertEqual(self.update_job.mappings.count(), 0, "There should be 0 mappings after update")
+        self.assertEqual(self.wfs.featuretypes.count(), 5)
+        self.assertEqual(
+            dict(self.wfs.featuretypes.exclude(identifier="node+").values_list("identifier", "pk")),
+            original_ids,
+        )
+        added_featuretype = self.wfs.featuretypes.get(identifier="node+")
+        self.assertFalse(added_featuretype.is_active)
+        self.assertFalse(added_featuretype.is_searchable)
+        addition_history = FeatureType.change_log.get(id=added_featuretype.pk, service_id=self.wfs.pk, history_type="+")
+        self.assertEqual(addition_history.history_type, "+")
+        self.assertEqual(addition_history.history_change_reason, self.update_job.default_change_reason)
 
-    @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_REMOVED_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
-    def test_interupt_if_one_featuretype_is_removed(self, mock):
+    @patch.object(Session, "send", return_value=WFS_RENAMED_FEATURETYPE_UPDATE_REMOTE_RESPONSE)
+    def test_rename_requires_review_and_preserves_uuid_after_confirmation(self, remote):
+        original_ids = dict(self.wfs.featuretypes.values_list("identifier", "pk"))
         self.update_job.update()
         self.update_job.refresh_from_db()
 
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.REVIEW_REQUIRED.value)
+        self.assertIsNone(self.update_job.done_at)
+        self.assertTrue(WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists())
+        self.assertEqual(dict(self.wfs.featuretypes.values_list("identifier", "pk")), original_ids)
+        mapping = self.update_job.mappings.get(is_confirmed=False)
+        self.assertEqual(mapping.new_featuretype.identifier, "node3_renamed")
+        self.assertIsNone(mapping.old_featuretype_id)
+
+        with patch("registry.models.update.run_wfs_update.apply_async") as enqueue:
+            with self.captureOnCommitCallbacks(execute=True):
+                mapping.old_featuretype_id = original_ids["node3"]
+                mapping.is_confirmed = True
+                mapping.save(update_fields=["old_featuretype", "is_confirmed"])
+                enqueue.assert_not_called()
+            enqueue.assert_called_once_with(kwargs={"update_job_id": self.update_job.pk})
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertIsNotNone(self.update_job.done_at)
+        self.assertFalse(self.update_job.mappings.exists())
+        self.assertFalse(WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists())
+        self.assertEqual(self.wfs.featuretypes.get(identifier="node3_renamed").pk, original_ids.pop("node3"))
+        self.assertEqual(
+            dict(self.wfs.featuretypes.exclude(identifier="node3_renamed").values_list("identifier", "pk")),
+            original_ids,
+        )
+        remote.assert_called_once()
+
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_REMOVED_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
+    def test_interupt_if_one_featuretype_is_removed(self, mock):
+        removed_featuretype_id = self.wfs.featuretypes.get(identifier="node2").pk
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertFalse(FeatureType.objects.filter(pk=removed_featuretype_id).exists())
+        deletion_history = FeatureType.change_log.get(id=removed_featuretype_id, history_type="-")
+        self.assertEqual(deletion_history.history_change_reason, self.update_job.default_change_reason)
         self.assertEqual(
             self.update_job.status,
             UpdateJobStatusEnum.UPDATED.value,

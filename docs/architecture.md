@@ -30,6 +30,18 @@ Updates may create mappings requiring user confirmation:
 - LayerMapping
 - FeatureTypeMapping
 
+WMS and WFS updates automatically apply additions of named layers or feature
+types when every existing element is matched by identifier. Matched elements
+keep their UUIDs and user configuration; additions use the existing inactive
+and unsearchable defaults and record their promotion in history.
+
+Removal-only updates also run automatically, subject to existing database
+protection of referenced layers. Updates with both additions and removals
+require review because an identifier change may represent a rename. Unnamed
+WMS grouping additions require review as well; ambiguous groups are not matched
+by their missing identifier. Confirming the mappings resumes the same update
+job and preserves the identity of manually matched elements.
+
 ## Monitoring
 
 Monitoring models are located in:

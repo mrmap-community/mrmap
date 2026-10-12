@@ -9,6 +9,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
+import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -62,6 +63,13 @@ const tabs: ServiceTab[] = [
     content: (
       <OverviewTab/>
     ),
+  },
+  {
+    path: "alerts",
+    label: "serviceShow.attention",
+    resource: "ServiceAlert",
+    operation: "list_related_ServiceAlert_of_WebFeatureService",
+    content: <ServiceAttentionTab />,
   },
   {
     path: "metadata",

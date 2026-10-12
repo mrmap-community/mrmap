@@ -5,6 +5,7 @@ import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
+import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import Overview from "./Overview";
 import Records from "./Records";
 import MonitoringTab from "./MonitoringTab";
@@ -15,6 +16,13 @@ const tabs: ServiceTab[] = [
     label: "serviceShow.overview",
     icon: <AutoGraphIcon />,
     content: <Overview />,
+  },
+  {
+    path: "alerts",
+    label: "serviceShow.attention",
+    resource: "ServiceAlert",
+    operation: "list_related_ServiceAlert_of_CatalogueService",
+    content: <ServiceAttentionTab />,
   },
   {
     path: "metadata",

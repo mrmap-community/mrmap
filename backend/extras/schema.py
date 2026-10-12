@@ -7,7 +7,7 @@ from django.urls.exceptions import Resolver404
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
-from extras.viewsets import NestedModelViewSet
+from extras.viewsets import NestedViewSetMixin
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
@@ -44,7 +44,10 @@ class CustomOperationId(JsonApiAutoSchema):
             action = self.method_mapping[self.method.lower()]
         resource_name = get_resource_name(context={"view": self.view})
 
-        is_nested_view = isinstance(self.view, NestedModelViewSet)
+        # whether a view answers the resources of a parent is decided by the
+        # mixin which reads the lookups of that parent, and not by the viewset
+        # class which happens to compose it
+        is_nested_view = isinstance(self.view, NestedViewSetMixin)
         if is_nested_view:
             related_base_resource_path = self.path.split("{")[0]
             if related_base_resource_path.endswith("/"):

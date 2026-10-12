@@ -92,6 +92,18 @@ const en = lodashMerge(
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
+    serviceAlerts: {
+      title: "Attention of this service",
+      severity: { error: "Error", warning: "Warning" },
+      category: {
+        monitoring_failed: "Monitoring failed",
+        monitoring_overdue: "Monitoring overdue",
+        update_review_required: "Update needs review",
+        update_failed: "Update failed",
+        update_overdue: "Update overdue",
+        harvesting_incomplete: "Harvesting incomplete",
+      },
+    },
     monitoringRun: {
       notRecorded: "Not recorded",
       notRecordedMessage: "No check result was recorded. This check may not have run.",
@@ -238,6 +250,7 @@ const en = lodashMerge(
       featureTypeChanges: "Feature type changes",
       harvestedChanges: "Harvested record changes",
       overview: "Overview",
+      attention: "Attention",
       details: "Service details",
       metadata: "Metadata",
       capabilities: "GetCapabilities URL",

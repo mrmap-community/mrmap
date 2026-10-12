@@ -5,6 +5,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import UpdateSettingTab from "../../Generic/ServiceShow/UpdateSettingTab";
+import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 import ProxySettingsTab from "./Tabs/ProxySettingsTab";
@@ -17,6 +18,13 @@ const tabs: ServiceTab[] = [
     label: "serviceShow.overview",
     icon: <AutoGraphIcon />,
     content: <OverviewTab />,
+  },
+  {
+    path: "alerts",
+    label: "serviceShow.attention",
+    resource: "ServiceAlert",
+    operation: "list_related_ServiceAlert_of_WebMapService",
+    content: <ServiceAttentionTab />,
   },
   {
     path: "metadata",

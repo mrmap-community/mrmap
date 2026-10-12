@@ -333,7 +333,7 @@ class WebFeatureServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
     ordering_fields = ("id", "date_created", "done_at", "status")
     select_for_includes = {
         "service": ["service"],
-        "update_candidate": ["update_candidate"],
+        "update_candidate": ["service__webfeatureservice_update_candidate"],
     }
     prefetch_for_includes = {
         "mappings": [

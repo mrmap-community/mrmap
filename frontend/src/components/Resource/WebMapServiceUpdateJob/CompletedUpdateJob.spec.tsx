@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AdminContext, testDataProvider } from "react-admin";
 import { describe, expect, it, vi } from "vitest";
+import { wfsUpdateConfig } from "../Generic/Update/serviceUpdateConfig";
 import CompletedUpdateJob from "./CompletedUpdateJob";
 
 const job = {
@@ -53,6 +54,54 @@ const renderJob = (
   return getList;
 };
 describe("completed update job", () => {
+  it.each([5, 3])(
+    "shows WFS history and links for status %s without unsupported filters or layer counts",
+    async (statusCode) => {
+      const getList = vi
+        .fn()
+        .mockResolvedValue({ data: records, total: records.length });
+      render(
+        <AdminContext dataProvider={testDataProvider({ getList })}>
+          <CompletedUpdateJob
+            job={{ ...job, statusCode }}
+            config={wfsUpdateConfig}
+          />
+        </AdminContext>,
+      );
+      await screen.findByText("Temperature");
+      expect(getList).toHaveBeenCalledWith(
+        "HistoricalFeatureType",
+        expect.objectContaining({
+          filter: {
+            history_change_reason: "updatejob_id: 2",
+            service: "service",
+          },
+        }),
+      );
+      expect(
+        screen.queryByRole("combobox", { name: /updateReview.change/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("region", { name: "updateReview.changeSummary" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "updateReview.viewService" }),
+      ).toHaveAttribute("href", "#/WebFeatureService/service/show");
+      expect(
+        screen.getByRole("link", { name: "updateReview.backToJobs" }),
+      ).toHaveAttribute("href", "#/WebFeatureServiceUpdateJob");
+      expect(
+        screen.getByText(
+          statusCode === 3
+            ? "updateReview.failedTitle"
+            : "updateReview.completedTitle",
+        ),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByText("Temperature"));
+      expect(await screen.findByText("Old description")).toBeInTheDocument();
+      expect(screen.getByText("New description")).toBeInTheDocument();
+    },
+  );
   it("requests each change category on the server and can return to All", async () => {
     const getList = renderJob();
     await screen.findByText("Temperature");
@@ -80,7 +129,9 @@ describe("completed update job", () => {
     fireEvent.mouseDown(
       screen.getByRole("combobox", { name: /updateReview.change/ }),
     );
-    fireEvent.click(screen.getByRole("option", { name: "ra.action.clear_input_value" }));
+    fireEvent.click(
+      screen.getByRole("option", { name: "ra.action.clear_input_value" }),
+    );
     await waitFor(() =>
       expect(getList).toHaveBeenLastCalledWith(
         "HistoricalLayer",

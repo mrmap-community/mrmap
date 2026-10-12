@@ -27,6 +27,10 @@ import {
   Link,
   Loading,
 } from "react-admin";
+import {
+  type ServiceUpdateConfig,
+  wmsUpdateConfig,
+} from "../Generic/Update/serviceUpdateConfig";
 import WmsTreeView from "../WebMapService/TreeView/WmsTreeView";
 import { useQueryParam } from "../../utils";
 import CompletedUpdateJob from "./CompletedUpdateJob";
@@ -38,14 +42,16 @@ const label = (record?: RaRecord) =>
   record?.stringRepresentation ??
   record?.id ??
   "—";
-const changeType = (mapping: RaRecord) =>
-  !mapping.oldLayer
+const changeType = (mapping: RaRecord, config: ServiceUpdateConfig) =>
+  !mapping[config.oldElement]
     ? "added"
-    : !mapping.newLayer
+    : !mapping[config.newElement]
       ? "removed"
       : mapping.delta?.length
         ? "modified"
-        : "unchanged";
+        : config.hasTree
+          ? "unchanged"
+          : "mapped";
 const panelSx = {
   p: 2.5,
   border: 1,
@@ -58,7 +64,9 @@ const LayerComparison = ({
   layer,
   mapping,
   side,
+  config,
 }: {
+  config: ServiceUpdateConfig;
   layer?: RaRecord;
   mapping: RaRecord;
   side: "old" | "new";
@@ -67,6 +75,7 @@ const LayerComparison = ({
   const fields = [
     { field: "title", value: layer?.title },
     { field: "identifier", value: layer?.identifier },
+    ...(!config.hasTree ? [{ field: "abstract", value: layer?.abstract }] : []),
     ...(mapping.delta ?? [])
       .filter((delta: { field: string }) => delta.field !== "title")
       .map((delta: { field: string; old: unknown; new: unknown }) => ({
@@ -84,7 +93,10 @@ const LayerComparison = ({
           {fields.map(({ field, value }) => (
             <Box key={field}>
               <Typography variant="caption" color="text.secondary">
-                {translate(`resources.Layer.fields.${field}`, { _: field })}
+                {translate(
+                  `resources.${config.elementResource}.fields.${field}`,
+                  { _: field },
+                )}
               </Typography>
               <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
                 {value == null ? "—" : String(value)}
@@ -99,7 +111,11 @@ const LayerComparison = ({
         >
           <DescriptionOutlinedIcon fontSize="large" />
           <Typography variant="body2">
-            {translate("updateReview.noMatch")}
+            {translate(
+              config.hasTree
+                ? "updateReview.noMatch"
+                : "wfsUpdateReview.noMatch",
+            )}
           </Typography>
         </Stack>
       )}
@@ -107,43 +123,47 @@ const LayerComparison = ({
   );
 };
 
-const WebMapServiceUpdateJobCard = () => {
+const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   const job = useRecordContext();
   const { refetch } = useShowContext();
   const translate = useTranslate();
   const notify = useNotify();
   const createPath = useCreatePath();
-  const [selectedLayer, setSelectedLayer] = useQueryParam("selectedLayer");
+  const [selectedLayer, setSelectedLayer] = useQueryParam(config.selectedParam);
   const [search, setSearch] = useState("");
   const [treeSearch, setTreeSearch] = useState("");
   const [filter, setFilter] = useState("pending");
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const message = (key: string) =>
+    translate(`${config.hasTree ? "updateReview" : "wfsUpdateReview"}.${key}`);
   const meta = useMemo(
     () => ({
-      jsonApiParams: {
-        include: "layers",
-        "fields[Layer]":
-          "mptt_lft,mptt_rgt,mptt_depth,title,identifier,string_representation",
-        "fields[WebMapService]": "title,layers",
-      },
+      jsonApiParams: config.hasTree
+        ? {
+            include: "layers",
+            "fields[Layer]":
+              "mptt_lft,mptt_rgt,mptt_depth,title,identifier,string_representation",
+            "fields[WebMapService]": "title,layers",
+          }
+        : { include: "featuretypes" },
     }),
-    [],
+    [config],
   );
   const finished = Boolean(job?.doneAt) && [0, 3, 5].includes(job?.statusCode);
   const candidateId = finished ? undefined : job?.updateCandidate?.id;
   const serviceId = job?.service?.id;
   const candidateQuery = useGetOne(
-    "WebMapService",
+    config.serviceResource,
     { id: candidateId, meta },
     { enabled: candidateId != null },
   );
   const currentQuery = useGetOne(
-    "WebMapService",
+    config.serviceResource,
     { id: serviceId, meta },
     { enabled: serviceId != null && !finished },
   );
-  const newLayers: RaRecord[] = candidateQuery.data?.layers ?? [];
-  const oldLayers: RaRecord[] = currentQuery.data?.layers ?? [];
+  const newLayers: RaRecord[] = candidateQuery.data?.[config.elements] ?? [];
+  const oldLayers: RaRecord[] = currentQuery.data?.[config.elements] ?? [];
   const mappings: RaRecord[] = job?.mappings ?? [];
   const pending = mappings.filter((mapping) => !mapping.isConfirmed);
   const resolved = mappings.length - pending.length;
@@ -157,7 +177,8 @@ const WebMapServiceUpdateJobCard = () => {
     [oldLayers],
   );
   const getLayer = (mapping: RaRecord, side: "old" | "new") => {
-    const reference = side === "old" ? mapping.oldLayer : mapping.newLayer;
+    const reference =
+      side === "old" ? mapping[config.oldElement] : mapping[config.newElement];
     return (
       (side === "old" ? oldById : newById).get(String(reference?.id)) ??
       reference
@@ -168,7 +189,7 @@ const WebMapServiceUpdateJobCard = () => {
       (filter === "all" ||
         (filter === "pending"
           ? !mapping.isConfirmed
-          : changeType(mapping) === filter)) &&
+          : changeType(mapping, config) === filter)) &&
       String(label(getLayer(mapping, "new") ?? getLayer(mapping, "old")))
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -176,8 +197,9 @@ const WebMapServiceUpdateJobCard = () => {
   const selectedMapping = selectedLayer
     ? mappings.find(
         (mapping) =>
-          String(mapping.newLayer?.id ?? mapping.oldLayer?.id) ===
-          selectedLayer,
+          String(
+            mapping[config.newElement]?.id ?? mapping[config.oldElement]?.id,
+          ) === selectedLayer,
       )
     : visibleMappings[0];
   const selectedNode = selectedLayer
@@ -205,7 +227,7 @@ const WebMapServiceUpdateJobCard = () => {
   const getLayerProps = useCallback(
     (layer: RaRecord) => {
       const mapping = mappings.find(
-        (item) => String(item.newLayer?.id) === String(layer.id),
+        (item) => String(item[config.newElement]?.id) === String(layer.id),
       );
       const visible =
         !treeSearch ||
@@ -221,7 +243,9 @@ const WebMapServiceUpdateJobCard = () => {
             variant="body2"
             sx={{ py: 0.5, overflowWrap: "anywhere" }}
             color={
-              mapping && !mapping.oldLayer ? "success.main" : "text.primary"
+              mapping && !mapping[config.oldElement]
+                ? "success.main"
+                : "text.primary"
             }
           >
             {label(layer)}
@@ -230,10 +254,10 @@ const WebMapServiceUpdateJobCard = () => {
         sx: { display: visible ? undefined : "none" },
       };
     },
-    [mappings, treeSearch, matchingLayers],
+    [mappings, treeSearch, matchingLayers, config],
   );
   if (!job) return null;
-  if (finished) return <CompletedUpdateJob job={job} />;
+  if (finished) return <CompletedUpdateJob job={job} config={config} />;
   const loading =
     (candidateId != null && candidateQuery.isPending) ||
     (serviceId != null && currentQuery.isPending);
@@ -246,7 +270,7 @@ const WebMapServiceUpdateJobCard = () => {
       <Breadcrumbs>
         <Link
           to={createPath({
-            resource: "WebMapService",
+            resource: config.serviceResource,
             id: serviceId,
             type: "show",
           })}
@@ -311,9 +335,7 @@ const WebMapServiceUpdateJobCard = () => {
           </Typography>
         </Stack>
       </Paper>
-      {error && (
-        <Alert severity="error">{translate("updateReview.loadError")}</Alert>
-      )}
+      {error && <Alert severity="error">{message("loadError")}</Alert>}
       {loading && !error ? (
         <Loading />
       ) : !error ? (
@@ -331,17 +353,17 @@ const WebMapServiceUpdateJobCard = () => {
         >
           <Paper variant="outlined" sx={panelSx}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              {translate("updateReview.tree")}
+              {message("tree")}
             </Typography>
             <TextField
               size="small"
               fullWidth
-              label={translate("updateReview.findLayer")}
+              label={message("findLayer")}
               value={treeSearch}
               onChange={(event) => setTreeSearch(event.target.value)}
               sx={{ mb: 2 }}
             />
-            {candidateQuery.data && (
+            {config.hasTree && candidateQuery.data && (
               <WmsTreeView
                 sx={{
                   maxHeight: "min(60vh, 640px)",
@@ -352,8 +374,8 @@ const WebMapServiceUpdateJobCard = () => {
                 getLayerProps={getLayerProps}
                 focusSelectedLayer
                 selectedItems={
-                  selectedMapping?.newLayer
-                    ? String(selectedMapping.newLayer.id)
+                  selectedMapping?.[config.newElement]
+                    ? String(selectedMapping[config.newElement].id)
                     : (selectedLayer ?? null)
                 }
                 expandedItems={[
@@ -364,17 +386,33 @@ const WebMapServiceUpdateJobCard = () => {
                 }
               />
             )}
+            {!config.hasTree && (
+              <List aria-label={message("tree")} disablePadding>
+                {matchingLayers.map((element) => (
+                  <ListItemButton
+                    key={element.id}
+                    selected={String(element.id) === selectedLayer}
+                    onClick={() => setSelectedLayer(String(element.id))}
+                  >
+                    <Typography variant="body2">{label(element)}</Typography>
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
           </Paper>
           <Paper variant="outlined" sx={panelSx}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               {translate("updateReview.changes")}
             </Typography>
             <Stack direction="row" sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}>
-              {["pending", "all", "added", "modified"].map((value) => (
+              {(config.hasTree
+                ? ["pending", "all", "added", "modified"]
+                : ["pending", "all", "added"]
+              ).map((value) => (
                 <Chip
                   key={value}
                   size="small"
-                  label={translate(`updateReview.${value}`)}
+                  label={message(value)}
                   color={filter === value ? "primary" : "default"}
                   variant={filter === value ? "filled" : "outlined"}
                   onClick={() => setFilter(value)}
@@ -399,7 +437,10 @@ const WebMapServiceUpdateJobCard = () => {
                   selected={selectedMapping?.id === mapping.id}
                   onClick={() =>
                     setSelectedLayer(
-                      String(mapping.newLayer?.id ?? mapping.oldLayer?.id),
+                      String(
+                        mapping[config.newElement]?.id ??
+                          mapping[config.oldElement]?.id,
+                      ),
                     )
                   }
                   sx={{
@@ -428,9 +469,11 @@ const WebMapServiceUpdateJobCard = () => {
                         size="small"
                         variant="outlined"
                         color={
-                          changeType(mapping) === "added" ? "success" : "info"
+                          changeType(mapping, config) === "added"
+                            ? "success"
+                            : "info"
                         }
-                        label={translate(`updateReview.${changeType(mapping)}`)}
+                        label={message(changeType(mapping, config))}
                       />
                       <Chip
                         size="small"
@@ -466,19 +509,24 @@ const WebMapServiceUpdateJobCard = () => {
                     )}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {translate("updateReview.mapping", {
-                      id: selectedMapping.id,
-                    })}
+                    {translate(
+                      `${config.hasTree ? "updateReview" : "wfsUpdateReview"}.mapping`,
+                      {
+                        id: selectedMapping.id,
+                      },
+                    )}
                   </Typography>
                 </Box>
                 <Divider />
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                   <LayerComparison
+                    config={config}
                     layer={getLayer(selectedMapping, "old")}
                     mapping={selectedMapping}
                     side="old"
                   />
                   <LayerComparison
+                    config={config}
                     layer={getLayer(selectedMapping, "new")}
                     mapping={selectedMapping}
                     side="new"
@@ -486,6 +534,7 @@ const WebMapServiceUpdateJobCard = () => {
                 </Stack>
                 <Divider />
                 <EditLayerMapping
+                  config={config}
                   mapping={selectedMapping}
                   mutationOptions={{
                     onSuccess: () => {
@@ -507,7 +556,10 @@ const WebMapServiceUpdateJobCard = () => {
   );
 };
 
-export const ShowWebMapServiceUpdate = (props: ShowProps) => (
+export const ShowServiceUpdateJob = ({
+  config = wmsUpdateConfig,
+  ...props
+}: ShowProps & { config?: ServiceUpdateConfig }) => (
   <Show
     {...props}
     queryOptions={{
@@ -515,6 +567,10 @@ export const ShowWebMapServiceUpdate = (props: ShowProps) => (
     }}
     actions={false}
   >
-    <WebMapServiceUpdateJobCard />
+    <ServiceUpdateJobCard config={config} />
   </Show>
+);
+
+export const ShowWebMapServiceUpdate = (props: ShowProps) => (
+  <ShowServiceUpdateJob {...props} />
 );

@@ -1,13 +1,16 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from mptt2.models import Tree
 from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
-from registry.models.update import WebFeatureServiceUpdateJob, WebMapServiceUpdateJob
+from registry.models.update import (FeatureTypeMapping,
+                                    WebFeatureServiceUpdateJob,
+                                    WebMapServiceUpdateJob)
 from registry.views.service import (
     FeatureTypeViewSet, LayerViewSet, WebFeatureServiceViewSet,
     WebMapServiceViewSet,
 )
 from rest_framework.request import Request
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIClient, APIRequestFactory
 
 
 class UpdateCandidatesTest(TestCase):
@@ -124,3 +127,44 @@ class UpdateCandidatesTest(TestCase):
                 record = history.first()
                 self.assertEqual(record.history_type, "~")
                 self.assertEqual(record.history_change_reason, job.default_change_reason)
+
+    def test_wfs_update_job_includes_service_candidate_and_mappings(self):
+        service, candidate = self.create_candidate(WebFeatureService)
+        old_element = self.create_element(FeatureType, service, "Published")
+        new_element = self.create_element(FeatureType, candidate, "Incoming")
+        job = WebFeatureServiceUpdateJob.objects.create(service=service)
+        mapping = FeatureTypeMapping.objects.create(
+            job=job, old_featuretype=old_element, new_featuretype=new_element,
+        )
+        user = get_user_model().objects.get(username="User1")
+        user.is_superuser = True
+        client = APIClient()
+        client.force_authenticate(user)
+        endpoint = "/api/registry/update/webfeatureservice-update-jobs"
+        for path in [endpoint, f"{endpoint}/{job.pk}"]:
+            with self.subTest(path=path):
+                response = client.get(
+                    path, {"include": "service,updateCandidate,mappings"},
+                    HTTP_ACCEPT="application/vnd.api+json",
+                )
+                self.assertEqual(response.status_code, 200)
+                payload = response.json()
+                record = payload["data"]
+                if isinstance(record, list):
+                    record = next(item for item in record if item["id"] == str(job.pk))
+                self.assertEqual(
+                    record["relationships"]["updateCandidate"]["data"]["id"],
+                    str(candidate.pk),
+                )
+                included = {(item["type"], item["id"]) for item in payload["included"]}
+                self.assertIn(("WebFeatureService", str(service.pk)), included)
+                self.assertIn(("WebFeatureService", str(candidate.pk)), included)
+                self.assertIn(("FeatureTypeMapping", str(mapping.pk)), included)
+
+        candidate.delete()
+        response = client.get(
+            f"{endpoint}/{job.pk}", {"include": "service,updateCandidate,mappings"},
+            HTTP_ACCEPT="application/vnd.api+json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["data"]["relationships"]["updateCandidate"]["data"])

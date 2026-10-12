@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
 from django.db.models.deletion import Collector
@@ -10,6 +11,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from extras.scheduling import next_run_expected_at
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
@@ -218,6 +220,30 @@ class ServiceUpdateJob(models.Model):
         choices=UpdateJobStatusEnum.choices,
         default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value,
     )
+    background_process = models.ForeignKey(
+        to="notify.BackgroundProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        # the field is defined on an abstract base model, so the names of the
+        # relations have to be unique per concrete model
+        related_name='%(class)s_processes',
+        related_query_name='%(class)s_process',
+        verbose_name=_("background process"),
+        help_text=_("the background process which reports this job"))
+
+    #: the status of the job in the status of its background process. A job
+    #: which waits for a review is still running: it is not finished until the
+    #: mapping is confirmed or the job decided about itself.
+    PROCESS_STATUS = {
+        UpdateJobStatusEnum.WAITING_FOR_PROCESSING: ProcessStatusEnum.PENDING,
+        UpdateJobStatusEnum.RESUME: ProcessStatusEnum.RUNNING,
+        UpdateJobStatusEnum.UPDATING: ProcessStatusEnum.RUNNING,
+        UpdateJobStatusEnum.REVIEW_REQUIRED: ProcessStatusEnum.RUNNING,
+        UpdateJobStatusEnum.NO_UPDATE_NEEDED: ProcessStatusEnum.COMPLETED,
+        UpdateJobStatusEnum.UPDATED: ProcessStatusEnum.COMPLETED,
+        UpdateJobStatusEnum.ERROR: ProcessStatusEnum.FAILED,
+    }
 
     class Meta:
         abstract = True
@@ -236,6 +262,69 @@ class ServiceUpdateJob(models.Model):
                     "There is an existing noncompleted job for this service."),
             )
         ]
+
+    def save(self, *args, **kwargs):
+        """Keep the background process of this job in sync with the job.
+
+        An update job is long running work which the deployment does without a
+        request to attach a process to, and it is created while it still waits
+        for a worker which takes it: its process is what makes the job
+        distinguishable in the overview of the background activity, from the
+        moment it is queued until it decided about itself.
+        """
+        adding = self._state.adding
+        if adding and self.background_process_id is None:
+            self.background_process = self.build_process()
+
+        saved = super().save(*args, **kwargs)
+
+        if not adding:
+            self.report_process()
+        return saved
+
+    def build_process(self):
+        """Build the process which reports this job in the background activity.
+
+        Returns:
+            BackgroundProcess: a process naming the service which is updated
+        """
+        # imported here, because the process only reports this job and is not a
+        # part of its result
+        from notify.models import BackgroundProcess
+
+        service = self.service if getattr(self, 'service_id', None) else None
+        title = getattr(service, 'title', None)
+        return BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.UPDATE.value,
+            description=f"Update of the service {title}"[:512] if title
+            else str(self._meta.verbose_name),
+            status=self.PROCESS_STATUS.get(
+                self.status, ProcessStatusEnum.PENDING),
+            related_resource_type=ContentType.objects.get_for_model(service)
+            if service else None,
+            related_id=service.pk if service else None)
+
+    def report_process(self, status=None, phase=None):
+        """Mirror the state of this job in the process which reports it.
+
+        Args:
+            status (ProcessStatusEnum): status to report, the one of the job by
+                default
+            phase (str): phase to report, the status of the job by default
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        if status is None:
+            status = self.PROCESS_STATUS.get(
+                self.status, ProcessStatusEnum.RUNNING)
+        if phase is None:
+            phase = str(UpdateJobStatusEnum(self.status).label)
+        return BackgroundProcess.objects.report(
+            self.background_process_id, status, phase=phase)
 
     @atomic
     def update(self):

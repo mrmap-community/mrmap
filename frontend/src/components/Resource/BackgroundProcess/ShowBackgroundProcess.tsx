@@ -1,6 +1,8 @@
 import { DateField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField } from 'react-admin';
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
 import ProgressField from '../../Field/ProgressField';
+import ProcessStatusField from './ProcessStatusField';
+import RelatedResourceField from '../../Field/RelatedResourceField';
 
 export const IS_STALE_CHECK_INTERVAL = 10
 
@@ -24,7 +26,8 @@ const ShowBackgroundProcess = () => {
       >
         <ShowView>
         <SimpleShowLayout>
-          <TextField source="status" />
+          <ProcessStatusField source="status" />
+          <RelatedResourceField source="relatedResource" />
           <TextField source="phase" />
           <DateField source="dateCreated" showTime/>
           <DateField source="doneAt" showTime/>

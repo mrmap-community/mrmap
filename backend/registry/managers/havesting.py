@@ -5,7 +5,7 @@ from django.db.models.functions import Ceil, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
-from notify.enums import ProcessStatusEnum
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from notify.tasks import finish_background_process
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 
@@ -122,7 +122,11 @@ class TemporaryMdMetadataFileManager(models.Manager):
 
         bp = BackgroundProcess.objects.create(
             total_steps=len(objs) + 1,
-            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value)
+            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value,
+            # the overview of the background activity names every process by its
+            # type and what it does, so a harvesting process has to tell both
+            process_type=ProcessNameEnum.HARVESTING.value,
+            description=f"Harvesting of {len(objs)} metadata files")
         hj = HarvestingJob.objects.create(
             total_records=len(objs),
         )

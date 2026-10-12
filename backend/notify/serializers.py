@@ -73,6 +73,10 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("status"),
         help_text=_("the current workflow status."))
+    related_resource = SerializerMethodField(
+        label=_("related resource"),
+        help_text=_(
+            "the resource this process belongs to, addressed by its type and id"))
     # logs = ResourceRelatedField(
     #    queryset=BackgroundProcessLog.objects,
     #    many=True,
@@ -88,3 +92,15 @@ class BackgroundProcessSerializer(
     #    'logs': BackgroundProcessLogSerializer,
     # }
     # }
+
+    def get_related_resource(self, obj):
+        # the type of the related resource is select_related by process_info(), so
+        # this answers without an additional query - which matters here, because
+        # the payload of every process of the background activity is built here.
+        content_type = obj.related_resource_type
+        if content_type is None or obj.related_id is None:
+            return None
+        model = content_type.model_class()
+        if model is None:
+            return None
+        return {"type": model.__name__, "id": str(obj.related_id)}

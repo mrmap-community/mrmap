@@ -21,6 +21,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
+import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
@@ -160,7 +161,16 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "ReferenceSystem"},
 
   {name: "TaskResult"},
-  {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
+  {
+    name: "BackgroundProcess",
+    icon: UpdateIcon,
+    list: ListBackgroundProcess,
+    show: ShowBackgroundProcess,
+    options: {
+      menu: { group: "Admin", order: 30 },
+      list: { additionalActions: AbortBackgroundProcessButton }
+    }
+  },
   {name: "BackgroundProcessLog", },
 
 

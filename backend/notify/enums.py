@@ -6,6 +6,7 @@ class ProcessNameEnum(TextChoices):
     HARVESTING = 'harvesting'
     MONITORING = 'monitoring'
     REGISTERING = 'registering'
+    UPDATE = 'update'
 
 
 class LogTypeEnum(TextChoices):

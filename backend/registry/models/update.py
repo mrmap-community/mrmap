@@ -484,21 +484,44 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         old_layers = list(self.old_service.layers.all())
         new_layers = list(self.new_service.layers.all())
 
-        old_by_identifier = {layer.identifier: layer for layer in old_layers}
+        old_by_identifier = {
+            layer.identifier: layer for layer in old_layers
+            if layer.identifier is not None
+        }
+        old_unnamed = [layer for layer in old_layers if layer.identifier is None]
+        new_unnamed = [layer for layer in new_layers if layer.identifier is None]
+        if len(old_unnamed) == len(new_unnamed) == 1:
+            old_parent = old_unnamed[0].mptt_parent
+            new_parent = new_unnamed[0].mptt_parent
+            if old_parent and new_parent and old_parent.identifier and old_parent.identifier == new_parent.identifier:
+                old_by_identifier[None] = old_unnamed[0]
+        old_unnamed_root = next((
+            layer for layer in old_unnamed if layer.mptt_parent_id is None
+        ), None)
 
         mappings = []
 
         for new_layer in new_layers:
             old_layer = old_by_identifier.get(new_layer.identifier)
+            if new_layer.identifier is None and new_layer.mptt_parent_id is None:
+                old_layer = old_unnamed_root
 
             mappings.append(
                 LayerMapping(
                     job=self,
                     new_layer=new_layer,
                     old_layer=old_layer,
-                    is_confirmed=old_layer is not None,  # optional
+                    is_confirmed=old_layer is not None,
                 )
             )
+
+        # Without removals, unmatched named layers cannot be renames. Unnamed
+        # grouping layers still need review because they have no stable identity.
+        matched_old_ids = {mapping.old_layer_id for mapping in mappings}
+        if all(layer.pk in matched_old_ids for layer in old_layers):
+            for mapping in mappings:
+                if mapping.old_layer_id is None and mapping.new_layer.identifier:
+                    mapping.is_confirmed = True
 
         LayerMapping.objects.bulk_create(mappings)
 
@@ -709,9 +732,16 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
                     job=self,
                     new_featuretype=new_featuretype,
                     old_featuretype=old_featuretype,
-                    is_confirmed=old_featuretype is not None,  # optional
+                    is_confirmed=old_featuretype is not None,
                 )
             )
+
+        # Keep mixed additions/removals available for manual rename mapping.
+        matched_old_ids = {mapping.old_featuretype_id for mapping in mappings}
+        if all(featuretype.pk in matched_old_ids for featuretype in old_featuretypes):
+            for mapping in mappings:
+                if mapping.old_featuretype_id is None and mapping.new_featuretype.identifier:
+                    mapping.is_confirmed = True
 
         FeatureTypeMapping.objects.bulk_create(mappings)
 

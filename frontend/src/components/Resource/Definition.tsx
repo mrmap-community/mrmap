@@ -28,7 +28,11 @@ import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetada
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
+import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
+import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
+import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
+import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListSystemInfo from './System/ListSystemInfo';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -121,27 +125,39 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "GetMapProbeResult"},
 
 
-  /*
-  // TODO: add WFS and csw monitoring resources if backend supports it
   {
-    name: "WebFeatureServiceMonitoringSetting", 
+    name: "WebFeatureServiceMonitoringSetting",
     icon: LegendToggleIcon,
+    list: ListWebFeatureServiceMonitoringSetting,
     options: { menu: { group: "WFS", order: 50 } }
   },
+  {name: "WebFeatureServiceGetCapabilitiesProbe"},
+  {name: "WebFeatureServiceGetFeatureProbe"},
+  {
+    name: "WebFeatureServiceMonitoringRun",
+    show: ShowWebFeatureServiceMonitoringRun
+  },
+  {name: "WebFeatureServiceGetCapabilitiesProbeResult"},
+  {name: "WebFeatureServiceGetFeatureProbeResult"},
 
-  
+  {
+    name: "CatalogueServiceMonitoringSetting",
+    icon: LegendToggleIcon,
+    list: ListCatalogueServiceMonitoringSetting,
+    options: { menu: { group: "CSW", order: 50 } }
+  },
+  {name: "CatalogueServiceGetCapabilitiesProbe"},
+  {name: "CatalogueServiceGetRecordsProbe"},
+  {
+    name: "CatalogueServiceMonitoringRun",
+    show: ShowCatalogueServiceMonitoringRun
+  },
+  {name: "CatalogueServiceGetCapabilitiesProbeResult"},
+  {name: "CatalogueServiceGetRecordsProbeResult"},
 
-  {name: "WebFeatureServiceMonitoringRun"},
 
 
-
-*/
-
-
-
-  
   {name: "ReferenceSystem"},
-
 
   {name: "TaskResult"},
   {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},

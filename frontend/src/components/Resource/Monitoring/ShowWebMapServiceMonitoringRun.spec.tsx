@@ -6,18 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 import ShowWebMapServiceMonitoringRun from "./ShowWebMapServiceMonitoringRun";
 
 vi.mock("./MonitoringProbeResults", () => ({
-  default: ({
-    capabilitiesIds,
-    mapIds,
-  }: {
-    capabilitiesIds: string[];
-    mapIds: string[];
-  }) => (
+  default: ({ groups }: { groups: { ids: string[] }[] }) => (
     <div>
-      <span>{capabilitiesIds.length}</span>
-      <span>{mapIds.length}</span>
-      <span>Capabilities: {capabilitiesIds.join(",")}</span>
-      <span>Maps: {mapIds.join(",")}</span>
+      <span>{groups[0].ids.length}</span>
+      <span>{groups[1].ids.length}</span>
+      <span>Capabilities: {groups[0].ids.join(",")}</span>
+      <span>Maps: {groups[1].ids.join(",")}</span>
     </div>
   ),
 }));

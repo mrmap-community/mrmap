@@ -116,9 +116,7 @@ const en = lodashMerge(
       "duration": "Duration",
       "setting": "Monitoring setting",
       "settingUnavailable": "Monitoring setting is no longer available.",
-      "probeResults": "Probe results",
-      "capabilitiesResults": "GetCapabilities results",
-      "mapResults": "GetMap results"
+      "probeResults": "Probe results"
 },
     updateReview: {
       changeSummary: "Layer change summary",

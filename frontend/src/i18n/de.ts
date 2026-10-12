@@ -113,9 +113,7 @@ const germanMessages: TranslationMessages = {
       "duration": "Dauer",
       "setting": "Monitoringeinstellung",
       "settingUnavailable": "Die Monitoringeinstellung ist nicht mehr verfügbar.",
-      "probeResults": "Prüfergebnisse",
-      "capabilitiesResults": "GetCapabilities-Ergebnisse",
-      "mapResults": "GetMap-Ergebnisse"
+      "probeResults": "Prüfergebnisse"
 },
     updateReview: {
       changeSummary: "Zusammenfassung der Layeränderungen",

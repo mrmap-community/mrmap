@@ -1,43 +1,48 @@
-from abc import ABC
-
 from django.db import models
 from django.db.models import Exists, OuterRef
-from django.db.models.query_utils import Q
 
 
-class WebMapServiceMonitoringRunQuerySet(ABC, models.QuerySet):
+class MonitoringRunQuerySet(models.QuerySet):
+    """QuerySet for all `MonitoringRun` models which annotates the success
+    state of the runs based on the results of the probes of the run.
+    """
 
     def with_is_successful(self):
-        from registry.models.monitoring import (GetCapabilitiesProbeResult,
-                                                GetMapProbeResult)
+        """Annotate the success state of the runs, based on the results of
+        the probes of the run.
 
-        return (
-            self.annotate(
-                is_get_capabilities_failed=Exists(
-                    GetCapabilitiesProbeResult.objects.filter(
-                        Q(check_response_is_valid_xml_success=False) |
-                        Q(check_response_is_valid_xml_message=False) |
-                        Q(check_response_does_not_contain_success=False) |
-                        Q(check_response_does_contain_success=False),
-                        run=OuterRef("pk"),
-                    )
-                ),
-                is_get_map_failed=Exists(
-                    GetMapProbeResult.objects.filter(
-                        Q(check_response_image_success=False) |
-                        Q(check_response_does_not_contain_success=False),
-                        run=OuterRef("pk"),
-                    )
-                )
-            ).annotate(
-                success=Q(
-                    is_get_capabilities_failed=False,
-                    is_get_map_failed=False,
-                )
+        Every probe check which is described by the `failing_probe_checks()`
+        of the run model is annotated with the name of the check. The run is
+        successful if none of this checks matched a result.
+        """
+        failing_probe_checks = self.model.failing_probe_checks()
+        annotations = {
+            annotation: Exists(
+                result_model.objects.filter(
+                    run_id=OuterRef('pk')
+                ).filter(query)
             )
-        )
+            for annotation, (result_model, query)
+            in failing_probe_checks.items()
+        }
+        failing = None
+        for annotation in failing_probe_checks:
+            check = models.Q(**{annotation: True})
+            failing = check if failing is None else failing | check
+        queryset = self.annotate(**annotations)
+        if failing is None:
+            return queryset.annotate(success=models.Value(True))
+        return queryset.annotate(success=~failing)
 
 
-class WebMapServiceMonitoringRunManager(models.Manager.from_queryset(WebMapServiceMonitoringRunQuerySet)):
-    def with_success(self):
+class MonitoringRunManager(models.Manager):
+    """Manager for all `MonitoringRun` models, which provide the annotated
+    queries for the success state of the runs.
+    """
+
+    def get_queryset(self):
+        return MonitoringRunQuerySet(self.model, using=self._db)
+
+    def with_is_successful(self):
+        """QuerySet of all runs of this model with annotated success state."""
         return self.get_queryset().with_is_successful()

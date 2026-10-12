@@ -1,14 +1,36 @@
 from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
-from registry.models.monitoring import (GetCapabilitiesProbe,
-                                        GetCapabilitiesProbeResult,
-                                        GetMapProbe, GetMapProbeResult,
-                                        WebMapServiceMonitoringRun,
-                                        WebMapServiceMonitoringSetting)
+from registry.models.monitoring import (
+    CatalogueServiceGetCapabilitiesProbe,
+    CatalogueServiceGetCapabilitiesProbeResult,
+    CatalogueServiceGetRecordsProbe, CatalogueServiceGetRecordsProbeResult,
+    CatalogueServiceMonitoringRun, CatalogueServiceMonitoringSetting,
+    GetCapabilitiesProbe,
+    GetCapabilitiesProbeResult,
+    GetMapProbe, GetMapProbeResult,
+    WebFeatureServiceGetCapabilitiesProbe,
+    WebFeatureServiceGetCapabilitiesProbeResult,
+    WebFeatureServiceGetFeatureProbe,
+    WebFeatureServiceGetFeatureProbeResult, WebFeatureServiceMonitoringRun,
+    WebFeatureServiceMonitoringSetting,
+    WebMapServiceMonitoringRun,
+    WebMapServiceMonitoringSetting)
 from registry.serializers.monitoring import (
+    CatalogueServiceGetCapabilitiesProbeResultSerializer,
+    CatalogueServiceGetCapabilitiesProbeSerializer,
+    CatalogueServiceGetRecordsProbeResultSerializer,
+    CatalogueServiceGetRecordsProbeSerializer,
+    CatalogueServiceMonitoringRunSerializer,
+    CatalogueServiceMonitoringSettingSerializer,
     GetCapabilitiesProbeResultSerializer, GetCapabilitiesProbeSerializer,
     GetMapProbeResultSerializer, GetMapProbeSerializer,
+    WebFeatureServiceGetCapabilitiesProbeResultSerializer,
+    WebFeatureServiceGetCapabilitiesProbeSerializer,
+    WebFeatureServiceGetFeatureProbeResultSerializer,
+    WebFeatureServiceGetFeatureProbeSerializer,
+    WebFeatureServiceMonitoringRunSerializer,
+    WebFeatureServiceMonitoringSettingSerializer,
     WebMapServiceMonitoringRunSerializer,
     WebMapServiceMonitoringSettingSerializer)
 from rest_framework_json_api.views import ModelViewSet
@@ -72,7 +94,7 @@ class WebMapServiceMonitoringRunViewSetMixin:
             Endpoint to remove a registered `WebMapServiceMonitoringRun` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = WebMapServiceMonitoringRun.objects.with_success()
+    queryset = WebMapServiceMonitoringRun.objects.with_is_successful()
     serializer_class = WebMapServiceMonitoringRunSerializer
     select_for_includes = {
         "setting": ["setting"],
@@ -331,3 +353,397 @@ class NestedGetMapProbeViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class WebFeatureServiceMonitoringSettingViewSetMixin:
+    """ Endpoints for resource `WebFeatureServiceMonitoringSetting`
+
+        create:
+            Endpoint to register new `WebFeatureServiceMonitoringSetting` object
+        list:
+            Retrieves all registered `WebFeatureServiceMonitoringSetting` objects
+        retrieve:
+            Retrieve one specific `WebFeatureServiceMonitoringSetting` by the given id
+        partial_update:
+            Endpoint to update some fields of a `WebFeatureServiceMonitoringSetting`
+        destroy:
+            Endpoint to remove a registered `WebFeatureServiceMonitoringSetting` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = WebFeatureServiceMonitoringSetting.objects.select_related('crontab')
+    serializer_class = WebFeatureServiceMonitoringSettingSerializer
+    select_for_includes = {
+        "service": ["service"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'service__id': ['exact', 'icontains', 'contains', 'in'],
+        'service__title': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ("id", "service", "service__title")
+    ordering_fields = ["id", "name", "service"]
+
+
+class WebFeatureServiceMonitoringSettingViewSet(
+    WebFeatureServiceMonitoringSettingViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedWebFeatureServiceMonitoringSettingViewSet(
+    WebFeatureServiceMonitoringSettingViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class WebFeatureServiceMonitoringRunViewSetMixin:
+    """ Endpoints for resource `WebFeatureServiceMonitoringRun`
+
+        create:
+            Endpoint to register new `WebFeatureServiceMonitoringRun` object
+        list:
+            Retrieves all registered `WebFeatureServiceMonitoringRun` objects
+        retrieve:
+            Retrieve one specific `WebFeatureServiceMonitoringRun` by the given id
+        partial_update:
+            Endpoint to update some fields of a `WebFeatureServiceMonitoringRun`
+        destroy:
+            Endpoint to remove a registered `WebFeatureServiceMonitoringRun` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = WebFeatureServiceMonitoringRun.objects.with_is_successful()
+    serializer_class = WebFeatureServiceMonitoringRunSerializer
+    select_for_includes = {
+        "setting": ["setting"],
+    }
+    prefetch_for_includes = {
+        "getcapabilitiesproberesults": [
+            Prefetch(
+                "registry_webfeatureservicegetcapabilitiesproberesults",
+                queryset=WebFeatureServiceGetCapabilitiesProbeResult.objects.all().select_related("run")
+            )
+        ],
+        "getfeatureproberesults": [
+            Prefetch(
+                "registry_webfeatureservicegetfeatureproberesults",
+                queryset=WebFeatureServiceGetFeatureProbeResult.objects.all().select_related("run")
+            )
+        ],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'setting__id': ['exact', 'icontains', 'contains', 'in'],
+    }
+    search_fields = ("id", "success", "setting__service__title")
+    ordering_fields = ["id", "success", "date_done", "date_created"]
+
+
+class WebFeatureServiceMonitoringRunViewSet(
+    WebFeatureServiceMonitoringRunViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedWebFeatureServiceMonitoringRunViewSet(
+    WebFeatureServiceMonitoringRunViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class ContentCheckProbeResultViewSetMixin:
+    """ Common configuration for all probe results which store the outcome of
+        xml content checks (`XmlContentCheckResult`).
+
+        The endpoints are read only in purpose; results are written by the
+        monitoring runs.
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    select_for_includes = {
+        "run": ["run"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'check_response_is_valid_xml_success': ['exact'],
+        'check_response_does_not_contain_success': ['exact'],
+        'check_response_does_contain_success': ['exact'],
+    }
+    search_fields = (
+        "id",
+        "check_response_is_valid_xml_success",
+        "check_response_does_not_contain_success",
+        "check_response_does_contain_success",
+        "check_response_is_valid_xml_message",
+        "check_response_does_not_contain_message",
+        "check_response_does_contain_message"
+    )
+    ordering_fields = [
+        "id",
+        "check_response_is_valid_xml_success",
+        "check_response_does_not_contain_success",
+        "check_response_does_contain_success",
+    ]
+
+
+class ContentCheckProbeViewSetMixin:
+    """ Common configuration for all probes which validate a service request."""
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    select_for_includes = {
+        "setting": ["setting"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'setting__id': ['exact', 'icontains', 'contains', 'in'],
+    }
+    search_fields = (
+        "id",
+    )
+    ordering_fields = [
+        "id",
+    ]
+
+
+class WebFeatureServiceGetCapabilitiesProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceGetCapabilitiesProbeResult`"""
+    queryset = WebFeatureServiceGetCapabilitiesProbeResult.objects.all()
+    serializer_class = WebFeatureServiceGetCapabilitiesProbeResultSerializer
+
+
+class NestedWebFeatureServiceGetCapabilitiesProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceGetCapabilitiesProbeResult`"""
+    queryset = WebFeatureServiceGetCapabilitiesProbeResult.objects.all()
+    serializer_class = WebFeatureServiceGetCapabilitiesProbeResultSerializer
+
+
+class WebFeatureServiceGetFeatureProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceGetFeatureProbeResult`"""
+    queryset = WebFeatureServiceGetFeatureProbeResult.objects.all()
+    serializer_class = WebFeatureServiceGetFeatureProbeResultSerializer
+
+
+class NestedWebFeatureServiceGetFeatureProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceGetFeatureProbeResult`"""
+    queryset = WebFeatureServiceGetFeatureProbeResult.objects.all()
+    serializer_class = WebFeatureServiceGetFeatureProbeResultSerializer
+
+
+class WebFeatureServiceGetCapabilitiesProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceGetCapabilitiesProbe`"""
+    queryset = WebFeatureServiceGetCapabilitiesProbe.objects.all()
+    serializer_class = WebFeatureServiceGetCapabilitiesProbeSerializer
+
+
+class NestedWebFeatureServiceGetCapabilitiesProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceGetCapabilitiesProbe`"""
+    queryset = WebFeatureServiceGetCapabilitiesProbe.objects.all()
+    serializer_class = WebFeatureServiceGetCapabilitiesProbeSerializer
+
+
+class WebFeatureServiceGetFeatureProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceGetFeatureProbe`"""
+    queryset = WebFeatureServiceGetFeatureProbe.objects.all()
+    serializer_class = WebFeatureServiceGetFeatureProbeSerializer
+
+
+class NestedWebFeatureServiceGetFeatureProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceGetFeatureProbe`"""
+    queryset = WebFeatureServiceGetFeatureProbe.objects.all()
+    serializer_class = WebFeatureServiceGetFeatureProbeSerializer
+
+
+class CatalogueServiceMonitoringSettingViewSetMixin:
+    """ Endpoints for resource `CatalogueServiceMonitoringSetting`
+
+        create:
+            Endpoint to register new `CatalogueServiceMonitoringSetting` object
+        list:
+            Retrieves all registered `CatalogueServiceMonitoringSetting` objects
+        retrieve:
+            Retrieve one specific `CatalogueServiceMonitoringSetting` by the given id
+        partial_update:
+            Endpoint to update some fields of a `CatalogueServiceMonitoringSetting`
+        destroy:
+            Endpoint to remove a registered `CatalogueServiceMonitoringSetting` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = CatalogueServiceMonitoringSetting.objects.select_related('crontab')
+    serializer_class = CatalogueServiceMonitoringSettingSerializer
+    select_for_includes = {
+        "service": ["service"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'service__id': ['exact', 'icontains', 'contains', 'in'],
+        'service__title': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ("id", "service", "service__title")
+    ordering_fields = ["id", "name", "service"]
+
+
+class CatalogueServiceMonitoringSettingViewSet(
+    CatalogueServiceMonitoringSettingViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedCatalogueServiceMonitoringSettingViewSet(
+    CatalogueServiceMonitoringSettingViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class CatalogueServiceMonitoringRunViewSetMixin:
+    """ Endpoints for resource `CatalogueServiceMonitoringRun`
+
+        create:
+            Endpoint to register new `CatalogueServiceMonitoringRun` object
+        list:
+            Retrieves all registered `CatalogueServiceMonitoringRun` objects
+        retrieve:
+            Retrieve one specific `CatalogueServiceMonitoringRun` by the given id
+        partial_update:
+            Endpoint to update some fields of a `CatalogueServiceMonitoringRun`
+        destroy:
+            Endpoint to remove a registered `CatalogueServiceMonitoringRun` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = CatalogueServiceMonitoringRun.objects.with_is_successful()
+    serializer_class = CatalogueServiceMonitoringRunSerializer
+    select_for_includes = {
+        "setting": ["setting"],
+    }
+    prefetch_for_includes = {
+        "getcapabilitiesproberesults": [
+            Prefetch(
+                "registry_catalogueservicegetcapabilitiesproberesults",
+                queryset=CatalogueServiceGetCapabilitiesProbeResult.objects.all().select_related("run")
+            )
+        ],
+        "getrecordsproberesults": [
+            Prefetch(
+                "registry_catalogueservicegetrecordsproberesults",
+                queryset=CatalogueServiceGetRecordsProbeResult.objects.all().select_related("run")
+            )
+        ],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'setting__id': ['exact', 'icontains', 'contains', 'in'],
+    }
+    search_fields = ("id", "success", "setting__service__title")
+    ordering_fields = ["id", "success", "date_done", "date_created"]
+
+
+class CatalogueServiceMonitoringRunViewSet(
+    CatalogueServiceMonitoringRunViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedCatalogueServiceMonitoringRunViewSet(
+    CatalogueServiceMonitoringRunViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class CatalogueServiceGetCapabilitiesProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `CatalogueServiceGetCapabilitiesProbeResult`"""
+    queryset = CatalogueServiceGetCapabilitiesProbeResult.objects.all()
+    serializer_class = CatalogueServiceGetCapabilitiesProbeResultSerializer
+
+
+class NestedCatalogueServiceGetCapabilitiesProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `CatalogueServiceGetCapabilitiesProbeResult`"""
+    queryset = CatalogueServiceGetCapabilitiesProbeResult.objects.all()
+    serializer_class = CatalogueServiceGetCapabilitiesProbeResultSerializer
+
+
+class CatalogueServiceGetRecordsProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `CatalogueServiceGetRecordsProbeResult`"""
+    queryset = CatalogueServiceGetRecordsProbeResult.objects.all()
+    serializer_class = CatalogueServiceGetRecordsProbeResultSerializer
+
+
+class NestedCatalogueServiceGetRecordsProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `CatalogueServiceGetRecordsProbeResult`"""
+    queryset = CatalogueServiceGetRecordsProbeResult.objects.all()
+    serializer_class = CatalogueServiceGetRecordsProbeResultSerializer
+
+
+class CatalogueServiceGetCapabilitiesProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `CatalogueServiceGetCapabilitiesProbe`"""
+    queryset = CatalogueServiceGetCapabilitiesProbe.objects.all()
+    serializer_class = CatalogueServiceGetCapabilitiesProbeSerializer
+
+
+class NestedCatalogueServiceGetCapabilitiesProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `CatalogueServiceGetCapabilitiesProbe`"""
+    queryset = CatalogueServiceGetCapabilitiesProbe.objects.all()
+    serializer_class = CatalogueServiceGetCapabilitiesProbeSerializer
+
+
+class CatalogueServiceGetRecordsProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `CatalogueServiceGetRecordsProbe`"""
+    queryset = CatalogueServiceGetRecordsProbe.objects.all()
+    serializer_class = CatalogueServiceGetRecordsProbeSerializer
+
+
+class NestedCatalogueServiceGetRecordsProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `CatalogueServiceGetRecordsProbe`"""
+    queryset = CatalogueServiceGetRecordsProbe.objects.all()
+    serializer_class = CatalogueServiceGetRecordsProbeSerializer

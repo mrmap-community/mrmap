@@ -21,8 +21,9 @@ env:
   EXTERNAL_SCHEME: http
   DB_USER: mrmap
   DB_PASSWORD: mrmap-ci-password
+  # Acceptance scenarios authenticate the seeded administrator as mrmap/mrmap.
   DJANGO_ADMIN_USER: mrmap
-  DJANGO_ADMIN_PASSWORD: mrmap-ci-password
+  DJANGO_ADMIN_PASSWORD: mrmap
   DJANGO_SECRET_KEY: mrmap-ci-secret-key-for-disposable-test-containers
   OPENOBSERVE_USER: admin@example.com
   OPENOBSERVE_PASSWORD: mrmap-ci-password

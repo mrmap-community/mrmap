@@ -59,7 +59,7 @@ export default function ServiceShow({ tabs }: { tabs: ServiceTab[] }) {
   const visibleTabs = tabs.filter(
     (tab) => !tab.operation || api?.getOperation(tab.operation),
   );
-
+  
   return (
     <Show
       actions={false}

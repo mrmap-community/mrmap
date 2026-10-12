@@ -7,7 +7,7 @@ export interface ListWebMapServiceUpdateSettingProps {
   relatedResource?: Partial<RelatedResource>
 }
 
-const ListWebMapServiceUpdateSetting = ({
+const ListUpdateSetting = ({
   relatedResource
 }: ListWebMapServiceUpdateSettingProps) => {
   const guesserProps = useGuesserProps()
@@ -26,4 +26,4 @@ const ListWebMapServiceUpdateSetting = ({
   )
 }
 
-export default ListWebMapServiceUpdateSetting
+export default ListUpdateSetting

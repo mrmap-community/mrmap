@@ -68,6 +68,8 @@ wfs_routes.register(r'proxy-settings', security_views.NestedWebFeatureServicePro
                     basename='wfs-proxy-settings', parents_query_lookups=['secured_service'])
 wfs_routes.register(r'allowed-wfs-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet,
                     basename='wfs-allowedwfsoperation', parents_query_lookups=['secured_service'])
+wfs_routes.register(r'update-settings', update_views.NestedWebFeatureServiceUpdateSettingViewSet,
+                    basename='wfs-update-settings', parents_query_lookups=['service'])
 wfs_routes.register(r'update-jobs', update_views.NestedWebFeatureServiceUpdateJobViewSet,
                     basename='wfs-update-jobs', parents_query_lookups=['service'])
 wfs_routes.register(r'monitoring-settings', monitoring_views.NestedWebFeatureServiceMonitoringSettingViewSet,

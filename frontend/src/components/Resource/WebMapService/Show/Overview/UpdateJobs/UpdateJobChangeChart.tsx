@@ -7,16 +7,18 @@ import { Box, Collapse, IconButton, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { format, parseISO } from 'date-fns';
-import { useGetList, useRecordContext } from 'ra-core';
+import { useGetList, useRecordContext, useTranslate } from 'ra-core';
 import { useState } from 'react';
 
 
-export const LayerChangesChart = () => {
+export const LayerChangesChart = ({ resource }: { resource: string }) => {
   const theme = useTheme();
+  const translate = useTranslate();
+  const isWfs = resource === "WebFeatureServiceUpdateJob";
   const [expanded, setExpanded] = useState(false);
 
-  const {data: statisticalLayers} = useGetList(
-    "StatisticalLayerPerService",
+  const {data: statisticalChanges} = useGetList(
+    isWfs ? "StatisticalFeatureTypePerService" : "StatisticalLayerPerService",
     {
       filter: {
         service: useRecordContext()?.id,
@@ -47,7 +49,7 @@ export const LayerChangesChart = () => {
           variant="subtitle2"
           sx={{ flex: 1 }}
         >
-          Layer changes over time
+          {translate(`serviceShow.${isWfs ? "featureTypeChangesOverTime" : "layerChangesOverTime"}`)}
         </Typography>
 
         <IconButton size="small">
@@ -67,7 +69,7 @@ export const LayerChangesChart = () => {
           }}
         >
     <BarChart
-      dataset={statisticalLayers??[]}
+      dataset={statisticalChanges??[]}
       height={150}
       xAxis={[
         {
@@ -79,7 +81,7 @@ export const LayerChangesChart = () => {
       ]}
       yAxis={[
         {
-          label: 'Layers',
+          label: translate(`serviceShow.${isWfs ? "featureTypes" : "layers"}`),
           min: 0,
         },
       ]}

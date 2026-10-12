@@ -61,7 +61,7 @@ const UpdateJobsCardBase = ({ children }: UpdateJobsCardBaseProps) => {
         ),
       })}
     >
-      <LayerChangesChart/>
+      <LayerChangesChart resource={resource} />
       <Divider />
       {children}
     </RunHistoryCard>

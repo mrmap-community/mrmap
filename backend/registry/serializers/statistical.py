@@ -61,6 +61,14 @@ class StatisticalFeatureTypeSerializer(HistoricalRecordDependingMixin, Statistic
         resource_name = 'StatisticalFeatureType'
 
 
+class StatisticalFeatureTypePerServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
+    service = UUIDField()
+
+    class Meta:
+        resource_name = 'StatisticalFeatureTypePerService'
+        fields = ("id", "day", "new", "deleted", "updated", "service")
+
+
 class StatisticalCatalogueServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:

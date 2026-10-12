@@ -370,6 +370,11 @@ urlpatterns = router.urls + [
         name='statistical-webmapservice'
     ),
     path(
+        route=r'statistical/featuretypes-per-service',
+        view=stats_views.StatisticalFeatureTypePerServiceListView.as_view(),
+        name='statistical-featuretype-per-service'
+    ),
+    path(
         route=r'statistical/catalogueservices',
         view=stats_views.StatisticalCatalogueServiceListView.as_view(),
         name='statistical-catalogueservice'

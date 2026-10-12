@@ -79,3 +79,25 @@ Feature: BackgroundProcess List Endpoint
             | ordering | first |
             | id       | 1     |
             | -id      | 4     |
+
+    # The overview of the frontend starts with the processes which did not end yet. It asks for
+    # them by the names the api answers the status with, while the database stores a number.
+    Scenario Outline: Can filter processes by their status
+        Given I set a queryparam "filter[status]" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | value           | count |
+            | running         | 2     |
+            | pending,running | 3     |
+            | failed          | 1     |
+            | 1               | 2     |
+            | 3               | 1     |
+
+    Scenario: Can't filter by a status which the api does not know
+        Given I set a queryparam "filter[status]" with value "waiting"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that response json has an attribute "errors.[0].code" with value "invalid_choice"

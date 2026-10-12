@@ -8,13 +8,21 @@ from django.test.utils import override_settings
 from django_celery_beat.models import IntervalSchedule
 from MrMap.celery import app
 from MrMap.settings import BASE_DIR
-from registry.models.monitoring import (GetCapabilitiesProbe,
-                                        GetCapabilitiesProbeResult,
-                                        GetMapProbe, GetMapProbeResult,
-                                        WebMapServiceMonitoringRun,
-                                        WebMapServiceMonitoringSetting)
-from registry.models.service import WebMapService
+from registry.models.monitoring import (
+    CatalogueServiceMonitoringRun, CatalogueServiceMonitoringSetting,
+    GetCapabilitiesProbe,
+    GetCapabilitiesProbeResult,
+    GetMapProbe, GetMapProbeResult,
+    WebFeatureServiceMonitoringRun, WebFeatureServiceMonitoringSetting,
+    WebMapServiceMonitoringRun,
+    WebMapServiceMonitoringSetting)
+from registry.models.service import (CatalogueService, WebFeatureService,
+                                     WebMapService)
 from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.csw.csw import CatalogueServiceClient
+from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
+from registry.tasks.monitoring import (create_csw_monitoring_run,
+                                       create_wfs_monitoring_run)
 from rest_framework import status
 from tests.django.utils import MockResponse
 
@@ -254,8 +262,12 @@ class MonitoringTaskRoutingTest(SimpleTestCase):
     def test_monitoring_tasks_route_to_a_consumed_queue(self):
         task_names = (
             "run_wms_monitoring",
-            "run_get_capabilitites_probe_check",
-            "run_get_map_probe_check",
+            "run_wfs_monitoring",
+            "run_csw_monitoring",
+            "create_wms_monitoring_run",
+            "create_wfs_monitoring_run",
+            "create_csw_monitoring_run",
+            "run_probe_check",
             "finish_run",
         )
         for task_name in task_names:
@@ -282,3 +294,86 @@ class WmsCapabilitiesRequestTest(SimpleTestCase):
                 self.assertIn("REQUEST=GetCapabilities", request.url)
                 self.assertIn(f"VERSION={version}", request.url)
                 self.assertTrue(request.url.startswith("http"))
+
+
+class MonitoringRunCreationTest(TransactionTestCase):
+    """Tests the tasks which are scheduled by a monitoring setting."""
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
+                'test_wfs.json', 'test_csw.json']
+
+    def setUp(self):
+        self.interval = IntervalSchedule.objects.create(every=1, period='days')
+        self.wfs_setting = WebFeatureServiceMonitoringSetting.objects.create(
+            service=WebFeatureService.objects.get(
+                pk="9cc4889d-0cd4-4c3b-8975-58de6d30db41"),
+            interval=self.interval)
+        self.csw_setting = CatalogueServiceMonitoringSetting.objects.create(
+            service=CatalogueService.objects.get(
+                pk="9cc4889d-0cd4-4c3b-8975-58de6d30db41"),
+            interval=self.interval)
+
+    @patch.object(
+        target=WebFeatureServiceMonitoringRun, attribute="dispatch_run")
+    def test_create_wfs_monitoring_run_creates_run_for_setting(
+            self, mocked_dispatch_run):
+        create_wfs_monitoring_run.apply(args=(self.wfs_setting.name,))
+
+        self.assertEqual(
+            1, WebFeatureServiceMonitoringRun.objects.filter(
+                setting=self.wfs_setting).count())
+        self.assertEqual(
+            0, CatalogueServiceMonitoringRun.objects.count())
+
+    @patch.object(
+        target=CatalogueServiceMonitoringRun, attribute="dispatch_run")
+    def test_create_csw_monitoring_run_creates_run_for_setting(
+            self, mocked_dispatch_run):
+        create_csw_monitoring_run.apply(args=(self.csw_setting.name,))
+
+        self.assertEqual(
+            1, CatalogueServiceMonitoringRun.objects.filter(
+                setting=self.csw_setting).count())
+        self.assertEqual(
+            0, WebFeatureServiceMonitoringRun.objects.count())
+
+
+class WfsGetFeatureRequestTest(SimpleTestCase):
+    def test_get_feature_kvp_request_uses_version_specific_parameters(self):
+        xml = Path(
+            BASE_DIR, "tests/django/test_data/capabilities/wfs",
+            "fixture_2.0.0.xml",
+        ).read_bytes()
+        client = WebFeatureServiceClient(capabilities=xml)
+        request = client.get_feature_kvp_request(
+            type_names=["dwd:dwd_is_sgv-geolinkamellen"],
+            max_features=1,
+            srs_name="CRS:84")
+
+        self.assertEqual(request.method, "GET")
+        self.assertIn("REQUEST=GetFeature", request.url)
+        self.assertIn("VERSION=2.0.0", request.url)
+        self.assertIn("TYPENAMES=dwd%3Adwd_is_sgv-geolinkamellen", request.url)
+        self.assertIn("COUNT=1", request.url)
+        self.assertIn("SRSNAME=CRS%3A84", request.url)
+
+
+class CswGetRecordsRequestTest(SimpleTestCase):
+    def test_get_records_request_uses_the_configured_probe_values(self):
+        xml = Path(
+            BASE_DIR, "tests/django/test_data/capabilities/csw",
+            "2.0.2.xml",
+        ).read_bytes()
+        client = CatalogueServiceClient(capabilities=xml)
+        request = client.get_records_request(
+            type_names="gmd:MD_Metadata",
+            result_type="results",
+            element_set_name="summary",
+            max_records=1)
+
+        self.assertEqual(request.method, "GET")
+        self.assertIn("REQUEST=GetRecords", request.url)
+        self.assertIn("VERSION=2.0.2", request.url)
+        self.assertIn("resultType=results", request.url)
+        self.assertIn("elementSetName=summary", request.url)
+        self.assertIn("maxRecords=1", request.url)

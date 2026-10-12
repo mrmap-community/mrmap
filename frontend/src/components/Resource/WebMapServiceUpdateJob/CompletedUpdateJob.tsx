@@ -22,6 +22,10 @@ import {
   useTranslate,
 } from "react-admin";
 import { Link as RouterLink } from "react-router-dom";
+import {
+  type ServiceUpdateConfig,
+  wmsUpdateConfig,
+} from "../Generic/Update/serviceUpdateConfig";
 import type { HistoryRecord } from "../Generic/History/HistoryTimeline";
 import UpdateJobChangeSummary from "./UpdateJobChangeSummary";
 
@@ -47,7 +51,7 @@ const historyChangeType = (record: LayerHistoryRecord) =>
         ? "modified"
         : "unchanged";
 
-const ChangeDetails = () => {
+const ChangeDetails = ({ config }: { config: ServiceUpdateConfig }) => {
   const record = useRecordContext<LayerHistoryRecord>();
   const translate = useTranslate();
   if (!record) return null;
@@ -66,9 +70,12 @@ const ChangeDetails = () => {
       {fields.map((change) => (
         <Box key={change.field}>
           <Typography variant="subtitle2">
-            {translate(`resources.Layer.fields.${change.field}`, {
-              _: change.field,
-            })}
+            {translate(
+              `resources.${config.elementResource}.fields.${change.field}`,
+              {
+                _: change.field,
+              },
+            )}
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             {!snapshot && (
@@ -109,7 +116,7 @@ const ChangeDetails = () => {
   );
 };
 
-const ChangesTable = () => {
+const ChangesTable = ({ config }: { config: ServiceUpdateConfig }) => {
   const { error, isPending, data, filterValues } = useListContext();
   const translate = useTranslate();
   if (error)
@@ -133,16 +140,16 @@ const ChangesTable = () => {
       <DataTable
         bulkActionButtons={false}
         rowClick="expand"
-        expand={<ChangeDetails />}
+        expand={<ChangeDetails config={config} />}
       >
         <DataTable.Col
           source="title"
-          label="resources.Layer.fields.title"
+          label={`resources.${config.elementResource}.fields.title`}
           disableSort
         />
         <DataTable.Col
           source="identifier"
-          label="resources.Layer.fields.identifier"
+          label={`resources.${config.elementResource}.fields.identifier`}
           disableSort
         />
         <DataTable.Col
@@ -151,7 +158,9 @@ const ChangesTable = () => {
             <Chip
               size="small"
               variant="outlined"
-              label={translate(`updateReview.${historyChangeType(record)}`)}
+              label={translate(
+                `${config.hasTree ? "updateReview" : "wfsUpdateReview"}.${historyChangeType(record)}`,
+              )}
             />
           )}
         />
@@ -167,7 +176,13 @@ const ChangesTable = () => {
   );
 };
 
-export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
+const CompletedUpdateJob = ({
+  job,
+  config = wmsUpdateConfig,
+}: {
+  job: RaRecord;
+  config?: ServiceUpdateConfig;
+}) => {
   const translate = useTranslate();
   const createPath = useCreatePath();
   const failed = job.statusCode === 3;
@@ -226,13 +241,15 @@ export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
         <Typography variant="h6" sx={{ mb: 2 }}>
           {translate("updateReview.changesMade")}
         </Typography>
-        <Box sx={{ mb: 2 }}>
-          <RecordContext value={job}>
-            <UpdateJobChangeSummary/>
-          </RecordContext>
-        </Box>
+        {config.hasTree && (
+          <Box sx={{ mb: 2 }}>
+            <RecordContext value={job}>
+              <UpdateJobChangeSummary />
+            </RecordContext>
+          </Box>
+        )}
         <ListBase
-          resource="HistoricalLayer"
+          resource={config.historyResource}
           filter={{
             history_change_reason: `updatejob_id: ${job.id}`,
             service: job.service?.id,
@@ -241,24 +258,26 @@ export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
           perPage={10}
           disableSyncWithLocation
         >
-          <FilterForm
-            filters={[
-              <SelectInput
-                key="change_type"
-                source="change_type"
-                label="updateReview.change"
-                alwaysOn
-                emptyText="updateReview.all"
-                choices={["modified", "unchanged", "removed", "added"].map(
-                  (id) => ({
-                    id,
-                    name: `updateReview.${id}`,
-                  }),
-                )}
-              />,
-            ]}
-          />
-          <ChangesTable />
+          {config.hasTree && (
+            <FilterForm
+              filters={[
+                <SelectInput
+                  key="change_type"
+                  source="change_type"
+                  label="updateReview.change"
+                  alwaysOn
+                  emptyText="updateReview.all"
+                  choices={["modified", "unchanged", "removed", "added"].map(
+                    (id) => ({
+                      id,
+                      name: `updateReview.${id}`,
+                    }),
+                  )}
+                />,
+              ]}
+            />
+          )}
+          <ChangesTable config={config} />
         </ListBase>
       </Paper>
       <Stack direction="row" spacing={2}>
@@ -266,7 +285,7 @@ export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
           variant="contained"
           component={RouterLink}
           to={createPath({
-            resource: "WebMapService",
+            resource: config.serviceResource,
             id: job.service?.id,
             type: "show",
           })}
@@ -275,11 +294,16 @@ export default function CompletedUpdateJob({ job }: { job: RaRecord }) {
         </Button>
         <Button
           component={RouterLink}
-          to={createPath({ resource: "WebMapServiceUpdateJob", type: "list" })}
+          to={createPath({
+            resource: `${config.serviceResource}UpdateJob`,
+            type: "list",
+          })}
         >
           {translate("updateReview.backToJobs")}
         </Button>
       </Stack>
     </Stack>
   );
-}
+};
+
+export default CompletedUpdateJob;

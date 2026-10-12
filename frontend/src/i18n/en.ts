@@ -121,6 +121,23 @@ const en = lodashMerge(
       "settingUnavailable": "Monitoring setting is no longer available.",
       "probeResults": "Probe results"
 },
+    wfsUpdateReview: {
+      tree: "Incoming feature types",
+      findLayer: "Find a feature type",
+      pending: "Pending",
+      all: "All",
+      added: "Added feature type",
+      modified: "Changed feature type",
+      unchanged: "Unchanged feature type",
+      removed: "Removed feature type",
+      mapped: "Mapped feature type",
+      noMatch: "No matching feature type",
+      mapping: "Feature type mapping #%{id}",
+      loadError: "Unable to load the feature types. Please try again.",
+      resolveHelp: "Confirm the incoming feature type, or map it to an existing feature type. Saving as pending keeps the update paused.",
+      mapExisting: "Map to existing feature type (optional)",
+      mapHelp: "Choose an existing feature type to preserve its configuration. Leave empty to add a new feature type.",
+    },
     updateReview: {
       changeSummary: "Layer change summary",
       summaryScope: "Counts cover the entire update job, regardless of table filters.",

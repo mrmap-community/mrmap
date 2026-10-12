@@ -118,6 +118,23 @@ const germanMessages: TranslationMessages = {
       "settingUnavailable": "Die Monitoringeinstellung ist nicht mehr verfügbar.",
       "probeResults": "Prüfergebnisse"
 },
+    wfsUpdateReview: {
+      tree: "Eingehende Feature-Typen",
+      findLayer: "Feature-Typ suchen",
+      pending: "Ausstehend",
+      all: "Alle",
+      added: "Hinzugefügter Feature-Typ",
+      modified: "Geänderter Feature-Typ",
+      unchanged: "Unveränderter Feature-Typ",
+      removed: "Entfernter Feature-Typ",
+      mapped: "Zugeordneter Feature-Typ",
+      noMatch: "Kein zugeordneter Feature-Typ",
+      mapping: "Feature-Typ-Zuordnung #%{id}",
+      loadError: "Die Feature-Typen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      resolveHelp: "Bestätigen Sie den eingehenden Feature-Typ oder ordnen Sie ihn einem bestehenden Feature-Typ zu. Ausstehende Änderungen halten die Aktualisierung an.",
+      mapExisting: "Bestehendem Feature-Typ zuordnen (optional)",
+      mapHelp: "Wählen Sie einen bestehenden Feature-Typ, um dessen Konfiguration zu erhalten. Ohne Auswahl wird ein neuer Feature-Typ hinzugefügt.",
+    },
     updateReview: {
       changeSummary: "Zusammenfassung der Layeränderungen",
       summaryScope: "Die Zahlen beziehen sich auf den gesamten Aktualisierungsauftrag, unabhängig vom Tabellenfilter.",

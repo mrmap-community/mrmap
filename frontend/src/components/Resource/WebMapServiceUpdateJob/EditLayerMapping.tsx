@@ -13,6 +13,10 @@ import EditGuesser, {
   type EditGuesserProps,
 } from "../../../jsonapi/components/EditGuesser";
 import { useFieldsForOperation } from "../../../jsonapi/hooks/useFieldsForOperation";
+import {
+  type ServiceUpdateConfig,
+  wmsUpdateConfig,
+} from "../Generic/Update/serviceUpdateConfig";
 import { useQueryParam } from "../../utils";
 
 const ReviewToolbar = () => {
@@ -44,18 +48,19 @@ const ReviewToolbar = () => {
 
 export const EditLayerMapping = ({
   mapping,
+  config = wmsUpdateConfig,
   ...rest
-}: EditGuesserProps & { mapping?: RaRecord }) => {
-  const [selectedLayer] = useQueryParam("selectedLayer");
+}: EditGuesserProps & { mapping?: RaRecord; config?: ServiceUpdateConfig }) => {
+  const [selectedLayer] = useQueryParam(config.selectedParam);
   const job = useRecordContext();
   const translate = useTranslate();
   const definitions = useFieldsForOperation({
-    operationId: "partial_update_LayerMapping",
+    operationId: `partial_update_${config.mappingResource}`,
   });
   const selectedMapping =
     mapping ??
     job?.mappings?.find(
-      (item: RaRecord) => String(item.newLayer?.id) === selectedLayer,
+      (item: RaRecord) => String(item[config.newElement]?.id) === selectedLayer,
     );
   const overrides = useMemo(
     () =>
@@ -63,17 +68,17 @@ export const EditLayerMapping = ({
         ...definition,
         props: {
           ...definition.props,
-          ...(["job", "newLayer", "isConfirmed"].includes(
+          ...(["job", config.newElement, "isConfirmed"].includes(
             definition.props.source,
           )
             ? { hidden: true, sx: { display: "none" } }
             : {}),
-          ...(definition.props.source === "oldLayer"
+          ...(definition.props.source === config.oldElement
             ? {
-                label: "updateReview.mapExisting",
-                helperText: "updateReview.mapHelp",
+                label: `${config.hasTree ? "updateReview" : "wfsUpdateReview"}.mapExisting`,
+                helperText: `${config.hasTree ? "updateReview" : "wfsUpdateReview"}.mapHelp`,
                 relatedResource: {
-                  resource: "WebMapService",
+                  resource: config.serviceResource,
                   id: job?.service?.id,
                 },
                 initialFilter: { hasReverseMapping: false },
@@ -82,7 +87,7 @@ export const EditLayerMapping = ({
             : {}),
         },
       })),
-    [definitions, job?.service?.id],
+    [definitions, job?.service?.id, config],
   );
   if (!selectedMapping) return null;
   return (
@@ -91,11 +96,13 @@ export const EditLayerMapping = ({
         {translate("updateReview.resolve")}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        {translate("updateReview.resolveHelp")}
+        {translate(
+          `${config.hasTree ? "updateReview" : "wfsUpdateReview"}.resolveHelp`,
+        )}
       </Typography>
       <EditGuesser
         key={selectedMapping.id}
-        resource="LayerMapping"
+        resource={config.mappingResource}
         id={selectedMapping.id}
         redirect={false}
         title={false}

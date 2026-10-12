@@ -39,6 +39,7 @@ import ListSystemInfo from './System/ListSystemInfo';
 import WfsShow from './WebFeatureService/Show/WfsShow';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import { WmsShow } from './WebMapService/Show/WmsShow';
+import ShowWebFeatureServiceUpdateJob from './WebFeatureServiceUpdateJob/ShowWebFeatureServiceUpdateJob';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
 
@@ -100,8 +101,9 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate, options: { menu: { group: "WMS", order: 40 } }},
   {name: "LayerMapping", icon: SyncAltIcon},
 
+  {name: "FeatureTypeMapping", icon: SyncAltIcon},
   {name: "WebFeatureServiceUpdateSetting", icon: UpdateIcon},
-  {name: "WebFeatureServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "WFS", order: 40 } }},
+  {name: "WebFeatureServiceUpdateJob", icon: UpdateIcon, show: ShowWebFeatureServiceUpdateJob, options: { menu: { group: "WFS", order: 40 } }},
   
 
   {name: "CatalogueServiceUpdateSetting", icon: UpdateIcon},

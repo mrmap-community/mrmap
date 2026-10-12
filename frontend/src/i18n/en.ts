@@ -235,6 +235,8 @@ const en = lodashMerge(
       loadError: "Unable to load the complete security configuration.",
     },
     serviceShow: {
+      layerChangesOverTime: "Layer changes over time",
+      featureTypeChangesOverTime: "Feature type changes over time",
       featureTypeChanges: "Feature type changes",
       harvestedChanges: "Harvested record changes",
       overview: "Overview",

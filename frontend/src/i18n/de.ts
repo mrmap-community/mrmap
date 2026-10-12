@@ -232,6 +232,8 @@ const germanMessages: TranslationMessages = {
     loadError: "Die vollständige Sicherheitskonfiguration konnte nicht geladen werden.",
   },
   serviceShow: {
+    layerChangesOverTime: "Layer-Änderungen im Zeitverlauf",
+    featureTypeChangesOverTime: "Änderungen an Feature-Typen im Zeitverlauf",
       featureTypeChanges: "Änderungen an Feature-Typen",
       harvestedChanges: "Änderungen an geharvesteten Datensätzen",
     overview: "Übersicht",

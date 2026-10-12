@@ -1,3 +1,4 @@
+from registry.filters.statistical import StatisticalFeatureTypePerServiceFilterSet
 from registry.models.materialized_views import (
     MaterializedCatalogueServiceStatsPerDay,
     MaterializedDatasetMetadataRecordStatsPerDay,
@@ -6,10 +7,11 @@ from registry.models.materialized_views import (
     MaterializedServiceMetadataRecordStatsPerDay,
     MaterializedWebFeatureServiceStatsPerDay,
     MaterializedWebMapServiceStatsPerDay)
+from registry.models.service import FeatureType
 from registry.serializers.statistical import (
     StatisticalCatalogueServiceSerializer,
     StatisticalDatasetMetadataRecordSerializer,
-    StatisticalFeatureTypeSerializer,
+    StatisticalFeatureTypePerServiceSerializer, StatisticalFeatureTypeSerializer,
     StatisticalHarvestedMetadataRelationSerializer,
     StatisticalLayerPerServiceSerializer, StatisticalLayerSerializer,
     StatisticalServiceMetadataRecordSerializer,
@@ -55,6 +57,12 @@ class StatisticalWebFeatureServiceListView(StatisticalListView):
 class StatisticalFeatureTypeListView(StatisticalListView):
     queryset = MaterializedFeatureTypeStatsPerDay.objects.all()
     serializer_class = StatisticalFeatureTypeSerializer
+
+
+class StatisticalFeatureTypePerServiceListView(StatisticalListView):
+    queryset = FeatureType.history.stats_per_day_per_service()
+    serializer_class = StatisticalFeatureTypePerServiceSerializer
+    filterset_class = StatisticalFeatureTypePerServiceFilterSet
 
 
 class StatisticalCatalogueServiceListView(StatisticalListView):

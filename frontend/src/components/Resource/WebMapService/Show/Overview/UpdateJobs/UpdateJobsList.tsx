@@ -58,7 +58,7 @@ const UpdateJobsList = () => {
         <BasenameContextProvider basename="">
           <ShowButton
             record={record}
-            resource="WebMapServiceUpdateJob"
+            resource={resource}
             label="ra.action.show"
             variant="contained"
             color={record.statusCode === 2 ? "warning" : "primary"}

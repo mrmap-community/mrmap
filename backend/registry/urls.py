@@ -70,6 +70,10 @@ wfs_routes.register(r'allowed-wfs-operations', security_views.NestedAllowedWebFe
                     basename='wfs-allowedwfsoperation', parents_query_lookups=['secured_service'])
 wfs_routes.register(r'update-jobs', update_views.NestedWebFeatureServiceUpdateJobViewSet,
                     basename='wfs-update-jobs', parents_query_lookups=['service'])
+wfs_routes.register(r'monitoring-settings', monitoring_views.NestedWebFeatureServiceMonitoringSettingViewSet,
+                    basename='wfs-monitoringsetting', parents_query_lookups=['service'])
+wfs_routes.register(r'monitoring-runs', monitoring_views.NestedWebFeatureServiceMonitoringRunViewSet,
+                    basename='wfs-monitoringrun', parents_query_lookups=['setting__service'])
 
 feature_types_routes = router.register(
     r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
@@ -96,6 +100,10 @@ csw_routes.register(r'periodic-harvesting-jobs', harvesting_views.NestedPeriodic
                     basename='csw-periodicharvestingjobs', parents_query_lookups=['service'])
 csw_routes.register(r'update-jobs', update_views.NestedCatalogueServiceUpdateJobViewSet,
                     basename='csw-update-jobs', parents_query_lookups=['service'])
+csw_routes.register(r'monitoring-settings', monitoring_views.NestedCatalogueServiceMonitoringSettingViewSet,
+                    basename='csw-monitoringsetting', parents_query_lookups=['service'])
+csw_routes.register(r'monitoring-runs', monitoring_views.NestedCatalogueServiceMonitoringRunViewSet,
+                    basename='csw-monitoringrun', parents_query_lookups=['setting__service'])
 
 csw_op_urls_routes = router.register(
     r'csw-operation-urls', service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl')
@@ -161,6 +169,54 @@ wms_monitoring_runs_routes.register(r'get-cap-probe-results',
 wms_monitoring_runs_routes.register(r'get-map-probe-results',
                                     monitoring_views.NestedGetMapProbeResultViewSet,
                                     basename='webmapservicemonitoringsetting-getmap-probe-results',
+                                    parents_query_lookups=['run'])
+
+wfs_monitoring_routes = router.register(r'monitoring/wfs-monitoring-settings',
+                                        monitoring_views.WebFeatureServiceMonitoringSettingViewSet,
+                                        basename='webfeatureservicemonitoringsetting')
+wfs_monitoring_routes.register(r'get-capabilities-probes',
+                               monitoring_views.NestedWebFeatureServiceGetCapabilitiesProbeViewSet,
+                               basename='webfeatureservicemonitoringsetting-getcap-probes',
+                               parents_query_lookups=['setting'])
+wfs_monitoring_routes.register(r'get-feature-probes',
+                               monitoring_views.NestedWebFeatureServiceGetFeatureProbeViewSet,
+                               basename='webfeatureservicemonitoringsetting-getfeature-probes',
+                               parents_query_lookups=['setting'])
+
+wfs_monitoring_runs_routes = router.register(r'monitoring/wfs-monitoring-runs',
+                                             monitoring_views.WebFeatureServiceMonitoringRunViewSet,
+                                             basename='webfeatureservicemonitoringrun')
+wfs_monitoring_runs_routes.register(r'get-cap-probe-results',
+                                    monitoring_views.NestedWebFeatureServiceGetCapabilitiesProbeResultViewSet,
+                                    basename='webfeatureservicemonitoringsetting-getcap-probe-results',
+                                    parents_query_lookups=['run'])
+wfs_monitoring_runs_routes.register(r'get-feature-probe-results',
+                                    monitoring_views.NestedWebFeatureServiceGetFeatureProbeResultViewSet,
+                                    basename='webfeatureservicemonitoringsetting-getfeature-probe-results',
+                                    parents_query_lookups=['run'])
+
+csw_monitoring_routes = router.register(r'monitoring/csw-monitoring-settings',
+                                        monitoring_views.CatalogueServiceMonitoringSettingViewSet,
+                                        basename='catalogueservicemonitoringsetting')
+csw_monitoring_routes.register(r'get-capabilities-probes',
+                               monitoring_views.NestedCatalogueServiceGetCapabilitiesProbeViewSet,
+                               basename='catalogueservicemonitoringsetting-getcap-probes',
+                               parents_query_lookups=['setting'])
+csw_monitoring_routes.register(r'get-records-probes',
+                               monitoring_views.NestedCatalogueServiceGetRecordsProbeViewSet,
+                               basename='catalogueservicemonitoringsetting-getrecords-probes',
+                               parents_query_lookups=['setting'])
+
+csw_monitoring_runs_routes = router.register(r'monitoring/csw-monitoring-runs',
+                                             monitoring_views.CatalogueServiceMonitoringRunViewSet,
+                                             basename='catalogueservicemonitoringrun')
+csw_monitoring_runs_routes.register(r'get-cap-probe-results',
+                                    monitoring_views.NestedCatalogueServiceGetCapabilitiesProbeResultViewSet,
+                                    basename='catalogueservicemonitoringsetting-getcap-probe-results',
+                                    parents_query_lookups=['run'])
+csw_monitoring_runs_routes.register(r'get-records-probe-results',
+                                    monitoring_views.NestedCatalogueServiceGetRecordsProbeResultViewSet,
+                                    basename='catalogueservicemonitoringsetting-getrecords-probe-results',
                                     parents_query_lookups=['run'])
 
 router.register(r'harvesting/temporary-md-metadata-file',
@@ -247,6 +303,30 @@ router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
                 monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result')
 router.register(r'monitoring/wms-monitoring-get-map-probe-results',
                 monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result')
+router.register(r'monitoring/wfs-monitoring-get-capabilities-probes',
+                monitoring_views.WebFeatureServiceGetCapabilitiesProbeViewSet,
+                basename='webfeatureservicemonitoring-getcapabilities-probe')
+router.register(r'monitoring/wfs-monitoring-get-feature-probes',
+                monitoring_views.WebFeatureServiceGetFeatureProbeViewSet,
+                basename='webfeatureservicemonitoring-getfeature-probe')
+router.register(r'monitoring/wfs-monitoring-get-capabilities-probe-results',
+                monitoring_views.WebFeatureServiceGetCapabilitiesProbeResultViewSet,
+                basename='webfeatureservicemonitoring-getcapabilities-probe-result')
+router.register(r'monitoring/wfs-monitoring-get-feature-probe-results',
+                monitoring_views.WebFeatureServiceGetFeatureProbeResultViewSet,
+                basename='webfeatureservicemonitoring-getfeature-probe-result')
+router.register(r'monitoring/csw-monitoring-get-capabilities-probes',
+                monitoring_views.CatalogueServiceGetCapabilitiesProbeViewSet,
+                basename='catalogueservicemonitoring-getcapabilities-probe')
+router.register(r'monitoring/csw-monitoring-get-records-probes',
+                monitoring_views.CatalogueServiceGetRecordsProbeViewSet,
+                basename='catalogueservicemonitoring-getrecords-probe')
+router.register(r'monitoring/csw-monitoring-get-capabilities-probe-results',
+                monitoring_views.CatalogueServiceGetCapabilitiesProbeResultViewSet,
+                basename='catalogueservicemonitoring-getcapabilities-probe-result')
+router.register(r'monitoring/csw-monitoring-get-records-probe-results',
+                monitoring_views.CatalogueServiceGetRecordsProbeResultViewSet,
+                basename='catalogueservicemonitoring-getrecords-probe-result')
 
 
 # historical

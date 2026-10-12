@@ -7,6 +7,7 @@ import ServiceShow, {
 } from "../../Generic/ServiceShow/ServiceShow";
 import Overview from "./Overview";
 import Records from "./Records";
+import MonitoringTab from "./MonitoringTab";
 
 const tabs: ServiceTab[] = [
   {
@@ -73,6 +74,15 @@ const tabs: ServiceTab[] = [
         ]}
       />
     ),
+  },
+  {
+    path: "CatalogueServiceMonitoringSetting/*",
+    label: "serviceShow.monitoring",
+    resource: "CatalogueServiceMonitoringSetting",
+    countSource: "catalogueServiceMonitoringSettings",
+    operation:
+      "list_related_CatalogueServiceMonitoringSetting_of_CatalogueService",
+    content: <MonitoringTab />,
   },
 ];
 

@@ -9,6 +9,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import OverviewTab from "./Tabs/OverviewTab";
+import MonitoringTab from "./Tabs/MonitoringTab";
 
 function OperationUrls() {
   const record = useRecordContext();
@@ -103,6 +104,15 @@ const tabs: ServiceTab[] = [
     operation:
       "list_related_AllowedWebFeatureServiceOperation_of_WebFeatureService",
     content: <AccessRules />,
+  },
+  {
+    path: "WebFeatureServiceMonitoringSetting/*",
+    label: "serviceShow.monitoring",
+    resource: "WebFeatureServiceMonitoringSetting",
+    countSource: "webFeatureServiceMonitoringSettings",
+    operation:
+      "list_related_WebFeatureServiceMonitoringSetting_of_WebFeatureService",
+    content: <MonitoringTab />,
   },
 ];
 

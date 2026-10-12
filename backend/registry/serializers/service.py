@@ -10,7 +10,9 @@ from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, ReferenceSystem, Style,
                                       TimeExtent)
-from registry.models.monitoring import WebMapServiceMonitoringSetting
+from registry.models.monitoring import (
+    CatalogueServiceMonitoringSetting, WebFeatureServiceMonitoringSetting,
+    WebMapServiceMonitoringSetting)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication,
@@ -505,6 +507,15 @@ class WebFeatureServiceSerializer(
         read_only=True,
     )
 
+    web_feature_service_monitoring_settings = ResourceRelatedField(
+        source="web_feature_service_monitorings",
+        label=_("monitoring settings"),
+        help_text=_("This are the configured monitoring settings."),
+        model=WebFeatureServiceMonitoringSetting,
+        many=True,
+        read_only=True,
+    )
+
     included_serializers = {
         "featuretypes": FeatureTypeSerializer,
         "service_contact": MetadataContactSerializer,
@@ -623,6 +634,14 @@ class CatalogueServiceSerializer(
         label=_("periodic harvesting jobs"),
         help_text=_("this are the related harvesting job objects."),
         model=PeriodicHarvestingJob,
+        many=True,
+        read_only=True,
+    )
+    catalogue_service_monitoring_settings = ResourceRelatedField(
+        source="catalogue_service_monitorings",
+        label=_("monitoring settings"),
+        help_text=_("This are the configured monitoring settings."),
+        model=CatalogueServiceMonitoringSetting,
         many=True,
         read_only=True,
     )

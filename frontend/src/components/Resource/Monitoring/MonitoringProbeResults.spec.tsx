@@ -43,8 +43,14 @@ const renderResults = (
       dataProvider={testDataProvider({ getMany })}
     >
       <MonitoringProbeResults
-        capabilitiesIds={["cap"]}
-        mapIds={["map", "unknown"]}
+        groups={[
+          {
+            resource: "GetCapabilitiesProbeResult",
+            type: "GetCapabilities",
+            ids: ["cap"],
+          },
+          { resource: "GetMapProbeResult", type: "GetMap", ids: ["map", "unknown"] },
+        ]}
       />
     </AdminContext>,
   );
@@ -111,7 +117,7 @@ describe("monitoring probe cards", () => {
     const getMany = vi.fn();
     render(
       <AdminContext dataProvider={testDataProvider({ getMany })}>
-        <MonitoringProbeResults capabilitiesIds={[]} mapIds={[]} />
+        <MonitoringProbeResults groups={[]} />
       </AdminContext>,
     );
     expect(screen.getByText("monitoringRun.noResults")).toBeInTheDocument();

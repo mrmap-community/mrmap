@@ -17,6 +17,7 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
                                       ServiceMetadataRecord)
+from registry.models.monitoring import CatalogueServiceMonitoringSetting
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
@@ -124,6 +125,9 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                      queryset=HarvestingJob.objects.only("id", "service")),
             Prefetch("service__periodic_harvesting_jobs",
                      queryset=PeriodicHarvestingJob.objects.only("id", "service")),
+            Prefetch("service__catalogue_service_monitorings",
+                     queryset=CatalogueServiceMonitoringSetting.objects.only(
+                         "id", "service")),
             Prefetch("service__operation_urls",
                      queryset=CatalogueServiceOperationUrl.objects.only(
                          "id", "service_id")),

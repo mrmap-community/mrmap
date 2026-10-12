@@ -33,6 +33,16 @@ const definitions = {
     { label: "imageResponse", field: "checkResponseImage" },
     { label: "noExceptions", field: "checkResponseDoesNotContain" },
   ],
+  GetFeature: [
+    { label: "validXml", field: "checkResponseIsValidXml" },
+    { label: "requiredContent", field: "checkResponseDoesContain" },
+    { label: "noExceptions", field: "checkResponseDoesNotContain" },
+  ],
+  GetRecords: [
+    { label: "validXml", field: "checkResponseIsValidXml" },
+    { label: "requiredContent", field: "checkResponseDoesContain" },
+    { label: "noExceptions", field: "checkResponseDoesNotContain" },
+  ],
 } as const;
 type ProbeType = keyof typeof definitions;
 type Status = "failed" | "passed" | "notRecorded";
@@ -162,41 +172,56 @@ function ProbeCard({ probe }: { probe: Probe }) {
   );
 }
 
+export interface ProbeResultsGroup {
+  resource: string;
+  type: ProbeType;
+  ids: Identifier[];
+}
+
+const emptyGroup: ProbeResultsGroup = {
+  resource: "",
+  type: "GetCapabilities",
+  ids: [],
+};
+
+/** Renders the results of the probes which where executed within a
+ * monitoring run. The results are grouped by the kind of the probe, as every
+ * monitoring run validates the service with two kinds of requests.
+ */
 export default function MonitoringProbeResults({
-  capabilitiesIds,
-  mapIds,
+  groups,
 }: {
-  capabilitiesIds: Identifier[];
-  mapIds: Identifier[];
+  groups: ProbeResultsGroup[];
 }) {
   const translate = useTranslate();
   const [filter, setFilter] = useState<Status | "all">("all");
-  const capabilities = useGetMany(
-    "GetCapabilitiesProbeResult",
-    { ids: capabilitiesIds },
-    { enabled: capabilitiesIds.length > 0 },
+  const [first = emptyGroup, second = emptyGroup] = groups;
+  const firstResults = useGetMany(
+    first.resource,
+    { ids: first.ids },
+    { enabled: first.ids.length > 0 },
   );
-  const maps = useGetMany(
-    "GetMapProbeResult",
-    { ids: mapIds },
-    { enabled: mapIds.length > 0 },
+  const secondResults = useGetMany(
+    second.resource,
+    { ids: second.ids },
+    { enabled: second.ids.length > 0 },
   );
-  if (capabilities.error || maps.error)
+  if (firstResults.error || secondResults.error)
     return (
       <Alert severity="error">
         {translate("monitoringRun.resultsLoadError")}
       </Alert>
     );
   if (
-    (capabilitiesIds.length > 0 && capabilities.isPending) ||
-    (mapIds.length > 0 && maps.isPending)
+    (first.ids.length > 0 && firstResults.isPending) ||
+    (second.ids.length > 0 && secondResults.isPending)
   )
     return <Loading />;
   const probes = [
-    ...(capabilities.data ?? []).map((record) =>
-      toProbe(record, "GetCapabilities"),
+    ...(firstResults.data ?? []).map((record) => toProbe(record, first.type)),
+    ...(secondResults.data ?? []).map((record) =>
+      toProbe(record, second.type),
     ),
-    ...(maps.data ?? []).map((record) => toProbe(record, "GetMap")),
   ].sort(
     (a, b) => Number(b.status === "failed") - Number(a.status === "failed"),
   );

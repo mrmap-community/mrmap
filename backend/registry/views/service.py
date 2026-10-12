@@ -23,7 +23,9 @@ from registry.models.harvest import (HarvestedMetadataRelation,
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
                                       MimeType, ReferenceSystem, Style,
                                       TimeExtent)
-from registry.models.monitoring import WebMapServiceMonitoringSetting
+from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
+                                        WebFeatureServiceMonitoringSetting,
+                                        WebMapServiceMonitoringSetting)
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceProxySetting,
@@ -84,6 +86,11 @@ WFS_SERVICE_RELATIONS = [
     Prefetch(
         "service__featuretypes",
         queryset=FeatureType.objects.only("id", "service_id"),
+    ),
+    Prefetch(
+        "service__web_feature_service_monitorings",
+        queryset=WebFeatureServiceMonitoringSetting.objects.only(
+            "id", "service"),
     ),
 ]
 WFS_OPERATION_URLS_AS_RELATION = Prefetch(
@@ -501,6 +508,13 @@ class WebFeatureServiceViewSet(
                     "id", )
             )
         ],
+        "web_feature_service_monitoring_settings": [
+            Prefetch(
+                "web_feature_service_monitorings",
+                queryset=WebFeatureServiceMonitoringSetting.objects.only(
+                    "id", "service"),
+            )
+        ],
         "languages": [
             Prefetch("languages", queryset=Language.objects.only("value"))
         ]
@@ -740,6 +754,13 @@ class CatalogueServiceViewSetMixin(
             Prefetch(
                 "periodic_harvesting_jobs",
                 queryset=PeriodicHarvestingJob.objects.only("id", "service")
+            )
+        ],
+        "catalogue_service_monitoring_settings": [
+            Prefetch(
+                "catalogue_service_monitorings",
+                queryset=CatalogueServiceMonitoringSetting.objects.only(
+                    "id", "service"),
             )
         ],
         "languages": [

@@ -15,10 +15,11 @@ from epsg_cache.utils import adjust_axis_order
 from extras.scheduling import next_run_expected_at
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
-from registry.managers.monitoring import WebMapServiceMonitoringRunManager
+from registry.managers.monitoring import MonitoringRunManager
 from registry.models.metadata import MimeType, ReferenceSystem
-from registry.models.service import Layer, WebMapService
-from requests import Response
+from registry.models.service import (CatalogueService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
+from requests import Request, Response
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 
@@ -30,24 +31,26 @@ def get_error_exceptions_default():
     return list(["ExceptionReport>", "ServiceException>"])
 
 
-class WebMapServiceMonitoringSetting(PeriodicTask):
+class MonitoringSettingMixin:
+    """Shared behaviour of the monitoring settings of a registered service.
+
+    Concrete settings are based on django_celery_beat's `PeriodicTask` and are
+    always bound to one service. The task to create a monitoring run and the
+    queue to run it in are configured by the concrete setting.
+    """
+
+    #: dotted path of the task which creates a monitoring run for the setting
+    MONITORING_TASK = None
+
     @property
     def next_run_expected_at(self):
         return next_run_expected_at(self)
-
-    service: WebMapService = models.ForeignKey(
-        to=WebMapService,
-        on_delete=models.CASCADE,
-        related_name="web_map_service_monitorings",
-        related_query_name="web_map_service_monitoring",
-        verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be monitored"))
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if not self.pk:
             if not self.task:
-                self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
+                self.task = self.MONITORING_TASK
             if not self.queue:
                 self.queue = "monitoring"
             if not self.name:
@@ -58,11 +61,49 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
                 })
 
 
-class WebMapServiceMonitoringRun(models.Model):
-    setting: WebMapServiceMonitoringSetting = models.ForeignKey(
-        to=WebMapServiceMonitoringSetting,
+class WebMapServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
+    MONITORING_TASK = "registry.tasks.monitoring.create_wms_monitoring_run"
+
+    service: WebMapService = models.ForeignKey(
+        to=WebMapService,
         on_delete=models.CASCADE,
-    )
+        related_name="web_map_service_monitorings",
+        related_query_name="web_map_service_monitoring",
+        verbose_name=_("web map service"),
+        help_text=_("this is the service which shall be monitored"))
+
+
+class WebFeatureServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
+    MONITORING_TASK = "registry.tasks.monitoring.create_wfs_monitoring_run"
+
+    service: WebFeatureService = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        related_name="web_feature_service_monitorings",
+        related_query_name="web_feature_service_monitoring",
+        verbose_name=_("web feature service"),
+        help_text=_("this is the service which shall be monitored"))
+
+
+class CatalogueServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
+    MONITORING_TASK = "registry.tasks.monitoring.create_csw_monitoring_run"
+
+    service: CatalogueService = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="catalogue_service_monitorings",
+        related_query_name="catalogue_service_monitoring",
+        verbose_name=_("catalogue service"),
+        help_text=_("this is the service which shall be monitored"))
+
+
+class MonitoringRun(models.Model):
+    """Baseclass of one monitoring run of a registered service.
+
+    A run is created by the periodic task of a monitoring setting and dispatches
+    the execution of its probes as soon as it is created.
+    """
+
     date_created = models.DateTimeField(
         # Do not use this setting.
         # From django docs: Automatically set the field to now when the object is first created.
@@ -90,20 +131,119 @@ class WebMapServiceMonitoringRun(models.Model):
         null=True,
         blank=True)
 
-    objects = WebMapServiceMonitoringRunManager()
+    objects = MonitoringRunManager()
+
+    class Meta:
+        abstract = True
+
+    def dispatch_run(self) -> None:
+        """Dispatch the celery task which executes the probes of this run."""
+        raise NotImplementedError
+
+    @classmethod
+    def failing_probe_checks(cls) -> dict:
+        """Describe the probe results which decide about the success of a run.
+
+        Returns:
+            dict: mapping of an annotation name to the result model and the
+                query which matches failing results of this kind.
+        """
+        raise NotImplementedError
 
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding
         ret = super().save(*args, **kwargs)
         if adding:
-            from registry.tasks.monitoring import run_wms_monitoring
-
             transaction.on_commit(
-                lambda: run_wms_monitoring.apply_async(
-                    args=(self.pk,)
-                )
+                lambda: self.dispatch_run()
             )
         return ret
+
+
+class WebMapServiceMonitoringRun(MonitoringRun):
+    setting: WebMapServiceMonitoringSetting = models.ForeignKey(
+        to=WebMapServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+    )
+
+    def dispatch_run(self) -> None:
+        from registry.tasks.monitoring import run_wms_monitoring
+
+        run_wms_monitoring.apply_async(args=(self.pk,))
+
+    @classmethod
+    def failing_probe_checks(cls) -> dict:
+        return {
+            "is_get_capabilities_failed": (
+                GetCapabilitiesProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+            "is_get_map_failed": (
+                GetMapProbeResult,
+                models.Q(check_response_image_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+        }
+
+
+class WebFeatureServiceMonitoringRun(MonitoringRun):
+    setting: WebFeatureServiceMonitoringSetting = models.ForeignKey(
+        to=WebFeatureServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+    )
+
+    def dispatch_run(self) -> None:
+        from registry.tasks.monitoring import run_wfs_monitoring
+
+        run_wfs_monitoring.apply_async(args=(self.pk,))
+
+    @classmethod
+    def failing_probe_checks(cls) -> dict:
+        return {
+            "is_get_capabilities_failed": (
+                WebFeatureServiceGetCapabilitiesProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+            "is_get_feature_failed": (
+                WebFeatureServiceGetFeatureProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+        }
+
+
+class CatalogueServiceMonitoringRun(MonitoringRun):
+    setting: CatalogueServiceMonitoringSetting = models.ForeignKey(
+        to=CatalogueServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+    )
+
+    def dispatch_run(self) -> None:
+        from registry.tasks.monitoring import run_csw_monitoring
+
+        run_csw_monitoring.apply_async(args=(self.pk,))
+
+    @classmethod
+    def failing_probe_checks(cls) -> dict:
+        return {
+            "is_get_capabilities_failed": (
+                CatalogueServiceGetCapabilitiesProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+            "is_get_records_failed": (
+                CatalogueServiceGetRecordsProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
+        }
 
 
 class ProbeResult(models.Model):
@@ -148,6 +288,35 @@ class ProbeResult(models.Model):
         get_latest_by = ('date_done')
 
 
+class XmlContentCheckResult(models.Model):
+    """Mixin of probe results which validate the xml content of a response."""
+
+    check_response_is_valid_xml_success = BooleanField(
+        null=True, blank=True, default=None)
+    check_response_is_valid_xml_message = models.TextField(
+        null=True, blank=True, default=None)
+
+    check_response_does_contain_success = BooleanField(
+        null=True, blank=True, default=None)
+    check_response_does_contain_message = models.TextField(
+        null=True, blank=True, default=None)
+
+    class Meta:
+        abstract = True
+
+
+class ExceptionResponseCheckResult(models.Model):
+    """Mixin of probe results which reject error messages in a response."""
+
+    check_response_does_not_contain_success = BooleanField(
+        null=True, blank=True, default=None)
+    check_response_does_not_contain_message = models.TextField(
+        null=True, blank=True, default=None)
+
+    class Meta:
+        abstract = True
+
+
 class WebMapServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebMapServiceMonitoringRun,
@@ -161,61 +330,105 @@ class WebMapServiceProbeResult(ProbeResult):
         abstract = True
 
 
-class GetCapabilitiesProbeResult(WebMapServiceProbeResult):
-    check_response_is_valid_xml_success = BooleanField(
-        null=True, blank=True, default=None)
-    check_response_is_valid_xml_message = models.TextField(
-        null=True, blank=True, default=None)
-
-    check_response_does_not_contain_success = BooleanField(
-        null=True, blank=True, default=None)
-    check_response_does_not_contain_message = models.TextField(
-        null=True, blank=True, default=None)
-
-    check_response_does_contain_success = BooleanField(
-        null=True, blank=True, default=None)
-    check_response_does_contain_message = models.TextField(
-        null=True, blank=True, default=None)
+class GetCapabilitiesProbeResult(
+        WebMapServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
 
     class Meta(WebMapServiceProbeResult.Meta):
         # Inheritate meta
         pass
 
 
-class GetMapProbeResult(WebMapServiceProbeResult):
+class GetMapProbeResult(
+        WebMapServiceProbeResult,
+        ExceptionResponseCheckResult):
     check_response_image_success = BooleanField(
         null=True, blank=True, default=None)
     check_response_image_message = models.TextField(
         null=True, blank=True, default=None)
 
-    check_response_does_not_contain_success = BooleanField(
-        null=True, blank=True, default=None)
-    check_response_does_not_contain_message = models.TextField(
-        null=True, blank=True, default=None)
-
     class Meta(WebMapServiceProbeResult.Meta):
         # Inheritate meta
         pass
 
 
-class Probe(models.Model):
-    timeout = models.IntegerField(
-        default=30,
-        blank=True,
+class WebFeatureServiceProbeResult(ProbeResult):
+    run = models.ForeignKey(
+        to=WebFeatureServiceMonitoringRun,
+        on_delete=models.CASCADE,
+        related_name="%(app_label)s_%(class)ss",
+        related_query_name="%(app_label)s_%(class)s",
+        verbose_name=_("Run"),
     )
 
-    class Meta:
+    class Meta(ProbeResult.Meta):
         abstract = True
 
 
-class WebMapServiceProbe(Probe):
-    setting = models.ForeignKey(
-        to=WebMapServiceMonitoringSetting,
+class WebFeatureServiceGetCapabilitiesProbeResult(
+        WebFeatureServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
+
+    class Meta(WebFeatureServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
+class WebFeatureServiceGetFeatureProbeResult(
+        WebFeatureServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
+
+    class Meta(WebFeatureServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
+class CatalogueServiceProbeResult(ProbeResult):
+    run = models.ForeignKey(
+        to=CatalogueServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
-        verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        related_name="%(app_label)s_%(class)ss",
+        related_query_name="%(app_label)s_%(class)s",
+        verbose_name=_("Run"),
+    )
+
+    class Meta(ProbeResult.Meta):
+        abstract = True
+
+
+class CatalogueServiceGetCapabilitiesProbeResult(
+        CatalogueServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
+
+    class Meta(CatalogueServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
+class CatalogueServiceGetRecordsProbeResult(
+        CatalogueServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
+
+    class Meta(CatalogueServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
+class Probe(models.Model):
+    """Baseclass of a probe which validates one request of a service.
+
+    Concrete probes define the request to send and the checks to apply on the
+    response. The result of a probe is stored in the `result_model`.
+    """
+
+    timeout = models.IntegerField(
+        default=30,
+        blank=True,
     )
 
     check_response_does_not_contain = models.CharField(
@@ -227,8 +440,19 @@ class WebMapServiceProbe(Probe):
             "comma seperated search strings like: ExceptionReport>,ServiceException>")
     )
 
+    #: model which stores the result of this kind of probe
+    result_model = None
+
     class Meta:
         abstract = True
+
+    def build_request(self, client) -> Request:
+        """Build the request which is send to the monitored service."""
+        raise NotImplementedError
+
+    def run_response_checks(self, response: Response) -> None:
+        """Apply the configured checks on the response of the probe."""
+        raise NotImplementedError
 
     def check_does_not_contain(self, response: Response):
         self.result.check_response_does_not_contain_message = ""
@@ -240,18 +464,6 @@ class WebMapServiceProbe(Probe):
         if self.result.check_response_does_not_contain_success is not False:
             self.result.check_response_does_not_contain_success = True
             self.result.check_response_does_not_contain_message = "OK"
-
-
-class GetCapabilitiesProbe(WebMapServiceProbe):
-    check_response_is_valid_xml = BooleanField(default=True)
-
-    check_response_does_contain = CharField(
-        max_length=256,
-        default="Title>,Abstract>",
-        blank=True,
-        verbose_name=_("Check response does contain"),
-        help_text=_("comma seperated search strings like: Title>,Abstract>")
-    )
 
     def check_does_contain(self, response: Response):
         self.result.check_response_does_contain_message = ""
@@ -273,15 +485,25 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
             self.result.check_response_is_valid_xml_success = False
             self.result.check_response_is_valid_xml_message = f"response is not a valide xml. {e}"  # noqa
 
-    def run_checks(self, run: WebMapServiceMonitoringRun, *args, **kwargs) -> GetMapProbeResult:
-        result = GetCapabilitiesProbeResult.objects.create(
+    def run_checks(self, run: MonitoringRun, *args, **kwargs) -> ProbeResult:
+        """Execute the probe and store the outcome in the result model.
+
+        Args:
+            run (MonitoringRun): the monitoring run which belongs to the setting
+                of this probe
+
+        Returns:
+            ProbeResult: the result of this probe
+        """
+
+        result = self.result_model.objects.create(
             run=run,
         )
         self.result = result
         self.save()
         try:
             client = self.setting.service.client
-            request = client.get_capabilities_request()
+            request = self.build_request(client)
             result.monitored_uri = request.url
 
             response = client.send_request(
@@ -291,14 +513,7 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
                 result.error_msg = response.text
             result.status_code = response.status_code
 
-            if self.check_response_is_valid_xml:
-                self.check_is_valid_xml(response=response)
-
-            if self.check_response_does_contain:
-                self.check_does_contain(response=response)
-
-            if self.check_response_does_not_contain:
-                self.check_does_not_contain(response=response)
+            self.run_response_checks(response=response)
 
             result.monitored_uri = response.url
             result.request_duration = response.elapsed if response else None
@@ -313,6 +528,54 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
         finally:
             result.save()
         return result
+
+
+class CapabilitiesProbe(Probe):
+    """Probe which requests and validates the capabilities of a service."""
+
+    check_response_is_valid_xml = BooleanField(default=True)
+
+    check_response_does_contain = CharField(
+        max_length=256,
+        default="Title>,Abstract>",
+        blank=True,
+        verbose_name=_("Check response does contain"),
+        help_text=_("comma seperated search strings like: Title>,Abstract>")
+    )
+
+    class Meta:
+        abstract = True
+
+    def build_request(self, client) -> Request:
+        return client.get_capabilities_request()
+
+    def run_response_checks(self, response: Response) -> None:
+        if self.check_response_is_valid_xml:
+            self.check_is_valid_xml(response=response)
+
+        if self.check_response_does_contain:
+            self.check_does_contain(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+
+class WebMapServiceProbe(Probe):
+    setting = models.ForeignKey(
+        to=WebMapServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+        related_name='%(app_label)s_%(class)ss',
+        related_query_name='%(app_label)s_%(class)s',
+        verbose_name=_('Setting'),
+        help_text=_('The related setting object')
+    )
+
+    class Meta:
+        abstract = True
+
+
+class GetCapabilitiesProbe(WebMapServiceProbe, CapabilitiesProbe):
+    result_model = GetCapabilitiesProbeResult
 
 
 class GetMapProbe(WebMapServiceProbe):
@@ -349,58 +612,182 @@ class GetMapProbe(WebMapServiceProbe):
             self.result.check_response_image_success = False
             self.result.check_response_image_message = "Could not create image from response."
 
-    def run_checks(self, run: WebMapServiceMonitoringRun, *args, **kwargs) -> GetMapProbeResult:
-        result = GetMapProbeResult.objects.create(
-            run=run)
-        self.result = result
-        self.save()
-        try:
-            client = self.setting.service.client
-            layers: list[Layer] = self.layers.with_inherited_attributes_cte()
-            bbox: Polygon = layers[0].bbox_lat_lon_inherited
-            if client.service_version == "1.3.0":
-                bbox = adjust_axis_order(bbox)
+    result_model = GetMapProbeResult
 
-            request = client.get_map_request(
-                layers=[layer.identifier for layer in self.layers.all()],
-                crs=str(self.reference_system),
-                # TODO: use configured styles instead
-                styles=",".join(["" for layer in layers]),
-                height=self.height,
-                width=self.width,
-                format=str(self.format) if self.format else "image/png",
-                bbox=(
-                    str(bbox.extent[0]),
-                    str(bbox.extent[1]),
-                    str(bbox.extent[2]),
-                    str(bbox.extent[3])
-                )
+    def run_response_checks(self, response: Response) -> None:
+        if self.check_response_is_image:
+            self.check_is_image(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+    def build_request(self, client) -> Request:
+        layers: list[Layer] = self.layers.with_inherited_attributes_cte()
+        bbox: Polygon = layers[0].bbox_lat_lon_inherited
+        if client.service_version == "1.3.0":
+            bbox = adjust_axis_order(bbox)
+
+        return client.get_map_request(
+            layers=[layer.identifier for layer in self.layers.all()],
+            crs=str(self.reference_system),
+            # TODO: use configured styles instead
+            styles=",".join(["" for layer in layers]),
+            height=self.height,
+            width=self.width,
+            format=str(self.format) if self.format else "image/png",
+            bbox=(
+                str(bbox.extent[0]),
+                str(bbox.extent[1]),
+                str(bbox.extent[2]),
+                str(bbox.extent[3])
             )
-            result.monitored_uri = request.url
+        )
 
-            response = client.send_request(
-                request=request, timeout=self.timeout)
 
-            if response.status_code != 200:
-                result.error_msg = response.text
-            result.status_code = response.status_code
+class WebFeatureServiceProbe(Probe):
+    setting = models.ForeignKey(
+        to=WebFeatureServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+        related_name='%(app_label)s_%(class)ss',
+        related_query_name='%(app_label)s_%(class)s',
+        verbose_name=_('Setting'),
+        help_text=_('The related setting object')
+    )
 
-            if self.check_response_is_image:
-                self.check_is_image(response=response)
+    class Meta:
+        abstract = True
 
-            if self.check_response_does_not_contain:
-                self.check_does_not_contain(response=response)
 
-            result.monitored_uri = response.url
-            result.request_duration = response.elapsed if response else None
+class WebFeatureServiceGetCapabilitiesProbe(
+        WebFeatureServiceProbe, CapabilitiesProbe):
+    result_model = WebFeatureServiceGetCapabilitiesProbeResult
 
-        except ConnectTimeout:
-            result.message = f"The request timed out in {self.timeout} seconds while trying to connect to the remote server."  # noqa
-        except ReadTimeout:
-            self.error_msg = f"The server did not send any data in the allotted amount of time ({self.timeout} seconds)."  # noqa
-        except RequestException as exception:
-            self.status_code = response.status_code if response.status_code else None
-            self.error_msg = str(exception)
-        finally:
-            result.save()
-        return result
+
+class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
+    """Probe which requests features of the monitored web feature service."""
+
+    feature_types = models.ManyToManyField(to=FeatureType)
+
+    max_features = models.IntegerField(
+        default=1,
+        verbose_name=_("max features"),
+        help_text=_(
+            "the maximum number of features the request shall return"))
+
+    reference_system = models.ForeignKey(
+        to=ReferenceSystem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    check_response_is_valid_xml = BooleanField(default=True)
+
+    check_response_does_contain = CharField(
+        max_length=256,
+        default="FeatureCollection",
+        blank=True,
+        verbose_name=_("Check response does contain"),
+        help_text=_("comma seperated search strings like: FeatureCollection")
+    )
+
+    result_model = WebFeatureServiceGetFeatureProbeResult
+
+    def run_response_checks(self, response: Response) -> None:
+        if self.check_response_is_valid_xml:
+            self.check_is_valid_xml(response=response)
+
+        if self.check_response_does_contain:
+            self.check_does_contain(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+    def build_request(self, client) -> Request:
+        return client.get_feature_kvp_request(
+            type_names=[
+                feature_type.identifier
+                for feature_type in self.feature_types.all()],
+            max_features=self.max_features,
+            srs_name=str(self.reference_system) if self.reference_system else None,
+        )
+
+
+class CatalogueServiceProbe(Probe):
+    setting = models.ForeignKey(
+        to=CatalogueServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+        related_name='%(app_label)s_%(class)ss',
+        related_query_name='%(app_label)s_%(class)s',
+        verbose_name=_('Setting'),
+        help_text=_('The related setting object')
+    )
+
+    class Meta:
+        abstract = True
+
+
+class CatalogueServiceGetCapabilitiesProbe(
+        CatalogueServiceProbe, CapabilitiesProbe):
+    result_model = CatalogueServiceGetCapabilitiesProbeResult
+
+
+class CatalogueServiceGetRecordsProbe(CatalogueServiceProbe):
+    """Probe which requests records of the monitored catalogue service."""
+
+    type_names = models.CharField(
+        max_length=256,
+        default="gmd:MD_Metadata",
+        blank=True,
+        verbose_name=_("type names"),
+        help_text=_(
+            "the type names of the records which shall be requested"))
+
+    result_type = models.CharField(
+        max_length=100,
+        default="results",
+        verbose_name=_("result type"),
+        help_text=_("the result type of the get records request"))
+
+    element_set_name = models.CharField(
+        max_length=100,
+        default="summary",
+        verbose_name=_("element set name"),
+        help_text=_(
+            "the element set name of the records which shall be returned"))
+
+    max_records = models.IntegerField(
+        default=1,
+        verbose_name=_("max records"),
+        help_text=_(
+            "the maximum number of records the request shall return"))
+
+    check_response_is_valid_xml = BooleanField(default=True)
+
+    check_response_does_contain = CharField(
+        max_length=256,
+        default="GetRecordsResponse",
+        blank=True,
+        verbose_name=_("Check response does contain"),
+        help_text=_("comma seperated search strings like: GetRecordsResponse")
+    )
+
+    result_model = CatalogueServiceGetRecordsProbeResult
+
+    def run_response_checks(self, response: Response) -> None:
+        if self.check_response_is_valid_xml:
+            self.check_is_valid_xml(response=response)
+
+        if self.check_response_does_contain:
+            self.check_does_contain(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+    def build_request(self, client) -> Request:
+        return client.get_records_request(
+            type_names=self.type_names,
+            result_type=self.result_type,
+            element_set_name=self.element_set_name,
+            max_records=self.max_records,
+        )

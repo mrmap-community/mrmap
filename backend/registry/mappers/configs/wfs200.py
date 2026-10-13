@@ -117,6 +117,7 @@ XPATH_MAP = {
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
+                    "_parser": "registry.mappers.parsers.metadata.parse_keyword",
                     "_base_xpath": "./ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
                     "_reverse": {
@@ -150,6 +151,7 @@ XPATH_MAP = {
                         },
                         "keywords": {
                             "_model": "registry.Keyword",
+                            "_parser": "registry.mappers.parsers.metadata.parse_keyword",
                             "_base_xpath": "./ows:Keywords/ows:Keyword",
                             "_create_mode": "get_or_create",
                             "_reverse": {

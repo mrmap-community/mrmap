@@ -97,6 +97,7 @@ XPATH_MAP = {
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
+                    "_parser": "registry.mappers.parsers.metadata.parse_keyword",
                     "_base_xpath": "./wms:Service/wms:KeywordList/wms:Keyword",
                     "_create_mode": "get_or_create",
                     "_reverse": {
@@ -154,6 +155,7 @@ XPATH_MAP = {
                         },
                         "keywords": {
                             "_model": "registry.Keyword",
+                            "_parser": "registry.mappers.parsers.metadata.parse_keyword",
                             "_base_xpath": "./wms:KeywordList/wms:Keyword",
                             "_create_mode": "get_or_create",
                             "_reverse": {

@@ -1,3 +1,4 @@
+from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
@@ -158,19 +159,7 @@ class DatasetMetadataViewSetMixin(
 ):
     queryset = DatasetMetadataRecord.objects.all()
     serializer_class = DatasetMetadataRecordSerializer
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        "title": ["exact", "icontains", "contains"],
-        "abstract": ["exact", "icontains", "contains"],
-        "keywords__keyword": ["exact", "icontains", "contains"],
-        "harvested_dataset_metadata_relation__harvesting_job": ["exact"],
-        "harvested_dataset_metadata_relation__collecting_state": ["exact"],
-        # "harvested_by": ['exact', 'icontains', 'contains', 'in'],
-        # "harvested_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
-        # "ignored_by": ['exact', 'icontains', 'contains', 'in'],
-        # "updated_by": ['exact', 'icontains', 'contains', 'in'],
-        # "updated_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
-    }
+    filterset_class = DatasetMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
@@ -475,14 +464,7 @@ class ServiceMetadataViewSetMixin(
 ):
     queryset = ServiceMetadataRecord.objects.all()
     serializer_class = ServiceMetadataRecordSerializer
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        "title": ["exact", "icontains", "contains"],
-        "abstract": ["exact", "icontains", "contains"],
-        "keywords__keyword": ["exact", "icontains", "contains"],
-        "harvested_service_metadata_relation__harvesting_job": ["exact"],
-        "harvested_service_metadata_relation__collecting_state": ["exact"],
-    }
+    filterset_class = ServiceMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {

@@ -5,6 +5,7 @@ import {
   MenuProps,
   useResourceDefinitions,
   useSidebarState,
+  useTranslate,
 } from 'react-admin';
 
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
@@ -31,6 +32,7 @@ const groupIcons: Record<string, JSX.Element> = {
 };
 
 const CustomMenu = ({ dense = false }: MenuProps) => {
+    const translate = useTranslate();
     const [open] = useSidebarState();
     const resourceDefinitions = useResourceDefinitions();
     const menuResources = Object.values(resourceDefinitions).filter(
@@ -64,6 +66,7 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
         >
             <MenuList>
                 <DashboardMenuItem />
+                <MenuItemLink to="/service-explorer" primaryText={translate("serviceExplorer.title")} leftIcon={<PublicIcon />} dense={dense} />
                 {groupNames.map(group => (
                     <SubMenu
                         key={group}

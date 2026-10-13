@@ -21,7 +21,7 @@ EXPECTED_DATA = {
     '200.000 Maßstab: 1:null; Bodenauflösung: 1m; Scanauflösung '
     '(DPI): null',
     'access_constraints': None,
-    'bounding_geometry': None,
+    'bounding_geometry': 'MULTIPOLYGON (((9.09 47.17, 9.09 50.59, 13.98 50.59, 13.98 47.17, 9.09 47.17)))',
     'date_stamp': '2025-12-08 00:00:00+01:00',
     'file_identifier': 'ee065040-1015-44c7-839e-e8e349c74bbd',
     'keywords': [],

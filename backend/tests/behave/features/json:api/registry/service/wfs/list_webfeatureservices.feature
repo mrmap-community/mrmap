@@ -28,11 +28,12 @@ Feature: WebFeatureService List Endpoint
 
     # The filter value is a whole GeoJSON polygon; it stays on its own step instead of blowing the
     # examples table above up to 220 characters per row.
+    # Return each service once, even when several feature types match the bbox.
     Scenario: Can filter by bbox
         Given I set a queryparam "filter[bboxLatLon.contains]" with value "{'type': 'Polygon', 'coordinates': [[[7.062835693359375, 50.043911679834615], [7.568206787109375, 50.043911679834615], [7.568206787109375, 50.39451208023374], [7.062835693359375, 50.39451208023374], [7.062835693359375, 50.043911679834615]]]}"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "4"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "2"
 
     Scenario: Can include featuretypes
         Given I set a queryparam "include" with value "featuretypes"

@@ -7,7 +7,26 @@ from rest_framework_gis.filters import GeometryFilter
 from rest_framework_gis.filterset import GeoFilterSet
 
 
-class WebMapServiceFilterSet(FilterSet):
+class ServiceSpatialFilterSet(FilterSet):
+    bbox_lat_lon__contains = GeometryFilter(method='filter_coverage')
+    bbox_lat_lon__covers = GeometryFilter(method='filter_coverage')
+    bbox_lat_lon__equals = GeometryFilter(method='filter_coverage')
+    bbox_lat_lon__intersects = GeometryFilter(method='filter_coverage')
+
+    def filter_coverage(self, queryset, name, value):
+        from django.db.models import Q
+        from registry.querys.explorer import service_elements
+        from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord
+        lookup = name.rsplit('__', 1)[-1]
+        if queryset.model is CatalogueService:
+            ids = [model.objects.filter(**{f'bounding_geometry__{lookup}': value})
+                   .values('harvested_through') for model in (DatasetMetadataRecord, ServiceMetadataRecord)]
+            return queryset.filter(Q(pk__in=ids[0]) | Q(pk__in=ids[1]))
+        elements, field = service_elements(queryset.model)
+        return queryset.filter(pk__in=elements.filter(**{f'{field}__{lookup}': value}).values('service'))
+
+
+class WebMapServiceFilterSet(ServiceSpatialFilterSet):
     is_update_candidate = BooleanFilter(
         field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
     )
@@ -21,15 +40,6 @@ class WebMapServiceFilterSet(FilterSet):
     update_review_required = BooleanFilter(
         field_name="update_review_required")
     update_failed = BooleanFilter(field_name="update_failed")
-
-    bbox_lat_lon__contains = GeometryFilter(
-        field_name='layer__bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(
-        field_name='layer__bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(
-        field_name='layer__bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(
-        field_name='layer__bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = WebMapService
@@ -109,7 +119,7 @@ class LayerFilterSet(GeoFilterSet):
         }
 
 
-class WebFeatureServiceFilterSet(GeoFilterSet):
+class WebFeatureServiceFilterSet(ServiceSpatialFilterSet):
     is_update_candidate = BooleanFilter(
         field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
     )
@@ -120,15 +130,6 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
     update_review_required = BooleanFilter(
         field_name="update_review_required")
     update_failed = BooleanFilter(field_name="update_failed")
-
-    bbox_lat_lon__contains = GeometryFilter(
-        field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(
-        field_name='featuretype__bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(
-        field_name='featuretype__bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(
-        field_name='featuretype__bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = WebFeatureService
@@ -179,7 +180,7 @@ class FeatureTypeFilterSet(GeoFilterSet):
         }
 
 
-class CatalogueServiceFilterSet(FilterSet):
+class CatalogueServiceFilterSet(ServiceSpatialFilterSet):
     # the alerts of a service, see WebMapServiceFilterSet. A catalogue is the
     # only kind of service whose records are pulled by a harvesting job, so it
     # answers the state of that job in addition.
@@ -190,6 +191,9 @@ class CatalogueServiceFilterSet(FilterSet):
     update_failed = BooleanFilter(field_name="update_failed")
     harvest_aborted = BooleanFilter(field_name="harvest_aborted")
     harvest_incomplete = BooleanFilter(field_name="harvest_incomplete")
+    is_update_candidate = BooleanFilter(
+        field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
+    )
 
     class Meta:
         model = CatalogueService

@@ -39,7 +39,7 @@ XPATH_MAP = {
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
                     "_inputs": (
-                        "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
+                        "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon",
                     # TODO: "_reverse_parser": "",
                 },

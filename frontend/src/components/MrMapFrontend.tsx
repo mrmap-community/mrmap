@@ -19,6 +19,7 @@ import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
 import MapViewer from './MapViewer/MapViewer';
+import ServiceExplorer from './Resource/ServiceExplorer/ServiceExplorer';
 import PortalSearch from './PortalSearch/PortalSearch';
 import CatalogueServiceClient from './Resource/CatalogueService/CatalogueServiceClient';
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
@@ -143,6 +144,7 @@ const MrMapFrontend = (): ReactElement => {
           <CustomRoutes >
             <Route path="/csw-client" element={<CatalogueServiceClient />} />
             <Route path="/viewer" element={<MapViewer />} />
+            <Route path="/service-explorer" element={<ServiceExplorer />} />
             <Route path="/search" element={<PortalSearch />} />
           </CustomRoutes>
         } 

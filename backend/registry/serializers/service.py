@@ -3,6 +3,7 @@ from datetime import datetime
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer,
@@ -271,10 +272,60 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         abstract = True
 
 
+@extend_schema_field({
+    'type': 'object',
+    'format': 'geojson',
+    'nullable': True,
+    'properties': {
+        'type': {'type': 'string', 'enum': ['Polygon', 'MultiPolygon']},
+        'coordinates': {'type': 'array', 'items': {}},
+    },
+    'required': ['type', 'coordinates'],
+})
+class ServiceExtentField(GeometryField):
+    pass
+
+
+class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
+    extent = ServiceExtentField(read_only=True)
+    element_count = IntegerField(read_only=True)
+    can_edit = SerializerMethodField(read_only=True)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self.Meta.model is not WebMapService:
+            fields.pop('is_accessible', None)
+        return fields
+
+    def explorer_fields(self):
+        request = self.context.get('request')
+        from rest_framework_json_api.utils import undo_format_field_name
+        return [undo_format_field_name(name.strip()) for name in
+                request.GET.get(f'fields[{self.Meta.model.__name__}]', '').split(',')] if request else []
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        requested = self.explorer_fields()
+        for name in ('extent', 'element_count', 'can_edit'):
+            if name not in requested:
+                result.pop(name, None)
+        return result
+
+    def get_can_edit(self, obj) -> bool:
+        if 'can_edit' not in self.explorer_fields():
+            return False
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        permission = f'change_{obj._meta.model_name}'
+        return bool(user and user.is_authenticated and
+                    (user.has_perm(f'{obj._meta.app_label}.{permission}') and
+                     self.get_perm_checker().has_perm(permission, obj)))
+
+
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
+    ExplorerAttributesSerializer,
     StringRepresentationSerializer,
-    ObjectPermissionCheckerSerializer,
     HistoryInformationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -533,6 +584,7 @@ class FeatureTypeSerializer(
 
 class WebFeatureServiceSerializer(
         ServiceAlertSerializerMixin,
+        ExplorerAttributesSerializer,
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         SystemInfoSerializerMixin,
@@ -651,6 +703,7 @@ class CatalogueServiceCreateSerializer(
 
 class CatalogueServiceSerializer(
         ServiceAlertSerializerMixin,
+        ExplorerAttributesSerializer,
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         SystemInfoSerializerMixin,

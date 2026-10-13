@@ -21,10 +21,10 @@ const ShowRunningHarvestingJobButton = ({id}: ShowRunningHarvestingJobButtonProp
 }
 
 
-const HarvestButton = (): ReactNode => {
+export const HarvestButton = (): ReactNode => {
   const record = useRecordContext()
   
-  if (record?.runningHarvestingJob !== undefined){
+  if (record?.runningHarvestingJob != null){
     return (
       <ShowRunningHarvestingJobButton
         id={record.runningHarvestingJob.id}

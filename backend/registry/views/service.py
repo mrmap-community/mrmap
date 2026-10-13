@@ -39,6 +39,7 @@ from registry.models.update import WebMapServiceUpdateSetting
 from registry.querys.alerts import (SERVICE_KIND_OF, alerts_requested,
                                     has_alert_annotations)
 from registry.querys.service import LayerPrefetch
+from registry.querys.explorer import ServiceExplorerMixin
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
     CatalogueServiceSerializer, FeatureTypeSerializer, LayerSerializer,
@@ -153,6 +154,7 @@ class ServiceAlertAnnotationMixin:
 
 class WebMapServiceViewSet(
     ServiceAlertAnnotationMixin,
+    ServiceExplorerMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -479,6 +481,7 @@ class NestedWebMapServiceOperationUrlViewSet(
 
 class WebFeatureServiceViewSet(
     ServiceAlertAnnotationMixin,
+    ServiceExplorerMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -746,6 +749,7 @@ class NestedFeatureTypeViewSet(
 
 class CatalogueServiceViewSetMixin(
     ServiceAlertAnnotationMixin,
+    ServiceExplorerMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,

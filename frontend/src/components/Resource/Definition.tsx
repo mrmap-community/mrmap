@@ -26,6 +26,7 @@ import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
+import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
@@ -92,7 +93,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
   {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
-  {name: "ServiceMetadataRecord", icon: DatasetIcon, options: { menu: { group: "Metadata", order: 20 } }},
+  {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
 
 

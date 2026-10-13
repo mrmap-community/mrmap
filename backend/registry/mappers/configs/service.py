@@ -48,6 +48,7 @@ XPATH_MAP = {
                 "ground_res": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance",
                 "keywords": {
                     "_model": "registry.Keyword",
+                    "_parser": "registry.mappers.parsers.metadata.parse_keyword",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString",
                     "_create_mode": "get_or_create",
                     "_reverse": {

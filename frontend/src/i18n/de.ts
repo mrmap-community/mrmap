@@ -2,6 +2,37 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  livePreview: {
+    title: "Live-Vorschau",
+    storedDiscovery: "Auswahl aus gespeicherten Capabilities. Bilder, Features und Katalogeinträge werden live abgerufen.",
+    source: "Quelle: %{source} · Letzter erfolgreicher Abruf: %{time}",
+    loading: "Live-Vorschau wird geladen", search: "Registrierte Auswahl durchsuchen",
+    layer: "Layer", featureType: "Feature-Type", select: "Layer oder Feature-Type auswählen",
+    visible: "Sichtbar", zoom: "Auf Auswahl zoomen", expandMap: "Karte vergrößern", collapseMap: "Karte verkleinern",
+    noExtent: "Keine gültige Ausdehnung vorhanden. Verschieben oder zoomen Sie die Standardansicht, um ein Gebiet anzusehen.",
+    limited: "Vorschau auf %{count} Features im aktuellen Kartenausschnitt begrenzt. Vollständigkeit ist nicht festgestellt.",
+    emptyFeatures: "Keine Features in diesem Kartenausschnitt zurückgegeben.",
+    emptySelections: "Keine registrierten Layer oder Feature-Types vorhanden.", emptyRecords: "Keine aktuellen Katalogeinträge zurückgegeben.",
+    noIdentify: "Objektinformationen sind für diesen Layer nicht verfügbar.", identify: "Objektinformationen in der Kartenmitte",
+    featureInfo: "GetFeatureInfo-Ergebnis öffnen", attributes: "Feature-Attribute auswählen", record: "Katalogeintrag",
+    coverage: "Metadatenabdeckung · nur aktuelle Seite. Diese Ausdehnungen sind keine Feature-Geometrien.",
+    noCoverage: "Keine Metadatenabdeckung für diesen Eintrag vorhanden.", noRegistered: "Kein registrierter Vorschaudienst",
+    previewLinked: "%{title} ansehen", pageScope: "Aktuelle Seite: %{count} Einträge ab Position %{start}, %{total} Treffer.", untitled: "Eintrag ohne Titel",
+    errors: {
+      denied: "Zugriff auf diese Vorschau verweigert.", disabled: "Dieser Dienst oder diese Auswahl ist deaktiviert.",
+      unavailable: "Der entfernte Dienst ist nicht erreichbar. Wiederholen Sie die Vorschau.",
+      ogc: "Der Dienst meldet eine OGC-Ausnahme. Die gespeicherte Auswahl ist möglicherweise veraltet.",
+      malformed: "Der Dienst liefert eine fehlerhafte Antwort.",
+      format: "Kein kompatibles angekündigtes Format vorhanden. PNG/JPEG-Bilder oder GeoJSON-Features sind erforderlich.",
+      crs: "Der Dienst bietet kein kompatibles WGS84-Koordinatensystem an.",
+      schema: "Dieses Katalogantwortschema wird nicht unterstützt. ISO-Daten- und Dienstmetadaten werden unterstützt.",
+      extent: "Der angeforderte Kartenausschnitt ist ungültig.", limit: "Die Vorschau überschreitet die Anforderungs- oder Antwortgrenzen.",
+      stale: "Der gewählte Layer oder Feature-Type fehlt in der gespeicherten Dienstdefinition.",
+      discovery: "Gespeicherte Dienstdefinition oder Auswahl konnte nicht geladen werden.",
+      operation: "Der benötigte registrierte Operationsendpunkt ist nicht verfügbar.", identify: "Dieser Layer unterstützt keine Objektinformationen.",
+      spatialVersion: "Dieser räumlich eingeschränkte WFS kann mit seiner registrierten Version oder Geometriedefinition nicht angezeigt werden."
+    }
+  },
   recordShow: {
     "catalogue": "Katalog",
     "linkOrigin": "Herkunft der Verknüpfung",

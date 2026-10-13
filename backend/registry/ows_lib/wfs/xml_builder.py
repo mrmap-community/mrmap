@@ -9,6 +9,7 @@ class WFSBuilder(XSDSkeletonBuilder):
     GML_NS = NAMESPACE_LOOKUP["gml_3_2_2"]
 
     def __init__(self, service_version="2.0.2"):
+        self.version = service_version
         super().__init__(("wfs", "GetCapabilitites", service_version))
 
     def build_get_feature(
@@ -48,9 +49,9 @@ class WFSBuilder(XSDSkeletonBuilder):
         for type_name in type_names:
             query = self.add_foreign_child(
                 root,
-                NAMESPACE_LOOKUP["wfs_2_0"],
+                NAMESPACE_LOOKUP["wfs_2_0_0"],
                 "Query",
-                attributes={
+                **{
                     "typeNames": type_name,
                     **({"srsName": srs_name} if srs_name else {}),
                 },
@@ -157,7 +158,8 @@ class WFSBuilder(XSDSkeletonBuilder):
 
         and_el = self.add_foreign_child(
             existing_filter,
-            etree.QName(fes_ns, "And"),
+            fes_ns,
+            "And",
         )
 
         for el in existing_children:

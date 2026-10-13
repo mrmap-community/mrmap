@@ -4,6 +4,12 @@ from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
 from django_cte import CTE, with_cte
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
+from django.http import JsonResponse
+from guardian.core import ObjectPermissionChecker
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.renderers import JSONRenderer
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
@@ -47,6 +53,7 @@ from registry.serializers.service import (
     WebMapServiceCreateSerializer, WebMapServiceListSerializer,
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
+from registry.helper.preview import PreviewError, preview
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -152,7 +159,51 @@ class ServiceAlertAnnotationMixin:
         return super().filter_queryset(queryset)
 
 
+class ServicePreviewMixin:
+    @classmethod
+    def get_extra_actions(cls):
+        actions = super().get_extra_actions()
+        # Nested relationship viewsets inherit the service UI customizations,
+        # but preview addresses only the canonical registered-service endpoint.
+        if issubclass(cls, NestedModelViewSet):
+            return [item for item in actions if item.__name__ != "preview"]
+        return actions
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name, OpenApiTypes.STR, description=description)
+                    for name, description in (
+                        ("selection", "Registered layer/feature-type identifier."),
+                        ("bbox", "WGS84 west,south,east,north. Omit for stored discovery only."),
+                        ("width", "Image width, at most 2048 pixels."),
+                        ("height", "Image height, at most 2048 pixels."),
+                        ("identify", "true for WMS GetFeatureInfo."),
+                        ("x", "Identify pixel column."), ("y", "Identify pixel row."),
+                        ("start", "CSW 1-based record position; pages contain at most 25 records."))],
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
+                   403: OpenApiTypes.OBJECT, 422: OpenApiTypes.OBJECT,
+                   423: OpenApiTypes.OBJECT, 502: OpenApiTypes.OBJECT},
+        description="Read-only live preview. Stored discovery; bounded upstream reads. No registry writes.",
+    )
+    @action(detail=True, methods=["get"], renderer_classes=[JSONRenderer], filter_backends=[])
+    def preview(self, request, *args, **kwargs):
+        service = self.get_object()
+        # DRF's default read-only object permission map is empty; previews also
+        # explicitly require view permission on the registered service.
+        if not ObjectPermissionChecker(request.user).has_perm(
+                f"view_{service.__class__.__name__.lower()}", service):
+            raise PermissionDenied
+        try:
+            result = preview(service, request, request.query_params)
+            result["source"] = str(service.title)
+            return JsonResponse(result, headers={"Cache-Control": "no-store"})
+        except PreviewError as error:
+            return JsonResponse({"error": error.code}, status=error.status,
+                                headers={"Cache-Control": "no-store"})
+
+
+@extend_schema_view(preview=extend_schema(operation_id="preview_WebMapService"))
 class WebMapServiceViewSet(
+    ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,
@@ -479,7 +530,9 @@ class NestedWebMapServiceOperationUrlViewSet(
     """
 
 
+@extend_schema_view(preview=extend_schema(operation_id="preview_WebFeatureService"))
 class WebFeatureServiceViewSet(
+    ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,
@@ -966,7 +1019,9 @@ class CatalogueServiceViewSetMixin(
         }
 
 
+@extend_schema_view(preview=extend_schema(operation_id="preview_CatalogueService"))
 class CatalogueServiceViewSet(
+    ServicePreviewMixin,
     CatalogueServiceViewSetMixin,
     ModelViewSet
 ):

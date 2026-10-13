@@ -286,8 +286,8 @@ class OgcServiceProxyView(APIView):
             # while preserving all request parameters, method, headers, and data
 
             operation_url: dict = self.service.operation_urls.values('id', 'url').get(
-                operation=OGCOperationEnum.GET_MAP.value,
-                method=HttpMethodEnum.GET.value
+                operation=OGCOperationEnum(self.ogc_request.operation).value,
+                method=HttpMethodEnum(self.ogc_request.method).value
             )
             url: str = operation_url["url"]
             url = update_queryparams(
@@ -299,8 +299,10 @@ class OgcServiceProxyView(APIView):
                 url=url,
                 # params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
                 data=self.ogc_request.data if self.ogc_request.method == "POST" else None,
-                headers=self.ogc_request.headers,
-                cookies=self.ogc_request.cookies,
+                # Authenticate upstream with the registered service credentials,
+                # never with the caller's MrMap token or browser cookies.
+                headers={key: value for key, value in (self.ogc_request.headers or {}).items()
+                         if key.lower() not in {"authorization", "cookie", "host"}},
             )
 
         r = {}

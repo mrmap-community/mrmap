@@ -18,7 +18,7 @@ class WebFeatureServiceClient(OgcClient):
 
     @property
     def type_name_qp(self):
-        return "TYPENAMES" if self.service_version == "2.0.0" else "TYPENAME"
+        return "TYPENAMES" if self.service_version.startswith("2.") else "TYPENAME"
 
     @property
     def output_format_qp(self):
@@ -26,7 +26,7 @@ class WebFeatureServiceClient(OgcClient):
 
     @property
     def max_features_qp(self):
-        return "COUNT" if self.service_version == "2.0.0" else "MAXFEATURES"
+        return "COUNT" if self.service_version.startswith("2.") else "MAXFEATURES"
 
     def describe_feature_type_request(
             self,

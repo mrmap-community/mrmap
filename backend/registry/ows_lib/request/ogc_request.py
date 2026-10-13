@@ -286,11 +286,13 @@ class OGCRequest(Request):
                           "NAMESPACE", "resultType", "requestId", "TypeName", "outputFormat",
                           "outputSchema", "startPosition", "maxRecords", "schemaLanguage",
                           "ElementSetName", "ElementName", "typeNames", "CONSTRAINTLANGUAGE",
-                          "Constraint", "SortBy", "DistributedSearch",
+                          "Constraint", "SortBy", "DistributedSearch", "COUNT", "MAXFEATURES", "X", "Y", "TYPENAMES", "TYPENAME",
                           "hopCount", "ResponseHandler", "Id", "STYLES"]
 
             for key in query_keys:
-                value = self.params.get(key, self.params.get(key.lower(), ""))
+                if any(name.lower() == key.lower() for name in self._ogc_query_params):
+                    continue
+                value = next((value for name, value in self.params.items() if name.lower() == key.lower()), "")
 
                 if value:
                     if isinstance(value, list):
@@ -364,8 +366,8 @@ class OGCRequest(Request):
         self._xml_request = builder.build_get_feature(
             type_names=self.requested_entities,
             filter_xml=filter,
-            srs_name=self.ogc_query_params.get("srsName", None),
-            count=int(self.ogc_query_params.get("count", 0)) or None,
+            srs_name=self.ogc_query_params.get("SRSNAME", None),
+            count=int(self.ogc_query_params.get("COUNT", 0)) or None,
             start_index=int(self.ogc_query_params.get(
                 "startIndex", 0)) or None,
         )
@@ -374,7 +376,7 @@ class OGCRequest(Request):
     def xml_request(self) -> etree._Element:
         """Constructs a xml request object based on the given HTTP GET request.
 
-        This function analyzes the given request by its method and operation. 
+        This function analyzes the given request by its method and operation.
         If it is a get request, the get feature operation for example will be converted to an postable xml.
 
         :return: The mapped xml object

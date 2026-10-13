@@ -7,6 +7,7 @@ import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './Reference
 import SchemaAutocompleteInput from './SchemaAutocompleteInput';
 import type { JsonApiQueryParams } from '../types/jsonapi';
 import SchemaFormFields from './SchemaFormFields';
+import GlobalFormError from './GlobalFormError';
 import useGuesserSuccess from '../hooks/useGuesserSuccess';
 
 
@@ -46,6 +47,7 @@ const EditFormGuesser = ({
         sanitizeEmptyValues
         {...simpleFormProps}
       >
+      <GlobalFormError />
       <SchemaFormFields operationId={`partial_update_${name}`} overrides={updateFieldDefinitions} record={record} />
       {referenceInputs}
     </SimpleForm>

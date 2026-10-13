@@ -3,6 +3,7 @@ import { Create, type CreateProps, RaRecord, SaveButton, SimpleForm, SimpleFormP
 import { FieldDefinition } from '../utils';
 import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 import SchemaFormFields from './SchemaFormFields';
+import GlobalFormError from './GlobalFormError';
 import useGuesserSuccess from '../hooks/useGuesserSuccess';
 
 
@@ -62,6 +63,7 @@ const CreateGuesserBase = (
         defaultValues={defaultValues}
         {...simpleFormProps}
       >
+        <GlobalFormError />
         <SchemaFormFields operationId={`create_${name}`} overrides={updateFieldDefinitions} />
         {referenceInputs}
       </SimpleForm>

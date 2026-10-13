@@ -226,20 +226,24 @@ const handleBadRequest = (error: AxiosError) => {
     const jsonApiResponse = error.response.data as JsonApiDocument
     const jsonApiErrors = jsonApiResponse.errors
     
-    const raErrorPayload: any = {
-        errors: {
-        }
+    const raErrorPayload: { errors: Record<string, string | { serverError: string }> } = {
+      errors: {}
     }
 
     jsonApiErrors?.forEach(jsonApiError => {
-      if (jsonApiError.source.pointer !== undefined) {
+      const pointer = jsonApiError.source?.pointer
+      if (pointer === undefined || pointer === '' || pointer === '/data') {
+        const previousError = raErrorPayload.errors.root
+        const serverError = typeof previousError === 'object'
+          ? `${previousError.serverError}\n${jsonApiError.detail}`
+          : jsonApiError.detail
+        raErrorPayload.errors.root = { serverError }
+      } else {
         // https://jsonapi.org/format/#error-objects
-        const fieldName = jsonApiError.source.pointer?.replace('/data/attributes/', '').replace('/data/relationships/', '')
+        const fieldName = pointer.replace('/data/attributes/', '').replace('/data/relationships/', '')
 
-        if (jsonApiError.source.pointer.includes("/data/id")){
+        if (pointer.includes("/data/id")){
           raErrorPayload.errors["id"] = jsonApiError.detail
-        } else if (fieldName === undefined) {
-          raErrorPayload.errors["root"] = jsonApiError.detail
         } else {
           raErrorPayload.errors[fieldName] = jsonApiError.detail
         }

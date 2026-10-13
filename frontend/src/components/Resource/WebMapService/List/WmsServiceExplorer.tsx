@@ -20,11 +20,11 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   DateField,
   EditButton,
-  type Identifier,
   RecordContextProvider,
   ShowButton,
   useListContext,
   useTranslate,
+  type Identifier,
 } from "react-admin";
 import ServiceAlertChips from "../../Generic/ServiceShow/ServiceAlertChips";
 import ServiceDetailsPanel from "./ServiceDetailsPanel";
@@ -69,6 +69,7 @@ const ServiceHeaderCell = ({
     }
     setSort({ field, order });
   };
+  console.log(label, order, field)
 
   return (
     <TableCell
@@ -81,7 +82,7 @@ const ServiceHeaderCell = ({
       ) : (
         <Tooltip
           title={translate("ra.sort.sort_by", {
-            field: label,
+            field_lower_first: field,
             order: translate(`ra.sort.${order}`),
           })}
           placement={align === "right" ? "bottom-end" : "bottom-start"}

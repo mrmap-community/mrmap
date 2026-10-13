@@ -38,6 +38,7 @@ import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarve
 import ListSystemInfo from './System/ListSystemInfo';
 import WfsShow from './WebFeatureService/Show/WfsShow';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
+import ListWebMapService, { WEB_MAP_SERVICE_LIST_FIELDS } from './WebMapService/List/ListWebMapService';
 import { WmsShow } from './WebMapService/Show/WmsShow';
 import ShowWebFeatureServiceUpdateJob from './WebFeatureServiceUpdateJob/ShowWebFeatureServiceUpdateJob';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
@@ -48,13 +49,14 @@ const RESOURCES: Array<ResourceProps> = [
     name: "WebMapService", 
     icon: MapIcon, 
     show: WmsShow, 
+    list: ListWebMapService, 
     options: { 
       menu: { group: "WMS", order: 10 },
       list: { 
         perPage: 25,
         sort: { field: 'title', order: 'ASC' },
         defaultSelectedColumns: ["id", "title", "abstract", "username", "actions", ],
-        sparseFieldsets: [{type: "WebMapService", fields: ["isSecured", "xmlBackupFileSecured"]}],
+        sparseFieldsets: [{type: "WebMapService", fields: WEB_MAP_SERVICE_LIST_FIELDS}],
         additionalActions: WmsViewerButtons
       }
     }

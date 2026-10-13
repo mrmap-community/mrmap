@@ -3,6 +3,7 @@ from operator import itemgetter
 
 from accounts.serializers.users import UserSerializer
 from extras.serializers import SystemInfoSerializerMixin
+from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from rest_framework.fields import SerializerMethodField, UUIDField
@@ -104,4 +105,20 @@ class CatalogueServiceHistorySerializer(HistorySerializerMixin):
 
     class Meta:
         model = CatalogueService.change_log.model
+        exclude = HistorySerializerMixin.Meta.exclude
+
+
+class DatasetMetadataRecordHistorySerializer(HistorySerializerMixin):
+    included_serializers = {"history_user": UserSerializer}
+
+    class Meta:
+        model = DatasetMetadataRecord.change_log.model
+        exclude = HistorySerializerMixin.Meta.exclude
+
+
+class ServiceMetadataRecordHistorySerializer(HistorySerializerMixin):
+    included_serializers = {"history_user": UserSerializer}
+
+    class Meta:
+        model = ServiceMetadataRecord.change_log.model
         exclude = HistorySerializerMixin.Meta.exclude

@@ -1,16 +1,18 @@
 from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
+from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
 from registry.models.metadata import (DatasetMetadataRecord, IsoCategory,
                                       Keyword, Language, Licence,
-                                      MetadataContact, MimeType,
+                                      MetadataContact, MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
+                                           IsoCategorySerializer, LanguageSerializer,
+                                           MetadataRelationSerializer, TimeExtentSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
                                            MetadataContactSerializer,
@@ -19,7 +21,7 @@ from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
-from rest_framework_json_api.views import ModelViewSet
+from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
 class MimeTypeSetMixin:
@@ -155,20 +157,23 @@ class NestedStyleViewSet(
 
 
 class DatasetMetadataViewSetMixin(
+    HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
 ):
-    queryset = DatasetMetadataRecord.objects.all()
+    queryset = DatasetMetadataRecord.objects.select_related("licence")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
+        "licence": ["licence"],
         "dataset_contact": ["dataset_contact"],
         "selfPointingLayers.service": ["metadata_contact", "dataset_contact"],
         "selfPointingFeatureType.service": ["metadata_contact", "dataset_contact"],
     }
     prefetch_for_includes = {
+        "categories": ["categories"],
         # "__all__": [],
         "self_pointing_layers.service": [
             Prefetch(
@@ -246,6 +251,8 @@ class DatasetMetadataViewSetMixin(
             )
         ],
         "keywords": ["keywords"],
+        "time_extents": ["time_extents"],
+        "languages": ["languages"],
         "reference_systems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
@@ -460,9 +467,10 @@ class NestedDatasetContactViewSet(
 
 
 class ServiceMetadataViewSetMixin(
+    HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin
 ):
-    queryset = ServiceMetadataRecord.objects.all()
+    queryset = ServiceMetadataRecord.objects.select_related("licence")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")
@@ -470,6 +478,7 @@ class ServiceMetadataViewSetMixin(
     select_for_includes = {
 
         "metadata_contact": ["metadata_contact"],
+        "licence": ["licence"],
     }
     prefetch_for_includes = {
         "harvested_through": [
@@ -479,6 +488,8 @@ class ServiceMetadataViewSetMixin(
             )
         ],
         "keywords": ["keywords"],
+        "time_extents": ["time_extents"],
+        "languages": ["languages"],
         "reference_systems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
@@ -550,3 +561,39 @@ class NestedServiceMetadataViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class TimeExtentViewSet(ReadOnlyModelViewSet):
+    queryset = TimeExtent.objects.all()
+    serializer_class = TimeExtentSerializer
+
+
+class LanguageViewSet(ReadOnlyModelViewSet):
+    queryset = Language.objects.all()
+    serializer_class = LanguageSerializer
+
+
+class IsoCategoryViewSet(ReadOnlyModelViewSet):
+    queryset = IsoCategory.objects.all()
+    serializer_class = IsoCategorySerializer
+
+
+class MetadataRelationViewSet(PreloadNotIncludesMixin, ReadOnlyModelViewSet):
+    queryset = MetadataRelation.objects.order_by("id")
+    select_for_includes = {source: [source] for source in ("wms", "wfs", "csw", "feature_type")}
+    prefetch_for_includes = {
+        "layer": [Prefetch("layer", queryset=Layer.objects.with_inherited_attributes_cte())],
+    }
+    serializer_class = MetadataRelationSerializer
+    filterset_fields = {
+        "dataset_metadata": ["exact"],
+        "service_metadata": ["exact"],
+        "layer": ["isnull"],
+        "feature_type": ["isnull"],
+        "wms": ["isnull"],
+        "wfs": ["isnull"],
+        "csw": ["isnull"],
+    }
+    search_fields = ("layer__title", "feature_type__title", "wms__title", "wfs__title", "csw__title")
+    ordering_fields = ["id", "origin", "is_internal"]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

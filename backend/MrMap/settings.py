@@ -626,7 +626,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": [
         "extras.utils.BrowsableAPIRendererWithoutForms",
-        "rest_framework_json_api.renderers.JSONRenderer",
+        "extras.renderers.JSONRenderer",
     ],
 
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",

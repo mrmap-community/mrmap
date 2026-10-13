@@ -2,11 +2,13 @@ from logging import Logger
 from operator import itemgetter
 
 from accounts.serializers.users import UserSerializer
+from django.contrib.gis.geos import GEOSGeometry
 from extras.serializers import SystemInfoSerializerMixin
 from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from rest_framework.fields import SerializerMethodField, UUIDField
+from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.serializers import ModelSerializer
 
 
@@ -42,11 +44,18 @@ class HistorySerializerMixin(
             changes = []
             for change in model_delta.changes:
                 changes.append(
-                    {"field": change.field, "old": change.old, "new": change.new})
+                    {"field": change.field,
+                     "old": self._serialize_delta_value(change.old),
+                     "new": self._serialize_delta_value(change.new)})
 
             # otherwise the order is not fix and reproducible for test cases
             sorted_changes = sorted(changes, key=itemgetter('field'))
             return sorted_changes
+
+    def _serialize_delta_value(self, value):
+        if isinstance(value, GEOSGeometry):
+            return GeometryField().to_representation(value)
+        return value
 
 
 class WebMapServiceHistorySerializer(HistorySerializerMixin):

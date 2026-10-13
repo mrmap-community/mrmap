@@ -70,7 +70,7 @@ class UpdateSettingScheduleTest(SimpleTestCase):
         serializer = WebMapServiceUpdateSettingSerializer()
         for minute, expected in [(4, False), (5, False), (6, True)]:
             with self.subTest(minute=minute), patch(
-                'registry.serializers.update.timezone.now',
+                'extras.scheduling.timezone.now',
                 return_value=datetime(2026, 9, 30, 8, minute, tzinfo=timezone.utc),
             ):
                 self.assertEqual(serializer.get_run_overdue(setting), expected)
@@ -78,14 +78,14 @@ class UpdateSettingScheduleTest(SimpleTestCase):
     def test_recent_dispatch_moves_the_expected_run_forward(self):
         setting = self.setting(last_run_at=datetime(2026, 9, 30, 8, 5, tzinfo=timezone.utc))
         self.assertEqual(setting.next_run_expected_at, datetime(2026, 9, 30, 8, 10, tzinfo=timezone.utc))
-        with patch('registry.serializers.update.timezone.now', return_value=datetime(2026, 9, 30, 8, 6, tzinfo=timezone.utc)):
+        with patch('extras.scheduling.timezone.now', return_value=datetime(2026, 9, 30, 8, 6, tzinfo=timezone.utc)):
             self.assertFalse(WebMapServiceUpdateSettingSerializer().get_run_overdue(setting))
 
     def test_existing_results_do_not_hide_a_missed_dispatch(self):
         setting = self.setting()
         setting.has_update_jobs = True
         setting.has_monitoring_runs = True
-        with patch('registry.serializers.update.timezone.now', return_value=datetime(2026, 10, 1, tzinfo=timezone.utc)):
+        with patch('extras.scheduling.timezone.now', return_value=datetime(2026, 10, 1, tzinfo=timezone.utc)):
             self.assertTrue(WebMapServiceUpdateSettingSerializer().get_run_overdue(setting))
 
     def test_completed_one_off_task_is_not_overdue(self):
@@ -93,7 +93,7 @@ class UpdateSettingScheduleTest(SimpleTestCase):
 
     def test_expired_task_is_not_overdue(self):
         setting = self.setting(expires=datetime(2026, 9, 30, 8, 2, tzinfo=timezone.utc))
-        with patch('registry.serializers.update.timezone.now', return_value=datetime(2026, 10, 1, tzinfo=timezone.utc)):
+        with patch('extras.scheduling.timezone.now', return_value=datetime(2026, 10, 1, tzinfo=timezone.utc)):
             self.assertFalse(WebMapServiceUpdateSettingSerializer().get_run_overdue(setting))
 
     def test_last_run_is_read_only_and_creation_field_is_removed(self):

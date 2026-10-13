@@ -74,3 +74,29 @@ There is also a logging feature to count the responsed entities such as megapixe
 
 - WebMapServiceAnalyzedResponseLog
 - WebFeatureServiceAnalyzedResponseLog
+
+## Attention
+
+Which states of a registered service need the attention of an administrator is
+not persisted but derived from the runs and jobs of the service:
+
+- the last monitoring run of a service did not pass
+- an update of a service waits for a review or the last one came back broken
+- the last harvesting run of a catalogue was aborted or left records behind
+
+The derivation lives in `backend/registry/querys/alerts.py` and is annotated to
+the services themselves, which answers it as attributes of a service resource:
+`hasAlert`, `monitoringFailed`, `monitoringFailedAt`, `updateReviewRequired`,
+`updateReviewRequiredAt`, `updateFailed` and `updateFailedAt` and, for a
+catalogue, `harvestAborted`, `harvestIncomplete` and `harvestFailedAt`. Because
+these are annotations of the services, a client filters, sorts and counts its
+services by them like by any other attribute; the endpoints annotate them only
+to a query which asks for them, because each is answered by a subquery. An alert
+disappears as soon as the state behind it is fixed, which means that no model
+and no migration backs it, and it is answered to exactly those users which may
+see the service it tells about.
+
+The schedules a service did not keep are not answered this way, because the time
+a crontab promised a run at is calculated in python and not by the database: the
+monitoring and update settings of a service answer their `runOverdue` instead
+(see `backend/extras/scheduling.py`).

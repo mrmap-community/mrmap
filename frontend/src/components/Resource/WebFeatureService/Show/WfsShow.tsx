@@ -1,8 +1,10 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Stack, Typography } from "@mui/material";
 import { UrlField, useRecordContext, useTranslate } from "react-admin";
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
@@ -62,6 +64,12 @@ const tabs: ServiceTab[] = [
     content: (
       <OverviewTab/>
     ),
+  },
+  {
+    path: "alerts",
+    label: "serviceShow.attention",
+    icon: <WarningAmberIcon />,
+    content: <ServiceAttentionTab />,
   },
   {
     path: "metadata",

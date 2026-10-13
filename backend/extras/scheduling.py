@@ -1,3 +1,6 @@
+from django.utils import timezone
+
+
 def next_run_expected_at(setting):
     """Calculate the next cron occurrence after the last scheduled dispatch."""
     if not setting.enabled or not setting.crontab_id:
@@ -18,3 +21,23 @@ def next_run_expected_at(setting):
     start, delta, _ = schedule.remaining_delta(baseline)
     return start + delta
 
+
+def run_overdue(setting):
+    """Report whether a scheduled run missed the time it was expected at.
+
+    This is the rule which decides that a service needs attention because a run
+    it promised did not happen, so it is answered from here and not recalculated
+    by whoever asks for it.
+
+    Args:
+        setting: the setting which schedules the run
+
+    Returns:
+        bool: True if the setting is enabled, did not expire and its next run
+            was expected before now
+    """
+    current_time = timezone.now()
+    if setting.expires is not None and setting.expires <= current_time:
+        return False
+    expected_at = next_run_expected_at(setting)
+    return expected_at is not None and expected_at < current_time

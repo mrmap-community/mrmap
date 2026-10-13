@@ -1544,3 +1544,219 @@ msgstr "Diese Ressource ist deaktiviert."
 
 #~ msgid "sort by column(s)"
 #~ msgstr "sortiere nach Spalte(n)"
+
+#: registry/enums/alerts.py:12
+msgid "error"
+msgstr "Fehler"
+
+#: registry/enums/alerts.py:13
+msgid "warning"
+msgstr "Warnung"
+
+#: registry/enums/alerts.py:25
+msgid "monitoring failed"
+msgstr "Monitoring fehlgeschlagen"
+
+#: registry/enums/alerts.py:26
+msgid "monitoring overdue"
+msgstr "Monitoring überfällig"
+
+#: registry/enums/alerts.py:27
+msgid "update review required"
+msgstr "Aktualisierung benötigt Prüfung"
+
+#: registry/enums/alerts.py:28
+msgid "update failed"
+msgstr "Aktualisierung fehlgeschlagen"
+
+#: registry/enums/alerts.py:29
+msgid "update overdue"
+msgstr "Aktualisierung überfällig"
+
+#: registry/enums/alerts.py:30
+msgid "harvesting incomplete"
+msgstr "Harvesting unvollständig"
+
+#: registry/models/metadata.py:236 registry/serializers/alerts.py:30
+msgid "category"
+msgstr "Kategorie"
+
+#: registry/querys/alerts.py:198
+msgid "The last monitoring run of the service did not pass."
+msgstr "Der letzte Monitoring-Lauf des Dienstes war nicht erfolgreich."
+
+#: registry/querys/alerts.py:222
+msgid ""
+"The scheduled monitoring of the service did not run at the expected time."
+msgstr "Das geplante Monitoring des Dienstes ist nicht zum erwarteten Zeitpunkt gelaufen."
+
+#: registry/querys/alerts.py:225
+msgid "The scheduled update of the service did not run at the expected time."
+msgstr "Die geplante Aktualisierung des Dienstes ist nicht zum erwarteten Zeitpunkt gelaufen."
+
+#: registry/querys/alerts.py:268
+msgid "The update of the service waits for the confirmation of its mappings."
+msgstr "Die Aktualisierung des Dienstes wartet auf die Bestätigung ihrer Zuordnungen."
+
+#: registry/querys/alerts.py:273
+msgid "The last update of the service failed."
+msgstr "Die letzte Aktualisierung des Dienstes ist fehlgeschlagen."
+
+#: registry/querys/alerts.py:314
+msgid "The last harvesting run of the service was aborted."
+msgstr "Der letzte Harvesting-Lauf des Dienstes wurde abgebrochen."
+
+#: registry/querys/alerts.py:317
+msgid ""
+"The last harvesting run of the service left %(count)s records behind which "
+"could not be imported."
+msgstr "Der letzte Harvesting-Lauf des Dienstes hat %(count)s Datensätze hinterlassen, die nicht importiert werden konnten."
+
+#: registry/serializers/alerts.py:19
+msgid "id"
+msgstr "ID"
+
+#: registry/serializers/alerts.py:20
+msgid "the category and the id of the row this alert is derived from"
+msgstr "die Kategorie und die ID des Datensatzes, aus dem die Meldung abgeleitet ist"
+
+#: registry/serializers/alerts.py:25
+msgid "severity"
+msgstr "Schweregrad"
+
+#: registry/serializers/alerts.py:26
+msgid "how much attention the service needs"
+msgstr "wie viel Aufmerksamkeit der Dienst benötigt"
+
+#: registry/serializers/alerts.py:31
+msgid "the state of the service which needs attention"
+msgstr "der Zustand des Dienstes, der Aufmerksamkeit benötigt"
+
+#: registry/serializers/alerts.py:34
+msgid "message"
+msgstr "Nachricht"
+
+#: registry/serializers/alerts.py:35
+msgid "why this service needs attention"
+msgstr "warum dieser Dienst Aufmerksamkeit benötigt"
+
+#: registry/serializers/alerts.py:39
+msgid "the reported service, addressed by its type and id"
+msgstr "der gemeldete Dienst, adressiert über seinen Typ und seine ID"
+
+#: registry/serializers/alerts.py:41
+msgid "service title"
+msgstr "Dienstetitel"
+
+#: registry/serializers/alerts.py:42
+msgid "the title of the reported service"
+msgstr "der Titel des gemeldeten Dienstes"
+
+#: registry/serializers/alerts.py:45
+msgid "resource"
+msgstr "Ressource"
+
+#: registry/serializers/alerts.py:46
+msgid "the run or job which carries the problem, addressed by its type and id"
+msgstr "der Lauf oder Auftrag, der das Problem trägt, adressiert über seinen Typ und seine ID"
+
+#: registry/serializers/alerts.py:50
+msgid "occurred at"
+msgstr "aufgetreten am"
+
+#: registry/serializers/alerts.py:51
+msgid "when the reported state appeared"
+msgstr "wann der gemeldete Zustand aufgetreten ist"
+
+#: registry/views/alerts.py:61
+msgid "The service of this request is not visible to you."
+msgstr "Der Dienst dieser Anfrage ist für Sie nicht sichtbar."
+#: registry/serializers/service.py
+msgid "has alert"
+msgstr "Aufmerksamkeit erforderlich"
+
+
+#: registry/serializers/service.py
+msgid "true if any state of the service needs attention"
+msgstr "true, wenn ein Zustand des Dienstes die Aufmerksamkeit benötigt"
+
+
+#: registry/serializers/service.py
+msgid "true if the last monitoring run of the service reported a failure"
+msgstr "true, wenn der letzte Monitoring-Lauf des Dienstes eine Störung gemeldet hat"
+
+
+#: registry/serializers/service.py
+msgid "monitoring failed at"
+msgstr "Monitoring fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last monitoring run of the service was done"
+msgstr "der Zeitpunkt, an dem der letzte Monitoring-Lauf des Dienstes endete"
+
+
+#: registry/serializers/service.py
+msgid "true if an update of the service waits for a decision about it"
+msgstr "true, wenn eine Aktualisierung des Dienstes auf ihre Prüfung wartet"
+
+
+#: registry/serializers/service.py
+msgid "update review required at"
+msgstr "Aktualisierung benötigt Prüfung am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the update which waits for a decision was made"
+msgstr ""
+"der Zeitpunkt, an dem die Aktualisierung, die auf ihre Prüfung wartet, "
+"erstellt wurde"
+
+
+#: registry/serializers/service.py
+msgid "true if the last update of the service came back broken"
+msgstr "true, wenn die letzte Aktualisierung des Dienstes fehlgeschlagen ist"
+
+
+#: registry/serializers/service.py
+msgid "update failed at"
+msgstr "Aktualisierung fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last update of the service was made"
+msgstr "der Zeitpunkt, an dem die letzte Aktualisierung des Dienstes erstellt wurde"
+
+
+#: registry/serializers/service.py
+msgid "harvest aborted"
+msgstr "Harvesting abgebrochen"
+
+
+#: registry/serializers/service.py
+msgid "true if the last harvesting job of the catalogue ended before it was done"
+msgstr ""
+"true, wenn der letzte Harvesting-Lauf des Katalogs vor seinem Ende "
+"abgebrochen wurde"
+
+
+#: registry/serializers/service.py
+msgid "harvest incomplete"
+msgstr "Harvesting unvollständig"
+
+
+#: registry/serializers/service.py
+msgid "true if the last harvesting job of the catalogue could not import records into the registry"
+msgstr ""
+"true, wenn der letzte Harvesting-Lauf des Katalogs keine Metadaten in die "
+"Registry übernehmen konnte"
+
+
+#: registry/serializers/service.py
+msgid "harvest failed at"
+msgstr "Harvesting fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last harvesting job of the catalogue was made"
+msgstr "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"

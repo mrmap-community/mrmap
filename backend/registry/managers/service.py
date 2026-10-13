@@ -16,7 +16,25 @@ SIBLING_INDEX = Coalesce(
 )
 
 
-class WebMapServiceQuerySet(QuerySet):
+class ServiceAlertQuerySetMixin:
+    """The states of the services of one kind which need attention.
+
+    The rules which decide about these states are not answered here but in
+    registry/querys/alerts.py, which is imported on the way, because the models
+    the rules are derived from use the managers of the services themselves.
+    """
+
+    def with_alert_information(self):
+        """Annotate the states of these services which need attention.
+
+        Returns:
+            the queryset with the alerts of every service annotated
+        """
+        from registry.querys.alerts import alert_annotations
+        return alert_annotations(self)
+
+
+class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
     def update_candidates(self):
         return self.filter(
             update_candidate_of__isnull=False
@@ -83,7 +101,7 @@ class WebMapServiceQuerySet(QuerySet):
         )
 
 
-class WebFeatureServiceQuerySet(QuerySet):
+class WebFeatureServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
     def prefetch_whole_service(self) -> "WebFeatureServiceQuerySet":
         featuretypes = Prefetch(
             "featuretypes",
@@ -114,7 +132,7 @@ class WebFeatureServiceQuerySet(QuerySet):
         )
 
 
-class CatalogueServiceQuerySet(QuerySet):
+class CatalogueServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
     def prefetch_whole_service(self) -> "CatalogueServiceQuerySet":
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls__mime_types", "keywords"

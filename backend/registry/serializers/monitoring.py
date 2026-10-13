@@ -1,6 +1,6 @@
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
+from extras.scheduling import run_overdue
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from registry.models.metadata import ReferenceSystem
@@ -102,11 +102,7 @@ class MonitoringSettingSerializerMixin:
     """
 
     def get_run_overdue(self, obj) -> bool:
-        current_time = timezone.now()
-        if obj.expires is not None and obj.expires <= current_time:
-            return False
-        expected_at = obj.next_run_expected_at
-        return expected_at is not None and expected_at < current_time
+        return run_overdue(obj)
 
 
 class WebMapServiceMonitoringSettingSerializer(

@@ -2,9 +2,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import Case
 from django.db.models import IntegerField as DjangoIntegerField
 from django.db.models import OuterRef, Q, Subquery, Sum, Value, When
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
+from extras.scheduling import run_overdue
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
@@ -48,11 +48,7 @@ class UpdateSettingSerializer(
     run_overdue = SerializerMethodField()
 
     def get_run_overdue(self, obj) -> bool:
-        current_time = timezone.now()
-        if obj.expires is not None and obj.expires <= current_time:
-            return False
-        expected_at = obj.next_run_expected_at
-        return expected_at is not None and expected_at < current_time
+        return run_overdue(obj)
 
     class Meta:
         fields = ('url', 'schedule_interval', 'enabled',

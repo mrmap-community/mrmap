@@ -12,6 +12,14 @@ Feature: Featuretype List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data"
 
+    Scenario: Can retrieve camelCase sparse history fields and a relationship
+        Given I set a queryparam "fields[FeatureType]" with value "createdAt,lastModifiedAt,service"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.attributes.createdAt"
+        Then I expect that response json has an attribute "data.attributes.lastModifiedAt"
+        Then I expect that response json has an attribute "data.relationships.service.data.id" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method

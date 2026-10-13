@@ -1,5 +1,5 @@
 from camel_converter import to_camel
-from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Sum
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
@@ -268,9 +268,23 @@ class WebMapServiceViewSet(
         return qs
 
 
+class ServiceElementHistoryInformationViewSetMixin(HistoryInformationViewSetMixin):
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        service_model = qs.model._meta.get_field('service').related_model
+        creation_history = service_model.change_log.model.objects.filter(
+            history_relation_id=OuterRef('service_id'), history_type='+',
+        ).order_by('history_date', 'history_id')
+        # A correlated subquery avoids loading each child's service or history
+        # separately, including when only createdAt is requested.
+        return qs.annotate(service_created_at=Subquery(
+            creation_history.values('history_date')[:1],
+        ))
+
+
 class LayerViewSetMixin(
     PreloadNotIncludesMixin,
-    HistoryInformationViewSetMixin,
+    ServiceElementHistoryInformationViewSetMixin,
 ):
     queryset = Layer.objects.all().select_related("mptt_tree")
     serializer_class = LayerSerializer
@@ -585,7 +599,7 @@ class WebFeatureServiceViewSet(
 
 class FeatureTypeViewSetMixin(
     PreloadNotIncludesMixin,
-    HistoryInformationViewSetMixin,
+    ServiceElementHistoryInformationViewSetMixin,
 ):
     # the default reference system is always serialized
     queryset = FeatureType.objects.all().select_related(

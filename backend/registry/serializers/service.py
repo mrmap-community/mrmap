@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
@@ -56,9 +58,17 @@ class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerial
         fields = "__all__"
 
 
+class ServiceElementHistoryInformationSerializer(HistoryInformationSerializer):
+    def get_created_at(self, instance) -> datetime:
+        # Legacy bulk registrations have no child creation record. The service
+        # registration date is an estimate; do not manufacture historical rows.
+        created_at = super().get_created_at(instance)
+        return created_at if created_at is not None else getattr(instance, 'service_created_at', None)
+
+
 class LayerSerializer(
         StringRepresentationSerializer,
-        HistoryInformationSerializer,
+        ServiceElementHistoryInformationSerializer,
         SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
@@ -390,7 +400,7 @@ class WebFeatureServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSe
 
 class FeatureTypeSerializer(
         StringRepresentationSerializer,
-        HistoryInformationSerializer,
+        ServiceElementHistoryInformationSerializer,
         SystemInfoSerializerMixin,
         ModelSerializer):
 

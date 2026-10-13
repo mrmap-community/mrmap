@@ -13,6 +13,14 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "data"
         Then I expect that "8" queries where made
 
+    Scenario: Can retrieve camelCase sparse history fields and a relationship
+        Given I set a queryparam "fields[Layer]" with value "createdAt,lastModifiedAt,service"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.attributes.createdAt"
+        Then I expect that response json has an attribute "data.attributes.lastModifiedAt"
+        Then I expect that response json has an attribute "data.relationships.service.data.id" with value "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method

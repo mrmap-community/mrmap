@@ -11,6 +11,22 @@ OGC services are represented by:
 Core models:
 backend/registry/models/service.py
 
+## Spatial discovery
+
+The Service Explorer provides WMS, WFS and CSW tabs with a shared list/map view.
+Searching the map viewport filters the entire collection; rectangles represent
+only the current result page. Services without a recorded extent remain visible.
+CSW rectangles describe the coverage of harvested metadata records.
+
+DatasetMetadataRecord and ServiceMetadataRecord use the same explorer components
+and support viewport searches over their bounding geometry. Service metadata
+imports read geographic extents from ISO service identification elements.
+
+Service list clients request `extent`, `element_count` and `can_edit` through
+JSON:API sparse fieldsets. Extents and counts are derived in the page query, with
+no geometry columns or migrations added. Clients that omit these fields retain
+their existing response shape and do not run the coverage aggregate.
+
 ## Updating services
 
 Update jobs:

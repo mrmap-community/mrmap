@@ -133,26 +133,39 @@ map_context_routes.register(r'mapcontextlayers', mapcontext_views.NestedMapConte
 dataset_metadata_routes = router.register(
     r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
 dataset_metadata_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
-                                 basename='datasetmetadata-keywords', parents_query_lookups=['datasetmetadata_metadata'])
+                                 basename='datasetmetadata-keywords', parents_query_lookups=['datasetmetadatarecord_metadata'])
 dataset_metadata_routes.register(r'licence', metadata_views.NestedLicenceViewSet,
-                                 basename='datasetmetadata-licence', parents_query_lookups=['datasetmetadata'])
+                                 basename='datasetmetadata-licence', parents_query_lookups=['datasetmetadatarecord'])
 dataset_metadata_routes.register(r'dataset-contact', metadata_views.NestedDatasetContactViewSet,
                                  basename='datasetmetadata-datasetcontact', parents_query_lookups=['datasetmetadatarecord_dataset_contact'])
 dataset_metadata_routes.register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet,
                                  basename='datasetmetadata-metadatacontact', parents_query_lookups=['datasetmetadatarecord_metadata_contact'])
 dataset_metadata_routes.register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet,
-                                 basename='datasetmetadata-referencesystems', parents_query_lookups=['dataset_metadata'])
+                                 basename='datasetmetadata-referencesystems', parents_query_lookups=['datasetmetadatarecord'])
 dataset_metadata_routes.register(r'csws', service_views.NestedCatalogueServiceViewSet, basename='datasetmetadata-csws',
-                                 parents_query_lookups=['dataset_metadata_relation__dataset_metadata'])
+                                 parents_query_lookups=['registry_datasetmetadatarecord_metadata_record'])
 dataset_metadata_routes.register(r'layers', service_views.NestedLayerViewSet, basename='datasetmetadata-layers',
-                                 parents_query_lookups=['dataset_metadata_relation__dataset_metadata'])
+                                 parents_query_lookups=['metadata_relation__dataset_metadata'])
 dataset_metadata_routes.register(r'featuretypes', service_views.NestedFeatureTypeViewSet,
-                                 basename='datasetmetadata-featuretypes', parents_query_lookups=['dataset_metadata_relation__dataset_metadata'])
+                                 basename='datasetmetadata-featuretypes', parents_query_lookups=['metadata_relation__dataset_metadata'])
 
 service_metadata_routes = router.register(
     r'service-metadata', metadata_views.ServiceMetadataViewSet, basename='servicemetadata')
 service_metadata_routes.register(r'csws', service_views.NestedCatalogueServiceViewSet,
-                                 basename='servicemetadata-csws', parents_query_lookups=['service_metadata_relation__service_metadata'])
+                                 basename='servicemetadata-csws', parents_query_lookups=['registry_servicemetadatarecord_metadata_record'])
+
+service_metadata_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
+                                 basename='servicemetadata-keywords', parents_query_lookups=['servicemetadatarecord_metadata'])
+service_metadata_routes.register(r'licence', metadata_views.NestedLicenceViewSet,
+                                 basename='servicemetadata-licence', parents_query_lookups=['servicemetadatarecord'])
+service_metadata_routes.register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet,
+                                 basename='servicemetadata-metadatacontact', parents_query_lookups=['servicemetadatarecord_metadata_contact'])
+service_metadata_routes.register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet,
+                                 basename='servicemetadata-referencesystems', parents_query_lookups=['servicemetadatarecord'])
+service_metadata_routes.register(r'wms', service_views.NestedWebMapServiceViewSet,
+                                 basename='servicemetadata-wms', parents_query_lookups=['metadata_relation__service_metadata'])
+service_metadata_routes.register(r'wfs', service_views.NestedWebFeatureServiceViewSet,
+                                 basename='servicemetadata-wfs', parents_query_lookups=['metadata_relation__service_metadata'])
 
 
 wms_monitoring_routes = router.register(r'monitoring/wms-monitoring-settings',
@@ -330,6 +343,13 @@ router.register(r'monitoring/csw-monitoring-get-records-probe-results',
                 monitoring_views.CatalogueServiceGetRecordsProbeResultViewSet,
                 basename='catalogueservicemonitoring-getrecords-probe-result')
 
+
+router.register(r'time-extents', metadata_views.TimeExtentViewSet, basename='timeextent')
+router.register(r'languages', metadata_views.LanguageViewSet, basename='language')
+router.register(r'iso-categories', metadata_views.IsoCategoryViewSet, basename='isocategory')
+router.register(r'metadata-relations', metadata_views.MetadataRelationViewSet, basename='metadatarelation')
+router.register(r'historical-dataset-metadata', historical_views.DatasetMetadataRecordHistoricalViewSet, basename='datasetmetadata-historical')
+router.register(r'historical-service-metadata', historical_views.ServiceMetadataRecordHistoricalViewSet, basename='servicemetadata-historical')
 
 # historical
 router.register(r'historical-wms',

@@ -1,4 +1,4 @@
-@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json
+@fixtures:test_keywords.json @fixtures:test_crs.json @fixtures:test_csw.json @fixtures:test_datasetmetadata.json
 Feature: DatasetMetadataRecord List Endpoint
     As an API client,
     I want to search dataset metadata records,

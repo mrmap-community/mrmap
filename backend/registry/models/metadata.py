@@ -452,7 +452,7 @@ class Keyword(models.Model):
                 fields=["keyword"]
             ),
             models.CheckConstraint(
-                condition=~Q(keyword="") | ~Q(keyword__isnull=True),
+                condition=Q(keyword__regex=r"\S") & Q(keyword__isnull=False),
                 name="%(app_label)s_%(class)s_non_empty_keywords",
             )
         ]

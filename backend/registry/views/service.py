@@ -1,5 +1,4 @@
 from camel_converter import to_camel
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
@@ -1021,9 +1020,9 @@ class NestedCatalogueServiceOperationUrlViewSet(
     """
 
 
-class NestedWebMapServiceViewSet(NestedViewSetMixin, WebMapServiceViewSet):
+class NestedWebMapServiceViewSet(NestedModelViewSet, WebMapServiceViewSet):
     http_method_names = ["get", "head", "options"]
 
 
-class NestedWebFeatureServiceViewSet(NestedViewSetMixin, WebFeatureServiceViewSet):
+class NestedWebFeatureServiceViewSet(NestedModelViewSet, WebFeatureServiceViewSet):
     http_method_names = ["get", "head", "options"]

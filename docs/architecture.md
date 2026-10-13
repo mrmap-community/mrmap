@@ -81,15 +81,22 @@ Which states of a registered service need the attention of an administrator is
 not persisted but derived from the runs and jobs of the service:
 
 - the last monitoring run of a service did not pass
-- the last update job of a service waits for a review or failed
-- the monitoring or update schedule of a service did not run at the expected
-  time (see `backend/extras/scheduling.py`)
+- an update of a service waits for a review or the last one came back broken
 - the last harvesting run of a catalogue was aborted or left records behind
 
-The derivation lives in `backend/registry/querys/alerts.py` and is answered per
-service by the read only endpoints `api/registry/wms/<id>/alerts`,
-`api/registry/wfs/<id>/alerts` and `api/registry/csw/<id>/alerts`, which name the
-service they report about in their path. An alert disappears as soon as the state
-behind it is fixed, which means that no model and no migration backs it. Because
-every alert tells about the service it belongs to, the alerts of a service are
-only answered to a user which may see that service.
+The derivation lives in `backend/registry/querys/alerts.py` and is annotated to
+the services themselves, which answers it as attributes of a service resource:
+`hasAlert`, `monitoringFailed`, `monitoringFailedAt`, `updateReviewRequired`,
+`updateReviewRequiredAt`, `updateFailed` and `updateFailedAt` and, for a
+catalogue, `harvestAborted`, `harvestIncomplete` and `harvestFailedAt`. Because
+these are annotations of the services, a client filters, sorts and counts its
+services by them like by any other attribute; the endpoints annotate them only
+to a query which asks for them, because each is answered by a subquery. An alert
+disappears as soon as the state behind it is fixed, which means that no model
+and no migration backs it, and it is answered to exactly those users which may
+see the service it tells about.
+
+The schedules a service did not keep are not answered this way, because the time
+a crontab promised a run at is calculated in python and not by the database: the
+monitoring and update settings of a service answer their `runOverdue` instead
+(see `backend/extras/scheduling.py`).

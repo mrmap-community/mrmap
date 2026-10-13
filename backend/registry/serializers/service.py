@@ -28,7 +28,7 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, IntegerField,
+from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
                                    SerializerMethodField, URLField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
@@ -206,7 +206,63 @@ class LayerSerializer(
         return self._convert_dict_to_object(getattr(instance, "styles_inherited", []), Style, defaults={"layer": Layer(pk=instance.pk)})
 
 
+class ServiceAlertSerializerMixin(ModelSerializer):
+    """Answers the states of a service which an administrator has to attend to.
+
+    The states are annotated to the queryset of the services by
+    registry/querys/alerts.py, which means that they are filterable, sortable and
+    countable like any other attribute of a service - and that the viewset which
+    answers them decides whether they are annotated at all, because they are
+    answered by a subquery per attribute.
+
+    The schedules a service did not keep are not answered here, because a
+    crontab is no rule of the database: a client reads them from the monitoring
+    and update settings of the service, which answer their `runOverdue`.
+    """
+
+    has_alert = BooleanField(
+        label=_("has alert"),
+        help_text=_("true if any state of the service needs attention"),
+        read_only=True)
+
+    monitoring_failed = BooleanField(
+        label=_("monitoring failed"),
+        help_text=_(
+            "true if the last monitoring run of the service reported a failure"),
+        read_only=True)
+    monitoring_failed_at = DateTimeField(
+        label=_("monitoring failed at"),
+        help_text=_(
+            "the point in time the last monitoring run of the service was done"),
+        read_only=True)
+
+    update_review_required = BooleanField(
+        label=_("update review required"),
+        help_text=_(
+            "true if an update of the service waits for a decision about it"),
+        read_only=True)
+    update_review_required_at = DateTimeField(
+        label=_("update review required at"),
+        help_text=_(
+            "the point in time the update which waits for a decision was made"),
+        read_only=True)
+    update_failed = BooleanField(
+        label=_("update failed"),
+        help_text=_(
+            "true if the last update of the service came back broken"),
+        read_only=True)
+    update_failed_at = DateTimeField(
+        label=_("update failed at"),
+        help_text=_(
+            "the point in time the last update of the service was made"),
+        read_only=True)
+
+    class Meta:
+        abstract = True
+
+
 class WebMapServiceListSerializer(
+    ServiceAlertSerializerMixin,
     StringRepresentationSerializer,
     ObjectPermissionCheckerSerializer,
     HistoryInformationSerializer,
@@ -466,6 +522,7 @@ class FeatureTypeSerializer(
 
 
 class WebFeatureServiceSerializer(
+        ServiceAlertSerializerMixin,
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         SystemInfoSerializerMixin,
@@ -583,6 +640,7 @@ class CatalogueServiceCreateSerializer(
 
 
 class CatalogueServiceSerializer(
+        ServiceAlertSerializerMixin,
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         SystemInfoSerializerMixin,
@@ -593,6 +651,24 @@ class CatalogueServiceSerializer(
     harvested_dataset_count = IntegerField(read_only=True)
     harvested_service_count = IntegerField(read_only=True)
     harvested_total_count = IntegerField(read_only=True)
+    harvest_aborted = BooleanField(
+        label=_("harvest aborted"),
+        help_text=_(
+            "true if the last harvesting job of the catalogue ended before it "
+            "was done"),
+        read_only=True)
+    harvest_incomplete = BooleanField(
+        label=_("harvest incomplete"),
+        help_text=_(
+            "true if the last harvesting job of the catalogue could not import "
+            "records into the registry"),
+        read_only=True)
+    harvest_failed_at = DateTimeField(
+        label=_("harvest failed at"),
+        help_text=_(
+            "the point in time the last harvesting job of the catalogue was "
+            "made"),
+        read_only=True)
     # TODO: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord

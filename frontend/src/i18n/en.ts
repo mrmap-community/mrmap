@@ -92,16 +92,16 @@ const en = lodashMerge(
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
-    serviceAlerts: {
+    serviceAttention: {
       title: "Attention of this service",
-      severity: { error: "Error", warning: "Warning" },
-      category: {
-        monitoring_failed: "Monitoring failed",
-        monitoring_overdue: "Monitoring overdue",
-        update_review_required: "Update needs review",
-        update_failed: "Update failed",
-        update_overdue: "Update overdue",
-        harvesting_incomplete: "Harvesting incomplete",
+      none: "Nothing about this service needs the attention of an administrator.",
+      at: "since",
+      alerts: {
+        monitoringFailed: "The last monitoring run of this service reported a failure.",
+        updateFailed: "The last update of this service came back broken.",
+        updateReviewRequired: "An update of this service waits for a decision about it.",
+        harvestAborted: "The last harvesting of this catalogue ended before it was done.",
+        harvestIncomplete: "The last harvesting of this catalogue could not import all records.",
       },
     },
     monitoringRun: {

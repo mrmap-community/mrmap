@@ -89,16 +89,16 @@ const germanMessages: TranslationMessages = {
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
-  serviceAlerts: {
+  serviceAttention: {
     title: "Aufmerksamkeit dieses Dienstes",
-    severity: { error: "Fehler", warning: "Warnung" },
-    category: {
-      monitoring_failed: "Monitoring fehlgeschlagen",
-      monitoring_overdue: "Monitoring überfällig",
-      update_review_required: "Aktualisierung benötigt Prüfung",
-      update_failed: "Aktualisierung fehlgeschlagen",
-      update_overdue: "Aktualisierung überfällig",
-      harvesting_incomplete: "Harvesting unvollständig",
+    none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",
+    at: "seit",
+    alerts: {
+      monitoringFailed: "Der letzte Monitoring-Lauf dieses Dienstes hat einen Fehler gemeldet.",
+      updateFailed: "Die letzte Aktualisierung dieses Dienstes ist fehlgeschlagen.",
+      updateReviewRequired: "Eine Aktualisierung dieses Dienstes wartet auf eine Entscheidung.",
+      harvestAborted: "Das letzte Harvesting dieses Katalogs wurde vor dem Abschluss abgebrochen.",
+      harvestIncomplete: "Das letzte Harvesting dieses Katalogs konnte nicht alle Datensätze übernehmen.",
     },
   },
   monitoringRun: {

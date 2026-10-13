@@ -1,8 +1,8 @@
 from django.utils.translation import gettext_lazy as _
 from django_filters import BooleanFilter
 from django_filters.filterset import FilterSet
-from registry.models.service import (FeatureType, Layer, WebFeatureService,
-                                     WebMapService)
+from registry.models.service import (CatalogueService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_gis.filterset import GeoFilterSet
 
@@ -11,6 +11,16 @@ class WebMapServiceFilterSet(FilterSet):
     is_update_candidate = BooleanFilter(
         field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
     )
+
+    # The alerts of a service are answered by annotations which the viewset only
+    # adds to a query which asks for them, see registry/querys/alerts.py. Only
+    # the schedules a service did not keep are not filterable here, because they
+    # are answered by python.
+    has_alert = BooleanFilter(field_name="has_alert")
+    monitoring_failed = BooleanFilter(field_name="monitoring_failed")
+    update_review_required = BooleanFilter(
+        field_name="update_review_required")
+    update_failed = BooleanFilter(field_name="update_failed")
 
     bbox_lat_lon__contains = GeometryFilter(
         field_name='layer__bbox_lat_lon', lookup_expr='contains')
@@ -104,6 +114,13 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
         field_name="update_candidate_of", lookup_expr="isnull", exclude=True,
     )
 
+    # the alerts of a service, see WebMapServiceFilterSet
+    has_alert = BooleanFilter(field_name="has_alert")
+    monitoring_failed = BooleanFilter(field_name="monitoring_failed")
+    update_review_required = BooleanFilter(
+        field_name="update_review_required")
+    update_failed = BooleanFilter(field_name="update_failed")
+
     bbox_lat_lon__contains = GeometryFilter(
         field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
     bbox_lat_lon__covers = GeometryFilter(
@@ -155,6 +172,27 @@ class FeatureTypeFilterSet(GeoFilterSet):
 
     class Meta:
         model = FeatureType
+        fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
+        }
+
+
+class CatalogueServiceFilterSet(FilterSet):
+    # the alerts of a service, see WebMapServiceFilterSet. A catalogue is the
+    # only kind of service whose records are pulled by a harvesting job, so it
+    # answers the state of that job in addition.
+    has_alert = BooleanFilter(field_name="has_alert")
+    monitoring_failed = BooleanFilter(field_name="monitoring_failed")
+    update_review_required = BooleanFilter(
+        field_name="update_review_required")
+    update_failed = BooleanFilter(field_name="update_failed")
+    harvest_aborted = BooleanFilter(field_name="harvest_aborted")
+    harvest_incomplete = BooleanFilter(field_name="harvest_incomplete")
+
+    class Meta:
+        model = CatalogueService
         fields = {
             'id': ['exact', 'icontains', 'contains', 'in'],
             'title': ['exact', 'icontains', 'contains'],

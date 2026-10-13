@@ -1,6 +1,5 @@
 from django.urls import path
 from extras.routers import NestedDefaultRouter
-from registry.views import alerts as alerts_views
 from registry.views import harvesting as harvesting_views
 from registry.views import historical as historical_views
 from registry.views import mapcontext as mapcontext_views
@@ -38,8 +37,6 @@ wms_routes.register(r'monitoring-settings', monitoring_views.NestedWebMapService
                     basename='wms-monitoringsetting', parents_query_lookups=['service'])
 wms_routes.register(r'monitoring-runs', monitoring_views.NestedWebMapServiceMonitoringRunViewSet,
                     basename='wms-monitoringrun', parents_query_lookups=['setting__service'])
-wms_routes.register(r'alerts', alerts_views.WebMapServiceAlertListView,
-                    basename='wms-alerts', parents_query_lookups=['service'])
 
 wms_op_urls_routes = router.register(
     r'wms-operation-urls', service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl')
@@ -79,8 +76,6 @@ wfs_routes.register(r'monitoring-settings', monitoring_views.NestedWebFeatureSer
                     basename='wfs-monitoringsetting', parents_query_lookups=['service'])
 wfs_routes.register(r'monitoring-runs', monitoring_views.NestedWebFeatureServiceMonitoringRunViewSet,
                     basename='wfs-monitoringrun', parents_query_lookups=['setting__service'])
-wfs_routes.register(r'alerts', alerts_views.WebFeatureServiceAlertListView,
-                    basename='wfs-alerts', parents_query_lookups=['service'])
 
 feature_types_routes = router.register(
     r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
@@ -111,8 +106,6 @@ csw_routes.register(r'monitoring-settings', monitoring_views.NestedCatalogueServ
                     basename='csw-monitoringsetting', parents_query_lookups=['service'])
 csw_routes.register(r'monitoring-runs', monitoring_views.NestedCatalogueServiceMonitoringRunViewSet,
                     basename='csw-monitoringrun', parents_query_lookups=['setting__service'])
-csw_routes.register(r'alerts', alerts_views.CatalogueServiceAlertListView,
-                    basename='csw-alerts', parents_query_lookups=['service'])
 
 csw_op_urls_routes = router.register(
     r'csw-operation-urls', service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl')

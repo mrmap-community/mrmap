@@ -19,7 +19,6 @@ import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
@@ -164,9 +163,6 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "ReferenceSystem"},
 
   {name: "TaskResult"},
-  // the attention of a service is listed in the show screen of the service, so
-  // this resource has no list of its own to navigate to
-  {name: "ServiceAlert", icon: WarningAmberIcon},
   {
     name: "BackgroundProcess",
     icon: UpdateIcon,

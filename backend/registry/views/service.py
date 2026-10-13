@@ -13,7 +13,8 @@ from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
-from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
+from registry.filters.service import (CatalogueServiceFilterSet,
+                                      FeatureTypeFilterSet, LayerFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
@@ -35,6 +36,8 @@ from registry.models.service import (CatalogueService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
 from registry.models.update import WebMapServiceUpdateSetting
+from registry.querys.alerts import (SERVICE_KIND_OF, alerts_requested,
+                                    has_alert_annotations)
 from registry.querys.service import LayerPrefetch
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
@@ -103,7 +106,53 @@ MIME_TYPES_AS_RELATION = Prefetch(
     "mime_types", queryset=MimeType.objects.only("id"))
 
 
+class ServiceAlertAnnotationMixin:
+    """Annotates the alerts of a service to the queryset which answers them.
+
+    The alerts of a service are answered by a subquery per attribute, so they are
+    only annotated to a query which asks for them: a request which answers the
+    attributes of a service, narrows the services by them or orders the services
+    by them - see `alerts_requested()`.
+    """
+
+    def with_alerts_if_requested(self, qs):
+        """Annotate the alerts of the services which the request wants.
+
+        Args:
+            qs: the queryset of one kind of service to annotate
+
+        Returns:
+            QuerySet: the queryset, annotated if the request asks for alerts
+        """
+        kind = SERVICE_KIND_OF.get(qs.model)
+        if kind is None or not alerts_requested(self.request,
+                                                kind.service.__name__,
+                                                kind.attributes):
+            return qs
+        return qs.with_alert_information()
+
+    def filter_queryset(self, queryset):
+        """Annotate the alerts before the filters and the sort of a request.
+
+        The filters and the sort of a request name the annotations of the alerts,
+        so those have to be annotated before they are applied. A viewset applies
+        them not only to the queryset which answers the request, but as well to
+        the queryset it holds, when it checks the permissions of the services it
+        answers, see `ObjectPermissionCheckerViewSetMixin`.
+
+        Args:
+            queryset: the queryset of one kind of service to filter
+
+        Returns:
+            QuerySet: the queryset the request is answered with
+        """
+        if not has_alert_annotations(queryset):
+            queryset = self.with_alerts_if_requested(queryset)
+        return super().filter_queryset(queryset)
+
+
 class WebMapServiceViewSet(
+    ServiceAlertAnnotationMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -206,7 +255,9 @@ class WebMapServiceViewSet(
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    ordering_fields = ["id", "title", "abstract", "hits",
+                       "date_stamp", "has_alert", "monitoring_failed_at",
+                       "update_review_required_at", "update_failed_at"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
@@ -265,6 +316,7 @@ class WebMapServiceViewSet(
                 )
             )
 
+        qs = self.with_alerts_if_requested(qs)
         return qs
 
 
@@ -412,6 +464,7 @@ class NestedWebMapServiceOperationUrlViewSet(
 
 
 class WebFeatureServiceViewSet(
+    ServiceAlertAnnotationMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -521,7 +574,9 @@ class WebFeatureServiceViewSet(
     }
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    ordering_fields = ["id", "title", "abstract", "hits",
+                       "date_stamp", "has_alert", "monitoring_failed_at",
+                       "update_review_required_at", "update_failed_at"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
@@ -580,6 +635,7 @@ class WebFeatureServiceViewSet(
                 )
             )
 
+        qs = self.with_alerts_if_requested(qs)
         return qs
 
 
@@ -675,6 +731,7 @@ class NestedFeatureTypeViewSet(
 
 
 class CatalogueServiceViewSetMixin(
+    ServiceAlertAnnotationMixin,
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -701,12 +758,11 @@ class CatalogueServiceViewSetMixin(
         "create": CatalogueServiceCreateSerializer,
     }
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        'title': ['exact', 'icontains', 'contains'],
-        'abstract': ['exact', 'icontains', 'contains']
-    }
-    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    filterset_class = CatalogueServiceFilterSet
+    ordering_fields = ["id", "title", "abstract", "hits",
+                       "date_stamp", "has_alert", "monitoring_failed_at",
+                       "update_review_required_at", "update_failed_at",
+                       "harvest_failed_at"]
     select_for_includes = {
         # "__all__": ["created_by"],
         "service_contact": ["service_contact"],
@@ -868,6 +924,7 @@ class CatalogueServiceViewSetMixin(
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
         qs = self.with_running_harvesting_job(qs)
+        qs = self.with_alerts_if_requested(qs)
         return qs
 
     def get_task_kwargs(self, request, serializer):

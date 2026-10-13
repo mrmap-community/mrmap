@@ -1,17 +1,20 @@
+"""Tests the alerts which the resources of the services answer.
+
+An alert is not stored anywhere but derived from the runs and jobs of a service,
+so every test creates the state behind an alert and asks the queryset or the
+endpoint of that service for the alerts it has to answer. Because the alerts are
+attributes of a service, they are asked for like any other attribute: with the
+fields of a request, a filter of it or its sort.
+"""
+import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.cache import caches
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
-from django.utils import translation
 from django.utils.timezone import now
-from django.utils.translation import gettext as _
 from django_celery_beat.models import CrontabSchedule
-from guardian.shortcuts import assign_perm
-from registry.enums.alerts import ServiceAlertCategory as Category
-from registry.enums.alerts import ServiceAlertSeverity as Severity
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.update import UpdateJobStatusEnum as JobState
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
@@ -19,8 +22,8 @@ from registry.models.monitoring import (GetCapabilitiesProbeResult,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import CatalogueService, WebMapService
-from registry.models.update import (WebMapServiceUpdateJob,
-                                    WebMapServiceUpdateSetting)
+from registry.models.update import WebMapServiceUpdateJob
+from registry.querys.alerts import ALERT_ATTRIBUTES, alerts_requested
 from rest_framework.test import APIClient
 
 JSONAPI = "application/vnd.api+json"
@@ -29,20 +32,19 @@ WMS_TWO = "1b195589-dcfa-403f-9e66-e7e1c0a67024"
 CSW_ONE = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 MONITORED_URI = "https://www.example.de/wms"
 
-#: the route which answers the alerts of a kind of service
-ALERTS_ROUTE = {
-    WebMapService: "registry:wms-alerts-list",
-    CatalogueService: "registry:csw-alerts-list",
+#: the resources which answer the alerts of the services of a deployment
+SERVICE_ROUTE = {
+    WebMapService: "registry:wms-list",
+    CatalogueService: "registry:csw-list",
 }
 
 
-class ServiceAlertsApiTest(TestCase):
-    """Tests the endpoint which answers the attention a service needs.
+class ServiceAlertsMixin:
+    """The states which the alerts of a service are derived from.
 
-    An alert is not stored but derived from the runs and jobs of a service, so
-    every test creates the state behind an alert and asks the endpoint of that
-    service for the alert it has to answer. As every alert tells about the
-    service it belongs to, the tests also answer who may ask for them.
+    The runs and jobs of a service are the only data an alert is made of, so
+    this creates them and reads the alerts of a service the way the api of its
+    kind does.
     """
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
@@ -63,41 +65,32 @@ class ServiceAlertsApiTest(TestCase):
 
     @staticmethod
     def client_for(user):
+        """A client which asks the api as the given user
+
+        Args:
+            user: the user the api answers
+
+        Returns:
+            APIClient: a client which asks as that user
+        """
         client = APIClient()
         client.force_authenticate(user)
         # without an explicit accept the browsable api renderer is used
         client.credentials(HTTP_ACCEPT=JSONAPI)
         return client
 
-    def response(self, service, client=None, **query):
-        """Ask the alerts endpoint of a service
+    @staticmethod
+    def alerts(service):
+        """The row of a service with its alerts annotated
 
         Args:
-            service: the service the alerts belong to
-            client: the client which asks, the admin asks per default
-            **query: the query parameters of the request
+            service: the service to read the alerts of
 
         Returns:
-            Response: the answer of the endpoint
+            the row of the service with the alerts annotated
         """
-        return (client or self.client).get(
-            reverse(ALERTS_ROUTE[type(service)],
-                    kwargs={"parent_lookup_service": service.pk}), query)
-
-    def alerts(self, service, client=None, **query):
-        """The alerts which the endpoint of a service answers
-
-        Args:
-            service: the service the alerts belong to
-            client: the client which asks, the admin asks per default
-            **query: the query parameters of the request
-
-        Returns:
-            dict: the answered alerts by their id
-        """
-        response = self.response(service, client=client, **query)
-        self.assertEqual(response.status_code, 200, response.content)
-        return {alert["id"]: alert for alert in response.json()["data"]}
+        return type(service).objects.with_alert_information().get(
+            pk=service.pk)
 
     def monitoring_setting(self, service):
         """Create the schedule which monitors a service"""
@@ -121,23 +114,13 @@ class ServiceAlertsApiTest(TestCase):
         return WebMapServiceUpdateJob.objects.create(
             service=service, status=JobState(state), **kwargs)
 
-    def overdue_setting(self, model, service):
-        """Create a schedule of a service whose last run lies in the past"""
-        return model.objects.create(
-            service=service, crontab=self.crontab, enabled=True,
-            last_run_at=now() - timedelta(days=1))
-
-    def update_candidate(self, service, job):
-        """Mark a service as the copy which an update job works with"""
-        WebMapService.objects.filter(pk=service.pk).update(
-            update_candidate_of=job.service)
-        return service
-
     def harvesting_job(self, service=None, phase=Phase.COMPLETED,
-                       import_errors=0):
+                       import_errors=0, hours_ago=1):
         """Create the last harvesting run of a catalogue"""
+        happened = now() - timedelta(hours=hours_ago)
         job = HarvestingJob.objects.create(
             service=service or self.csw,
+            date_created=happened, done_at=happened,
             total_records=max(import_errors, 1), phase=Phase(phase))
         for number in range(import_errors):
             TemporaryMdMetadataFile.objects.create(
@@ -146,216 +129,249 @@ class ServiceAlertsApiTest(TestCase):
                     f"record_{number}.xml", b"<record/>"))
         return job
 
-    def test_a_service_which_needs_nothing_to_do_is_answered_with_nothing(self):
-        """A service which is healthy has nothing to decide"""
-        self.assertEqual(self.alerts(self.wms_one), {})
 
-    def test_a_failing_monitoring_run_is_answered_as_an_error(self):
+class ServiceAlertsQueryTest(ServiceAlertsMixin, TestCase):
+    """Tests the annotations which answer the alerts of the services.
+
+    These annotations are the only place which decides whether a service needs
+    attention, so every state behind an alert is asked of the queryset of its
+    kind of service here - the endpoints only answer what this annotates.
+    """
+
+    def test_a_service_without_a_run_and_a_job_needs_no_attention(self):
+        alerts = self.alerts(self.wms_one)
+        self.assertFalse(alerts.has_alert)
+        self.assertFalse(alerts.monitoring_failed)
+        self.assertIsNone(alerts.monitoring_failed_at)
+        self.assertFalse(alerts.update_review_required)
+        self.assertIsNone(alerts.update_review_required_at)
+        self.assertFalse(alerts.update_failed)
+        self.assertIsNone(alerts.update_failed_at)
+
+    def test_a_failing_monitoring_run_needs_attention(self):
         run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
         alerts = self.alerts(self.wms_one)
-        alert_id = f"{Category.MONITORING_FAILED.value}:{run.pk}"
-        self.assertEqual(sorted(alerts), [alert_id])
-        attributes = alerts[alert_id]["attributes"]
-        self.assertEqual(attributes["severity"], Severity.ERROR)
-        self.assertEqual(attributes["category"], Category.MONITORING_FAILED)
-        self.assertEqual(
-            attributes["service"], {"type": "WebMapService", "id": WMS_ONE})
-        self.assertEqual(attributes["resource"], {
-            "type": "WebMapServiceMonitoringRun", "id": str(run.pk)})
-        self.assertEqual(attributes["serviceTitle"], "WMS1")
-        self.assertTrue(attributes["message"])
+        self.assertTrue(alerts.monitoring_failed)
+        self.assertTrue(alerts.has_alert)
+        self.assertEqual(alerts.monitoring_failed_at, run.date_done)
 
-    def test_only_the_last_run_of_a_service_decides_its_monitoring(self):
+    def test_only_the_newest_run_of_a_service_decides_its_monitoring(self):
+        """A service is healthy again as soon as its newest run passes"""
         setting = self.monitoring_setting(self.wms_one)
         self.monitoring_run(setting, False, hours_ago=3)
         self.monitoring_run(setting, True, hours_ago=1)
-        # the service is healthy again, until its newest run fails
-        self.assertEqual(self.alerts(self.wms_one), {})
-        run = self.monitoring_run(setting, False, hours_ago=0)
-        self.assertEqual(sorted(self.alerts(self.wms_one)), [
-            f"{Category.MONITORING_FAILED.value}:{run.pk}"])
+        self.assertFalse(self.alerts(self.wms_one).has_alert)
+        self.monitoring_run(setting, False, hours_ago=0)
+        self.assertTrue(self.alerts(self.wms_one).monitoring_failed)
 
-    def test_an_update_which_waits_for_a_review_is_answered_as_warning(self):
+    def test_a_failing_update_needs_attention(self):
+        self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        alerts = self.alerts(self.wms_one)
+        self.assertTrue(alerts.update_failed)
+        self.assertTrue(alerts.has_alert)
+        self.assertIsNotNone(alerts.update_failed_at)
+
+    def test_only_the_newest_update_job_decides_the_update(self):
+        """The service answers the state of its newest job and not of an old one"""
+        failed = self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        self.update_job(self.wms_one, JobState.WAITING_FOR_PROCESSING)
+        # both jobs are created within the same microsecond, so the older one is
+        # moved back in time to answer which of them is the newest
+        WebMapServiceUpdateJob.objects.filter(pk=failed.pk).update(
+            date_created=now() - timedelta(hours=1))
+        alerts = self.alerts(self.wms_one)
+        self.assertFalse(alerts.update_failed)
+        self.assertIsNone(alerts.update_failed_at)
+        self.assertFalse(alerts.has_alert)
+
+    def test_an_update_which_waits_for_a_review_needs_attention(self):
         job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
         alerts = self.alerts(self.wms_one)
-        alert_id = f"{Category.UPDATE_REVIEW_REQUIRED.value}:{job.pk}"
-        self.assertEqual(sorted(alerts), [alert_id])
-        self.assertEqual(
-            alerts[alert_id]["attributes"]["severity"], Severity.WARNING)
-        self.assertEqual(alerts[alert_id]["attributes"]["resource"], {
-            "type": "WebMapServiceUpdateJob", "id": str(job.pk)})
-
-    def test_an_update_which_errored_is_answered_as_an_error(self):
-        job = self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        self.assertTrue(alerts.update_review_required)
+        self.assertIsNotNone(alerts.update_review_required_at)
+        self.assertTrue(alerts.has_alert)
+        # a service which is decided about does not answer the alert again
+        job.finish(JobState.UPDATED)
         alerts = self.alerts(self.wms_one)
-        alert_id = f"{Category.UPDATE_FAILED.value}:{job.pk}"
-        self.assertEqual(sorted(alerts), [alert_id])
-        self.assertEqual(
-            alerts[alert_id]["attributes"]["severity"], Severity.ERROR)
+        self.assertFalse(alerts.update_review_required)
+        self.assertIsNone(alerts.update_review_required_at)
 
     def test_an_update_which_is_still_running_needs_no_attention(self):
         self.update_job(self.wms_one, JobState.WAITING_FOR_PROCESSING)
-        self.assertEqual(self.alerts(self.wms_one), {})
+        self.assertFalse(self.alerts(self.wms_one).has_alert)
 
-    def test_the_alerts_of_a_service_are_answered_errors_first(self):
-        """A service answers at most one alert per category, worst first"""
-        self.monitoring_run(self.monitoring_setting(self.wms_one), False,
-                            hours_ago=3)
-        self.overdue_setting(WebMapServiceMonitoringSetting, self.wms_one)
-        self.update_job(self.wms_one, JobState.ERROR, done_at=now())
-        alerts = self.alerts(self.wms_one)
-        self.assertEqual(len(alerts), 3)
-        categories = [alert["attributes"]["category"]
-                      for alert in alerts.values()]
-        # the errors are answered before the warnings and the newest error of
-        # the same severity is answered first
-        self.assertEqual(categories, [
-            Category.UPDATE_FAILED, Category.MONITORING_FAILED,
-            Category.MONITORING_OVERDUE])
-
-    def test_a_service_does_not_answer_the_alerts_of_another_service(self):
-        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        self.monitoring_run(self.monitoring_setting(self.wms_two), False)
-        alerts = self.alerts(self.wms_two)
-        self.assertEqual(len(alerts), 1)
-        self.assertEqual(
-            list(alerts.values())[0]["attributes"]["service"]["id"], WMS_TWO)
-
-    def test_the_candidate_of_an_update_is_not_answered_as_a_service(self):
-        """The copy an update works with is not a service of its own"""
-        job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        candidate = self.update_candidate(self.wms_two, job)
-        self.monitoring_run(self.monitoring_setting(candidate), False)
-        self.assertEqual(
-            self.response(candidate).status_code, 404)
-
-    def test_an_overdue_schedule_is_answered_for_the_service_it_watches(self):
-        monitoring = self.overdue_setting(
-            WebMapServiceMonitoringSetting, self.wms_one)
-        self.overdue_setting(WebMapServiceUpdateSetting, self.wms_two)
-        alerts = self.alerts(self.wms_one)
-        self.assertEqual(sorted(alerts), [
-            f"{Category.MONITORING_OVERDUE.value}:{monitoring.pk}"])
-        attributes = alerts[
-            f"{Category.MONITORING_OVERDUE.value}:{monitoring.pk}"]["attributes"]
-        self.assertEqual(attributes["severity"], Severity.WARNING)
-        # the alert names the expected time as the time it appeared
-        self.assertIsNotNone(attributes["occurredAt"])
-
-    def test_a_schedule_which_is_not_overdue_is_not_answered(self):
-        setting = self.monitoring_setting(self.wms_one)
-        setting.last_run_at = now()
-        setting.save()
-        self.assertEqual(self.alerts(self.wms_one), {})
-
-    def test_an_aborted_harvesting_is_answered_for_its_catalogue(self):
-        job = self.harvesting_job(phase=Phase.ABORTED)
+    def test_an_aborted_harvesting_needs_attention(self):
+        self.harvesting_job(phase=Phase.ABORTED)
         alerts = self.alerts(self.csw)
-        alert_id = f"{Category.HARVESTING_INCOMPLETE.value}:{job.pk}"
-        self.assertEqual(sorted(alerts), [alert_id])
-        attributes = alerts[alert_id]["attributes"]
-        self.assertEqual(
-            attributes["service"], {"type": "CatalogueService", "id": CSW_ONE})
-        self.assertEqual(attributes["serviceTitle"], "CSW1")
+        self.assertTrue(alerts.harvest_aborted)
+        self.assertFalse(alerts.harvest_incomplete)
+        self.assertTrue(alerts.has_alert)
+        self.assertIsNotNone(alerts.harvest_failed_at)
 
-    def test_records_which_could_not_be_imported_are_answered(self):
-        job = self.harvesting_job(import_errors=2)
+    def test_the_records_a_harvesting_left_behind_need_attention(self):
+        self.harvesting_job(import_errors=2)
         alerts = self.alerts(self.csw)
-        alert_id = f"{Category.HARVESTING_INCOMPLETE.value}:{job.pk}"
-        self.assertEqual(sorted(alerts), [alert_id])
-        self.assertIn("2", alerts[alert_id]["attributes"]["message"])
+        self.assertTrue(alerts.harvest_incomplete)
+        self.assertFalse(alerts.harvest_aborted)
+        self.assertTrue(alerts.has_alert)
 
     def test_a_harvesting_which_left_nothing_behind_needs_no_attention(self):
         self.harvesting_job()
-        self.assertEqual(self.alerts(self.csw), {})
+        self.assertFalse(self.alerts(self.csw).has_alert)
 
-    def test_a_user_which_may_not_see_a_service_does_not_see_its_alerts(self):
+    def test_only_the_newest_harvesting_of_a_catalogue_decides(self):
+        self.harvesting_job(phase=Phase.ABORTED, hours_ago=3)
+        self.harvesting_job(hours_ago=1)
+        self.assertFalse(self.alerts(self.csw).has_alert)
+
+    def test_a_map_service_does_not_answer_the_state_of_a_harvesting(self):
+        """Only the records of a catalogue are pulled by a harvesting job"""
+        alerts = self.alerts(self.wms_one)
+        self.assertFalse(hasattr(alerts, "harvest_aborted"))
+        self.assertFalse(hasattr(alerts, "harvest_failed_at"))
+
+    def test_a_service_does_not_answer_the_alerts_of_another_service(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        # every alert would tell about the service it belongs to, so the answer
-        # stays the same as for a service which is not registered at all
-        self.assertEqual(
-            self.response(self.wms_one, self.user_client).status_code, 404)
-        assign_perm("registry.view_webmapservice", self.user, self.wms_one)
-        self.assertEqual(len(self.alerts(self.wms_one, self.user_client)), 1)
+        self.assertTrue(self.alerts(self.wms_one).has_alert)
+        self.assertFalse(self.alerts(self.wms_two).has_alert)
 
-    def test_an_anonymous_client_sees_the_alerts_of_a_service(self):
-        """The alerts are read like every other read of the registry api"""
-        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        anonymous = APIClient()
-        anonymous.credentials(HTTP_ACCEPT=JSONAPI)
-        self.assertEqual(len(self.alerts(self.wms_one, anonymous)), 1)
 
-    def test_a_service_of_another_kind_is_not_answered_by_an_endpoint(self):
-        """The map service of a request is not a catalogue of the deployment"""
-        response = self.client.get(reverse(
-            ALERTS_ROUTE[CatalogueService],
-            kwargs={"parent_lookup_service": self.wms_one.pk}))
-        self.assertEqual(response.status_code, 404)
+class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
+    """Tests the alerts which the endpoints of the services answer.
 
-    def test_an_id_which_no_service_of_a_kind_can_have_is_not_answered(self):
-        response = self.client.get(reverse(
-            ALERTS_ROUTE[WebMapService],
-            kwargs={"parent_lookup_service": "not an id"}))
-        self.assertEqual(response.status_code, 404)
+    An alert is answered as an attribute of a service, which means that a client
+    asks for it with the fields, the filters and the sort of a request - and that
+    it is answered read only, like every attribute which the queries of a service
+    answer instead of a column of a table.
+    """
 
-    def test_the_alerts_of_a_service_are_counted_and_answered_at_once(self):
-        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        self.overdue_setting(WebMapServiceMonitoringSetting, self.wms_one)
-        self.overdue_setting(WebMapServiceUpdateSetting, self.wms_one)
-        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        payload = self.response(self.wms_one).json()
-        # a service answers at most one alert per category, which is less than a
-        # page of the api holds, so a client reads all of them at once
-        self.assertEqual(payload["meta"]["pagination"]["count"], 4)
-        self.assertEqual(len(payload["data"]), 4)
+    def services(self, service_type, client=None, **query):
+        """The services which the endpoint of their kind answers
 
-    def test_a_query_parameter_which_is_not_of_the_api_is_rejected(self):
-        response = self.response(self.wms_one, bogus="x")
-        self.assertEqual(response.status_code, 400)
+        Args:
+            service_type: the kind of service to ask for
+            client: the client which asks, the admin asks per default
+            **query: the query parameters of the request
 
-    def test_the_schema_documents_the_alerts_of_every_service_kind(self):
-        """The frontend builds a screen from the schema of the api, so the schema
-        has to name the endpoint of every kind of service and describe the
-        attributes of an alert with the values the frontend maps to labels.
+        Returns:
+            dict: the answered attributes of the services by their id
         """
-        # the schema view is cached for a long time, so the test must not read a
-        # schema which was answered before
-        caches["local-memory"].clear()
-        # the schema is not answered as json:api, which the client of the api
-        # tests asks for with every request
-        self.client.credentials(HTTP_ACCEPT="application/vnd.oai.openapi+json")
-        response = self.client.get(reverse("openapi-schema"))
+        response = (client or self.client).get(
+            reverse(SERVICE_ROUTE[service_type]), query)
         self.assertEqual(response.status_code, 200, response.content)
-        schema = response.json()
-        operations = {
-            operation.get("operationId"): (path, operation)
-            for path, item in schema.get("paths", {}).items()
-            for _, operation in item.items()}
-        for kind in ("WebMapService", "WebFeatureService", "CatalogueService"):
-            path, operation = operations.get(
-                f"list_related_ServiceAlert_of_{kind}", (None, None))
-            self.assertIsNotNone(operation, kind)
-            self.assertTrue(path.startswith("/api/registry/"))
-            # the service is addressed in the path of the request, so nothing
-            # else is filtered or sorted by a client
-            parameters = [parameter["name"]
-                          for parameter in operation["parameters"]]
-            self.assertEqual(
-                [parameter for parameter in parameters
-                 if parameter.startswith(("filter", "sort"))], [])
-        attributes = schema["components"]["schemas"]["ServiceAlert"][
-            "properties"]["attributes"]["properties"]
+        return {
+            resource["id"]: resource["attributes"]
+            for resource in response.json()["data"]}
+
+    def test_the_attributes_of_a_service_answer_its_alerts(self):
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        answered = self.services(WebMapService)
+        self.assertTrue(answered[WMS_ONE]["hasAlert"])
+        self.assertTrue(answered[WMS_ONE]["monitoringFailed"])
+        self.assertIsNotNone(answered[WMS_ONE]["monitoringFailedAt"])
+        self.assertFalse(answered[WMS_ONE]["updateReviewRequired"])
+        # the service which needs nothing to do answers nothing as an alert
+        self.assertFalse(answered[WMS_TWO]["hasAlert"])
+
+    def test_the_alerts_of_a_service_are_answered_with_its_other_attributes(
+            self):
+        """A client which asks for single fields gets the alerts it asks for
+
+        The fields of a sparse request are named as the database names them,
+        which is what the clients of this deployment do - the frontend asks for
+        `string_representation` and `total_records` - and the request is answered
+        with the names the api gives the attributes.
+        """
+        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        answered = self.services(
+            WebMapService,
+            **{"fields[WebMapService]": "title,has_alert,update_review_required"})
         self.assertEqual(
-            attributes["severity"]["enum"],
-            [severity.value for severity in Severity])
-        self.assertEqual(
-            attributes["category"]["enum"],
-            [category.value for category in Category])
-        # the labels of an alert are translated, so that the administration of a
-        # deployment in german does not answer english column headings
-        with translation.override("de"):
-            self.assertEqual(str(_("severity")), "Schweregrad")
-            self.assertEqual(str(_("service title")), "Dienstetitel")
-            self.assertEqual(
-                str(_("the state of the service which needs attention")),
-                "der Zustand des Dienstes, der Aufmerksamkeit benötigt")
+            sorted(answered[WMS_ONE]),
+            ["hasAlert", "title", "updateReviewRequired"])
+        self.assertTrue(answered[WMS_ONE]["updateReviewRequired"])
+
+    def test_the_services_which_need_attention_can_be_filtered(self):
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        answered = self.services(
+            WebMapService, **{"filter[hasAlert]": "true"})
+        self.assertEqual(sorted(answered), [WMS_ONE])
+        healthy = self.services(
+            WebMapService, **{"filter[monitoringFailed]": "false"})
+        self.assertEqual(sorted(healthy), [WMS_TWO])
+
+    def test_the_services_which_need_attention_can_be_sorted(self):
+        for wms, hours_ago in ((self.wms_one, 3), (self.wms_two, 1)):
+            self.monitoring_run(
+                self.monitoring_setting(wms), False, hours_ago)
+        answered = self.services(WebMapService, **{"sort": "-monitoringFailedAt"})
+        self.assertEqual(list(answered), [WMS_TWO, WMS_ONE])
+
+    def test_a_catalogue_answers_the_state_of_its_harvesting(self):
+        self.harvesting_job(import_errors=1)
+        answered = self.services(CatalogueService)
+        self.assertTrue(answered[CSW_ONE]["harvestIncomplete"])
+        self.assertTrue(answered[CSW_ONE]["hasAlert"])
+
+    def test_the_alerts_of_a_service_cannot_be_written(self):
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        # an alert always tells about the service it belongs to, so it is answered
+        # read only to every client which may read that service - and no client
+        # writes an alert, because the queries of the service answer it
+        answered = self.services(WebMapService, client=self.user_client)
+        self.assertEqual(sorted(answered), sorted([WMS_ONE, WMS_TWO]))
+        self.assertTrue(answered[WMS_ONE]["hasAlert"])
+        self.assertFalse(answered[WMS_TWO]["hasAlert"])
+
+        response = self.client.patch(
+            reverse("registry:wms-detail", kwargs={"pk": WMS_ONE}),
+            json.dumps({
+                "data": {"id": WMS_ONE, "type": "WebMapService",
+                         "attributes": {"monitoringFailed": False}}}),
+            content_type=JSONAPI)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(self.alerts(self.wms_one).monitoring_failed)
+
+
+class AlertsRequestedTest(SimpleTestCase):
+    """Tests which requests of a service want its alerts annotated.
+
+    The alerts of a service are answered by a subquery per attribute, so they are
+    only added to a query which asks for them. A request which does not want them
+    must not pay for them.
+    """
+
+    def requested(self, **query):
+        """Whether the alerts of a map service have to be annotated
+
+        Args:
+            **query: the query parameters of the request
+
+        Returns:
+            bool: True if the request asks for the alerts
+        """
+        request = RequestFactory().get("/api/registry/wms/", query)
+        return alerts_requested(request, "WebMapService", ALERT_ATTRIBUTES)
+
+    def test_a_request_which_wants_everything_wants_the_alerts(self):
+        self.assertTrue(self.requested())
+        self.assertTrue(self.requested(**{"sort": "title"}))
+
+    def test_a_sparse_fieldset_without_alerts_does_not_want_them(self):
+        self.assertFalse(
+            self.requested(**{"fields[WebMapService]": "title,hits"}))
+
+    def test_a_sparse_fieldset_with_an_alert_wants_them(self):
+        self.assertTrue(
+            self.requested(**{"fields[WebMapService]": "title,hasAlert"}))
+        # a client names the fields it wants as the api names them, but a request
+        # may also name them as the database does
+        self.assertTrue(
+            self.requested(**{"fields[WebMapService]": "has_alert"}))
+
+    def test_a_filter_or_a_sort_by_an_alert_wants_them(self):
+        self.assertTrue(self.requested(
+            **{"fields[WebMapService]": "title", "filter[hasAlert]": "true"}))
+        self.assertTrue(self.requested(
+            **{"fields[WebMapService]": "title",
+               "sort": "-monitoringFailedAt"}))

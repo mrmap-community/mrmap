@@ -1,15 +1,16 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Stack, Typography } from "@mui/material";
 import { UrlField, useRecordContext, useTranslate } from "react-admin";
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
-import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -67,8 +68,7 @@ const tabs: ServiceTab[] = [
   {
     path: "alerts",
     label: "serviceShow.attention",
-    resource: "ServiceAlert",
-    operation: "list_related_ServiceAlert_of_WebFeatureService",
+    icon: <WarningAmberIcon />,
     content: <ServiceAttentionTab />,
   },
   {

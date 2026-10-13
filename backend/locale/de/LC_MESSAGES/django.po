@@ -1671,3 +1671,92 @@ msgstr "wann der gemeldete Zustand aufgetreten ist"
 #: registry/views/alerts.py:61
 msgid "The service of this request is not visible to you."
 msgstr "Der Dienst dieser Anfrage ist für Sie nicht sichtbar."
+#: registry/serializers/service.py
+msgid "has alert"
+msgstr "Aufmerksamkeit erforderlich"
+
+
+#: registry/serializers/service.py
+msgid "true if any state of the service needs attention"
+msgstr "true, wenn ein Zustand des Dienstes die Aufmerksamkeit benötigt"
+
+
+#: registry/serializers/service.py
+msgid "true if the last monitoring run of the service reported a failure"
+msgstr "true, wenn der letzte Monitoring-Lauf des Dienstes eine Störung gemeldet hat"
+
+
+#: registry/serializers/service.py
+msgid "monitoring failed at"
+msgstr "Monitoring fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last monitoring run of the service was done"
+msgstr "der Zeitpunkt, an dem der letzte Monitoring-Lauf des Dienstes endete"
+
+
+#: registry/serializers/service.py
+msgid "true if an update of the service waits for a decision about it"
+msgstr "true, wenn eine Aktualisierung des Dienstes auf ihre Prüfung wartet"
+
+
+#: registry/serializers/service.py
+msgid "update review required at"
+msgstr "Aktualisierung benötigt Prüfung am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the update which waits for a decision was made"
+msgstr ""
+"der Zeitpunkt, an dem die Aktualisierung, die auf ihre Prüfung wartet, "
+"erstellt wurde"
+
+
+#: registry/serializers/service.py
+msgid "true if the last update of the service came back broken"
+msgstr "true, wenn die letzte Aktualisierung des Dienstes fehlgeschlagen ist"
+
+
+#: registry/serializers/service.py
+msgid "update failed at"
+msgstr "Aktualisierung fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last update of the service was made"
+msgstr "der Zeitpunkt, an dem die letzte Aktualisierung des Dienstes erstellt wurde"
+
+
+#: registry/serializers/service.py
+msgid "harvest aborted"
+msgstr "Harvesting abgebrochen"
+
+
+#: registry/serializers/service.py
+msgid "true if the last harvesting job of the catalogue ended before it was done"
+msgstr ""
+"true, wenn der letzte Harvesting-Lauf des Katalogs vor seinem Ende "
+"abgebrochen wurde"
+
+
+#: registry/serializers/service.py
+msgid "harvest incomplete"
+msgstr "Harvesting unvollständig"
+
+
+#: registry/serializers/service.py
+msgid "true if the last harvesting job of the catalogue could not import records into the registry"
+msgstr ""
+"true, wenn der letzte Harvesting-Lauf des Katalogs keine Metadaten in die "
+"Registry übernehmen konnte"
+
+
+#: registry/serializers/service.py
+msgid "harvest failed at"
+msgstr "Harvesting fehlgeschlagen am"
+
+
+#: registry/serializers/service.py
+msgid "the point in time the last harvesting job of the catalogue was made"
+msgstr "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"

@@ -1,11 +1,12 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CronInput from "../../../Input/CronInput";
+import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
-import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import Overview from "./Overview";
 import Records from "./Records";
 import MonitoringTab from "./MonitoringTab";
@@ -20,8 +21,7 @@ const tabs: ServiceTab[] = [
   {
     path: "alerts",
     label: "serviceShow.attention",
-    resource: "ServiceAlert",
-    operation: "list_related_ServiceAlert_of_CatalogueService",
+    icon: <WarningAmberIcon />,
     content: <ServiceAttentionTab />,
   },
   {

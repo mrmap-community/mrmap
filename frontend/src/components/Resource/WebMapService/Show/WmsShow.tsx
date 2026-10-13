@@ -1,11 +1,12 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import UpdateSettingTab from "../../Generic/ServiceShow/UpdateSettingTab";
-import { ServiceAttentionTab } from "../../ServiceAlert/ServiceAttentionTab";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 import ProxySettingsTab from "./Tabs/ProxySettingsTab";
@@ -22,8 +23,7 @@ const tabs: ServiceTab[] = [
   {
     path: "alerts",
     label: "serviceShow.attention",
-    resource: "ServiceAlert",
-    operation: "list_related_ServiceAlert_of_WebMapService",
+    icon: <WarningAmberIcon />,
     content: <ServiceAttentionTab />,
   },
   {

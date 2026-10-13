@@ -1,6 +1,8 @@
+import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.test import TestCase
 from django.urls import resolve
 from guardian.shortcuts import assign_perm
@@ -131,3 +133,28 @@ class RecordDetailsTests(QueryMeasurementMixin, TestCase):
             force_authenticate(request, user=admin)
             callback, _, kwargs = resolve(path)
             self.assertEqual(callback(request, **kwargs).status_code, 405)
+
+    def test_change_log_serializes_geometry_additions_changes_and_removals(self):
+        first = MultiPolygon(Polygon.from_bbox((5, 47, 15, 55)), srid=4326)
+        second = MultiPolygon(Polygon.from_bbox((6, 48, 14, 54)), srid=4326)
+        for resource, record in (("dataset", self.dataset), ("service", self.service)):
+            record.bounding_geometry = None
+            record.save()
+            for old, new in ((None, first), (first, second), (second, None)):
+                with self.subTest(resource=resource, old=old, new=new):
+                    record.bounding_geometry = new
+                    record.save()
+                    status, body, _ = self.request(
+                        f"/api/registry/historical-{resource}-metadata",
+                        include="historyUser", sort="-historyDate", **{
+                            "filter[history_relation]": str(record.pk),
+                            "fields[User]": "username,string_representation",
+                            "page[size]": 100,
+                        })
+                    self.assertEqual(status, 200, body)
+                    change = next(
+                        change for row in body["data"]
+                        for change in row["attributes"].get("delta") or []
+                        if change["field"] == "bounding_geometry")
+                    self.assertEqual(change["old"], json.loads(old.geojson) if old else None)
+                    self.assertEqual(change["new"], json.loads(new.geojson) if new else None)

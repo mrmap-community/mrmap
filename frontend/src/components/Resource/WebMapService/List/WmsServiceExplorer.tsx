@@ -10,18 +10,19 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   DateField,
   EditButton,
   type Identifier,
   RecordContextProvider,
   ShowButton,
-  SortButton,
   useListContext,
   useTranslate,
 } from "react-admin";
@@ -31,20 +32,73 @@ import ServiceLayerCount from "./ServiceLayerCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
 import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
 
+export interface ServiceHeaderCellProps {
+  /** the label of the column, translated by the caller */
+  label: string;
+  /** the attribute the column is ordered by, unset for a column which cannot be */
+  field?: string;
+  /** how the values of the column are aligned */
+  align?: "left" | "right";
+}
+
 /**
- * The attributes the list of services can be ordered by, which are the ones an
- * administrator orders the registered services by and the api answers as
- * sortable: the alerts are annotations of the services, so they sort like any
- * other attribute.
+ * The head cell of a column of the list of services.
+ *
+ * A column which orders the list is clicked on its title, like in the table of
+ * every other list of the application: the label shows the direction the list is
+ * ordered by and turns it around when the same title is clicked again.
+ *
+ * A column is ordered only when the api orders a list of services by its
+ * attribute, which the view of the api answers as ordering_fields
+ * (registry/views/service.py) - the count of the layers and the moment a service
+ * was modified last are not among them, so their columns name no field.
  */
-export const SORTABLE_FIELDS = [
-  "title",
-  "dateStamp",
-  "hits",
-  "hasAlert",
-  "monitoringFailedAt",
-  "updateFailedAt",
-];
+const ServiceHeaderCell = ({
+  label,
+  field,
+  align = "left",
+}: ServiceHeaderCellProps) => {
+  const { sort, setSort } = useListContext();
+  const translate = useTranslate();
+  const order = sort.field === field && sort.order === "ASC" ? "DESC" : "ASC";
+
+  const sortBy = (event: MouseEvent) => {
+    event.stopPropagation();
+    if (field === undefined) {
+      return;
+    }
+    setSort({ field, order });
+  };
+
+  return (
+    <TableCell
+      align={align}
+      variant="head"
+      sx={{ fontWeight: 600, whiteSpace: "nowrap" }}
+    >
+      {field === undefined ? (
+        label
+      ) : (
+        <Tooltip
+          title={translate("ra.sort.sort_by", {
+            field: label,
+            order: translate(`ra.sort.${order}`),
+          })}
+          placement={align === "right" ? "bottom-end" : "bottom-start"}
+          enterDelay={300}
+        >
+          <TableSortLabel
+            active={sort.field === field}
+            direction={sort.order === "ASC" ? "asc" : "desc"}
+            onClick={sortBy}
+          >
+            {label}
+          </TableSortLabel>
+        </Tooltip>
+      )}
+    </TableCell>
+  );
+};
 
 /**
  * The list of registered services.
@@ -55,7 +109,15 @@ export const SORTABLE_FIELDS = [
  * The service which is selected is shown beside the rows.
  */
 export const WmsServiceExplorer = () => {
-  const { data = [], total, isPending, filter, setFilters } = useListContext();
+  const {
+    data = [],
+    total,
+    isPending,
+    filter,
+    filterValues,
+    displayedFilters,
+    setFilters,
+  } = useListContext();
   const translate = useTranslate();
   const [selected, setSelected] = useState<Identifier>();
 
@@ -74,7 +136,17 @@ export const WmsServiceExplorer = () => {
     [data, selected],
   );
 
-  const chooseFacet = (key: string) => setFilters(filterForFacet(filter, key));
+  /**
+   * The filters of the list narrowed to one facet.
+   *
+   * The filters which are stored are narrowed and not the filters of the query,
+   * because the list answers its own filter with them and a facet must not carry
+   * that one. The filters which are displayed are given untouched: a facet
+   * changes which services the list answers and nothing of the form of filters
+   * the user opened with the filter button.
+   */
+  const chooseFacet = (key: string) =>
+    setFilters(filterForFacet(filterValues, key), displayedFilters);
 
   return (
     <Stack spacing={2} sx={{ p: 2 }}>
@@ -107,7 +179,6 @@ export const WmsServiceExplorer = () => {
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
-          <SortButton fields={SORTABLE_FIELDS} />
         </Stack>
       </Stack>
       <ServiceSummaryTiles />
@@ -132,22 +203,29 @@ export const WmsServiceExplorer = () => {
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>
-                  {translate("serviceList.columns.service")}
-                </TableCell>
-                <TableCell>{translate("serviceList.columns.status")}</TableCell>
-                <TableCell align="right">
-                  {translate("serviceList.columns.layers")}
-                </TableCell>
-                <TableCell align="right">
-                  {translate("serviceList.columns.hits")}
-                </TableCell>
-                <TableCell>
-                  {translate("serviceList.columns.modified")}
-                </TableCell>
-                <TableCell>
-                  {translate("serviceList.columns.actions")}
-                </TableCell>
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.service")}
+                  field="title"
+                />
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.status")}
+                  field="has_alert"
+                />
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.layers")}
+                  align="right"
+                />
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.hits")}
+                  align="right"
+                  field="hits"
+                />
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.modified")}
+                />
+                <ServiceHeaderCell
+                  label={translate("serviceList.columns.actions")}
+                />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -226,7 +304,7 @@ export const WmsServiceExplorer = () => {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">
-                    <ServiceLayerCount serviceId={record.id} />
+                    <ServiceLayerCount service={record} />
                   </TableCell>
                   <TableCell align="right">{record.hits ?? 0}</TableCell>
                   <TableCell>

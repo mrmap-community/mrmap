@@ -1,20 +1,29 @@
 import { type FilterPayload } from "react-admin";
 
 /**
- * The attributes which answer the attention of a service, as the api names them.
+ * The attributes which answer the attention of a service, as the filters of the
+ * api name them.
  *
  * The facets of the list and the tiles above it narrow the services by these
  * attributes, so the keys which have to be replaced when another facet is chosen
  * are answered here and not in every component which filters by them.
+ *
+ * The names are the ones the filterset of a service declares
+ * (registry/filters/service.py) and not the ones a response carries, because the
+ * filter inputs which the filter button of a list offers take the name of the
+ * filter of the api as their source (see jsonapi/hooks/useFilterInputForOpera-
+ * tion.tsx). A facet and the filter of the same state which the filter button
+ * offers are one and the same state this way, and never two contradictory
+ * filters which the list would answer at once.
  */
 export const ALERT_FILTER_KEYS: string[] = [
-  "hasAlert",
-  "monitoringFailed",
-  "monitoringFailedAt",
-  "updateReviewRequired",
-  "updateReviewRequiredAt",
-  "updateFailed",
-  "updateFailedAt",
+  "has_alert",
+  "monitoring_failed",
+  "monitoring_failed_at",
+  "update_review_required",
+  "update_review_required_at",
+  "update_failed",
+  "update_failed_at",
 ];
 
 /**
@@ -37,11 +46,11 @@ export interface StatusFacet {
  */
 export const STATUS_FACETS: StatusFacet[] = [
   { key: "all" },
-  { key: "needsAttention", filter: { hasAlert: true } },
-  { key: "healthy", filter: { hasAlert: false } },
-  { key: "monitoringFailed", filter: { monitoringFailed: true } },
-  { key: "updateFailed", filter: { updateFailed: true } },
-  { key: "updateReviewRequired", filter: { updateReviewRequired: true } },
+  { key: "needsAttention", filter: { has_alert: true } },
+  { key: "healthy", filter: { has_alert: false } },
+  { key: "monitoringFailed", filter: { monitoring_failed: true } },
+  { key: "updateFailed", filter: { update_failed: true } },
+  { key: "updateReviewRequired", filter: { update_review_required: true } },
 ];
 
 /** whether a filter answers a boolean, which a filter from the url does */
@@ -66,7 +75,7 @@ export const withoutFacetKeys = (filter?: FilterPayload): FilterPayload =>
 
 /** the facet the given filters answer, "all" if none of them does */
 export const facetOf = (filter?: FilterPayload): string => {
-  const hasAlert = asBoolean(filter?.hasAlert);
+  const hasAlert = asBoolean(filter?.has_alert);
   if (hasAlert === true) {
     return "needsAttention";
   }
@@ -86,6 +95,11 @@ export const facetOf = (filter?: FilterPayload): string => {
 /**
  * The filters to narrow the list to one facet, which keeps every filter the user
  * asked for besides the ones the facets are answered by.
+ *
+ * Handed to the list as the whole filter, because a list replaces the filters it
+ * stores with the ones it is given and keeps only the filter it applies on its
+ * own. The filters of the services which are stored are given to this function -
+ * and not the filters of the query, which carry that own filter too.
  */
 export const filterForFacet = (
   filter: FilterPayload | undefined,

@@ -8,6 +8,7 @@ import {
   testDataProvider,
 } from "react-admin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SUMMARY_TILES } from "./ServiceSummaryTiles";
 import WmsServiceExplorer from "./WmsServiceExplorer";
 
 // the button which opens a service in the map viewer asks the capabilities of
@@ -24,12 +25,22 @@ const services = [
     monitoringFailed: true,
     monitoringFailedAt: "2026-10-01T10:00:00Z",
     lastModifiedAt: "2026-10-02T10:00:00Z",
+    // the api annotates the page of services with the count of the layers
+    elementCount: 3,
   },
-  { id: "0b1f-2", title: "Cadastral maps", abstract: "The cadastre", hits: 3 },
+  {
+    id: "0b1f-2",
+    title: "Cadastral maps",
+    abstract: "The cadastre",
+    hits: 3,
+    // a service which answers its layers but not the annotation is counted by them
+    layers: ["1a", "1b"],
+  },
 ];
 
 const getList = vi.fn();
 const setFilters = vi.fn();
+const setSort = vi.fn();
 // the realtime subscription of RealtimeListBase is answered by the proxy of
 // react-admin, which requires the answer of the dataProvider to be a promise
 const subscribe = vi.fn().mockResolvedValue(undefined);
@@ -53,11 +64,14 @@ const renderExplorer = (
     isEmpty: false,
     error: null,
     resource: "WebMapService",
-    filter,
+    // the filter of the query carries the filter the list applies on its own,
+    // the filters which are stored are the ones a facet narrows
+    filter: { is_update_candidate: false, ...filter },
     filterValues: filter,
+    displayedFilters: {},
     setFilters,
     sort: { field: "title", order: "ASC" },
-    setSort: vi.fn(),
+    setSort,
     setPage: vi.fn(),
     page: 1,
     perPage: 25,
@@ -79,6 +93,7 @@ beforeEach(() => {
   getList.mockReset();
   getList.mockResolvedValue({ data: [], total: 0 });
   setFilters.mockReset();
+  setSort.mockReset();
 });
 
 describe("WmsServiceExplorer", () => {
@@ -88,17 +103,14 @@ describe("WmsServiceExplorer", () => {
     expect(screen.getByText("Cadastral maps")).toBeInTheDocument();
     expect(screen.getByText("0b1f-1")).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(3);
-    // the layers of a service are counted by the layers which belong to it, asked
-    // as one record of them and only their id
-    expect(getList).toHaveBeenCalledWith(
-      "Layer",
-      expect.objectContaining({
-        pagination: { page: 1, perPage: 1 },
-        meta: expect.objectContaining({
-          relatedResource: { resource: "WebMapService", id: "0b1f-1" },
-          jsonApiParams: { "fields[Layer]": "id" },
-        }),
-      }),
+    // the layers of a service are counted by the service itself: by the annota-
+    // tion of the page and, where that is missing, by the layers of the service
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1] as HTMLElement).getByText("3")).toBeInTheDocument();
+    expect(within(rows[2] as HTMLElement).getByText("2")).toBeInTheDocument();
+    // and so nothing is asked for a row of itself
+    expect(getList.mock.calls.filter((call) => call[0] === "Layer")).toEqual(
+      [],
     );
   });
 
@@ -125,16 +137,51 @@ describe("WmsServiceExplorer", () => {
   });
 
   it("narrows the list to the chosen facet and keeps the search", async () => {
-    renderExplorer({ search: "soil", is_update_candidate: false });
+    renderExplorer({ search: "soil" });
     fireEvent.click(
       await screen.findByRole("button", {
         name: "serviceList.facets.updateFailed",
       }),
     );
-    expect(setFilters).toHaveBeenCalledWith({
-      search: "soil",
-      updateFailed: true,
-    });
+    // the facet is named as the api filters it, which is the source of the filter
+    // the filter button of the list offers for the same state - and the filter
+    // the list applies on its own is not carried by the facet
+    expect(setFilters).toHaveBeenCalledWith(
+      { search: "soil", update_failed: true },
+      {},
+    );
+  });
+
+  it("lights the facet which a filter of the filter button answers", async () => {
+    // the search narrows, a filter of the list narrows and the facet of that
+    // state is the one which is chosen - one state, asked in one way
+    renderExplorer({ has_alert: true });
+    expect(
+      await screen.findByRole("button", {
+        name: "serviceList.facets.needsAttention",
+      }),
+    ).toHaveClass("Mui-selected");
+    expect(
+      screen.getByRole("button", { name: "serviceList.facets.all" }),
+    ).not.toHaveClass("Mui-selected");
+  });
+
+  it("orders the list by a column which the api orders by", async () => {
+    renderExplorer();
+    await screen.findByText("Soil layers");
+    // the columns of the layers and of the last change do not order the list,
+    // because the api refuses a sort by them
+    expect(document.querySelectorAll(".MuiTableSortLabel-root")).toHaveLength(
+      3,
+    );
+    fireEvent.click(screen.getByText("serviceList.columns.hits"));
+    expect(setSort).toHaveBeenCalledWith({ field: "hits", order: "ASC" });
+    // the column the list is ordered by shows the direction it is ordered by,
+    // which is the column of the title the list starts at
+    const orderedBy = document.querySelector(
+      ".MuiTableSortLabel-root.Mui-active",
+    );
+    expect(orderedBy?.textContent).toEqual("serviceList.columns.service");
   });
 
   it("shows the tiles as counts of the services of the current filters", async () => {
@@ -146,13 +193,28 @@ describe("WmsServiceExplorer", () => {
       screen.getByText("serviceList.tiles.runningUpdates"),
     ).toBeInTheDocument();
     await screen.findByText("serviceList.tiles.needsAttention");
-    // the services are counted with the search of the list and the state of the tile
+    // the services are counted with the search of the list and the state of the
+    // tile, both named as the api filters them
     expect(getList).toHaveBeenCalledWith(
       "WebMapService",
       expect.objectContaining({
-        filter: expect.objectContaining({ search: "soil", hasAlert: true }),
+        filter: expect.objectContaining({ search: "soil", has_alert: true }),
       }),
     );
+    expect(getList).toHaveBeenCalledWith(
+      "BackgroundProcess",
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          search: "soil",
+          status: "pending,running",
+          process_type: "update",
+        }),
+      }),
+    );
+    // every tile is marked by the icon of its state
+    expect(
+      document.querySelectorAll(".MuiSvgIcon-root").length,
+    ).toBeGreaterThanOrEqual(SUMMARY_TILES.length);
   });
 
   it("shows the details and the updates of the service which is selected", async () => {

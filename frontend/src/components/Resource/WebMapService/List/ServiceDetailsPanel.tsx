@@ -215,7 +215,7 @@ const ServiceDetailsPanel = ({ service }: ServiceDetailsPanelProps) => {
                   <Typography variant="caption" color="text.secondary">
                     {translate("serviceList.layers")}
                   </Typography>
-                  <ServiceLayerCount serviceId={service?.id} />
+                  <ServiceLayerCount service={service} />
                 </Box>
               </Stack>
               {alerts.map((alert) => (

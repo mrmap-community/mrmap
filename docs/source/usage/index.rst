@@ -12,6 +12,28 @@ Mr. Map provides a `csw <https://www.ogc.org/standard/cat/>`_ implementation to 
 
 The csw api is available under ``{schema}://{hostname}/csw``. The usage is described by the ogc specs and is not content of this documentation.
 
+Inspect metadata records
+########################
+
+Open a dataset or service metadata record from the explorer or a catalogue's Records tab.
+Both record types have the same detail page:
+
+* Overview shows parsed identity, classification, quality and provenance. Choice fields use the
+  labels provided by the API schema.
+* Spatial and temporal extent shows the parsed geometry, reference systems and time periods.
+  Missing extents are stated explicitly.
+* Contacts and use shows contact details, licensing and usage terms.
+* Relations lists linked layers, feature types or services, including each link's origin and
+  whether it was linked by a user. The catalogues that harvested the record are listed separately.
+  A graph view shows up to 100 descriptive links; use the paginated tables for the complete list.
+* Harvest history shows the outcome and timing of each run and links to the job and catalogue.
+* Change log shows recorded field changes and their previous and new values.
+
+Tabs can be linked directly, for example ``DatasetMetadataRecord/<id>/show/relations``.
+The header offers edit and delete actions when the backend grants those object permissions.
+The "Written more than once" status reflects ``is_customized``; it does not prove that a user
+manually corrected the record. The source action opens the recorded origin URL, when available.
+
 Collect Metadata
 ################
 

@@ -19,3 +19,10 @@ export function historicalSource(resource: string, type: string, label: string, 
     toEvent: record => ({ ...record, id: record.id, historyType: record.historyType, historyDate: record.historyDate, _type: type }),
   };
 }
+
+export const recordHistorySource = (resource: string, parentId: string | number): HistorySource => ({
+  resource: `Historical${resource}`, type: resource, label: 'recordShow.history',
+  filter: { history_relation: parentId },
+  jsonApiParams: { include: 'historyUser', 'fields[User]': 'username,string_representation' },
+  toEvent: record => ({ ...record, id: record.id, historyType: record.historyType, historyDate: record.historyDate, _type: resource }),
+});

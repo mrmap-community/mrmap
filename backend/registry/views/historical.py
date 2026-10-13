@@ -9,7 +9,7 @@ from registry.filters.historical import (
     WebMapServiceHistoricalFilterSet)
 from registry.models import Layer, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      MetadataContact)
+                                      MetadataContact, ServiceMetadataRecord)
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation)
 from registry.models.service import (CatalogueService,
@@ -20,7 +20,8 @@ from registry.models.service import (CatalogueService,
 from registry.serializers.historical import (
     CatalogueServiceHistorySerializer, FeatureTypeHistorySerializer,
     LayerHistorySerializer, WebFeatureServiceHistorySerializer,
-    WebMapServiceHistorySerializer)
+    WebMapServiceHistorySerializer, DatasetMetadataRecordHistorySerializer,
+    ServiceMetadataRecordHistorySerializer)
 from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import (get_app_model_primary_key_name,
                                   get_history_manager_for_model)
@@ -319,3 +320,17 @@ class CatalogueServiceHistoricalViewSet(
             )
         ]
     }
+
+
+class DatasetMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
+    queryset = DatasetMetadataRecord.change_log.all()
+    serializer_class = DatasetMetadataRecordHistorySerializer
+    filterset_fields = {"history_relation": ["exact"], "history_date": ["gte", "lte"]}
+    http_method_names = ["get", "head", "options"]
+
+
+class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
+    queryset = ServiceMetadataRecord.change_log.all()
+    serializer_class = ServiceMetadataRecordHistorySerializer
+    filterset_fields = {"history_relation": ["exact"], "history_date": ["gte", "lte"]}
+    http_method_names = ["get", "head", "options"]

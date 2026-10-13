@@ -1,8 +1,8 @@
 from django.utils.translation import gettext_lazy as _
+from registry.enums.alerts import ServiceAlertCategory, ServiceAlertSeverity
 from rest_framework.fields import (CharField, ChoiceField, DateTimeField,
                                    SerializerMethodField)
 from rest_framework_json_api.serializers import Serializer
-from registry.enums.alerts import ServiceAlertCategory, ServiceAlertSeverity
 
 
 class ServiceAlertSerializer(Serializer):

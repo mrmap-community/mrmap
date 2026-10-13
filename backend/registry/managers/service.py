@@ -1,9 +1,16 @@
-from django.db.models import (Exists, F, Manager, OuterRef, Prefetch, QuerySet,
-                              Value, Window)
+from time import timezone
+
+from django.db.models import (Exists, F, Manager, OuterRef, Prefetch, Q,
+                              QuerySet, Value, Window)
 from django.db.models.functions import Coalesce, RowNumber
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from registry import models
+from registry.enums.update import UpdateJobStatusEnum
+from registry.models.monitoring import (GetCapabilitiesProbeResult,
+                                        WebMapServiceMonitoringRun)
+from registry.models.update import (WebMapServiceUpdateJob,
+                                    WebMapServiceUpdateSetting)
 from registry.querys.service import LayerQuerySet
 
 SIBLING_INDEX = Coalesce(
@@ -80,6 +87,30 @@ class WebMapServiceQuerySet(QuerySet):
                     allowed_area__isnull=False
                 )
             )
+        )
+
+    def with_alert_information(self):
+        # small stand for example, how to determin alert information with queryset
+        # The overdue check, can be done in python by prefetching the crontab schedule configurations and check them against overdue.
+        self.annotate(
+
+            has_blocking_update=Exists(
+                WebMapServiceUpdateJob.objects.filter(
+                    service_id=OuterRef("pk"),
+                    status=UpdateJobStatusEnum.REVIEW_REQUIRED
+                )
+            ),
+            has_failing_monitoring=Exists(
+                GetCapabilitiesProbeResult.objects.filter(
+                    Q(
+                        Q(registry_getcapabilititesproberesult__check_response_is_valid_xml_success=False),
+                        Q(registry_getcapabilititesproberesult__check_response_does_contain_success=False),
+                        Q(registry_getcapabilititesproberesult__check_response_does_not_contain_success=False)
+                    ),
+                    setting__service_id=OuterRef("pk"),
+
+                )
+            ),
         )
 
 

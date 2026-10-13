@@ -244,6 +244,7 @@ class WebMapServiceMonitoringRun(MonitoringRun):
 
     @classmethod
     def failing_probe_checks(cls) -> dict:
+        # TODO: move this to a manager method so it is reusable for alerts
         return {
             "is_get_capabilities_failed": (
                 GetCapabilitiesProbeResult,
@@ -272,6 +273,7 @@ class WebFeatureServiceMonitoringRun(MonitoringRun):
 
     @classmethod
     def failing_probe_checks(cls) -> dict:
+        # TODO: move this to a manager method so it is reusable for alerts
         return {
             "is_get_capabilities_failed": (
                 WebFeatureServiceGetCapabilitiesProbeResult,
@@ -301,6 +303,7 @@ class CatalogueServiceMonitoringRun(MonitoringRun):
 
     @classmethod
     def failing_probe_checks(cls) -> dict:
+        # TODO: move this to a manager method so it is reusable for alerts
         return {
             "is_get_capabilities_failed": (
                 CatalogueServiceGetCapabilitiesProbeResult,
@@ -780,7 +783,8 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
                 feature_type.identifier
                 for feature_type in self.feature_types.all()],
             max_features=self.max_features,
-            srs_name=str(self.reference_system) if self.reference_system else None,
+            srs_name=str(
+                self.reference_system) if self.reference_system else None,
         )
 
 

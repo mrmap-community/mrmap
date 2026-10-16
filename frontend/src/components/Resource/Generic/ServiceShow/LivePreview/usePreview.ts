@@ -58,9 +58,15 @@ export interface PreviewResult {
    * credentials stay on the server side.
    */
   identify?: IdentifyLink | null;
-  /** Raw body of the identify the browser fetched, rendered by FeatureInfoResult. */
-  info?: string;
-  infoContentType?: string;
+}
+
+/**
+ * The identify body the browser fetched from the security proxy. Markup is never part of it,
+ * only the raw text and the media type it has to be interpreted with.
+ */
+export interface IdentifyResult {
+  info: string;
+  contentType?: string;
 }
 export class PreviewFailure extends Error {
   constructor(public code: string) {
@@ -200,7 +206,7 @@ export const useIdentify = (
     link && viewport && pixel
       ? identifyUrl(link, viewport, pixel.x, pixel.y).href
       : undefined;
-  const query = useQuery<PreviewResult, PreviewFailure>({
+  const query = useQuery<IdentifyResult, PreviewFailure>({
     queryKey: ["liveIdentify", url],
     enabled: Boolean(api && url),
     retry: false,
@@ -225,10 +231,8 @@ export const useIdentify = (
         const body = await response.text();
         if (isOgcException(body)) throw new PreviewFailure("ogc");
         return {
-          fetchedAt: new Date().toISOString(),
           info: body,
-          infoContentType:
-            response.headers.get("content-type") ?? link.infoFormat,
+          contentType: response.headers.get("content-type") ?? link.infoFormat,
         };
       } catch (error) {
         if (signal.aborted) throw error;
@@ -237,6 +241,6 @@ export const useIdentify = (
       }
     },
   });
-  return { ...query, supported: Boolean(link) };
+  return query;
 };
 

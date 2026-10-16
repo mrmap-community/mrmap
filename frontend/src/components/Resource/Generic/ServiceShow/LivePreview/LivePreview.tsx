@@ -38,15 +38,17 @@ import {
   type PreviewLink,
   type PreviewResult,
 } from "./usePreview";
-import type { UseQueryResult } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
 
+/** Loading and error state of a preview or identify request, whatever it answers with. */
 const PreviewStatus = ({
   query,
-  live,
 }: {
-  query: UseQueryResult<PreviewResult, PreviewFailure>;
-  live?: boolean;
+  query: {
+    isFetching: boolean;
+    error: PreviewFailure | null;
+    refetch: () => void;
+  };
 }) => {
   const translate = useTranslate();
   return (
@@ -68,15 +70,21 @@ const PreviewStatus = ({
           })}
         </Alert>
       )}
-      {live && query.data?.fetchedAt && (
-        <Typography variant="caption" role="status">
-          {translate("livePreview.source", {
-            source: query.data.source,
-            time: new Date(query.data.fetchedAt).toLocaleString(),
-          })}
-        </Typography>
-      )}
     </>
+  );
+};
+
+/** States which service answered the preview and when it did. */
+const PreviewSource = ({ result }: { result?: PreviewResult }) => {
+  const translate = useTranslate();
+  if (!result?.fetchedAt) return null;
+  return (
+    <Typography variant="caption" role="status">
+      {translate("livePreview.source", {
+        source: result.source,
+        time: new Date(result.fetchedAt).toLocaleString(),
+      })}
+    </Typography>
   );
 };
 
@@ -349,7 +357,8 @@ const DataPreview = ({
         )}
       </Stack>
       <PreviewStatus query={discovery} />
-      <PreviewStatus query={query} live />
+      <PreviewStatus query={query} />
+      <PreviewSource result={query.data} />
       {query.data?.limited && (
         <Alert severity="info">
           {translate("livePreview.limited", { count: query.data.limit })}
@@ -385,7 +394,7 @@ const DataPreview = ({
         <FeatureInfoResult
           text={info.data.info}
           contentType={
-            info.data.infoContentType ??
+            info.data.contentType ??
             discovery.data?.identify?.infoFormat ??
             ""
           }
@@ -433,7 +442,8 @@ const CataloguePreview = ({ serviceId }: { serviceId: string }) => {
           {translate("ra.navigation.next")}
         </Button>
       </Stack>
-      <PreviewStatus query={query} live />
+      <PreviewStatus query={query} />
+      <PreviewSource result={query.data} />
       {query.data && (
         <Typography variant="body2">
           {translate("livePreview.pageScope", {

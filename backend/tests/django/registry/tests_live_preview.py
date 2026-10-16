@@ -46,7 +46,7 @@ def capabilities(protocol, version='2.0.0'):
     if protocol == 'WMS':
         return f'''<WMS_Capabilities version="{version}"><Capability><Request>
           <GetMap><Format>image/png</Format></GetMap>
-          <GetFeatureInfo><Format>text/plain</Format></GetFeatureInfo></Request>
+          <GetFeatureInfo><Format>text/html</Format><Format>text/plain; charset=utf-8</Format></GetFeatureInfo></Request>
           <Layer><CRS>EPSG:4326</CRS><SRS>EPSG:4326</SRS><Name>node1</Name>
           <Layer><Name>node1.1</Name></Layer></Layer></Capability></WMS_Capabilities>'''.encode()
     operations = '<ows:Operation name="GetRecords"><ows:DCP><ows:HTTP><ows:Get xlink:href="https://registered.example/records"/></ows:HTTP></ows:DCP></ows:Operation>' if protocol == 'CSW' else '<ows:Operation name="GetFeature"><ows:Parameter name="outputFormat"><ows:AllowedValues><ows:Value>application/json</ows:Value></ows:AllowedValues></ows:Parameter></ows:Operation>'
@@ -141,11 +141,32 @@ class LivePreviewTests(TestCase):
             self.assertEqual(params['BBOX'], [bbox])
             self.assertEqual(params[crs], ['EPSG:4326'])
             self.assertIn('/20-1', request.url)
-            self.send.return_value = response(b'feature attributes', 'text/plain')
-            result = self.request(selection='node1.1', bbox='-2,0,4,8', identify='true', x=10, y=10)
-            self.assertEqual(result.status_code, 200, result.content)
-            self.assertIn('/21-1', self.send.call_args.args[0].url)
             self.send.return_value = response(self.image.getvalue(), 'image/png')
+            self.send.reset_mock()
+            discovery = self.request(selection='node1.1').json()
+            url = discovery['identify']['url']
+            identify = parse_qs(urlsplit(url).query)
+            self.assertEqual(urlsplit(url).path, f'/mrmap-proxy/wms/{self.wms.pk}')
+            self.assertEqual(identify['QUERY_LAYERS'], ['node1.1'])
+            self.assertEqual(identify[crs], ['EPSG:4326'])
+            self.assertEqual(identify['FEATURE_COUNT'], ['10'])
+            # The service advertises text/html first, but only self contained formats are
+            # handed to the browser.
+            self.assertEqual(identify['INFO_FORMAT'], ['text/plain'])
+            self.assertEqual(discovery['identify']['infoFormat'], 'text/plain')
+            self.assertTrue(discovery['configuration']['queryable'])
+            # Generating the url must not contact upstream.
+            self.send.assert_not_called()
+
+    def test_html_only_identify_offers_no_url(self):
+        self.wms.xml_backup_file = SimpleUploadedFile(
+            'preview.xml', capabilities('WMS', '1.3.0').replace(b'<Format>text/plain; charset=utf-8</Format>', b''))
+        self.wms.save()
+        result = self.request(selection='node1.1')
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertFalse(result.json()['configuration']['queryable'])
+        self.assertIsNone(result.json()['identify'])
+        self.send.assert_not_called()
 
     def test_upstream_auth_is_applied_without_caller_credentials(self):
         session = Session()
@@ -256,7 +277,7 @@ class LivePreviewTests(TestCase):
         self.assertEqual(result.json()['error'], 'spatialVersion')
         self.send.assert_not_called()
 
-    def test_wms_spatial_mask_and_identify_fail_closed(self):
+    def test_wms_spatial_mask_and_identify_url_stays_with_the_proxy(self):
         user = get_user_model().objects.create_user(username='map-preview')
         group = Group.objects.create(name='map-preview-area')
         user.groups.add(group)
@@ -273,9 +294,16 @@ class LivePreviewTests(TestCase):
         self.assertNotEqual(raster.convert('RGB').getpixel((63, 16)), (0, 128, 0))
         self.assertEqual(raster.convert('RGB').getpixel((0, 16)), (0, 128, 0))
         self.send.reset_mock()
-        result = self.request(selection='node1.1', bbox='0,0,4,8', identify='true', width=64, height=32)
-        self.assertEqual(result.status_code, 403)
-        self.send.assert_not_called()
+        # Identify is answered by the security proxy: the preview only hands out the
+        # same-origin url, so the spatial decision stays with the browser request.
+        discovery = self.request(selection='node1.1').json()
+        self.assertEqual(discovery['identify']['url'].split('?')[0], f'/mrmap-proxy/wms/{self.wms.pk}')
+        self.send.reset_mock()
+        result = self.request(selection='node1.1', bbox='0,0,4,8', width=64, height=32)
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertNotIn('info', result.json())
+        self.assertEqual(parse_qs(urlsplit(self.send.call_args.args[0].url).query)['REQUEST'], ['GetMap'])
+        self.send.assert_called_once()
 
     def test_csw_live_pages_parse_zero_extents_without_persistence(self):
         content = f'<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"><csw:SearchResults numberOfRecordsMatched="40" numberOfRecordsReturned="1" nextRecord="26">{iso_record()}</csw:SearchResults></csw:GetRecordsResponse>'.encode()

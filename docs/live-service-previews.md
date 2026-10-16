@@ -11,9 +11,10 @@ selection**. Missing or invalid extents leave the default viewport usable. The
 first increment uses WGS84 (EPSG:4326), PNG/JPEG for WMS and advertised GeoJSON for
 WFS. Other formats/CRS have an explicit unsupported state. GML conversion is a
 follow-up. WFS responses are always labelled as a bounded preview whose
-completeness is not established. Attributes and identify results are rendered as
-text. Queryable WMS layers provide a GetFeatureInfo result link and a keyboard
-accessible identify-at-centre action, as well as a map context-menu action.
+completeness is not established. Identify results are read into attributes or shown
+as text; markup from upstream is never rendered. Queryable WMS layers provide a
+GetFeatureInfo result link and a keyboard accessible identify-at-centre action, as
+well as a map context-menu action.
 
 CSW pages show fresh ISO dataset/service records rather than the harvested
 Records tab. Their mapped rectangles are **metadata coverage, current page
@@ -41,14 +42,18 @@ WMS/WFS parameters:
 | `selection` | Exact registered named-layer/feature-type identifier |
 | `bbox` | WGS84 `west,south,east,north`, independent of upstream axis order |
 | `width`, `height` | WMS dimensions, defaults 800 × 400; each at most 2048 |
-| `identify` | `true` for WMS GetFeatureInfo |
-| `x`, `y` | Identify pixel coordinates in the same viewport |
 
-Omitting `bbox` returns `configuration: {extent, queryable}` and
+Omitting `bbox` returns `configuration: {extent, queryable}`, an `identify` link and
 `discovery: "stored"`, without requesting capabilities upstream. This is
-explicitly labelled stored discovery. With `bbox`, responses add `source` and
-`fetchedAt` (last successful fetch), and either a base64 `image` data URL,
-GeoJSON `features` with `limit: 500, limited: true`, or identify text `info`.
+explicitly labelled stored discovery. `identify` is `{url, infoFormat}` for a
+queryable WMS layer and `null` otherwise: the same-origin security proxy URL,
+prefilled with everything the stored capabilities decide, so the browser only adds
+the viewport and the pixel and performs the identify itself. Neither the upstream
+address nor the stored credentials leave the backend. Only machine-readable
+advertised `INFO_FORMAT`s are negotiated; a service that advertises nothing but
+markup gets `identify: null`. With `bbox`, responses add `source` and `fetchedAt`
+(last successful fetch), and either a base64 `image` data URL or GeoJSON `features`
+with `limit: 500, limited: true`.
 Requests use version-correct WMS axis ordering and WFS type/count/BBOX parameters.
 Each WFS request contains one type and a viewport filter. Older spatially
 restricted WFS versions are rejected rather than forwarded unrestricted.
@@ -64,11 +69,13 @@ ISO mapping is reused only for field parsing, without the persistence handler.
 
 Preview errors contain `{"error": "code"}`. Codes include `denied`, `disabled`,
 `unavailable`, `ogc`, `malformed`, `format`, `crs`, `schema`, `extent`, `limit`,
-`stale`, `discovery`, `operation`, `identify`, and `spatialVersion`. Authentication
+`stale`, `discovery`, `operation`, and `spatialVersion`. Authentication
 and object-permission failures also use DRF's ordinary error responses. Invalid
 request parameters return 400, unsupported responses 422, disabled services 423,
-upstream failures/limits 502, and denied access 403. Both languages explain these
-states and offer retry where appropriate.
+upstream failures/limits 502, and denied access 403. An identify answered by the
+proxy reuses the same codes in the browser: `denied` for 401/403 and `ogc` for an
+exception report. Both languages explain these states and offer retry where
+appropriate.
 
 ## Request bounds and access
 
@@ -83,9 +90,13 @@ Registered operation-specific endpoints and stored upstream credentials are
 used. Caller MrMap tokens and browser cookies are not copied upstream. Preview
 requests reuse proxy authorization and WMS spatial masks. WFS spatial filters
 combine the viewport with **only the caller's** allowed areas. Unsupported
-versions/geometry definitions fail closed. Spatially restricted WMS identify
-requires an entirely authorized viewport in this increment; partial-viewport
-identify fails closed. General-purpose proxy limits remain unchanged.
+versions/geometry definitions fail closed. Identify goes to `/mrmap-proxy/wms/{id}`
+with the caller's own MrMap token, so it follows the general proxy rule for
+GetFeatureInfo: an allowed area must cover the requested viewport or contain the
+returned features, otherwise the proxy answers 403. Those identify requests are
+ordinary proxy requests and are subject to general proxy logging and limits, unlike
+the preview endpoint itself, which stays free of response logging and keeps its own
+8 MiB/15 second budget.
 
 The shared proxy dispatch now selects the requested operation/method, and OWS
 clients prepare requests through their sessions so stored authentication applies.

@@ -106,8 +106,11 @@ beforeEach(() => {
   state.mapProps = undefined;
 });
 afterEach(() => vi.unstubAllGlobals());
+// Every scenario renders an accordion whose content waits for a debounced react-query
+// round trip, which exceeds the default five seconds once the whole suite shares the CPU.
+vi.setConfig({ testTimeout: 20000 });
 describe("live overview previews", () => {
-  it("requests identify through the registered action and presents a safe result link", async () => {
+  it("fetches the generated identify url itself and presents a safe result link", async () => {
     const BrowserURL = URL;
     vi.stubGlobal(
       "URL",
@@ -116,16 +119,26 @@ describe("live overview previews", () => {
         static revokeObjectURL = vi.fn();
       },
     );
+    const identify = vi.fn(async (_url: string, _init: RequestInit) =>
+      new Response("<script>remote</script>", {
+        headers: { "Content-Type": "text/plain" },
+      }),
+    );
+    vi.stubGlobal("fetch", identify);
     state.request.mockImplementation(async ({ params }) =>
       result(
-        params.identify === "true"
-          ? { info: "<script>remote</script>" }
-          : params.bbox
-            ? {
-                image: "data:image/png;base64,test",
-                configuration: { ...configuration, queryable: true },
-              }
-            : { configuration: { ...configuration, queryable: true } },
+        params.bbox
+          ? {
+              image: "data:image/png;base64:test",
+              configuration: { ...configuration, queryable: true },
+            }
+          : {
+              configuration: { ...configuration, queryable: true },
+              identify: {
+                url: "/mrmap-proxy/wms/service?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=roads&QUERY_LAYERS=roads&INFO_FORMAT=text%2Fplain",
+                infoFormat: "text/plain",
+              },
+            },
       ),
     );
     const view = prepare("WMS");
@@ -134,21 +147,110 @@ describe("live overview previews", () => {
       await screen.findByRole(
         "button",
         { name: "Identify" },
-        { timeout: 3000 },
+        { timeout: 5000 },
       ),
     );
-    await screen.findByText("<script>remote</script>", {}, { timeout: 3000 });
+    await screen.findByText("<script>remote</script>", {}, { timeout: 5000 });
     expect(
       screen.getByRole("link", { name: "livePreview.featureInfo" }),
     ).toHaveAttribute("href", "blob:safe-result");
     expect(document.querySelector("script")).toBeNull();
-    expect(state.request).toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({ identify: "true", x: 300, y: 200 }),
-      }),
-    );
+    // The preview endpoint only negotiates; the pixel request goes to the security proxy.
+    const [url, options] = identify.mock.calls[0];
+    const params = new URL(url).searchParams;
+    expect(new URL(url).pathname).toBe("/mrmap-proxy/wms/service");
+    expect(params.get("REQUEST")).toBe("GetFeatureInfo");
+    expect(params.get("BBOX")).toBe("0,0,8,4");
+    expect(params.get("WIDTH")).toBe("600");
+    expect(params.get("HEIGHT")).toBe("400");
+    expect(params.get("I")).toBe("300");
+    expect(params.get("J")).toBe("200");
+    expect(params.get("X")).toBe("300");
+    expect(params.get("Y")).toBe("200");
+    expect(options.headers).toEqual({
+      Accept: "text/plain",
+      Authorization: "Token mrmap-token",
+    });
+    expect(
+      state.request.mock.calls.every(
+        ([config]) =>
+          (config.params as Record<string, unknown>).identify === undefined,
+      ),
+    ).toBe(true);
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:safe-result");
+  });
+  it("refuses an identify url of another origin without sending credentials", async () => {
+    const fetched = vi.fn();
+    vi.stubGlobal("fetch", fetched);
+    state.request.mockImplementation(async ({ params }) =>
+      result(
+        params.bbox
+          ? {
+              image: "data:image/png;base64:test",
+              configuration: { ...configuration, queryable: true },
+            }
+          : {
+              configuration: { ...configuration, queryable: true },
+              identify: {
+                url: "https://unrelated.test/mrmap-proxy/wms/service?VERSION=1.1.1",
+                infoFormat: "application/json",
+              },
+            },
+      ),
+    );
+    const view = prepare("WMS");
+    fireEvent.click(screen.getByText("livePreview.title"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Identify" }, { timeout: 5000 }),
+    );
+    await screen.findByText("livePreview.errors.denied", {}, { timeout: 5000 });
+    expect(fetched).not.toHaveBeenCalled();
+    view.unmount();
+  });
+  it("reads a json identify body into feature attributes instead of markup", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            type: "FeatureCollection",
+            features: [
+              { type: "Feature", properties: { name: "Main", street: "<b>x</b>" } },
+            ],
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    state.request.mockImplementation(async ({ params }) =>
+      result(
+        params.bbox
+          ? {
+              image: "data:image/png;base64:test",
+              configuration: { ...configuration, queryable: true },
+            }
+          : {
+              configuration: { ...configuration, queryable: true },
+              identify: {
+                url: "/mrmap-proxy/wms/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=roads",
+                infoFormat: "application/json",
+              },
+            },
+      ),
+    );
+    const view = prepare("WMS");
+    fireEvent.click(screen.getByText("livePreview.title"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Identify" }, { timeout: 5000 }),
+    );
+    expect(
+      await screen.findByText("street: <b>x</b>", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("name: Main")).toBeInTheDocument();
+    expect(document.querySelector("b")).toBeNull();
+    expect(document.querySelector("script")).toBeNull();
+    view.unmount();
   });
   it("starts only on expansion, isolates state, and cancels when collapsed", async () => {
     state.request.mockImplementation(async ({ params }) =>

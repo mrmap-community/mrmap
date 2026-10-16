@@ -5,11 +5,12 @@ import math
 import time
 from functools import cached_property
 from io import BytesIO
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from django.contrib.gis.geos import GeometryCollection, Polygon
 from django.core.exceptions import PermissionDenied
 from django.test import RequestFactory
+from django.urls import reverse
 from django.utils.timezone import now
 from epsg_cache.utils import adjust_axis_order
 from guardian.core import ObjectPermissionChecker
@@ -38,6 +39,12 @@ PAGE_SIZE = 25
 RESPONSE_LIMIT = 8 * 1024 * 1024
 TIME_LIMIT = 15
 GMD = "http://www.isotc211.org/2005/gmd"
+INFO_FEATURE_COUNT = 10
+# Identify results are rendered by the browser, so only self contained machine readable
+# formats are negotiated for them. An upstream `text/html` body would be answered by the
+# security proxy on the MrMap origin and could read the credentials stored there.
+INFO_FORMATS = ("application/json", "application/geo+json", "application/gml+xml",
+                "application/vnd.ogc.gml", "application/xml", "text/xml", "text/plain")
 
 
 class PreviewError(Exception):
@@ -152,6 +159,33 @@ def integer(value, default, maximum):
     return number
 
 
+def negotiate_info_format(formats):
+    """Return the most structured advertised identify format, never a markup format.
+
+    Formats may carry parameters (``text/plain; charset=utf-8``), so only the media type
+    before the first ``;`` decides. Returns ``None`` if nothing renderable by the browser
+    is advertised.
+    """
+    advertised = {item.split(";")[0].strip().lower() for item in formats}
+    return next((name for name in INFO_FORMATS if name in advertised), None)
+
+
+def identify_request(service, selection, version, info_format):
+    """Build the same-origin security proxy URL for an identify done in the browser.
+
+    Only the parameters the registry may decide from the stored capabilities are prefilled;
+    the caller adds the viewport (``BBOX``, ``WIDTH``, ``HEIGHT``) and the pixel. The proxy
+    resolves the registered operation url, applies the stored service credentials and the
+    spatial security of the caller itself, therefore no upstream address or credential
+    leaves the backend.
+    """
+    params = {"SERVICE": "WMS", "VERSION": version, "REQUEST": "GetFeatureInfo",
+              "LAYERS": selection, "QUERY_LAYERS": selection, "STYLES": "",
+              "FEATURE_COUNT": INFO_FEATURE_COUNT, "INFO_FORMAT": info_format}
+    params["CRS" if version == "1.3.0" else "SRS"] = "EPSG:4326"
+    return f"{reverse('wms-operation', kwargs={'pk': service.pk})}?{urlencode(params)}"
+
+
 def selected_configuration(service, selection, client):
     """Negotiate only advertised formats/CRS using the stored capabilities."""
     root = client._capabilities_etree
@@ -171,7 +205,7 @@ def selected_configuration(service, selection, client):
         if "EPSG:4326" not in crs:
             raise PreviewError("crs")
         info_formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetFeatureInfo']/*[local-name()='Format']/text()")
-        info_format = next(iter(info_formats), None)
+        info_format = negotiate_info_format(info_formats)
         queryable = bool(element.is_queryable_inherited and info_format)
         return element, image_format, queryable, info_format
     element = service.featuretypes.filter(identifier=selection).first()
@@ -213,12 +247,6 @@ class WmsPreviewProxy(PreviewProxyMixin, WebMapServiceProxy):
         if any(permission.allowed_area is None for permission in self.service.relevant_allowed_operations):
             return self.return_http_response(self.get_remote_response())
         return super().secure_request()
-
-    def handle_secured_get_feature_info(self):
-        # Keep identify closed unless the complete request viewport is authorized.
-        if not self.geom.covers(self.ogc_request.bbox):
-            raise PermissionDenied
-        return self.return_http_response(self.get_remote_response())
 
 
 class WfsPreviewProxy(PreviewProxyMixin, WebFeatureServiceProxy):
@@ -278,29 +306,21 @@ def data_preview(service, caller, query, client=None, request_params=None):
     geometry = element.bbox_lat_lon_inherited if service.service_type == "WMS" else element.bbox_lat_lon
     configuration = {"queryable": queryable, "extent": list(geometry.extent)
                      if geometry and not geometry.empty else None}
-    if not query.get("bbox"):
-        return {"configuration": configuration, "discovery": "stored"}
-    bbox = checked_bbox(query["bbox"])
-    version = client.service_version
     protocol = service.service_type
+    version = client.service_version
+    # Identify is fetched and rendered by the browser through the security proxy, so only
+    # the negotiation and the prefilled url happen here. WFS has no GetFeatureInfo.
+    identify = ({"url": identify_request(service, selection, version, info_format),
+                 "infoFormat": info_format} if protocol == "WMS" and queryable else None)
+    if not query.get("bbox"):
+        return {"configuration": configuration, "identify": identify, "discovery": "stored"}
+    bbox = checked_bbox(query["bbox"])
     ordered = [bbox[1], bbox[0], bbox[3], bbox[2]] if (protocol == "WMS" and version == "1.3.0") or (protocol == "WFS" and version != "1.0.0") else bbox
     params = {"SERVICE": protocol, "VERSION": version, "BBOX": ",".join(map(str, ordered))}
     if protocol == "WMS":
         params.update(REQUEST="GetMap", LAYERS=selection, STYLES="", FORMAT=output_format,
                       WIDTH=integer(query.get("width"), 800, 2048), HEIGHT=integer(query.get("height"), 400, 2048), TRANSPARENT="TRUE")
         params["CRS" if version == "1.3.0" else "SRS"] = "EPSG:4326"
-        if query.get("identify") == "true":
-            if not queryable:
-                raise PreviewError("identify")
-            params.update(REQUEST="GetFeatureInfo", QUERY_LAYERS=selection, INFO_FORMAT=info_format, FEATURE_COUNT=10)
-            for name, maximum in (("x", params["WIDTH"]), ("y", params["HEIGHT"])):
-                try:
-                    pixel = int(query.get(name, "0"))
-                except ValueError:
-                    raise PreviewError("malformed", 400)
-                if not 0 <= pixel < maximum:
-                    raise PreviewError("extent", 400)
-                params[("I" if name == "x" else "J") if version == "1.3.0" else name.upper()] = pixel
         proxy = WmsPreviewProxy()
     else:
         params.update(REQUEST="GetFeature", SRSNAME="EPSG:4326", OUTPUTFORMAT=output_format)
@@ -329,12 +349,9 @@ def data_preview(service, caller, query, client=None, request_params=None):
         raise PreviewError("unavailable", 502)
     if content.lstrip().startswith(b"<"):
         parse_xml(content)
-        if not query.get("identify"):
-            raise PreviewError("format")
-    result = {"configuration": configuration, "fetchedAt": now().isoformat()}
-    if query.get("identify") == "true":
-        result["info"] = content.decode("utf-8", errors="replace")
-    elif protocol == "WMS":
+        raise PreviewError("format")
+    result = {"configuration": configuration, "identify": identify, "fetchedAt": now().isoformat()}
+    if protocol == "WMS":
         validate_image(content)
         result["image"] = f"data:{output_format};base64,{base64.b64encode(content).decode()}"
     else:

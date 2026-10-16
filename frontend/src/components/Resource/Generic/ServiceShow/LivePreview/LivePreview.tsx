@@ -32,6 +32,7 @@ import PreviewMap, { type Viewport, validExtent } from "./PreviewMap";
 import {
   PreviewFailure,
   serviceResource,
+  useIdentify,
   usePreview,
   type Protocol,
   type PreviewLink,
@@ -79,7 +80,39 @@ const PreviewStatus = ({
   );
 };
 
-const FeatureInfoResult = ({ text }: { text: string }) => {
+const parseIdentify = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+
+const entries = (value: unknown) =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? Object.entries(value as Record<string, unknown>)
+    : [];
+
+const identifyFeatures = (value: unknown) => {
+  const features = (value as { features?: unknown })?.features;
+  return Array.isArray(features) ? features : undefined;
+};
+
+/**
+ * Renders an identify result by its media type.
+ *
+ * Nothing of the upstream response becomes markup of this page: JSON is read into
+ * attributes, everything else is shown as text, and the download link is always typed
+ * `text/plain`. `text/html` is refused, because the security proxy answers it from the
+ * MrMap origin and it could read the credentials stored there.
+ */
+const FeatureInfoResult = ({
+  text,
+  contentType,
+}: {
+  text: string;
+  contentType: string;
+}) => {
   const translate = useTranslate();
   const [url, setUrl] = useState<string>();
   useEffect(() => {
@@ -87,6 +120,12 @@ const FeatureInfoResult = ({ text }: { text: string }) => {
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [text]);
+  const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  const parsed =
+    mediaType === "application/json" || mediaType === "application/geo+json"
+      ? parseIdentify(text)
+      : undefined;
+  const features = parsed === undefined ? undefined : identifyFeatures(parsed);
   return (
     <Stack spacing={1}>
       {url && (
@@ -94,12 +133,43 @@ const FeatureInfoResult = ({ text }: { text: string }) => {
           {translate("livePreview.featureInfo")}
         </Link>
       )}
-      <Typography
-        component="pre"
-        sx={{ whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}
-      >
-        {text}
-      </Typography>
+      {(mediaType === "text/html" ||
+        mediaType === "application/xhtml+xml") && (
+        <Alert severity="warning">
+          {translate("livePreview.htmlNotRendered")}
+        </Alert>
+      )}
+      {features ? (
+        <Stack spacing={1}>
+          {features.map((feature, index) => (
+            <Stack
+              key={index}
+              sx={{ border: 1, borderColor: "divider", p: 1 }}
+            >
+              {(entries(
+                (feature as { properties?: unknown })?.properties,
+              ).length
+                ? entries((feature as { properties?: unknown }).properties)
+                : entries(feature)
+              ).map(([key, value]) => (
+                <Typography key={key} component="div" variant="body2">
+                  {key}:{" "}
+                  {typeof value === "object"
+                    ? JSON.stringify(value)
+                    : String(value ?? "")}
+                </Typography>
+              ))}
+            </Stack>
+          ))}
+        </Stack>
+      ) : (
+        <Typography
+          component="pre"
+          sx={{ whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}
+        >
+          {parsed === undefined ? text : JSON.stringify(parsed, null, 2)}
+        </Typography>
+      )}
     </Stack>
   );
 };
@@ -147,11 +217,10 @@ const DataPreview = ({
       selection && visible && viewport && discovery.data && !discovery.error,
     ),
   );
-  const info = usePreview(
-    protocol,
-    serviceId,
-    { selection, ...viewport, ...identify, identify: "true" },
-    Boolean(identify && visible && discovery.data?.configuration?.queryable),
+  const info = useIdentify(
+    discovery.data?.identify,
+    viewport,
+    visible ? identify : undefined,
   );
   const updateViewport = useCallback((next: Viewport) => {
     setViewport((previous) =>
@@ -312,7 +381,16 @@ const DataPreview = ({
         }
       />
       <PreviewStatus query={info} />
-      {info.data?.info && <FeatureInfoResult text={info.data.info} />}
+      {visible && info.data?.info !== undefined && (
+        <FeatureInfoResult
+          text={info.data.info}
+          contentType={
+            info.data.infoContentType ??
+            discovery.data?.identify?.infoFormat ??
+            ""
+          }
+        />
+      )}
     </Stack>
   );
 };

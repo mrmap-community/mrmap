@@ -176,13 +176,13 @@ class ServicePreviewMixin:
                         ("bbox", "WGS84 west,south,east,north. Omit for stored discovery only."),
                         ("width", "Image width, at most 2048 pixels."),
                         ("height", "Image height, at most 2048 pixels."),
-                        ("identify", "true for WMS GetFeatureInfo."),
-                        ("x", "Identify pixel column."), ("y", "Identify pixel row."),
                         ("start", "CSW 1-based record position; pages contain at most 25 records."))],
         responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
                    403: OpenApiTypes.OBJECT, 422: OpenApiTypes.OBJECT,
                    423: OpenApiTypes.OBJECT, 502: OpenApiTypes.OBJECT},
-        description="Read-only live preview. Stored discovery; bounded upstream reads. No registry writes.",
+        description="Read-only live preview. Stored discovery; bounded upstream reads. No registry "
+                    "writes. WMS identify is answered by the browser against the returned "
+                    "same-origin security proxy url.",
     )
     @action(detail=True, methods=["get"], renderer_classes=[JSONRenderer], filter_backends=[])
     def preview(self, request, *args, **kwargs):

@@ -26,6 +26,7 @@ const en = lodashMerge(
       "noIdentify": "Identify is unavailable for this layer.",
       "identify": "Identify at map centre",
       "featureInfo": "Open GetFeatureInfo result",
+      "htmlNotRendered": "The service returned markup, which is not rendered for security reasons. The raw result is shown below.",
       "attributes": "Select feature attributes",
       "record": "Catalogue record",
       "coverage": "Metadata coverage · current page only. These extents are not feature geometry.",
@@ -48,7 +49,6 @@ const en = lodashMerge(
             "stale": "The selected layer or feature type is missing from the stored service definition.",
             "discovery": "Unable to read the stored service definition or selections.",
             "operation": "The required registered operation endpoint is unavailable.",
-            "identify": "This layer does not support identify.",
             "spatialVersion": "This spatially restricted WFS cannot be previewed with its registered version or geometry definition."
       }
 },

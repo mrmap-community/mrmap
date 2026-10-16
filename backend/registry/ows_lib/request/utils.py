@@ -192,7 +192,8 @@ def get_requested_feature_types(params: dict[str, str] | etree._Element) -> list
     """
     # --- Case 1: Dict ---
     if isinstance(params, dict):
-        value = params.get("TYPENAMES") or params.get("typenames") or ""
+        value = next((value for name, value in params.items()
+                      if name.lower() in {"typename", "typenames"}), "")
         return [v for v in value.split(",") if v]
 
     # --- Case 2: XML element ---

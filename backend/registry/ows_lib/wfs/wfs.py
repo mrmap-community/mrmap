@@ -1,6 +1,9 @@
+import math
+
 from lxml.etree import _Element
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.client.exceptions import InitialError
 from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.xml.builder import XSDSkeletonBuilder
 from requests import Request
@@ -18,7 +21,7 @@ class WebFeatureServiceClient(OgcClient):
 
     @property
     def type_name_qp(self):
-        return "TYPENAMES" if self.service_version == "2.0.0" else "TYPENAME"
+        return "TYPENAMES" if self.service_version.startswith("2.") else "TYPENAME"
 
     @property
     def output_format_qp(self):
@@ -26,7 +29,73 @@ class WebFeatureServiceClient(OgcClient):
 
     @property
     def max_features_qp(self):
-        return "COUNT" if self.service_version == "2.0.0" else "MAXFEATURES"
+        return "COUNT" if self.service_version.startswith("2.") else "MAXFEATURES"
+
+    def get_preview_request(self, max_features: int = 500, type_names: list[str] = None) -> Request:
+        """Build, without sending, a bounded GeoJSON GetFeature request.
+
+        Choose the first named feature type in capabilities order that has an
+        advertised GeoJSON format, EPSG:4326 and a usable WGS84 bounding box.
+        Optional type_names restricts selection to eligible feature types.
+        The BBOX uses the WFS 1.1/2.0 axis order and an explicit EPSG:4326 CRS.
+        Raises ValueError when no such configuration is advertised.
+        """
+        if self.service_type != "WFS" or self.service_version not in {"1.1.0", "2.0.0", "2.0.2"}:
+            raise ValueError("Previews require WFS 1.1.0 or 2.0 capabilities")
+        if type(max_features) is not int or not 1 <= max_features <= 500:
+            raise ValueError("Preview feature count must be an integer between 1 and 500")
+
+        eligible = set(type_names) if type_names is not None else None
+        root = self._capabilities_etree
+        operation_formats = root.xpath(
+            "//*[local-name()='Operation' and @name='GetFeature']"
+            "/*[local-name()='Parameter' and @name='outputFormat']//*[local-name()='Value']/text()")
+        for node in root.findall("{*}FeatureTypeList/{*}FeatureType"):
+            name = (node.findtext("{*}Name") or "").strip()
+            if not name or (eligible is not None and name not in eligible):
+                continue
+            formats = node.xpath("./*[local-name()='OutputFormats']/*/text()") or operation_formats
+            output_format = next((value.strip() for value in formats if value.strip().lower() in
+                                  {"application/json", "application/geo+json", "json", "geojson"}), None)
+            crs = node.xpath(
+                "./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or "
+                "local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
+            if not output_format or not any(value.strip().upper().endswith((":4326", "::4326", "/4326")) for value in crs):
+                continue
+            try:
+                west, south, east, north = self._get_preview_bbox(node)
+            except ValueError:
+                continue
+            try:
+                request = self.get_feature_kvp_request(
+                    type_names=[name], max_features=max_features,
+                    srs_name="EPSG:4326", output_format=output_format)
+            except InitialError as error:
+                raise ValueError(str(error)) from error
+            request.url = update_queryparams(
+                url=request.url,
+                params={"BBOX": ",".join(map(str, (south, west, north, east))) + ",EPSG:4326"})
+            return request
+        raise ValueError("Capabilities contain no feature type suitable for a GeoJSON preview")
+
+    @staticmethod
+    def _get_preview_bbox(node):
+        bbox = node.find("{*}WGS84BoundingBox")
+        if bbox is None:
+            raise ValueError("Feature type has no WGS84 bounding box")
+        try:
+            lower = tuple(map(float, (bbox.findtext("{*}LowerCorner") or "").split()))
+            upper = tuple(map(float, (bbox.findtext("{*}UpperCorner") or "").split()))
+            if len(lower) != 2 or len(upper) != 2:
+                raise ValueError("Preview bounding box must have two-dimensional corners")
+            west, south = lower
+            east, north = upper
+            if (not all(math.isfinite(value) for value in (*lower, *upper))
+                    or not -180 <= west < east <= 180 or not -90 <= south < north <= 90):
+                raise ValueError("Preview bounding box must have finite, increasing WGS84 bounds")
+        except (TypeError, ValueError) as error:
+            raise ValueError("Invalid preview bounding box") from error
+        return west, south, east, north
 
     def describe_feature_type_request(
             self,

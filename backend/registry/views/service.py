@@ -4,6 +4,12 @@ from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
 from django_cte import CTE, with_cte
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
+from django.http import HttpResponse, JsonResponse
+from guardian.core import ObjectPermissionChecker
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.renderers import JSONRenderer
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
@@ -47,6 +53,7 @@ from registry.serializers.service import (
     WebMapServiceCreateSerializer, WebMapServiceListSerializer,
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
+from registry.helper.preview import PreviewError, feature_preview_image, preview
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -152,7 +159,62 @@ class ServiceAlertAnnotationMixin:
         return super().filter_queryset(queryset)
 
 
+class ServicePreviewMixin:
+    @classmethod
+    def get_extra_actions(cls):
+        actions = super().get_extra_actions()
+        # Nested relationship viewsets inherit the service UI customizations,
+        # but preview addresses only the canonical registered-service endpoint.
+        if issubclass(cls, NestedModelViewSet):
+            return [item for item in actions if item.__name__ not in {"preview", "preview_image"}]
+        return actions
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name, OpenApiTypes.STR, description=description)
+                    for name, description in (
+                        ("selection", "Registered layer/feature-type identifier."),
+                        ("bbox", "WGS84 west,south,east,north. Omit for stored discovery only."),
+                        ("width", "Image width, at most 2048 pixels."),
+                        ("height", "Image height, at most 2048 pixels."),
+                        ("start", "CSW 1-based record position; pages contain at most 25 records."))],
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
+                   403: OpenApiTypes.OBJECT, 422: OpenApiTypes.OBJECT,
+                   423: OpenApiTypes.OBJECT, 502: OpenApiTypes.OBJECT},
+        description="Read-only live preview. Stored discovery; bounded upstream reads. No registry "
+                    "writes. WMS identify is answered by the browser against the returned "
+                    "same-origin security proxy url.",
+    )
+    @action(detail=True, methods=["get"], renderer_classes=[JSONRenderer], filter_backends=[])
+    def preview(self, request, *args, **kwargs):
+        service = self.get_object()
+        # DRF's default read-only object permission map is empty; previews also
+        # explicitly require view permission on the registered service.
+        if not ObjectPermissionChecker(request.user).has_perm(
+                f"view_{service.__class__.__name__.lower()}", service):
+            raise PermissionDenied
+        try:
+            result = preview(service, request, request.query_params)
+            result["source"] = str(service.title)
+            return JsonResponse(result, headers={"Cache-Control": "no-store"})
+        except PreviewError as error:
+            return JsonResponse({"error": error.code}, status=error.status,
+                                headers={"Cache-Control": "no-store"})
+
+
+class PreviewImageRenderer(JSONRenderer):
+    """Accept PNG requests while keeping DRF permission errors in JSON."""
+    media_type = "image/png"
+    format = "png"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        if renderer_context:
+            renderer_context["response"]["Content-Type"] = "application/json"
+        return super().render(data, accepted_media_type, renderer_context)
+
+
+@extend_schema_view(preview=extend_schema(operation_id="preview_WebMapService"))
 class WebMapServiceViewSet(
+    ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,
@@ -479,7 +541,9 @@ class NestedWebMapServiceOperationUrlViewSet(
     """
 
 
+@extend_schema_view(preview=extend_schema(operation_id="preview_WebFeatureService"))
 class WebFeatureServiceViewSet(
+    ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,
@@ -507,6 +571,35 @@ class WebFeatureServiceViewSet(
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,
     }
+
+    @extend_schema(
+        operation_id="preview_image_WebFeatureService",
+        parameters=[
+            OpenApiParameter(name, OpenApiTypes.INT,
+                             description="Thumbnail dimension in pixels, from 1 to 2048.")
+            for name in ("width", "height")
+        ],
+        responses={(200, "image/png"): OpenApiTypes.BINARY,
+                   (400, "application/json"): OpenApiTypes.OBJECT,
+                   (403, "application/json"): OpenApiTypes.OBJECT,
+                   (422, "application/json"): OpenApiTypes.OBJECT,
+                   (423, "application/json"): OpenApiTypes.OBJECT,
+                   (502, "application/json"): OpenApiTypes.OBJECT},
+        description="Read-only PNG thumbnail of an automatically selected, bounded WFS feature sample.",
+    )
+    @action(detail=True, methods=["get"], url_path="preview-image",
+            renderer_classes=[PreviewImageRenderer, JSONRenderer], filter_backends=[])
+    def preview_image(self, request, *args, **kwargs):
+        service = self.get_object()
+        if not ObjectPermissionChecker(request.user).has_perm("view_webfeatureservice", service):
+            raise PermissionDenied
+        try:
+            content = feature_preview_image(service, request, request.query_params)
+            return HttpResponse(content, content_type="image/png", headers={"Cache-Control": "no-store"})
+        except PreviewError as error:
+            return JsonResponse({"error": error.code}, status=error.status,
+                                headers={"Cache-Control": "no-store"})
+
     select_for_includes = {
         "proxy_setting": ["proxy_setting"],
         "service_contact": ["service_contact"],
@@ -966,7 +1059,9 @@ class CatalogueServiceViewSetMixin(
         }
 
 
+@extend_schema_view(preview=extend_schema(operation_id="preview_CatalogueService"))
 class CatalogueServiceViewSet(
+    ServicePreviewMixin,
     CatalogueServiceViewSetMixin,
     ModelViewSet
 ):

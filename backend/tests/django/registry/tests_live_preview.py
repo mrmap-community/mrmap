@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import MultiPolygon, Polygon
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from guardian.shortcuts import assign_perm
@@ -393,3 +394,53 @@ class PreviewLimitsTests(SimpleTestCase):
             self.assertIn(expected, request.url)
             self.assertNotIn('Authorization', request.headers)
             self.assertNotIn('Cookie', request.headers)
+
+
+class ServicePreviewUrlTests(SimpleTestCase):
+    """The preview url only decorates the details view and must never break a response."""
+
+    LAYER = ('<Layer><Name>roads</Name><CRS>CRS:84</CRS>'
+             '<BoundingBox CRS="CRS:84" minx="0" miny="0" maxx="10" maxy="10"/></Layer>')
+
+    def setUp(self):
+        self.media = TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        override = override_settings(MEDIA_ROOT=self.media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def wms(self, get_map):
+        return f'''<WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms"
+            xmlns:xlink="http://www.w3.org/1999/xlink"><Capability><Request><GetMap>{get_map}</GetMap></Request>
+            <Exception><Format>XML</Format></Exception>{self.LAYER}</Capability></WMS_Capabilities>'''.encode()
+
+    def preview_url(self, capabilities):
+        from registry.serializers.service import WebMapServiceSerializer
+        service = WebMapService()
+        if capabilities is not None:
+            service.xml_backup_file.save('preview.xml', ContentFile(capabilities), save=False)
+        return WebMapServiceSerializer().get_preview_url(service)
+
+    def test_list_serializer_does_not_answer_the_preview(self):
+        # Constructing the preview reads and parses the whole capabilities document, so it
+        # is only answered for the single service of a retrieve and not for a list or an
+        # included service.
+        from registry.serializers.service import WebMapServiceListSerializer
+        self.assertNotIn('preview_url', WebMapServiceListSerializer().fields)
+
+    def test_missing_unreadable_or_useless_capabilities_answer_no_preview(self):
+        without_endpoint = self.wms('<Format>image/png</Format>')
+        without_extent = capabilities('WMS', '1.3.0')
+        for stored in (None, b'', b'<incomplete', without_endpoint, without_extent):
+            with self.subTest(stored=stored):
+                self.assertIsNone(self.preview_url(stored))
+
+    def test_stored_capabilities_answer_the_whole_service_get_map(self):
+        url = self.preview_url(self.wms(
+            '<Format>image/png</Format><DCPType><HTTP><Get>'
+            '<OnlineResource xlink:href="https://registered.example/map"/></Get></HTTP></DCPType>'))
+        parts = urlsplit(url)
+        self.assertEqual(f'{parts.scheme}://{parts.netloc}{parts.path}', 'https://registered.example/map')
+        params = {key: values[0] for key, values in parse_qs(parts.query).items()}
+        self.assertEqual(params['REQUEST'], 'GetMap')
+        self.assertEqual(params['LAYERS'], 'roads')

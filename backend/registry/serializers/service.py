@@ -9,6 +9,7 @@ from extras.serializers import (HistoryInformationSerializer,
                                 StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from extras.validators import validate_get_capablities_uri
+from lxml.etree import XMLSyntaxError
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, ReferenceSystem, Style,
@@ -26,6 +27,8 @@ from registry.models.service import (CatalogueService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
 from registry.models.update import WebMapServiceUpdateSetting
+from registry.ows_lib.client.exceptions import InitialError
+from registry.ows_lib.wms.wms import WebMapServiceClient
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemDefaultSerializer,
@@ -408,11 +411,6 @@ class WebMapServiceListSerializer(
             "the original xml backup file as secured url to restore the xml field."),
         read_only=True,
     )
-    preview_url = SerializerMethodField(
-        label=_("preview url"),
-        help_text=_("the url to the preview image of the service."),
-        read_only=True,
-    )
     web_map_service_monitoring_settings = ResourceRelatedField(
         source="web_map_service_monitorings",
         label=_("monitoring settings"),
@@ -450,13 +448,34 @@ class WebMapServiceListSerializer(
         request = self.context.get("request")
         return instance.get_secured_capabilities_url(request=request)
 
-    def get_preview_url(self, instance):
-        return instance.client.get_preview_request().url
-
 
 class WebMapServiceSerializer(
     WebMapServiceListSerializer
 ):
+
+    preview_url = SerializerMethodField(
+        label=_("preview url"),
+        help_text=_("the url to the preview image of the service."),
+        read_only=True,
+    )
+
+    @extend_schema_field({"type": "string", "format": "uri"})
+    def get_preview_url(self, instance) -> str:
+        # The preview image is only of interest for a single service in its details
+        # view, so this is deliberately not answered by the list serializer: it reads
+        # and parses the whole capabilities document. Only the stored capabilities are
+        # used, the fallback of Service.capabilities would request the remote service.
+        # A service without capabilities that can describe a preview simply has none.
+        if not instance.xml_backup_file:
+            return None
+        try:
+            capabilities = instance.xml_backup
+        except FileNotFoundError:
+            return None
+        try:
+            return WebMapServiceClient(capabilities=capabilities).get_preview_request().url
+        except (XMLSyntaxError, InitialError, ValueError):
+            return None
 
     included_serializers = {
         "layers": LayerSerializer,

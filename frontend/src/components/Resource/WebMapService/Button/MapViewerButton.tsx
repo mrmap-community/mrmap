@@ -118,23 +118,20 @@ const MapViewerButton = (
   },[wmsRecordWithUrl])
 
   useEffect(() => {
-    if (
-      (clicked &&
-      getCapaibilitesUrl === undefined) ||
-      wmsRecordWithUrl === undefined
-    ) {
+    if (!clicked) {
+      return
+    }
+    if (wmsRecordWithUrl === undefined) {
       refetch()
-    } else if (
-      clicked && 
-      getCapaibilitesUrl !== undefined
-    ){
+    } else if (getCapaibilitesUrl !== undefined){
       resetContext()
     }
-  },[getCapaibilitesUrl, clicked])
+  },[getCapaibilitesUrl, clicked, wmsRecordWithUrl, refetch, resetContext])
 
   useEffect(() => {
     if (
       clicked && 
+      wmsRecordWithUrl !== undefined &&
       owsContext.features.length === 0 && 
       getCapaibilitesUrl !== undefined
     ){
@@ -149,7 +146,7 @@ const MapViewerButton = (
       navigate('/viewer')
       setClicked(false)
     }
-  }, [clicked, owsContext, getCapaibilitesUrl])
+  }, [clicked, owsContext, getCapaibilitesUrl, wmsRecordWithUrl])
 
   return (
     <Button

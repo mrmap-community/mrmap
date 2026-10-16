@@ -1,3 +1,4 @@
+import math
 import urllib
 from datetime import datetime
 
@@ -215,7 +216,8 @@ def _parse_geographic_bbox(mapper, element):
         namespaces=nsmap
     ))
 
-    if min_x and max_x and min_y and max_y:
+    if (all(math.isfinite(value) for value in (min_x, max_x, min_y, max_y))
+            and -180 <= min_x < max_x <= 180 and -90 <= min_y < max_y <= 90):
         return Polygon((
             (min_x, min_y),
             (min_x, max_y),

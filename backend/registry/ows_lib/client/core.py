@@ -206,4 +206,4 @@ class OgcClient(ABC):
         :rtype: requests.Response
 
         """
-        return self.session.send(request=request.prepare(), timeout=timeout, *args, **kwargs)
+        return self.session.send(request=self.session.prepare_request(request), timeout=timeout, *args, **kwargs)

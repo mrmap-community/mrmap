@@ -2,17 +2,20 @@ import { Grid } from "@mui/material";
 import { Children, type ReactNode } from "react";
 import ServiceDetailsCard, { type ServiceProtocol } from "./ServiceDetailsCard";
 import ServiceHistoryCard from "./ServiceHistoryCard";
+import LivePreview from "./LivePreview/LivePreview";
 
 const ServiceOverview = ({
   protocol,
   history = <ServiceHistoryCard />,
   children,
   spatialSecurity,
+  preview = protocol === "CSW" ? <LivePreview protocol={protocol} /> : null,
 }: {
   protocol: ServiceProtocol;
   history?: ReactNode;
   children?: ReactNode;
   spatialSecurity?: ReactNode;
+  preview?: ReactNode;
 }) => {
   return (
     <Grid
@@ -30,6 +33,7 @@ const ServiceOverview = ({
         <ServiceDetailsCard protocol={protocol} />
       </Grid>
       {history && <Grid size={{ xs: 12, md: 6 }}>{history}</Grid>}
+      {preview && <Grid size={12}>{preview}</Grid>}
       {spatialSecurity && <Grid size={12}>{spatialSecurity}</Grid>}
       {Children.map(
         children,

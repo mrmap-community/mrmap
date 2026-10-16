@@ -71,11 +71,13 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             .filter(_matched_count=len(identifiers))
         )
 
-    def filter_by_request(self, request: OGCRequest):
+    def filter_by_request(self, request: OGCRequest, filter_entities: bool = True):
         """Filter operations allowed for the authenticated user and service.
 
         Args:
             request: OGCRequest object containing user and operation info
+            filter_entities: Restrict rules to the requested entities. Disable
+                only when discovering which entities the caller may request.
 
         Returns:
             QuerySet filtered for user permissions and requested entities
@@ -87,13 +89,13 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             else request._django_request.user.groups.values_list("pk", flat=True)
         )
 
-        return (
+        allowed = (
             self.filter(
                 operations__value=OGCOperationEnum(request.operation),
             )
             .filter(Q(allowed_groups=None) | Q(allowed_groups__pk__in=group_pks))
-            .filter_by_requested_entity(request=request)
         )
+        return allowed.filter_by_requested_entity(request=request) if filter_entities else allowed
 
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
         """Check if the user of the request is entitled to access this service.

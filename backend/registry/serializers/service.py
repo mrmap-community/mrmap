@@ -13,9 +13,9 @@ from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, ReferenceSystem, Style,
                                       TimeExtent)
-from registry.models.monitoring import (
-    CatalogueServiceMonitoringSetting, WebFeatureServiceMonitoringSetting,
-    WebMapServiceMonitoringSetting)
+from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
+                                        WebFeatureServiceMonitoringSetting,
+                                        WebMapServiceMonitoringSetting)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication,
@@ -407,6 +407,11 @@ class WebMapServiceListSerializer(
             "the original xml backup file as secured url to restore the xml field."),
         read_only=True,
     )
+    preview_url = SerializerMethodField(
+        label=_("preview url"),
+        help_text=_("the url to the preview image of the service."),
+        read_only=True,
+    )
     web_map_service_monitoring_settings = ResourceRelatedField(
         source="web_map_service_monitorings",
         label=_("monitoring settings"),
@@ -443,6 +448,9 @@ class WebMapServiceListSerializer(
     def get_xml_backup_file_secured(self, instance):
         request = self.context.get("request")
         return instance.get_secured_capabilities_url(request=request)
+
+    def get_preview_url(self, instance):
+        return instance.client.get_preview_request().url
 
 
 class WebMapServiceSerializer(

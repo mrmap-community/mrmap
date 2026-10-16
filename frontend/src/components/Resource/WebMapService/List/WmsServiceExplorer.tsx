@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   DateField,
   EditButton,
+  RecordContext,
   RecordContextProvider,
   ShowButton,
   useListContext,
@@ -27,7 +28,7 @@ import {
   type Identifier,
 } from "react-admin";
 import ServiceAlertChips from "../../Generic/ServiceShow/ServiceAlertChips";
-import ServiceDetailsPanel from "./ServiceDetailsPanel";
+import ServiceDetailsCard from "../../Generic/ServiceShow/ServiceDetailsCard";
 import ServiceLayerCount from "./ServiceLayerCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
 import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
@@ -324,7 +325,9 @@ export const WmsServiceExplorer = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        <ServiceDetailsPanel service={service} />
+        <RecordContext value={service}>
+          <ServiceDetailsCard protocol="WMS"/>
+        </RecordContext>
       </Box>
     </Stack>
   );

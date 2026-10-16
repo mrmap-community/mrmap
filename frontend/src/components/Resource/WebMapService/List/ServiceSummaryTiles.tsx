@@ -1,9 +1,9 @@
-import { useMemo, type ComponentType } from "react";
 import DnsIcon from "@mui/icons-material/Dns";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { Card, Stack, type SvgIconProps, Typography } from "@mui/material";
+import { Card, Stack, Typography, type SvgIconProps } from "@mui/material";
+import { useMemo, type ComponentType } from "react";
 import { useListContext, useTranslate } from "react-admin";
 import { Count } from "../../../../jsonapi/components/Count";
 import { withoutFacetKeys } from "./alertFacets";

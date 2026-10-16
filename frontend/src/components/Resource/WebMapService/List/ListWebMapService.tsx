@@ -1,8 +1,8 @@
 import { type ListProps, SearchInput } from "react-admin";
+import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
-import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import WmsServiceExplorer from "./WmsServiceExplorer";
 
 /**
@@ -39,6 +39,7 @@ export const WEB_MAP_SERVICE_LIST_FIELDS = [
   "update_failed_at",
   "element_count",
   "layers",
+  "preview_url",
 ];
 
 /** the columns of this list are fixed by the rows, so none of them is chosen */

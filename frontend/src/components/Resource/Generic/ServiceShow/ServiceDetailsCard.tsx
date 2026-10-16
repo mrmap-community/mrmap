@@ -12,6 +12,7 @@ import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOpe
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
 import SimpleCard from "../../../MUI/SimpleCard";
 import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
+import ActivateServiceButton from "./ActivateServiceButton";
 import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
@@ -62,16 +63,21 @@ const ServiceDetailsCard = ({
         sx: { width: "100%", minWidth: 0, height: "100%" },
       }}
       footer={
-        protocol === "WMS" && record ? (
-          <MapViewerButton
-            key={record.id}
-            label="serviceShow.openMapViewer"
-            variant="outlined"
-            fullWidth
-          />
+        record ? (
+          <>
+            {protocol === "WMS" && (
+              <MapViewerButton
+                key={record.id}
+                label="serviceShow.openMapViewer"
+                variant="outlined"
+                sx={{ flex: 1, minWidth: 0 }}
+              />
+            )}
+            <ActivateServiceButton />
+          </>
         ) : undefined
       }
-      footerProps={{ sx: { px: 2, pb: 2 } }}
+      footerProps={{ sx: { px: 2, pb: 2, gap: 1, flexWrap: "wrap" } }}
     >
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         {(protocol === "WMS" || protocol === "WFS") && (

@@ -13,7 +13,10 @@ import type { ServiceProtocol } from "./ServiceDetailsCard";
 vi.mock("../../../../context/HttpClientContext", () => ({
   API_BASE_URL: "https://mrmap.test",
   useHttpClientContext: () => ({
-    api: { client: { request: () => new Promise(() => {}) } },
+    api: {
+      client: { request: () => new Promise(() => {}) },
+      getOperation: () => ({}),
+    },
   }),
 }));
 vi.mock("../../../../providers/authProvider", () => ({
@@ -42,6 +45,7 @@ const service = {
   id: "service-1",
   title: "Example service",
   abstract: "Service description",
+  isActive: false,
   previewUrl: "https://example.com/preview.png",
   operationUrls: [
     { id: "url-1", operation: 1, method: 1, url: "https://example.com/wms" },
@@ -92,6 +96,9 @@ describe("service overview previews", () => {
     expect(
       screen.getByRole("button", { name: "serviceShow.openMapViewer" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "serviceShow.activate" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Live preview WMS")).not.toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",
@@ -123,6 +130,9 @@ describe("service overview previews", () => {
     expect(screen.getByText(service.title)).toBeInTheDocument();
     expect(screen.queryByText("Live preview WFS")).not.toBeInTheDocument();
     expect(
+      screen.getByRole("button", { name: "serviceShow.activate" }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: "serviceShow.openMapViewer" }),
     ).not.toBeInTheDocument();
   });
@@ -131,6 +141,9 @@ describe("service overview previews", () => {
     setup("CSW");
 
     expect(screen.getByText("Live preview CSW")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "serviceShow.activate" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByAltText("serviceShow.preview"),
     ).not.toBeInTheDocument();

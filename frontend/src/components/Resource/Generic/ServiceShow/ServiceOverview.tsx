@@ -9,7 +9,7 @@ const ServiceOverview = ({
   history = <ServiceHistoryCard />,
   children,
   spatialSecurity,
-  preview = <LivePreview protocol={protocol} />,
+  preview = protocol === "WMS" ? null : <LivePreview protocol={protocol} />,
 }: {
   protocol: ServiceProtocol;
   history?: ReactNode;

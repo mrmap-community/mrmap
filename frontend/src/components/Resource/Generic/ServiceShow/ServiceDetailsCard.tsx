@@ -1,3 +1,4 @@
+import { Stack } from "@mui/material";
 import { createElement } from "react";
 import {
   Labeled,
@@ -10,6 +11,8 @@ import {
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
 import SimpleCard from "../../../MUI/SimpleCard";
+import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
+import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
 
@@ -31,11 +34,11 @@ export function capabilitiesUrl(
   }
 }
 
-export default function ServiceDetailsCard({
+const ServiceDetailsCard = ({
   protocol,
 }: {
   protocol: ServiceProtocol;
-}) {
+}) => {
   const resource = useResourceContext();
   const record = useRecordContext();
   const translate = useTranslate();
@@ -58,22 +61,40 @@ export default function ServiceDetailsCard({
         variant: "outlined",
         sx: { width: "100%", minWidth: 0, height: "100%" },
       }}
+      footer={
+        protocol === "WMS" && record ? (
+          <MapViewerButton
+            key={record.id}
+            label="serviceShow.openMapViewer"
+            variant="outlined"
+            fullWidth
+          />
+        ) : undefined
+      }
+      footerProps={{ sx: { px: 2, pb: 2 } }}
     >
-      <SimpleShowLayout sx={{ p: 0, overflowWrap: "anywhere" }}>
-        {["id", "title", "abstract", "version"].map((source) => {
-          const field = fields.find(
-            (candidate) => candidate.props.source === source,
-          );
-          return field
-            ? createElement(field.component, { ...field.props, key: source })
-            : null;
-        })}
-        {url && (
-          <Labeled label="serviceShow.capabilities">
-            <UrlField source="url" record={{ id: record?.id, url }} />
-          </Labeled>
-        )}
-      </SimpleShowLayout>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+        {protocol === "WMS" && <ServicePreviewImage />}
+        <SimpleShowLayout
+          sx={{ p: 0, minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
+        >
+          {["id", "title", "abstract", "version"].map((source) => {
+            const field = fields.find(
+              (candidate) => candidate.props.source === source,
+            );
+            return field
+              ? createElement(field.component, { ...field.props, key: source })
+              : null;
+          })}
+          {url && (
+            <Labeled label="serviceShow.capabilities">
+              <UrlField source="url" record={{ id: record?.id, url }} />
+            </Labeled>
+          )}
+        </SimpleShowLayout>
+      </Stack>
     </SimpleCard>
   );
-}
+};
+
+export default ServiceDetailsCard;

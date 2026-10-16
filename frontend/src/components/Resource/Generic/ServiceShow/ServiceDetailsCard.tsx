@@ -74,7 +74,9 @@ const ServiceDetailsCard = ({
       footerProps={{ sx: { px: 2, pb: 2 } }}
     >
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-        {protocol === "WMS" && <ServicePreviewImage />}
+        {(protocol === "WMS" || protocol === "WFS") && (
+          <ServicePreviewImage authenticated={protocol === "WFS"} />
+        )}
         <SimpleShowLayout
           sx={{ p: 0, minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
         >

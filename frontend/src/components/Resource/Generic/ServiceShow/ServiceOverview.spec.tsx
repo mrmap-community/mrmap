@@ -10,6 +10,15 @@ import { describe, expect, it, vi } from "vitest";
 import ServiceOverview from "./ServiceOverview";
 import type { ServiceProtocol } from "./ServiceDetailsCard";
 
+vi.mock("../../../../context/HttpClientContext", () => ({
+  API_BASE_URL: "https://mrmap.test",
+  useHttpClientContext: () => ({
+    api: { client: { request: () => new Promise(() => {}) } },
+  }),
+}));
+vi.mock("../../../../providers/authProvider", () => ({
+  getAuthToken: () => ({ token: "mrmap-token" }),
+}));
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () =>
     ["id", "title", "abstract", "version"].map((source) => ({
@@ -93,25 +102,42 @@ describe("service overview previews", () => {
   it("keeps the service information and viewer action available when the preview is missing", () => {
     setup("WMS", { ...service, previewUrl: "" });
 
-    expect(screen.getByText("serviceShow.previewUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText("serviceShow.previewUnavailable"),
+    ).toBeInTheDocument();
     expect(screen.getByText(service.title)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "serviceShow.openMapViewer" }),
     ).toBeInTheDocument();
   });
 
-  it.each(["WFS", "CSW"] as const)(
-    "preserves the %s live preview without a WMS thumbnail or viewer action",
-    (protocol) => {
-      setup(protocol);
+  it("loads the WFS thumbnail in service details without a live preview or viewer action", () => {
+    setup("WFS", {
+      ...service,
+      previewUrl: "/api/registry/wfs/service-1/preview-image/",
+    });
 
-      expect(screen.getByText(`Live preview ${protocol}`)).toBeInTheDocument();
-      expect(screen.queryByAltText("serviceShow.preview")).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "serviceShow.openMapViewer" }),
-      ).not.toBeInTheDocument();
-    },
-  );
+    expect(
+      screen.getByRole("status", { name: "serviceShow.previewLoading" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(service.title)).toBeInTheDocument();
+    expect(screen.queryByText("Live preview WFS")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "serviceShow.openMapViewer" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("preserves the CSW live preview without a thumbnail or viewer action", () => {
+    setup("CSW");
+
+    expect(screen.getByText("Live preview CSW")).toBeInTheDocument();
+    expect(
+      screen.queryByAltText("serviceShow.preview"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "serviceShow.openMapViewer" }),
+    ).not.toBeInTheDocument();
+  });
 
   it("honors an explicit preview override", () => {
     setup("WMS", service, { preview: <div>Custom preview</div> });

@@ -34,6 +34,7 @@ from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
                                    SerializerMethodField, URLField)
 from rest_framework_gis.fields import GeometryField
+from rest_framework.reverse import reverse
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -601,6 +602,12 @@ class WebFeatureServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
+    preview_url = SerializerMethodField(label=_("preview image"), read_only=True)
+
+    @extend_schema_field({"type": "string", "format": "uri"})
+    def get_preview_url(self, instance) -> str:
+        return reverse("registry:wfs-preview-image", kwargs={"pk": instance.pk},
+                       request=self.context.get("request"))
 
     featuretypes = ResourceRelatedField(
         queryset=FeatureType.objects,

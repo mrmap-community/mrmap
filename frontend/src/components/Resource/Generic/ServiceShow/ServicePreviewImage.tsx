@@ -1,13 +1,27 @@
 import { Box, Skeleton, Typography } from "@mui/material";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useRecordContext, useTranslate } from "react-admin";
+import {
+  API_BASE_URL,
+  useHttpClientContext,
+} from "../../../../context/HttpClientContext";
+import { getAuthToken } from "../../../../providers/authProvider";
 
-const PreviewImage = ({ src, alt }: { src?: string; alt: string }) => {
+const PreviewImage = ({
+  src,
+  alt,
+  pending = false,
+}: {
+  src?: string;
+  alt: string;
+  pending?: boolean;
+}) => {
   const translate = useTranslate();
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
   );
-  const loading = Boolean(src) && status === "loading";
+  const loading = pending || (Boolean(src) && status === "loading");
 
   return (
     <Box
@@ -25,7 +39,7 @@ const PreviewImage = ({ src, alt }: { src?: string; alt: string }) => {
         justifyContent: "center",
       }}
     >
-      {!src || status === "error" ? (
+      {(!src && !pending) || status === "error" ? (
         <Typography
           variant="body2"
           color="text.secondary"
@@ -46,27 +60,86 @@ const PreviewImage = ({ src, alt }: { src?: string; alt: string }) => {
               sx={{ position: "absolute", inset: 0 }}
             />
           )}
-          <Box
-            component="img"
-            src={src}
-            alt={alt}
-            onLoad={() => setStatus("loaded")}
-            onError={() => setStatus("error")}
-            sx={{
-              display: "block",
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              visibility: loading ? "hidden" : "visible",
-            }}
-          />
+          {src && (
+            <Box
+              component="img"
+              src={src}
+              alt={alt}
+              onLoad={() => setStatus("loaded")}
+              onError={() => setStatus("error")}
+              sx={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                visibility: loading ? "hidden" : "visible",
+              }}
+            />
+          )}
         </>
       )}
     </Box>
   );
 };
 
-const ServicePreviewImage = () => {
+const AuthenticatedPreviewImage = ({
+  src,
+  alt,
+}: {
+  src?: string;
+  alt: string;
+}) => {
+  const { api } = useHttpClientContext();
+  const [imageUrl, setImageUrl] = useState<string>();
+  const { data, error } = useQuery({
+    queryKey: ["servicePreviewImage", src],
+    enabled: Boolean(api && src),
+    retry: false,
+    gcTime: 0,
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      if (!api || !src) throw new Error("Preview unavailable");
+      const endpoint = new URL(src, API_BASE_URL);
+      if (endpoint.origin !== new URL(API_BASE_URL).origin)
+        throw new Error("Preview must use the MrMap API");
+      const token = getAuthToken()?.token;
+      const response = await api.client.request<Blob>({
+        url: endpoint.href,
+        responseType: "blob",
+        signal,
+        headers: {
+          Accept: "image/png",
+          ...(token ? { Authorization: `Token ${token}` } : {}),
+        },
+      });
+      if (!response.data.type.startsWith("image/"))
+        throw new Error("Preview unavailable");
+      return response.data;
+    },
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    const nextImageUrl = URL.createObjectURL(data);
+    setImageUrl(nextImageUrl);
+    return () => URL.revokeObjectURL(nextImageUrl);
+  }, [data]);
+
+  return (
+    <PreviewImage
+      key={imageUrl}
+      src={error ? undefined : imageUrl}
+      alt={alt}
+      pending={Boolean(src) && !imageUrl && !error}
+    />
+  );
+};
+
+const ServicePreviewImage = ({
+  authenticated = false,
+}: {
+  authenticated?: boolean;
+}) => {
   const record = useRecordContext();
   const translate = useTranslate();
   if (!record) return null;
@@ -75,11 +148,15 @@ const ServicePreviewImage = () => {
       ? record.previewUrl
       : undefined;
 
+  const Component = authenticated ? AuthenticatedPreviewImage : PreviewImage;
+
   return (
-    <PreviewImage
+    <Component
       key={`${record.id}:${src ?? ""}`}
       src={src}
-      alt={translate("serviceShow.preview", { title: record.title ?? record.id })}
+      alt={translate("serviceShow.preview", {
+        title: record.title ?? record.id,
+      })}
     />
   );
 };

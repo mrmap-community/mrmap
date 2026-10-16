@@ -25,6 +25,8 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
+from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
+from registry.helper.preview_image import render_feature_collection
 from registry.proxy.mixins import Http423, OgcServiceProxyView
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
@@ -179,12 +181,12 @@ def selected_configuration(service, selection, client):
     node = nodes[0]
     formats = node.xpath(".//*[local-name()='OutputFormats']/*/text()") or root.xpath(
         "//*[local-name()='Operation' and @name='GetFeature']/*[local-name()='Parameter' and @name='outputFormat']//*[local-name()='Value']/text()")
-    output_format = next((fmt for fmt in formats if fmt.lower() in
+    output_format = next((fmt.strip() for fmt in formats if fmt.strip().lower() in
                           {"application/json", "application/geo+json", "json", "geojson"}), None)
     if not output_format:
         raise PreviewError("format")
     crs = node.xpath("./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
-    if not any(item.upper().endswith((":4326", "::4326", "/4326")) for item in crs):
+    if not any(item.strip().upper().endswith((":4326", "::4326", "/4326")) for item in crs):
         raise PreviewError("crs")
     return element, output_format, False, None
 
@@ -267,8 +269,8 @@ class WfsPreviewProxy(PreviewProxyMixin, WebFeatureServiceProxy):
         return self.return_http_response(self.remote_service.send_request(request))
 
 
-def data_preview(service, caller, query):
-    client = stored_client(service)
+def data_preview(service, caller, query, client=None, request_params=None):
+    client = client or stored_client(service)
     selection = query.get("selection", "")
     element, output_format, queryable, info_format = selected_configuration(service, selection, client)
     if not element.is_active:
@@ -306,6 +308,8 @@ def data_preview(service, caller, query):
         params["COUNT" if version.startswith("2.") else "MAXFEATURES"] = FEATURE_LIMIT
         params["BBOX"] += ",EPSG:4326" if version != "1.0.0" else ""
         proxy = WfsPreviewProxy()
+    if request_params is not None:
+        params = request_params
     raw = RequestFactory().get("/", data=params)
     raw.user = caller.user
     proxy.request = raw
@@ -341,6 +345,58 @@ def data_preview(service, caller, query):
         validate_features(features, getattr(proxy, "preview_allowed", None))
         result.update(features=features, limit=FEATURE_LIMIT, limited=True)
     return result
+
+
+def feature_preview_image(service, caller, query):
+    """Render an automatically selected WFS sample through the existing proxy."""
+    if not service.is_active:
+        raise PreviewError("disabled", 423)
+    width = integer(query.get("width"), 512, 2048)
+    height = integer(query.get("height"), 256, 2048)
+    try:
+        stored = stored_client(service)
+        client = WebFeatureServiceClient(capabilities=stored._capabilities, session=stored.session)
+        candidates = service.featuretypes.filter(is_active=True)
+        rules = service.__class__.security.get_allowed_operation_qs().for_service(service.pk)
+        if rules.exists():
+            raw = RequestFactory().get("/", data={
+                "SERVICE": "WFS", "VERSION": client.service_version, "REQUEST": "GetFeature"})
+            raw.user = caller.user
+            allowed = rules.filter_by_request(
+                request=OGCRequest.from_django_request(raw), filter_entities=False)
+            candidates = candidates.filter(identifier__in=allowed.values_list(
+                "secured_feature_types__identifier", flat=True))
+            if not candidates.exists():
+                raise PermissionDenied
+        try:
+            request = client.get_preview_request(
+                max_features=FEATURE_LIMIT,
+                type_names=candidates.values_list("identifier", flat=True))
+        except ValueError as error:
+            raise PreviewError("unavailable") from error
+        generated = dict(parse_qsl(urlsplit(request.url).query))
+        # Only the generated canonical OGC parameters may select the proxy
+        # operation. Provider-specific parameters remain on the registered URL.
+        params = {name: generated[name] for name in (
+            "SERVICE", "VERSION", "REQUEST", client.type_name_qp,
+            client.max_features_qp, "SRSNAME", "OUTPUTFORMAT", "BBOX")}
+        south, west, north, east = params["BBOX"].split(",")[:4]
+        result = data_preview(service, caller, {
+            "selection": params[client.type_name_qp],
+            "bbox": ",".join((west, south, east, north)),
+        }, client=client, request_params=params)
+        try:
+            return render_feature_collection(result["features"], width=width, height=height)
+        except ValueError as error:
+            raise PreviewError("unavailable") from error
+    except RequestException as error:
+        raise PreviewError("unavailable", 502) from error
+    except Http423 as error:
+        raise PreviewError("disabled", 423) from error
+    except (etree.XMLSyntaxError, ValueError, KeyError, TypeError) as error:
+        raise PreviewError("malformed") from error
+    except service.operation_urls.model.DoesNotExist as error:
+        raise PreviewError("operation") from error
 
 
 def validate_features(collection, allowed=None):

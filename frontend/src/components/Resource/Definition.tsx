@@ -23,9 +23,10 @@ import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/L
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
-import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
+import { HarvestButton } from './CatalogueService/Button/HarvestButton';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
+import serviceListOptions from './Generic/List/serviceListOptions';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
@@ -52,13 +53,11 @@ const RESOURCES: Array<ResourceProps> = [
     show: WmsShow, 
     options: { 
       menu: { group: "WMS", order: 10 },
-      list: { 
-        perPage: 25,
-        sort: { field: 'title', order: 'ASC' },
-        defaultSelectedColumns: ["id", "title", "abstract", "username", "actions", ],
-        sparseFieldsets: [{type: "WebMapService", fields: ["isSecured", "xmlBackupFileSecured"]}],
+      list: serviceListOptions({
+        type: "WebMapService",
+        fields: ["isSecured", "xmlBackupFileSecured"],
         additionalActions: WmsViewerButtons
-      }
+      })
     }
   },
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
@@ -67,7 +66,15 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
-  {name: "WebFeatureService", show: WfsShow, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
+  {
+    name: "WebFeatureService",
+    show: WfsShow,
+    icon: TravelExploreIcon,
+    options: {
+      menu: { group: "WFS", order: 10 },
+      list: serviceListOptions({type: "WebFeatureService"})
+    }
+  },
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   
@@ -76,12 +83,13 @@ const RESOURCES: Array<ResourceProps> = [
     name: "CatalogueService", 
     icon: PlagiarismIcon, 
     show: ShowCatalogueService, 
-    list: CatalogueServiceList, 
-    options: { 
+    options: {
       menu: { group: "CSW", order: 10 },
-      list: {
-        sparseFieldsets: [{type: 'CatalogueService', fields: ['runningHarvestingJob']}]
-      }
+      list: serviceListOptions({
+        type: "CatalogueService",
+        fields: ["runningHarvestingJob"],
+        additionalActions: HarvestButton
+      })
     }
   },
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},

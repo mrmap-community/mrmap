@@ -15,7 +15,7 @@ import CustomListActions, {
 } from "../../Lists/CustomListActions";
 import { ExplorerView } from "../Generic/Explorer/ExplorerView";
 import WmsViewerButtons from "../WebMapService/Button/ListActions";
-import { HarvestButton } from "../CatalogueService/CatalogueServiceList";
+import { HarvestButton } from "../CatalogueService/Button/HarvestButton";
 
 const protocols = ["WebMapService", "WebFeatureService", "CatalogueService"];
 const ExplorerActions = (props: CustomListActionsProps) => (

@@ -159,6 +159,9 @@ const ListGuesser = ({
           />
         </AsideCard>: undefined
       }
+      // the resource configures its list in components/Resource/Definition.tsx
+      perPage={listOptions?.perPage}
+      sort={listOptions?.sort}
       {...props}
       filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
         ? { is_update_candidate: false, ...props.filter }

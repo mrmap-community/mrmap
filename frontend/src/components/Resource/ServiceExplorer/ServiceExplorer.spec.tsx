@@ -43,7 +43,7 @@ vi.mock("../../Lists/CustomListActions", () => ({ default: () => null }));
 vi.mock("../WebMapService/Button/ListActions", () => ({
   default: () => <button>Viewer</button>,
 }));
-vi.mock("../CatalogueService/CatalogueServiceList", () => ({
+vi.mock("../CatalogueService/Button/HarvestButton", () => ({
   HarvestButton: () => <button>Harvest</button>,
 }));
 vi.mock("../Generic/Explorer/CoverageMap", () => ({

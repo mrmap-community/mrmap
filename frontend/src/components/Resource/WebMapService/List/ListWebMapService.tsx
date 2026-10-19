@@ -1,13 +1,10 @@
-import { type ListProps, SearchInput } from "react-admin";
-import ListGuesser from "../../../../jsonapi/components/ListGuesser";
-import CustomListActions, {
-  type CustomListActionsProps,
-} from "../../../Lists/CustomListActions";
-import WmsServiceExplorer from "./WmsServiceExplorer";
+import { type ListProps } from "react-admin";
+import ServiceList from "../../Generic/ServiceList/ServiceList";
+import { type ServiceListConfig } from "../../Generic/ServiceList/config";
 
 /**
- * The attributes the list of registered services answers, as the api names them
- * in a sparse fieldset.
+ * The attributes the list of registered web map services answers, as the api
+ * names them in a sparse fieldset.
  *
  * The list shows a service as a row and not as a table of every column, so it
  * asks only for what a row and the details panel of a selected service show. The
@@ -16,7 +13,9 @@ import WmsServiceExplorer from "./WmsServiceExplorer";
  * request names - see registry/querys/alerts.py. The count of the layers and the
  * layers themselves are named for the same reason: the api annotates a service
  * with them in the query which answers the page of services, and only for a
- * request which names them - see registry/querys/explorer.py.
+ * request which names them - see registry/querys/explorer.py. The secured
+ * capabilities url and the security of a service are answered by a web map
+ * service only.
  */
 export const WEB_MAP_SERVICE_LIST_FIELDS = [
   "id",
@@ -42,40 +41,20 @@ export const WEB_MAP_SERVICE_LIST_FIELDS = [
   "preview_url",
 ];
 
-/** the columns of this list are fixed by the rows, so none of them is chosen */
-const WmsListActions = (props: CustomListActionsProps) => (
-  <CustomListActions {...props} isConfigureable={false} />
-);
+/** what the list of registered web map services asks apart from the other kinds */
+export const WMS_SERVICE_LIST_CONFIG: ServiceListConfig = {
+  resource: "WebMapService",
+  protocol: "WMS",
+  countLabelKey: "layers",
+  countRelation: "layers",
+  fields: WEB_MAP_SERVICE_LIST_FIELDS,
+};
 
 /**
  * The screen which lists the registered web map services.
- *
- * The search is always on, because the list of services of a running deployment
- * is navigated by looking for a title, an abstract or a keyword of a service.
  */
 const ListWebMapService = (props: Partial<ListProps>) => (
-  <ListGuesser
-    {...props}
-    additionalFilters={[<SearchInput key="search" source="search" alwaysOn />]}
-    perPage={25}
-    sort={{ field: "title", order: "ASC" }}
-    aside={false}
-    // the sparse fieldset of a resource is asked by the options of the query and
-    // not by a prop of the list: only the options of the query reach the request
-    // (see providers/dataProvider.ts)
-    queryOptions={{
-      meta: {
-        jsonApiParams: {
-          "fields[WebMapService]": WEB_MAP_SERVICE_LIST_FIELDS.join(","),
-        },
-      },
-    }}
-    // the screen itself answers a view without services, so the facets and the
-    // search stay usable when a facet or the search narrows the list to none
-    empty={<WmsServiceExplorer />}
-    ActionsComponent={WmsListActions}
-    listContent={<WmsServiceExplorer />}
-  />
+  <ServiceList {...props} config={WMS_SERVICE_LIST_CONFIG} />
 );
 
 export default ListWebMapService;

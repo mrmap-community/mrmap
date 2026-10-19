@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type ServiceListConfig } from "../../Generic/ServiceList/config";
 import ListWebMapService, {
   WEB_MAP_SERVICE_LIST_FIELDS,
 } from "./ListWebMapService";
@@ -92,5 +93,16 @@ describe("ListWebMapService", () => {
     expect(queryOptions.meta.jsonApiParams["fields[WebMapService]"]).toEqual(
       WEB_MAP_SERVICE_LIST_FIELDS.join(","),
     );
+  });
+
+  it("shows the layers of a web map service with the wms details", () => {
+    render(<ListWebMapService />);
+    const config = (
+      state.props?.listContent as { props: { config: ServiceListConfig } }
+    ).props.config;
+    expect(config.resource).toEqual("WebMapService");
+    expect(config.protocol).toEqual("WMS");
+    expect(config.countLabelKey).toEqual("layers");
+    expect(config.countRelation).toEqual("layers");
   });
 });

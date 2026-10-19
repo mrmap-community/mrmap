@@ -27,9 +27,10 @@ import {
   useTranslate,
   type Identifier,
 } from "react-admin";
-import ServiceAlertChips from "../../Generic/ServiceShow/ServiceAlertChips";
-import ServiceDetailsCard from "../../Generic/ServiceShow/ServiceDetailsCard";
-import ServiceLayerCount from "./ServiceLayerCount";
+import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
+import ServiceDetailsCard from "../ServiceShow/ServiceDetailsCard";
+import { type ServiceListConfig } from "./config";
+import ServiceElementCount from "./ServiceElementCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
 import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
 
@@ -70,7 +71,6 @@ const ServiceHeaderCell = ({
     }
     setSort({ field, order });
   };
-  console.log(label, order, field)
 
   return (
     <TableCell
@@ -103,14 +103,21 @@ const ServiceHeaderCell = ({
 };
 
 /**
- * The list of registered services.
+ * The list of registered services of one kind of service.
  *
  * The tiles above the rows, the facet below the headline and the rows themselves
  * are three looks at one question - which services need attention - so all of
  * them are answered by the filters of the list and not by counts of their own.
- * The service which is selected is shown beside the rows.
+ * The service which is selected is shown beside the rows. What differs between
+ * the kinds of service - the resource the api is asked for, the label and the
+ * source of the count of the elements of a service, the protocol of the details
+ * panel and the action which the rows answer apart - is configured.
  */
-export const WmsServiceExplorer = () => {
+export const ServiceListExplorer = ({
+  config,
+}: {
+  config: ServiceListConfig;
+}) => {
   const {
     data = [],
     total,
@@ -183,7 +190,7 @@ export const WmsServiceExplorer = () => {
           </ToggleButtonGroup>
         </Stack>
       </Stack>
-      <ServiceSummaryTiles />
+      <ServiceSummaryTiles resource={config.resource} />
       <Box
         sx={{
           display: "grid",
@@ -214,7 +221,9 @@ export const WmsServiceExplorer = () => {
                   field="has_alert"
                 />
                 <ServiceHeaderCell
-                  label={translate("serviceList.columns.layers")}
+                  label={translate(
+                    `serviceList.columns.${config.countLabelKey}`,
+                  )}
                   align="right"
                 />
                 <ServiceHeaderCell
@@ -306,7 +315,10 @@ export const WmsServiceExplorer = () => {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">
-                    <ServiceLayerCount service={record} />
+                    <ServiceElementCount
+                      record={record}
+                      relation={config.countRelation}
+                    />
                   </TableCell>
                   <TableCell align="right">{record.hits ?? 0}</TableCell>
                   <TableCell>
@@ -317,6 +329,7 @@ export const WmsServiceExplorer = () => {
                       <Stack direction="row" spacing={0.5}>
                         <ShowButton />
                         <EditButton />
+                        {config.RowAction && <config.RowAction />}
                       </Stack>
                     </RecordContextProvider>
                   </TableCell>
@@ -326,11 +339,11 @@ export const WmsServiceExplorer = () => {
           </Table>
         </TableContainer>
         <RecordContext value={service}>
-          <ServiceDetailsCard protocol="WMS"/>
+          <ServiceDetailsCard protocol={config.protocol} />
         </RecordContext>
       </Box>
     </Stack>
   );
 };
 
-export default WmsServiceExplorer;
+export default ServiceListExplorer;

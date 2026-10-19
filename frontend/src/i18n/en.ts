@@ -250,6 +250,8 @@ const en = lodashMerge(
         service: "Service",
         status: "State",
         layers: "Layers",
+        featureTypes: "Feature types",
+        records: "Records",
         hits: "Hits",
         modified: "Last modified",
         actions: "Actions",

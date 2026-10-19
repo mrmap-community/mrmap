@@ -39,6 +39,7 @@ import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueService
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListSystemInfo from './System/ListSystemInfo';
 import WfsShow from './WebFeatureService/Show/WfsShow';
+import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import ListWebMapService, { WEB_MAP_SERVICE_LIST_FIELDS } from './WebMapService/List/ListWebMapService';
 import { WmsShow } from './WebMapService/Show/WmsShow';
@@ -69,7 +70,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
-  {name: "WebFeatureService", show: WfsShow, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
+  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   
@@ -80,10 +81,7 @@ const RESOURCES: Array<ResourceProps> = [
     show: ShowCatalogueService, 
     list: CatalogueServiceList, 
     options: { 
-      menu: { group: "CSW", order: 10 },
-      list: {
-        sparseFieldsets: [{type: 'CatalogueService', fields: ['runningHarvestingJob']}]
-      }
+      menu: { group: "CSW", order: 10 }
     }
   },
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},

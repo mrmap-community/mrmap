@@ -231,6 +231,8 @@ const germanMessages: TranslationMessages = {
       service: "Dienst",
       status: "Zustand",
       layers: "Ebenen",
+      featureTypes: "Feature-Typen",
+      records: "Datensätze",
       hits: "Aufrufe",
       modified: "Zuletzt geändert",
       actions: "Aktionen",

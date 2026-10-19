@@ -328,6 +328,31 @@ describe("ServiceListExplorer", () => {
     ).not.toHaveClass("Mui-selected");
   });
 
+  it("resets every filter when all is chosen", async () => {
+    renderExplorer(WMS_SERVICE_LIST_CONFIG, {
+      search: "soil",
+      has_alert: true,
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "serviceList.facets.all" }),
+    );
+    // all is no narrowing at all, so the search and the state of attention are
+    // gone with it - and the filter the list applies on its own is not carried
+    expect(setFilters).toHaveBeenCalledWith({}, {});
+  });
+
+  it("resets the filters when all is clicked while it is chosen", async () => {
+    // a filter which is no facet leaves all lit - the group answers the click
+    // on the chosen facet with no key, which has to reset the filters too
+    renderExplorer(WMS_SERVICE_LIST_CONFIG, { search: "soil" });
+    const all = await screen.findByRole("button", {
+      name: "serviceList.facets.all",
+    });
+    expect(all).toHaveClass("Mui-selected");
+    fireEvent.click(all);
+    expect(setFilters).toHaveBeenCalledWith({}, {});
+  });
+
   it("orders the list by a column which the api orders by", async () => {
     renderExplorer(WMS_SERVICE_LIST_CONFIG);
     await screen.findByText("Soil data");

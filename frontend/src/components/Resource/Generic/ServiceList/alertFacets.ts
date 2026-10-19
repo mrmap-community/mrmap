@@ -93,8 +93,12 @@ export const facetOf = (filter?: FilterPayload): string => {
 };
 
 /**
- * The filters to narrow the list to one facet, which keeps every filter the user
- * asked for besides the ones the facets are answered by.
+ * The filters to narrow the list to one facet.
+ *
+ * The facet of all services is no narrowing at all: it answers the whole list,
+ * so it resets every filter a user asked for, the search and the ones of the
+ * filter button included. Every other facet keeps the filters which are not
+ * ones of the facets, so choosing a facet does not throw away a search.
  *
  * Handed to the list as the whole filter, because a list replaces the filters it
  * stores with the ones it is given and keeps only the filter it applies on its
@@ -105,6 +109,9 @@ export const filterForFacet = (
   filter: FilterPayload | undefined,
   key: string,
 ): FilterPayload => {
+  if (key === "all") {
+    return {};
+  }
   const facet = STATUS_FACETS.find((candidate) => candidate.key === key);
   return { ...withoutFacetKeys(filter), ...facet?.filter };
 };

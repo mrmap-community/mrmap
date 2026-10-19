@@ -157,6 +157,16 @@ export const ServiceListExplorer = ({
   const chooseFacet = (key: string) =>
     setFilters(filterForFacet(filterValues, key), displayedFilters);
 
+  /**
+   * A group which narrows exclusively answers the click on the facet which is
+   * already chosen with no key at all - which is what a click on all has to be
+   * too, because all is chosen while filters of the filter button or of a search
+   * are still set. So the missing key ends the narrowing on all services and
+   * every click on all resets the filters, also when all is already lit.
+   */
+  const changeFacet = (_: unknown, key: string | null) =>
+    chooseFacet(key ?? "all");
+
   return (
     <Stack spacing={2} sx={{ p: 2 }}>
       <Stack
@@ -179,7 +189,7 @@ export const ServiceListExplorer = ({
             exclusive
             size="small"
             value={facetOf(filter)}
-            onChange={(_, key: string | null) => key && chooseFacet(key)}
+            onChange={changeFacet}
             aria-label={translate("serviceList.facetGroup")}
           >
             {STATUS_FACETS.map((facet) => (

@@ -46,8 +46,15 @@ describe("the facets of the list of services", () => {
     });
   });
 
-  it("removes every facet which was chosen before, also the all", () => {
-    expect(filterForFacet({ monitoring_failed: true }, "all")).toEqual({});
+  it("resets every filter with the facet of all services", () => {
+    // all is no narrowing at all, so it answers the whole list - the search and
+    // the filters of the filter button included
+    expect(
+      filterForFacet(
+        { search: "soil", title__icontains: "soil", has_alert: true },
+        "all",
+      ),
+    ).toEqual({});
     // a facet never answers two states of attention at once
     expect(
       filterForFacet(

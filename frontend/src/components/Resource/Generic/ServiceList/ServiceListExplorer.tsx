@@ -25,14 +25,14 @@ import {
   ShowButton,
   useListContext,
   useTranslate,
-  type Identifier,
+  type Identifier
 } from "react-admin";
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import ServiceDetailsCard from "../ServiceShow/ServiceDetailsCard";
+import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
 import { type ServiceListConfig } from "./config";
 import ServiceElementCount from "./ServiceElementCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
-import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
 
 export interface ServiceHeaderCellProps {
   /** the label of the column, translated by the caller */
@@ -212,6 +212,8 @@ export const ServiceListExplorer = ({
           },
         }}
       >
+        
+
         <TableContainer
           sx={{
             maxHeight: 720,
@@ -348,6 +350,7 @@ export const ServiceListExplorer = ({
             </TableBody>
           </Table>
         </TableContainer>
+
         <RecordContext value={service}>
           <ServiceDetailsCard protocol={config.protocol} />
         </RecordContext>

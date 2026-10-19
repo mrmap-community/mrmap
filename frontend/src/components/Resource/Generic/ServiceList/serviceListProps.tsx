@@ -1,10 +1,10 @@
 import { type ListProps, SearchInput } from "react-admin";
+import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
-import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
+import SelectedServiceDetailsCard from "../ServiceShow/SelectedServiceDetailsCard";
 import { type ServiceListConfig } from "./config";
-import ServiceListExplorer from "./ServiceListExplorer";
 
 /** the rows of a screen of services are navigated page by page */
 export const SERVICE_LIST_PER_PAGE = 25;
@@ -46,7 +46,7 @@ export const serviceListProps = (
   additionalFilters: [<SearchInput key="search" source="search" alwaysOn />],
   perPage: SERVICE_LIST_PER_PAGE,
   sort: SERVICE_LIST_SORT,
-  aside: false,
+  
   queryOptions: {
     meta: {
       jsonApiParams: {
@@ -54,7 +54,9 @@ export const serviceListProps = (
       },
     },
   },
-  empty: <ServiceListExplorer config={config} />,
+  //empty: <ServiceListExplorer config={config} />,
   ActionsComponent: ServiceListActions,
-  listContent: <ServiceListExplorer config={config} />,
+  aside: <SelectedServiceDetailsCard protocol={config.protocol} />
+        
+  //listContent: <ServiceListExplorer config={config} />,
 });

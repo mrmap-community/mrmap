@@ -6,7 +6,7 @@ import {
   UrlField,
   useRecordContext,
   useResourceContext,
-  useTranslate,
+  useTranslate
 } from "react-admin";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";

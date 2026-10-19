@@ -18,6 +18,7 @@ import useOnError from '../hooks/useOnError'
 import useResourceSchema from '../hooks/useResourceSchema'
 import { FieldDefinition } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
+import { SelectedRecordContextProvider, useSelectedRecordContext } from './SelectedRecordContext'
 
 
 
@@ -38,7 +39,7 @@ export interface ListGuesserProps extends Partial<ListProps> {
 
 
 
-const ListGuesser = ({
+const ListGuesserContent = ({
   listContent,
   additionalFilters,
   realtime=false,
@@ -60,7 +61,7 @@ const ListGuesser = ({
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
 
-  const [selectedRecord, setSelectedRecord] = useState<RaRecord>()
+  const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
 
   const { id } = useParams()
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
@@ -139,6 +140,7 @@ const ListGuesser = ({
         preferenceKey={preferenceKey}
         />
       }
+      
       empty={props.empty || <EmptyList />}
       queryOptions={queryOptions}
       aside={
@@ -165,6 +167,7 @@ const ListGuesser = ({
         : props.filter}
     >
       {listContent ?? <DatagridConfigurable
+        
         bulkActionButtons={false}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)
@@ -192,5 +195,11 @@ const ListGuesser = ({
     </ListComponent >
   )
 }
+
+const ListGuesser = (props: ListGuesserProps): ReactElement => (
+  <SelectedRecordContextProvider>
+    <ListGuesserContent {...props} />
+  </SelectedRecordContextProvider>
+)
 
 export default ListGuesser

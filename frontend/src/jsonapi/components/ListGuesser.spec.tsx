@@ -10,11 +10,13 @@ const record = vi.hoisted(() => ({ id: 'selected', title: 'Selected record' }))
 vi.mock('react-admin', async importOriginal => ({
   ...await importOriginal<typeof import('react-admin')>(),
   List: ({ children, aside }: PropsWithChildren<{ aside?: ReactElement }>) => <>{children}{aside}</>,
-  DatagridConfigurable: ({ rowClick, rowSx }: {
+  DatagridConfigurable: ({ rowClick, rowSx, children, preferenceKey }: PropsWithChildren<{
     rowClick: (id: string, resource: string, record: RaRecord) => unknown
     rowSx: (record: RaRecord) => { backgroundColor?: string }
-  }) => (
+    preferenceKey: string
+  }>) => (
     <>
+      <div data-testid="grid-columns" data-preference-key={preferenceKey}>{children}</div>
       <button data-highlighted={Boolean(rowSx(record).backgroundColor)} onClick={() => rowClick(record.id, 'Layer', record)}>Select row</button>
       <button data-highlighted={Boolean(rowSx({ id: 'other' }).backgroundColor)} onClick={() => rowClick('other', 'Layer', { id: 'other', title: 'Other record' })}>Select other row</button>
     </>
@@ -34,7 +36,7 @@ vi.mock('../../components/Lists/Empty', () => ({ default: () => null }))
 vi.mock('../../components/Lists/EmptyWithFilter', () => ({ default: () => null }))
 vi.mock('../../context/HttpClientContext', () => ({ useHttpClientContext: () => ({}) }))
 vi.mock('../hooks/useFieldsForOperation', () => ({
-  useFieldsForOperation: () => [{ component: () => null, props: { source: 'title' } }],
+  useFieldsForOperation: () => [{ component: () => <span>Generated title</span>, props: { source: 'title' } }],
 }))
 vi.mock('../hooks/useFilterInputForOperation', () => ({ useFilterInputForOperation: () => [] }))
 vi.mock('../hooks/useJsonApiQuery', () => ({ default: () => ({}) }))
@@ -74,6 +76,25 @@ describe('ListGuesser selected record', () => {
     expect(first).toHaveAttribute('data-highlighted', 'false')
     expect(second).toHaveAttribute('data-highlighted', 'true')
     expect(screen.getByRole('complementary')).toHaveTextContent('Other record')
+  })
+})
+
+describe('ListGuesser columns', () => {
+  it('keeps schema-generated columns by default', () => {
+    render(<ListGuesser />)
+    expect(screen.getByTestId('grid-columns')).toHaveTextContent('Generated title')
+  })
+
+  it('renders explicit columns in order and retains selection', () => {
+    render(<ListGuesser
+      columns={[<span key="first">Custom first</span>, <span key="second">Custom second</span>]}
+      aside={<SelectedRecordAside />}
+    />)
+    expect(screen.getByTestId('grid-columns')).toHaveTextContent('Custom firstCustom second')
+    expect(screen.queryByText('Generated title')).not.toBeInTheDocument()
+    expect(screen.getByTestId('grid-columns')).toHaveAttribute('data-preference-key', 'list_Layer.datagrid.customColumns')
+    fireEvent.click(screen.getByRole('button', { name: 'Select row' }))
+    expect(screen.getByRole('complementary')).toHaveTextContent('Selected record')
   })
 })
 

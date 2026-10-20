@@ -1,8 +1,21 @@
-import { BooleanInput, type ListProps, SearchInput } from "react-admin";
+import {
+  BooleanInput,
+  DateField,
+  FunctionField,
+  type ListProps,
+  NumberField,
+  type RaRecord,
+  ReferenceManyField,
+  SearchInput,
+  SingleFieldList,
+  TextField,
+  WrapperField,
+} from "react-admin";
 import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
+import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import ServiceListAside from "./ServiceListAside";
 import { type ServiceListConfig } from "./config";
 
@@ -43,6 +56,71 @@ const ServiceListActions = (props: CustomListActionsProps) => (
 export const serviceListProps = (
   config: ServiceListConfig,
 ): ListGuesserProps => ({
+  columns: [
+    <TextField key="title" source="title" label="serviceList.columns.title" sx={{ fontWeight: 600 }} />,
+    <TextField
+      key="abstract"
+      source="abstract"
+      label="serviceList.columns.abstract"
+      sx={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+    />,
+    <TextField key="id" source="id" label="serviceList.columns.id" sx={{ overflowWrap: "anywhere" }} />,
+    <WrapperField key="status" source="hasAlert" label="serviceList.columns.status" sortable={false}>
+      <ServiceAlertChips />
+    </WrapperField>,
+    <NumberField
+      key="count"
+      source="elementCount"
+      label={`serviceList.columns.${config.countLabelKey}`}
+      sortable={false}
+      emptyText="—"
+    />,
+    <FunctionField<RaRecord>
+      key="lastUpdate"
+      label="serviceList.columns.lastUpdate"
+      sortable={false}
+      render={record => (
+        <ReferenceManyField
+          reference={`${config.resource}UpdateJob`}
+          target="service"
+          source="id"
+          filter={{ service: record.id, done_at__isnull: false }}
+          sort={{ field: "doneAt", order: "DESC" }}
+          perPage={1}
+          queryOptions={{
+            meta: {
+              jsonApiParams: {
+                [`fields[${config.resource}UpdateJob]`]: "id,done_at,status",
+              },
+            },
+          }}
+        >
+          <SingleFieldList
+            linkType={false}
+            direction="column"
+            sx={{ gap: 0 }}
+            empty={<TextField source="doneAt" record={{ id: record.id, doneAt: undefined }} emptyText="serviceList.noUpdates" />}
+          >
+            <WrapperField>
+              <DateField source="doneAt" showTime sx={{ display: "block", whiteSpace: "nowrap" }} />
+              <TextField source="status" sx={{ display: "block", color: "text.secondary" }} />
+            </WrapperField>
+          </SingleFieldList>
+        </ReferenceManyField>
+      )}
+    />,
+  ],
+  dataGridProps: {
+    sx: {
+      '& .RaDatagrid-headerCell': { whiteSpace: "nowrap" },
+      '& .column-title': { minWidth: 140 },
+      '& .column-abstract': { maxWidth: 260, overflowWrap: "anywhere" },
+      '& .column-id': { maxWidth: 180 },
+      '& .RaDatagrid-rowCell:last-child': { whiteSpace: "nowrap" },
+      '& .RaDatagrid-rowCell:last-child .MuiButton-root': { fontSize: 0, minWidth: 32, p: 0.75 },
+      '& .RaDatagrid-rowCell:last-child .MuiButton-startIcon': { m: 0 },
+    },
+  },
   additionalFilters: [
     {component: SearchInput, props: {source: "search", alwaysOn: true}},
     {component: BooleanInput, props: {source: "has_alert", alwaysOn: true}},

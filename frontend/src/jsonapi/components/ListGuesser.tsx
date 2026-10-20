@@ -29,6 +29,8 @@ export interface ListGuesserProps extends Partial<ListProps> {
   /** Rendered above the toolbar, inside the list context, including on empty lists. */
   header?: ReactNode
   listContent?: ReactElement
+  /** Ordered fields for the existing grid; schema-generated fields are the default. */
+  columns?: ReactElement[]
   additionalFilters?: FieldDefinition[]
   realtime?: boolean
   relatedResource?: Partial<RelatedResource>
@@ -100,6 +102,7 @@ const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: bool
 const ListGuesserContent = ({
   header,
   listContent,
+  columns,
   additionalFilters,
   realtime=false,
   relatedResource = undefined,
@@ -153,6 +156,7 @@ const ListGuesserContent = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
+  const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey
   const onError = useOnError(preferenceKey)
  
   const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
@@ -183,14 +187,14 @@ const ListGuesserContent = ({
 
 
   useEffect(()=>{
-    if(defaultOmit.length > 0 && !initOmit){
+    if(!columns && defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
       setInitOmit(true)
     }
-  },[defaultOmit])
+  },[defaultOmit, columns])
 
 
-  if (operation === undefined || fields === undefined || fields?.length === 0) {
+  if (operation === undefined || (columns ?? fields).length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
     // when fields are filled after that render cyclus, the datagrid will be stuck with this single column
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
@@ -203,7 +207,7 @@ const ListGuesserContent = ({
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
       actions={<ActionsComponent
-        preferenceKey={preferenceKey}
+        preferenceKey={gridPreferenceKey}
         />
       }
       empty={props.empty || <EmptyList />}
@@ -245,12 +249,12 @@ const ListGuesserContent = ({
           }
           return false
         }}
-        preferenceKey={preferenceKey}
-        omit={defaultOmit}
+        preferenceKey={gridPreferenceKey}
+        omit={columns ? [] : defaultOmit}
         empty={<EmptyListWithFilter />}
         {...dataGridProps}
       >
-        {...fields}
+        {columns ?? fields}
         {/**TODO: label should be translated */}
         {
           rowActions || <WrapperField label={"ra.list.actions"} >

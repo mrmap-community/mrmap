@@ -1,5 +1,6 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useThemeProps } from '@mui/material/styles'
+import { Box } from '@mui/material'
 import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
@@ -47,6 +48,7 @@ const defaultLoading = <Loading />
 const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: boolean }) => {
   const {
     header,
+    aside,
     realtime,
     debounce,
     disableAuthentication,
@@ -82,8 +84,13 @@ const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: bool
       storeKey={storeKey}
       offline={false}
     >
-      {header}
-      <ListView {...viewProps} />
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start' }}>
+        <Box sx={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
+          {header}
+          <ListView {...viewProps} />
+        </Box>
+        {aside}
+      </Box>
     </Base>
   )
 }
@@ -227,6 +234,10 @@ const ListGuesserContent = ({
       {listContent ?? <DatagridConfigurable
         
         bulkActionButtons={false}
+        rowSx={record => record.id === selectedRecord?.id ? {
+          backgroundColor: 'action.selected',
+          '&:hover': { backgroundColor: 'action.selected' },
+        } : {}}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)
           if (selectedRecord !== record) {

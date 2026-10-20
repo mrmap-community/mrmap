@@ -10,8 +10,14 @@ const record = vi.hoisted(() => ({ id: 'selected', title: 'Selected record' }))
 vi.mock('react-admin', async importOriginal => ({
   ...await importOriginal<typeof import('react-admin')>(),
   List: ({ children, aside }: PropsWithChildren<{ aside?: ReactElement }>) => <>{children}{aside}</>,
-  DatagridConfigurable: ({ rowClick }: { rowClick: (id: string, resource: string, record: RaRecord) => unknown }) => (
-    <button onClick={() => rowClick(record.id, 'Layer', record)}>Select row</button>
+  DatagridConfigurable: ({ rowClick, rowSx }: {
+    rowClick: (id: string, resource: string, record: RaRecord) => unknown
+    rowSx: (record: RaRecord) => { backgroundColor?: string }
+  }) => (
+    <>
+      <button data-highlighted={Boolean(rowSx(record).backgroundColor)} onClick={() => rowClick(record.id, 'Layer', record)}>Select row</button>
+      <button data-highlighted={Boolean(rowSx({ id: 'other' }).backgroundColor)} onClick={() => rowClick('other', 'Layer', { id: 'other', title: 'Other record' })}>Select other row</button>
+    </>
   ),
   EditButton: () => null,
   ShowButton: () => null,
@@ -52,6 +58,23 @@ describe('ListGuesser selected record', () => {
     expect(screen.getByRole('complementary')).toHaveTextContent('Selected record')
     expect(onRowClick).toHaveBeenCalledExactlyOnceWith(record)
   })
+
+  it('highlights only the selected row and moves the highlight on selection', () => {
+    render(<ListGuesser aside={<SelectedRecordAside />} />)
+    const first = screen.getByRole('button', { name: 'Select row' })
+    const second = screen.getByRole('button', { name: 'Select other row' })
+    expect(first).toHaveAttribute('data-highlighted', 'false')
+    expect(second).toHaveAttribute('data-highlighted', 'false')
+
+    fireEvent.click(first)
+    expect(first).toHaveAttribute('data-highlighted', 'true')
+    expect(second).toHaveAttribute('data-highlighted', 'false')
+
+    fireEvent.click(second)
+    expect(first).toHaveAttribute('data-highlighted', 'false')
+    expect(second).toHaveAttribute('data-highlighted', 'true')
+    expect(screen.getByRole('complementary')).toHaveTextContent('Other record')
+  })
 })
 
 const ListHeader = () => {
@@ -73,6 +96,7 @@ describe('ListGuesser header', () => {
           resource="Layer"
           realtime={realtime}
           header={<ListHeader />}
+          aside={<aside>Service sidebar</aside>}
           actions={<div>List toolbar</div>}
           debounce={0}
           disableSyncWithLocation
@@ -82,6 +106,11 @@ describe('ListGuesser header', () => {
     )
 
     expect(await screen.findByText('Services: 1')).toBeInTheDocument()
+    const header = screen.getByRole('banner')
+    const sidebar = screen.getByRole('complementary')
+    // The sidebar must sit beside the whole main column, including its header.
+    expect(header.parentElement?.parentElement).toBe(sidebar.parentElement)
+    expect(header.parentElement).toContainElement(screen.getByText('List toolbar'))
     expect(screen.getByRole('banner').compareDocumentPosition(screen.getByText('List toolbar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Search from header' }))
     await waitFor(() => expect(getList).toHaveBeenLastCalledWith('Layer', expect.objectContaining({

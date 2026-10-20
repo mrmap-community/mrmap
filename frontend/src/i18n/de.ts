@@ -208,6 +208,11 @@ const germanMessages: TranslationMessages = {
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
+  historyList: {
+    created: "Erstellt",
+    updated: "Aktualisiert",
+    deleted: "Gelöscht",
+  },
   serviceList: {
     title: "Registrierte Dienste",
     count: "%{count} Dienste",

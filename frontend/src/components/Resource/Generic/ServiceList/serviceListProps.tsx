@@ -3,7 +3,7 @@ import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesse
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
-import SelectedServiceDetailsCard from "../ServiceShow/SelectedServiceDetailsCard";
+import ServiceListAside from "./ServiceListAside";
 import { type ServiceListConfig } from "./config";
 
 /** the rows of a screen of services are navigated page by page */
@@ -59,7 +59,7 @@ export const serviceListProps = (
   },
   //empty: <ServiceListExplorer config={config} />,
   ActionsComponent: ServiceListActions,
-  aside: <SelectedServiceDetailsCard protocol={config.protocol} />
+  aside: <ServiceListAside protocol={config.protocol} />
         
   //listContent: <ServiceListExplorer config={config} />,
 });

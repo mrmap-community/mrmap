@@ -227,6 +227,11 @@ const en = lodashMerge(
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
+    historyList: {
+      created: "Created",
+      updated: "Updated",
+      deleted: "Deleted",
+    },
     serviceList: {
       title: "Registered services",
       count: "%{count} services",

@@ -79,7 +79,7 @@ export interface ServiceSummaryTilesProps {
  * same number of services as the rows of the list do.
  */
 const ServiceSummaryTiles = () => {
-  const { filter, resource, total } = useListContext();
+  const { filter, resource } = useListContext();
   const translate = useTranslate();
 
   // the filters of the list are the scope of a tile, minus the ones the tiles

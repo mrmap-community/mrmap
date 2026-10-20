@@ -1,4 +1,4 @@
-import { Stack } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { createElement } from "react";
 import {
   Labeled,
@@ -79,7 +79,7 @@ const ServiceDetailsCard = ({
       }
       footerProps={{ sx: { px: 2, pb: 2, gap: 1, flexWrap: "wrap" } }}
     >
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      {record ? <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         {(protocol === "WMS" || protocol === "WFS") && (
           <ServicePreviewImage authenticated={protocol === "WFS"} />
         )}
@@ -100,7 +100,11 @@ const ServiceDetailsCard = ({
             </Labeled>
           )}
         </SimpleShowLayout>
-      </Stack>
+      </Stack> : (
+        <Typography variant="body2" color="text.secondary">
+          {translate("serviceList.noSelection")}
+        </Typography>
+      )}
     </SimpleCard>
   );
 };

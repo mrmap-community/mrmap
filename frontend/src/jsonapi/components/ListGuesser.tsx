@@ -1,5 +1,6 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { useThemeProps } from '@mui/material/styles'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 
@@ -18,13 +19,16 @@ import useOnError from '../hooks/useOnError'
 import useResourceSchema from '../hooks/useResourceSchema'
 import { FieldDefinition } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
+import RealtimeListBase from './Realtime/RealtimeListBase'
 import { SelectedRecordContextProvider, useSelectedRecordContext } from './SelectedRecordContext'
 
 
 
 export interface ListGuesserProps extends Partial<ListProps> {
+  /** Rendered above the toolbar, inside the list context, including on empty lists. */
+  header?: ReactNode
   listContent?: ReactElement
-  additionalFilters?: ReactElement[]
+  additionalFilters?: FieldDefinition[]
   realtime?: boolean
   relatedResource?: Partial<RelatedResource>
   rowActions?: ReactNode
@@ -37,9 +41,57 @@ export interface ListGuesserProps extends Partial<ListProps> {
   dataGridProps?: DatagridConfigurableProps
 }
 
+const defaultFilter = {}
+const defaultLoading = <Loading />
+
+const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: boolean }) => {
+  const {
+    header,
+    realtime,
+    debounce,
+    disableAuthentication,
+    disableSyncWithLocation,
+    exporter,
+    filter = defaultFilter,
+    filterDefaultValues,
+    authLoading = defaultLoading,
+    loading,
+    perPage = 10,
+    queryOptions,
+    resource,
+    sort,
+    storeKey,
+    ...viewProps
+  } = useThemeProps({ props, name: 'RaList' })
+  const Base = realtime ? RealtimeListBase : ListBase
+
+  return (
+    <Base
+      debounce={debounce}
+      disableAuthentication={disableAuthentication}
+      disableSyncWithLocation={disableSyncWithLocation}
+      exporter={exporter}
+      filter={filter}
+      filterDefaultValues={filterDefaultValues}
+      authLoading={authLoading}
+      loading={realtime ? loading ?? defaultLoading : loading}
+      perPage={perPage}
+      queryOptions={queryOptions}
+      resource={resource}
+      sort={sort}
+      storeKey={storeKey}
+      offline={false}
+    >
+      {header}
+      <ListView {...viewProps} />
+    </Base>
+  )
+}
+
 
 
 const ListGuesserContent = ({
+  header,
   listContent,
   additionalFilters,
   realtime=false,
@@ -54,7 +106,7 @@ const ListGuesserContent = ({
   dataGridProps,
   ...props
 }: ListGuesserProps): ReactElement => {
-  const ListComponent = realtime ? RealtimeList: List
+  const ListComponent = header != null ? ListWithHeader : realtime ? RealtimeList : List
   const { name, hasShow, options } = useResourceDefinition(props)
   const listOptions = useMemo(()=>(options?.list),[options])
 
@@ -82,7 +134,14 @@ const ListGuesserContent = ({
   ,[fieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
-  const filters = useMemo(() => [...(additionalFilters ?? []), ...fieldSchemas.map(def => createElement(def.component, def.props))], [fieldSchemas, additionalFilters])
+  const filters = useMemo<ReactElement[]>(() => [
+    ...(additionalFilters?.map(def => createElement(def.component, def.props)) ?? []),
+    ...fieldSchemas
+      .filter(def => !additionalFilters?.some(
+        filterDef => filterDef.props.source === def.props.source
+      ))
+      .map(def => createElement(def.component, def.props))
+  ], [fieldSchemas, additionalFilters])
   
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
@@ -133,14 +192,13 @@ const ListGuesserContent = ({
 
   return (
     <ListComponent
+      {...(header != null ? { header, realtime } : {})}
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
       actions={<ActionsComponent
-        filters={filters} 
         preferenceKey={preferenceKey}
         />
       }
-      
       empty={props.empty || <EmptyList />}
       queryOptions={queryOptions}
       aside={

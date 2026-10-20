@@ -4,12 +4,12 @@ import { type ReactNode } from "react";
 import {
   CreateButton,
   Identifier,
+  ListProps,
   ShowButton,
   useRecordContext,
 } from "react-admin";
-import ListWithDialogs from "../../../jsonapi/components/ListWithDialogs";
 import { type ServiceListConfig } from "../Generic/ServiceList/config";
-import { serviceListProps } from "../Generic/ServiceList/serviceListProps";
+import ServiceList from "../Generic/ServiceList/ServiceList";
 
 export interface ShowRunningHarvestingJobButtonProps {
   id: Identifier;
@@ -108,9 +108,10 @@ export const CATALOGUE_SERVICE_LIST_CONFIG: ServiceListConfig = {
  * ListWithDialogs, which renders the generic list with these props and the
  * routes of the dialogs beside it.
  */
-const CatalogueServiceList = (): ReactNode => (
-  <ListWithDialogs
-    listGuesserProps={serviceListProps(CATALOGUE_SERVICE_LIST_CONFIG)}
+const CatalogueServiceList = (props: Partial<ListProps>): ReactNode => (
+  <ServiceList
+    {...props}
+    config={CATALOGUE_SERVICE_LIST_CONFIG}
   />
 );
 

@@ -1,4 +1,4 @@
-import { type ListProps, SearchInput } from "react-admin";
+import { BooleanInput, type ListProps, SearchInput } from "react-admin";
 import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
@@ -43,7 +43,10 @@ const ServiceListActions = (props: CustomListActionsProps) => (
 export const serviceListProps = (
   config: ServiceListConfig,
 ): ListGuesserProps => ({
-  additionalFilters: [<SearchInput key="search" source="search" alwaysOn />],
+  additionalFilters: [
+    {component: SearchInput, props: {source: "search", alwaysOn: true}},
+    {component: BooleanInput, props: {source: "has_alert", alwaysOn: true}},
+  ],
   perPage: SERVICE_LIST_PER_PAGE,
   sort: SERVICE_LIST_SORT,
   

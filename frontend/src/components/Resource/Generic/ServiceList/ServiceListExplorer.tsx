@@ -200,7 +200,7 @@ export const ServiceListExplorer = ({
           </ToggleButtonGroup>
         </Stack>
       </Stack>
-      <ServiceSummaryTiles resource={config.resource} />
+      <ServiceSummaryTiles/>
       <Box
         sx={{
           display: "grid",

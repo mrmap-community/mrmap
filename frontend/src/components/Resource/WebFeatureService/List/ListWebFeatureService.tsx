@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import ListWithDialogs from "../../../../jsonapi/components/ListWithDialogs";
+import { ListProps } from "react-admin";
 import { type ServiceListConfig } from "../../Generic/ServiceList/config";
-import { serviceListProps } from "../../Generic/ServiceList/serviceListProps";
+import ServiceList from "../../Generic/ServiceList/ServiceList";
 
 /**
  * The attributes the list of registered web feature services answers, as the api
@@ -53,9 +53,9 @@ export const WFS_SERVICE_LIST_CONFIG: ServiceListConfig = {
  * ListWithDialogs, which renders the generic list with these props and the
  * routes of the dialogs beside it.
  */
-const ListWebFeatureService = (): ReactNode => (
-  <ListWithDialogs
-    listGuesserProps={serviceListProps(WFS_SERVICE_LIST_CONFIG)}
+const ListWebFeatureService = (props: Partial<ListProps>): ReactNode => (
+  <ServiceList
+    config={WFS_SERVICE_LIST_CONFIG}
   />
 );
 

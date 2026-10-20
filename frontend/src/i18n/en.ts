@@ -549,6 +549,21 @@ const en = lodashMerge(
         waitingForFirstRun: "No update jobs yet. Waiting for the first scheduled run.",
         runOverdue: "A scheduled update job is overdue. Check the update scheduler.",
         settingsLoadError: "Unable to load update settings."
+      },
+      WebMapService: {
+        singular: "Web Map Service",
+        plural: "Web Map Services",
+        listSubheader: "Manage registered Web Map Services (WMS)",
+      },
+      WebFeatureService: {
+        singular: "Web Feature Service",
+        plural: "Web Feature Services",
+        listSubheader: "Manage registered Web Feature Services (WFS)",
+      },
+      CatalogueService: {
+        singular: "Catalogue Service",
+        plural: "Catalogue Service",
+        listSubheader: "Manage registered Catalogue Services (CSW)",
       }
     }
   }

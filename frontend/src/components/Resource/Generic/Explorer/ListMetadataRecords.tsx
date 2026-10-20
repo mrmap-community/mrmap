@@ -1,17 +1,17 @@
 import { Button } from "@mui/material";
+import type { ComponentType } from "react";
 import {
   type ListProps,
   SearchInput,
   useListContext,
   useTranslate,
 } from "react-admin";
+import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
-import ListGuesser from "../../../../jsonapi/components/ListGuesser";
-import { ExplorerView } from "./ExplorerView";
-import type { ComponentType } from "react";
 import type { CoverageMapProps } from "./CoverageMap";
+import { ExplorerView } from "./ExplorerView";
 
 const ExplorerActions = (props: CustomListActionsProps) => (
   <CustomListActions {...props} isConfigureable={false} />
@@ -64,7 +64,7 @@ const ListMetadataRecords = ({
 }: Partial<ListProps> & MetadataExplorerProps & { resource: string }) => (
   <ListGuesser
     {...props}
-    additionalFilters={[<SearchInput key="search" source="search" alwaysOn />]}
+    additionalFilters={[{component: SearchInput, props:{source: "search", alwaysOn: true}}]}
     perPage={10}
     sort={{ field: "title", order: "ASC" }}
     aside={false}

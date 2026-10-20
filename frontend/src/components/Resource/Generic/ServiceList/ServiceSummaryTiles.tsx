@@ -6,8 +6,8 @@ import { Card, Stack, Typography, type SvgIconProps } from "@mui/material";
 import { useMemo, type ComponentType } from "react";
 import { useListContext, useTranslate } from "react-admin";
 import { Count } from "../../../../jsonapi/components/Count";
-import { type ServiceListResource } from "./config";
 import { withoutFacetKeys } from "./alertFacets";
+import { type ServiceListResource } from "./config";
 
 /** what a tile above the list of services counts */
 export interface SummaryTile {
@@ -33,7 +33,7 @@ export interface SummaryTile {
  * service it updates, so this tile keeps the global scope of the processes which
  * update anything and asks no filter of the services on it.
  */
-export const summaryTiles = (resource: ServiceListResource): SummaryTile[] => [
+export const summaryTiles = (resource: string): SummaryTile[] => [
   {
     key: "total",
     resource,
@@ -47,6 +47,7 @@ export const summaryTiles = (resource: ServiceListResource): SummaryTile[] => [
     icon: VerifiedUserIcon,
     color: "success",
   },
+  // FIXME: not the correct source of truth. BackgroundProcess is not filtered by the current resource
   {
     key: "runningUpdates",
     resource: "BackgroundProcess",
@@ -77,14 +78,14 @@ export interface ServiceSummaryTilesProps {
  * not have an end yet. Because a count is asked from the api, a tile answers the
  * same number of services as the rows of the list do.
  */
-const ServiceSummaryTiles = ({ resource }: ServiceSummaryTilesProps) => {
-  const { filter } = useListContext();
+const ServiceSummaryTiles = () => {
+  const { filter, resource, total } = useListContext();
   const translate = useTranslate();
 
   // the filters of the list are the scope of a tile, minus the ones the tiles
   // and the facets answer themselves
   const scope = useMemo(() => withoutFacetKeys(filter), [filter]);
-  const tiles = useMemo(() => summaryTiles(resource), [resource]);
+  const tiles = useMemo(() => resource !== undefined ? summaryTiles(resource): [], [resource]);
 
   return (
     <Stack
@@ -114,7 +115,7 @@ const ServiceSummaryTiles = ({ resource }: ServiceSummaryTilesProps) => {
                 filter={{ ...scope, ...tile.filter }}
                 link
                 variant="h5"
-                component="div"
+                //component="div"
                 refetchInterval={60000}
               />
             </Stack>

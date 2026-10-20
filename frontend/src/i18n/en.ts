@@ -243,16 +243,16 @@ const en = lodashMerge(
       facets: {
         all: "All",
         needsAttention: "Needs attention",
-        healthy: "No attention",
+        healthy: "Healthy",
         monitoringFailed: "Monitoring failed",
         updateFailed: "Update failed",
         updateReviewRequired: "Review required",
       },
       tiles: {
-        total: "Services",
-        healthy: "Need no attention",
+        total: "Total services",
+        healthy: "Healthy",
         runningUpdates: "Updates running",
-        needsAttention: "Need attention",
+        needsAttention: "Needs attention",
       },
       columns: {
         title: "Title",
@@ -288,7 +288,7 @@ const en = lodashMerge(
       none: "Nothing about this service needs the attention of an administrator.",
       at: "since",
       shortLabels: {
-        healthy: "No attention",
+        healthy: "Healthy",
         monitoringFailed: "Monitoring failed",
         updateFailed: "Update failed",
         updateReviewRequired: "Review required",
@@ -446,6 +446,7 @@ const en = lodashMerge(
       loadError: "Unable to load the complete security configuration.",
     },
     serviceShow: {
+      fields: { id: "ID", title: "Title", abstract: "Abstract", version: "Version", isActive: "Active" },
       layerChangesOverTime: "Layer changes over time",
       featureTypeChangesOverTime: "Feature type changes over time",
       featureTypeChanges: "Feature type changes",
@@ -457,6 +458,7 @@ const en = lodashMerge(
       previewLoading: "Loading service preview",
       previewUnavailable: "Preview unavailable",
       openMapViewer: "Open map viewer",
+      openSecuredMapViewer: "Open secured map viewer",
       activate: "Activate service",
       deactivate: "Deactivate service",
       activated: "The service is activated",

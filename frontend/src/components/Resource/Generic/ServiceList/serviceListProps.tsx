@@ -55,7 +55,9 @@ const ServiceListActions = (props: CustomListActionsProps) => (
  */
 export const serviceListProps = (
   config: ServiceListConfig,
+  locale?: string,
 ): ListGuesserProps => ({
+  sx: { '& .RaList-main': { minWidth: 0 } },
   columns: [
     <TextField key="title" source="title" label="serviceList.columns.title" sx={{ fontWeight: 600 }} />,
     <TextField
@@ -102,7 +104,13 @@ export const serviceListProps = (
             empty={<TextField source="doneAt" record={{ id: record.id, doneAt: undefined }} emptyText="serviceList.noUpdates" />}
           >
             <WrapperField>
-              <DateField source="doneAt" showTime sx={{ display: "block", whiteSpace: "nowrap" }} />
+              <DateField
+                source="doneAt"
+                showTime
+                locales={locale === "en" ? "en-GB" : locale}
+                options={{ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }}
+                sx={{ display: "block", whiteSpace: "nowrap" }}
+              />
               <TextField source="status" sx={{ display: "block", color: "text.secondary" }} />
             </WrapperField>
           </SingleFieldList>
@@ -112,10 +120,12 @@ export const serviceListProps = (
   ],
   dataGridProps: {
     sx: {
+      '& .RaDatagrid-tableWrapper': { maxWidth: "100%", overflowX: "auto" },
+      '& .RaDatagrid-table': { minWidth: 1000 },
       '& .RaDatagrid-headerCell': { whiteSpace: "nowrap" },
       '& .column-title': { minWidth: 140 },
-      '& .column-abstract': { maxWidth: 260, overflowWrap: "anywhere" },
-      '& .column-id': { maxWidth: 180 },
+      '& .column-abstract': { minWidth: 180, maxWidth: 260, overflowWrap: "anywhere" },
+      '& .column-id': { minWidth: 140, maxWidth: 180 },
       '& .RaDatagrid-rowCell:last-child': { whiteSpace: "nowrap" },
       '& .RaDatagrid-rowCell:last-child .MuiButton-root': { fontSize: 0, minWidth: 32, p: 0.75 },
       '& .RaDatagrid-rowCell:last-child .MuiButton-startIcon': { m: 0 },

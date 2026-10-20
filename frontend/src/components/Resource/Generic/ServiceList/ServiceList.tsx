@@ -1,5 +1,5 @@
-import { Box, Grid, Stack, Typography } from "@mui/material";
-import { useListContext, useResourceContext, useTranslate, type ListProps } from "react-admin";
+import { Box, Stack, Typography } from "@mui/material";
+import { useLocaleState, useResourceContext, useTranslate, type ListProps } from "react-admin";
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { type ServiceListConfig } from "./config";
 import { serviceListProps } from "./serviceListProps";
@@ -21,11 +21,10 @@ export interface ServiceListProps extends Partial<ListProps> {
  */
 
 const ServiceHeader = () => {
-  const { total, isPending } = useListContext();
   const translate = useTranslate()
   const resource = useResourceContext()
   return (
-    <Stack sx={{marginLeft: 2}}>
+    <Stack spacing={2} sx={{ mx: 2, minWidth: 0 }}>
       <Box>
         <Typography variant="h4" >
             {translate(`resources.${resource}.plural`)}
@@ -34,21 +33,19 @@ const ServiceHeader = () => {
           {translate(`resources.${resource}.listSubheader`)}
         </Typography>
       </Box>
-      <Grid direction="row" container spacing={2}>
-        <ServiceSummaryTiles />
-      </Grid>
+      <ServiceSummaryTiles />
     </Stack>
   );
 };
 
 
 const ServiceList = ({ config, ...props }: ServiceListProps) => {
-  
+  const [locale] = useLocaleState();
 
   return (
       <ListGuesser 
         {...props} 
-        {...serviceListProps(config)} 
+        {...serviceListProps(config, locale)}
         header={<ServiceHeader/>}
       />
   )

@@ -12,7 +12,7 @@ vi.mock('react-admin', async importOriginal => ({
   List: ({ children, aside }: PropsWithChildren<{ aside?: ReactElement }>) => <>{children}{aside}</>,
   DatagridConfigurable: ({ rowClick, rowSx, children, preferenceKey }: PropsWithChildren<{
     rowClick: (id: string, resource: string, record: RaRecord) => unknown
-    rowSx: (record: RaRecord) => { backgroundColor?: string }
+    rowSx: (record: RaRecord) => { backgroundColor?: unknown }
     preferenceKey: string
   }>) => (
     <>

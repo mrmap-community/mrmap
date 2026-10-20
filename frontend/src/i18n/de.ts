@@ -224,14 +224,14 @@ const germanMessages: TranslationMessages = {
     facets: {
       all: "Alle",
       needsAttention: "Aufmerksamkeit nötig",
-      healthy: "Ohne Aufmerksamkeit",
+      healthy: "Fehlerfrei",
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",
     },
     tiles: {
-      total: "Dienste",
-      healthy: "Ohne Aufmerksamkeit",
+      total: "Dienste insgesamt",
+      healthy: "Fehlerfrei",
       runningUpdates: "Aktualisierungen laufen",
       needsAttention: "Mit Aufmerksamkeit",
     },
@@ -269,7 +269,7 @@ const germanMessages: TranslationMessages = {
     none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",
     at: "seit",
     shortLabels: {
-      healthy: "Ohne Aufmerksamkeit",
+      healthy: "Fehlerfrei",
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",
@@ -427,6 +427,7 @@ const germanMessages: TranslationMessages = {
     loadError: "Die vollständige Sicherheitskonfiguration konnte nicht geladen werden.",
   },
   serviceShow: {
+    fields: { id: "ID", title: "Titel", abstract: "Beschreibung", version: "Version", isActive: "Aktiv" },
     layerChangesOverTime: "Layer-Änderungen im Zeitverlauf",
     featureTypeChangesOverTime: "Änderungen an Feature-Typen im Zeitverlauf",
       featureTypeChanges: "Änderungen an Feature-Typen",
@@ -438,6 +439,7 @@ const germanMessages: TranslationMessages = {
     previewLoading: "Dienstvorschau wird geladen",
     previewUnavailable: "Vorschau nicht verfügbar",
     openMapViewer: "Kartenbetrachter öffnen",
+    openSecuredMapViewer: "Gesicherten Kartenbetrachter öffnen",
     activate: "Dienst aktivieren",
     deactivate: "Dienst deaktivieren",
     activated: "Der Dienst ist aktiviert",

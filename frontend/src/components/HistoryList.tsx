@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo } from 'react'
+import { camelCase, startCase } from 'lodash'
 import { type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, useGetList, useLocaleState, useTranslate } from 'react-admin'
 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
@@ -22,8 +23,11 @@ interface HistoryChange {
   new: unknown
 }
 
-const formatValue = (value: unknown): string =>
-  typeof value === 'string' ? value : JSON.stringify(value) ?? '—'
+const formatValue = (value: unknown, translate: ReturnType<typeof useTranslate>): string => {
+  if (typeof value === 'boolean') return translate(`ra.boolean.${value}`)
+  if (value === null || value === undefined) return '—'
+  return typeof value === 'string' ? value : JSON.stringify(value) ?? '—'
+}
 
 export interface PrimaryTextProps {
   record: RaRecord
@@ -35,21 +39,28 @@ const PrimaryText = ({ record, related, selectedRecord }: PrimaryTextProps): Rea
   const translate = useTranslate()
   const changes = (record.delta ?? []) as HistoryChange[]
   const event = translate(`historyList.${record.historyType}`, { _: record.historyType })
-  const details = changes.map(change =>
-    `${change.field}: ${formatValue(change.old)} → ${formatValue(change.new)}`
-  ).join('\n')
+  const descriptions = changes.map(change => {
+    const source = camelCase(change.field)
+    const label = translate(`resources.${related}.fields.${source}`, {
+      _: translate(`serviceShow.fields.${source}`, { _: startCase(change.field) }),
+    })
+    return `${label}: ${formatValue(change.old, translate)} → ${formatValue(change.new, translate)}`
+  })
+  const summary = descriptions.length > 0
+    ? `${record.historyType === 'updated' ? '' : `${event} · `}${descriptions.join('; ')}`
+    : event
 
   return (
-    <Tooltip title={details} slotProps={{ tooltip: { sx: { whiteSpace: 'pre-line' } } }}>
+    <Tooltip title={descriptions.join('\n')} slotProps={{ tooltip: { sx: { whiteSpace: 'pre-line' } } }}>
       <Typography component='span' variant='body2' noWrap sx={{ display: 'block' }}>
         {selectedRecord ? (
-          <>{event}{changes.length > 0 && ` · ${changes.map(change => change.field).join(', ')}`}</>
+          summary
         ) : (
           <>
             {record.title ?? (record.historyRelation
               ? <RecordRepresentation record={record.historyRelation} resource={related} />
               : record.id)}
-            {' · '}{event}
+            {' · '}{summary}
           </>
         )}
       </Typography>
@@ -96,10 +107,16 @@ const HistoryList = ({
       rowClick={false}
       leftIcon={getIcon}
       primaryText={record => <PrimaryText record={record} related={related} selectedRecord={selectedRecord} />}
-      secondaryText={record => [
-        new Date(record.historyDate).toLocaleString(locale),
-        record.historyUser?.username,
-      ].filter(Boolean).join(' · ')}
+      secondaryText={record => (
+        <Typography component="span" variant="caption" title={new Date(record.historyDate).toLocaleString(locale)}>
+          {[
+            new Date(record.historyDate).toLocaleString(locale === 'en' ? 'en-GB' : locale, {
+              day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+            }),
+            record.historyUser?.username,
+          ].filter(Boolean).join(' · ')}
+        </Typography>
+      )}
       data={data}
       isLoading={isLoading}
       total={total}

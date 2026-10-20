@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { useThemeProps } from '@mui/material/styles'
+import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
 import { Box } from '@mui/material'
 import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
@@ -121,6 +121,7 @@ const ListGuesserContent = ({
   const listOptions = useMemo(()=>(options?.list),[options])
 
   const { api } = useHttpClientContext()
+  const theme = useTheme()
   const [open] = useSidebarState()
 
   const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
@@ -239,8 +240,11 @@ const ListGuesserContent = ({
         
         bulkActionButtons={false}
         rowSx={record => record.id === selectedRecord?.id ? {
-          backgroundColor: 'action.selected',
-          '&:hover': { backgroundColor: 'action.selected' },
+          backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.12) },
+          '& > td:first-of-type': {
+            boxShadow: `inset 3px 0 0 ${theme.palette.primary.main}`,
+          },
         } : {}}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)

@@ -87,11 +87,16 @@ const ServiceDetailsCard = ({
           sx={{ p: 0, minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
         >
           {["id", "title", "abstract", "version"].map((source) => {
+            if (record[source] === undefined || record[source] === null || record[source] === "") return null;
             const field = fields.find(
               (candidate) => candidate.props.source === source,
             );
             return field
-              ? createElement(field.component, { ...field.props, key: source })
+              ? createElement(field.component, {
+                  ...field.props,
+                  key: source,
+                  label: translate(`serviceShow.fields.${source}`),
+                })
               : null;
           })}
           {url && (

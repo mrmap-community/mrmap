@@ -8,6 +8,7 @@ import HistoryList from './HistoryList'
 
 const events = [
   { id: 'one', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', delta: [{ field: 'abstract', old: 'Old abstract', new: 'New abstract' }], historyUser: null },
+  { id: 'active', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:10:38Z', delta: [{ field: 'is_active', old: false, new: true }], historyUser: null },
   { id: 'three', title: 'Weather service', historyType: 'deleted', historyDate: '2026-10-07T11:00:00Z', delta: [{ field: 'title', old: 'Old title', new: 'New title' }], historyUser: { username: 'alice' } },
 ]
 
@@ -34,12 +35,14 @@ const renderHistory = () => {
 describe('HistoryList', () => {
   it('shows event labels, dates and recorded authors without missing-user text', async () => {
     const { container, getList } = renderHistory()
-    expect(await screen.findByText('Weather service · Updated')).toBeInTheDocument()
-    expect(screen.getByText('Weather service · Deleted')).toBeInTheDocument()
+    expect(await screen.findByText('Weather service · Abstract: Old abstract → New abstract')).toBeInTheDocument()
+    expect(screen.getByText('Weather service · Deleted · Title: Old title → New title')).toBeInTheDocument()
     expect(screen.getByText(/alice/)).toBeInTheDocument()
     expect(container).not.toHaveTextContent('undefined')
     expect(container.querySelector('.MuiChip-root')).toBeNull()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    const timestamp = screen.getByTitle(new Date('2026-10-07T12:10:38Z').toLocaleString('en'))
+    expect(timestamp.textContent).not.toContain(':38')
     expect(getList).toHaveBeenCalledWith('HistoricalWebMapService', expect.objectContaining({
       filter: { delta_size__gt: 0 },
       pagination: { page: 1, perPage: 10 },
@@ -48,10 +51,11 @@ describe('HistoryList', () => {
 
   it('updates row content and scopes the latest ten events when selection changes', async () => {
     const { getList } = renderHistory()
-    await screen.findByText('Weather service · Updated')
+    await screen.findByText('Weather service · Abstract: Old abstract → New abstract')
     fireEvent.click(screen.getByRole('button', { name: 'Select service' }))
-    expect(await screen.findByText('Updated · abstract')).toBeInTheDocument()
-    expect(screen.getByText('Deleted · title')).toBeInTheDocument()
+    expect(await screen.findByText('Abstract: Old abstract → New abstract')).toBeInTheDocument()
+    expect(screen.getByText('Deleted · Title: Old title → New title')).toBeInTheDocument()
+    expect(screen.getByText('Active: No → Yes')).toBeInTheDocument()
     await waitFor(() => expect(getList).toHaveBeenLastCalledWith('HistoricalWebMapService', expect.objectContaining({
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
@@ -62,8 +66,8 @@ describe('HistoryList', () => {
 
   it('keeps the full changed values available in a tooltip', async () => {
     renderHistory()
-    const event = await screen.findByText('Weather service · Deleted')
+    const event = await screen.findByText('Weather service · Deleted · Title: Old title → New title')
     fireEvent.mouseOver(event)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('title: Old title → New title')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Title: Old title → New title')
   })
 })

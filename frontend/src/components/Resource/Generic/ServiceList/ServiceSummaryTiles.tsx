@@ -89,23 +89,26 @@ const ServiceSummaryTiles = () => {
 
   return (
     <Stack
-      direction="row"
-      spacing={2}
-      sx={{ flexWrap: "wrap", gap: 2, "& > *": { flex: "1 1 170px" } }}
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+        width: "100%",
+        gap: 2,
+      }}
     >
       {tiles.map((tile) => (
-        <Card key={tile.key} sx={{ p: 2 }}>
+        <Card key={tile.key} variant="outlined" sx={{ p: 2, minWidth: 0 }}>
           <Stack
             direction="row"
             spacing={1.5}
-            sx={{ alignItems: "center", overflow: "hidden" }}
+            sx={{ alignItems: "center", height: "100%" }}
           >
-            <tile.icon color={tile.color} fontSize="small" />
+            <tile.icon color={tile.color} />
             <Stack sx={{ minWidth: 0 }}>
               <Typography
-                variant="overline"
+                variant="body2"
                 color="text.secondary"
-                noWrap
+                sx={{ overflowWrap: "anywhere" }}
                 title={translate(`serviceList.tiles.${tile.key}`)}
               >
                 {translate(`serviceList.tiles.${tile.key}`)}
@@ -115,7 +118,6 @@ const ServiceSummaryTiles = () => {
                 filter={{ ...scope, ...tile.filter }}
                 link
                 variant="h5"
-                //component="div"
                 refetchInterval={60000}
               />
             </Stack>

@@ -7,9 +7,8 @@ import { SelectedRecordContextProvider, useSelectedRecordContext } from '../json
 import HistoryList from './HistoryList'
 
 const events = [
-  { id: 'one', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', delta: [], historyUser: null },
-  { id: 'two', title: 'Weather service', historyType: 'created', historyDate: '2026-10-07T12:00:00Z', historyUser: { username: 'alice' } },
-  { id: 'three', title: 'Weather service', historyType: 'deleted', historyDate: '2026-10-07T11:00:00Z', delta: [{ field: 'title', old: 'Old title', new: 'New title' }] },
+  { id: 'one', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', delta: [{ field: 'abstract', old: 'Old abstract', new: 'New abstract' }], historyUser: null },
+  { id: 'three', title: 'Weather service', historyType: 'deleted', historyDate: '2026-10-07T11:00:00Z', delta: [{ field: 'title', old: 'Old title', new: 'New title' }], historyUser: { username: 'alice' } },
 ]
 
 const Selection = () => {
@@ -34,26 +33,29 @@ const renderHistory = () => {
 
 describe('HistoryList', () => {
   it('shows event labels, dates and recorded authors without missing-user text', async () => {
-    const { container } = renderHistory()
+    const { container, getList } = renderHistory()
     expect(await screen.findByText('Weather service · Updated')).toBeInTheDocument()
-    expect(screen.getByText('Weather service · Created')).toBeInTheDocument()
     expect(screen.getByText('Weather service · Deleted')).toBeInTheDocument()
     expect(screen.getByText(/alice/)).toBeInTheDocument()
     expect(container).not.toHaveTextContent('undefined')
     expect(container.querySelector('.MuiChip-root')).toBeNull()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(getList).toHaveBeenCalledWith('HistoricalWebMapService', expect.objectContaining({
+      filter: { delta_size__gt: 0 },
+      pagination: { page: 1, perPage: 10 },
+    }))
   })
 
   it('updates row content and scopes the latest ten events when selection changes', async () => {
     const { getList } = renderHistory()
     await screen.findByText('Weather service · Updated')
     fireEvent.click(screen.getByRole('button', { name: 'Select service' }))
-    expect(await screen.findByText('Updated')).toBeInTheDocument()
-    expect(screen.getByText('Created')).toBeInTheDocument()
+    expect(await screen.findByText('Updated · abstract')).toBeInTheDocument()
     expect(screen.getByText('Deleted · title')).toBeInTheDocument()
     await waitFor(() => expect(getList).toHaveBeenLastCalledWith('HistoricalWebMapService', expect.objectContaining({
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
+      filter: { delta_size__gt: 0 },
       meta: { jsonApiParams: expect.objectContaining({ 'filter[historyRelation]': 'service' }) },
     })))
   })

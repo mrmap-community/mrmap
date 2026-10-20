@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AdminContext, ResourceContextProvider, TextField } from "react-admin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import polyglotI18nProvider from "ra-i18n-polyglot";
+import en from "../../../../i18n/en";
 import { SelectedRecordContextProvider, useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import ServiceListAside from "./ServiceListAside";
 
@@ -28,8 +30,8 @@ const Selection = () => {
   </>;
 };
 
-const renderAside = () => render(
-  <AdminContext>
+const renderAside = (translated = false) => render(
+  <AdminContext i18nProvider={translated ? polyglotI18nProvider(() => en, "en") : undefined}>
     <ResourceContextProvider value="WebMapService">
       <SelectedRecordContextProvider>
         <Selection />
@@ -49,7 +51,7 @@ describe("ServiceListAside", () => {
     expect(screen.queryByRole("button", { name: "Map viewer" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select service" }));
-    expect(screen.getAllByText("Selected WMS")).toHaveLength(2);
+    expect(screen.getByText("Selected WMS")).toBeInTheDocument();
     expect(screen.getByText("Service preview")).toBeInTheDocument();
     expect(screen.queryByText("serviceList.noSelection")).not.toBeInTheDocument();
 
@@ -71,5 +73,19 @@ describe("ServiceListAside", () => {
     renderAside();
     expect(screen.queryByText(/Last 10 events/)).not.toBeInTheDocument();
     expect(screen.getByText("serviceList.noSelection")).toBeInTheDocument();
+  });
+
+  it("explains the changelog scope using the service title", () => {
+    renderAside(true);
+    expect(screen.getByText("Recent changes")).toBeInTheDocument();
+    expect(screen.getByText("Latest 10 changes across all services")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select service" }));
+    expect(screen.getByText("Recent changes")).toBeInTheDocument();
+    expect(screen.getByText("Latest 10 changes to Selected WMS")).toBeInTheDocument();
+    expect(screen.queryByText("Latest 10 changes across all services")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(screen.getByText("Latest 10 changes across all services")).toBeInTheDocument();
   });
 });

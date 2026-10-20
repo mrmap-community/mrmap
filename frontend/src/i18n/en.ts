@@ -228,6 +228,9 @@ const en = lodashMerge(
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
     historyList: {
+      title: "Recent changes",
+      selectedService: "Latest 10 changes to %{service}",
+      allServices: "Latest 10 changes across all services",
       created: "Created",
       updated: "Updated",
       deleted: "Deleted",

@@ -85,6 +85,7 @@ const HistoryList = ({
     {
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
+      filter: { delta_size__gt: 0 },
       meta: { jsonApiParams }
     }
   )

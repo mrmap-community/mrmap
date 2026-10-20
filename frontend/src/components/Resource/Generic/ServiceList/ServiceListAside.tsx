@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { useGetRecordRepresentation, useResourceContext } from "react-admin";
+import { useGetRecordRepresentation, useResourceContext, useTranslate } from "react-admin";
 import { useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import HistoryList from "../../../HistoryList";
@@ -13,6 +13,7 @@ const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
   const historyOperation = useOperation(`list_${historyResource}`);
   const {selectedRecord} = useSelectedRecordContext()
   const getRecordRepresentation = useGetRecordRepresentation(resource)
+  const translate = useTranslate();
 
   return (
     <Stack
@@ -36,7 +37,12 @@ const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
             variant: "outlined",
             sx: { width: "100%", maxHeight: 360, display: "flex", flexDirection: "column", overflow: "hidden" },
           }}
-          title={(selectedRecord === undefined) ? 'Last 10 events' : getRecordRepresentation(selectedRecord)}
+          title={translate("historyList.title")}
+          subheader={selectedRecord
+            ? translate("historyList.selectedService", {
+                service: selectedRecord.title || getRecordRepresentation(selectedRecord),
+              })
+            : translate("historyList.allServices")}
         >
           <HistoryList resource={historyResource} related={resource} record={undefined} />
         </SimpleCard>

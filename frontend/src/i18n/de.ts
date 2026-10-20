@@ -209,6 +209,9 @@ const germanMessages: TranslationMessages = {
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
   historyList: {
+    title: "Letzte Änderungen",
+    selectedService: "Die letzten 10 Änderungen an %{service}",
+    allServices: "Die letzten 10 Änderungen aller Dienste",
     created: "Erstellt",
     updated: "Aktualisiert",
     deleted: "Gelöscht",

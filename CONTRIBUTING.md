@@ -128,6 +128,34 @@ these checks):
     * PEP 8 compliance is enforced, with the exception that lines may be
       greater than 80 characters in length
 
+## Dependency updates
+
+[Renovate](https://docs.renovatebot.com/) updates the Python requirements in
+`backend/.requirements/` and the frontend npm manifest and lockfile. Its repository
+configuration is [`.github/renovate.json`](.github/renovate.json).
+
+To activate it, merge the configuration and workflow changes into the repository's
+default branch, then install the [Renovate GitHub app](https://github.com/apps/renovate)
+and grant it access to this repository. Renovate targets the default branch.
+
+Renovate creates `renovate/**` branches first. Quality Assurance and CodeQL run on
+those pushes, installing and testing the proposed dependency versions. Renovate
+opens an update pull request on its next run after the branch checks pass;
+automatic merging is disabled. Pull request checks run again before review.
+Configure branch protection to require `pre-commit-checks`, `acceptance-tests`,
+`unit-tests`, `frontend-tests`, `backend-coverage`, `CodeQL (python)` and
+`CodeQL (javascript-typescript)` before merging.
+
+Regular updates are limited to three active branches and three open pull requests,
+with at most two new pull requests per hour. Related packages are grouped, and npm
+lockfile maintenance is enabled. Vulnerability fixes also wait for passing checks,
+but Renovate exempts them from the regular update limits.
+
+Use the Dependency Dashboard issue to inspect pending updates. A failing update
+remains a branch without a pull request; inspect its Actions results and push any
+compatibility fixes to that branch. Several failed branches can fill the regular
+update limit and must be addressed before more updates can proceed.
+
 ## Commenting
 
 Only comment on an issue if you are sharing a relevant idea or constructive

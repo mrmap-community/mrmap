@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ServiceHistoryCard from '../ServiceShow/ServiceHistoryCard';
 const state = vi.hoisted(() => ({ resource: 'CatalogueService', id: 'service-1' }));
-vi.mock('react-admin', () => ({ Loading: () => <div>Loading history</div>, useGetList: vi.fn(), useRecordContext: (record?: unknown) => record ?? { id: state.id }, useResourceContext: () => state.resource, useTranslate: () => (key: string) => key }));
+vi.mock('react-admin', () => ({ Loading: () => <div>Loading history</div>, useGetList: vi.fn(), useRecordContext: (record?: unknown) => record ?? { id: state.id }, useResourceContext: () => state.resource, useTranslate: () => (key: string, options?: { _?: string }) => options?._ ?? key }));
 vi.mock('../../../../jsonapi/hooks/useOperation', () => ({ default: () => ({}) }));
 const serviceData = [{ id: 'same-id', historyType: 'updated', historyDate: '2026-10-01T10:00:00Z', historyRelation: { id: 'service-1' }, delta: [{ field: 'title', old: 'Old', new: 'New title' }] }];
 const childData = [{ ...serviceData[0], historyDate: '2026-10-01T11:00:00Z' }];

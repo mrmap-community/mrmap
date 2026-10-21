@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import type { RaRecord } from "react-admin";
+import { useTranslate, type RaRecord } from "react-admin";
 
 import CheckIcon from "@mui/icons-material/Check";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -11,11 +11,12 @@ import {
   alpha,
   Box,
   ButtonBase,
-  Chip,
   IconButton,
   Stack,
   Typography,
 } from "@mui/material";
+
+import HistoryEventDetails from "./HistoryEventDetails";
 
 export interface HistoryRecord extends RaRecord {
   historyType: "created" | "updated" | "deleted";
@@ -37,59 +38,13 @@ const eventStyles = {
   deleted: { color: "error", label: "Deleted", Icon: DeleteIcon },
 } as const;
 
-const formatValue = (value: unknown): string => {
-  if (value == null) return "—";
-  return typeof value === "object"
-    ? JSON.stringify(value, null, 2)
-    : String(value);
-};
-
-const DiffValue = ({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: unknown;
-  color: "error" | "success";
-}) => (
-  <Box
-    sx={{
-      flex: 1,
-      minWidth: 0,
-      p: 1.5,
-      borderRadius: 1,
-      borderLeft: 2,
-      borderColor: `${color}.main`,
-      bgcolor: (theme) => alpha(theme.palette[color].main, 0.06),
-    }}
-  >
-    <Typography variant="caption" color="text.secondary">
-      {label}
-    </Typography>
-    <Typography
-      component="pre"
-      variant="body2"
-      sx={{
-        m: 0,
-        mt: 0.5,
-        fontFamily: "monospace",
-        color: `${color}.main`,
-        whiteSpace: "pre-wrap",
-        overflowWrap: "anywhere",
-      }}
-    >
-      {formatValue(value)}
-    </Typography>
-  </Box>
-);
-
 /** A single detail panel shared by a horizontally scrolling, newest-first timeline. */
 const HistoryTimeline = ({ events }: { events: TimelineRecord[] }) => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsId = useId();
+  const translate = useTranslate();
   const selected = events.find((event) => eventKey(event) === selectedKey);
   const scroll = (direction: number) => {
     const container = scrollRef.current;
@@ -278,12 +233,7 @@ const HistoryTimeline = ({ events }: { events: TimelineRecord[] }) => {
         </Stack>
       </Stack>
       {selected && (
-        <Box
-          id={detailsId}
-          role="region"
-          aria-label="Selected event details"
-          sx={{ borderTop: 1, borderColor: "divider", p: 2 }}
-        >
+        <Box sx={{ borderTop: 1, borderColor: "divider", p: 2 }}>
           <Stack
             direction="row"
             sx={{
@@ -292,77 +242,19 @@ const HistoryTimeline = ({ events }: { events: TimelineRecord[] }) => {
               gap: 1,
             }}
           >
-            <Box sx={{ minWidth: 0 }}>
-              <Stack
-                direction="row"
-                sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}
-              >
-                <Typography sx={{ fontWeight: 600 }}>
-                  {selected._type}
-                </Typography>
-                <Chip
-                  size="small"
-                  color={eventStyles[selected.historyType].color}
-                  variant="outlined"
-                  label={selected.actionLabel ?? eventStyles[selected.historyType].label}
-                />
-                {!!selected.delta?.length && (
-                  <Typography variant="caption" color="text.secondary">
-                    {selected.delta.length}{" "}
-                    {selected.delta.length === 1 ? "change" : "changes"}
-                  </Typography>
-                )}
-              </Stack>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
-              >
-                {selected.historyRelation?.id ?? "—"} ·{" "}
-                {new Date(selected.historyDate).toLocaleString()}
-                {selected.historyUser
-                  ? ` · by ${selected.historyUser.username}`
-                  : ""}
-              </Typography>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <HistoryEventDetails event={selected} id={detailsId} />
             </Box>
             <IconButton
               size="small"
-              aria-label="Close event details"
+              aria-label={translate("historyList.closeDetails", {
+                _: "Close event details",
+              })}
               onClick={closeDetails}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
           </Stack>
-          {selected.delta?.length ? (
-            <Stack spacing={2} sx={{ mt: 2 }}>
-              {selected.delta.map((change, index) => (
-                <Box key={`${change.field}:${index}`}>
-                  <Typography
-                    variant="caption"
-                    sx={{ display: "block", mb: 1, fontWeight: 600 }}
-                  >
-                    {change.field}
-                  </Typography>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                    <DiffValue
-                      label="Previous value"
-                      value={change.old}
-                      color="error"
-                    />
-                    <DiffValue
-                      label="New value"
-                      value={change.new}
-                      color="success"
-                    />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              No field changes are available for this event.
-            </Typography>
-          )}
         </Box>
       )}
     </>

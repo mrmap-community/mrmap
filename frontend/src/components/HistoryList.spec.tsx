@@ -1,6 +1,8 @@
 import { AdminContext, ResourceContextProvider, testDataProvider } from 'react-admin'
+import { MemoryRouter } from 'react-router-dom'
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient } from '@tanstack/react-query'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import polyglotI18nProvider from 'ra-i18n-polyglot'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -9,9 +11,13 @@ import { SelectedRecordContextProvider, useSelectedRecordContext } from '../json
 import HistoryList from './HistoryList'
 
 const events = [
-  { id: 'one', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', delta: [{ field: 'abstract', old: 'Old abstract', new: 'New abstract' }], historyUser: null },
-  { id: 'active', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:10:38Z', delta: [{ field: 'is_active', old: false, new: true }], historyUser: null },
-  { id: 'three', title: 'Weather service', historyType: 'deleted', historyDate: '2026-10-07T11:00:00Z', delta: [{ field: 'title', old: 'Old title', new: 'New title' }], historyUser: { username: 'alice' } },
+  { id: 'multi', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', historyUser: { username: 'alice' }, delta: [
+    { field: 'title', old: 'Old title', new: 'New title' },
+    { field: 'abstract', old: 'Old abstract', new: 'New abstract' },
+    { field: 'service_url', old: 'https://old.example.com', new: 'https://new.example.com' },
+  ] },
+  { id: 'single', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:10:38Z', historyUser: null, delta: [{ field: 'is_active', old: false, new: true }] },
+  { id: 'deleted', title: 'Weather service', historyType: 'deleted', historyDate: '2026-10-07T11:00:00Z', historyUser: null, delta: [{ field: 'title', old: 'Old title', new: null }] },
 ]
 
 const Selection = () => {
@@ -19,57 +25,81 @@ const Selection = () => {
   return <button onClick={() => setSelectedRecord({ id: 'service', title: 'Weather service' })}>Select service</button>
 }
 
-const renderHistory = () => {
-  const getList = vi.fn().mockResolvedValue({ data: events, total: events.length })
+const renderHistory = (getList = vi.fn().mockResolvedValue({ data: events, total: events.length })) => {
   const result = render(
-    <AdminContext i18nProvider={polyglotI18nProvider(() => en, 'en')} dataProvider={testDataProvider({ getList })}>
-      <ResourceContextProvider value='WebMapService'>
-        <SelectedRecordContextProvider>
-          <Selection />
-          <HistoryList resource='HistoricalWebMapService' related='WebMapService' record={undefined} />
-        </SelectedRecordContextProvider>
-      </ResourceContextProvider>
-    </AdminContext>
+    <MemoryRouter>
+      <AdminContext i18nProvider={polyglotI18nProvider(() => en, 'en')} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })} dataProvider={testDataProvider({ getList })}>
+        <ResourceContextProvider value='WebMapService'>
+          <SelectedRecordContextProvider>
+            <Selection />
+            <HistoryList resource='HistoricalWebMapService' related='WebMapService' record={undefined} />
+          </SelectedRecordContextProvider>
+        </ResourceContextProvider>
+      </AdminContext>
+    </MemoryRouter>,
   )
   return { ...result, getList }
 }
 
 describe('HistoryList', () => {
-  it('shows event labels, dates and recorded authors without missing-user text', async () => {
+  it('shows compact summaries and queries the latest ten delta events', async () => {
     const { container, getList } = renderHistory()
-    expect(await screen.findByText('Weather service · Abstract: Old abstract → New abstract')).toBeInTheDocument()
-    expect(screen.getByText('Weather service · Deleted · Title: Old title → New title')).toBeInTheDocument()
-    expect(screen.getByText(/alice/)).toBeInTheDocument()
+    expect(await screen.findByText(/Title and 2 other fields changed/)).toBeInTheDocument()
+    expect(screen.getByText(/Active changed/)).toBeInTheDocument()
+    expect(screen.getByText(/Deleted · Title changed/)).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('Old abstract')
     expect(container).not.toHaveTextContent('undefined')
-    expect(container.querySelector('.MuiChip-root')).toBeNull()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    const timestamp = screen.getByTitle(new Date('2026-10-07T12:10:38Z').toLocaleString('en'))
-    expect(timestamp.textContent).not.toContain(':38')
     expect(getList).toHaveBeenCalledWith('HistoricalWebMapService', expect.objectContaining({
       filter: { delta_size__gt: 0 },
       pagination: { page: 1, perPage: 10 },
+      sort: { field: 'historyDate', order: 'DESC' },
     }))
   })
 
-  it('updates row content and scopes the latest ten events when selection changes', async () => {
-    const { getList } = renderHistory()
-    await screen.findByText('Weather service · Abstract: Old abstract → New abstract')
-    fireEvent.click(screen.getByRole('button', { name: 'Select service' }))
-    expect(await screen.findByText('Abstract: Old abstract → New abstract')).toBeInTheDocument()
-    expect(screen.getByText('Deleted · Title: Old title → New title')).toBeInTheDocument()
-    expect(screen.getByText('Active: No → Yes')).toBeInTheDocument()
-    await waitFor(() => expect(getList).toHaveBeenLastCalledWith('HistoricalWebMapService', expect.objectContaining({
-      pagination: { page: 1, perPage: 10 },
-      sort: { field: 'historyDate', order: 'DESC' },
-      filter: { delta_size__gt: 0 },
-      meta: { jsonApiParams: expect.objectContaining({ 'filter[historyRelation]': 'service' }) },
-    })))
+  it('opens full previous and new values in a dialog without hover', async () => {
+    renderHistory()
+    fireEvent.click(await screen.findByRole('button', { name: /Title and 2 other fields changed/ }))
+    const details = within(screen.getByRole('dialog')).getByRole('region', { name: 'Selected event details' })
+    expect(details).toHaveTextContent('by alice')
+    expect(within(details).getByText('3 changes')).toBeInTheDocument()
+    expect(within(details).getAllByText('Previous value')).toHaveLength(3)
+    expect(within(details).getByText('Old abstract')).toBeInTheDocument()
+    expect(within(details).getByText('https://new.example.com')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('keeps the full changed values available in a tooltip', async () => {
-    renderHistory()
-    const event = await screen.findByText('Weather service · Deleted · Title: Old title → New title')
-    fireEvent.mouseOver(event)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Title: Old title → New title')
+  it('presents geometry, relations and missing values meaningfully', async () => {
+    renderHistory(vi.fn().mockResolvedValue({
+      data: [{ id: 'geom', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T10:00:00Z', historyUser: null, delta: [
+        { field: 'the_geom', old: { type: 'Point', coordinates: [1, 2] }, new: { type: 'Point', coordinates: [3, 4] } },
+        { field: 'service_contact', old: { _type: 'MetadataContact', id: 'c-1' }, new: null },
+      ] }],
+      total: 1,
+    }))
+    fireEvent.click(await screen.findByRole('button', { name: /The Geom and 1 other field changed/ }))
+    const details = within(screen.getByRole('dialog')).getByRole('region', { name: 'Selected event details' })
+    expect(within(details).getAllByText('Geometry (Point)')).toHaveLength(2)
+    expect(within(details).getByText('MetadataContact · c-1')).toBeInTheDocument()
+    expect(within(details).getByText('—')).toBeInTheDocument()
+  })
+
+  it('links to the full changelog, scoped to the selected service', async () => {
+    const { getByRole } = renderHistory()
+    await screen.findByText(/Active changed/)
+    expect(getByRole('link', { name: 'View all history' })).toHaveAttribute('href', '/WebMapService/history')
+    fireEvent.click(screen.getByRole('button', { name: 'Select service' }))
+    await waitFor(() => expect(getByRole('link', { name: 'View all history' })).toHaveAttribute(
+      'href', `/WebMapService/history?filter=${encodeURIComponent(JSON.stringify({ historyRelation: 'service' }))}`,
+    ))
+  })
+
+  it('covers empty and error states', async () => {
+    const { unmount } = renderHistory(vi.fn().mockResolvedValue({ data: [], total: 0 }))
+    expect(await screen.findByText('No changes recorded.')).toBeInTheDocument()
+    unmount()
+    renderHistory(vi.fn().mockRejectedValue(new Error('Offline')))
+    expect(await screen.findByText('Unable to load history.')).toBeInTheDocument()
   })
 })
+

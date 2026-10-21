@@ -9,7 +9,7 @@ vi.mock("react-admin", () => ({
   Loading: () => <div>Loading history</div>,
   useGetList: vi.fn(),
   useRecordContext: (record: unknown) => record,
-  useTranslate: () => (key: string) => key,
+  useTranslate: () => (key: string, options?: { _?: string }) => options?._ ?? key,
 }));
 
 const layer = {

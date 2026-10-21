@@ -11,3 +11,8 @@ Feature: OwsContext detail view
     Scenario: Can retrieve as anonymous user
         When I send the request with GET method
         Then I expect the response status is 200
+        And I expect that response json has an attribute "properties.lang" with value "en"
+        And I expect that response json has an attribute "properties.subtitle" with value "MapContext1"
+        And I expect that response json has an attribute "features.[0].properties.folder" with value "/0"
+        And I expect that response json has an attribute "features.[1].properties.folder" with value "/0/0"
+        And I expect that response json has an attribute "features.[0].properties.offerings.[0].code" with value "http://www.opengis.net/spec/owc-geojson/1.0/req/wms"

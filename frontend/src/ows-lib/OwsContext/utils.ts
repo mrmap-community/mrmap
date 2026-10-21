@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
 import { OWSResource as IOWSResource, OWSContext, StyleSet } from "./types";
-import { ensureCoreProfile } from "./validation";
+import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE } from "./validation";
 
 export const OWSContextDocument = (
     id: string = `urn:uuid:${uuidv4()}`,
@@ -93,7 +93,7 @@ export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCap
             updated: new Date().toISOString(),
             ...(node.metadata.name !== undefined && {
                 offerings: [{
-                    code: "http://www.opengis.net/spec/owc/1.0/req/wms",
+                    code: WMS_OFFERING_CODE,
                     operations: [
                         {
                             code: "GetCapabilities",
@@ -197,7 +197,7 @@ export const appendQueryParam = (param: string = "LAYERS", url1: URL, url2: URL)
 export const getFeaturesByGetMapUrl = (url: URL, features: IOWSResource[]): IOWSResource[] => {   
     const layers = url.searchParams.get('LAYERS')?.split(',') ?? []
     return features.filter(feature => feature.properties.offerings?.find(offering =>
-        offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation => {
+        isWmsOfferingCode(offering.code))?.operations?.find(operation => {
             const operationUrl = new URL(operation.href)
             const operationLayers = operationUrl.searchParams.get('LAYERS')?.split(',') ?? []
             return operation.code === 'GetMap' && 

@@ -54,7 +54,7 @@ channels[daphne]==4.3.2
 channels-redis==4.3.0
 django-cte==4.0.0
 drf-spectacular-jsonapi==0.6.2
-camel-converter==5.1.1
+camel-converter==6.0.0
 django-rest-knox==5.1.0
 django-pgviews-redux==1.2.0
 autobahn>=22.4.2,<25.10.0

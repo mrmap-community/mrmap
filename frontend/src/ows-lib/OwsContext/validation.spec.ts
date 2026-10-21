@@ -36,6 +36,35 @@ const validDocument = (): MutableContext => ({
     }]
 })
 
+/** a minimal resource, without a folder when no folder is given */
+const resource = (title: string, folder?: string, id?: string): MutableContext => ({
+    type: 'Feature',
+    ...(id !== undefined && { id: id }),
+    properties: {
+        title: title,
+        updated: '2024-05-03T10:26:38.476Z',
+        ...(folder !== undefined && { folder: folder })
+    }
+})
+
+/** a resource the viewer can activate for GetMap and for GetFeatureInfo independently of each other */
+const activatableResource = (): MutableContext => ({
+    type: 'Feature',
+    id: 'algal-id',
+    properties: {
+        title: 'Algen',
+        updated: '2024-05-03T10:26:38.476Z',
+        folder: '/root/algal',
+        offerings: [{
+            code: WMS_OFFERING_CODE,
+            operations: [
+                { code: 'GetMap', method: 'GET', href: 'https://www.example.org/wms?LAYERS=algal', active: true },
+                { code: 'GetFeatureInfo', method: 'GET', href: 'https://www.example.org/wms?QUERY_LAYERS=algal', active: false }
+            ]
+        }]
+    }
+})
+
 const member = (context: MutableContext, memberName: string): MutableContext =>
     context[memberName] as MutableContext
 
@@ -122,13 +151,12 @@ describe('validateOwsContext', () => {
         const features = featuresOf(document)
         features.push({
             type: 'Feature',
-            properties: { folder: 'karte' }
+            properties: { folder: '/karte' }
         })
 
         expect(errorPaths(document)).toEqual([
             'features[1].properties.title',
-            'features[1].properties.updated',
-            'features[1].properties.folder'
+            'features[1].properties.updated'
         ])
     })
 
@@ -236,22 +264,79 @@ describe('validateOwsContext', () => {
         expect(result.context?.crs).toEqual(document.crs)
     })
 
-    it('rejects folders the layer tree cannot build', () => {
-        const document = validDocument()
-        firstFeatureProperties(document).folder = 'karte'
+    it('normalizes a named grouping onto the numbered folders the viewer works with', () => {
+        const document = {
+            ...validDocument(),
+            features: [resource('root', '/root', 'root-id'), resource('algal', '/root/algal', 'algal-id')]
+        }
 
-        expect(errorPaths(document)).toEqual(['features[0].properties.folder'])
+        const result = validateOwsContext(document)
+
+        expect(result.hasErrors).toBe(false)
+        expect(result.context?.features.map(feature => feature.properties.folder)).toEqual(['/0', '/0/0'])
+        expect(result.context?.features.map(feature => feature.id)).toEqual(['root-id', 'algal-id'])
+        expect(result.issues.map(issue => issue.path)).toEqual(['features'])
     })
 
-    it('rejects resources whose parent folder is not part of the document', () => {
-        const document = validDocument()
-        const features = featuresOf(document)
-        features.push({
-            type: 'Feature',
-            properties: { title: 'child', updated: '2024-05-03T10:26:38.476Z', folder: '/1/0' }
-        })
+    it('creates the group resource which a document only names', () => {
+        const document = { ...validDocument(), features: [resource('algal', '/root/algal', 'algal-id')] }
 
-        expect(errorPaths(document)).toEqual(['features[1].properties.folder'])
+        const result = validateOwsContext(document)
+
+        const features = result.context?.features ?? []
+        expect(result.hasErrors).toBe(false)
+        expect(features.map(feature => feature.properties.folder)).toEqual(['/0', '/0/0'])
+        expect(features.map(feature => feature.properties.title)).toEqual(['root', 'algal'])
+        expect(typeof features[0].id).toEqual('string')
+        expect(features[1].id).toEqual('algal-id')
+        // the group takes over the timestamp of the resource below it instead of inventing one
+        expect(features[0].properties.updated).toEqual('2024-05-03T10:26:38.476Z')
+        expect(result.issues.map(issue => issue.path)).toEqual(['features[0].properties.folder', 'features'])
+    })
+
+    it('loads resources without a folder as root resources', () => {
+        const document = { ...validDocument(), features: [resource('first'), resource('second', undefined, 'second-id')] }
+
+        const result = validateOwsContext(document)
+
+        expect(result.hasErrors).toBe(false)
+        expect(result.issues).toEqual([])
+        expect(result.context?.features.map(feature => feature.properties.folder)).toEqual(['/0', '/1'])
+        expect(result.context?.features.map(feature => feature.id)).toEqual([undefined, 'second-id'])
+    })
+
+    it('orders a resource described after its child below the child', () => {
+        const document = {
+            ...validDocument(),
+            features: [resource('child', '/0/0', 'child-id'), resource('parent', '/0', 'parent-id')]
+        }
+
+        const result = validateOwsContext(document)
+
+        expect(result.hasErrors).toBe(false)
+        expect(result.issues).toEqual([])
+        expect(result.context?.features.map(feature => feature.id)).toEqual(['parent-id', 'child-id'])
+    })
+
+    it('keeps the independent activation of the operations of a resource', () => {
+        const document = { ...validDocument(), features: [activatableResource()] }
+
+        const result = validateOwsContext(document)
+
+        const features = result.context?.features ?? []
+        expect(features).toHaveLength(2)
+        const operations = features[1].properties.offerings?.[0].operations ?? []
+        expect(operations.map(operation => [operation.code, operation.active])).toEqual([
+            ['GetMap', true],
+            ['GetFeatureInfo', false]
+        ])
+    })
+
+    it('rejects folders without any segment', () => {
+        const document = validDocument()
+        firstFeatureProperties(document).folder = '/'
+
+        expect(errorPaths(document)).toEqual(['features[0].properties.folder'])
     })
 
     it('rejects duplicated folders', () => {

@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
+import { compareFolderPaths, normalizeFolderPaths } from './folders';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
-import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
+import { appendQueryParam, getFeatureFolderIndex, getParentFolder, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 import { ensureCoreProfile } from './validation';
 
 const VALID_PATH = /(\/\d*)+/
@@ -124,11 +125,9 @@ export class OWSContext implements IOWSContext {
     this.folderToResource = new Map<string, OWSResource>();
     this.id = id;
     this.type = "FeatureCollection";
-    this.features = features.map(feature =>
-        feature instanceof OWSResource
-            ? feature
-            : OWSResource.fromPlainObject(feature)
-    );
+    // whatever grouping the given resources describe, the viewer works on numbered and complete
+    // folder paths, so they are normalized onto them before they become the state of the viewer
+    this.features = normalizeFolderPaths(features).features.map(OWSResource.fromPlainObject);
     this.rebuildFolderLookup()
     this.bbox = bbox;
     // every document the viewer creates references the core requirements class of the standard
@@ -392,18 +391,7 @@ export class OWSContext implements IOWSContext {
   }
 
   sortFeaturesByFolder() {
-    this.features.sort((a, b) => {
-      const pathA = a.properties.folder?.split('/').map(Number);
-      const pathB = b.properties.folder?.split('/').map(Number);
-      if (pathA === undefined || pathB === undefined) return -1
-
-      for (let i = 0; i < Math.min(pathA.length, pathB.length); i++) {
-        if (pathA[i] !== pathB[i]) {
-          return pathA[i] - pathB[i];
-        }
-      }
-      return pathA.length - pathB.length;
-    });
+    this.features.sort((a, b) => compareFolderPaths(a.properties.folder, b.properties.folder));
     this.rebuildFolderLookup()
     return this.features
   }
@@ -647,39 +635,27 @@ export class OWSContext implements IOWSContext {
     return urls
   }
 
+  /**
+   * Build the trees the layer tree and the request building work on. The grouping of the features is
+   * normalized first, so resources without a folder, documents which name their groups and documents
+   * which do not describe their parent groups stay usable. Every tree holds the resources of one root
+   * folder and keeps the id of the resource it was created from.
+   */
   treeify(): OWSResource[] {
     const trees: OWSResource[] = []
+    const nodes = new Map<string, OWSResource>()
 
-    this.features.forEach((feature: IOWSResource) => {
-      // by default the order of the features array may be used to visualize the layer structure.
-      // if there is a folder attribute setted; this should be used and overwrites the array order
-      // feature.properties.folder && jsonpointer.set(trees, feature.properties.folder, feature)
+    normalizeFolderPaths(this.features).features.forEach((feature: IOWSResource) => {
+      const node = OWSResource.fromPlainObject({ ...feature, children: [] })
+      const parentFolder = feature.properties.folder === undefined
+        ? undefined
+        : getParentFolder(feature.properties.folder)
+      const parent = parentFolder === undefined ? undefined : nodes.get(parentFolder)
 
-      const folders = feature.properties.folder?.split('/').splice(1)
-      const depth = folders?.length ? folders.length - 1 : 0 - 1 // -1 is signals unvalid folder definition
+      nodes.set(node.properties.folder ?? '', node)
 
-      if (depth === 0) {
-        // root node
-        trees.push(OWSResource.fromPlainObject({ ...feature, id: uuidv4(), children: [] }))
-      } else {
-        // find root node first
-        let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)
-
-        // TODO: just create a new node if it wasnt find
-        if (node === undefined) {
-          throw new Error('parsingerror... the context is not well ordered.')
-        }
-
-        for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
-          const currentSubFolder = `/${folders?.slice(0, currentDepth).join('/')}`
-          node = node.children?.find(n => n.properties.folder === currentSubFolder)
-          if (node === undefined) {
-            // TODO: just create a new node if it wasnt find
-            throw new Error('parsingerror... the context is not well ordered.')
-          }
-        }
-        node.children?.push(OWSResource.fromPlainObject({ ...feature,  children: [] }))
-      }
+      if (parent === undefined) trees.push(node)
+      else parent.children.push(node)
     })
 
     return trees

@@ -2,19 +2,38 @@
 import { describe, expect, test } from 'vitest'
 
 import { WmsCapabilitites } from '../../XMLParser/types'
-import { OWSResource } from '../core'
+import { OWSContext, OWSResource } from '../core'
 import { Position } from '../enums'
 import { OWSResource as IOWSResource } from '../types'
-import { updateFolders, wmsToOWSResources } from '../utils'
+import { treeToList, updateFolders, wmsToOWSResources } from '../utils'
 import { owsContextTest } from './test'
 
-const getOwsResource = (title:string, folder: string, id?: number): OWSResource => {
+const getOwsResource = (title:string, folder?: string, id?: number): OWSResource => {
     return new OWSResource({
         title: title,
         updated: '',
-        folder: folder,
-        
+        ...(folder !== undefined && { folder: folder }),
+
     },id)
+}
+
+/** a resource the viewer is able to draw, activated for GetMap only */
+const getWmsResource = (title: string, layer: string, folder?: string, id?: number): OWSResource => {
+    return new OWSResource({
+        title: title,
+        updated: '',
+        ...(folder !== undefined && { folder: folder }),
+        offerings: [{
+            code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+            operations: [{
+                code: 'GetMap',
+                href: `https://www.example.org/wms?SERVICE=wms&REQUEST=GetMap&LAYERS=${layer}`,
+                method: 'GET',
+                type: 'image/png',
+                active: true
+            }]
+        }]
+    }, id)
 }
 
 
@@ -89,10 +108,73 @@ owsContextTest('treeify success', ({karteRp}) => {
     expect(tree[0].children[18].children.length).equals(2)
 })
 
-owsContextTest('treeify wrong feature order', ({karteRp}) => {
-    karteRp.features = karteRp.features.splice(2, 1)   
-    
-    expect(() => karteRp.treeify()).toThrowError('parsingerror... the context is not well ordered.')
+owsContextTest('treeify a resource whose parents are not part of the context', ({karteRp}) => {
+    const removed = karteRp.features.splice(2, 1)
+
+    karteRp.features = removed
+
+    const trees = karteRp.treeify()
+
+    expect(trees.length).equals(1)
+    // the missing parents are replaced by group nodes, the resource keeps its place inside them
+    expect(treeToList(trees[0]).map(node => node.properties.folder)).toEqual(['/0', '/0/0', '/0/0/0'])
+    expect(treeToList(trees[0])[2]).toMatchObject({ properties: { title: removed[0].properties.title } })
+})
+
+owsContextTest('treeify keeps the ids of the resources it builds the trees from', ({karteRp}) => {
+    const trees = karteRp.treeify()
+
+    expect(trees[0].id).equals(karteRp.features[0].id)
+})
+
+test('treeify of resources without a folder', () => {
+    const context = new OWSContext(undefined, [
+        getOwsResource('first', undefined, 1),
+        getOwsResource('second', undefined, 2)
+    ])
+
+    const trees = context.treeify()
+
+    expect(trees.length).equals(2)
+    expect(trees.map(tree => tree.properties.folder)).toEqual(['/0', '/1'])
+    expect(trees.map(tree => tree.id)).toEqual([1, 2])
+})
+
+test('treeify of a context which names its groups', () => {
+    const context = new OWSContext(undefined, [
+        getOwsResource('algal', '/root/algal', 1)
+    ])
+
+    const nodes = treeToList(context.treeify()[0])
+
+    expect(nodes.map(node => node.properties.title)).toEqual(['root', 'algal'])
+    expect(nodes[1].id).equals(1)
+})
+
+test('treeify of a context which describes a child before its parent', () => {
+    const context = new OWSContext(undefined, [
+        getOwsResource('child', '/0/0', 2),
+        getOwsResource('parent', '/0', 1)
+    ])
+
+    const nodes = treeToList(context.treeify()[0])
+
+    expect(nodes.map(node => node.id)).toEqual([1, 2])
+    expect(nodes.map(node => node.properties.folder)).toEqual(['/0', '/0/0'])
+})
+
+test('getOptimizedUrlsByCode of resources without a folder', () => {
+    const context = new OWSContext(undefined, [
+        getWmsResource('first', 'first', undefined, 1),
+        getWmsResource('second', 'second', undefined, 2)
+    ])
+
+    const urls = context.getOptimizedUrlsByCode(
+        'GetMap',
+        (feature) => feature.getWmsOperationByCode('GetMap')?.active === true
+    )
+
+    expect(urls.map(entry => entry.url.searchParams.get('LAYERS'))).toEqual(['first', 'second'])
 })
 
 owsContextTest('isDescandantOf', ({karteRp}) => {

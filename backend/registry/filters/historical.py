@@ -38,6 +38,7 @@ class HistoricalFilterSet(FilterSet):
         fields = {
             "id": ["exact", "in"],
             "history_relation": ["exact"],
+            "history_type": ["exact", "in"],
             "history_change_reason": [
                 "exact", "iexact", "icontains", "contains", "in",
             ],

@@ -6,7 +6,7 @@ import { Position } from './enums';
 import { compareFolderPaths, normalizeFolderPaths } from './folders';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
 import { appendWmsOperationParameters, areWmsOperationsCompatible, getFeatureFolderIndex, getParentFolder, isDescendant, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
-import { ensureCoreProfile } from './validation';
+import { ensureCoreProfile, isWmsOfferingCode, normalizeResourceProperties } from './validation';
 
 const VALID_PATH = /(\/\d*)+/
 
@@ -32,7 +32,7 @@ export class OWSResource implements IOWSResource {
     geometry: Geometry | undefined = undefined,
     children: OWSResource[] | undefined = []
   ) {
-    this.properties = JSON.parse(JSON.stringify(properties))
+    this.properties = normalizeResourceProperties(properties)
     this.id = id
     this.bbox = bbox ? JSON.parse(JSON.stringify(bbox)) : undefined
     this.type = 'Feature'
@@ -46,7 +46,7 @@ export class OWSResource implements IOWSResource {
   }
 
   getWmsOffering() {
-    return this.properties.offerings?.find(offering => offering.code === "http://www.opengis.net/spec/owc/1.0/req/wms")
+    return this.properties.offerings?.find(offering => isWmsOfferingCode(offering.code))
   }
 
   getWmsOperationByCode(code: string) {
@@ -599,11 +599,11 @@ export class OWSContext implements IOWSContext {
     trees.forEach((tree) => {
       const activeWmsFeatures = treeToList(tree).filter(feature => {
         if (typeof featureFilter === 'function') return featureFilter(feature)
-        return feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active
+        return feature.properties.offerings?.find(offering => isWmsOfferingCode(offering?.code)) && feature.properties.active
       })
       activeWmsFeatures.forEach((feature, index) => {
         const operation = feature.properties.offerings?.find(offering =>
-          offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
+          isWmsOfferingCode(offering.code))?.operations?.find(operation =>
             operation.code === code && operation.method.toLowerCase() === 'get')
 
         if (operation?.href === undefined) return

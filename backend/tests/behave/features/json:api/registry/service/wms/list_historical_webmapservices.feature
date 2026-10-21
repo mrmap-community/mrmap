@@ -65,6 +65,9 @@ Feature: Historical WebMapService List Endpoint
             | filter created or changed rows  | filter[changed_or_created] | false | 2     |
             | filter deleted or changed rows  | filter[changed_or_deleted] | true  | 1     |
             | filter deleted or changed rows  | filter[changed_or_deleted] | false | 2     |
+            | filter by history type          | filter[historyType]        | +     | 1     |
+            | filter by history type          | filter[historyType]        | ~     | 1     |
+            | filter by history types in list | filter[historyType.in]     | +,~   | 2     |
 
     # The frontend lists a changelog newest first, so the order of the history date is asserted and
     # not only that the request was answered.

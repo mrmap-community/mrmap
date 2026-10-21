@@ -27,6 +27,12 @@ JSON:API sparse fieldsets. Extents and counts are derived in the page query, wit
 no geometry columns or migrations added. Clients that omit these fields retain
 their existing response shape and do not run the coverage aggregate.
 
+## Map contexts
+
+MapContext exports exchange configured layer trees with the standalone viewer.
+See [OWS Context exchange](ows-context.md) for the GeoJSON contract, independent
+rendering/selection activation and legacy document normalization.
+
 ## Updating services
 
 Update jobs:

@@ -2,13 +2,16 @@ name: Quality Assurance
 on:
   workflow_dispatch:
   push:
-    # Renovate needs branch checks before it can open a successful update PR.
-    branches: [master, develop, 'renovate/**']
+    branches: [master, develop]
   pull_request:
     branches: [master, develop]
     types: [opened, synchronize, reopened]
   schedule:
     - cron: 0 16 * * *
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

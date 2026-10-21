@@ -165,6 +165,35 @@ class HistoricalFiltersTest(TestCase):
             {self.records[0].pk, self.other.pk},
         )
 
+    def test_history_type_exact_filter(self):
+        self.assertSetEqual(
+            set(self.filtered({"filter[historyType]": "~"})
+                .values_list("pk", flat=True)),
+            {r.pk for r in self.records[1:]} | {self.other.pk},
+        )
+
+    def test_history_type_in_filter(self):
+        self.assertSetEqual(
+            set(self.filtered({"filter[historyType.in]": "+"})
+                .values_list("pk", flat=True)),
+            {self.records[0].pk},
+        )
+        self.assertSetEqual(
+            set(self.filtered({"filter[historyType.in]": "+,~"})
+                .values_list("pk", flat=True)),
+            {r.pk for r in self.records} | {self.other.pk},
+        )
+
+    def test_history_type_composes_with_history_relation(self):
+        qs = self.filtered({
+            "filter[historyType]": "~",
+            "filter[historyRelation]": str(self.object_id),
+        })
+        self.assertSetEqual(
+            set(qs.values_list("pk", flat=True)),
+            {r.pk for r in self.records[1:]},
+        )
+
     def test_outer_filters_do_not_hide_predecessor(self):
         start = self.records[2].history_date.isoformat()
         qs = self.filtered({

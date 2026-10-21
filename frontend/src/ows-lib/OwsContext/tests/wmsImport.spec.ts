@@ -5,7 +5,8 @@ import inheritedCapabilities from '../../XMLParser/tests/capabilities_inherited_
 import latLonCapabilities from '../../XMLParser/tests/capabilities_latlon_111.xml?raw'
 import { WmsCapabilitites } from '../../XMLParser/types'
 import { OWSResource } from '../core'
-import { wmsToOWSResources } from '../utils'
+import { OWSContextDocument, wmsToOWSResources } from '../utils'
+import { validateOwsContext, WMS_OFFERING_CODE } from '../validation'
 
 const GET_CAPABILITIES_HREF = 'https://www.example.org/wms?SERVICE=WMS&REQUEST=GetCapabilities'
 
@@ -24,6 +25,20 @@ describe('wmsToOWSResources', () => {
     describe('with inherited WMS 1.3.0 layer settings', () => {
 
         const features = featuresByTitle(parseWms(inheritedCapabilities))
+
+        it('exports inherited settings with canonical WMS offerings in a valid context', () => {
+            const document = JSON.parse(JSON.stringify(OWSContextDocument(
+                undefined, undefined, undefined, [...features.values()]
+            )))
+            const result = validateOwsContext(document)
+
+            expect(result.issues).toEqual([])
+            expect(result.hasErrors).toBe(false)
+            expect(document.features.every((feature: OWSResource) =>
+                feature.properties.offerings?.[0].code === WMS_OFFERING_CODE)).toBe(true)
+            const overriding = result.context?.features.find(feature => feature.properties.title === 'Overriding layer')
+            expect(overriding?.properties.minscaledenominator).toBe(0)
+        })
 
         it('carries the inherited extent, styles and scale hints over to the named child', () => {
             const inheriting = features.get('Inheriting layer')

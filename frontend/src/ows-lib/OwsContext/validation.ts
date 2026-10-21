@@ -1,5 +1,5 @@
 import { normalizeFolderPaths, splitFolderPath } from './folders'
-import { OWSContext as IOWSContext, OWSContextProperties, OWSResource as IOWSResource } from './types'
+import { OWSContext as IOWSContext, OWSContextProperties, OWSResourceProperties, OWSResource as IOWSResource } from './types'
 
 /**
  * Validation and normalization of OWS Context GeoJSON documents following the core requirements class
@@ -29,7 +29,40 @@ import { OWSContext as IOWSContext, OWSContextProperties, OWSResource as IOWSRes
 export const OWS_CONTEXT_CORE_PROFILE = 'http://www.opengis.net/spec/owc-geojson/1.0/req/core'
 
 /** Offering code of the only offering the viewer is able to render. */
-export const WMS_OFFERING_CODE = 'http://www.opengis.net/spec/owc/1.0/req/wms'
+export const WMS_OFFERING_CODE = 'http://www.opengis.net/spec/owc-geojson/1.0/req/wms'
+
+/** Legacy viewer and backend identifiers remain readable; new exports use GeoJSON. */
+export const isWmsOfferingCode = (code: unknown): boolean => [
+    WMS_OFFERING_CODE,
+    'http://www.opengis.net/spec/owc/1.0/req/wms',
+    'http://www.opengis.net/spec/owc-atom/1.0/req/wms'
+].includes(code as string)
+
+/** Normalize losslessly recoverable fields of older MrMap exports. */
+export const normalizeResourceProperties = (properties: OWSResourceProperties): OWSResourceProperties => {
+    const result = JSON.parse(JSON.stringify(properties)) as OWSResourceProperties
+    const aliases = { minScaleDenominator: 'minscaledenominator', maxScaleDenominator: 'maxscaledenominator' }
+    Object.entries(aliases).forEach(([legacy, canonical]) => {
+        if (result[legacy] !== undefined) {
+            if (result[canonical] === undefined) result[canonical] = result[legacy]
+            delete result[legacy]
+        }
+    })
+    if (Array.isArray(result.offerings)) {
+        result.offerings.forEach(offering => {
+            if (offering && isWmsOfferingCode(offering.code)) offering.code = WMS_OFFERING_CODE
+        })
+        // Old backend exports split GetMap/GetFeatureInfo into plain offerings.
+        // Merge only these plain objects so unrelated extension metadata is retained.
+        const plainWms = result.offerings.filter(offering => offering?.code === WMS_OFFERING_CODE &&
+            Array.isArray(offering.operations) && Object.keys(offering).every(key => ['code', 'operations'].includes(key)))
+        if (plainWms.length > 1) {
+            plainWms[0].operations = plainWms.flatMap(offering => offering.operations ?? [])
+            result.offerings = result.offerings.filter(offering => !plainWms.slice(1).includes(offering))
+        }
+    }
+    return result
+}
 
 /** Operation codes of the WMS offering the viewer makes use of. */
 export const SUPPORTED_WMS_OPERATIONS = ['GetCapabilities', 'GetMap', 'GetFeatureInfo']
@@ -255,7 +288,7 @@ const validateOfferings = (collector: IssueCollector, offerings: unknown, path: 
             collector.error(`${offeringPath}.code`, 'is required and must be a non empty string')
             return
         }
-        const isWmsOffering = offering.code === WMS_OFFERING_CODE
+        const isWmsOffering = isWmsOfferingCode(offering.code)
         if (!isWmsOffering)
             collector.warn(`${offeringPath}.code`, `"${offering.code}" is an offering the viewer cannot render; the resource is kept as an extension`)
 
@@ -369,6 +402,10 @@ const validateContextProperties = (collector: IssueCollector, properties: Record
     validateDateTime(collector, properties.updated, `${path}.updated`)
 
     if (properties.author !== undefined) validateAuthor(collector, properties.author, `${path}.author`)
+    if (properties.authors !== undefined) {
+        if (!Array.isArray(properties.authors)) collector.error(`${path}.authors`, 'must be an array of authors')
+        else properties.authors.forEach((author, index) => validateAuthor(collector, author, `${path}.authors[${index}]`))
+    }
     validateCategories(collector, properties.categories, `${path}.categories`)
 
     const stringMembers = ['publisher', 'rights', 'subtitle']
@@ -424,6 +461,28 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
     }
 
     const context = clone(value)
+    if (isRecord(context.properties)) {
+        const properties = context.properties
+        Object.entries({ language: 'lang', subtilte: 'subtitle' }).forEach(([legacy, canonical]) => {
+            if (properties[legacy] !== undefined) {
+                if (properties[canonical] === undefined) properties[canonical] = properties[legacy]
+                delete properties[legacy]
+                collector.warn(`properties.${legacy}`, `normalized legacy "${legacy}" member`)
+            }
+        })
+    }
+    if (Array.isArray(context.features)) context.features.forEach((feature, index) => {
+        if (!isRecord(feature) || !isRecord(feature.properties)) return
+        if (feature.offerings !== undefined && feature.properties.offerings === undefined) {
+            feature.properties.offerings = feature.offerings
+            delete feature.offerings
+            collector.warn(`features[${index}].properties.offerings`, 'moved legacy top-level offerings into properties')
+        }
+        const normalized = normalizeResourceProperties(feature.properties as unknown as OWSResourceProperties)
+        if (JSON.stringify(normalized) !== JSON.stringify(feature.properties))
+            collector.warn(`features[${index}].properties`, 'normalized legacy WMS identifiers, offerings or scale names')
+        feature.properties = normalized
+    })
 
     if (context.type !== 'FeatureCollection')
         collector.error('type', `must be "FeatureCollection", found ${JSON.stringify(context.type)}`)

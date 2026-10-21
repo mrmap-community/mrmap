@@ -57,19 +57,22 @@ else
   printf "${GREEN}no empty translations where found${NOCOLOR}\n"
 fi
 
-echo "Validating if compiled messages are outdated..."
-cmp /opt/mrmap/locale/de/LC_MESSAGES/django.po /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak -n 325
-
-if [[ $? != 0 ]]; 
+echo "Validating translation catalog freshness..."
+if /bin/sh /opt/mrmap/.bash_scripts/check_translation_catalogs.sh \
+    /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak \
+    /opt/mrmap/locale/de/LC_MESSAGES/django.po
 then
-	EXIT=1
-  printf "${RED}django.mo translation file is not up to date${NOCOLOR}\n"
+  printf "${GREEN}translation catalog is up to date${NOCOLOR}\n"
 else
-  printf "${GREEN}django.mo translation file is up to date${NOCOLOR}\n"
+  EXIT=1
+  printf "${RED}translation catalog is not up to date${NOCOLOR}\n"
 fi
 
 rm /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak
 
-python /opt/mrmap/manage.py compilemessages --locale=de
+if ! python /opt/mrmap/manage.py compilemessages --locale=de
+then
+  EXIT=1
+fi
 
 exit $EXIT

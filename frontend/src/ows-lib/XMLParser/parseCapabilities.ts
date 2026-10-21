@@ -1,7 +1,6 @@
-import { Polygon } from 'geojson'
 import moment from 'moment'
 
-import { ElevationDimension, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
+import { ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getDocument } from './utils'
 
 
@@ -41,65 +40,51 @@ const parseLayerMetrics = {
   totalMs: 0
 }
 
-export const getExtentFromPolygonBbox = (
-  bbox: Polygon[] | undefined,
-  inherited?: [number, number, number, number]
-): [number, number, number, number] | undefined => {
-  if (!bbox || bbox.length === 0) {
-    return inherited
+const toBounds = (values: (string | null | undefined)[]): [number, number, number, number] | undefined => {
+  const bounds = values.map(value => value === null || value === undefined ? NaN : Number(value))
+  if (bounds.some(value => !Number.isFinite(value))) {
+    return undefined
   }
-
-  const coords = bbox[0].coordinates?.[0] as [number, number][] | undefined
-  if (!coords || coords.length < 4) {
-    return inherited
-  }
-
-  const xs = coords.map(([x]) => x)
-  const ys = coords.map(([, y]) => y)
-
-  return [
-    Math.min(...xs),
-    Math.min(...ys),
-    Math.max(...xs),
-    Math.max(...ys),
-  ]
+  return bounds as [number, number, number, number]
 }
 
+/**
+ * Geographic extent of a layer, described by an "EX_GeographicBoundingBox" element in WMS 1.3.0 and
+ * by a "LatLonBoundingBox" element in WMS 1.1.1. Both elements are defined in geographic (lon/lat)
+ * coordinates, so the result is the same tuple shape for every supported WMS version.
+ */
 export const getLayerBoundsFromBbox = (
   bboxElement: Element | undefined
 ): [number, number, number, number] | undefined => {
   if (!bboxElement) return undefined
 
-  const west = Number(getText(bboxElement, 'westBoundLongitude'))
-  const south = Number(getText(bboxElement, 'southBoundLatitude'))
-  const east = Number(getText(bboxElement, 'eastBoundLongitude'))
-  const north = Number(getText(bboxElement, 'northBoundLatitude'))
-
-  if ([west, south, east, north].some(value => !Number.isFinite(value))) {
-    return undefined
+  if (bboxElement.localName === 'LatLonBoundingBox') {
+    return toBounds(['minx', 'miny', 'maxx', 'maxy'].map(name => bboxElement.getAttribute(name)))
   }
 
-  return [west, south, east, north]
+  return toBounds(['westBoundLongitude', 'southBoundLatitude', 'eastBoundLongitude', 'northBoundLatitude']
+    .map(name => getText(bboxElement, name)))
 }
 
-export const layerBboxToGeoJSON = (
-  bboxElement: Element | undefined
-): Polygon[] | undefined => {
-  const bounds = getLayerBoundsFromBbox(bboxElement)
-  if (!bounds) return undefined
+/**
+ * WMS states the layer attributes "queryable", "opaque" and "cascaded" as "0" or "1". A stated
+ * attribute overrides the inherited value, a missing attribute inherits; "0" therefore means false
+ * and not "not stated".
+ */
+const parseLayerAttribute = (layer: Element, name: string): boolean | undefined => {
+  const value = getAttribute(layer, name)
+  if (value === undefined) return undefined
+  return value === '1' || value.toLowerCase() === 'true'
+}
 
-  const [west, south, east, north] = bounds
-
-  return [{
-    type: 'Polygon',
-    coordinates: [[
-      [west, south],
-      [east, south],
-      [east, north],
-      [west, north],
-      [west, south]
-    ]]
-  }] as unknown as Polygon[]
+/**
+ * Scale denominators follow the WMS scale type which allows "infinity" next to a decimal number. A
+ * value which cannot be read is treated as not stated, so the layer keeps its inherited value.
+ */
+const parseScaleDenominator = (value: string | undefined): number | undefined => {
+  if (value === undefined) return undefined
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? undefined : parsed
 }
 
 export const parseTimeDimension = (timeDimension: Element): TimeDimension | undefined => {
@@ -179,7 +164,7 @@ export const forceArray = <T>(obj: T | T[] | undefined): T[] => {
 
 export const parseLayer = (
   layer: Element,
-  inheritedExtent?: [number, number, number, number]
+  inherited?: InheritableProperties
 ): WmsLayer => {
   const layerStart = performance.now()
   parseLayerMetrics.count += 1
@@ -187,8 +172,8 @@ export const parseLayer = (
   let abstract: string | undefined
   const srsValues: string[] = []
   const crsValues: string[] = []
-  const styles: Style[] = []
-  const dimensions: (TimeDimension | TempDimension | ElevationDimension)[] = []
+  const declaredStyles: Style[] = []
+  const declaredDimensions: (TimeDimension | TempDimension | ElevationDimension)[] = []
   let minScaleDenominator: string | undefined
   let maxScaleDenominator: string | undefined
   let bboxElement: Element | undefined
@@ -206,11 +191,11 @@ export const parseLayer = (
         crsValues.push(child.textContent?.trim() || '')
         break
       case 'Style':
-        styles.push(parseStyle(child))
+        declaredStyles.push(parseStyle(child))
         break
       case 'Dimension': {
         const dimension = parseDimension(child)
-        if (dimension) dimensions.push(dimension)
+        if (dimension) declaredDimensions.push(dimension)
         break
       }
       case 'MinScaleDenominator':
@@ -220,6 +205,7 @@ export const parseLayer = (
         maxScaleDenominator = child.textContent?.trim() || undefined
         break
       case 'EX_GeographicBoundingBox':
+      case 'LatLonBoundingBox':
         bboxElement = child
         break
       case 'Layer':
@@ -227,14 +213,43 @@ export const parseLayer = (
         break
     }
   }
-  
-  const rawBbox = bboxElement ? layerBboxToGeoJSON(bboxElement) : undefined
-  const effectiveExtent = getExtentFromPolygonBbox(rawBbox, inheritedExtent)
 
-  const crs = srsValues.length > 0 ? srsValues : crsValues
-  const isQueryable = getAttribute(layer, 'queryable')
-  const isOpaque = getAttribute(layer, 'opaque')
-  const isCascaded = getAttribute(layer, 'cascaded')
+  // WMS 1.1.1 states all reference systems of a layer whitespace separated in one "SRS" element,
+  // WMS 1.3.0 one "CRS" element per reference system.
+  const declaredReferenceSystems = (srsValues.length > 0 ? srsValues : crsValues)
+    .flatMap(value => value.split(/\s+/))
+    .filter(Boolean)
+
+  // Reference systems and styles are inherited and added to; a style which repeats the name of an
+  // inherited style replaces that inherited definition. Every other setting the layer states
+  // replaces the inherited value - including "0" and false - and is inherited wherever the layer
+  // does not state it.
+  const referenceSystems = [...new Set([
+    ...(inherited?.referenceSystems ?? []),
+    ...declaredReferenceSystems
+  ])]
+  const styles = [...new Map([...(inherited?.styles ?? []), ...declaredStyles]
+    .map(style => [style.metadata.name, style] as [string, Style])).values()]
+  const dimensions = declaredDimensions.length > 0 ? declaredDimensions : inherited?.dimension
+  const bbox = getLayerBoundsFromBbox(bboxElement) ?? inherited?.bbox
+  const minScaleDenominatorValue = parseScaleDenominator(minScaleDenominator) ?? inherited?.minScaleDenominator
+  const maxScaleDenominatorValue = parseScaleDenominator(maxScaleDenominator) ?? inherited?.maxScaleDenominator
+  const isQueryable = parseLayerAttribute(layer, 'queryable') ?? inherited?.isQueryable
+  const isOpaque = parseLayerAttribute(layer, 'opaque') ?? inherited?.isOpaque
+  const isCascaded = parseLayerAttribute(layer, 'cascaded') ?? inherited?.isCascaded
+
+  // these resolved settings are what the children of this layer inherit
+  const inheritable: InheritableProperties = {
+    referenceSystems,
+    styles,
+    ...(bbox && { bbox }),
+    ...(dimensions && { dimension: dimensions }),
+    ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),
+    ...(maxScaleDenominatorValue !== undefined && { maxScaleDenominator: maxScaleDenominatorValue }),
+    ...(isQueryable !== undefined && { isQueryable }),
+    ...(isOpaque !== undefined && { isOpaque }),
+    ...(isCascaded !== undefined && { isCascaded })
+  }
 
   const layerObj: WmsLayer = {
     metadata: {
@@ -242,20 +257,19 @@ export const parseLayer = (
       name: getText(layer, 'Name') ?? '',
       ...(abstract ? { abstract } : {})
     },
-    ...(crs.length > 0 && { referenceSystems: crs }),
-    ...(dimensions.length > 0 && { dimension: dimensions }),
-    ...(effectiveExtent && { bbox: effectiveExtent }),
+    ...(referenceSystems.length > 0 && { referenceSystems }),
+    ...(dimensions && dimensions.length > 0 && { dimension: dimensions }),
+    ...(bbox && { bbox }),
     ...(styles.length > 0 && { styles }),
-    ...(minScaleDenominator ? { minScaleDenominator: Number(minScaleDenominator) } : {}),
-    ...(maxScaleDenominator ? { maxScaleDenominator: Number(maxScaleDenominator) } : {}),
-    ...(isQueryable ? { isQueryable: Boolean(Number(isQueryable)) } : {}),
-    ...(isOpaque ? { isQpaque: Boolean(Number(isOpaque)) } : {}),
-    ...(isCascaded ? { isCascaded: Boolean(Number(isCascaded)) } : {})
+    ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),
+    ...(maxScaleDenominatorValue !== undefined && { maxScaleDenominator: maxScaleDenominatorValue }),
+    ...(isQueryable !== undefined && { isQueryable }),
+    ...(isOpaque !== undefined && { isOpaque }),
+    ...(isCascaded !== undefined && { isCascaded })
   }
 
-
   if (sublayers.length > 0) {
-    layerObj.children = sublayers.map(child => parseLayer(child, effectiveExtent))
+    layerObj.children = sublayers.map(child => parseLayer(child, inheritable))
   }
 
   parseLayerMetrics.totalMs += performance.now() - layerStart
@@ -274,6 +288,16 @@ const findOperationUrl = (root: Element, operationName: string): { mimeTypes: st
     get: getNode ? getAttribute(getNode, 'href', 'xlink:href') ?? '' : '',
     post: postNode ? getAttribute(postNode, 'href', 'xlink:href') ?? undefined : undefined
   }
+}
+
+/**
+ * GetFeatureInfo is an optional WMS operation. Capabilities which do not request it shall not be
+ * described by an operation with an empty href, so that callers tell both cases apart by checking
+ * the member instead of building a URL from nothing.
+ */
+const findOptionalOperationUrl = (root: Element, operationName: string) => {
+  const operation = findOperationUrl(root, operationName)
+  return operation.get === '' ? undefined : operation
 }
 
 export const parseWms = (xml: string): WmsCapabilitites => {
@@ -308,7 +332,7 @@ export const parseWms = (xml: string): WmsCapabilitites => {
     operationUrls: {
       getCapabilities: findOperationUrl(root, 'GetCapabilities'),
       getMap: findOperationUrl(root, 'GetMap'),
-      getFeatureInfo: findOperationUrl(root, 'GetFeatureInfo')
+      getFeatureInfo: findOptionalOperationUrl(root, 'GetFeatureInfo')
     },
     rootLayer: parseLayer(rootLayerElement ?? root)
   }

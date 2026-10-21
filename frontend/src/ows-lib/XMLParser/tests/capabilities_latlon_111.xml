@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WMS_Capabilities
+  xmlns="http://www.opengis.net/wms"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  version="1.1.1"
+  >
+  <Service>
+    <Name>WMS</Name>
+    <Title>WMS describing geographic extents with LatLonBoundingBox</Title>
+    <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms"/>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>text/xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetMap>
+    </Request>
+    <Layer queryable="1">
+      <Title>Root group</Title>
+      <SRS>EPSG:4326 EPSG:3857 EPSG:900913</SRS>
+      <LatLonBoundingBox minx="5" miny="40" maxx="25" maxy="50"/>
+      <Style>
+        <Name>raster</Name>
+        <Title>Raster style</Title>
+      </Style>
+      <Dimension name="time" units="ISO8601" default="2024-01-01">2024-01-01/2024-12-31/P1D</Dimension>
+      <MaxScaleDenominator>250000</MaxScaleDenominator>
+      <Layer>
+        <Title>Inheriting layer</Title>
+        <Name>tests:inheriting</Name>
+      </Layer>
+      <Layer>
+        <Title>Layer with its own extent</Title>
+        <Name>tests:own-extent</Name>
+        <LatLonBoundingBox minx="6" miny="46" maxx="7" maxy="47"/>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMS_Capabilities>

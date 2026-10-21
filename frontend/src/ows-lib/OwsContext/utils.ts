@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
+import { WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
 import { OWSResource as IOWSResource, OWSContext, StyleSet, Operation } from "./types";
 import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE } from "./validation";
@@ -48,7 +48,7 @@ export const prepareGetCapabilititesUrl = (href: string, serviceType: string, ve
 
 export const prepareGetMapUrl = (
     capabilities: WmsCapabilitites,
-    node: WmsLayer
+    layerName: string
 ): URL => {
     const url = new URL(capabilities.operationUrls.getMap.get)
     const params = url.searchParams
@@ -56,7 +56,7 @@ export const prepareGetMapUrl = (
     updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
     updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // TODO: version dependend
     updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // TODO: should be configureable
-    updateOrAppendSearchParam(params, 'LAYERS', node.metadata.name)
+    updateOrAppendSearchParam(params, 'LAYERS', layerName)
     updateOrAppendSearchParam(params, 'TRANSPARENT', 'true')
 
     return url
@@ -64,7 +64,7 @@ export const prepareGetMapUrl = (
 
 export const prepareGetFeatureInfoUrl = (
     capabilities: WmsCapabilitites,
-    node: WmsLayer
+    layerName: string
 ): URL | undefined => {
     const operation = capabilities.operationUrls.getFeatureInfo
     if (operation === undefined) return undefined
@@ -75,8 +75,8 @@ export const prepareGetFeatureInfoUrl = (
     updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
     updateOrAppendSearchParam(params, 'REQUEST', 'GetFeatureInfo')
     // include the layer identifiers so callers only need to add pixel coords and INFO_FORMAT
-    updateOrAppendSearchParam(params, 'LAYERS', node.metadata.name)
-    updateOrAppendSearchParam(params, 'QUERY_LAYERS', node.metadata.name)
+    updateOrAppendSearchParam(params, 'LAYERS', layerName)
+    updateOrAppendSearchParam(params, 'QUERY_LAYERS', layerName)
     // default info format can be overridden by the caller
     updateOrAppendSearchParam(params, 'INFO_FORMAT', 'text/html')
 
@@ -84,50 +84,54 @@ export const prepareGetFeatureInfoUrl = (
 }
 
 export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): OWSResource => {
-    const getFeatureInfoUrl = prepareGetFeatureInfoUrl(capabilities, node)
+    // a layer without a name is a grouping layer of the capabilities tree and cannot be addressed by
+    // GetMap, only its named children can
+    const layerName = node.metadata.name?.trim() ?? ''
+    const isRenderable = layerName.length > 0
+    const getMapUrl = isRenderable ? prepareGetMapUrl(capabilities, layerName) : undefined
+    const getFeatureInfoUrl = isRenderable ? prepareGetFeatureInfoUrl(capabilities, layerName) : undefined
+
     return OWSResource.fromPlainObject({
         type: "Feature",
         bbox: node.bbox,
         properties: {
             title: node.metadata.title,
             updated: new Date().toISOString(),
-            ...(node.metadata.name !== undefined && {
-                offerings: [{
-                    code: WMS_OFFERING_CODE,
-                    operations: [
-                        {
-                            code: "GetCapabilities",
-                            href: getCapabilitiesHref,
-                            method: "GET",
-                            type: "application/xml"
-                        },
-                        {
-                            code: "GetMap",
-                            href: prepareGetMapUrl(capabilities, node).toString(),
-                            method: "GET",
-                            type: "image/png"
-                        },
-                        ...(getFeatureInfoUrl && node.isQueryable ? [{
-                            code: "GetFeatureInfo",
-                            href: getFeatureInfoUrl.toString(),
-                            method: "GET",
-                            type: "text/html"
-                        }] : []),
-                    ],
-                    ...(node.styles && {
-                        styles: node.styles?.map((style): StyleSet => {
-                            return {
-                                name: style.metadata.name,
-                                title: style.metadata.title,
-                                abstract: style.metadata.abstract,
-                                legendURL: style.legendUrl?.href.toString()
-                            }
-                        })
-                    }),
-                }],
-                ...(node.minScaleDenominator && { minscaledenominator: node.minScaleDenominator }),
-                ...(node.maxScaleDenominator && { maxscaledenominator: node.maxScaleDenominator }),
-            }),
+            offerings: [{
+                code: WMS_OFFERING_CODE,
+                operations: [
+                    {
+                        code: "GetCapabilities",
+                        href: getCapabilitiesHref,
+                        method: "GET",
+                        type: "application/xml"
+                    },
+                    ...(getMapUrl ? [{
+                        code: "GetMap",
+                        href: getMapUrl.toString(),
+                        method: "GET",
+                        type: "image/png"
+                    }] : []),
+                    ...(getFeatureInfoUrl && node.isQueryable ? [{
+                        code: "GetFeatureInfo",
+                        href: getFeatureInfoUrl.toString(),
+                        method: "GET",
+                        type: "text/html"
+                    }] : []),
+                ],
+                ...(node.styles && node.styles.length > 0 && {
+                    styles: node.styles.map((style): StyleSet => {
+                        return {
+                            name: style.metadata.name,
+                            title: style.metadata.title,
+                            abstract: style.metadata.abstract,
+                            legendURL: style.legendUrl?.href.toString()
+                        }
+                    })
+                }),
+            }],
+            ...(node.minScaleDenominator !== undefined && { minscaledenominator: node.minScaleDenominator }),
+            ...(node.maxScaleDenominator !== undefined && { maxscaledenominator: node.maxScaleDenominator }),
             folder: folder
         }
     })
@@ -347,43 +351,4 @@ export const getFeatureFolderIndex = (feature: IOWSResource) => {
 export const getParentFolder = (folder: string) => {
     if (folder?.split('/').length === 2) return // root node
     return folder?.split('/').slice(0, -1).join('/')
-}
-
-
-export const collectInheritedLayerProperties = (layer: WmsLayer, identifier: string, properties: InheritableProperties | undefined = undefined): InheritableProperties | undefined => {
-    const currentProps: InheritableProperties = {
-        referenceSystems: layer.referenceSystems ?? [],
-        styles: layer.styles ?? [],
-        bbox: layer.bbox ?? [],
-        dimension: layer.dimension,
-        minScaleDenominator: layer.minScaleDenominator,
-        maxScaleDenominator: layer.maxScaleDenominator,
-        isQueryable: layer.isQueryable,
-        isQpaque: layer.isQpaque,
-        isCascaded: layer.isCascaded
-    }
-
-    if (layer.metadata.name === identifier) {
-        return currentProps
-    } else {
-        const childProps = layer.children?.find(subLayer => collectInheritedLayerProperties(subLayer, identifier, properties))
-        if (childProps === undefined) return
-
-        const inheritedProps = {
-            ...currentProps,
-            // merge referenceSystems and styles of layers
-            referenceSystems: [...new Set([...currentProps.referenceSystems, ...(childProps.referenceSystems ? childProps.referenceSystems : [])])],
-            styles: [...new Set([...currentProps.styles, ...(childProps.styles ? childProps.styles : [])])],
-            // replace all other properties with child values
-            ...(childProps.bbox && { bbox: childProps.bbox }),
-            ...(childProps.dimension && { dimension: childProps.dimension }),
-            ...(childProps.minScaleDenominator && { minScaleDenominator: childProps.minScaleDenominator }),
-            ...(childProps.maxScaleDenominator && { maxScaleDenominator: childProps.maxScaleDenominator }),
-            ...(childProps.isQueryable && { isQueryable: childProps.isQueryable }),
-            ...(childProps.isQpaque && { isQpaque: childProps.isQpaque }),
-            ...(childProps.isCascaded && { isCascaded: childProps.isCascaded }),
-
-        }
-        return inheritedProps
-    }
 }

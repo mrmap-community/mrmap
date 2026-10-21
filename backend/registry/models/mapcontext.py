@@ -1,9 +1,11 @@
 from datetime import datetime
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from mptt2.models import Node
 from registry.managers.mapcontext import (MapContextLayerManager,
@@ -11,6 +13,31 @@ from registry.managers.mapcontext import (MapContextLayerManager,
 from registry.models import DatasetMetadataRecord, Layer
 from registry.models.metadata import Style
 from simple_history.models import HistoricalRecords
+
+
+WMS_OFFERING_CODE = "http://www.opengis.net/spec/owc-geojson/1.0/req/wms"
+
+
+def latest_history(instance):
+    if hasattr(instance, 'last_history'):
+        return instance.last_history[0] if instance.last_history else None
+    return instance.change_log.select_related('history_user').first()
+
+
+def history_properties(instance):
+    history = latest_history(instance)
+    # Old/bulk-loaded objects may have no history. Use export time rather than
+    # inventing a modification date or emitting an invalid empty timestamp.
+    properties = {"updated": (history.history_date if history else timezone.now()).isoformat()}
+    if history and history.history_user:
+        user = history.history_user
+        properties["authors"] = [{"name": user.get_full_name() or user.get_username()}]
+    return properties
+
+
+def resource_id(instance, view_name, request):
+    path = reverse(view_name, args=[instance.pk])
+    return request.build_absolute_uri(path) if request else f"urn:mrmap:{instance._meta.model_name}:{instance.pk}"
 
 
 def preview_image_file_path(instance, filename):
@@ -79,17 +106,29 @@ class MapContext(models.Model):
 
     @property
     def updated(self) -> datetime:
-        return self.last_history[0].history_date if hasattr(self, 'last_history') and self.last_history and len(self.last_history) == 1 else None
+        history = latest_history(self)
+        return history.history_date if history else None
 
-    def as_ows_context(self):
+    def as_ows_context(self, request=None):
+        # MPTT preorder preserves sibling order without loading ancestors at an
+        # arbitrary fixed depth. Folder segments are viewer-compatible indexes.
+        layers = sorted(self.map_context_layers.all(), key=lambda layer: (layer.mptt_tree_id, layer.mptt_lft))
+        folders, sibling_counts, features = {}, {}, []
+        for layer in layers:
+            parent = layer.mptt_parent_id
+            index = sibling_counts.get(parent, 0)
+            sibling_counts[parent] = index + 1
+            folder = f"{folders.get(parent, '')}/{index}"
+            folders[layer.pk] = folder
+            features.append(layer.as_ows_feature(request=request, folder=folder))
         # mandatory attributes
         ows_context = {
             "type": "FeatureCollection",
-            "id": reverse("ows-context-detail", args=[self.pk]),
+            "id": resource_id(self, "ows-context-detail", request),
             "properties": {
                 "title": self.title,
-                "language": self.language,
-                "updated": self.updated.isoformat() if self.updated else "",
+                "lang": self.language,
+                **history_properties(self),
                 "links": {
                     "profiles": [
                         "http://www.opengis.net/spec/owc-geojson/1.0/req/core"
@@ -97,12 +136,12 @@ class MapContext(models.Model):
                 }
             },
 
-            "features": [context_layer.as_ows_feature() for context_layer in self.map_context_layers.all()]
+            "features": features
         }
 
         # optional attributes
         if self.abstract:
-            ows_context["properties"].update({"subtilte": self.abstract})
+            ows_context["properties"].update({"subtitle": self.abstract})
         if self.bbox:
             ows_context.update({"bbox": list(self.bbox.extent)})
 
@@ -207,13 +246,13 @@ class RenderingOffering(models.Model):
     def rendering_offering(self):
         if self.rendering_layer_id:
             return {
-                "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
+                "code": WMS_OFFERING_CODE,
                 "operations": [
                     {
                         "code": "GetMap",
                         "method": "GET",
                         "type": "image/png",
-                        "href": self.rendering_layer.get_map_url(format="image/png"),
+                        "href": self.rendering_layer.get_map_url(format="image/png", style=self.layer_style),
                         "active": self.rendering_active
                     }
                 ]
@@ -241,14 +280,15 @@ class SelectionOffering(models.Model):
 
     def selection_offering(self):
         if self.selection_layer_id:
+            href = self.selection_layer.get_feature_info_url(format="image/png")
             return {
-                "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
+                "code": WMS_OFFERING_CODE,
                 "operations": [
                     {
                         "code": "GetFeatureInfo",
                         "method": "GET",
-                        "type": "application/vnd.ogc.gml",
-                        "href": self.selection_layer.get_feature_info_url(),
+                        "type": parse_qs(urlparse(href).query)["INFO_FORMAT"][0],
+                        "href": href,
                         "active": self.selection_active
                     }
                 ]
@@ -297,21 +337,22 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
         if self.is_root_node:
             return f"/{self.id}"
         else:
-            return f"{self.mptt_parent.folder_name}"
+            return f"{self.mptt_parent.folder_name}/{self.id}"
 
     @property
     def updated(self) -> datetime:
-        return self.last_history[0].history_date if hasattr(self, 'last_history') and self.last_history and len(self.last_history) == 1 else None
+        history = latest_history(self)
+        return history.history_date if history else None
 
-    def as_ows_feature(self) -> dict:
+    def as_ows_feature(self, request=None, folder=None) -> dict:
         # mandatory attributes of ows feature
         ows_feature = {
             "type": "Feature",
-            "id": reverse("registry:mapcontextlayer-detail", args=[self.pk]),
+            "geometry": None,
+            "id": resource_id(self, "registry:mapcontextlayer-detail", request),
             "properties": {
                 "title": self.title,
-                # TODO: else "" is not allowed
-                "updated": self.updated.isoformat() if self.updated else "",
+                **history_properties(self),
             }
         }
 
@@ -319,14 +360,13 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
         if self.description:
             ows_feature["properties"].update(
                 {"abstract": self.description})
-        if self.layer_scale_min:
+        if self.layer_scale_min is not None:
             ows_feature["properties"].update(
-                {"minScaleDenominator": self.layer_scale_min})
-        if self.layer_scale_max:
+                {"minscaledenominator": self.layer_scale_min})
+        if self.layer_scale_max is not None:
             ows_feature["properties"].update(
-                {"maxScaleDenominator": self.layer_scale_max})
-        if self.folder_name:
-            ows_feature["properties"].update({"folder": self.folder_name})
+                {"maxscaledenominator": self.layer_scale_max})
+        ows_feature["properties"]["folder"] = folder if folder is not None else self.folder_name
 
         offerings = []
         rendering_offering = self.rendering_offering()
@@ -339,6 +379,12 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
             offerings.append(selection_offering)
 
         if offerings:
-            ows_feature.update({"offerings": offerings})
+            # Both operations belong to the same offering; their active flags are
+            # independent extensions used by the viewer.
+            offering = {"code": WMS_OFFERING_CODE,
+                        "operations": [operation for item in offerings for operation in item["operations"]]}
+            if self.layer_style_id and rendering_offering:
+                offering["styles"] = [{"name": self.layer_style.name, "title": self.layer_style.title, "default": True}]
+            ows_feature["properties"]["offerings"] = [offering]
 
         return ows_feature

@@ -1,3 +1,5 @@
+import { MemoryRouter } from "react-router-dom";
+
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +12,7 @@ beforeEach(() => { state.props = undefined; });
 
 describe("CatalogueServiceList", () => {
   it("uses the shared service table, header and detail aside", () => {
-    render(<CatalogueServiceList />);
+    render(<CatalogueServiceList />, { wrapper: MemoryRouter });
     expect(state.props?.header).toBeDefined();
     expect(state.props?.columns).toBeDefined();
     expect(state.props?.aside).toBeDefined();
@@ -24,7 +26,7 @@ describe("CatalogueServiceList", () => {
     ]);
   });
   it("requests the configured API fieldset and protocol", () => {
-    render(<CatalogueServiceList />);
+    render(<CatalogueServiceList />, { wrapper: MemoryRouter });
     expect(state.props?.queryOptions).toEqual({
       meta: { jsonApiParams: { ["fields[" + CATALOGUE_SERVICE_LIST_CONFIG.resource + "]"]: CATALOGUE_SERVICE_LIST_FIELDS.join(",") } },
     });

@@ -1,12 +1,13 @@
 import { createElement, FC, ReactNode } from 'react';
+import { useListContext } from 'react-admin';
 import { Link, To } from 'react-router-dom';
 
 import { Box, Card, Typography } from '@mui/material';
-import { useListContext } from 'react-admin';
+
 import HistoryChart from '../../Resource/Generic/History/HistoryChart';
 
 interface Props {
-    icon: FC<any>;
+    icon: FC<import("@mui/material").SvgIconProps>;
     to: To;
     title?: string;
     subtitle?: ReactNode;
@@ -19,7 +20,6 @@ const CardWithIcon = ({
     title, 
     subtitle, 
     to,
-    resource,
     children 
 }: Props) => {
     const { total } = useListContext();

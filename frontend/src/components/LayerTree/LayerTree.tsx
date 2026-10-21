@@ -1,6 +1,5 @@
 import { Fragment, memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
-
-import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
+import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext } from 'react-admin'
 
 import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
@@ -10,17 +9,17 @@ import Checkbox from '@mui/material/Checkbox'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext } from 'react-admin'
+import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
+import { v4 as uuidv4 } from 'uuid'
+
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
+import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import ContextMenu from './ContextMenu/ContextMenu'
 import { ContextMenuBase } from './ContextMenu/ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
-
-import { v4 as uuidv4 } from 'uuid'
-import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
 
@@ -60,6 +59,8 @@ const NodeIcons = memo(
 export interface TreeItemLabelProps {
   node: OWSResource;
 }
+
+NodeIcons.displayName = "NodeIcons";
 
 const TreeItemLabel = memo(
   ({
@@ -302,6 +303,8 @@ const TreeViews = (
     })
  
 }
+
+TreeItemLabel.displayName = "TreeItemLabel";
 
 const LayerTree = ({ 
   initialExpanded = [] 

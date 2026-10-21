@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import useJsonApiQuery from './useJsonApiQuery';
 
 const state = vi.hoisted(() => ({

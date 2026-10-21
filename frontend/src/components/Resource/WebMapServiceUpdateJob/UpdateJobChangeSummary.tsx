@@ -1,3 +1,5 @@
+import { useRecordContext, useTranslate } from "react-admin";
+
 import {
   Box,
   Chip,
@@ -6,7 +8,6 @@ import {
   Stack,
   Typography
 } from "@mui/material";
-import { useRecordContext, useTranslate } from "react-admin";
 
 const categories = [
   { type: "changedLayers", color: "info.main" },
@@ -27,7 +28,7 @@ const CategoryCount = ({
   const translate = useTranslate();
   // Query totals across the entire job, independently of table filters and pages.
   const record = useRecordContext()
-  const total = record?.[type] || 0
+  const total = record?.[type] ?? null
 
   const label = translate(`updateReview.summary.${type}`);
   if (compact) {

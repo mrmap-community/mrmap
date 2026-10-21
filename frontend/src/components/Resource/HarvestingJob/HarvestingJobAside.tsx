@@ -1,12 +1,14 @@
+import { useState } from 'react';
+import { useRecordContext } from 'react-admin';
+
 import { TabList } from '@mui/lab';
 import TabContext from '@mui/lab/TabContext';
 import TabPanel from '@mui/lab/TabPanel';
 import { CardHeader, Tab } from '@mui/material';
-import { useState } from 'react';
-import { useRecordContext } from 'react-admin';
+
 import AsideCard from '../../Layout/AsideCard';
-import HarvestResultPieChart from './HarvestJobResultPieChart';
 import HarvestingJobTimingCharts from './HarvestingJobTimingCharts';
+import HarvestResultPieChart from './HarvestJobResultPieChart';
 
 const AsideCardHarvestingJob = () => {
   const record = useRecordContext();

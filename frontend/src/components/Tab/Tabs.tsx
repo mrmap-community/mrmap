@@ -23,7 +23,7 @@ export const Tabs = ({
     setTabList({ ...tabList, activeTab: newValue })
   }, [setTabList, tabList])
 
-  const handleTabClose = useCallback((event, index: number): void => {
+  const handleTabClose = useCallback((event: SyntheticEvent, index: number): void => {
     event.stopPropagation()
     const newTabList = tabList
     if (newTabList.tabs.length > 1) {

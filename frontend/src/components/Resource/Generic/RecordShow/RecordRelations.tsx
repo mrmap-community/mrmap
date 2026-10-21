@@ -1,19 +1,3 @@
-import {
-  Alert,
-  Box,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
-import {
-  Background,
-  Controls,
-  ReactFlow,
-  type Edge,
-  type Node,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import { createElement, useMemo, useState } from "react";
 import {
   BasenameContextProvider,
@@ -30,9 +14,28 @@ import {
   useTranslate,
   type RaRecord,
 } from "react-admin";
+
+import {
+  Alert,
+  Box,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
+import {
+  Background,
+  Controls,
+  ReactFlow,
+  type Edge,
+  type Node,
+} from "@xyflow/react";
+
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { choiceLabel } from "./RecordFields";
+
+import "@xyflow/react/dist/style.css";
 
 export const relationGroups = (resource: string) =>
   resource === "DatasetMetadataRecord"

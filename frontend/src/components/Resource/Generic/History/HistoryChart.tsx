@@ -1,22 +1,24 @@
+import { useMemo } from 'react';
+import { useListContext, useResourceDefinition } from 'react-admin';
+
 import { useTheme } from '@mui/material/styles';
 import { AllSeriesType, ChartsContainerProps } from '@mui/x-charts';
 import { ChartSeriesType } from '@mui/x-charts/internals';
-import { useMemo } from 'react';
-import { useListContext, useResourceDefinition } from 'react-admin';
+
 import GradientChartsContainer from '../../../MUI/GradientChartsContainer';
 import HistoryListBase from './HistoryListBase';
 
-export interface HistoryChartProps extends ChartsContainerProps{
+export interface HistoryChartProps extends Omit<ChartsContainerProps, "filter">{
   resource?: string
   total?: number
-  filter?: any
+  filter?: import("react-admin").FilterPayload
 }
 
 
 const HistoryChartCore = (
   {
     total = 0,
-    ...props
+    filter: _filter, resource: _resource, ...props
   }: HistoryChartProps
 ) => {
   const { name } = useResourceDefinition()
@@ -28,7 +30,7 @@ const HistoryChartCore = (
     if (!data || data.length === 0) return [];
 
     // Erstelle ein Map für schnelleren Zugriff nach Datum
-    const dataMap = new Map<string, any>();
+    const dataMap = new Map<string, import("react-admin").RaRecord>();
     data?.forEach(record => {
       
       const day = new Date(record?.day).toISOString().split("T")[0]; // Nur yyyy-mm-dd
@@ -36,7 +38,7 @@ const HistoryChartCore = (
     });
 
     const today = new Date();
-    const result: any[] = [];
+    const result: import("react-admin").RaRecord[] = [];
 
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
@@ -67,16 +69,16 @@ const HistoryChartCore = (
   },[data, total])
 
   const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
-    const newDataSeries: any[] = []
-    const deletedDataSeries: any[] = []
-    const updatedDataSeries: any[] = []
-    const dailyTotal: any[] = []
+    const newDataSeries: number[] = []
+    const deletedDataSeries: number[] = []
+    const updatedDataSeries: number[] = []
+    const dailyTotal: number[] = []
     
     const series = [
-      { type: 'line', data: dailyTotal, label: name, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
-      //{ type: 'line', data: newDataSeries, label:'new' ,},
-      //{ type: 'line', data: deletedDataSeries, label:'deleted'},
-      //{ type: 'line', data: updatedDataSeries, label:'updated'},
+      { type: 'line' as const, data: dailyTotal, label: name, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
+      //{ type: 'line' as const, data: newDataSeries, label:'new' ,},
+      //{ type: 'line' as const, data: deletedDataSeries, label:'deleted'},
+      //{ type: 'line' as const, data: updatedDataSeries, label:'updated'},
     ]
   
     monthlyStats?.forEach(data => {
@@ -92,11 +94,11 @@ const HistoryChartCore = (
 
   const xAxis = useMemo(()=>(
     [{
-      scaleType: 'band',
+      scaleType: 'band' as const,
       data: monthlyStats?.map(data => (data.id)) || [],
       id: 'x-axis-id',
       height: 45,
-      position: 'none'
+      position: 'none' as const
     }]
   ),[monthlyStats])
 

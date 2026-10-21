@@ -1,8 +1,6 @@
-import { useFormContext, useWatch } from "react-hook-form";
 import type { FieldDefinition } from "../../../../../../jsonapi/utils";
-import { Alert, Button, Stack, Typography } from "@mui/material";
+
 import { createElement, useEffect } from "react";
-import { Link } from "react-router-dom";
 import {
   FilterForm,
   ListBase,
@@ -14,6 +12,11 @@ import {
   useRecordContext,
   useTranslate,
 } from "react-admin";
+import { useFormContext, useWatch } from "react-hook-form";
+import { Link } from "react-router-dom";
+
+import { Alert, Button, Stack, Typography } from "@mui/material";
+
 import { useFilterInputForOperation } from "../../../../../../jsonapi/hooks/useFilterInputForOperation";
 import FeatureGroupEditor from "../../../../../Input/FeatureGroupEditor";
 import GeoJsonMap from "../../../../../MapContainer/GeoJsonMap";

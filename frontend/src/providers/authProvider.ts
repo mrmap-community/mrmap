@@ -1,4 +1,5 @@
 import { UserIdentity, type AuthProvider } from 'ra-core';
+
 import { API_BASE_URL } from '../context/HttpClientContext';
 
 
@@ -63,7 +64,7 @@ export const setAuthToken = (props: AuthToken | undefined) => {
 
 const tokenAuthProvider = (
     loginUrl = `${API_BASE_URL}/api/auth/login`,
-    logoutUrl = `${API_BASE_URL}/api/auth/logout`,
+    _logoutUrl = `${API_BASE_URL}/api/auth/logout`,
     identityUrl = `${API_BASE_URL}/api/accounts/who-am-i/`,
 ): AuthProvider => {
   return {
@@ -92,7 +93,7 @@ const tokenAuthProvider = (
       setAuthToken(undefined)
       return Promise.resolve();
     },
-    checkAuth: async (params) => {
+    checkAuth: async () => {
       const storedToken = getAuthToken()
       if (!storedToken) {
         return Promise.reject('not authenticated')

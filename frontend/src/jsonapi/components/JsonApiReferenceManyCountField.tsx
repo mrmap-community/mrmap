@@ -1,19 +1,20 @@
-import { Typography } from "@mui/material";
 import { RaRecord, ReferenceManyCountProps, sanitizeFieldRestProps, useFieldValue } from "react-admin";
+
+import { Typography } from "@mui/material";
 
 const JsonApiReferenceManyCount = <RecordType extends RaRecord = RaRecord>(
   props: ReferenceManyCountProps<RecordType>
 ) => {
-    const data = useFieldValue(props.source || '');
+    const data = useFieldValue({ source: props.source || '' });
     const {
-      reference,
-      target,
-      filter,
-      sort,
-      link,
-      resource,
-      source = 'id',
-      timeout = 1000,
+      reference: _reference,
+      target: _target,
+      filter: _filter,
+      sort: _sort,
+      link: _link,
+      resource: _resource,
+      source: _source = 'id',
+      timeout: _timeout = 1000,
       ...rest
   } = props;
 

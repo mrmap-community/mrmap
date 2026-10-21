@@ -1,4 +1,3 @@
-import { Tabs, type TabsProps } from "@mui/material";
 import {
   Children,
   cloneElement,
@@ -7,6 +6,8 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation } from "react-admin";
+
+import { Tabs, type TabsProps } from "@mui/material";
 
 interface ServiceShowTabsProps extends Omit<TabsProps, "value"> {
   children?: ReactNode;

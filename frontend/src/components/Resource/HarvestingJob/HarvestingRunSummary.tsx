@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  DateField,
+  Link,
+  useCreatePath,
+  useRecordContext,
+  useTranslate,
+} from "react-admin";
+
+import {
   Alert,
   Box,
   Card,
@@ -10,17 +18,11 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  DateField,
-  Link,
-  useCreatePath,
-  useRecordContext,
-  useTranslate,
-} from "react-admin";
-import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
+
 import { Count } from "../../../jsonapi/components/Count";
-import HarvestingPhaseStepper from "./HarvestingPhaseStepper";
+import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import HarvestingJobActions from "./HarvestingJobActions";
+import HarvestingPhaseStepper from "./HarvestingPhaseStepper";
 
 const HarvestingRunSummary = () => {
   const run = useRecordContext();

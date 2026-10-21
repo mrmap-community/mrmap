@@ -1,5 +1,3 @@
-import PlayArrow from "@mui/icons-material/PlayArrow";
-import StopIcon from "@mui/icons-material/Stop";
 import {
   Button,
   PrevNextButtons,
@@ -11,6 +9,9 @@ import {
   useRefresh,
   useUpdate,
 } from "react-admin";
+
+import PlayArrow from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
 
 const AbortButton = () => {
   const record = useRecordContext();

@@ -12,7 +12,6 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import { Box } from "@mui/material";
 
 import UpdateJobChangeSummary from "../../../../WebMapServiceUpdateJob/UpdateJobChangeSummary";
-
 import { formatMonitoringRun } from "../MonitoringRuns/formatMonitoringRun";
 
 const UpdateJobsList = () => {

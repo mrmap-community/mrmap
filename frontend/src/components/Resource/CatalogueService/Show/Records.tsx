@@ -1,10 +1,12 @@
-import { Stack } from "@mui/material";
 import {
   BasenameContextProvider,
   useShowContext,
   useTranslate,
 } from "react-admin";
 import { Route, Routes } from "react-router-dom";
+
+import { Stack } from "@mui/material";
+
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import SimpleCard from "../../../MUI/SimpleCard";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";

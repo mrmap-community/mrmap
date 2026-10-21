@@ -1,7 +1,3 @@
-import DialogHeader from "./DialogHeader";
-import useDialogMutationSuccess from "./useDialogMutationSuccess";
-import EditIcon from "@mui/icons-material/Edit";
-import { type ButtonOwnProps } from "@mui/material";
 import { Fragment } from "react";
 import {
   Button,
@@ -13,12 +9,18 @@ import {
   useResourceDefinition,
   useTranslate,
 } from "react-admin";
+
+import EditIcon from "@mui/icons-material/Edit";
+import { type ButtonOwnProps } from "@mui/material";
+
 import EditGuesser, {
   EditGuesserProps,
 } from "../../jsonapi/components/EditGuesser";
 import { FieldDefinition } from "../../jsonapi/utils";
 import ContextBasedDialog from "./Dialog";
 import { DialogBase, useDialogContextBase } from "./DialogContextBase";
+import DialogHeader from "./DialogHeader";
+import useDialogMutationSuccess from "./useDialogMutationSuccess";
 
 export interface EditDialogProps extends Partial<EditProps> {
   isOpen?: boolean;

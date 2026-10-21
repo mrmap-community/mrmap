@@ -1,8 +1,9 @@
 import { DateField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField } from 'react-admin';
+
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
 import ProgressField from '../../Field/ProgressField';
-import ProcessStatusField from './ProcessStatusField';
 import RelatedResourceField from '../../Field/RelatedResourceField';
+import ProcessStatusField from './ProcessStatusField';
 
 export const IS_STALE_CHECK_INTERVAL = 10
 

@@ -1,11 +1,4 @@
-import {
-  Alert,
-  Box,
-  Chip,
-  LinearProgress,
-  Stack,
-  Typography,
-} from "@mui/material";
+import type { PropsWithChildren } from "react";
 import {
   Button,
   DateField,
@@ -17,7 +10,16 @@ import {
   useTranslate,
 } from "react-admin";
 import { Link } from "react-router-dom";
-import type { PropsWithChildren } from "react";
+
+import {
+  Alert,
+  Box,
+  Chip,
+  LinearProgress,
+  Stack,
+  Typography,
+} from "@mui/material";
+
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import SimpleCard from "../../../MUI/SimpleCard";

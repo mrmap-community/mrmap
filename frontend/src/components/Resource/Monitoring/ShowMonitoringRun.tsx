@@ -1,4 +1,3 @@
-import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   DateField,
   Show,
@@ -7,11 +6,13 @@ import {
   useTranslate,
 } from "react-admin";
 
+import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
+
+import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
+import { getDuration } from "../WebMapService/Show/Overview/MonitoringRuns/formatMonitoringRun";
 import MonitoringProbeResults, {
   type ProbeResultsGroup,
 } from "./MonitoringProbeResults";
-import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
-import { getDuration } from "../WebMapService/Show/Overview/MonitoringRuns/formatMonitoringRun";
 
 export interface RunProbeResultsConfig {
   /** resource which stores the results of the probe */

@@ -1,8 +1,11 @@
-import "@testing-library/jest-dom/vitest";
+import { useGetList, useListContext } from "react-admin";
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGetList, useListContext } from "react-admin";
+
 import MonitoringRunsCardBase from "./MonitoringRunsCardBase";
+
+import "@testing-library/jest-dom/vitest";
 
 vi.mock("react-admin", () => ({
   CreateButton: ({ to, label }: { to: string; label: string }) => (
@@ -21,6 +24,7 @@ vi.mock("react-admin", () => ({
 
 beforeEach(() => {
   vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceMonitoringRun",
     data: [],
     isPending: false,
   });
@@ -98,6 +102,7 @@ describe("monitoring runs empty state", () => {
     "shows the latest run's success=%s status",
     (success) => {
       vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceMonitoringRun",
         data: [{ id: 1, success }],
         isPending: false,
       });
@@ -124,6 +129,7 @@ describe("monitoring runs empty state", () => {
   });
   it("warns about a missed schedule even when older results exist", () => {
     vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceMonitoringRun",
       data: [{ id: 1, success: true, statusCode: 4 }],
       isPending: false,
     });

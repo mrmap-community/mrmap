@@ -9,7 +9,12 @@ export default defineConfig({
         environment: 'jsdom',
         setupFiles: './tests/setup.js',
         coverage: {
-            provider: 'istanbul'
+            provider: 'istanbul',
+            include: ['src/**/*.{js,jsx,ts,tsx}'],
+            exclude: ['src/**/*.spec.*', 'src/**/tests/**', 'src/**/*.d.ts'],
+            reporter: ['text', 'html', 'lcov', 'json-summary'],
+            reportOnFailure: true,
+            thresholds: { lines: 52, statements: 51, branches: 49, functions: 48 }
         }
     },
     define: {

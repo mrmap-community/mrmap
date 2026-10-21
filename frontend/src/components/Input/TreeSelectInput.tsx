@@ -1,8 +1,10 @@
-import { Chip, FormControl, FormHelperText, FormLabel, Paper } from '@mui/material';
-import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useMemo } from "react";
 import { Identifier, Loading, RaRecord, TextFieldProps, useGetOne, useInput } from "react-admin";
 import { useFormContext, useWatch } from "react-hook-form";
+
+import { Chip, FormControl, FormHelperText, FormLabel, Paper } from '@mui/material';
+import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
+
 import { getDescendants } from '../MapViewer/utils';
 import { getSubTree } from "../utils";
 
@@ -10,6 +12,8 @@ import { getSubTree } from "../utils";
 export interface TreeSelectInputProps extends TextFieldProps{
   wmsId?: Identifier
   dependingFieldName?: string
+  isRequired?: boolean
+  helperText?: React.ReactNode
 
 }
 
@@ -21,7 +25,7 @@ const TreeSelectInput = ({
   source,
   ...props  
 }: TreeSelectInputProps) => {
-  const { className, emptyText, ...rest } = props;
+  const { ...rest } = props;
   const values = useWatch()
   const wmsIdValue = useMemo(()=> wmsId || dependingFieldName && values[dependingFieldName]?.id, [values, dependingFieldName])
   const {setValue} = useFormContext();
@@ -34,7 +38,7 @@ const TreeSelectInput = ({
   
   const tree = useMemo(()=> getSubTree(layerListPreOrderd), [layerListPreOrderd]);
   
-  const { id, field: {value}, fieldState: {invalid }, formState, isRequired} = useInput(
+  const { id, field: {value}, fieldState: {invalid }, isRequired} = useInput(
     { 
       source: source, 
       isRequired: rest.isRequired,
@@ -74,8 +78,9 @@ const TreeSelectInput = ({
           multiSelect
           checkboxSelection
           selectedItems={selectedItems}
-          onItemSelectionToggle={(event: React.SyntheticEvent, itemId: string, isSelected: boolean) => {
+          onItemSelectionToggle={(event, itemId: string, isSelected: boolean) => {
             const node = layerListPreOrderd.find((r: RaRecord) => r.id === itemId)
+            if (!node) return;
             const children = getDescendants(layerListPreOrderd, node, true).map((r: RaRecord) => r?.id?.toString())
             if (isSelected){
               setValue(source, [...new Set([...selectedItems, ...children])].map(id => ({id: id})), { shouldDirty: true })

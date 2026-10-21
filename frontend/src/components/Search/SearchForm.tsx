@@ -1,8 +1,9 @@
-import { FormControl, TextField } from '@mui/material';
 import { useCallback } from 'react';
 
+import { FormControl, TextField } from '@mui/material';
+
 const SearchInput = () => {
-  const onSubmit = useCallback((data) => {
+  const onSubmit = useCallback((data: React.SyntheticEvent) => {
     console.log(data)
   },[]);
 

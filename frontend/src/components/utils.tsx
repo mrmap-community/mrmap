@@ -1,11 +1,9 @@
+import { ReactNode } from 'react';
 import { RaRecord } from 'react-admin';
+import { useSearchParams } from 'react-router-dom';
 
 import { TreeItem, TreeItemProps } from '@mui/x-tree-view/TreeItem';
 
-import { useSearchParams } from 'react-router-dom';
-
-
-import { ReactNode } from 'react';
 import { getChildren } from './MapViewer/utils';
 
 

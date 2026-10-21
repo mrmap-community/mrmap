@@ -1,17 +1,16 @@
-import { FormControl, TextField } from '@mui/material';
 import { Fragment, useEffect, useState } from 'react';
 import { useForm } from "react-hook-form";
 import XMLViewer from 'react-xml-viewer';
+
+import { FormControl, TextField } from '@mui/material';
 
 const CatalogueServiceClient = () => {
   
   const {register, handleSubmit} = useForm();
   const [data, setData] = useState({});
   const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const [cswUrl, setCswUrl] = useState('https://42.gdi-de.org/geonetwork/srv/ger/csw');
+  const [cswUrl] = useState('https://42.gdi-de.org/geonetwork/srv/ger/csw');
 
   useEffect(()=>{
     if (data !== undefined){
@@ -28,20 +27,13 @@ const CatalogueServiceClient = () => {
       url.searchParams.set('Constraint','<ogc%3AFilter+xmlns%3Aogc%3D"http%3A%2F%2Fwww.opengis.net%2Fogc"><ogc%3AOr><ogc%3APropertyIsEqualTo><ogc%3APropertyName>type<%2Fogc%3APropertyName><ogc%3ALiteral>dataset<%2Fogc%3ALiteral><%2Fogc%3APropertyIsEqualTo><ogc%3APropertyIsEqualTo><ogc%3APropertyName>type<%2Fogc%3APropertyName><ogc%3ALiteral>service<%2Fogc%3ALiteral><%2Fogc%3APropertyIsEqualTo><%2Fogc%3AOr><%2Fogc%3AFilter>')
       url.searchParams.set('maxRecords', '100')
       url.searchParams.set('startPosition', '1')
-
-
-
-
-      setLoading(true)
       fetch(url)
       .then(response => (
         response.text())).then(response => {
-          setLoading(false);
           setResponse(response);
       })
       .catch(error => {
-        setError(error);
-        setLoading(false);
+        console.error(error);
       })
 
     }

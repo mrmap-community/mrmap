@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 
 import AddIcon from '@mui/icons-material/Add';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -11,6 +11,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 
+import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 
 export interface EditAuthenticationsDialogProps {
@@ -24,14 +25,16 @@ const EditAuthenticationsDialog = ({open, setOpen}: EditAuthenticationsDialogPro
   const authentications = useMemo(()=> owsContext.authentications ?? [], [owsContext])
   
   const [localAuthentications, setLocalAuthentications] = useState(authentications)
+  const [formData, setFormData] = useState({ getCapabilitiesUrl: '', username: '', password: '' });
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   
 
-  const handleOpenDialog = () => {
+  useEffect(() => {
+    if (!open) return;
     setLocalAuthentications(authentications)
     setEditingIndex(null)
     resetForm()
-  }
+  }, [open, authentications]);
 
   const handleCloseDialog = () => {
     setOpen(false)
@@ -90,10 +93,10 @@ const EditAuthenticationsDialog = ({open, setOpen}: EditAuthenticationsDialogPro
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (updateOwsContext) {
-      updateOwsContext({
+      updateOwsContext(OWSContext.fromPlainObject({
         ...owsContext,
         authentications: localAuthentications
-      })
+      }))
     }
     handleCloseDialog()
   }

@@ -14,6 +14,7 @@ import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import PublicIcon from '@mui/icons-material/Public';
 import { Box } from '@mui/material';
 import MenuList from '@mui/material/MenuList';
+
 import { createElementIfDefined } from '../../utils';
 import SubMenu from './SubMenu';
 
@@ -22,7 +23,7 @@ type MenuOption = {
     order?: number;
 };
 
-const groupIcons: Record<string, JSX.Element> = {
+const groupIcons: Record<string, React.ReactElement> = {
     WMS: <FeedIcon />,
     WFS: <FeedIcon />,
     CSW: <FeedIcon />,

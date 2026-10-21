@@ -1,9 +1,11 @@
-import { type AlertColor } from "@mui/material/Alert";
 import { type ReactNode } from "react";
 import { RaRecord } from "react-admin";
 import { ReadyState } from "react-use-websocket";
-import ListGuesser from "../../../jsonapi/components/ListGuesser";
+
+import { type AlertColor } from "@mui/material/Alert";
+
 import { useHttpClientContext } from "../../../context/HttpClientContext";
+import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import ProgressField from "../../Field/ProgressField";
 import RelatedResourceField from "../../Field/RelatedResourceField";
 import ProcessStatusField from "./ProcessStatusField";

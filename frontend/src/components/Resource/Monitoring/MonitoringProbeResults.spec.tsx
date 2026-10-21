@@ -1,7 +1,9 @@
+import { AdminContext, testDataProvider } from "react-admin";
+
 import { QueryClient } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { AdminContext, testDataProvider } from "react-admin";
 import { describe, expect, it, vi } from "vitest";
+
 import MonitoringProbeResults from "./MonitoringProbeResults";
 
 const renderResults = (

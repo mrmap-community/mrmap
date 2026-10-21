@@ -1,5 +1,3 @@
-import PlayArrow from "@mui/icons-material/PlayArrow";
-import { Alert, Stack } from "@mui/material";
 import {
   Button,
   type Identifier,
@@ -12,6 +10,9 @@ import {
   useResourceDefinition,
   useTranslate,
 } from "react-admin";
+
+import PlayArrow from "@mui/icons-material/PlayArrow";
+import { Alert, Stack } from "@mui/material";
 
 const RunServiceUpdateButton = ({
   resource,

@@ -1,5 +1,7 @@
-import { Stack } from "@mui/material";
 import { ResourceContext, useRecordContext } from "react-admin";
+
+import { Stack } from "@mui/material";
+
 import ListAllowedWebMapServiceOperation from "../../../AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation";
 import SpatialPolicyTester from "../Overview/SpatialSecurity/SpatialPolicyTester";
 

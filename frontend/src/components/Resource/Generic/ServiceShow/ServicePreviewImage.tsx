@@ -1,7 +1,9 @@
-import { Box, Skeleton, Typography } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useRecordContext, useTranslate } from "react-admin";
+
+import { Box, Skeleton, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+
 import {
   API_BASE_URL,
   useHttpClientContext,

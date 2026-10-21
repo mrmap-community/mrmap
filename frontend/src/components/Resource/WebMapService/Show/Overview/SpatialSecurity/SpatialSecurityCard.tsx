@@ -1,5 +1,3 @@
-import { Alert, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
 import {
   Loading,
   type RaRecord,
@@ -7,6 +5,10 @@ import {
   useRecordContext,
   useTranslate,
 } from "react-admin";
+import { Link } from "react-router-dom";
+
+import { Alert, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
+
 import SimpleCard from "../../../../../MUI/SimpleCard";
 import useCompleteList from "./useCompleteList";
 

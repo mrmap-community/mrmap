@@ -1,12 +1,5 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import type { HistoryRecord } from "../Generic/History/HistoryTimeline";
+
 import {
   DataTable,
   DateField,
@@ -22,11 +15,21 @@ import {
   useTranslate,
 } from "react-admin";
 import { Link as RouterLink } from "react-router-dom";
+
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  Typography,
+} from "@mui/material";
+
 import {
   type ServiceUpdateConfig,
   wmsUpdateConfig,
 } from "../Generic/Update/serviceUpdateConfig";
-import type { HistoryRecord } from "../Generic/History/HistoryTimeline";
 import UpdateJobChangeSummary from "./UpdateJobChangeSummary";
 
 interface LayerHistoryRecord extends HistoryRecord {

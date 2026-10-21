@@ -1,9 +1,11 @@
+import { useGetOne, useRedirect } from 'react-admin';
+
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGetOne, useRedirect } from 'react-admin';
-import SystemStatus from './SystemStatus';
-import SystemStatusIndicator from '../../Layout/SystemStatusIndicator';
+
 import { SystemStatusProvider } from '../../../context/SystemStatusContext';
+import SystemStatusIndicator from '../../Layout/SystemStatusIndicator';
+import SystemStatus from './SystemStatus';
 
 vi.mock('react-admin', async () => ({
     ...await vi.importActual('react-admin'),

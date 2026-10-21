@@ -1,6 +1,8 @@
 import { Fragment } from "react";
-import { Chip } from "@mui/material";
 import { type RaRecord, useRecordContext, useTranslate } from "react-admin";
+
+import { Chip } from "@mui/material";
+
 import { SERVICE_ALERTS } from "./ServiceAttentionTab";
 
 export interface ServiceAlertChipsProps {

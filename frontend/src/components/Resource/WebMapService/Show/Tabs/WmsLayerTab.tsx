@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { RaRecord, useGetMany, useNotify, useRecordContext } from 'react-admin';
 
 import { Container, Grid } from '@mui/material';
+
 import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
 import WmsTreeView from '../../TreeView/WmsTreeView';
@@ -12,7 +13,7 @@ export const WmsLayers = () => {
   const record = useRecordContext();
 
     const meta = useMemo(()=>{
-        const jsonApiParams: any = {
+        const jsonApiParams: Record<string, string> = {
 
         }
         const _meta = {
@@ -38,7 +39,7 @@ export const WmsLayers = () => {
     layers: data
     }), [record, data])
 
-  const onSuccess = useCallback((record: RaRecord)=>{
+  const onSuccess = useCallback(()=>{
       notify(
           'ra.notification.updated', 
           {

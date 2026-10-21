@@ -1,3 +1,5 @@
+import type { CrudEvent } from "../../../providers/dataProvider";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   type ListBaseProps,
@@ -8,7 +10,6 @@ import {
   useIsAuthPending,
   useListController,
 } from "react-admin";
-import type { CrudEvent } from "../../../providers/dataProvider";
 
 const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
   children,

@@ -1,6 +1,3 @@
-import { QueryClient } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import {
   AdminContext,
@@ -11,7 +8,12 @@ import {
   type RaRecord,
   type GetListParams,
 } from "react-admin";
+import { MemoryRouter } from "react-router-dom";
+
+import { QueryClient } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { useFilterInputForOperation } from "../../../../../../jsonapi/hooks/useFilterInputForOperation";
 import SpatialPolicyTester from "./SpatialPolicyTester";
 

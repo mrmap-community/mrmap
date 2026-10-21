@@ -1,6 +1,7 @@
 import { type ListProps } from "react-admin";
-import ServiceList from "../../Generic/ServiceList/ServiceList";
+
 import { type ServiceListConfig } from "../../Generic/ServiceList/config";
+import ServiceList from "../../Generic/ServiceList/ServiceList";
 
 /**
  * The attributes the list of registered web map services answers, as the api

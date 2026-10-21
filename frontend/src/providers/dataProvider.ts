@@ -1,35 +1,32 @@
 import type { JsonApiQueryParams } from '../jsonapi/types/jsonapi';
-import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin'
 
-import jsonpointer from 'jsonpointer'
-import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Operation, type ParamsArray } from 'openapi-client-axios'
-import { WebSocketLike } from 'react-use-websocket/dist/lib/types'
+import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
+import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
 
-import axios, { AxiosError } from 'axios'
-import { isEqual } from 'lodash'
-import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi'
-import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
-import { getAuthToken } from './authProvider'
-import i18nProvider from './i18nProvider'
-import { updateSystemTime } from './systemTimeProvider'
+import axios, { AxiosError } from 'axios';
+import jsonpointer from 'jsonpointer';
+import { isEqual } from 'lodash';
+import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Operation, type ParamsArray } from 'openapi-client-axios';
+
+import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi';
+import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils';
+import { getAuthToken } from './authProvider';
+import i18nProvider from './i18nProvider';
+import { updateSystemTime } from './systemTimeProvider';
 
 
-type search = (
-  query: string,
-  options?: SearchOptions
-) => Promise<{ data: SearchResult[]; total: number }>;
 
 export interface SearchOptions {
   targets?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface SearchResult {
   id: Identifier;
   type: string;
   url: string;
-  content: any;
-  matches?: any;
+  content: unknown;
+  matches?: unknown;
 }
 
 export interface SearchResults { 
@@ -201,7 +198,7 @@ const getSystemTime = (response: JsonApiDocument, systemTime: string): string | 
 const realtimeOnMessage = (event: MessageEvent): void => {
   const data = JSON.parse(event?.data) as MrMapMessage
 
-  const raEvent = { ...data.event }
+  const raEvent: CrudEvent = { ...data.event, payload: { ...data.event.payload, records: undefined } }
   raEvent.payload.records = data.event.payload.records?.map(jsonApiPrimaryData => encapsulateJsonApiPrimaryData(undefined, jsonApiPrimaryData))
 
   // fire callback functions
@@ -221,7 +218,7 @@ const checkOperationExists = (api: OpenAPIClientAxios, operationId: string): Ope
 }
 
 const handleBadRequest = (error: AxiosError) => {
-  if (error.response?.data?.hasOwnProperty("errors")){
+  if (error.response?.data && Object.hasOwn(error.response.data, "errors")){
 
     const jsonApiResponse = error.response.data as JsonApiDocument
     const jsonApiErrors = jsonApiResponse.errors
@@ -259,14 +256,14 @@ const handleBadRequest = (error: AxiosError) => {
 const attachAuthenticationIfExists = (config: AxiosRequestConfig): AxiosRequestConfig => {
   const storedAuthToken = getAuthToken();
   if (storedAuthToken?.token && config.headers){
-    config.headers.setAuthorization(`Token ${storedAuthToken?.token}`)
+    config.headers = { ...config.headers, Authorization: `Token ${storedAuthToken?.token}` }
   }
   return config
 }
 
 const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
   if (config.headers){
-    config.headers.set("Accept-Language", i18nProvider.getLocale())
+    config.headers = { ...config.headers, "Accept-Language": i18nProvider.getLocale() }
   }
   return config
 }
@@ -283,12 +280,12 @@ const dataProvider = ({
 }: JsonApiDataProviderOptions): DataProvider => {  
 
   
-  const updateResource = async (resource: string, params: UpdateParams, systemTimePath: string): Promise<UpdateResult<any>> => {
+  const updateResource = async (resource: string, params: UpdateParams, systemTimePath: string): Promise<UpdateResult> => {
     const operationId = `partial_update_${resource}`
     const operation = checkOperationExists(httpClient, operationId)
     const partialData: Partial<RaRecord> = {id: params.id}
     Object.keys(params.data).forEach((key) => {
-      if (!params.data.hasOwnProperty(key) && params.previousData.hasOwnProperty(key)) return
+      if (!Object.hasOwn(params.data, key) && Object.hasOwn(params.previousData, key)) return
       
       if ( !isEqual(params.data[key], params.previousData[key]) ) {
         partialData[key] = params.data[key]
@@ -317,12 +314,12 @@ const dataProvider = ({
       }) 
   }
 
-  const deleteResource = async (resource: string, params: DeleteParams): Promise<DeleteResult<any>> => {
+  const deleteResource = async (resource: string, params: DeleteParams): Promise<DeleteResult> => {
     const operationId = `destroy_${resource}`
     checkOperationExists(httpClient, operationId)
     
     const conf = httpClient.client.api.getAxiosConfigForOperation(operationId, [{ id: params.id }, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
-      return await httpClient.client.request(conf).then((response: AxiosResponse) => {
+      return await httpClient.client.request(conf).then(() => {
       return { data: { id: params.id } }
     })
   }
@@ -360,7 +357,7 @@ const dataProvider = ({
       let conf = undefined;
       try {
         conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
-      } catch (error) {
+      } catch {
         handleOperationNotFoundError();
         return  { data: [], }
       }
@@ -399,7 +396,7 @@ const dataProvider = ({
 
       while(hasNextPage){
         // create a mutable copy and remove `ids` when using related routes
-        const queryParams: any = {
+        const queryParams: Partial<GetManyParams> & GetListParams = {
           ...params,
           pagination: { page: page, perPage: pageSize },
         }
@@ -571,7 +568,7 @@ const dataProvider = ({
         const parameters = buildQueryParams({filter: {search: query}})
         const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
         
-        await handleListRequest(httpClient.client, conf, total).then((data) => {
+        await handleListRequest(httpClient.client, conf, total, systemTime).then((data) => {
           searchResults.data.push(...data.data.map(record => ({
             id: `${target}-${record.id}`,
             type: target,

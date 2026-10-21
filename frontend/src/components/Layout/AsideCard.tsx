@@ -1,9 +1,9 @@
-import { Card, CardProps } from '@mui/material';
 import { useRef } from 'react';
 import { useSidebarState } from 'react-admin';
 
-export interface AsideCardProps extends CardProps {
-}
+import { Card, CardProps } from '@mui/material';
+
+export type AsideCardProps = CardProps;
 
 const AsideCard = ({
   children,

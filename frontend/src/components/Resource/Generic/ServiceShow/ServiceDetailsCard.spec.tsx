@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
 import { AdminContext, RecordContextProvider, ResourceContextProvider, SelectField, TextField } from "react-admin";
+
+import { render, screen } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
 import { describe, expect, it, vi } from "vitest";
-import en from "../../../../i18n/en";
+
 import de from "../../../../i18n/de";
+import en from "../../../../i18n/en";
 import ServiceDetailsCard from "./ServiceDetailsCard";
 
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({

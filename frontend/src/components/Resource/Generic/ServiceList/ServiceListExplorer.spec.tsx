@@ -1,5 +1,3 @@
-import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   AdminContext,
   type ListControllerResult,
@@ -7,13 +5,18 @@ import {
   ResourceContextProvider,
   testDataProvider,
 } from "react-admin";
+
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { CATALOGUE_SERVICE_LIST_CONFIG } from "../../CatalogueService/CatalogueServiceList";
 import { WFS_SERVICE_LIST_CONFIG } from "../../WebFeatureService/List/ListWebFeatureService";
 import { WMS_SERVICE_LIST_CONFIG } from "../../WebMapService/List/ListWebMapService";
 import { type ServiceListConfig } from "./config";
 import ServiceListExplorer from "./ServiceListExplorer";
 import { summaryTiles } from "./ServiceSummaryTiles";
+
+import "@testing-library/jest-dom/vitest";
 
 // the details card asks the schema of the api for the fields of its resource
 // and shows the preview of the service, which both belong to the integration

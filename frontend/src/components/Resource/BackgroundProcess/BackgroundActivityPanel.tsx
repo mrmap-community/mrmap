@@ -6,8 +6,9 @@ import {
   useTranslate,
 } from "react-admin";
 import { ReadyState } from "react-use-websocket";
-import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+
 import CloseIcon from "@mui/icons-material/Close";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import {
   Alert,
   Badge,
@@ -23,8 +24,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import RealtimeListBase from "../../../jsonapi/components/Realtime/RealtimeListBase";
+
 import { useHttpClientContext } from "../../../context/HttpClientContext";
+import RealtimeListBase from "../../../jsonapi/components/Realtime/RealtimeListBase";
 
 const BackgroundActivityContent = () => {
   const { data = [], isPending, error, refetch } = useListContext();

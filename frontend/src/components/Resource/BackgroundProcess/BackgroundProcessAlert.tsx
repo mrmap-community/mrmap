@@ -53,9 +53,10 @@ const BackgroundProcessAlert = (
     switch(record?.processType){
       case "registering":
         return "Register new Service"
-      case "harvesting":
+      case "harvesting": {
         const link = record.relatedId && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.relatedId})}>Harvesting of {record.relatedId}</Link>
         return link !== undefined ? link: 'Harvesting'
+      }
       case "monitoring":
         return "Monitoring"
       default:

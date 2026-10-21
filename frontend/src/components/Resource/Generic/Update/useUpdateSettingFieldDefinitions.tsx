@@ -1,4 +1,5 @@
 import { useResourceContext } from 'react-admin';
+
 import useFieldsForResource from '../../../../jsonapi/hooks/useFieldsForResource';
 import CronInput from '../../../Input/CronInput';
 

@@ -1,5 +1,5 @@
-import UpdateIcon from "@mui/icons-material/Update";
-import { Alert, alpha, FormControl, MenuItem, Select } from "@mui/material";
+import type { HistorySource } from "./historySources";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   Loading,
@@ -8,8 +8,11 @@ import {
   useRecordContext,
   useTranslate,
 } from "react-admin";
+
+import UpdateIcon from "@mui/icons-material/Update";
+import { Alert, alpha, FormControl, MenuItem, Select } from "@mui/material";
+
 import SimpleCard from "../../../MUI/SimpleCard";
-import type { HistorySource } from "./historySources";
 import HistoryTimeline, { type TimelineRecord } from "./HistoryTimeline";
 
 export interface ServiceHistoryListProps {

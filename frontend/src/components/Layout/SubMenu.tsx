@@ -3,12 +3,12 @@ import { useSidebarState, useTranslate } from 'react-admin';
 
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import {
-    Collapse,
-    List,
-    ListItemIcon,
-    MenuItem,
-    Tooltip,
-    Typography,
+  Collapse,
+  List,
+  ListItemIcon,
+  MenuItem,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 
 interface Props {

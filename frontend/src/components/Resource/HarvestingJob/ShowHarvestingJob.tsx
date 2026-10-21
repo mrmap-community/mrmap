@@ -1,9 +1,10 @@
-import { snakeCase } from "lodash";
 import { useMemo } from "react";
 import { RaRecord, ShowView, useResourceDefinition } from "react-admin";
+
+import { snakeCase } from "lodash";
+
 import RealtimeShowContextProvider from "../../../jsonapi/components/Realtime/RealtimeShowContextProvider";
 import useSparseFieldsForOperation from "../../../jsonapi/hooks/useSparseFieldsForOperation";
-
 import HarvestingJobTabbedShowLayout from "./HarvestingJobTabbedShowLayout";
 
 export const isStale = (timestamp: number, record: RaRecord) => {
@@ -31,7 +32,7 @@ const ShowHarvestingJob = () => {
     };
   }, [harvestingJobSparseFields]);
 
-  const excludeSparseFields: any = useMemo(
+  const excludeSparseFields: Record<string, string[]> = useMemo(
     () => ({
       HarvestingJob: [
         "temporaryMdMetadataFiles",
@@ -43,7 +44,7 @@ const ShowHarvestingJob = () => {
   );
 
   const sparseFieldsParams = useMemo(() => {
-    const _sparseFieldsParams: any = {};
+    const _sparseFieldsParams: Record<string, string> = {};
     for (const [key, value] of Object.entries(sparseFields)) {
       if (key in excludeSparseFields) {
         const excludeFields = excludeSparseFields[`${key}`];

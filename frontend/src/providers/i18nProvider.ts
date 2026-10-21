@@ -1,20 +1,21 @@
+import { I18nProvider } from 'react-admin';
+
 import lodashGet from 'lodash/get';
 import lodashTemplate from 'lodash/template';
-import lodashTemplateSettings from 'lodash/templateSettings';
-import { I18nProvider } from 'react-admin';
+
 import germanMessages from '../i18n/de';
 import en from "../i18n/en";
 
 export const LOCALE_STORAGE_NAME = "RaStore.locale"
 
-let messages = en;
+let messages: typeof en | typeof germanMessages = en;
 const locales = [{locale: 'en', name: 'english'}, {locale: 'de', name: 'deutsch'}]
 
 
-lodashTemplateSettings.interpolate = /%{([\s\S]+?)}/g;
+
 
 const i18nProvider: I18nProvider = {
-  translate: (key: string, options?: any) => {
+  translate: (key: string, options?: Parameters<I18nProvider["translate"]>[1]) => {
     // Try to fetch the translation. If missing, lodashGet returns the key.
     let translation = lodashGet(messages, key, key) as string;
 
@@ -33,7 +34,7 @@ const i18nProvider: I18nProvider = {
       message = parts[usePlural ? 1 : 0] ?? parts[0];
     }
 
-    const compiled = lodashTemplate(message);
+    const compiled = lodashTemplate(message, { interpolate: /%{([\s\S]+?)}/g });
     const result = compiled(options);
     return result;
   },

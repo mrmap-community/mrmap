@@ -1,4 +1,5 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import type { ServiceListConfig } from "./config";
+
 import {
   AdminContext,
   Datagrid,
@@ -9,10 +10,12 @@ import {
   testDataProvider,
   useList,
 } from "react-admin";
+
+import { render, screen, waitFor, within } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
 import { describe, expect, it, vi } from "vitest";
+
 import en from "../../../../i18n/en";
-import type { ServiceListConfig } from "./config";
 import { serviceListProps } from "./serviceListProps";
 
 const records = [

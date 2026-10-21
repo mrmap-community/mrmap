@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { latLngBounds } from "leaflet";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { AuthImageOverlay } from "./AuthImageOverlay";
 
 const query = vi.hoisted(() => ({

@@ -1,15 +1,16 @@
+import { useMemo, type MouseEvent } from 'react';
+import { Link } from 'react-admin';
+
 import ErrorIcon from '@mui/icons-material/Error';
 import { CircularProgress, Typography, TypographyProps } from '@mui/material';
 import {
-    Identifier,
-    SortPayload,
-    useCreatePath,
-    useGetList,
-    useResourceContext,
-    useTimeout,
+  Identifier,
+  SortPayload,
+  useCreatePath,
+  useGetList,
+  useResourceContext,
+  useTimeout,
 } from 'ra-core';
-import { useMemo, type MouseEvent } from 'react';
-import { Link } from 'react-admin';
 
 
 /**
@@ -40,7 +41,7 @@ export const Count = ({
         filter,
         sort,
         link,
-        resource: resourceFromProps,
+        resource: _resourceFromProps,
         timeout = 1000,
         refetchInterval,
         ...rest
@@ -57,8 +58,8 @@ export const Count = ({
       );
     }
     const meta = useMemo(()=>{
-      const meta: any = {}
-      const sparefields: any = {}
+      const meta: { jsonApiParams?: Record<string, string>; relatedResource?: { resource: string; id: Identifier } } = {}
+      const sparefields: Record<string, string> = {}
       sparefields[`fields[${resource}]`] = 'id'
       meta["jsonApiParams"] = sparefields
 
@@ -98,7 +99,6 @@ export const Count = ({
     );
 
     return link ? (
-        // @ts-ignore TypeScript complains that the props for <a> aren't the same as for <span>
         <Link
             to={{
                 pathname: createPath({ resource, type: 'list' }),
@@ -119,9 +119,9 @@ export const Count = ({
 
 export interface CountProps extends TypographyProps {
     refetchInterval?: number | false;
-    filter?: any;
+    filter?: import("react-admin").FilterPayload;
     sort?: SortPayload;
-    link?: Boolean;
+    link?: boolean;
     resource?: string;
     relatedResource?: string;
     relatedResourceId?: Identifier;

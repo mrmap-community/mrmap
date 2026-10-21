@@ -1,8 +1,10 @@
-import { Grid } from "@mui/material";
 import { Children, type ReactNode } from "react";
+
+import { Grid } from "@mui/material";
+
+import LivePreview from "./LivePreview/LivePreview";
 import ServiceDetailsCard, { type ServiceProtocol } from "./ServiceDetailsCard";
 import ServiceHistoryCard from "./ServiceHistoryCard";
-import LivePreview from "./LivePreview/LivePreview";
 
 const ServiceOverview = ({
   protocol,

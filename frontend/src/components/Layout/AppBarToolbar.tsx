@@ -1,8 +1,8 @@
-import { Stack } from "@mui/material";
 import { LoadingIndicator, LocalesMenuButton, ToggleThemeButton, useLocales, useThemesContext } from "react-admin";
 
-import BackgroundActivityPanel from '../Resource/BackgroundProcess/BackgroundActivityPanel';
+import { Stack } from "@mui/material";
 
+import BackgroundActivityPanel from '../Resource/BackgroundProcess/BackgroundActivityPanel';
 import SystemStatusIndicator from './SystemStatusIndicator';
 
 const AppBarToolbar = () => {

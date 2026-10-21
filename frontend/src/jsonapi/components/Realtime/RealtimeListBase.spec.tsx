@@ -1,6 +1,8 @@
+import type { CrudEvent } from "../../../providers/dataProvider";
+
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CrudEvent } from "../../../providers/dataProvider";
+
 import RealtimeListBase from "./RealtimeListBase";
 
 const state = vi.hoisted(() => ({

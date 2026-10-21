@@ -1,3 +1,4 @@
+import { Fragment, useMemo } from 'react';
 import {
   ChipField,
   ChipFieldProps,
@@ -8,9 +9,8 @@ import {
   useFieldValue,
   useResourceDefinition,
 } from 'react-admin';
-
-import { Fragment, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+
 import { useHttpClientContext } from '../../../../context/HttpClientContext';
 import JsonApiReferenceField from '../../../../jsonapi/components/ReferenceField';
 
@@ -41,9 +41,7 @@ const HistoryTypField = ({...props}: ChipFieldProps) => {
 
 };
 
-export interface HistoryListProps extends Partial<ListProps> {
-  
-}
+export type HistoryListProps = Partial<ListProps>;
 
 
 const HistoryList = ({

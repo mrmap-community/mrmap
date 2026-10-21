@@ -1,4 +1,3 @@
-import { Button, Chip, Stack, Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 import {
   EditButton,
@@ -8,6 +7,9 @@ import {
   useListContext,
   useTranslate,
 } from "react-admin";
+
+import { Button, Chip, Stack, Tab, Tabs } from "@mui/material";
+
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../jsonapi/hooks/useFieldsForOperation";
 import CustomListActions, {

@@ -1,10 +1,12 @@
-import "@testing-library/jest-dom/vitest";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useGetList, useRecordContext, useTranslate } from "ra-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import i18nProvider from "../../../../../../providers/i18nProvider";
 import { LayerChangesChart } from "./UpdateJobChangeChart";
+
+import "@testing-library/jest-dom/vitest";
 
 vi.mock("ra-core", () => ({
   useGetList: vi.fn(),

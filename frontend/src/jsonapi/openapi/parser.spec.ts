@@ -1,5 +1,6 @@
 import { HttpMethod, type Operation } from "openapi-client-axios";
 import { expect, it } from "vitest";
+
 import { indexRelatedOperations } from "./parser";
 const operation = (operationId: string): Operation => ({
   operationId,

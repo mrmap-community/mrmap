@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useRecordContext } from 'react-admin';
 
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
@@ -6,7 +7,6 @@ import { TreeItem, TreeItemProps } from '@mui/x-tree-view';
 import Sortable from 'sortablejs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { useRecordContext } from 'react-admin';
 import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { Position } from '../../ows-lib/OwsContext/enums';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
@@ -16,7 +16,7 @@ import { useContextMenuBase } from './ContextMenu/ContextMenuBase';
 
 // TODO: typeof should be any other type
 // to avoid icons for imaginary tree items
-function ImaginaryIcon(props: React.PropsWithoutRef<typeof KeyboardArrowRightIcon>) {
+const ImaginaryIcon = () => {
   return <div />;
 }
 export interface DragableTreeItemProps extends TreeItemProps{

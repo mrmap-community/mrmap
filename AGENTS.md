@@ -98,7 +98,8 @@ satisfies most of it.
   commands documented in the area files.
 - Do not change API contracts (JSON:API resource types, relationships, filter names, pagination,
   error shapes) or behaviour outside the requested scope.
-- Do not use `npm run lint` or `npm run format` for a scoped change; they rewrite all of `src/`.
+- `npm run lint` is read-only. Do not use whole-tree `npm run lint:fix` or `npm run format` for a
+  scoped change; they rewrite files across `src/`.
 - Do not copy a shared component, serializer, viewset or manager into a feature folder to adjust one
   detail; extend it or wrap it. A fork drops the tests and later fixes of the original and both copies
   drift. If a new file really is needed, name the alternatives that were considered in the commit
@@ -174,9 +175,8 @@ documents:
   installed on a plain host.
 - Backend Docker test runs must not overlap: they all create the same `test_mrmap` database and
   destroy each other mid-run.
-- `npm run type-check` and the frontend unit tests are **not clean on `main`** and nothing in CI
-  enforced them before 2026-10; treat both as baseline comparisons, not green/red gates. See
-  `frontend/AGENTS.md` for the current counts.
-- The backend `pre-commit-check` job **is** red on `main`: flake8 finds 71 pre-existing violations
-  outside `tests/`. Scope lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
-  `backend/`) instead of trying to read a whole-tree report; see `backend/AGENTS.md`.
+- Frontend lint, strict type checking and tests with coverage are required CI checks. Historical red
+  baselines were removed by the code-quality cleanup; see `frontend/AGENTS.md`.
+- Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
+  `backend/`) during development. CI also checks migrations and translations; see
+  `backend/AGENTS.md`.

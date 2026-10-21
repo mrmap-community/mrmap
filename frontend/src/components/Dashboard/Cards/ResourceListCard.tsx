@@ -1,14 +1,14 @@
+import { Fragment, PropsWithChildren, useMemo } from 'react';
 import {
-    CreateButton,
-    ListBase,
-    SortPayload,
-    useResourceDefinition,
-    WithListContext
+  CreateButton,
+  ListBase,
+  SortPayload,
+  useResourceDefinition,
+  WithListContext
 } from 'react-admin';
 
-
 import { Divider } from '@mui/material';
-import { Fragment, PropsWithChildren, useMemo } from 'react';
+
 import CardWithIcon from './CardWithIcon';
 import ChangeLogList from './ChangeLogList';
 
@@ -29,8 +29,8 @@ const ResourceListCard = (
   const { name, icon, hasCreate } = useResourceDefinition({ resource: resource })
   const meta = useMemo(()=>{
         if (withList) return {}
-        const meta: any = {}
-        const sparefields: any = {}
+        const meta: { jsonApiParams?: Record<string, string> } = {}
+        const sparefields: Record<string, string> = {}
         sparefields[`fields[${resource}]`] = 'id'
         meta["jsonApiParams"] = sparefields
         return meta

@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import type { RaRecord } from "react-admin";
 import { ReadyState } from "react-use-websocket";
+
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import BackgroundActivityPanel from "./BackgroundActivityPanel";
 
 const state = vi.hoisted(() => ({

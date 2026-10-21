@@ -1,4 +1,3 @@
-import PlayArrow from "@mui/icons-material/PlayArrow";
 import {
   Button,
   type Identifier,
@@ -8,6 +7,8 @@ import {
   useRefresh,
   useResourceDefinition,
 } from "react-admin";
+
+import PlayArrow from "@mui/icons-material/PlayArrow";
 
 const RunHarvestingButton = ({ serviceId }: { serviceId?: Identifier }) => {
   const { hasCreate } = useResourceDefinition({ resource: "HarvestingJob" });

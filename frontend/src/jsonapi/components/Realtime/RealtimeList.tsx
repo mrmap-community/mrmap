@@ -1,8 +1,9 @@
 import { ReactElement } from "react";
 import { ListProps, ListView, Loading, RaRecord } from "react-admin";
+
 import RealtimeListBase from "./RealtimeListBase";
 
-const RealtimeList = <RecordType extends RaRecord = any>({
+const RealtimeList = <RecordType extends RaRecord = RaRecord>({
   debounce,
   disableAuthentication,
   disableSyncWithLocation,

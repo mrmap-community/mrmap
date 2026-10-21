@@ -1,5 +1,3 @@
-import { Box, Button, Stack, Typography } from "@mui/material";
-import L from "leaflet";
 import { useEffect, useRef } from "react";
 import {
   type Identifier,
@@ -15,6 +13,10 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
+
+import { Box, Button, Stack, Typography } from "@mui/material";
+import L from "leaflet";
+
 import AutoResizeMapContainer from "../../../MapContainer/ResizeAbleMapContainer";
 
 export interface CoverageEntry {

@@ -1,8 +1,5 @@
 import { useEffect } from "react";
 import type { DataProvider } from "react-admin";
-import { useReferenceManyErrors } from "../../../../jsonapi/components/ReferenceManyErrorsProvider";
-import Records from "../../CatalogueService/Show/Records";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   AdminContext,
   EditButton,
@@ -16,13 +13,18 @@ import {
   useResourceContext,
 } from "react-admin";
 import { Route, Routes, useNavigate } from "react-router-dom";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
-import ServiceShow, { type ServiceTab } from "./ServiceShow";
+import { useReferenceManyErrors } from "../../../../jsonapi/components/ReferenceManyErrorsProvider";
+import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import Records from "../../CatalogueService/Show/Records";
+import { capabilitiesUrl } from "./ServiceDetailsCard";
 import ServiceMetadataTab from "./ServiceMetadataTab";
 import ServiceRelatedTab from "./ServiceRelatedTab";
-import { capabilitiesUrl } from "./ServiceDetailsCard";
+import ServiceShow, { type ServiceTab } from "./ServiceShow";
 
 const state = vi.hoisted(() => ({
   operations: new Set<string>(),

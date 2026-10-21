@@ -180,24 +180,13 @@ translation checks.
 - Before creating migrations, verify that the requested change requires them.
 - Report commands run, results, and any checks that could not run.
 
-### Known red baseline
+### Quality checks
 
-CI gates on `pre_commit_check.sh`, and that gate is red on `main` for reasons unrelated to any
-single change:
-
-- flake8 reports 71 violations outside `tests/` and exits non-zero (verified in the
-  `pre-commit-check` container: `FLAKE8_EXIT=1`). The host virtualenv and the container run
-  identical versions (flake8 7.1.2, pycodestyle 2.12.1, pyflakes 3.2.0), so `.venv/bin/flake8`
-  predicts CI exactly. Most are cosmetic: 16 × `W291` trailing whitespace, 7 × `E114` comment
-  indentation, the rest mostly unused imports and spacing. `registry/models/metadata.py` (14),
-  `registry/serializers/harvesting.py` (7) and `extras/schema.py` (7) hold more than a third of
-  them, and `autopep8` — already in `.requirements/dev.txt` — clears the whitespace findings
-  mechanically.
-- Because the baseline is not zero, only a scoped run answers whether *your* change is clean:
-  `../.venv/bin/flake8 <changed files>` from `backend/` has to print nothing new.
-- The Django unit suite itself is green: `tests/django` ran 183 tests with `OK (skipped=1)`
-  (verified 2026-10). A unit test failure is therefore caused by the change under test, not by the
-  baseline.
+Application flake8 and the Django suite are green. Do not treat historical violation or test counts
+as an allowance for new failures. Scope lint and tests while iterating, then run the checks required
+by the change. The full CI pre-submit check additionally validates migrations and translations.
+Coverage data from Django and Behave is stored separately and combined from the same checkout;
+see `../docs/source/development/code-quality.rst` for reports and the combined coverage gate.
 
 ## Translations
 

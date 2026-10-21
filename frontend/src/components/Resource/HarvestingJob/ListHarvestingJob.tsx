@@ -1,6 +1,8 @@
-import { type AlertColor } from '@mui/material/Alert';
 import { useMemo, type ReactNode } from 'react';
 import { RaRecord, SelectField, useRecordContext } from 'react-admin';
+
+import { type AlertColor } from '@mui/material/Alert';
+
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import ProgressField from '../../Field/ProgressField';
 

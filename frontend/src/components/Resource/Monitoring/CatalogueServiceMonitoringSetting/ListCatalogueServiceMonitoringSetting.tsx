@@ -1,5 +1,5 @@
-import ListMonitoringSetting from "../ListMonitoringSetting"
 import { RelatedResource } from "../../../../providers/dataProvider"
+import ListMonitoringSetting from "../ListMonitoringSetting"
 
 
 export interface ListCatalogueServiceMonitoringSettingProps {

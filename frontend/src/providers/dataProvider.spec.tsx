@@ -1,10 +1,13 @@
+import type OpenAPIClientAxios from 'openapi-client-axios';
+
+import { AdminContext, Create, Edit, HttpError, SimpleForm, TextInput } from 'react-admin';
+
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AxiosError, AxiosHeaders } from 'axios';
-import type OpenAPIClientAxios from 'openapi-client-axios';
-import { AdminContext, Create, Edit, HttpError, SimpleForm, TextInput } from 'react-admin';
 import { describe, expect, it, vi } from 'vitest';
-import dataProvider from './dataProvider';
+
 import GlobalFormError from '../jsonapi/components/GlobalFormError';
+import dataProvider from './dataProvider';
 
 vi.mock('./authProvider', () => ({ getAuthToken: () => undefined }));
 vi.mock('./i18nProvider', () => ({ default: { getLocale: () => 'en' } }));

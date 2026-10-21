@@ -1,5 +1,7 @@
-import { Grid } from "@mui/material";
 import { useTranslate } from "react-admin";
+
+import { Grid } from "@mui/material";
+
 import SimpleCard from "../../../MUI/SimpleCard";
 import RecordFields from "./RecordFields";
 

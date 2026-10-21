@@ -1,5 +1,7 @@
-import { merge } from 'lodash';
 import { useMemo } from 'react';
+
+import { merge } from 'lodash';
+
 import { useHttpClientContext } from '../../context/HttpClientContext';
 import { encapsulateFields, FieldDefinition, FieldSchema, getFieldDefinition, getFieldSchema } from '../utils';
 import useResourceSchema from './useResourceSchema';

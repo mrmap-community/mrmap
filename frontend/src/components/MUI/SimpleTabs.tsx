@@ -1,8 +1,9 @@
+import * as React from 'react';
+import { SyntheticEvent, useState } from 'react';
+
 import Box from '@mui/material/Box';
 import Tab, { TabProps } from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import * as React from 'react';
-import { SyntheticEvent, useState } from 'react';
 
 interface TabPanelProps {
   children?: React.ReactNode;

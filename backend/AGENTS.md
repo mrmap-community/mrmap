@@ -50,6 +50,17 @@ naming, including `querys/`.
 ## API behavior
 
 - Preserve JSON:API 1.1 resource types, relationships, filter names, pagination, errors, and response structure.
+- Before adding a serializer field, search the aggregate's serializer module for a value that is already
+  answered, and for a model property, queryset annotation or mixin that carries it
+  (`registry/models/`, `registry/querys/`, `registry/expressions/`, `extras/fields.py`,
+  `extras/schema.py`). Re-declared fields drift in label, help text and cost.
+- Where a list serializer exists, the detail serializer inherits from it
+  (`WebMapServiceListSerializer` → `WebMapServiceSerializer`): declare a field once on the base so both
+  answer it, instead of declaring the field and its `get_*` method twice. Shared alert fields do the
+  same through `ServiceAlertSerializerMixin`.
+- A frontend screen that reuses an existing card may need a field the list endpoint did not answer yet.
+  Add it to the list serializer and let JSON:API sparse fieldsets keep the cost off the screens that do
+  not ask for it, rather than letting the frontend render a reduced copy of the card.
 - Keep schema declarations compatible with `drf-spectacular`.
 - Preserve permission checks and queryset visibility rules.
 - Check frontend usage before changing API-facing behavior.

@@ -3,9 +3,9 @@
   "extends": ["config:recommended"],
   "enabledManagers": ["npm", "pip_requirements"],
   "dependencyDashboard": true,
-  "prCreation": "status-success",
+  "prCreation": "immediate",
   "automerge": false,
-  "branchConcurrentLimit": 3,
+  "branchConcurrentLimit": 1,
   "prConcurrentLimit": 3,
   "prHourlyLimit": 2,
   "pip_requirements": {
@@ -15,19 +15,19 @@
     "enabled": true
   },
   "vulnerabilityAlerts": {
-    "prCreation": "status-success",
+    "prCreation": "immediate",
     "automerge": false
   },
   "packageRules": [
     {
       "matchManagers": ["npm"],
-      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
-      "groupName": "react"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend non-major dependencies"
     },
     {
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["vitest", "@vitest/**"],
-      "groupName": "vitest"
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "backend non-major dependencies"
     }
   ]
 }

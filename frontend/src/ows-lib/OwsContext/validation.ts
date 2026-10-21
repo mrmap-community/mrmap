@@ -1,4 +1,5 @@
-import { OWSContext as IOWSContext, OWSContextProperties } from './types'
+import { normalizeFolderPaths, splitFolderPath } from './folders'
+import { OWSContext as IOWSContext, OWSContextProperties, OWSResource as IOWSResource } from './types'
 
 /**
  * Validation and normalization of OWS Context GeoJSON documents following the core requirements class
@@ -12,6 +13,12 @@ import { OWSContext as IOWSContext, OWSContextProperties } from './types'
  * - "error": the document is malformed. It is rejected and the caller keeps the previous context.
  * - "warning": the document is usable but worth reporting. Unsupported offerings and operations, or an
  *   identifier that is not a URI, are unsupported capabilities and not malformed JSON.
+ *
+ * The grouping of the resources is normalized together with the document: the "folder" member of the
+ * standard is optional, its segments may be named and a document does not need to describe the parent
+ * groups of a resource, while the layer tree of the viewer works on numbered and complete paths.
+ * "normalizeFolderPaths" translates the described grouping onto them and reports every translation it
+ * had to do as a warning, so a folderless or named grouping is neither rejected nor lost.
  *
  * Everything that is not part of the core requirements class is an extension and survives the
  * normalization. That explicitly includes the mrmap specific "active" flag on operations, which the
@@ -52,9 +59,6 @@ const GEOJSON_GEOMETRY_TYPES = [
 const UUID_IDENTIFIER_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const ABSOLUTE_URI_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/
-
-/** folder paths the layer tree of the viewer is able to build */
-const FOLDER_PATTERN = /^\/\d+(\/\d+)*$/
 
 const RFC_3339_PATTERN = /^\d{4}-\d{2}-\d{2}([Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})?)?$/
 
@@ -303,15 +307,18 @@ const validateResourceProperties = (
 
     if (properties.folder === undefined) return
 
-    if (!isFilledString(properties.folder) || !FOLDER_PATTERN.test(properties.folder)) {
-        collector.error(`${path}.folder`, `"${String(properties.folder)}" is not a numbered folder path as used by the viewer, e.g. "/0" or "/0/1"`)
+    // a folder may be named and does not need to describe its parent groups, both is normalized onto
+    // the numbered paths the layer tree works with, only a folder without any segment is unusable
+    if (!isFilledString(properties.folder) || splitFolderPath(properties.folder).length === 0) {
+        collector.error(`${path}.folder`, `"${String(properties.folder)}" does not describe a folder, e.g. "/0" or "/root/algal"`)
         return
     }
 
-    const duplicate = folderOwners.get(properties.folder)
+    const key = splitFolderPath(properties.folder).join('/')
+    const duplicate = folderOwners.get(key)
     if (duplicate !== undefined)
         collector.error(`${path}.folder`, `duplicates the folder "${properties.folder}" of ${duplicate}`)
-    else folderOwners.set(properties.folder, ownerPath)
+    else folderOwners.set(key, ownerPath)
 }
 
 const validateFeatures = (collector: IssueCollector, features: unknown[]) => {
@@ -336,13 +343,6 @@ const validateFeatures = (collector: IssueCollector, features: unknown[]) => {
             return
         }
         validateResourceProperties(collector, feature.properties, `${path}.properties`, folderOwners, path)
-    })
-
-    // the layer tree is built from the folder paths, so every parent has to be part of the document
-    folderOwners.forEach((path, folder) => {
-        const parentFolder = folder.split('/').slice(0, -1).join('/')
-        if (parentFolder !== '' && !folderOwners.has(parentFolder))
-            collector.error(`${path}.properties.folder`, `references the parent folder "${parentFolder}" which is not part of the document`)
     })
 }
 
@@ -412,7 +412,8 @@ const validateContextProperties = (collector: IssueCollector, properties: Record
  * Validates an unknown value, e.g. the parsed response of a context url or the content of the raw JSON
  * editor, against the core requirements class and returns a normalized copy of it. The normalized copy
  * holds the required core metadata (a URI identifier, an RFC-3339 timestamp free of changes and the
- * core profile reference) while unknown members are passed through untouched.
+ * core profile reference) and the numbered folder structure the layer tree works with, while unknown
+ * members are passed through untouched.
  */
 export const validateOwsContext = (value: unknown): OwsContextValidationResult => {
     const collector = createCollector()
@@ -459,6 +460,14 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
 
     const hasErrors = collector.issues.some(issue => issue.severity === 'error')
     if (hasErrors) return { hasErrors, issues: collector.issues }
+
+    // the grouping is normalized for the document which is handed out, a rejected document is
+    // reported as it was given
+    if (Array.isArray(context.features)) {
+        const grouping = normalizeFolderPaths(context.features as IOWSResource[])
+        grouping.issues.forEach(issue => collector.warn(issue.path, issue.message))
+        context.features = grouping.features
+    }
 
     return { hasErrors, issues: collector.issues, context: context as unknown as IOWSContext }
 }

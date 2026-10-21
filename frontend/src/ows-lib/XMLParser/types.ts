@@ -57,19 +57,25 @@ export interface WmsLayer {
     minScaleDenominator?: number
     maxScaleDenominator?: number
     isQueryable?: boolean
-    isQpaque?: boolean
+    isOpaque?: boolean
     isCascaded?: boolean
 }
 
+/**
+ * The settings a WMS layer inherits from its parent layers (WMS 1.3.0 section 7.2.4.1.1, WMS 1.1.1
+ * section 4.6.4.1). Reference systems and styles are inherited and added to, every other setting is
+ * replaced by the innermost layer which states it - including a stated "0" or false value, which
+ * overrides an inherited true value instead of counting as "not stated".
+ */
 export interface InheritableProperties {
     referenceSystems: string[]          // 1+; add
     styles: Style[]                     // 0+; add
-    bbox: NonNullable<WmsLayer["bbox"]> | []                     // 1+; replace
+    bbox?: WmsLayer["bbox"]             // 1+; replace
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[] // 0+; replace
     minScaleDenominator?: number        // 0/1; replace
     maxScaleDenominator?: number        // 0/1; replace
     isQueryable?: boolean               // replace
-    isQpaque?: boolean                  // replace
+    isOpaque?: boolean                  // replace
     isCascaded?: boolean                // replace
 }
 

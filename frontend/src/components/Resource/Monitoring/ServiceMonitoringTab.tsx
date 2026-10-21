@@ -1,5 +1,6 @@
 import { useMemo, type ComponentType } from 'react';
 import { ResourceContext, useRecordContext, useResourceContext } from 'react-admin';
+
 import { RelatedResource } from '../../../providers/dataProvider';
 
 

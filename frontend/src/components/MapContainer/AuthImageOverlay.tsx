@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import type L from "leaflet";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
+
+import { useQuery } from "@tanstack/react-query";
+
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
 

@@ -17,6 +17,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    getting-started
    project-structure
    environment
+   code-quality
    definition_of_done
    vscode-configuration
    

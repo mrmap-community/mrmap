@@ -1,11 +1,12 @@
+import { useCallback, useMemo } from "react";
+import { useCreatePath, useRecordContext, useResourceDefinition } from "react-admin";
+import { useNavigate } from 'react-router-dom';
+
 import { ChartsContainer, ChartsLegend, ChartsTooltip } from "@mui/x-charts";
 import {
   mangoFusionPalette
 } from '@mui/x-charts/colorPalettes';
 import { PiePlot } from '@mui/x-charts/PieChart';
-import { useCallback, useMemo } from "react";
-import { useCreatePath, useRecordContext, useResourceDefinition } from "react-admin";
-import { useNavigate } from 'react-router-dom';
 
 const HarvestResultPieChart = () => {
   const createPath = useCreatePath();
@@ -82,8 +83,8 @@ const HarvestResultPieChart = () => {
 
 
 
-  const navigatePreFilteredList = useCallback((dataItem: any)=>{
-    dataItem.href !== undefined && navigate(dataItem.href)
+  const navigatePreFilteredList = useCallback((dataItem: { href?: string } | undefined)=>{
+    dataItem?.href !== undefined && navigate(dataItem.href)
   },[])
 
   return (
@@ -113,9 +114,8 @@ const HarvestResultPieChart = () => {
         trigger="item"
       />
       <ChartsLegend 
-        direction="row" 
-        position={{horizontal: 'middle', vertical: 'bottom'}} 
-        onItemClick={(event, d) => navigatePreFilteredList(data.find(r => r.id === d.itemId))}
+        direction="horizontal"
+        onItemClick={(event, d) => navigatePreFilteredList(data[d.dataIndex ?? -1])}
       />
     </ChartsContainer>
   )

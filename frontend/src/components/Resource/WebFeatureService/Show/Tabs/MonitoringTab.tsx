@@ -1,5 +1,5 @@
-import ListWebFeatureServiceMonitoringSetting from '../../../Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ServiceMonitoringTab from '../../../Monitoring/ServiceMonitoringTab';
+import ListWebFeatureServiceMonitoringSetting from '../../../Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 
 
 export const MonitoringTab = () => (

@@ -1,8 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { type PropsWithChildren } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import PreviewMap, { validExtent } from "./PreviewMap";
 import type { FeatureCollection } from "geojson";
+
+import { type PropsWithChildren } from "react";
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import PreviewMap, { validExtent } from "./PreviewMap";
 
 const state = vi.hoisted(() => ({
   fit: vi.fn(),

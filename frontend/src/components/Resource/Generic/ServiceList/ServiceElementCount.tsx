@@ -1,5 +1,6 @@
-import { Typography } from "@mui/material";
 import type { RaRecord } from "react-admin";
+
+import { Typography } from "@mui/material";
 
 export interface ServiceElementCountProps {
   /** the service the elements are counted of, as the list of services answered it */

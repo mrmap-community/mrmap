@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import WmsTreeView from "./WmsTreeView";
 
 const { scrollTo, bounds } = vi.hoisted(() => ({

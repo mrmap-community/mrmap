@@ -1,21 +1,22 @@
-import {
-    Box,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Stack
-} from '@mui/material';
-import {
-    useListContextWithProps,
-    useResourceContext,
-    type RaRecord
-} from 'ra-core';
 import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import { Pagination, SingleFieldList } from 'react-admin';
 
-interface PaginatedSingleFieldListProps<RecordType extends RaRecord = any> {
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack
+} from '@mui/material';
+import {
+  useListContextWithProps,
+  useResourceContext,
+  type RaRecord
+} from 'ra-core';
+
+interface PaginatedSingleFieldListProps<RecordType extends RaRecord = RaRecord> {
     visibleCount?: number;
     children?: React.ReactNode;
     data?: RecordType[];
@@ -27,7 +28,7 @@ interface PaginatedSingleFieldListProps<RecordType extends RaRecord = any> {
  * Enhanced SingleFieldList that shows only X records with a "show more" button
  * Opens a modal with all records when clicked
  */
-export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
+export const PaginatedSingleFieldList = <RecordType extends RaRecord = RaRecord>({
     visibleCount = 3,
     children,
     ...props

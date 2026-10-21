@@ -1,10 +1,12 @@
-import SimpleCard from "../../MUI/SimpleCard";
-import { Alert, LinearProgress, Typography } from '@mui/material';
 import {
-    DateField,
-    RecordContextProvider,
-    SimpleShowLayout, TextField, useGetOne, useTranslate, type RaRecord
+  DateField,
+  RecordContextProvider,
+  SimpleShowLayout, TextField, useGetOne, useTranslate, type RaRecord
 } from 'react-admin';
+
+import { Alert, LinearProgress, Typography } from '@mui/material';
+
+import SimpleCard from "../../MUI/SimpleCard";
 
 interface SystemInfoRecord extends RaRecord {
     mrmapRelease: string;

@@ -1,7 +1,9 @@
+import { type PropsWithChildren } from "react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { type PropsWithChildren } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { identifyUrl, useIdentify, usePreview } from "./usePreview";
 const state = vi.hoisted(() => ({
   request: vi.fn(),

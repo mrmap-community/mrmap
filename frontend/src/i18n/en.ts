@@ -1,6 +1,5 @@
-import englishMessages from 'ra-language-english';
-
 import lodashMerge from 'lodash/merge';
+import englishMessages from 'ra-language-english';
 
 const en = lodashMerge(
   englishMessages,

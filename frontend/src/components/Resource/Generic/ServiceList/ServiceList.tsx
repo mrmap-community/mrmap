@@ -1,5 +1,7 @@
-import { Box, Stack, Typography } from "@mui/material";
 import { useLocaleState, useResourceContext, useTranslate, type ListProps } from "react-admin";
+
+import { Box, Stack, Typography } from "@mui/material";
+
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { type ServiceListConfig } from "./config";
 import { serviceListProps } from "./serviceListProps";

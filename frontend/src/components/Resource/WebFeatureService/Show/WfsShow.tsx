@@ -1,7 +1,9 @@
+import { UrlField, useRecordContext, useTranslate } from "react-admin";
+
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Stack, Typography } from "@mui/material";
-import { UrlField, useRecordContext, useTranslate } from "react-admin";
+
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";

@@ -1,5 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
 import {
+  type RaRecord,
+  type ShowProps,
+  Show,
+  useCreatePath,
+  useGetOne,
+  useRecordContext,
+  useNotify,
+  useShowContext,
+  useTranslate,
+  Link,
+  Loading,
+} from "react-admin";
+
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import {
   Alert,
   Box,
   Breadcrumbs,
@@ -13,26 +28,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import {
-  type RaRecord,
-  type ShowProps,
-  Show,
-  useCreatePath,
-  useGetOne,
-  useRecordContext,
-  useNotify,
-  useShowContext,
-  useTranslate,
-  Link,
-  Loading,
-} from "react-admin";
+
+import { useQueryParam } from "../../utils";
 import {
   type ServiceUpdateConfig,
   wmsUpdateConfig,
 } from "../Generic/Update/serviceUpdateConfig";
 import WmsTreeView from "../WebMapService/TreeView/WmsTreeView";
-import { useQueryParam } from "../../utils";
 import CompletedUpdateJob from "./CompletedUpdateJob";
 import { EditLayerMapping } from "./EditLayerMapping";
 

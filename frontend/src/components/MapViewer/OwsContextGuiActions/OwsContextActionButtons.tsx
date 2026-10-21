@@ -3,13 +3,14 @@ import { Fragment, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import EditIcon from '@mui/icons-material/Edit';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import { Grid } from '@mui/material';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
 
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import { Grid } from '@mui/material';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import AddResourceDialog from './AddResourceDialog';
+import EditAuthenticationsDialog from './EditAuthenticationsDialog';
 import EditOwsContextDialog from './EditOwsContextDialog';
 import InitialFromOwsContextDialog from './InitialFromOwsContextDialog';
 
@@ -77,6 +78,7 @@ export const OwsContextActionButtons = () => {
                 </span>
             </Tooltip>
         </Grid>
+        <EditAuthenticationsDialog open={openAuthenticationsEditor} setOpen={setOpenAuthenticationsEditor} />
         
        
         

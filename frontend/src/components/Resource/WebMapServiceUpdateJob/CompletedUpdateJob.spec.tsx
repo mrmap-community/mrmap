@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AdminContext, testDataProvider } from "react-admin";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
 import { wfsUpdateConfig } from "../Generic/Update/serviceUpdateConfig";
 import CompletedUpdateJob from "./CompletedUpdateJob";
 
@@ -102,30 +104,28 @@ describe("completed update job", () => {
       expect(screen.getByText("New description")).toBeInTheDocument();
     },
   );
-  it("requests each change category on the server and can return to All", async () => {
+  it.each(["modified", "unchanged", "removed", "added"])("requests %s on the server and can return to All", async category => {
     const getList = renderJob();
     await screen.findByText("Temperature");
-    for (const category of ["modified", "unchanged", "removed", "added"]) {
-      fireEvent.mouseDown(
-        screen.getByRole("combobox", { name: /updateReview.change/ }),
-      );
-      fireEvent.click(
-        screen.getByRole("option", { name: `updateReview.${category}` }),
-      );
-      await waitFor(() =>
-        expect(getList).toHaveBeenLastCalledWith(
-          "HistoricalLayer",
-          expect.objectContaining({
-            filter: {
-              history_change_reason: "updatejob_id: 2",
-              service: "service",
-              change_type: category,
-            },
-            pagination: { page: 1, perPage: 10 },
-          }),
-        ),
-      );
-    }
+    fireEvent.mouseDown(
+      screen.getByRole("combobox", { name: /updateReview.change/ }),
+    );
+    fireEvent.click(
+      screen.getByRole("option", { name: `updateReview.${category}` }),
+    );
+    await waitFor(() =>
+      expect(getList).toHaveBeenLastCalledWith(
+        "HistoricalLayer",
+        expect.objectContaining({
+          filter: {
+            history_change_reason: "updatejob_id: 2",
+            service: "service",
+            change_type: category,
+          },
+          pagination: { page: 1, perPage: 10 },
+        }),
+      ),
+    );
     fireEvent.mouseDown(
       screen.getByRole("combobox", { name: /updateReview.change/ }),
     );

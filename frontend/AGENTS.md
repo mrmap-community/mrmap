@@ -163,37 +163,17 @@ npm run build                                        # production build, when re
   collection pattern also matches hidden files, so a spec literally named `.spec.ts` is collected
   but is excluded from `tsconfig.json`; both problems disappeared once the two dotfile specs in
   `ows-lib` were renamed — do not reintroduce one.
-- `npm run lint` and `npm run format` modify files across `src/`. Keep formatting changes scoped to
-  the task.
-- `npm run lint` cannot run at all right now: `eslint.config.mjs` configures `perfectionist/sort-imports`
-  with the pre-v4 option names `custom-groups` and `newlines-between`, which
-  eslint-plugin-perfectionist v5 expects as `customGroups` and `newlinesBetween`, so ESLint exits with
-  `Unexpected property "custom-groups"` before linting a file. Import order is therefore unenforced and
-  must be written correctly: one import per line, groups in the order type, `react`, external packages,
-  internal, parent, sibling, and inside a group sorted case-insensitively by module path — so `@mui/*`
-  before `react-admin`, and `../../../../jsonapi/...` before `../../../Lists/...`. Renaming the two
-  options is a separate change: it would surface findings across `src/` that no job currently sees.
+- `npm run lint` is read-only and is required in CI. `npm run lint:fix` applies autofixes;
+  `npm run format` rewrites formatting. Keep formatting changes scoped to the task.
+- ESLint, the strict TypeScript check and the complete frontend test suite must all pass.
+  Run `npm run test-coverage` for the coverage gate and HTML/LCOV reports in `coverage/`.
 - For cross-stack changes, verify both backend and frontend. Prefer targeted tests during
   development; run broader suites when the scope or risk warrants it.
 - Backend changes are verified separately; see `../backend/AGENTS.md`.
 
-## Known red baselines
+## Quality gates
 
-No CI job gated on these checks before 2026-10; the `frontend-tests` job in
-`.github/workflows/quality-assurance.yml` now runs them with `continue-on-error: true`. Neither is
-clean on `main`, so treat both as baselines to compare against instead of expecting green:
-
-- `npm run type-check`: 114 errors, spread over `components/` (largest clusters in
-  `MapViewer/OwsContextGuiActions/EditAuthenticationsDialog.tsx`, `Resource/HarvestingJob/HarvestingJobTimingCharts.tsx`),
-  `jsonapi/`, `providers/`, `i18n/de.ts` and `ows-lib` test fixtures.
-- `npm run test -- --run`: 52 to 56 failing of 268 tests, in 12 to 14 of 47 files; the exact count
-  moves between runs because several specs are timing sensitive, so treat the range as the
-  baseline. Clusters:
-  `Resource/WebMapService/Show/Overview/MonitoringRuns` and `.../UpdateJobs` (empty-state and
-  error-state cards), `LayerTree`, `Resource/Generic/ServiceShow`,
-  `Resource/WebMapServiceUpdateJob`, and `ows-lib/OwsContext/tests/OwsContext.spec.ts` (16 tests
-  asserting folder semantics the current `ows-lib` move/insert code does not implement; that file
-  collected zero tests until 2026-10, because it imported `describe` from `node:test`).
-
-Removing failures is welcome; the goal of this section is to make a failing run interpretable. When
-the CI job stops being informational, these are the numbers to clear first.
+The frontend CI job requires `npm run lint`, `npm run type-check`, and `npm run test-coverage`.
+Do not use the historical failing-test or type-error counts as an allowance for new failures.
+Coverage includes untested source files, excludes specs, fixtures and declarations, and is published
+as a CI artifact. See `../docs/source/development/code-quality.rst` for the reporting workflow.

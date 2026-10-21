@@ -1,6 +1,8 @@
-import { renderHook } from "@testing-library/react";
 import type { OpenAPIV3 } from "openapi-client-axios";
+
+import { renderHook } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
+
 import useSchemaRecordRepresentation from "./useSchemaRecordRepresentation";
 const state = vi.hoisted(() => ({
   schema: undefined as OpenAPIV3.NonArraySchemaObject | undefined,

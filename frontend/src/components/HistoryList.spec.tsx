@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AdminContext, ResourceContextProvider, testDataProvider } from 'react-admin'
-import { describe, expect, it, vi } from 'vitest'
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import polyglotI18nProvider from 'ra-i18n-polyglot'
+import { describe, expect, it, vi } from 'vitest'
+
 import en from '../i18n/en'
 import { SelectedRecordContextProvider, useSelectedRecordContext } from '../jsonapi/components/SelectedRecordContext'
 import HistoryList from './HistoryList'

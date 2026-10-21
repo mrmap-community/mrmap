@@ -1,4 +1,3 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   AdminContext,
   SimpleForm,
@@ -7,7 +6,10 @@ import {
   type RaRecord,
 } from "react-admin";
 import { MemoryRouter } from "react-router-dom";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
+
 import SchemaAutocompleteInput from "./SchemaAutocompleteInput";
 
 vi.mock("../hooks/useResourceSchema", () => ({

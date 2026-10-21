@@ -1,4 +1,3 @@
-import { Badge, Stack } from "@mui/material";
 import type { ReactElement, ReactNode } from "react";
 import {
   BasenameContextProvider,
@@ -10,6 +9,9 @@ import {
   useResourceDefinitions,
   useTranslate,
 } from "react-admin";
+
+import { Badge, Stack } from "@mui/material";
+
 import { useHttpClientContext } from "../../../../context/HttpClientContext";
 import useResourceSchema from "../../../../jsonapi/hooks/useResourceSchema";
 import { createElementIfDefined } from "../../../../utils";

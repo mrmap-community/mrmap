@@ -1,8 +1,11 @@
-import "@testing-library/jest-dom/vitest";
+import { useGetIdentity, useGetList, useResourceDefinition } from "react-admin";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGetIdentity, useGetList, useResourceDefinition } from "react-admin";
+
 import RunServiceUpdateButton from "./RunServiceUpdateButton";
+
+import "@testing-library/jest-dom/vitest";
 
 const { create, notify, refresh, mutation } = vi.hoisted(() => ({
   create: vi.fn(),

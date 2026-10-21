@@ -1,10 +1,3 @@
-import {
-  Alert,
-  alpha,
-  type CardHeaderProps,
-  Stack,
-  Typography,
-} from "@mui/material";
 import type { PropsWithChildren } from "react";
 import {
   CreateButton,
@@ -16,6 +9,15 @@ import {
   useRecordContext,
   useTranslate
 } from "react-admin";
+
+import {
+  Alert,
+  alpha,
+  type CardHeaderProps,
+  Stack,
+  Typography,
+} from "@mui/material";
+
 import SimpleCard from "../../../../MUI/SimpleCard";
 
 interface RunSetting extends RaRecord {
@@ -38,7 +40,7 @@ const RunHistoryCard = ({
   getHeader,
 }: RunHistoryCardProps) => {
   const { data, isPending, error, resource } = useListContext();
-  const [prefix, suffix] = resource.split(/(?=Job|Run$)/);
+  const [prefix] = resource.split(/(?=Job|Run$)/);
   const settingsResource = `${prefix}Setting`;
 
   const service = useRecordContext();

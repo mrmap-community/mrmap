@@ -24,17 +24,17 @@ const InitialFromOwsContextDialog = ({open, setOpen}: InitialFromOwsContextDialo
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        PaperProps={{
+        slotProps={{ paper: {
           component: 'form',
-          onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit: (event: React.FormEvent<HTMLDivElement>) => {
             event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-            const getCapabilitiesUrl = formJson.getCapabilitiesUrl;
+            const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
+            const formJson = Object.fromEntries(formData.entries());
+            const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
             initialFromOwsContext(getCapabilitiesUrl)
             setOpen(false)
           },
-        }}
+        } }}
       >
         <DialogTitle>Initial</DialogTitle>
         <DialogContent>

@@ -1,3 +1,7 @@
+import type { GeoJSON } from "geojson";
+
+import { useRecordContext, useTranslate, type RaRecord } from "react-admin";
+
 import {
   Alert,
   Box,
@@ -8,12 +12,11 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { useRecordContext, useTranslate, type RaRecord } from "react-admin";
-import type { GeoJSON } from "geojson";
-import GeoJsonMap from "../../../MapContainer/GeoJsonMap";
+
 import FeatureGroupEditor from "../../../Input/FeatureGroupEditor";
-import { getCoverageBounds } from "../../DatasetMetadataRecord/coverage";
+import GeoJsonMap from "../../../MapContainer/GeoJsonMap";
 import SimpleCard from "../../../MUI/SimpleCard";
+import { getCoverageBounds } from "../../DatasetMetadataRecord/coverage";
 import RecordFields, { IncludedRecordFields } from "./RecordFields";
 
 const RecordSpatial = () => {

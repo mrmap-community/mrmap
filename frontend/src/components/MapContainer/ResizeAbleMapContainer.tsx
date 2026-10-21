@@ -1,13 +1,14 @@
-import useResizeObserver from "@react-hook/resize-observer"
 import { useEffect, useRef, useState } from "react"
 import { useMap } from "react-leaflet"
+
+import useResizeObserver from "@react-hook/resize-observer"
 
 
 
 const AutoResizeMapContainer = () => {
 
   const [size, setSize] = useState<DOMRectReadOnly>()
-  const sizeRef = useRef<DOMRectReadOnly>()
+  const sizeRef = useRef<DOMRectReadOnly | undefined>(undefined)
 
   const map = useMap()
 

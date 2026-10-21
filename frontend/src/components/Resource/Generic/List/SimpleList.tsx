@@ -1,4 +1,5 @@
 import { useResourceContext, useResourceDefinition } from 'react-admin';
+
 import ListGuesser, { ListGuesserProps } from '../../../../jsonapi/components/ListGuesser';
 import { createElementIfDefined } from '../../../../utils';
 import SimpleCard, { SimpleCardProps } from '../../../MUI/SimpleCard';

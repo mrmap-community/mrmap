@@ -1,13 +1,3 @@
-import {
-  Button,
-  Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
 import { useState } from "react";
 import {
   DeleteButton,
@@ -21,8 +11,20 @@ import {
   Toolbar,
   SaveButton,
 } from "react-admin";
-import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
+
+import {
+  Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+
 import EditGuesser from "../../../../jsonapi/components/EditGuesser";
+import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import RecordFields, { choiceLabel } from "./RecordFields";
 
 const RecordHeader = () => {

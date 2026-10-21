@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ResourceContext, useRecordContext, useResourceContext } from 'react-admin';
+
 import { RelatedResource } from '../../../../providers/dataProvider';
 import ListUpdateSetting from '../Update/ListUpdateSetting';
 

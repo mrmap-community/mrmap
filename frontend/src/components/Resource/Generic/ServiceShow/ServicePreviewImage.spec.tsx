@@ -1,8 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { useRecordContext } from "react-admin";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import ServicePreviewImage from "./ServicePreviewImage";
 
 const state = vi.hoisted(() => ({ request: vi.fn() }));

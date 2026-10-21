@@ -3,9 +3,8 @@
 React-Admin screens and feature areas. Commands and the current red baselines are in
 `../../../AGENTS.md`; the schema layer is described in `../../jsonapi/AGENTS.md`.
 
-This is the hottest area of the repository: most changes touch `Resource/`, and neither
-`npm run type-check` nor the specs are clean on `main`, so compare against the documented baseline
-instead of assuming a green run.
+Most changes touch `Resource/`. Lint, strict type checking and the frontend specs are required CI
+checks; run targeted specs while iterating and the full coverage suite before finishing broad work.
 
 ## Resource screens
 
@@ -165,5 +164,5 @@ vi.mock("react-admin", () => ({
   meaningful per segment.
 - Run a single area while iterating (see `../../../AGENTS.md` for the Docker wrapper):
   `npx vitest --run src/components/Resource/HarvestingJob`.
-- `npm run lint` and `npm run format` rewrite all of `src/`; keep formatting changes out of a
-  targeted change.
+- `npm run lint` is read-only. `npm run lint:fix` and `npm run format` rewrite files; keep those
+  changes scoped to the task.

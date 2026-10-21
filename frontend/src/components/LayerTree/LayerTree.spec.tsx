@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
+import { AdminContext } from "react-admin";
 
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { karteRpFeatures as testdata } from '../../ows-lib/OwsContext/tests/data';
@@ -15,9 +16,9 @@ const getKarteRpFeatures = () => {
 
 const MapViewerBaseWrapper = ({ children }: { children: ReactNode }) => {
   return (
-    <OwsContextBase initialFeatures={getKarteRpFeatures()}>
+    <AdminContext><OwsContextBase initialFeatures={getKarteRpFeatures()}>
       {children}
-    </OwsContextBase>
+    </OwsContextBase></AdminContext>
   )
 }
 
@@ -61,22 +62,22 @@ describe('LayerTree', () => {
 
   it('toggles GetFeatureInfo via the second checkbox', () => {
     const customFeatures = [new OWSResource({
-      title: 'Test Layer',
+      title: 'Test Layer', updated: '',
       folder: '/0',
       offerings: [{
         code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
         operations: [
-          { code: 'GetMap', active: false },
-          { code: 'GetFeatureInfo', active: false },
+          { code: 'GetMap', method: 'GET', href: 'https://example.com/wms', active: false },
+          { code: 'GetFeatureInfo', method: 'GET', href: 'https://example.com/wms', active: false },
         ],
       }],
     })];
 
     render(
-      <OwsContextBase initialFeatures={customFeatures}>
+      <AdminContext><OwsContextBase initialFeatures={customFeatures}>
         <LayerTree />
         <ContextProbe />
-      </OwsContextBase>
+      </OwsContextBase></AdminContext>
     );
 
     const checkboxes = screen.getAllByRole('checkbox');
@@ -88,34 +89,35 @@ describe('LayerTree', () => {
   it('renders GetMap checkbox as indeterminate when descendants are mixed active', () => {
     const customFeatures = [
       new OWSResource({
-        title: 'Parent Layer',
+        title: 'Parent Layer', updated: '',
         folder: '/0',
         offerings: [{
           code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
           operations: [
-            { code: 'GetMap', active: true },
+            { code: 'GetMap', method: 'GET', href: 'https://example.com/wms', active: true },
           ],
         }],
       }),
       new OWSResource({
-        title: 'Child Layer',
+        title: 'Child Layer', updated: '',
         folder: '/0/1',
         offerings: [{
           code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
           operations: [
-            { code: 'GetMap', active: false },
+            { code: 'GetMap', method: 'GET', href: 'https://example.com/wms', active: false },
           ],
         }],
       }),
     ];
 
     render(
-      <OwsContextBase initialFeatures={customFeatures}>
+      <AdminContext><OwsContextBase initialFeatures={customFeatures}>
         <LayerTree />
-      </OwsContextBase>
+      </OwsContextBase></AdminContext>
     );
 
     const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes[0]).toHaveProperty('indeterminate', true);
+    expect(checkboxes[0]).toHaveAttribute('data-indeterminate', 'true');
   });
 });
+vi.mock("../MapViewer/MapViewerBase", () => ({ useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] } }) }));

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
 import { OWSResource as IOWSResource, OWSContext, StyleSet } from "./types";
@@ -222,7 +223,7 @@ export const updateFolders = (
     const newRootFolders = newRootPath.split('/')
     const oldRootFolders = tree[0].properties.folder.split('/')
 
-    const subtreeDepthIndexes: any = { '0': startIndex }
+    const subtreeDepthIndexes: Record<string, number> = { '0': startIndex }
 
     let lastDepth = 0
 
@@ -275,7 +276,7 @@ export const getParentFolder = (folder: string) => {
 
 
 export const collectInheritedLayerProperties = (layer: WmsLayer, identifier: string, properties: InheritableProperties | undefined = undefined): InheritableProperties | undefined => {
-    const currentProps = {
+    const currentProps: InheritableProperties = {
         referenceSystems: layer.referenceSystems ?? [],
         styles: layer.styles ?? [],
         bbox: layer.bbox ?? [],

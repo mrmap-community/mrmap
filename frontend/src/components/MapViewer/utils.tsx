@@ -4,7 +4,7 @@ import { Identifier, type RaRecord } from 'react-admin'
 
 import { LatLng, LatLngBounds } from 'leaflet'
 
-import { WMSTree, type TreeNode } from '../../react-ows-lib/ContextProvider/OwsContextBase'
+import { OWSResource as TreeNode } from '../../ows-lib/OwsContext/core'
 
 export const deflatTree = (node: TreeNode): TreeNode[] => {
   const nodes = [node]
@@ -16,7 +16,7 @@ export const deflatTree = (node: TreeNode): TreeNode[] => {
   return nodes
 }
 
-export const findChildrenById = (tree: WMSTree, id: Identifier): TreeNode | undefined => {
+export const findChildrenById = (tree: { rootNode?: TreeNode }, id: Identifier): TreeNode | undefined => {
   if (tree.rootNode !== undefined){
     const flatTree = deflatTree(tree.rootNode)
     return flatTree.find(node => node.id === id)

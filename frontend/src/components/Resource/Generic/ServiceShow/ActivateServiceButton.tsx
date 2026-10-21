@@ -1,5 +1,3 @@
-import PowerIcon from "@mui/icons-material/Power";
-import PowerOffIcon from "@mui/icons-material/PowerOff";
 import {
   Button,
   useNotify,
@@ -8,6 +6,10 @@ import {
   useResourceContext,
   useUpdate,
 } from "react-admin";
+
+import PowerIcon from "@mui/icons-material/Power";
+import PowerOffIcon from "@mui/icons-material/PowerOff";
+
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 
 /**

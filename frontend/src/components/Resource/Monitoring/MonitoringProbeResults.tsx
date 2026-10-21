@@ -1,5 +1,17 @@
 import { useState } from "react";
 import {
+  type Identifier,
+  type RaRecord,
+  Loading,
+  useGetMany,
+  useTranslate,
+} from "react-admin";
+
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlined";
+import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
@@ -11,17 +23,6 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  type Identifier,
-  type RaRecord,
-  Loading,
-  useGetMany,
-  useTranslate,
-} from "react-admin";
 
 const definitions = {
   GetCapabilities: [

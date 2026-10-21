@@ -6,47 +6,104 @@
         {
             "label": "Frontend: run dev",
             "type": "shell",
-            "command": "npm",
+            "command": "docker",
             "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend",
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
                 "run",
-                "dev"
+                "--rm",
+                "-p",
+                "5173:5173",
+                "frontend-tests",
+                "npm",
+                "run",
+                "dev",
+                "--",
+                "--host",
+                "0.0.0.0"
             ],
+            "problemMatcher": []
         },
         {
             "label": "Frontend: run test",
             "type": "shell",
-            "command": "npm",
+            "command": "docker",
             "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend",
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
                 "run",
-                "test"
-            ]
+                "--rm",
+                "frontend-tests",
+                "npm",
+                "run",
+                "test",
+                "--",
+                "--run"
+            ],
+            "problemMatcher": []
         },
         {
             "label": "Frontend: run test with coverage",
             "type": "shell",
-            "command": "npm",
+            "command": "docker",
             "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend",
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
                 "run",
-                "test-coverage",
-            ]
+                "--rm",
+                "frontend-tests",
+                "npm",
+                "run",
+                "test-coverage"
+            ],
+            "problemMatcher": []
         },
         {
             "label": "Frontend: run lint",
             "type": "shell",
-            "command": "npm",
+            "command": "docker",
             "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend",
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
                 "run",
-                "lint",
-                "--fix"
-            ]
+                "--rm",
+                "frontend-tests",
+                "npm",
+                "run",
+                "lint"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Frontend: run type check",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "run",
+                "--rm",
+                "frontend-tests",
+                "npm",
+                "run",
+                "type-check"
+            ],
+            "problemMatcher": []
         },
         {
             "label": "Docker Compose: mrmap startup",

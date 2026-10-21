@@ -1,6 +1,8 @@
+import { useGetList, useGetMany, type RaRecord } from "react-admin";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGetList, useGetMany, type RaRecord } from "react-admin";
+
 import SchemaAutocompleteInput from "./SchemaAutocompleteInput";
 
 const state = vi.hoisted(() => ({

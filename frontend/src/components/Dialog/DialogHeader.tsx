@@ -1,7 +1,9 @@
-import CloseIcon from "@mui/icons-material/Close";
-import { IconButton, Stack, Typography } from "@mui/material";
 import type { PropsWithChildren } from "react";
 import { useTranslate } from "react-admin";
+
+import CloseIcon from "@mui/icons-material/Close";
+import { IconButton, Stack, Typography } from "@mui/material";
+
 import { useDialogContextBase } from "./DialogContextBase";
 
 const DialogHeader = ({ children }: PropsWithChildren) => {

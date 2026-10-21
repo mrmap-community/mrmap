@@ -18,7 +18,7 @@ export interface WizardStepDefinition {
   component?: ReactNode;
   optional?: ReactNode;
   isCompleted?: boolean | (() => boolean);
-  completedData?: any;
+  completedData?: unknown;
 }
 
 export type FormDefinition = WizardStepDefinition;
@@ -30,7 +30,7 @@ export interface WizardFormState {
   setActiveStep: Dispatch<SetStateAction<number>>;
   setErrors: Dispatch<SetStateAction<WizardError[]>>;
   setSteps: Dispatch<SetStateAction<WizardStepDefinition[]>>;
-  setStepCompleted: (stepId: string, completed: boolean, data: any) => void;
+  setStepCompleted: (stepId: string, completed: boolean, data: unknown) => void;
   isStepCompleted: (step: number | string) => boolean;
 }
 
@@ -50,7 +50,7 @@ export const WizardFormBase = ({
   const [steps, setSteps] = useState<WizardStepDefinition[]>(initialSteps);
   const [activeStep, setActiveStep] = useState(initialActiveStep);
 
-  const setStepCompleted = (stepId: string, completed: boolean, data: any): void => {
+  const setStepCompleted = (stepId: string, completed: boolean, data: unknown): void => {
     setSteps((currentSteps) =>
       currentSteps.map((step) =>
         step.id === stepId

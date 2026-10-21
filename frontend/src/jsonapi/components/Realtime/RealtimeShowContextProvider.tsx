@@ -1,5 +1,6 @@
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import { RaRecord, ShowContextProvider, ShowControllerProps, useDataProvider, useResourceContext, useShowController } from 'react-admin';
+
 import { CrudEvent } from '../../../providers/dataProvider';
 
 
@@ -22,7 +23,8 @@ const RealtimeShowContextProvider = ({
       );
   }
   const dataProvider = useDataProvider()
-  const { record, refetch, isFetching,...controllerProps } = useShowController({resource, ...rest});
+  const controller = useShowController({resource, ...rest});
+  const { record, refetch, isFetching } = controller;
   
   const [realtimeRecord, setRealtimeRecord] = useState<RaRecord | undefined>(record)
   const [timestamp, setTimestamp] = useState<number>(Date.now())
@@ -54,7 +56,7 @@ const RealtimeShowContextProvider = ({
   },[record])
 
   return (
-      <ShowContextProvider value={{record: realtimeRecord || record, ...controllerProps}}>
+      <ShowContextProvider value={controller.isPending ? controller : { ...controller, record: realtimeRecord || record }}>
           {children}
       </ShowContextProvider>
   )

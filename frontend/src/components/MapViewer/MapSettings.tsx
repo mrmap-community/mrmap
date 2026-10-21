@@ -12,7 +12,7 @@ export interface DisplayPositionProps {
 }
 
 const DisplayPosition = ({
-  crsBbox
+  crsBbox: _crsBbox
 }: DisplayPositionProps): ReactNode => {
 
   const { featureCollection } = useMapViewerBase()
@@ -29,8 +29,8 @@ const DisplayPosition = ({
 }
 
 
-const MapSettingsEditor = ({ children }: PropsWithChildren): ReactNode => {
-  const { selectedCrs, setSelectedCrs } = useMapViewerBase()
+const MapSettingsEditor = ({ children: _children }: PropsWithChildren): ReactNode => {
+
 
   //const { crsIntersection, selectedCrs, setSelectedCrs } = useOwsContextBase()
 

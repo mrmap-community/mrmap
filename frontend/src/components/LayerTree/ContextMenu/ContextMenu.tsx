@@ -1,9 +1,11 @@
+import { RecordContextProvider } from 'react-admin';
+
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from '@mui/material/MenuList';
-import { RecordContextProvider } from 'react-admin';
+
 import ActivateLayerItem from './ActivateLayerItem';
 import { useContextMenuBase } from "./ContextMenuBase";
 import ManageAuthenticationItem from './ManageAuthenticationItem';

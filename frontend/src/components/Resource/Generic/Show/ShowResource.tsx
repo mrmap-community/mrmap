@@ -1,5 +1,6 @@
 import { Fragment, ReactNode, useMemo } from 'react';
 import { RecordRepresentation, Show, ShowProps, ShowViewProps, useResourceContext, WithRecord } from 'react-admin';
+
 import JsonApiReferenceField from '../../../../jsonapi/components/ReferenceField';
 import SimpleCard from '../../../MUI/SimpleCard';
 
@@ -19,7 +20,7 @@ const ShowResource = ({
     
   const meta = useMemo(()=>{
     const meta = {
-      jsonApiParams: {} as any
+      jsonApiParams: {} as Record<string, string>
     }
     meta["jsonApiParams"][`fields[${resource}]`] = sources.join(",")
     return meta
@@ -31,9 +32,9 @@ const ShowResource = ({
     return (
       <Fragment>
         <WithRecord label="createdAt" render={record => <span>Created on {record.createdAt}</span>} />
-        <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='createdBy' reference='User'/>}</span>} />
+        <WithRecord label='createdBy' render={() => <span> by {<JsonApiReferenceField source='createdBy' reference='User'/>}</span>} />
         <WithRecord label="changedAt" render={record => <span> · Updated on {record.lastModifiedAt}</span>} />
-        <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='lastModifiedBy' reference='User'/>}</span>} />
+        <WithRecord label='createdBy' render={() => <span> by {<JsonApiReferenceField source='lastModifiedBy' reference='User'/>}</span>} />
       </Fragment>
 
     )

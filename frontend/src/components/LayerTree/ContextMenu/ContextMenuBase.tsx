@@ -1,12 +1,13 @@
 
-import { Dispatch, PropsWithChildren, ReactNode, SetStateAction, createContext, useContext, useMemo, useState } from "react";
+import { PropsWithChildren, ReactNode, createContext, useContext, useMemo, useState } from "react";
 import { RaRecord } from "react-admin";
+
 import { OWSResource } from "../../../ows-lib/OwsContext/core";
 
 
 
 export interface ContextMenuBaseProps {
-  node: OWSResource;
+  node?: OWSResource;
   record?: RaRecord;
   itemId?: string;
   isOpen: boolean;
@@ -16,7 +17,7 @@ export interface ContextMenuBaseProps {
 }
 
 export interface ContextMenuBaseType extends ContextMenuBaseProps {
-  setContextMenu: Dispatch<SetStateAction<ContextMenuBaseProps>>;
+  setContextMenu: (value: ContextMenuBaseProps) => void;
   close: () => void;
 }
 

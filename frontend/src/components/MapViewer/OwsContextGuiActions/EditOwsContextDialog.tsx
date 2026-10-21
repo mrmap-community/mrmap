@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 
+import { Editor } from '@monaco-editor/react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -9,7 +10,6 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
-import { Editor } from '@monaco-editor/react';
 import { OwsContextIssue } from '../../../ows-lib/OwsContext/validation';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 
@@ -71,7 +71,7 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
         onClose={() => setOpen(false)}
         slotProps={{paper: {
           component: 'form',
-          onSubmit: (e) => {
+          onSubmit: (e: React.FormEvent<HTMLDivElement>) => {
             e.preventDefault()
             handleSave()
           }

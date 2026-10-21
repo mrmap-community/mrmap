@@ -2,12 +2,11 @@ import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, 
 
 import { Map } from "leaflet";
 
-import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
-import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
-
 import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
 import { Operation } from "../../ows-lib/OwsContext/types";
 import { isOperationUrlEqual } from '../../ows-lib/OwsContext/utils';
+import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
+import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
 
 export interface CRS {
   stringRepresentation: string
@@ -107,7 +106,7 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
     const requests = Object.entries(mapRequests)
     const timings: Record<string, number> = {}
 
-    const errors = requests.map((([id, request]) => request.error)).filter(error => error !== undefined)
+    const errors = requests.map((([, request]) => request.error)).filter(error => error !== undefined)
 
     const loaded = requests.filter(([, request]) => request.status === 'ready').length
     const hasLoading = requests.some(([, request]) => request.status === 'loading')
@@ -121,7 +120,7 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
           ? 'ready'
           : 'idle'
 
-    const failedFeatures = requests.filter(([id, request]) => request.error !== undefined).flatMap(([id, request]) => request.error?.features || [])
+    const failedFeatures = requests.filter(([, request]) => request.error !== undefined).flatMap(([, request]) => request.error?.features || [])
 
 
     return { status, loaded, total: requests.length, errors, timings, failedFeatures }

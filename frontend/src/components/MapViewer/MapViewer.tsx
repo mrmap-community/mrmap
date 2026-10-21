@@ -1,7 +1,7 @@
 import { useEffect, useId, type PropsWithChildren, type ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
 import { type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
+import { useLocation } from 'react-router-dom'
 
 import { Box, Divider, Stack } from '@mui/material'
 import { CRS } from 'leaflet'
@@ -24,9 +24,7 @@ const style = {
   height: '100%',
 }
 
-export interface WMSLayerTreeProps extends Partial<SimpleShowLayoutProps> {
-
-}
+export type WMSLayerTreeProps = Partial<SimpleShowLayoutProps>;
 
 export interface Tile {
   leafletTile: ReactNode

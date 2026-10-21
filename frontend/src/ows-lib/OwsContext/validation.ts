@@ -70,7 +70,8 @@ const isRfc3339 = (value: string) => RFC_3339_PATTERN.test(value) && !Number.isN
 
 const isAbsoluteUrl = (value: string) => {
     try {
-        return new URL(value) !== null
+        new URL(value)
+        return true
     } catch {
         return false
     }

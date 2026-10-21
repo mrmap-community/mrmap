@@ -4,13 +4,14 @@ import {
   useResourceContext,
   useTranslate,
 } from "react-admin";
+
 import ServiceShowTabs from "../ServiceShowTabs";
-import RecordHeader from "./RecordHeader";
-import RecordOverview from "./RecordOverview";
-import RecordSpatial from "./RecordSpatial";
 import RecordContacts from "./RecordContacts";
-import RecordRelations from "./RecordRelations";
+import RecordHeader from "./RecordHeader";
 import RecordHistory from "./RecordHistory";
+import RecordOverview from "./RecordOverview";
+import RecordRelations from "./RecordRelations";
+import RecordSpatial from "./RecordSpatial";
 
 const RecordShow = () => {
   const resource = useResourceContext();

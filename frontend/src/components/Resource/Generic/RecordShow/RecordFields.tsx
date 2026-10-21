@@ -1,4 +1,3 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
 import { createElement } from "react";
 import {
   Labeled,
@@ -11,6 +10,9 @@ import {
   useTranslate,
   type RaRecord,
 } from "react-admin";
+
+import { Box, Chip, Stack, Typography } from "@mui/material";
+
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 
 export const choiceLabel = (

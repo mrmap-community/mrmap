@@ -1,4 +1,5 @@
 import { RaRecord, useRecordContext, useResourceContext } from 'react-admin';
+
 import { FieldDefinition } from '../utils';
 import { FieldsForOperationProps, useFieldsForOperation } from './useFieldsForOperation';
 

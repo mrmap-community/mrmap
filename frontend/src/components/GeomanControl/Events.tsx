@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 
-interface EventProps extends L.Events {
-  onCreate?: (event) => void;
-  onUpdate?: (event) => void;
-  onRemove?: (event) => void;
+interface EventProps {
+  onCreate?: (event: { layer: L.Layer }) => void;
+  onUpdate?: (event: { layer: L.Layer }) => void;
+  onRemove?: (event: { layer: L.Layer }) => void;
 }
 
 

@@ -1,4 +1,3 @@
-import { Alert, Stack } from "@mui/material";
 import { useEffect, type ReactNode } from "react";
 import {
   type RaRecord,
@@ -7,6 +6,8 @@ import {
   useRefresh,
   useTranslate,
 } from "react-admin";
+
+import { Alert, Stack } from "@mui/material";
 
 /** the interval the attention of a service is asked for again, in milliseconds */
 export const ATTENTION_REFETCH_INTERVAL = 60000;

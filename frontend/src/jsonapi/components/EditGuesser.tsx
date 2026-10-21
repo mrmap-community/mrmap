@@ -1,14 +1,16 @@
+import type { JsonApiQueryParams } from '../types/jsonapi';
+
 import { type ReactElement, useMemo } from 'react';
 import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useRecordContext, useResourceContext, useResourceDefinition } from 'react-admin';
+
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
+import useGuesserSuccess from '../hooks/useGuesserSuccess';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
+import GlobalFormError from './GlobalFormError';
 import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 import SchemaAutocompleteInput from './SchemaAutocompleteInput';
-import type { JsonApiQueryParams } from '../types/jsonapi';
 import SchemaFormFields from './SchemaFormFields';
-import GlobalFormError from './GlobalFormError';
-import useGuesserSuccess from '../hooks/useGuesserSuccess';
 
 
 export interface EditGuesserProps<RecordType extends RaRecord = RaRecord>

@@ -1,3 +1,5 @@
+import type { PropsWithChildren, ReactNode } from "react";
+
 import {
   Card,
   CardActions,
@@ -9,7 +11,6 @@ import {
   type CardHeaderProps,
   type CardProps,
 } from "@mui/material";
-import type { PropsWithChildren, ReactNode } from "react";
 
 export interface SimpleCardProps extends PropsWithChildren {
   title?: ReactNode;

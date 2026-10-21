@@ -1,6 +1,7 @@
-import { Alert } from '@mui/material';
 import { ValidationError } from 'react-admin';
 import { useFormState } from 'react-hook-form';
+
+import { Alert } from '@mui/material';
 
 const GlobalFormError = () => {
   const { errors } = useFormState();

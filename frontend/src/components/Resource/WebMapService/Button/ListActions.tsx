@@ -1,7 +1,9 @@
+import { useRecordContext, useTranslate } from 'react-admin';
+
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import { Tooltip } from '@mui/material';
-import { useRecordContext, useTranslate } from 'react-admin';
 import { Fragment } from 'react/jsx-runtime';
+
 import MapViewerButton from './MapViewerButton';
 
 

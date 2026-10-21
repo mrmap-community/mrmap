@@ -1,10 +1,12 @@
-import { Grid, Link, Stack } from "@mui/material";
 import {
   useRecordContext,
   useResourceContext,
   useTranslate,
   type RaRecord,
 } from "react-admin";
+
+import { Grid, Link, Stack } from "@mui/material";
+
 import SimpleCard from "../../../MUI/SimpleCard";
 import RecordFields, { IncludedRecordFields } from "./RecordFields";
 

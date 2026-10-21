@@ -1,5 +1,6 @@
-import { Step, StepLabel, Stepper, Typography } from "@mui/material";
 import { useTranslate } from "react-admin";
+
+import { Step, StepLabel, Stepper, Typography } from "@mui/material";
 
 const HarvestingPhaseStepper = ({ phase }: { phase: number | undefined }) => {
   const translate = useTranslate();

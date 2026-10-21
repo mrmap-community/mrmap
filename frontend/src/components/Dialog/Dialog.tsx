@@ -1,11 +1,13 @@
+import { useId } from "react";
+
 import Dialog, { DialogProps } from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { useId } from "react";
+
 import { useDialogContextBase } from "./DialogContextBase";
 
-export interface ContextBasedDialogProps extends Omit<DialogProps, "open"> {}
+export type ContextBasedDialogProps = Omit<DialogProps, "open">;
 
 const ContextBasedDialog = ({ children, ...rest }: ContextBasedDialogProps) => {
   const { isOpen, close, title, content, actions } = useDialogContextBase();

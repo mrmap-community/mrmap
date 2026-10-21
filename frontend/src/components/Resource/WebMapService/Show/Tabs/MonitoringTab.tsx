@@ -1,5 +1,5 @@
-import ListWebMapServiceMonitoringSetting from '../../../Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ServiceMonitoringTab from '../../../Monitoring/ServiceMonitoringTab';
+import ListWebMapServiceMonitoringSetting from '../../../Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 
 
 export const MonitoringTab = () => (

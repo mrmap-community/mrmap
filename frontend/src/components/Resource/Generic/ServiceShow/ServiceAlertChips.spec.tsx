@@ -1,8 +1,11 @@
-import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
 import { AdminContext, RecordContextProvider } from "react-admin";
+
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+
 import ServiceAlertChips from "./ServiceAlertChips";
+
+import "@testing-library/jest-dom/vitest";
 
 const renderChips = (record: Record<string, unknown>) =>
   render(

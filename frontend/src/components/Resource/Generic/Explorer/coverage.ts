@@ -1,4 +1,5 @@
 import type { GeoJsonObject } from "geojson";
+
 import L from "leaflet";
 
 // Geometry fields can arrive as GeoJSON objects or serialized GeoJSON.

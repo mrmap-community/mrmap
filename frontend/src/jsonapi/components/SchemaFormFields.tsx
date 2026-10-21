@@ -1,7 +1,9 @@
+import type { FieldDefinition } from '../utils';
+
 import { createElement } from 'react';
 import type { RaRecord } from 'react-admin';
+
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
-import type { FieldDefinition } from '../utils';
 
 export default function SchemaFormFields({ operationId, overrides, record }: {
   operationId: string;

@@ -1,11 +1,12 @@
 import { useCreateSuggestionContext } from "react-admin";
+
 import CreateDialogButton, { CreateDialogButtonProps } from "./CreateDialogButton";
 
 const CreateSuggestionDialog = (
   props: CreateDialogButtonProps
 ) => {
 
-  const { onCancel, onCreate } = useCreateSuggestionContext();
+  const { onCreate } = useCreateSuggestionContext();
   
   return (
     <CreateDialogButton

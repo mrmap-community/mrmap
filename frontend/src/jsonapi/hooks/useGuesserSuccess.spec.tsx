@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import useGuesserSuccess from './useGuesserSuccess';
 
 const mocks = vi.hoisted(() => ({ notify: vi.fn(), redirect: vi.fn(), getErrors: vi.fn((): unknown[] => []) }));

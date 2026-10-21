@@ -1,8 +1,11 @@
-import "@testing-library/jest-dom/vitest";
+import { useRecordContext } from "react-admin";
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useRecordContext } from "react-admin";
+
 import ServiceAttentionTab from "./ServiceAttentionTab";
+
+import "@testing-library/jest-dom/vitest";
 
 vi.mock("react-admin", () => ({
   DateField: ({ source }: { source: string }) => <span>{source}</span>,

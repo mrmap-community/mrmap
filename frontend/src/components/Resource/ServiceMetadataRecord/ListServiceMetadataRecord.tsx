@@ -1,4 +1,5 @@
 import { type ListProps, useResourceDefinition } from "react-admin";
+
 import ListMetadataRecords from "../Generic/Explorer/ListMetadataRecords";
 
 const ListServiceMetadataRecord = (props: Partial<ListProps>) => {

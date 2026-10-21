@@ -1,6 +1,8 @@
-import PowerIcon from '@mui/icons-material/Power';
 import { useEffect } from 'react';
 import { useListContext, useRecordContext, useTranslate, useUpdate } from 'react-admin';
+
+import PowerIcon from '@mui/icons-material/Power';
+
 import { useContextMenuBase } from "./ContextMenuBase";
 import ContextMenuItem from './ContextMenuItem';
 

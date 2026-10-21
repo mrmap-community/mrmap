@@ -1,4 +1,5 @@
 import type { FeatureCollection, Geometry } from "geojson";
+
 import type { RaRecord } from "react-admin";
 
 // The proxy matches stored layer memberships. Rule validation requires complete subtrees.

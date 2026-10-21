@@ -1,4 +1,3 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   AdminContext,
   ResourceContextProvider,
@@ -9,10 +8,13 @@ import {
   type DataProvider,
 } from "react-admin";
 import { Route, Routes } from "react-router-dom";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import RecordShow from "./RecordShow";
+
 import { choiceLabel } from "./RecordFields";
 import { relationGraph, relationGroups } from "./RecordRelations";
+import RecordShow from "./RecordShow";
 
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: ({ operationId }: { operationId: string }) =>

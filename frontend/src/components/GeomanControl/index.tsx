@@ -1,7 +1,8 @@
-import "@geoman-io/leaflet-geoman-free";
-import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import { createControlComponent } from "@react-leaflet/core";
 import * as L from "leaflet";
+
+import "@geoman-io/leaflet-geoman-free";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
 interface Props extends L.ControlOptions {
   position: L.ControlPosition;

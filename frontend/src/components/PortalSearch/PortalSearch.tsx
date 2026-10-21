@@ -31,7 +31,7 @@ export const CustomFilter = () => (
   <FormControl>
     <InputLabel htmlFor="my-input">Search</InputLabel>
     <Input id="my-input" aria-describedby="my-helper-text" />
-    <FormHelperText id="my-helper-text">We'll never share your email.</FormHelperText>
+    <FormHelperText id="my-helper-text">We&apos;ll never share your email.</FormHelperText>
   </FormControl>
 
 );
@@ -40,7 +40,7 @@ export const CustomFilter = () => (
 const PortalSearch = (): ReactNode => {
   const [search, setSearch] = useState("")
 
-  const handleSubmit = useCallback((event) => {
+  const handleSubmit = useCallback((event: React.FormEvent) => {
     event.preventDefault();
     alert("Form Submitted");
   }, []);

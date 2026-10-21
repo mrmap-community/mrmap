@@ -1,6 +1,8 @@
 
 
-  import BarChartIcon from '@mui/icons-material/BarChart';
+  import { useState } from 'react';
+
+import BarChartIcon from '@mui/icons-material/BarChart';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Box, Collapse, IconButton, Stack, Typography } from '@mui/material';
@@ -8,7 +10,6 @@ import { useTheme } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { format, parseISO } from 'date-fns';
 import { useGetList, useRecordContext, useTranslate } from 'ra-core';
-import { useState } from 'react';
 
 
 export const LayerChangesChart = ({ resource }: { resource: string }) => {

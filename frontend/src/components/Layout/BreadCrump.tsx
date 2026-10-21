@@ -1,7 +1,8 @@
-import { Breadcrumbs, Link, Typography } from '@mui/material';
 import { useMemo } from 'react';
 import { useTranslate } from 'react-admin';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
+
+import { Breadcrumbs, Link, Typography } from '@mui/material';
 
 const formatLabel = (segment: string): string => {
   const normalized = decodeURIComponent(segment).replace(/[-_]/g, ' ');

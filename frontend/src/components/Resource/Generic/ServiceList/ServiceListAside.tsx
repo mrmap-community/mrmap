@@ -1,11 +1,14 @@
-import { Stack } from "@mui/material";
+import type { ServiceProtocol } from "../ServiceShow/ServiceDetailsCard";
+
 import { useGetRecordRepresentation, useResourceContext, useTranslate } from "react-admin";
+
+import { Stack } from "@mui/material";
+
 import { useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import HistoryList from "../../../HistoryList";
 import SimpleCard from "../../../MUI/SimpleCard";
 import SelectedServiceDetailsCard from "../ServiceShow/SelectedServiceDetailsCard";
-import type { ServiceProtocol } from "../ServiceShow/ServiceDetailsCard";
 
 const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
   const resource = useResourceContext();

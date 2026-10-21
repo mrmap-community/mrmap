@@ -1,7 +1,8 @@
 
+import { AutocompleteInput, BooleanInput, NullableBooleanInput, NumberInput, TextInput, useResourceContext } from 'react-admin';
+
 import { type OpenAPIV3 } from 'openapi-client-axios';
 
-import { AutocompleteInput, BooleanInput, NullableBooleanInput, NumberInput, TextInput, useResourceContext } from 'react-admin';
 import GeoJsonInput from '../../components/Input/GeoJsonInput';
 import SchemaAutocompleteInput from '../components/SchemaAutocompleteInput';
 import { FieldDefinition } from '../utils';
@@ -15,9 +16,7 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
   const filterRelatedResourceField = filterExtensions['x-jsonapi-related-resource-field'] as string | undefined;
   const filterLookupExpression = filterExtensions['x-jsonapi-filter-lookup-expression'] as string | undefined;
   const filterLookupExpressionLabel = filterExtensions['x-jsonapi-filter-lookup-expression-label'] as string | undefined;
-  const filterLocalResourceField = filterExtensions['x-jsonapi-local-resource-field'] as string | undefined;
   const filterFieldParts = filterExtensions['x-jsonapi-field-parts'] as string[] | undefined;
-  const filterLabel = filterExtensions?.['x-jsonapi-filter-label'] as string | undefined;
 
   const filterSchema = schema.schema as OpenAPIV3.SchemaObject;
   const name = schema.name.replace('filter[', '').replace(']', '').replace('.', '_filter_lookup_')

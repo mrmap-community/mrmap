@@ -1,7 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
 import type { ListGuesserProps } from "../../../jsonapi/components/ListGuesser";
+
+import type { PropsWithChildren } from "react";
+
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import ListServiceMetadataRecord from "./ListServiceMetadataRecord";
 
 const context = vi.hoisted(() => ({

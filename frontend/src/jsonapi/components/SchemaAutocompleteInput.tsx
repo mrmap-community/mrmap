@@ -11,6 +11,7 @@ import {
   useRecordContext,
 } from "react-admin";
 import { useWatch } from "react-hook-form";
+
 import { RelatedResource } from "../../providers/dataProvider";
 import useSchemaRecordRepresentation from "../hooks/useSchemaRecordRepresentation";
 
@@ -20,7 +21,7 @@ export interface SchemaAutocompleteInputProps extends AutocompleteArrayInputProp
   source: string;
   params?: GetListParams;
   getListParams?: GetListParams;
-  initialFilter?: any;
+  initialFilter?: import("react-admin").FilterPayload;
 }
 
 /**
@@ -37,7 +38,7 @@ const SchemaAutocompleteInput = ({
   source,
   multiple,
   params,
-  defaultValue,
+  defaultValue: _defaultValue,
   getListParams,
   initialFilter,
   onOpen,
@@ -45,9 +46,9 @@ const SchemaAutocompleteInput = ({
   ...rest
 }: SchemaAutocompleteInputProps): ReactElement => {
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState<any>(initialFilter || {});
+  const [filter, setFilter] = useState<import("react-admin").FilterPayload>(initialFilter || {});
   const defaultParms = useMemo<GetListParams>(() => {
-    const _defaultParms: any = {
+    const _defaultParms: GetListParams = {
       sort: { field: "", order: "DESC" },
       meta: {
         relatedResource: relatedResource,
@@ -77,7 +78,7 @@ const SchemaAutocompleteInput = ({
 
   const includedObjects = useMemo(() => {
     return valuesArray
-      .map((value: any) => {
+      .map((value: RaRecord) => {
         if (
           typeof value === "object" &&
           value.id &&
@@ -86,7 +87,7 @@ const SchemaAutocompleteInput = ({
           return value; // already has completed data
         }
       })
-      .filter((value: any) => value !== undefined);
+      .filter((value): value is RaRecord => value !== undefined);
   }, [valuesArray]);
 
   const missingObjects = useMemo(() => {
@@ -139,13 +140,13 @@ const SchemaAutocompleteInput = ({
   );
 
   const mergedData = useMemo(() => {
-    return valuesArray.map((value: any) => {
+    return valuesArray.map((value: RaRecord) => {
       if (typeof value === "object" && value.id && value.stringRepresentation) {
         return value; // already has completed data
       }
 
       const matched = [...(getManyData || [])]?.find(
-        (item: any) =>
+        (item: RaRecord) =>
           item.id === (typeof value === "object" ? value.id : value),
       );
 
@@ -167,7 +168,7 @@ const SchemaAutocompleteInput = ({
   );
 
   const search = useCallback((searchText: string) => {
-    setFilter((prev: any) => ({ ...prev, search: searchText }));
+    setFilter((prev) => ({ ...prev, search: searchText }));
   }, []);
 
   // TODO: check if the resource has create endpoint; if so, we add an create component here

@@ -119,3 +119,27 @@ describe('OwsContextBase document validation', () => {
   });
 
 });
+
+it('persists supplied capabilities authentication for subsequent same-origin WMS operations', async () => {
+  const xml = await import('../../ows-lib/XMLParser/tests/capabilities_inherited_130.xml?raw');
+  const fetch = vi.fn(async (_request: Request) => new Response(xml.default, { status: 200 }));
+  vi.stubGlobal('fetch', fetch);
+  let current: ReturnType<typeof useOwsContextBase>;
+  const Tester = () => {
+    current = useOwsContextBase();
+    return <button onClick={() => current.addWMSByUrl('https://example.com/wms', new Headers({ Authorization: 'Basic secret' }))}>append</button>;
+  };
+  render(<OwsContextBase><Tester /></OwsContextBase>);
+  fireEvent.click(screen.getByRole('button', { name: 'append' }));
+  await waitFor(() => expect(current.loadingStatus).toBe('ready'));
+  const request = fetch.mock.calls[0][0] as unknown as Request;
+  expect(request.headers.get('Authorization')).toBe('Basic secret');
+  expect(request.redirect).toBe('error');
+  expect(current!.owsContext.authenticationHeaders).toEqual([expect.objectContaining({ origin: 'https://example.com', value: 'Basic secret' })]);
+  const operations = current!.owsContext.features.flatMap(feature => feature.getWmsOffering()?.operations ?? []);
+  const capabilities = operations.filter(operation => operation.code === 'GetCapabilities');
+  expect(capabilities.length).toBeGreaterThan(0);
+  expect(capabilities.every(operation => operation['x-authentication-id'] === current!.owsContext.authenticationHeaders![0].id)).toBe(true);
+  expect(operations.every(operation => typeof operation['x-authentication-id'] === 'string')).toBe(true);
+  vi.unstubAllGlobals();
+});

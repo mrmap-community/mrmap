@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { RaRecord } from 'react-admin'
 
+import { assignServiceAuthentication } from '../../ows-lib/OwsContext/authentication'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
 import { formatOwsContextIssues, validateOwsContext, type OwsContextIssue, type OwsContextValidationResult } from '../../ows-lib/OwsContext/validation'
@@ -175,6 +176,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       const request = new Request(url, {
         method: 'GET',
         headers,
+        redirect: headers && Array.from(headers).length > 0 ? 'error' : 'follow',
         signal: controller.signal
       })
       setCurrentRequest(request)
@@ -280,6 +282,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
           const appendWmsStart = performance.now()
           const treeId = newContext.appendWms(url, xmlString)
+          assignServiceAuthentication(newContext, treeId, url, headers)
           timings.appendWms = performance.now() - appendWmsStart
           setLoadingTimings((previous) => ({ ...previous, appendWms: timings.appendWms }))
 

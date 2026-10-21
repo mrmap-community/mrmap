@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { useTranslate } from 'react-admin';
 
 import { Editor } from '@monaco-editor/react';
 import Alert from '@mui/material/Alert';
@@ -10,6 +11,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
+import { serializeOwsContext } from '../../../ows-lib/OwsContext/authentication';
 import { OwsContextIssue } from '../../../ows-lib/OwsContext/validation';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 
@@ -26,9 +28,10 @@ const issueTexts = (issues: OwsContextIssue[], severity: OwsContextIssue['severi
 }
 
 const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): ReactNode => {
+  const translate = useTranslate();
   const { owsContext, updateOwsContext } = useOwsContextBase() 
   const [text, setText] = useState(
-    JSON.stringify(owsContext, null, 2)
+    serializeOwsContext(owsContext)
   );
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -44,6 +47,16 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
     }
 
     // the provider validates and normalizes the document, the very same way an url import is handled
+    // Keep session secrets when an unchanged redacted credential is edited locally.
+    // Imported documents still go through the provider without restoring any secrets.
+    if (parsed && typeof parsed === 'object' && 'authenticationHeaders' in parsed) {
+      const document = parsed as { authenticationHeaders?: typeof owsContext.authenticationHeaders };
+      if (Array.isArray(document.authenticationHeaders)) document.authenticationHeaders = document.authenticationHeaders.map(auth => {
+        if (!auth || typeof auth !== 'object') return auth;
+        const current = owsContext.authenticationHeaders?.find(entry => entry.id === auth.id && entry.name === auth.name && entry.origin === auth.origin);
+        return current && auth.value === '' ? { ...auth, value: current.value } : auth;
+      });
+    }
     const result = updateOwsContext(parsed);
     setErrors(issueTexts(result.issues, 'error'));
     setWarnings(issueTexts(result.issues, 'warning'));
@@ -55,7 +68,7 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
   }
 
   useEffect(() => {
-    setText(JSON.stringify(owsContext, null, 2))
+    setText(serializeOwsContext(owsContext))
   }, [owsContext])
 
   useEffect(() => {
@@ -84,6 +97,7 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
           <DialogContentText>
             To edit the current OWS Context, please enter a valid OWS Context document.
           </DialogContentText>
+          <Alert severity="info">{translate('viewerAuth.redacted')}</Alert>
           {errors.length > 0 && (
             <Typography variant="body2" component="p" sx={{ mt: 1 }}>
               The document was not applied, the previous OWS Context is still in use:

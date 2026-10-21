@@ -1,6 +1,7 @@
 import type L from "leaflet";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslate } from 'react-admin';
 import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
 
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ export interface AuthImageOverlayProps extends Partial<ImageOverlayProps> {
   bounds: L.LatLngBounds;
   optimiuedUrl: OptimizedUrlsMap;
   interactive?: boolean;
+  authenticationError?: string;
   auth?: AuthOptions | (() => AuthOptions) | Headers;
 }
 
@@ -86,8 +88,10 @@ export const AuthImageOverlay = ({
   optimiuedUrl,
   interactive = true,
   auth,
+  authenticationError,
   ...rest
 }: AuthImageOverlayProps) => {
+  const translate = useTranslate();
   const { reportMapLoading, removeMapLoading } = useMapViewerBase();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const startedAt = useRef(performance.now());
@@ -103,11 +107,16 @@ export const AuthImageOverlay = ({
       url,
       authOptions.headers,
       authOptions.credentials,
+      authenticationError,
     ],
+    gcTime: 0,
     retry: false,
     retryOnMount: false,
     queryFn: async ({ signal }) => {
+      if (authenticationError) throw new Error(translate(`viewerAuth.${authenticationError}`));
       const response = await fetch(url, {
+        redirect: authOptions.headers ? 'error' : 'follow',
+        ...(authOptions.headers && { credentials: 'omit' }),
         signal,
         ...(authOptions.headers && { headers: authOptions.headers }),
         ...(authOptions.credentials && {

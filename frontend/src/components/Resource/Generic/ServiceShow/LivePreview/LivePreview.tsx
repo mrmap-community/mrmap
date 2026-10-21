@@ -116,7 +116,7 @@ const identifyFeatures = (value: unknown) => {
  * `text/plain`. `text/html` is refused, because the security proxy answers it from the
  * MrMap origin and it could read the credentials stored there.
  */
-const FeatureInfoResult = ({
+export const FeatureInfoResult = ({
   text,
   contentType,
 }: {

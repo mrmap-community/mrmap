@@ -3,7 +3,7 @@ import { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { OWSResource } from '../../../ows-lib/OwsContext/core';
+import { OWSContext, OWSResource } from '../../../ows-lib/OwsContext/core';
 import { OWSContextDocument } from '../../../ows-lib/OwsContext/utils';
 import { OwsContextBase, useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import EditOwsContextDialog from './EditOwsContextDialog';
@@ -117,4 +117,27 @@ describe('EditOwsContextDialog', () => {
     expect(setOpen).toHaveBeenCalledWith(false);
     expect(await screen.findByTestId('feature-title')).toHaveTextContent('Neu');
   });
+});
+
+
+it('keeps copyable JSON redacted and preserves session credentials when saving a local edit', () => {
+  let current: ReturnType<typeof useOwsContextBase>;
+  const Tester = () => {
+    current = useOwsContextBase();
+    return <button onClick={() => {
+      const next = OWSContext.fromPlainObject(current.owsContext);
+      next.authenticationHeaders = [{ id: 'secret', type: 'header', name: 'Authorization', value: 'Basic password', origin: 'https://protected.example' }];
+      current.setOwsContext(next);
+    }}>configure</button>;
+  };
+  render(<OwsContextBase><Tester /><EditOwsContextDialog open setOpen={vi.fn()} /></OwsContextBase>);
+  fireEvent.click(screen.getByRole('button', { name: 'configure', hidden: true }));
+  const document = (screen.getByTestId('editor') as HTMLTextAreaElement).value;
+  expect(document).not.toContain('Basic password');
+  expect(JSON.parse(document).authenticationHeaders[0].value).toBe('');
+  const edited = JSON.parse(document);
+  edited.properties.title = 'Edited locally';
+  writeDocument(JSON.stringify(edited));
+  expect(current!.owsContext.properties.title).toBe('Edited locally');
+  expect(current!.owsContext.authenticationHeaders![0].value).toBe('Basic password');
 });

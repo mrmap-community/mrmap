@@ -60,6 +60,30 @@ describe('LayerTree', () => {
     expect(screen.getByText('Wald')).toBeInTheDocument();
   });
 
+  it('renders a grouping the context only names', () => {
+    const customFeatures = [new OWSResource({
+      title: 'Algen', updated: '',
+      folder: '/Umwelt/Algen',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        operations: [
+          { code: 'GetMap', method: 'GET', href: 'https://example.com/wms', active: true },
+        ],
+      }],
+    })];
+
+    render(
+      <AdminContext><OwsContextBase initialFeatures={customFeatures}>
+        <LayerTree />
+      </OwsContextBase></AdminContext>
+    );
+
+    // the group which no resource of the context describes is rendered by its own name
+    expect(screen.getByText('Umwelt')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('KeyboardArrowRightIcon'));
+    expect(screen.getByText('Algen')).toBeInTheDocument();
+  });
+
   it('toggles GetFeatureInfo via the second checkbox', () => {
     const customFeatures = [new OWSResource({
       title: 'Test Layer', updated: '',

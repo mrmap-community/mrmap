@@ -29,6 +29,7 @@ import PortalSearch from './PortalSearch/PortalSearch';
 import CatalogueServiceClient from './Resource/CatalogueService/CatalogueServiceClient';
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
+import HistoryList from './Resource/Generic/History/HistoryList';
 import ServiceExplorer from './Resource/ServiceExplorer/ServiceExplorer';
 
 const STORE_VERSION = '1'
@@ -79,14 +80,19 @@ const MrMapFrontend = (): ReactElement => {
         const jsonApiTypeReferences = jsonApiTypeProperty?.allOf as OpenAPIV3.SchemaObject[]
         return jsonApiTypeReferences?.[0]?.enum?.[0] as string
       }) ?? []
+      const related_routes = related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={{resource: resource.name}}> </ListGuesser>}></Route>)
+      // "View all history" of the compact feeds navigates to this paginated and filterable changelog.
+      const history_routes = api?.getOperation(`list_Historical${resource.name}`)
+        ? [<Route key={`history-${resource.name}`} path="history" element={<HistoryList />}></Route>]
+        : []
 
       return {
         ...(resource.create || createOperation && { hasCreate: true}),
         ...(resource.list || listOperation && {list: ListWithDialogs, hasList: true}),
         ...(resource.edit || editOperation && { hasEdit: true}),
         // TODO: merge children and related_list_operations paths
-        ...(resource.children || related_list_operations && { 
-          children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={{resource: resource.name}}> </ListGuesser>}></Route>)
+        ...(resource.children || { 
+          children: [...related_routes, ...history_routes]
         }) as ReactElement[],
         ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
         ...resource,

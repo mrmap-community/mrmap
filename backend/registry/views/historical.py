@@ -325,12 +325,20 @@ class CatalogueServiceHistoricalViewSet(
 class DatasetMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
     queryset = DatasetMetadataRecord.change_log.all()
     serializer_class = DatasetMetadataRecordHistorySerializer
-    filterset_fields = {"history_relation": ["exact"], "history_date": ["gte", "lte"]}
+    filterset_fields = {
+        "history_relation": ["exact"],
+        "history_type": ["exact", "in"],
+        "history_date": ["gte", "lte"],
+    }
     http_method_names = ["get", "head", "options"]
 
 
 class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
     queryset = ServiceMetadataRecord.change_log.all()
     serializer_class = ServiceMetadataRecordHistorySerializer
-    filterset_fields = {"history_relation": ["exact"], "history_date": ["gte", "lte"]}
+    filterset_fields = {
+        "history_relation": ["exact"],
+        "history_type": ["exact", "in"],
+        "history_date": ["gte", "lte"],
+    }
     http_method_names = ["get", "head", "options"]

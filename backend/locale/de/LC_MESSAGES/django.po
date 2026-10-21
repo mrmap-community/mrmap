@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 18:16+0200\n"
+"POT-Creation-Date: 2026-10-21 16:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -624,23 +624,23 @@ msgstr ""
 "Liefert gelöschte Datensätze oder Datensätze mit geänderten Feldern. False "
 "lässt die Queryset unverändert."
 
-#: registry/filters/historical.py:75
+#: registry/filters/historical.py:76
 msgid "Changed"
 msgstr "Geändert"
 
-#: registry/filters/historical.py:75
+#: registry/filters/historical.py:76
 msgid "Unchanged"
 msgstr "Ungeändert"
 
-#: registry/filters/historical.py:76
+#: registry/filters/historical.py:77
 msgid "Deleted"
 msgstr "Gelöscht"
 
-#: registry/filters/historical.py:76
+#: registry/filters/historical.py:77
 msgid "Added"
 msgstr "Hinzugefügt"
 
-#: registry/filters/historical.py:78
+#: registry/filters/historical.py:79
 msgid "Filter layer history by the kind of recorded change."
 msgstr "Filtert die Ebenenhistorie nach der Art der aufgezeichneten Änderung."
 
@@ -678,8 +678,8 @@ msgid ""
 "Rules for any group this user belongs to, including rules without a group "
 "restriction."
 msgstr ""
-"Regeln für alle Gruppen, denen dieser Nutzer angehört, einschließlich "
-"Regeln ohne Gruppenbeschränkung."
+"Regeln für alle Gruppen, denen dieser Nutzer angehört, einschließlich Regeln "
+"ohne Gruppenbeschränkung."
 
 #: registry/filters/security.py:69
 msgid "allowed area contains"
@@ -699,8 +699,7 @@ msgstr "erlaubter Bereich überdeckt"
 #: registry/filters/security.py:77
 msgid "returns rules with allowed area that are covers the passed geometry"
 msgstr ""
-"liefert Regeln mit erlaubtem Bereich, die die übergebene Geometrie "
-"überdecken"
+"liefert Regeln mit erlaubtem Bereich, die die übergebene Geometrie überdecken"
 
 #: registry/filters/security.py:81
 msgid "allowed area equals"
@@ -772,8 +771,7 @@ msgstr "liefert Ebenen, die einer Ebenen-Zuordnung zugeordnet sind"
 
 #: registry/filters/service.py:160
 msgid "returns featuretypes that are not mapped to any featuretype mapping"
-msgstr ""
-"liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
+msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 
 #: registry/filters/service.py:168
 msgid "returns featuretypes that are mapped to a featuretype mapping"
@@ -838,10 +836,10 @@ msgid ""
 "request duration was 50 * self.download_durationTo get the download duration "
 "over all for one harvesting job, aggregate this col."
 msgstr ""
-"Dies ist die anteilige Dauer des Downloads dieses Datensatzes. Das "
-"bedeutet, enthält die GetRecords-Antwort beispielsweise 50 Datensätze, "
-"betrug die Anfragedauer 50 * self.download_duration. Um die Download-Dauer "
-"über einen gesamten Ernteauftrag zu erhalten, wird diese Spalte aggregiert."
+"Dies ist die anteilige Dauer des Downloads dieses Datensatzes. Das bedeutet, "
+"enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
+"Anfragedauer 50 * self.download_duration. Um die Download-Dauer über einen "
+"gesamten Ernteauftrag zu erhalten, wird diese Spalte aggregiert."
 
 #: registry/models/harvest.py:140
 msgid "processing duration"
@@ -871,8 +869,8 @@ msgstr "maximale Schrittgröße"
 msgid ""
 "the maximum step size this csw can handle by a single GetRecords request."
 msgstr ""
-"die maximale Schrittgröße, die dieser CSW mit einer einzelnen "
-"GetRecords-Anfrage bearbeiten kann."
+"die maximale Schrittgröße, die dieser CSW mit einer einzelnen GetRecords-"
+"Anfrage bearbeiten kann."
 
 #: registry/models/harvest.py:218
 msgid "total records"
@@ -929,9 +927,9 @@ msgid ""
 "means if the GetRecords response contains 50 records for example, the "
 "request duration was 50 * self.download_duration"
 msgstr ""
-"Dies ist die anteilige Dauer des Downloads dieses Datensatzes. Das "
-"bedeutet, enthält die GetRecords-Antwort beispielsweise 50 Datensätze, "
-"betrug die Anfragedauer 50 * self.download_duration"
+"Dies ist die anteilige Dauer des Downloads dieses Datensatzes. Das bedeutet, "
+"enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
+"Anfragedauer 50 * self.download_duration"
 
 #: registry/models/harvest.py:841 registry/models/metadata.py:593
 #: registry/models/monitoring.py:98 registry/models/service.py:371
@@ -1767,8 +1765,8 @@ msgid ""
 "disabled. See all allowed operations <a href={url}>here</a>."
 msgstr ""
 "Es existieren konfigurierte erlaubte Operationen. Die Tarnungsfunktion kann "
-"nicht deaktiviert werden. Alle erlaubten Operationen finden Sie <a "
-"href={url}>hier</a>."
+"nicht deaktiviert werden. Alle erlaubten Operationen finden Sie <a href={url}"
+">hier</a>."
 
 #: registry/models/security.py:451 registry/models/security.py:462
 msgid "the security proxy settings for this service."
@@ -2446,8 +2444,7 @@ msgstr "Die URL für diese Operation."
 
 #: registry/serializers/service.py:387 registry/serializers/service.py:588
 msgid "true means the service only accessable via mrmap proxy"
-msgstr ""
-"true bedeutet, dass der Dienst nur über den mrmap-Proxy erreichbar ist"
+msgstr "true bedeutet, dass der Dienst nur über den mrmap-Proxy erreichbar ist"
 
 #: registry/serializers/service.py:393 registry/serializers/service.py:594
 msgid "true means that all responses via mrmap proxy are detected and logged"
@@ -2469,8 +2466,8 @@ msgstr ""
 msgid ""
 "true means the service is spatial secured by a allowed operation object."
 msgstr ""
-"true bedeutet, dass der Dienst durch ein erlaubtes Operationsobjekt "
-"räumlich abgesichert ist."
+"true bedeutet, dass der Dienst durch ein erlaubtes Operationsobjekt räumlich "
+"abgesichert ist."
 
 #: registry/serializers/service.py:409
 msgid "secured xml backup file"
@@ -2676,8 +2673,7 @@ msgstr "Die alte Ebene, auf die diese Zuordnung zeigt."
 
 #: registry/serializers/update.py:240
 msgid "The update job this featuretype mapping belongs to."
-msgstr ""
-"Die Aktualisierungsaufgabe, zu der diese Featuretype-Zuordnung gehört."
+msgstr "Die Aktualisierungsaufgabe, zu der diese Featuretype-Zuordnung gehört."
 
 #: registry/serializers/update.py:244
 msgid "New FeatureType"

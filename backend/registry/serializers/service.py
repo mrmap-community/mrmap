@@ -455,11 +455,14 @@ class WebMapServiceListSerializer(
 
     @extend_schema_field({"type": "string", "format": "uri"})
     def get_preview_url(self, instance) -> str:
-        # The preview image is only of interest for a single service in its details
-        # view, so this is deliberately not answered by the list serializer: it reads
-        # and parses the whole capabilities document. Only the stored capabilities are
-        # used, the fallback of Service.capabilities would request the remote service.
-        # A service without capabilities that can describe a preview simply has none.
+        # The preview image is asked by the details of a service and by the details
+        # panel beside the list of the services, so both serializers answer it. It is
+        # read from the stored capabilities only, because it reads and parses them
+        # completely and the fallback of Service.capabilities would request the remote
+        # service. A json:api request which doesn't name the attribute in its sparse
+        # fieldset never constructs it, so a list which doesn't show a preview doesn't
+        # pay for it. A service without capabilities that can describe a preview
+        # simply has none.
         if not instance.xml_backup_file:
             return None
         try:

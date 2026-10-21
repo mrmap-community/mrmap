@@ -421,12 +421,26 @@ class ServicePreviewUrlTests(SimpleTestCase):
             service.xml_backup_file.save('preview.xml', ContentFile(capabilities), save=False)
         return WebMapServiceSerializer().get_preview_url(service)
 
-    def test_list_serializer_does_not_answer_the_preview(self):
-        # Constructing the preview reads and parses the whole capabilities document, so it
-        # is only answered for the single service of a retrieve and not for a list or an
-        # included service.
+    def preview_fields(self, *requested):
+        """ the attributes a web map service list answers for a request which names
+        the given attributes in its sparse fieldset """
         from registry.serializers.service import WebMapServiceListSerializer
-        self.assertNotIn('preview_url', WebMapServiceListSerializer().fields)
+        request = SimpleNamespace(query_params={'fields[WebMapService]': ','.join(requested)})
+        serializer = WebMapServiceListSerializer(context={'request': request})
+        return {field.field_name for field in serializer._readable_fields}
+
+    def test_the_list_serializer_answers_the_preview_of_a_selected_service(self):
+        # The details panel beside the list of the services shows the preview of the
+        # service which is selected, so the list serializer answers the preview url.
+        from registry.serializers.service import WebMapServiceListSerializer
+        self.assertIn('preview_url', WebMapServiceListSerializer().fields)
+
+    def test_a_list_which_doesnt_name_the_preview_reads_no_capabilities(self):
+        # Constructing the preview reads and parses the whole capabilities document, so
+        # it is only constructed for a request which names the attribute in its sparse
+        # fieldset; any other list of services must not pay for it.
+        self.assertIn('preview_url', self.preview_fields('title', 'previewUrl'))
+        self.assertNotIn('preview_url', self.preview_fields('title'))
 
     def test_missing_unreadable_or_useless_capabilities_answer_no_preview(self):
         without_endpoint = self.wms('<Format>image/png</Format>')

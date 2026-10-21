@@ -1,3 +1,5 @@
+import { MemoryRouter } from "react-router-dom";
+
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +12,7 @@ beforeEach(() => { state.props = undefined; });
 
 describe("ListWebMapService", () => {
   it("uses the shared service table, header and detail aside", () => {
-    render(<ListWebMapService />);
+    render(<ListWebMapService />, { wrapper: MemoryRouter });
     expect(state.props?.header).toBeDefined();
     expect(state.props?.columns).toBeDefined();
     expect(state.props?.aside).toBeDefined();
@@ -24,7 +26,7 @@ describe("ListWebMapService", () => {
     ]);
   });
   it("requests the configured API fieldset and protocol", () => {
-    render(<ListWebMapService />);
+    render(<ListWebMapService />, { wrapper: MemoryRouter });
     expect(state.props?.queryOptions).toEqual({
       meta: { jsonApiParams: { ["fields[" + WMS_SERVICE_LIST_CONFIG.resource + "]"]: WEB_MAP_SERVICE_LIST_FIELDS.join(",") } },
     });

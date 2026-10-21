@@ -2,7 +2,7 @@ import { useLocaleState, useResourceContext, useTranslate, type ListProps } from
 
 import { Box, Stack, Typography } from "@mui/material";
 
-import ListGuesser from "../../../../jsonapi/components/ListGuesser";
+import ListWithDialogs from "../../../../jsonapi/components/ListWithDialogs";
 import { type ServiceListConfig } from "./config";
 import { serviceListProps } from "./serviceListProps";
 import ServiceSummaryTiles from './ServiceSummaryTiles';
@@ -17,9 +17,7 @@ export interface ServiceListProps extends Partial<ListProps> {
 /**
  * The screen which lists the registered services of one kind of service.
  *
- * This shell hands the configured props to the generic list of the resource; a
- * resource which answers create and edit dialogs on its list uses the
- * ListWithDialogs with the same props instead of this shell.
+ * Keep the create and edit dialog routes mounted beside the configured list.
  */
 
 const ServiceHeader = () => {
@@ -45,10 +43,12 @@ const ServiceList = ({ config, ...props }: ServiceListProps) => {
   const [locale] = useLocaleState();
 
   return (
-      <ListGuesser 
-        {...props} 
-        {...serviceListProps(config, locale)}
-        header={<ServiceHeader/>}
+      <ListWithDialogs
+        listGuesserProps={{
+          ...props,
+          ...serviceListProps(config, locale),
+          header: <ServiceHeader />,
+        }}
       />
   )
 };

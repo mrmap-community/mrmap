@@ -3,8 +3,6 @@ import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, 
 import { Map } from "leaflet";
 
 import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
-import { Operation } from "../../ows-lib/OwsContext/types";
-import { isOperationUrlEqual } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
 
@@ -49,18 +47,6 @@ export interface MapViewerBaseType {
   reportMapLoading: (id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => void
   removeMapLoading: (id: string) => void
 }
-
-const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
-
-  if (index === 0) {
-    return true
-  }
-  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
-  const authIdsA = lastOperation['x-authentication-id']
-  const authIdsB = operation['x-authentication-id']
-  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
-}
-
 
 export const context = createContext<MapViewerBaseType | undefined>(undefined)
 
@@ -163,8 +149,7 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
       "GetMap",
       (feature) => (
         feature.getWmsOperationByCode("GetMap")?.active === true
-      ),
-      compareOfferingByAuth
+      )
     )
   }, [owsContext])
 

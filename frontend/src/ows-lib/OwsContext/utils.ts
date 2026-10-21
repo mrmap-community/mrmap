@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
-import { OWSResource as IOWSResource, OWSContext, StyleSet } from "./types";
+import { OWSResource as IOWSResource, OWSContext, StyleSet, Operation } from "./types";
 import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE } from "./validation";
 
 export const OWSContextDocument = (
@@ -179,6 +179,81 @@ export const isOperationUrlEqual = (url1: URL, url2: URL): boolean => {
         ((url1.searchParams.get('SERVICE') ?? url1.searchParams.get('service')) === (url2.searchParams.get('SERVICE') ?? url2.searchParams.get('service'))) &&
         ((url1.searchParams.get('VERSION') ?? url1.searchParams.get('version')) === (url2.searchParams.get('VERSION') ?? url2.searchParams.get('version')))
 }
+
+// WMS names are case-insensitive; preserve vendor key casing for routing and tokens.
+const WMS_PARAMETER_NAMES = new Set([
+    'SERVICE', 'VERSION', 'REQUEST', 'LAYERS', 'QUERY_LAYERS', 'STYLES', 'CRS', 'SRS',
+    'BBOX', 'WIDTH', 'HEIGHT', 'FORMAT', 'TRANSPARENT', 'BGCOLOR', 'EXCEPTIONS',
+    'TIME', 'ELEVATION', 'SLD', 'SLD_BODY', 'INFO_FORMAT', 'FEATURE_COUNT', 'I', 'J', 'X', 'Y',
+]);
+// Only these positional parameters are combined. All other request values must match.
+const WMS_BATCH_PARAMETERS = new Set(['LAYERS', 'QUERY_LAYERS', 'STYLES']);
+
+const getWmsParameters = (url: URL) => {
+    const parameters = new Map<string, { key: string, value: string }>();
+    for (const [key, value] of url.searchParams) {
+        const name = WMS_PARAMETER_NAMES.has(key.toUpperCase()) ? key.toUpperCase() : key;
+        // Duplicate keys have server-dependent semantics, so do not batch them.
+        if (parameters.has(name)) return undefined;
+        parameters.set(name, { key, value });
+    }
+    return parameters;
+};
+
+const getWmsLayerStyles = (parameters: NonNullable<ReturnType<typeof getWmsParameters>>) => {
+    const layers = parameters.get('LAYERS')?.value.split(',');
+    if (!layers?.length || layers.some(layer => layer === '')) return undefined;
+    const styles = parameters.get('STYLES')?.value;
+    if (!styles) return layers.map(() => '');
+    const values = styles.split(',');
+    return values.length === layers.length ? values : undefined;
+};
+
+export const areWmsOperationsCompatible = (first: Operation, second: Operation): boolean => {
+    if (!['GetMap', 'GetFeatureInfo'].includes(first.code) || first.code !== second.code ||
+        first.method.toUpperCase() !== second.method.toUpperCase() || first.type !== second.type ||
+        first['x-authentication-id'] !== second['x-authentication-id']) return false;
+
+    const firstUrl = new URL(first.href);
+    const secondUrl = new URL(second.href);
+    if (firstUrl.origin !== secondUrl.origin || firstUrl.pathname !== secondUrl.pathname ||
+        firstUrl.username !== secondUrl.username || firstUrl.password !== secondUrl.password ||
+        firstUrl.hash !== secondUrl.hash) return false;
+
+    const firstParams = getWmsParameters(firstUrl);
+    const secondParams = getWmsParameters(secondUrl);
+    if (!firstParams || !secondParams || !getWmsLayerStyles(firstParams) || !getWmsLayerStyles(secondParams)) return false;
+    if (first.code === 'GetFeatureInfo' &&
+        (!firstParams.get('QUERY_LAYERS')?.value || !secondParams.get('QUERY_LAYERS')?.value)) return false;
+    // These can bind filters or styling to individual layers. Equal text is insufficient to
+    // establish that it still means the same thing after adding layers to the request.
+    if ([...firstParams.keys(), ...secondParams.keys()].some(key =>
+        ['CQL_FILTER', 'FILTER', 'SLD', 'SLD_BODY'].includes(key.toUpperCase()))) return false;
+
+    const combined = first.code === 'GetFeatureInfo' ? WMS_BATCH_PARAMETERS : new Set(['LAYERS', 'STYLES']);
+    const names = new Set([...firstParams.keys(), ...secondParams.keys()]);
+    return [...names].every(name => combined.has(name) ||
+        (firstParams.has(name) && secondParams.has(name) && firstParams.get(name)?.value === secondParams.get(name)?.value));
+};
+
+export const appendWmsOperationParameters = (target: URL, source: URL, code: string) => {
+    const targetParams = getWmsParameters(target);
+    const sourceParams = getWmsParameters(source);
+    if (!targetParams || !sourceParams) return;
+    const targetStyles = getWmsLayerStyles(targetParams);
+    const sourceStyles = getWmsLayerStyles(sourceParams);
+    if (!targetStyles || !sourceStyles) return;
+
+    const names = code === 'GetFeatureInfo' ? ['LAYERS', 'QUERY_LAYERS'] : ['LAYERS'];
+    for (const name of names) {
+        const first = targetParams.get(name);
+        const second = sourceParams.get(name);
+        if (first && second) target.searchParams.set(first.key, `${first.value},${second.value}`);
+    }
+    if (targetParams.has('STYLES') || sourceParams.has('STYLES')) {
+        target.searchParams.set(targetParams.get('STYLES')?.key ?? 'STYLES', [...targetStyles, ...sourceStyles].join(','));
+    }
+};
 
 export const appendQueryParam = (param: string = "LAYERS", url1: URL, url2: URL) => {
     const paramLower = param.toLowerCase()

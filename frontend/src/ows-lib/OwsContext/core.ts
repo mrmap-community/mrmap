@@ -5,7 +5,7 @@ import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
 import { compareFolderPaths, normalizeFolderPaths } from './folders';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
-import { appendQueryParam, getFeatureFolderIndex, getParentFolder, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
+import { appendWmsOperationParameters, areWmsOperationsCompatible, getFeatureFolderIndex, getParentFolder, isDescendant, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 import { ensureCoreProfile } from './validation';
 
 const VALID_PATH = /(\/\d*)+/
@@ -579,10 +579,11 @@ export class OWSContext implements IOWSContext {
   }
 
   /**
-   * Build optimized GetMap URLs for WMS features.
+   * Build optimized GetMap or GetFeatureInfo URLs for WMS features.
    * @param featureFilter Optional predicate to select features. If omitted,
    * the default behavior is to include features that have a WMS offering and
    * are marked active (`feature.properties.active === true`).
+   * The optional operation comparator can restrict the shared compatibility rules further.
    */
   getOptimizedUrlsByCode(
     code: string, 
@@ -591,7 +592,6 @@ export class OWSContext implements IOWSContext {
   ): OptimizedUrlsMap[] {
     const trees = this.treeify()
     const urls: OptimizedUrlsMap[] = []
-    const queryParam = code === 'GetMap' ? 'LAYERS' : 'QUERY_LAYERS'
     
     /** 
      * every tree is 1..* atomic wms
@@ -601,8 +601,6 @@ export class OWSContext implements IOWSContext {
         if (typeof featureFilter === 'function') return featureFilter(feature)
         return feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active
       })
-      // keep a parallel array of authentication ids for pushed URLs so we only merge
-      // layers when the authentication context matches
       activeWmsFeatures.forEach((feature, index) => {
         const operation = feature.properties.offerings?.find(offering =>
           offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
@@ -614,10 +612,10 @@ export class OWSContext implements IOWSContext {
         const lastUrl = urls.slice(-1)?.[0]
         const lastOperation = lastUrl?.operations.slice(-1)?.[0]
         
-        // Determine if offerings are mergeable using custom function if provided, otherwise use default behavior
-        const areOfferingsMergeable = typeof operationCompareFn === 'function' && lastOperation !== undefined
-          ? operationCompareFn(index, lastOperation, operation)
-          : lastOperation && isOperationUrlEqual(new URL(lastOperation.href), operationUrl)
+        // A caller may restrict batching further, but cannot override request compatibility.
+        const areOfferingsMergeable = lastOperation !== undefined &&
+          areWmsOperationsCompatible(lastOperation, operation) &&
+          (operationCompareFn === undefined || operationCompareFn(index, lastOperation, operation))
 
         if (index === 0 || !areOfferingsMergeable) {
           // index 0 signals always a root node ==> just push it; nothing else to do here
@@ -628,7 +626,7 @@ export class OWSContext implements IOWSContext {
         else if (areOfferingsMergeable) {
           lastUrl.operations.push(operation)
           lastUrl.features.push(feature)
-          appendQueryParam(queryParam, lastUrl.url, operationUrl)
+          appendWmsOperationParameters(lastUrl.url, operationUrl, code)
         }
       })
     })

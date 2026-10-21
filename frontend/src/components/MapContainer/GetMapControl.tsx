@@ -89,7 +89,9 @@ const WebMapServiceControl = () => {
       }
       updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
       updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
-      updateOrAppendSearchParam(params, 'STYLES', "") // todo: shall be configureable
+      if (![...params.keys()].some(key => key.toUpperCase() === 'STYLES')) {
+        updateOrAppendSearchParam(params, 'STYLES', '')
+      }
       _tiles.push(
         {
           leafletTile: <AuthImageOverlay
@@ -120,10 +122,14 @@ const WebMapServiceControl = () => {
         updateOrAppendSearchParam(params, 'Y', layerPoint.y.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
         updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
-        updateOrAppendSearchParam(params, 'LAYERS', params.get('QUERY_LAYERS') ?? params.get('query_layers') ?? '')
+        if (![...params.keys()].some(key => key.toUpperCase() === 'LAYERS')) {
+          updateOrAppendSearchParam(params, 'LAYERS', params.get('QUERY_LAYERS') ?? params.get('query_layers') ?? '')
+        }
         updateOrAppendSearchParam(params, 'INFO_FORMAT', params.get('INFO_FORMAT') ?? params.get('info_format') ?? 'application/json')
         updateOrAppendSearchParam(params, 'FEATURE_COUNT', params.get('FEATURE_COUNT') ?? params.get('feature_count') ?? '10')
-        updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
+        if (![...params.keys()].some(key => key.toUpperCase() === 'STYLES')) {
+          updateOrAppendSearchParam(params, 'STYLES', '')
+        }
         
         const version = params.get('version') ?? params.get('VERSION')
 

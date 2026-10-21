@@ -1,36 +1,61 @@
-[![build docs](https://readthedocs.org/projects/mrmap/badge/?version=master)](https://mrmap.rtfd.io/en/master/)
+# MrMap
 
-<img src="https://github.com/mrmap-community/mrmap/blob/890d63933de3adf45dfb5cfafc1f4d538d2df624/docs/source/images/mr_map.png" width="200">
+<img src="docs/source/images/mr_map.png" alt="MrMap logo" width="200">
 
-Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services [WMS](https://www.opengeospatial.org/standards/wms), web feature services [WFS](https://www.opengeospatial.org/standards/wfs) and all the other [OGC](http://www.opengeospatial.org/) stuff. A similar project maybe [Hypermap-Registry](http://cga-harvard.github.io/Hypermap-Registry/) - but it lacks off many things which are needed in practice. The information model was inspired by the old well known [mapbender2](https://github.com/mrmap-community/Mapbender2.8) project and somewhen will be replaced by mrmap.
+[![Quality assurance](https://github.com/mrmap-community/mrmap/actions/workflows/quality-assurance.yml/badge.svg?branch=master)](https://github.com/mrmap-community/mrmap/actions/workflows/quality-assurance.yml?query=branch%3Amaster)
+[![CodeQL](https://github.com/mrmap-community/mrmap/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/mrmap-community/mrmap/actions/workflows/codeql.yml?query=branch%3Amaster)
+[![Documentation](https://readthedocs.org/projects/mrmap/badge/?version=master)](https://mrmap.readthedocs.io/en/master/)
 
-Since most GIS solutions out there are specified on a specific use case or aged without proper support, the need for an free and open source, generic geospatial registry system is high.
+MrMap is an open source registry for geospatial data, metadata and OGC services,
+including Web Map Services (WMS), Web Feature Services (WFS) and Catalogue Services
+for the Web (CSW). It supports service discovery, metadata harvesting, scheduled
+updates and availability monitoring.
 
-MrMap runs as a web application atop the [Django](https://www.djangoproject.com/)
-Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For a
-complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
+The application combines a Django backend, a React/TypeScript frontend and a
+PostgreSQL/PostGIS database. Docker Compose provides the application and its
+supporting services.
 
+## Code quality and coverage
 
-### Documentation
+The badges above show the latest workflow status on `master`. Quality assurance
+runs lint, strict TypeScript checks, backend unit and acceptance tests, frontend
+tests, and coverage checks. CodeQL scans Python and JavaScript/TypeScript with
+the `security-extended` queries.
 
-The complete documentation for MrMap can be found at [github page](https://mrmap-community.github.io/mrmap/master). 
+| Check | CI requirement | Results |
+| --- | --- | --- |
+| Backend coverage | At least 75% combined statement and branch coverage across unit and acceptance tests (Coverage.py total) | QA run summary and `backend-coverage` artifact |
+| Frontend coverage | Lines ≥52%, statements ≥51%, branches ≥49%, functions ≥48% | QA run summary and `frontend-coverage` artifact |
+| Static checks | Flake8, ESLint, strict TypeScript, migration and translation checks must pass | QA job logs |
+| Security analysis | CodeQL analysis for both languages | [Code scanning alerts](https://github.com/mrmap-community/mrmap/security/code-scanning) |
 
-### Discussion
+To see **measured coverage**, open the latest completed
+[Quality Assurance run for master](https://github.com/mrmap-community/mrmap/actions/workflows/quality-assurance.yml?query=branch%3Amaster)
+and read its summary. Download the coverage artifacts from that run for HTML
+reports with per-file results. The percentages above are enforced minimums;
+measured results are published per run. The CodeQL badge reports analysis status;
+security findings are listed separately in code scanning alerts.
 
-* [GitHub Discussions](https://github.com/mrmap-community/mrmap/discussions) - Discussion forum hosted by GitHub; ideal for Q&A and other structured discussions
+See the [code quality guide](docs/source/development/code-quality.rst) for local
+commands, coverage configuration and merge enforcement details.
 
+## Getting started
 
-## Installation
+- [Documentation](https://mrmap.readthedocs.io/en/master/) — usage and administration.
+- [Installation guide](docs/source/installation/index.rst) — Docker Compose setup and required configuration.
+- [Development setup](docs/source/development/getting-started.rst) — environment setup and development workflow.
+- [Architecture](docs/architecture.md) — services, update jobs, monitoring and the security proxy.
 
-Please see [the documentation](https://mrmap.readthedocs.io/en/master/) for
-instructions on installing MrMap.
+## Community and contributions
 
-## Providing Feedback
+Use [GitHub Discussions](https://github.com/mrmap-community/mrmap/discussions) for
+questions, help and general feedback. Report bugs and request features through
+the [issue templates](https://github.com/mrmap-community/mrmap/issues/new/choose).
 
-The best platform for general feedback, assistance, and other discussion is our
-[GitHub discussions](https://github.com/mrmap-community/mrmap/discussions).
-To report a bug or request a specific feature, please open a GitHub issue using
-the [appropriate template](https://github.com/mrmap-community/mrmap/issues/new/choose).
+Read the [contributing guide](CONTRIBUTING.md) before starting work and the
+[definition of done](docs/source/development/definition_of_done.rst) before
+opening a pull request.
 
-If you are interested in contributing to the development of MrMap, please read
-our [contributing guide](CONTRIBUTING.md) prior to beginning any work.
+## License
+
+See [LICENSE](LICENSE).

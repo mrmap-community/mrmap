@@ -1,4 +1,4 @@
-import { useEffect, useId, type PropsWithChildren, type ReactNode } from 'react'
+import { useId, type PropsWithChildren, type ReactNode } from 'react'
 import { type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 import { useLocation } from 'react-router-dom'
@@ -35,14 +35,7 @@ export interface Tile {
 const MapViewerCore = (): ReactNode => {
   const containerId = useId()
   const {map, setMap} = useMapViewerBase()
-  const location = useLocation()
-  const previewExtent = location.state?.previewExtent
-  useEffect(() => {
-    if (map && Array.isArray(previewExtent) && previewExtent.length === 4 && previewExtent.every(Number.isFinite)) {
-      map.fitBounds([[previewExtent[1], previewExtent[0]], [previewExtent[3], previewExtent[2]]])
-    }
-  }, [map, previewExtent])
-  
+
   return (
       <DrawerBase>
         <TabListBase>
@@ -123,8 +116,9 @@ const MapViewerCore = (): ReactNode => {
 }
 
 const MapViewer = ({ children }: PropsWithChildren): ReactNode => {
+  const location = useLocation()
   return (
-      <MapViewerBase>
+      <MapViewerBase previewExtent={location.state?.previewExtent}>
         <MapViewerCore />
         {children}
       </MapViewerBase>

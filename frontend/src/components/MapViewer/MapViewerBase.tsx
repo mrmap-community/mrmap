@@ -1,10 +1,10 @@
-import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { Map } from "leaflet";
 
 import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
-import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
+import { boundsToExtent, boundsToGeoJSON, extentBounds, featuresToCollection, latLngToGeoJSON, validExtent } from './utils';
 
 export interface CRS {
   stringRepresentation: string
@@ -51,8 +51,17 @@ export interface MapViewerBaseType {
 export const context = createContext<MapViewerBaseType | undefined>(undefined)
 
 
-export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
-  const { owsContext } = useOwsContextBase()
+export interface MapViewerBaseProps extends PropsWithChildren {
+  /**
+   * The area of interest the navigation asks the viewer to show, e.g. the viewport a live preview
+   * was left at. It is the more recent request and applied before the area of interest stored in
+   * the document, until the viewer publishes the viewport the user chose in the map itself.
+   */
+  previewExtent?: number[] | null
+}
+
+export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): ReactNode => {
+  const { owsContext, documentRevision, setContextBbox } = useOwsContextBase()
 
   const [map, setMapState] = useState<Map>()
   const [position, setPosition] = useState(() => map?.getCenter())
@@ -169,6 +178,65 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
     }
   }, [map])
 
+  // the document whose area of interest was applied and the view the map shows of it; both keep the
+  // two directions of the extent apart that would otherwise answer each other: applying an area of
+  // interest would publish the wider view the fit chose back into the document, and a viewport the
+  // user panned to would be pulled back to the area of interest that is stored in it
+  const appliedRevision = useRef<string | undefined>(undefined)
+  const fittedView = useRef<string | undefined>(undefined)
+  const fitting = useRef(false)
+  const publishedViewport = useRef(false)
+
+  useEffect(() => {
+    if (map === undefined) {
+      return
+    }
+    const revision = `${documentRevision}:${previewExtent?.join(',') ?? ''}`
+    if (appliedRevision.current === revision) {
+      return
+    }
+    // the extent the navigation handed over is the newer request and outranks the one the document
+    // carries, until the user chose a viewport in the map itself
+    const extent = !publishedViewport.current && validExtent(previewExtent)
+      ? previewExtent
+      : owsContext.bbox
+    // a document without a usable area of interest leaves the view the map started with
+    if (!validExtent(extent)) {
+      return
+    }
+    appliedRevision.current = revision
+    // the viewport event a fit ends with is not the map answering the document: the view a fit
+    // chose is wider than the area of interest it was asked for and publishing it would grow that
+    // area on every load; leaflet ends a fit without animation synchronously
+    fitting.current = true
+    try {
+      map.fitBounds(extentBounds(extent), { animate: false })
+      fittedView.current = boundsToExtent(map.getBounds()).join(',')
+    } finally {
+      fitting.current = false
+    }
+  }, [map, documentRevision, previewExtent, owsContext])
+
+  // the map answers the document it was given with the viewport the user sees: publishing it when a
+  // zoom or pan ended keeps a later export or reload of the document at the same view
+  const publishExtent = useCallback(() => {
+    if (map === undefined || fitting.current) {
+      return
+    }
+    const extent = boundsToExtent(map.getBounds())
+    // the view a fit chose is the same answer as the viewport event of that fit
+    if (extent.join(',') === fittedView.current) {
+      return
+    }
+    // a viewport that is not an area of interest, e.g. one panned beyond a pole, leaves the area of
+    // interest of the document as it is
+    if (!validExtent(extent)) {
+      return
+    }
+    publishedViewport.current = true
+    setContextBbox(extent)
+  }, [map, setContextBbox])
+
   const value = useMemo<MapViewerBaseType>(() => {
     return {
       map,
@@ -198,11 +266,13 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
   useEffect(() => {
     if (map !== undefined) {
       map.on('move', onMove)
+      map.on('moveend', publishExtent)
       return () => {
         map.off('move', onMove)
+        map.off('moveend', publishExtent)
       }
     }
-  }, [map, onMove])
+  }, [map, onMove, publishExtent])
 
 
   return (

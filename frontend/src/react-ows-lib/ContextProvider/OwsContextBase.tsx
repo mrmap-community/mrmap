@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { RaRecord } from 'react-admin'
 
+import { BBox } from 'geojson'
+
 import { assignServiceAuthentication } from '../../ows-lib/OwsContext/authentication'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
@@ -22,6 +24,18 @@ export type OwsContextLoadingTimings = Partial<{
 export interface OwsContextBaseType {
   owsContext: OWSContext
   setOwsContext: (owsContext: OWSContext) => void
+  /**
+   * Publishes the area of interest the viewer shows into the document. It is the answer of the map
+   * to the document and therefore not a change of the document itself: the document is only
+   * replaced when the published area of interest differs from the one it carries.
+   */
+  setContextBbox: (bbox: BBox) => void
+  /**
+   * Counts how often a document replaced the state of the viewer. A viewer applies the area of
+   * interest of a document when a document replaced its state and not on the other changes of the
+   * document, so that a viewport the user panned to is not pulled back.
+   */
+  documentRevision: number
   updateOwsContext: (candidate: unknown) => OwsContextValidationResult
   isLoading: boolean
   isFetching: boolean
@@ -114,6 +128,10 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     updated: new Date().toISOString(),
     display: {}
   }))
+  // bumps with every document that replaced the state of the viewer; the map of the viewer applies
+  // the area of interest of a document on such a bump and not on the changes the document gets
+  // while it is shown, which include the viewports the map itself publishes
+  const [documentRevision, setDocumentRevision] = useState(0)
   
   const trees = useMemo(() => {
     return owsContext.treeify()
@@ -150,6 +168,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
     setErrorMessage(undefined)
     setOwsContext(OWSContext.fromPlainObject(result.context))
+    setDocumentRevision((revision) => revision + 1)
     return result
   }, [reportValidationIssues])
 
@@ -384,6 +403,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         setLoadingTimings((previous) => ({ ...previous, initialize: timings.initialize }))
       }
       setOwsContext(newOwsContext)
+      setDocumentRevision((revision) => revision + 1)
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
       setLoadingStatus('ready')
@@ -406,10 +426,29 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
   const resetContext = useCallback(() => {
     setOwsContext(new OWSContext())
+    setDocumentRevision((revision) => revision + 1)
     setLoadingStatus('idle')
     setLoadingMessage(undefined)
     setLoadingTimings({})
     setErrorMessage(undefined)
+  }, [])
+
+  // the map answers the document it was given with the viewport the user chose; publishing it keeps
+  // a later export or a reload at the same view, and only a viewport that actually differs from the
+  // area of interest of the document replaces that document
+  const setContextBbox = useCallback((bbox: BBox) => {
+    setOwsContext((prev) => {
+      const previous = prev.bbox ?? []
+      if (
+        previous.length === bbox.length &&
+        previous.every((value, index) => value === bbox[index])
+      ) {
+        return prev
+      }
+      const newContext = OWSContext.fromPlainObject(prev)
+      newContext.bbox = bbox
+      return newContext
+    })
   }, [])
 
   const setFeatureActive = useCallback((folder: string, active: boolean) => {
@@ -436,6 +475,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     return {
       owsContext,
       setOwsContext,
+      setContextBbox,
+      documentRevision,
       updateOwsContext,
       isLoading,
       isFetching,
@@ -458,6 +499,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [
     owsContext,
     setOwsContext,
+    setContextBbox,
+    documentRevision,
     updateOwsContext,
     isLoading,
     isFetching,

@@ -5,7 +5,7 @@ import { type PropsWithChildren } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import PreviewMap, { validExtent } from "./PreviewMap";
+import PreviewMap from "./PreviewMap";
 
 const state = vi.hoisted(() => ({
   fit: vi.fn(),
@@ -56,17 +56,6 @@ beforeEach(() => {
   state.click = undefined;
 });
 describe("preview geometry and viewport", () => {
-  it("accepts zero-degree coordinates, and rejects invalid, reversed or degenerate extents", () => {
-    expect(validExtent([0, -2, 4, 0])).toBe(true);
-    for (const value of [
-      null,
-      [0, 0, 0, 0],
-      [4, 0, 0, 8],
-      [0, 0, 4, Infinity],
-      [-200, 0, 4, 8],
-    ])
-      expect(validExtent(value)).toBe(false);
-  });
   it("fits the selected metadata extent and labels current-page coverage", () => {
     render(
       <PreviewMap

@@ -13,32 +13,17 @@ import {
 } from "react-leaflet";
 
 import { Box, Button, Stack, Typography } from "@mui/material";
-import { CRS, Map as LeafletMap, latLngBounds } from "leaflet";
+import { CRS, Map as LeafletMap } from "leaflet";
 
 import AutoResizeMapContainer from "../../../../MapContainer/ResizeAbleMapContainer";
+import { extentBounds, validExtent } from "../../../../MapViewer/utils";
 
 export interface Viewport {
   bbox: string;
   width: number;
   height: number;
 }
-export const validExtent = (
-  extent?: number[] | null,
-): extent is [number, number, number, number] =>
-  Boolean(
-    extent &&
-    extent.length === 4 &&
-    extent.every(Number.isFinite) &&
-    -180 <= extent[0] &&
-    extent[0] < extent[2] &&
-    extent[2] <= 180 &&
-    -90 <= extent[1] &&
-    extent[1] < extent[3] &&
-    extent[3] <= 90,
-  );
 
-const extentBounds = (extent: number[]) =>
-  latLngBounds([extent[1], extent[0]], [extent[3], extent[2]]);
 const ViewportEvents = ({
   onViewport,
   onIdentify,

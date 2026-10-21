@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { Position } from '../../ows-lib/OwsContext/enums';
@@ -65,4 +65,57 @@ describe('OwsContextBase', () => {
 
   });
  
+});
+
+
+describe('OwsContextBase document validation', () => {
+
+  const ValidationTester = () => {
+    const { owsContext, loadingStatus, updateOwsContext, initialFromOwsContext } = useOwsContextBase();
+
+    return (
+      <div>
+        <span data-testid="status">{loadingStatus}</span>
+        {owsContext.features.map(feature =>
+          <div key={String(feature.id)} data-testid="row">{feature.properties.title}</div>
+        )}
+        <button
+          data-testid={'apply-malformed'}
+          onClick={() => updateOwsContext({ type: 'FeatureCollection', features: [] })}>
+            apply malformed
+        </button>
+        <button
+          data-testid={'import'}
+          onClick={() => initialFromOwsContext('https://www.example.org/context/1/')}>
+            import
+        </button>
+      </div>
+    );
+  };
+
+  it('keeps the current context when updateOwsContext rejects a document', () => {
+    render(<ValidationTester />, { wrapper: MapViewerBaseWrapper });
+
+    fireEvent.click(screen.getByTestId('apply-malformed'));
+
+    expect(screen.getByTestId('status')).toHaveTextContent('error');
+    expect(screen.getAllByTestId('row')).toHaveLength(testdata.length);
+  });
+
+  it('keeps the current context when an imported document is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ type: 'Feature', features: 'not an array' }),
+      { status: 200 }
+    )));
+
+    render(<ValidationTester />, { wrapper: MapViewerBaseWrapper });
+
+    fireEvent.click(screen.getByTestId('import'));
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('error'));
+    expect(screen.getAllByTestId('row')).toHaveLength(testdata.length);
+
+    vi.unstubAllGlobals();
+  });
+
 });

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties } from './types';
+import { ensureCoreProfile } from './validation';
 import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
@@ -110,7 +111,7 @@ export class OWSContext implements IOWSContext {
   folderToResource: Map<string, OWSResource>;
 
   constructor(
-    id: string = uuidv4(),
+    id: string = `urn:uuid:${uuidv4()}`,
     features: (OWSResource | IOWSResource)[] = [],
     bbox: BBox = [-180, -90, 180, 90],
     properties: OWSContextProperties = {
@@ -129,7 +130,8 @@ export class OWSContext implements IOWSContext {
     );
     this.rebuildFolderLookup()
     this.bbox = bbox;
-    this.properties = JSON.parse(JSON.stringify(properties));
+    // every document the viewer creates references the core requirements class of the standard
+    this.properties = ensureCoreProfile(JSON.parse(JSON.stringify(properties)));
   }
   [name: string]: unknown;
 

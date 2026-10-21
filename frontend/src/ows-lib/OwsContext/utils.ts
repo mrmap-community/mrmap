@@ -2,9 +2,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
 import { OWSResource as IOWSResource, OWSContext, StyleSet } from "./types";
+import { ensureCoreProfile } from "./validation";
 
 export const OWSContextDocument = (
-    id: string = uuidv4(),
+    id: string = `urn:uuid:${uuidv4()}`,
     language: string = 'en',
     title: string = 'mrmap ows context',
     features: IOWSResource[] = []
@@ -13,11 +14,11 @@ export const OWSContextDocument = (
     return {
         id: id,
         type: "FeatureCollection",
-        properties: {
+        properties: ensureCoreProfile({
             lang: language,
             title: title,
             updated: new Date().toISOString()
-        },
+        }),
         features: features,
     }
 }

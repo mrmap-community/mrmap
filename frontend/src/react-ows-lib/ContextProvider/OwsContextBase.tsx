@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { RaRecord } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
+import { formatOwsContextIssues, validateOwsContext, type OwsContextIssue, type OwsContextValidationResult } from '../../ows-lib/OwsContext/validation'
 
 export type OwsContextLoadingStatus = 'idle' | 'fetching' | 'reading' | 'parsing' | 'ready' | 'error'
 
@@ -21,7 +22,7 @@ export type OwsContextLoadingTimings = Partial<{
 export interface OwsContextBaseType {
   owsContext: OWSContext
   setOwsContext: (owsContext: OWSContext) => void
-  updateOwsContext: (owsContext: OWSContext) => void
+  updateOwsContext: (candidate: unknown) => OwsContextValidationResult
   isLoading: boolean
   isFetching: boolean
   isReading: boolean
@@ -82,6 +83,13 @@ const getOgcServiceExceptionMessage = (responseText: string): string | undefined
   }
 }
 
+/** status message of an accepted document, reporting what the viewer could not make use of */
+const validationMessage = (result: OwsContextValidationResult, fallback: string): string => {
+  const warnings = result.issues.filter((issue) => issue.severity === 'warning')
+  if (warnings.length === 0) return fallback
+  return `${fallback} with warnings: ${formatOwsContextIssues(warnings)}`
+}
+
 export interface OwsContextBaseProps extends PropsWithChildren {
   initialFeatures?: OWSResource[]
 }
@@ -122,9 +130,39 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [])
 
-  const updateOwsContext = useCallback((newContext: OWSContext) => {
-    setOwsContext(OWSContext.fromPlainObject(newContext))
+  const reportValidationIssues = useCallback((issues: OwsContextIssue[]) => {
+    const message = formatOwsContextIssues(issues)
+    setLoadingStatus('error')
+    setLoadingMessage(message)
+    setErrorMessage(message)
   }, [])
+
+  // Every document that shall replace the viewer state - whatever entry point it comes from - is
+  // validated and normalized here. A malformed document is reported and the previous context is kept,
+  // so a broken import or an unfinished edit never leaves the map without its layers.
+  const applyValidatedContext = useCallback((candidate: unknown): OwsContextValidationResult => {
+    const result = validateOwsContext(candidate)
+
+    if (result.hasErrors || result.context === undefined) {
+      reportValidationIssues(result.issues)
+      return result
+    }
+
+    setErrorMessage(undefined)
+    setOwsContext(OWSContext.fromPlainObject(result.context))
+    return result
+  }, [reportValidationIssues])
+
+  const updateOwsContext = useCallback((candidate: unknown): OwsContextValidationResult => {
+    const result = applyValidatedContext(candidate)
+
+    if (!result.hasErrors) {
+      setLoadingStatus('ready')
+      setLoadingMessage(validationMessage(result, 'OWS context updated'))
+    }
+
+    return result
+  }, [applyValidatedContext])
 
   // Consolidated fetch logic with error handling and abort support
   const performFetch = useCallback(async (url: string, headers?: Headers) => {
@@ -328,10 +366,14 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('parsing')
       setLoadingMessage('Parsing OWS context...')
 
-      if (!json || !Array.isArray(json.features)) {
-        throw new Error('Invalid OWSContext JSON structure: features array is required')
+      // same validation and normalization path as the raw JSON editor of the viewer
+      const validation = validateOwsContext(json)
+      if (validation.hasErrors || validation.context === undefined) {
+        reportValidationIssues(validation.issues)
+        return
       }
-      const newOwsContext = OWSContext.fromPlainObject(json)
+
+      const newOwsContext = OWSContext.fromPlainObject(validation.context)
       // initialize may not be typed on OWSContext in some builds; call if available
       if (typeof (newOwsContext as any).initialize === 'function') {
         const initializeStart = performance.now()
@@ -343,14 +385,14 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
       setLoadingStatus('ready')
-      setLoadingMessage('OWS context ready')
+      setLoadingMessage(validationMessage(validation, 'OWS context ready'))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setLoadingStatus('error')
       setLoadingMessage(message)
       setErrorMessage(message)
     }
-  }, [performFetch])
+  }, [performFetch, reportValidationIssues])
 
   const addWMSByRecord = useCallback((record: RaRecord) => {
     const url = (record.url ?? record.href ?? record.wmsUrl ?? record.serviceUrl) as string | undefined

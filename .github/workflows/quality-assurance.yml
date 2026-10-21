@@ -2,7 +2,8 @@ name: Quality Assurance
 on:
   workflow_dispatch:
   push:
-    branches: [master, develop]
+    # Renovate needs branch checks before it can open a successful update PR.
+    branches: [master, develop, 'renovate/**']
   pull_request:
     branches: [master, develop]
     types: [opened, synchronize, reopened]

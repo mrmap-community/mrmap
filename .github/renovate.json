@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["npm", "pip_requirements"],
+  "dependencyDashboard": true,
+  "prCreation": "status-success",
+  "automerge": false,
+  "branchConcurrentLimit": 3,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2,
+  "pip_requirements": {
+    "managerFilePatterns": ["/^backend/\\.requirements/(base|dev|docs)\\.txt$/"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "vulnerabilityAlerts": {
+    "prCreation": "status-success",
+    "automerge": false
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "react"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["vitest", "@vitest/**"],
+      "groupName": "vitest"
+    }
+  ]
+}

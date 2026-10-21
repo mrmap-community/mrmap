@@ -1,5 +1,6 @@
 import { Breadcrumbs, Link, Typography } from '@mui/material';
 import { useMemo } from 'react';
+import { useTranslate } from 'react-admin';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 
 const formatLabel = (segment: string): string => {
@@ -17,6 +18,7 @@ const isActionSegment = (segment: string): boolean =>
 
 const BreadCrump = () => {
   const location = useLocation();
+  const translate = useTranslate();
 
   const crumbs = useMemo(() => {
     const baseCrumb = { label: 'Home', to: '/' };
@@ -38,7 +40,7 @@ const BreadCrump = () => {
       }
 
       acc.push({
-        label: /^\d+$/.test(segment) ? `#${segment}` : formatLabel(segment),
+        label: /^\d+$/.test(segment) ? `#${segment}` : translate(`resources.${segment}.plural`, { _: formatLabel(segment) }),
         to: currentPath,
       });
 
@@ -46,7 +48,7 @@ const BreadCrump = () => {
     }, []);
 
     return [baseCrumb, ...routeCrumbs];
-  }, [location.pathname]);
+  }, [location.pathname, translate]);
 
   return (
     <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2, px: 1, pt: 1 }}>

@@ -17,7 +17,7 @@ XPATH_MAP = {
             "_model": "registry.WebMapService",
             "_base_xpath": "/WMT_MS_Capabilities",
             "fields": {
-                "version":  {
+                "version": {
                     "_inputs": ("./@version",),
                     "_parser": "registry.mappers.parsers.value.version_to_int",
                     "_reverse_parser": "registry.mappers.parsers.value.int_to_version"

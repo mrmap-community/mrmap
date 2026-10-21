@@ -36,8 +36,8 @@ from registry.serializers.metadata import (KeywordSerializer,
 from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
                                    SerializerMethodField, URLField)
-from rest_framework_gis.fields import GeometryField
 from rest_framework.reverse import reverse
+from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -426,6 +426,11 @@ class WebMapServiceListSerializer(
         many=True,
         read_only=True,
     )
+    preview_url = SerializerMethodField(
+        label=_("preview url"),
+        help_text=_("the url to the preview image of the service."),
+        read_only=True,
+    )
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -448,24 +453,16 @@ class WebMapServiceListSerializer(
         request = self.context.get("request")
         return instance.get_secured_capabilities_url(request=request)
 
-
-class WebMapServiceSerializer(
-    WebMapServiceListSerializer
-):
-
-    preview_url = SerializerMethodField(
-        label=_("preview url"),
-        help_text=_("the url to the preview image of the service."),
-        read_only=True,
-    )
-
     @extend_schema_field({"type": "string", "format": "uri"})
     def get_preview_url(self, instance) -> str:
-        # The preview image is only of interest for a single service in its details
-        # view, so this is deliberately not answered by the list serializer: it reads
-        # and parses the whole capabilities document. Only the stored capabilities are
-        # used, the fallback of Service.capabilities would request the remote service.
-        # A service without capabilities that can describe a preview simply has none.
+        # The preview image is asked by the details of a service and by the details
+        # panel beside the list of the services, so both serializers answer it. It is
+        # read from the stored capabilities only, because it reads and parses them
+        # completely and the fallback of Service.capabilities would request the remote
+        # service. A json:api request which doesn't name the attribute in its sparse
+        # fieldset never constructs it, so a list which doesn't show a preview doesn't
+        # pay for it. A service without capabilities that can describe a preview
+        # simply has none.
         if not instance.xml_backup_file:
             return None
         try:
@@ -476,6 +473,11 @@ class WebMapServiceSerializer(
             return WebMapServiceClient(capabilities=capabilities).get_preview_request().url
         except (XMLSyntaxError, InitialError, ValueError):
             return None
+
+
+class WebMapServiceSerializer(
+    WebMapServiceListSerializer
+):
 
     included_serializers = {
         "layers": LayerSerializer,
@@ -621,7 +623,8 @@ class WebFeatureServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
-    preview_url = SerializerMethodField(label=_("preview image"), read_only=True)
+    preview_url = SerializerMethodField(
+        label=_("preview image"), read_only=True)
 
     @extend_schema_field({"type": "string", "format": "uri"})
     def get_preview_url(self, instance) -> str:

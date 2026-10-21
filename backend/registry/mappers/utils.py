@@ -460,8 +460,6 @@ def ensure_element_for_instance(
 
         return etree.SubElement(parent_elem, tag)
     except Exception as e:
-        i = 0
-
         raise e
 
 

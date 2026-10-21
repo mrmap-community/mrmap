@@ -18,7 +18,8 @@ Paths in this file are relative to `frontend/src/jsonapi/`. Frontend-wide rules 
   `useJsonApiQuery`.
 - `components/` — schema-driven UI: guessers (`ListGuesser`, `CreateGuesser`, `EditGuesser`),
   `SchemaFormFields`, `SchemaAutocompleteInput`, reference fields and inputs, `ListWithDialogs`,
-  `PaginatedSingleFieldList`.
+  `PaginatedSingleFieldList`, `EditableList`, `Count`, `SimpleUpdateButton`,
+  `SelectedRecordContext` (the record a list screen selected, for asides and detail panes).
 - `components/Realtime/` — WebSocket driven list and show updates (`RealtimeBus`, `RealtimeListBase`,
   `RealtimeList`, `RealtimeShowContextProvider`, `SnackbarObserver`).
 - `utils.tsx` — shared helpers of this layer.

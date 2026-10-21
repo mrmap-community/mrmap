@@ -17,7 +17,7 @@ XPATH_MAP = {
             "_model": "registry.CatalogueService",
             "_base_xpath": "/csw:Capabilities",
             "fields": {
-                "version":  {
+                "version": {
                     "_inputs": ("./@version",),
                     "_parser": "registry.mappers.parsers.value.version_to_int",
                     "_reverse_parser": "registry.mappers.parsers.value.int_to_version"

@@ -19,7 +19,7 @@ XPATH_MAP = {
             "_model": "registry.WebFeatureService",
             "_base_xpath": "/wfs:WFS_Capabilities",
             "fields": {
-                "version":  {
+                "version": {
                     "_inputs": ("./@version",),
                     "_parser": "registry.mappers.parsers.value.version_to_int",
                     "_reverse_parser": "registry.mappers.parsers.value.int_to_version"

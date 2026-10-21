@@ -15,8 +15,7 @@ from registry.models import (CatalogueServiceUpdateJob,
                              WebMapServiceUpdateSetting)
 from registry.models.metadata import Keyword
 from registry.models.monitoring import WebMapServiceMonitoringSetting
-from registry.models.security import (AllowedWebMapServiceOperation,
-                                      WebMapServiceProxySetting)
+from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (Layer, WebMapService,
                                      WebMapServiceOperationUrl)
 from registry.querys.historical import with_delta_size

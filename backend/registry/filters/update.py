@@ -1,4 +1,3 @@
-from django.utils.translation import gettext_lazy as _
 from django_filters.filters import NumberFilter
 from django_filters.filterset import FilterSet
 from registry.models.update import (CatalogueServiceUpdateJob,

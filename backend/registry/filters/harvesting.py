@@ -3,7 +3,6 @@ from functools import reduce
 
 from celery import states
 from django.db.models import Q
-from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.models.harvest import HarvestingJob

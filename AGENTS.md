@@ -9,6 +9,7 @@ The `AGENTS.md` nearest to the files you edit is the most specific one and wins 
 - `backend/AGENTS.md` — backend conventions, commands and CI gates.
   `backend/registry/AGENTS.md` — layout of the registry monolith.
 - `frontend/AGENTS.md` — frontend conventions and commands.
+  `frontend/src/components/AGENTS.md` — the shared UI components and the reuse gate before a new one.
   `frontend/src/jsonapi/AGENTS.md` — the schema-driven UI layer.
 
 Before implementing changes, inspect the surrounding code and existing project patterns. Prefer extending existing abstractions over introducing new ones.
@@ -74,7 +75,10 @@ satisfies most of it.
 - Make the smallest change necessary to solve the requested problem.
 - Do not refactor unrelated code.
 - Follow the style and architecture of the surrounding code.
-- Reuse existing abstractions before creating new ones.
+- Reuse existing abstractions before creating new ones. The inventories of what exists are
+  `frontend/src/components/AGENTS.md` (shared UI components), `frontend/src/jsonapi/AGENTS.md` (the
+  schema layer), `backend/AGENTS.md` and `backend/registry/AGENTS.md` (`extras/` plus the registry
+  layout). Read the closest one before writing a new unit of UI, API or database code.
 - Avoid adding dependencies unless necessary.
 - Preserve backwards compatibility unless explicitly instructed otherwise.
 - Do not silently change behavior outside the requested scope.
@@ -82,7 +86,12 @@ satisfies most of it.
 ### Never do
 
 - Do not hand-edit generated artifacts: migrations under `backend/*/migrations/`,
-  `backend/locale/**/*.mo`, compiled frontend output.
+  `backend/locale/**/*.mo`, compiled frontend output. Regenerate with the generator instead — catalogs
+  go through `makemessages` then `compilemessages`. CI regenerates the German catalog and fails when the
+  committed `django.po` differs, and `backend/.bash_scripts/check_translations.sh` fails on an empty
+  `msgstr`, but nothing fails on a `#, fuzzy` entry — and `compilemessages` skips those, so a fuzzy
+  message silently falls back to the English msgid at runtime. Clear the flag when you translate and
+  rebuild the `.mo` in the same change.
 - Do not add a migration unless the requested change alters the database schema; CI fails on model
   and migration drift in both directions.
 - Do not bring up the whole stack (`docker compose up`) to verify a change; use the targeted
@@ -90,6 +99,10 @@ satisfies most of it.
 - Do not change API contracts (JSON:API resource types, relationships, filter names, pagination,
   error shapes) or behaviour outside the requested scope.
 - Do not use `npm run lint` or `npm run format` for a scoped change; they rewrite all of `src/`.
+- Do not copy a shared component, serializer, viewset or manager into a feature folder to adjust one
+  detail; extend it or wrap it. A fork drops the tests and later fixes of the original and both copies
+  drift. If a new file really is needed, name the alternatives that were considered in the commit
+  message, and file the new code where its reuse potential is.
 
 ### Running shell commands
 
@@ -101,8 +114,13 @@ satisfies most of it.
 ### Before modifying code
 
 1. Inspect the relevant files and surrounding implementation.
-2. Search the codebase for similar implementations.
-3. Identify existing utilities, components, managers, querysets, or abstractions that can be reused.
+2. Search the codebase for similar implementations — of the whole unit being built (a card, a screen, a
+   serializer field, a permission class), not only of the helper that is about to be written. Search by
+   capability and by the user-visible wording, not by the name of the new thing: an existing component
+   is usually named after the screen it first appeared on, and it is reusable elsewhere because it reads
+   its data from a context.
+3. Identify existing utilities, components, managers, querysets, or abstractions that can be reused,
+   and adapt to them — provide their context, or extend them — before writing an equivalent.
 4. Consider backend/frontend interactions before changing API-facing behavior.
 
 ### Verification

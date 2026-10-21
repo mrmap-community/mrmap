@@ -1,7 +1,7 @@
 from django.db import IntegrityError, transaction
 from django.db.models import Case
 from django.db.models import IntegerField as DjangoIntegerField
-from django.db.models import OuterRef, Q, Subquery, Sum, Value, When
+from django.db.models import Q, Sum, Value, When
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
 from extras.scheduling import run_overdue
@@ -27,7 +27,6 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  HyperlinkedIdentityField,
                                                  IntegerField, ModelSerializer,
                                                  Serializer)
-from simple_history.utils import get_history_manager_for_model
 
 
 class UpdateSettingSerializer(

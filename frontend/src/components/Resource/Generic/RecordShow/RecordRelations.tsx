@@ -281,7 +281,7 @@ const RecordRelations = () => {
                 disableSyncWithLocation
                 storeKey={`${resource}.${record.id}.${group.source}`}
                 additionalFilters={[
-                  <SearchInput key="search" source="search" alwaysOn />,
+                  {component: SearchInput, props:{source: "search", alwaysOn: true}}
                 ]}
                 rowActions={<span />}
                 aside={undefined}

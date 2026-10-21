@@ -90,5 +90,5 @@ def category_identifier(mapper: XmlMapper, instance: IsoCategory):
 def timeextent_identifier(mapper: XmlMapper, instance: TimeExtent):
     # ./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent
     # ./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent
-    xpath = f""
+    xpath = ""
     return xpath

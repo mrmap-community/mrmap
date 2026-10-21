@@ -1,5 +1,7 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
+import { Box } from '@mui/material'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 
@@ -18,12 +20,18 @@ import useOnError from '../hooks/useOnError'
 import useResourceSchema from '../hooks/useResourceSchema'
 import { FieldDefinition } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
+import RealtimeListBase from './Realtime/RealtimeListBase'
+import { SelectedRecordContextProvider, useSelectedRecordContext } from './SelectedRecordContext'
 
 
 
 export interface ListGuesserProps extends Partial<ListProps> {
+  /** Rendered above the toolbar, inside the list context, including on empty lists. */
+  header?: ReactNode
   listContent?: ReactElement
-  additionalFilters?: ReactElement[]
+  /** Ordered fields for the existing grid; schema-generated fields are the default. */
+  columns?: ReactElement[]
+  additionalFilters?: FieldDefinition[]
   realtime?: boolean
   relatedResource?: Partial<RelatedResource>
   rowActions?: ReactNode
@@ -36,10 +44,65 @@ export interface ListGuesserProps extends Partial<ListProps> {
   dataGridProps?: DatagridConfigurableProps
 }
 
+const defaultFilter = {}
+const defaultLoading = <Loading />
+
+const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: boolean }) => {
+  const {
+    header,
+    aside,
+    realtime,
+    debounce,
+    disableAuthentication,
+    disableSyncWithLocation,
+    exporter,
+    filter = defaultFilter,
+    filterDefaultValues,
+    authLoading = defaultLoading,
+    loading,
+    perPage = 10,
+    queryOptions,
+    resource,
+    sort,
+    storeKey,
+    ...viewProps
+  } = useThemeProps({ props, name: 'RaList' })
+  const Base = realtime ? RealtimeListBase : ListBase
+
+  return (
+    <Base
+      debounce={debounce}
+      disableAuthentication={disableAuthentication}
+      disableSyncWithLocation={disableSyncWithLocation}
+      exporter={exporter}
+      filter={filter}
+      filterDefaultValues={filterDefaultValues}
+      authLoading={authLoading}
+      loading={realtime ? loading ?? defaultLoading : loading}
+      perPage={perPage}
+      queryOptions={queryOptions}
+      resource={resource}
+      sort={sort}
+      storeKey={storeKey}
+      offline={false}
+    >
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start' }}>
+        <Box sx={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
+          {header}
+          <ListView {...viewProps} />
+        </Box>
+        {aside}
+      </Box>
+    </Base>
+  )
+}
 
 
-const ListGuesser = ({
+
+const ListGuesserContent = ({
+  header,
   listContent,
+  columns,
   additionalFilters,
   realtime=false,
   relatedResource = undefined,
@@ -53,14 +116,15 @@ const ListGuesser = ({
   dataGridProps,
   ...props
 }: ListGuesserProps): ReactElement => {
-  const ListComponent = realtime ? RealtimeList: List
+  const ListComponent = header != null ? ListWithHeader : realtime ? RealtimeList : List
   const { name, hasShow, options } = useResourceDefinition(props)
   const listOptions = useMemo(()=>(options?.list),[options])
 
   const { api } = useHttpClientContext()
+  const theme = useTheme()
   const [open] = useSidebarState()
 
-  const [selectedRecord, setSelectedRecord] = useState<RaRecord>()
+  const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
 
   const { id } = useParams()
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
@@ -81,11 +145,19 @@ const ListGuesser = ({
   ,[fieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
-  const filters = useMemo(() => [...(additionalFilters ?? []), ...fieldSchemas.map(def => createElement(def.component, def.props))], [fieldSchemas, additionalFilters])
+  const filters = useMemo<ReactElement[]>(() => [
+    ...(additionalFilters?.map(def => createElement(def.component, def.props)) ?? []),
+    ...fieldSchemas
+      .filter(def => !additionalFilters?.some(
+        filterDef => filterDef.props.source === def.props.source
+      ))
+      .map(def => createElement(def.component, def.props))
+  ], [fieldSchemas, additionalFilters])
   
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
+  const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey
   const onError = useOnError(preferenceKey)
  
   const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
@@ -116,14 +188,14 @@ const ListGuesser = ({
 
 
   useEffect(()=>{
-    if(defaultOmit.length > 0 && !initOmit){
+    if(!columns && defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
       setInitOmit(true)
     }
-  },[defaultOmit])
+  },[defaultOmit, columns])
 
 
-  if (operation === undefined || fields === undefined || fields?.length === 0) {
+  if (operation === undefined || (columns ?? fields).length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
     // when fields are filled after that render cyclus, the datagrid will be stuck with this single column
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
@@ -132,11 +204,11 @@ const ListGuesser = ({
 
   return (
     <ListComponent
+      {...(header != null ? { header, realtime } : {})}
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
       actions={<ActionsComponent
-        filters={filters} 
-        preferenceKey={preferenceKey}
+        preferenceKey={gridPreferenceKey}
         />
       }
       empty={props.empty || <EmptyList />}
@@ -165,7 +237,15 @@ const ListGuesser = ({
         : props.filter}
     >
       {listContent ?? <DatagridConfigurable
+        
         bulkActionButtons={false}
+        rowSx={record => record.id === selectedRecord?.id ? {
+          backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.12) },
+          '& > td:first-of-type': {
+            boxShadow: `inset 3px 0 0 ${theme.palette.primary.main}`,
+          },
+        } : {}}
         rowClick={(id, resource, record) => {
           onRowClick && onRowClick(record)
           if (selectedRecord !== record) {
@@ -173,12 +253,12 @@ const ListGuesser = ({
           }
           return false
         }}
-        preferenceKey={preferenceKey}
-        omit={defaultOmit}
+        preferenceKey={gridPreferenceKey}
+        omit={columns ? [] : defaultOmit}
         empty={<EmptyListWithFilter />}
         {...dataGridProps}
       >
-        {...fields}
+        {columns ?? fields}
         {/**TODO: label should be translated */}
         {
           rowActions || <WrapperField label={"ra.list.actions"} >
@@ -192,5 +272,11 @@ const ListGuesser = ({
     </ListComponent >
   )
 }
+
+const ListGuesser = (props: ListGuesserProps): ReactElement => (
+  <SelectedRecordContextProvider>
+    <ListGuesserContent {...props} />
+  </SelectedRecordContextProvider>
+)
 
 export default ListGuesser

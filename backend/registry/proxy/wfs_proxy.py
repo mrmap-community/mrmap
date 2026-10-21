@@ -88,7 +88,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         return service
 
     def initial(self, request, *args, **kwargs):
-        i = 0
         return super().initial(request, *args, **kwargs)
 
     @property

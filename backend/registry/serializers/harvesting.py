@@ -88,16 +88,17 @@ class HarvestingJobSerializer(
     #    read_only=True,)
     # harvested_dataset_metadata = HyperlinkedRelatedField(
     #    many=True,
-   #     related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
-   #     related_link_url_kwarg='parent_lookup_harvesting_job',
-   #     label=_("harvested dataset metadata"),
-   #     help_text=_(
+    #    many=True,
+    #    related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
+    #    related_link_url_kwarg='parent_lookup_harvesting_job',
+    #    label=_("harvested dataset metadata"),
+    #    help_text=_(
     #       "all harvested dataset metadata records with collecting state"),
     #   read_only=True,)
     # harvested_service_metadata = HyperlinkedRelatedField(
-   #     many=True,
-   #     related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
-   #     related_link_url_kwarg='parent_lookup_harvesting_job',
+    #    many=True,
+    #    related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
+    #    related_link_url_kwarg='parent_lookup_harvesting_job',
     #    label=_("harvested service metadata"),
     #    help_text=_(
     #        "all harvested service metadata records with collecting state"),

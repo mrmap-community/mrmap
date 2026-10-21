@@ -10,7 +10,8 @@ When working on frontend code:
 - Prefer React-Admin abstractions and hooks over custom implementations.
 - Prefer MUI components and styling APIs over custom HTML/CSS.
 - Keep TypeScript types strict; avoid `any` unless there is a strong reason.
-- Reuse existing project components, hooks, utilities, and patterns.
+- Reuse existing project components, hooks, utilities, and patterns. Before creating a new component,
+  work through the order of resort below; `src/components/AGENTS.md` inventories what already exists.
 - Follow existing routing and resource conventions.
 - Preserve existing API contracts and JSON:API behavior.
 - Use anonymous arrow functions for all new functions. Assign reusable functions to `const` bindings
@@ -99,9 +100,33 @@ When implementing frontend changes:
   English and German translations.
   Update both languages when introducing translation keys.
 
+## Order of resort
+
+For new UI code, stop at the first level that can carry the requirement; only go one level deeper when
+the level above genuinely cannot:
+
+1. A React-Admin component or hook — `List`, `Datagrid`, `Show`, `SimpleShowLayout`, fields, inputs,
+   buttons and their context hooks.
+2. A schema-driven hook or component in `jsonapi/` — guessers, `SchemaFormFields`, reference fields,
+   realtime bases.
+3. A composite under `components/Resource/Generic/` — service and record cards, the shared list and show
+   screens, history components. Make it fit by providing its context (`RecordContext`,
+   `ResourceContext`, `ListContext`), never by copying it into a resource folder.
+4. A wrapper under `components/{MUI,Lists,Field,Input,Dialog,Drawer,Tab}/` — `SimpleCard`, `Empty`,
+   `EmptyWithFilter`, `CustomListActions`, dialogs, drawers and tabs.
+5. A new component, placed in the folder that matches its reuse potential, with the alternatives that
+   were considered named in the commit message.
+
+`src/components/AGENTS.md` inventories levels 3 and 4 and shows the discovery commands.
+
 ## Placement principles
 
 - Extend the nearest existing implementation before creating a new abstraction.
+- Copying a shared component into a feature folder is a fork, not a placement decision: it drops the
+  spec of the original and its later fixes. Extend it with an optional prop, or wrap it in the context
+  it reads, and keep the wrapper thin.
+- A new component file names its evidence: which existing component was considered and why it did not
+  fit.
 - Keep components, hooks, helpers, and tests near the feature using them.
 - Move code into shared folders when there is a concrete reuse need.
 - Follow the naming and nesting of neighboring files.
@@ -140,6 +165,14 @@ npm run build                                        # production build, when re
   `ows-lib` were renamed — do not reintroduce one.
 - `npm run lint` and `npm run format` modify files across `src/`. Keep formatting changes scoped to
   the task.
+- `npm run lint` cannot run at all right now: `eslint.config.mjs` configures `perfectionist/sort-imports`
+  with the pre-v4 option names `custom-groups` and `newlines-between`, which
+  eslint-plugin-perfectionist v5 expects as `customGroups` and `newlinesBetween`, so ESLint exits with
+  `Unexpected property "custom-groups"` before linting a file. Import order is therefore unenforced and
+  must be written correctly: one import per line, groups in the order type, `react`, external packages,
+  internal, parent, sibling, and inside a group sorted case-insensitively by module path — so `@mui/*`
+  before `react-admin`, and `../../../../jsonapi/...` before `../../../Lists/...`. Renaming the two
+  options is a separate change: it would surface findings across `src/` that no job currently sees.
 - For cross-stack changes, verify both backend and frontend. Prefer targeted tests during
   development; run broader suites when the scope or risk warrants it.
 - Backend changes are verified separately; see `../backend/AGENTS.md`.

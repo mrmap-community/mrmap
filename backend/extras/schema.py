@@ -1,4 +1,3 @@
-from attrs import field
 from django.core.exceptions import FieldError
 from django.db.models import ForeignKey
 from django.db.models.sql.query import Query
@@ -159,8 +158,6 @@ class CustomOperationId(JsonApiAutoSchema):
             filterset_class = getattr(self.view, "filterset_class", None)
             if filterset_class:
                 for field_name, field in filterset_class.base_filters.items():
-                    if "allowed_area" in field_name:
-                        i = 0
                     openapiparameter = next(
                         (param for param in res if param["name"] == f"filter[{field_name}]"), None)
                     if not openapiparameter:
@@ -174,7 +171,7 @@ class CustomOperationId(JsonApiAutoSchema):
                             "schema", {"type": "string"})
                         schema["format"] = "geojson"
                         openapiparameter["schema"] = schema
-        """         
+        """
         TODO: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
          e.g.:
          {

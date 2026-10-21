@@ -1,4 +1,4 @@
-import { Chip, Stack, Tab, Tabs, Button } from "@mui/material";
+import { Button, Chip, Stack, Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 import {
   EditButton,
@@ -8,14 +8,14 @@ import {
   useListContext,
   useTranslate,
 } from "react-admin";
-import { useFieldsForOperation } from "../../../jsonapi/hooks/useFieldsForOperation";
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
+import { useFieldsForOperation } from "../../../jsonapi/hooks/useFieldsForOperation";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../Lists/CustomListActions";
+import { HarvestButton } from "../CatalogueService/CatalogueServiceList";
 import { ExplorerView } from "../Generic/Explorer/ExplorerView";
 import WmsViewerButtons from "../WebMapService/Button/ListActions";
-import { HarvestButton } from "../CatalogueService/CatalogueServiceList";
 
 const protocols = ["WebMapService", "WebFeatureService", "CatalogueService"];
 const ExplorerActions = (props: CustomListActionsProps) => (
@@ -142,7 +142,7 @@ const ServiceExplorer = () => {
           sort={{ field: "title", order: "ASC" }}
           aside={false}
           additionalFilters={[
-            <SearchInput key="search" source="search" alwaysOn />,
+            {component: SearchInput, props:{source: "search", alwaysOn: true}}
           ]}
           ActionsComponent={ExplorerActions}
           queryOptions={{

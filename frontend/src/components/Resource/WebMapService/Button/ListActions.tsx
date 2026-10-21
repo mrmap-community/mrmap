@@ -1,25 +1,31 @@
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import { useRecordContext } from 'react-admin';
+import { Tooltip } from '@mui/material';
+import { useRecordContext, useTranslate } from 'react-admin';
 import { Fragment } from 'react/jsx-runtime';
 import MapViewerButton from './MapViewerButton';
 
 
 const WmsViewerButtons = () => {
   const record = useRecordContext();
+  const translate = useTranslate();
   return (
     <Fragment>
-      <MapViewerButton />
-      {
-        record?.isSecured ? 
-        <MapViewerButton 
-          wmsRecord={record}
-          capabilititesUrl={record?.xmlBackupFileSecured}
-          label={'resources.webmapservice.actions.showinviewer.secured'}
-        >
-          <VpnLockIcon/>
-        </MapViewerButton>
-        : null
-      }
+      <Tooltip title={translate('serviceShow.openMapViewer')}>
+        <span><MapViewerButton label="serviceShow.openMapViewer" /></span>
+      </Tooltip>
+      {record?.isSecured && (
+        <Tooltip title={translate('serviceShow.openSecuredMapViewer')}>
+          <span>
+            <MapViewerButton
+              wmsRecord={record}
+              capabilititesUrl={record.xmlBackupFileSecured}
+              label="serviceShow.openSecuredMapViewer"
+            >
+              <VpnLockIcon />
+            </MapViewerButton>
+          </span>
+        </Tooltip>
+      )}
 
 
     </Fragment>

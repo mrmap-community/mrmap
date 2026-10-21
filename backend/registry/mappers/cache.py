@@ -121,5 +121,3 @@ class GlobalXmlCache:
                           in cls._data.items() if expire_at < now]
         for k in keys_to_delete:
             del cls._data[k]
-
-

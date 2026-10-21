@@ -1,4 +1,4 @@
-import { Stack } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { createElement } from "react";
 import {
   Labeled,
@@ -6,7 +6,7 @@ import {
   UrlField,
   useRecordContext,
   useResourceContext,
-  useTranslate,
+  useTranslate
 } from "react-admin";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
@@ -79,7 +79,7 @@ const ServiceDetailsCard = ({
       }
       footerProps={{ sx: { px: 2, pb: 2, gap: 1, flexWrap: "wrap" } }}
     >
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      {record ? <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         {(protocol === "WMS" || protocol === "WFS") && (
           <ServicePreviewImage authenticated={protocol === "WFS"} />
         )}
@@ -87,11 +87,16 @@ const ServiceDetailsCard = ({
           sx={{ p: 0, minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
         >
           {["id", "title", "abstract", "version"].map((source) => {
+            if (record[source] === undefined || record[source] === null || record[source] === "") return null;
             const field = fields.find(
               (candidate) => candidate.props.source === source,
             );
             return field
-              ? createElement(field.component, { ...field.props, key: source })
+              ? createElement(field.component, {
+                  ...field.props,
+                  key: source,
+                  label: translate(`serviceShow.fields.${source}`),
+                })
               : null;
           })}
           {url && (
@@ -100,7 +105,11 @@ const ServiceDetailsCard = ({
             </Labeled>
           )}
         </SimpleShowLayout>
-      </Stack>
+      </Stack> : (
+        <Typography variant="body2" color="text.secondary">
+          {translate("serviceList.noSelection")}
+        </Typography>
+      )}
     </SimpleCard>
   );
 };

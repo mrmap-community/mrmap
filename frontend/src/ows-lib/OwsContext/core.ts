@@ -5,6 +5,7 @@ import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
 import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
+import { ensureCoreProfile } from './validation';
 
 const VALID_PATH = /(\/\d*)+/
 
@@ -111,7 +112,7 @@ export class OWSContext implements IOWSContext {
   authentications?: Authentication[];
 
   constructor(
-    id: string = uuidv4(),
+    id: string = `urn:uuid:${uuidv4()}`,
     features: (OWSResource | IOWSResource)[] = [],
     bbox: BBox = [-180, -90, 180, 90],
     properties: OWSContextProperties = {
@@ -130,7 +131,8 @@ export class OWSContext implements IOWSContext {
     );
     this.rebuildFolderLookup()
     this.bbox = bbox;
-    this.properties = JSON.parse(JSON.stringify(properties));
+    // every document the viewer creates references the core requirements class of the standard
+    this.properties = ensureCoreProfile(JSON.parse(JSON.stringify(properties)));
   }
   [name: string]: unknown;
 

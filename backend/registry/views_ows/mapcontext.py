@@ -12,12 +12,12 @@ class OwsContextView(JSONDetailView):
         qs = MapContext.objects.all()
         prefetch_map_context_last_history = Prefetch(
             'change_logs',
-            queryset=qs.model.objects.filter_last_history(),
+            queryset=MapContext.change_log.order_by("id", "-history_date", "-history_id").distinct("id").select_related("history_user"),
             to_attr='last_history')
 
         prefetch_map_context_layer_last_history = Prefetch(
             'change_logs',
-            queryset=MapContextLayer.objects.filter_last_history(),
+            queryset=MapContextLayer.change_log.order_by("id", "-history_date", "-history_id").distinct("id").select_related("history_user"),
             to_attr='last_history')
 
         prefetch_get_map_url = Prefetch(
@@ -27,23 +27,18 @@ class OwsContextView(JSONDetailView):
                 method=HttpMethodEnum.GET.value),
             to_attr="prefetched_get_map_operation_url"
         )
-        prefetch_parents = Prefetch(
+        prefetch_layers = Prefetch(
             "map_context_layers",
-            # TODO: maybe there is a better way to select parents in dynamic depth
             queryset=MapContextLayer.objects.all().select_related(
-                "mptt_parent",
-                "mptt_parent__mptt_parent",
-                "mptt_parent__mptt_parent__mptt_parent",
-                "mptt_parent__mptt_parent__mptt_parent__mptt_parent",
-                "rendering_layer",
-                "rendering_layer__service"
+                "rendering_layer", "rendering_layer__service", "layer_style",
+                "selection_layer", "selection_layer__service"
             ).prefetch_related(prefetch_map_context_layer_last_history, prefetch_get_map_url))
 
         qs = qs.prefetch_related(
-            prefetch_parents,
+            prefetch_layers,
             prefetch_map_context_last_history)
         return qs
 
     def get_data(self, context):
         map_context: MapContext = self.object
-        return map_context.as_ows_context()
+        return map_context.as_ows_context(request=self.request)

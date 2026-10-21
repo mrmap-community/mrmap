@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "id": "https://mrmap.example/mrmap-proxy/ows/1",
+  "properties": {
+    "title": "Backend context",
+    "lang": "en",
+    "subtitle": "Nested rendering and selection",
+    "updated": "2026-10-21T10:00:00+00:00",
+    "authors": [{"name": "Map author"}],
+    "links": {"profiles": ["http://www.opengis.net/spec/owc-geojson/1.0/req/core"]}
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "https://mrmap.example/api/registry/mapcontextlayers/1",
+      "geometry": null,
+      "properties": {"title": "Group", "updated": "2026-10-21T10:00:00+00:00", "folder": "/0"}
+    },
+    {
+      "type": "Feature",
+      "id": "https://mrmap.example/api/registry/mapcontextlayers/2",
+      "geometry": null,
+      "properties": {
+        "title": "Styled layer",
+        "updated": "2026-10-21T10:00:00+00:00",
+        "folder": "/0/0",
+        "minscaledenominator": 0,
+        "maxscaledenominator": 50000,
+        "offerings": [{
+          "code": "http://www.opengis.net/spec/owc-geojson/1.0/req/wms",
+          "styles": [{"name": "configured", "title": "Configured style", "default": true}],
+          "operations": [
+            {"code": "GetMap", "method": "GET", "type": "image/png", "href": "https://maps.example/wms?SERVICE=WMS&REQUEST=GetMap&LAYERS=rendering&STYLES=configured", "active": false},
+            {"code": "GetFeatureInfo", "method": "GET", "type": "text/plain", "href": "https://selection.example/wms?SERVICE=WMS&REQUEST=GetFeatureInfo&LAYERS=selection&QUERY_LAYERS=selection&INFO_FORMAT=text%2Fplain", "active": true}
+          ]
+        }]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "https://mrmap.example/api/registry/mapcontextlayers/3",
+      "geometry": null,
+      "properties": {"title": "Sibling", "updated": "2026-10-21T10:00:00+00:00", "folder": "/0/1"}
+    }
+  ]
+}

@@ -93,6 +93,7 @@ export interface OWSContextProperties {
     title: string
     subtitle?: string
     updated: string // RFC-3339 date
+    authors?: Author[]
     author?: Author
     publisher?: string
     generator?: CreatorApp

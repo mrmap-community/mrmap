@@ -1,4 +1,3 @@
-import uuid
 from logging import Logger
 
 from django.conf import settings

@@ -475,7 +475,7 @@ class CSWCapabilities(XMLBuilder):
 
     def _build_filter_capabilities(self, root):
         """
-        example:  
+        example:
         <ogc:Spatial_Capabilities>
             <ogc:GeometryOperands>
                 <ogc:GeometryOperand>gml:Point</ogc:GeometryOperand>

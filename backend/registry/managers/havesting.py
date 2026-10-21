@@ -66,8 +66,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                 F("total_records") / F("max_step_size"))
         ).annotate(
             # + 1 for call_fetch_total_records
-            total_steps=F("download_tasks_count") +
-                                F("total_records") + 1
+            total_steps=F("download_tasks_count") + F("total_records") + 1
         ).annotate(
             done_steps=Case(
                 When(
@@ -84,9 +83,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                 When(
                     condition=Q(
                         phase=HarvestingPhaseEnum.RECORDS_TO_DB.value),
-                    then=1 + F("download_tasks_count") +
-                               F("total_records") -
-                                 F("records_count")
+                    then=1 + F("download_tasks_count") + F("total_records") - F("records_count")
                 ),
                 default=0
             )
@@ -133,7 +130,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
         for obj in objs:
             obj.job = hj
 
-        _objs = super().bulk_create(objs=objs, *args, **kwargs)
+        super().bulk_create(objs=objs, *args, **kwargs)
 
         db_objs = self.get_queryset().filter(job__id=objs[0].job_id)
         request = db_objs[0].job._http_request()

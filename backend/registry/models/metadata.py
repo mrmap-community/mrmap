@@ -7,7 +7,7 @@ from django.contrib.gis.gdal.error import GDALException
 from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
 from django.db.models import F, Q
-from django.db.models.expressions import CombinedExpression, F
+from django.db.models.expressions import CombinedExpression
 from django.db.models.fields.generated import GeneratedField
 from django.db.transaction import atomic
 from django.utils.timezone import now
@@ -66,18 +66,18 @@ class TimeExtent(models.Model):
 
 
     Rolling (window) temporal extent example:
-    <gmd:EX_Extent id="timeperiodExtent"> 
-        <gmd:temporalElement> 
-            <gmd:EX_TemporalExtent> 
-                <gmd:extent> 
-                    <gml:TimePeriod gml:id="d146058e755a1052958"> 
-                        <gml:beginPosition indeterminatePosition="unknown"/> 
-                        <gml:endPosition indeterminatePosition="now"/> 
-                        <gml:duration>-P3D</gml:duration> 
-                    </gml:TimePeriod> 
-                </gmd:extent> 
-            </gmd:EX_TemporalExtent> 
-        </gmd:temporalElement> 
+    <gmd:EX_Extent id="timeperiodExtent">
+        <gmd:temporalElement>
+            <gmd:EX_TemporalExtent>
+                <gmd:extent>
+                    <gml:TimePeriod gml:id="d146058e755a1052958">
+                        <gml:beginPosition indeterminatePosition="unknown"/>
+                        <gml:endPosition indeterminatePosition="now"/>
+                        <gml:duration>-P3D</gml:duration>
+                    </gml:TimePeriod>
+                </gmd:extent>
+            </gmd:EX_TemporalExtent>
+        </gmd:temporalElement>
     </gmd:EX_Extent>
 
     Note: The valid values for indeterminatePosition are “unknown”, “after”, “before”, and “now”
@@ -166,7 +166,7 @@ class TimeExtent(models.Model):
             return f"{self.begin}"
         elif self.is_rolling:
             current = now()
-            return f"{current-self.resolution};{current};0"
+            return f"{current - self.resolution};{current};0"
         else:
             res = self.resolution if self.resolution.total_seconds() != 0 else 0
             return f"{self.begin};{self.end};{res}"

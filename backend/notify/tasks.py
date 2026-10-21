@@ -29,7 +29,7 @@ class BackgroundProcessBased(Task):
     thread_appended = False
     autoretry_for = (Timeout, ConnectionError, InternalServerError)
     retry_backoff = 30
-    retry_backoff_max = 5*60
+    retry_backoff_max = 5 * 60
     retry_jitter = False
     max_retries = 10
 

@@ -39,7 +39,6 @@ class DatasetFormatEnum(SmartIntegerChoices):
     GEOTIFF = 5, _("GeoTIFF")
 
 
-
 class ReferenceSystemPrefixChoices(TextChoices):
     EPSG = "EPSG"
 

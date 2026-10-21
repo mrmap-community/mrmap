@@ -76,7 +76,7 @@ def parse_timeextent(mapper, time_extent_element):
 
     elif interval_value and interval_unit:
         """
-        Parse a time interval expressed as a decimal number (e.g., '1.0') and a unit (e.g., 'hour') 
+        Parse a time interval expressed as a decimal number (e.g., '1.0') and a unit (e.g., 'hour')
         into a timedelta object that Django's DurationField can accept.
         """
         if interval_unit == "hour":

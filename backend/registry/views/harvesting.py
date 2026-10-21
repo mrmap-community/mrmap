@@ -5,7 +5,7 @@ from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
 from django.db.models.fields import DurationField, FloatField
 from django.db.models.functions import Ceil, Coalesce, Round
 from django.db.models.sql.constants import LOUTER
-from django_cte import CTE, With, with_cte
+from django_cte import CTE, with_cte
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin, SparseFieldMixin)

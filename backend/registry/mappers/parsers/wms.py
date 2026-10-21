@@ -1,4 +1,3 @@
-import typing
 from datetime import timedelta
 
 import isodate
@@ -8,9 +7,6 @@ from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models import TimeExtent
 from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
-
-if typing.TYPE_CHECKING:
-    from django.db.models import Manager
 
 
 def timeextent_to_value(mapper, el, instance):

@@ -2,16 +2,13 @@ import datetime
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
-from django.conf import settings
 from django.core.exceptions import FieldError
-from django.core.management import call_command
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
 from django.db.models.functions import Coalesce
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
-from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
@@ -127,7 +124,7 @@ class CswServiceView(View):
 
         keywords = Keyword.objects.annotate(
             dataset_count=Coalesce(Subquery(
-                dataset_count_subquery, output_field=BigIntegerField()),  Value(0)),
+                dataset_count_subquery, output_field=BigIntegerField()), Value(0)),
             service_count=Coalesce(Subquery(
                 service_count_subquery, output_field=BigIntegerField()), Value(0)),
             usage_count=F('dataset_count') + F('service_count')

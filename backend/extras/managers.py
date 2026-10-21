@@ -6,7 +6,7 @@ from django.db.models import (Case, CharField, Count, F, OuterRef, Q, Subquery,
                               Value, When)
 from django.db.models.constraints import UniqueConstraint
 from django.db.models.query import Prefetch
-from registry.querys.historical import with_delta_size, with_prev_record_id
+from registry.querys.historical import with_delta_size
 
 
 class UniqueConstraintDefaultValueManager(models.Manager):

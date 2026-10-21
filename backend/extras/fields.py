@@ -1,4 +1,3 @@
-from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import CrontabSchedule
 from rest_framework import serializers
 

@@ -66,7 +66,10 @@ jobs:
         with:
           name: acceptance-tests-coverage-report
           if-no-files-found: error
-          path: ./backend/acceptance-tests-coverage-report.xml
+          include-hidden-files: true
+          path: |
+            ./backend/acceptance-tests-coverage-report.xml
+            ./backend/.coverage.acceptance
 
   unit-tests:
     name: unit-tests
@@ -88,7 +91,10 @@ jobs:
         with:
           name: unit-tests-coverage-report
           if-no-files-found: error
-          path: ./backend/unit-tests-coverage-report.xml
+          include-hidden-files: true
+          path: |
+            ./backend/unit-tests-coverage-report.xml
+            ./backend/.coverage.unit
 
   frontend-tests:
     name: frontend-tests
@@ -102,18 +108,67 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm ci --no-audit --no-fund
 
+      - name: Lint frontend
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run lint
+
       - name: Type check frontend
-        # Informational for now: tsc reports 114 errors on main (see
-        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
-        # once they are fixed.
-        continue-on-error: true
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run type-check
 
-      - name: Run frontend tests
-        # Informational for now: 52-56 of 268 specs fail on main (see
-        # frontend/AGENTS.md "Known red baselines"). Remove continue-on-error
-        # once the failing specs are fixed.
-        continue-on-error: true
+      - name: Run frontend tests with coverage
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run test -- --run
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests npm run test-coverage
+
+      - name: Summarize frontend coverage
+        if: always()
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+          report = Path('frontend/coverage/coverage-summary.json')
+          if report.exists():
+              totals = json.loads(report.read_text())['total']
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+                  summary.write('### Frontend coverage\n\n| Metric | Coverage |\n| --- | ---: |\n')
+                  for metric in ('lines', 'statements', 'branches', 'functions'):
+                      summary.write(f"| {metric} | {totals[metric]['pct']}% |\n")
+          PYTHON
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          if-no-files-found: error
+          path: frontend/coverage/
+
+  backend-coverage:
+    needs: [unit-tests, acceptance-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install coverage reporter
+        run: python -m pip install coverage==7.6.12
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: '*-tests-coverage-report'
+          merge-multiple: true
+          path: backend
+      - name: Combine backend coverage
+        working-directory: backend
+        run: |
+          python -m coverage combine .coverage.unit .coverage.acceptance
+          python -m coverage xml
+          python -m coverage html
+          python -m coverage report --format=markdown --fail-under=75 >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          if-no-files-found: error
+          path: backend/coverage/

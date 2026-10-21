@@ -1,7 +1,10 @@
-import { snakeCase } from 'lodash';
+import type { JsonApiQueryParams, SparseFieldsets } from '../types/jsonapi';
+
 import { useMemo } from 'react';
 import { type ConfigurableDatagridColumn, useResourceDefinition, useStore } from 'react-admin';
-import type { JsonApiQueryParams, SparseFieldsets } from '../types/jsonapi';
+
+import { snakeCase } from 'lodash';
+
 import { getIncludeOptions } from '../utils';
 import useSparseFieldsForOperation from './useSparseFieldsForOperation';
 

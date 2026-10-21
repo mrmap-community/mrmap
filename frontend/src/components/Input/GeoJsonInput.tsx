@@ -1,11 +1,12 @@
 import type { MultiPolygon } from "geojson";
+
 import { useCallback, type ReactNode } from "react";
 import { TextInput, useInput, type TextInputProps } from "react-admin";
 import { useFormContext } from "react-hook-form";
-import GeoJsonMap from "../MapContainer/GeoJsonMap";
 
 import { Box } from "@mui/material";
 
+import GeoJsonMap from "../MapContainer/GeoJsonMap";
 import FeatureGroupEditor from "./FeatureGroupEditor";
 
 const GeoJsonInput = ({ source, ...props }: TextInputProps): ReactNode => {

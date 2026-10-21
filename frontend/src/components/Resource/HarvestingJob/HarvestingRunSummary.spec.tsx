@@ -1,7 +1,9 @@
-import { act, render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes } from "react";
 import type { RaRecord } from "react-admin";
+
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import HarvestingRunSummary from "./HarvestingRunSummary";
 
 const state = vi.hoisted(() => ({ run: { id: 1 } as RaRecord }));

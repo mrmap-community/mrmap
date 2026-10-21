@@ -1,3 +1,12 @@
+import { useCallback, useEffect, useId, useState } from "react";
+import {
+  type RaRecord,
+  useGetList,
+  useRecordContext,
+  useTranslate,
+} from "react-admin";
+import { useNavigate } from "react-router-dom";
+
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import {
   Accordion,
@@ -14,14 +23,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useId, useState } from "react";
-import {
-  type RaRecord,
-  useGetList,
-  useRecordContext,
-  useTranslate,
-} from "react-admin";
-import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
+
 import { API_BASE_URL } from "../../../../../context/HttpClientContext";
 import { getAuthToken } from "../../../../../providers/authProvider";
 import {
@@ -38,7 +41,6 @@ import {
   type PreviewLink,
   type PreviewResult,
 } from "./usePreview";
-import { v4 as uuidv4 } from "uuid";
 
 /** Loading and error state of a preview or identify request, whatever it answers with. */
 const PreviewStatus = ({

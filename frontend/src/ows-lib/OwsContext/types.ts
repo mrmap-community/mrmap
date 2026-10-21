@@ -126,11 +126,18 @@ export interface OWSResource extends Omit<Feature, "geometry"> {
     children?: OWSResource[]
 }
 
+export interface Authentication {
+    getCapabilitiesUrl: string
+    username: string
+    password: string
+}
+
 export interface OWSContext extends Omit<FeatureCollection, "features"> {
     id: string // String type that SHALL contain a URI value
     properties: OWSContextProperties
     bbox?: BBox // is this the current bbox of the leaflet for example?
     date?: string // iso-8601 date; is this the current selected time dimension?
+    authentications?: Authentication[]
     features: OWSResource[]
     [name: string]: unknown // extension, any other
 }

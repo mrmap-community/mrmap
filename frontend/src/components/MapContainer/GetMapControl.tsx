@@ -1,13 +1,13 @@
 import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-admin'
 import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
-import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
-
-import proj4 from 'proj4'
 
 import { point, type LatLng } from 'leaflet'
-import { Link } from 'react-admin'
+import proj4 from 'proj4'
+
 import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
 import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
@@ -51,11 +51,11 @@ const WebMapServiceControl = () => {
   // Helper function to get auth headers for a GetMap URL
   const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
     const authId = getMapUrl.operations[0]["x-authentication-id"]
-    const authenticationHeaders = owsContext.authenticationHeaders as []
-    const authHeader = authenticationHeaders?.find((header: any) => header.id === authId) as any
+    const authenticationHeaders = owsContext.authenticationHeaders as import("../../ows-lib/OwsContext/contrib").Authentication[] | undefined
+    const authHeader = authenticationHeaders?.find(header => header.id === authId)
     
-    const headerInit :any = {}
-    headerInit[authHeader?.name] = authHeader?.value
+    const headerInit: Record<string, string> = {}
+    if (authHeader) headerInit[authHeader.name] = authHeader.value
     return authHeader && new Headers(headerInit)
     
   }
@@ -70,7 +70,7 @@ const WebMapServiceControl = () => {
     const getMapUrls = [...atomicGetMapUrls].reverse()
 
   
-    getMapUrls.forEach((atomicGetMapUrl, index) => {
+    getMapUrls.forEach((atomicGetMapUrl) => {
       const params = atomicGetMapUrl.url.searchParams
       const version = params.get('version') ?? params.get('VERSION')
       if (version === '1.3.0') {
@@ -112,7 +112,7 @@ const WebMapServiceControl = () => {
     if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
       
       const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
-      getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
+      getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl) => {
         const params = atomicGetFeatureInfoUrl.url.searchParams
         updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())

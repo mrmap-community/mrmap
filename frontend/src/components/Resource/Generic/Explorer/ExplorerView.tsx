@@ -1,3 +1,17 @@
+import { useEffect, useMemo, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
+import {
+  DateField,
+  EditButton,
+  type Identifier,
+  type RaRecord,
+  RecordContextProvider,
+  ShowButton,
+  SortButton,
+  useListContext,
+  useTranslate,
+} from "react-admin";
+
 import {
   Box,
   Chip,
@@ -10,21 +24,9 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import {
-  DateField,
-  EditButton,
-  type Identifier,
-  type RaRecord,
-  RecordContextProvider,
-  ShowButton,
-  SortButton,
-  useListContext,
-  useTranslate,
-} from "react-admin";
-import type { ComponentType, ReactNode } from "react";
-import CoverageMap, { type CoverageMapProps } from "./CoverageMap";
+
 import { getCoverageBounds } from "./coverage";
+import CoverageMap, { type CoverageMapProps } from "./CoverageMap";
 export const ExplorerView = ({
   geometrySource = "boundingGeometry",
   namespace = "datasetExplorer",

@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from 'react-admin'
 
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import { Drawer, useTheme, type DrawerProps } from '@mui/material'
 
-import { Button } from 'react-admin'
 import { useDrawerContext } from './DrawerContext'
 
 
@@ -55,7 +55,8 @@ const RightDrawer = ({
   // adjust padding of map div
   useEffect(() => {
     if (leftComponentId !== undefined) {
-      const div: any = document.querySelector(`#${CSS.escape(leftComponentId)}`)
+      const div = document.querySelector<HTMLElement>(`#${CSS.escape(leftComponentId)}`)
+      if (!div) return;
       if (!rightDrawer.isOpen) {
         div.style.paddingRight = '0'
       } else {

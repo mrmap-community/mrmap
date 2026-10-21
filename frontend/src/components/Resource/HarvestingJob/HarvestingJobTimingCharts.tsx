@@ -1,7 +1,9 @@
-import { BarChartProps, BarPlot, ChartsContainer, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis } from '@mui/x-charts';
-import { mangoFusionPalette } from '@mui/x-charts/colorPalettes';
 import { useCallback, useMemo } from 'react';
 import { RaRecord, useGetList, useGetRecordRepresentation, useRecordContext } from 'react-admin';
+
+import { ChartsContainerProps, BarPlot, ChartsContainer, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis } from '@mui/x-charts';
+import { mangoFusionPalette } from '@mui/x-charts/colorPalettes';
+
 import { parseDuration } from '../../../jsonapi/utils';
 
 
@@ -41,8 +43,8 @@ const HarvestingJobTimingCharts = (
   );
   const getRecordRepresentation = useGetRecordRepresentation('HarvestingJob');
   
-  const valueFormatter = useCallback((record: RaRecord, context) => {
-    return getRecordRepresentation(record)
+  const valueFormatter = useCallback((record: RaRecord) => {
+    return String(getRecordRepresentation(record))
   },[getRecordRepresentation])
 
   const timeFormatter = useCallback((seconds: number, short: boolean = false) => {
@@ -62,40 +64,40 @@ const HarvestingJobTimingCharts = (
       return `${hours} Hours ${minutes} Minutes ${seconds} Seconds`;
   }, [])
 
-  const props = useMemo<BarChartProps>(()=>{
+  const props = useMemo<ChartsContainerProps>(()=>{
     const fetchRecordDurationSeries = {
-      type:'bar',
+      type:'bar' as const,
       id: 'fetchRecordDurationSeries',
       data: [] as number[],
       label: 'Total time to download all records',
-      valueFormatter: (v) => timeFormatter(v, false),
+      valueFormatter: (v: number | null) => v === null ? "—" : timeFormatter(v, false),
     }
     const dbDurationAvgSeries = {
-      type:'bar',
+      type:'bar' as const,
       id: 'dbDurationAvgSeries',
       data: [] as number[],
       label: 'Average time to handle records',
-      valueFormatter: (v) => timeFormatter(v, false),
+      valueFormatter: (v: number | null) => v === null ? "—" : timeFormatter(v, false),
     }
     const dbDurationTotalSeries = {
-      type:'bar',
+      type:'bar' as const,
       id: 'dbDurationTotalSeries',
       data: [] as number[],
       label: 'Total time to handle records',
-      valueFormatter: (v) => timeFormatter(v, false),
+      valueFormatter: (v: number | null) => v === null ? "—" : timeFormatter(v, false),
       
     }
     const xAxis = {
       data: [] as RaRecord[],
-      scaleType: 'band',
+      scaleType: 'band' as const,
       valueFormatter: valueFormatter,
       
     }
     
-    const _props: BarChartProps = {
+    const _props: ChartsContainerProps = {
       series: [fetchRecordDurationSeries,  dbDurationAvgSeries, dbDurationTotalSeries],
       xAxis: [xAxis],
-      yAxis: [{valueFormatter: timeFormatter}],
+      yAxis: [{valueFormatter: (seconds: number) => timeFormatter(seconds)}],
     }
     record?.service && data?.forEach(record => {
       const fetchRecordDuration = parseDuration(record.fetchRecordDuration)
@@ -114,7 +116,7 @@ const HarvestingJobTimingCharts = (
 
   return (
     <ChartsContainer
-      series={props.series.filter(serie => serie.id === selectedSerie)}
+      series={(props.series ?? []).filter(serie => serie.id === selectedSerie)}
       colors={mangoFusionPalette}
       height={400}
       margin={{top: 10, bottom: 30, left: 100, right: 10}}
@@ -127,8 +129,7 @@ const HarvestingJobTimingCharts = (
       />
       {withLegend ? 
         <ChartsLegend 
-          direction="row" 
-          position={{horizontal: 'middle', vertical: 'top'}} 
+          direction="horizontal"
         />: null
       }
       

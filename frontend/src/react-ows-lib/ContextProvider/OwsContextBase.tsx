@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
-
-
 import { RaRecord } from 'react-admin'
+
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
 
@@ -333,9 +332,9 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       }
       const newOwsContext = OWSContext.fromPlainObject(json)
       // initialize may not be typed on OWSContext in some builds; call if available
-      if (typeof (newOwsContext as any).initialize === 'function') {
+      if (typeof newOwsContext.initialize === 'function') {
         const initializeStart = performance.now()
-        await (newOwsContext as any).initialize()
+        await newOwsContext.initialize()
         timings.initialize = performance.now() - initializeStart
         setLoadingTimings((previous) => ({ ...previous, initialize: timings.initialize }))
       }
@@ -379,7 +378,10 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   const moveFeature = useCallback((source: OWSResource, target: OWSResource, position: Position = Position.lastChild) => {
     setOwsContext((prev) => {
       const newContext = OWSContext.fromPlainObject(prev)
-      newContext.moveFeature(source, target, position)
+      const nextSource = newContext.findResourceByFolder(source.properties.folder)
+      const nextTarget = newContext.findResourceByFolder(target.properties.folder)
+      if (!nextSource || !nextTarget) return prev
+      newContext.moveFeature(nextSource, nextTarget, position)
       return newContext
     })
   }, [])

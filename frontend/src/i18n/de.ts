@@ -1,7 +1,6 @@
 import { TranslationMessages } from "ra-core";
 
-// @ts-ignore
-const germanMessages: TranslationMessages = {
+const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   livePreview: {
     title: "Live-Vorschau",
     storedDiscovery: "Auswahl aus gespeicherten Capabilities. Bilder, Features und Katalogeinträge werden live abgerufen.",
@@ -501,6 +500,10 @@ const germanMessages: TranslationMessages = {
       actions: "Aktionen",
     },
     action: {
+      reset: "Zurücksetzen",
+      search_columns: "Spalten suchen",
+      select_all_button: "Alle auswählen",
+      update_application: "Anwendung aktualisieren",
       active: '%{name} aktivieren',
       add_filter: "Filter hinzufügen",
       add: "Neu",
@@ -549,6 +552,8 @@ const germanMessages: TranslationMessages = {
       null: ' '
     },
     page: {
+      access_denied: "Zugriff verweigert",
+      authentication_error: "Authentifizierungsfehler",
       create: "%{name} erstellen",
       dashboard: "Dashboard",
       edit: "%{name} %{recordRepresentation}",
@@ -585,6 +590,10 @@ const germanMessages: TranslationMessages = {
       }
     },
     message: {
+      access_denied: "Sie haben keine Berechtigung für diese Seite.",
+      authentication_error: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+      select_all_limit_reached: "Es können höchstens %{max} Elemente ausgewählt werden.",
+      placeholder_data_warning: "Die Daten werden aktualisiert.",
       about: "Über",
       are_you_sure: "Sind Sie sicher?",
       auth_error:
@@ -613,6 +622,8 @@ const germanMessages: TranslationMessages = {
         "Einige Änderungen wurden nicht gespeichert. Sicher, dass Sie diese nicht übernehmen wollen?"
     },
     navigation: {
+      no_filtered_results: "Keine Ergebnisse für diese Filter.",
+      clear_filters: "Filter zurücksetzen",
       no_results: "Keine Ergebnisse gefunden.",
       no_more_results:
         "Es gibt keine Seite %{page}. Versuche eine vorherige.",
@@ -637,6 +648,7 @@ const germanMessages: TranslationMessages = {
       DESC: "Absteigend"
     },
     auth: {
+      email: "E-Mail",
       auth_check_error: "Bitte anmelden um fortzufahren",
       user_menu: "Profil",
       username: "Nutzername",
@@ -646,6 +658,8 @@ const germanMessages: TranslationMessages = {
       logout: "Abmelden"
     },
     notification: {
+      application_update_available: "Eine Aktualisierung der Anwendung ist verfügbar.",
+      offline: "Keine Netzwerkverbindung.",
       updated: "Element aktualisiert |||| %{smart_count} Elemente aktualisiert",
       updated_with_errors: "Element aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden |||| %{smart_count} Elemente aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden",
       created: "Element erstellt",

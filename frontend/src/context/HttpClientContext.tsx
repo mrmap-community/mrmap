@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ReadyState } from 'react-use-websocket';
 
 import { AxiosError, AxiosHeaders } from 'axios';
 import OpenAPIClientAxios, { OpenAPIV3, OpenAPIV3_1 } from 'openapi-client-axios';
 
-import { ReadyState } from 'react-use-websocket';
 import { JsonApiMimeType } from '../jsonapi/types/jsonapi';
 
 export enum HttpClientStatus {
@@ -20,7 +20,7 @@ export interface HttpClientContextType {
   init: (locale: string) => void
   isPending: boolean
   status: HttpClientStatus
-  error: any
+  error: AxiosError | undefined
   realtimeIsReady: ReadyState
   setRealtimeIsReady: (readyState: ReadyState) => void
 }
@@ -46,7 +46,7 @@ const AXIOS_DEFAULTS = {
 export const HttpClientContext = createContext<HttpClientContextType|undefined>(undefined)
 
 
-export const HttpClientBase = ({ children }: any): ReactNode => {
+export const HttpClientBase = ({ children }: import("react").PropsWithChildren): ReactNode => {
   const [api, setApi] = useState<OpenAPIClientAxios>()
   const [document, setDocument] = useState<OpenAPIV3.Document | OpenAPIV3_1.Document>()
   const [error, setError] = useState<AxiosError>();

@@ -1,4 +1,4 @@
-import { createContext, type Dispatch, type ReactNode, type SetStateAction, useContext, useState, type PropsWithChildren, useEffect } from 'react'
+import { createContext, type Dispatch, type ReactNode, type SetStateAction, useContext, useState, type PropsWithChildren } from 'react'
 
 import { type TabPanelProps } from '@mui/lab/TabPanel/TabPanel'
 import { type TabProps } from '@mui/material/Tab/Tab'

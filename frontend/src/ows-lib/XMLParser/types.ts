@@ -1,5 +1,4 @@
-import { Polygon } from 'geojson'
-import { Duration } from 'moment'
+import { Duration } from 'moment';
 
 
 export interface Metadata {
@@ -8,9 +7,7 @@ export interface Metadata {
     abstract?: string
 }
 
-export interface Dimension {
-
-}
+export type Dimension = Record<string, unknown>;
 
 export interface TempDimension {
     unit: string
@@ -67,7 +64,7 @@ export interface WmsLayer {
 export interface InheritableProperties {
     referenceSystems: string[]          // 1+; add
     styles: Style[]                     // 0+; add
-    bbox: Polygon[]                     // 1+; replace
+    bbox: NonNullable<WmsLayer["bbox"]> | []                     // 1+; replace
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[] // 0+; replace
     minScaleDenominator?: number        // 0/1; replace
     maxScaleDenominator?: number        // 0/1; replace

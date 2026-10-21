@@ -1,9 +1,10 @@
-import { Box } from '@mui/material';
 import {
   ListNoResults,
   useResourceDefinition,
   useTranslate
 } from 'react-admin';
+
+import { Box } from '@mui/material';
 
 
 

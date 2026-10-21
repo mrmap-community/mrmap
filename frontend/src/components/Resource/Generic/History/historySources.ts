@@ -1,5 +1,6 @@
-import type { RaRecord } from 'react-admin';
 import type { TimelineRecord } from './HistoryTimeline';
+
+import type { RaRecord } from 'react-admin';
 
 /** Describes an event feed, independently of the service that displays it. */
 export interface HistorySource {

@@ -1,12 +1,12 @@
 import { BBox, Geometry } from 'geojson';
-
 import { v4 as uuidv4 } from 'uuid';
+
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
-import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties } from './types';
+import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
 import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
-const VALID_PATH = new RegExp('(\/\d*)+')
+const VALID_PATH = /(\/\d*)+/
 
 
 export interface OptimizedUrlsMap {
@@ -21,7 +21,7 @@ export class OWSResource implements IOWSResource {
   type: 'Feature';
   id?: string | number;
   bbox?: BBox;
-  children?: OWSResource[] | undefined;
+  children: OWSResource[];
 
   constructor(
     properties: OWSResourceProperties,
@@ -35,7 +35,7 @@ export class OWSResource implements IOWSResource {
     this.bbox = bbox ? JSON.parse(JSON.stringify(bbox)) : undefined
     this.type = 'Feature'
     this.geometry = geometry ? JSON.parse(JSON.stringify(geometry)) : undefined
-    this.children = children 
+    this.children = children ?? []
   }
 
   static fromPlainObject(resource: IOWSResource): OWSResource {
@@ -108,6 +108,7 @@ export class OWSContext implements IOWSContext {
   features: OWSResource[];
   type: 'FeatureCollection';
   folderToResource: Map<string, OWSResource>;
+  authentications?: Authentication[];
 
   constructor(
     id: string = uuidv4(),
@@ -186,7 +187,7 @@ export class OWSContext implements IOWSContext {
     return treeId
   }
 
-  appendWfs(capabilities: string): this {
+  appendWfs(_capabilities: string): this {
     throw new Error('Method not implemented.');
   }
 
@@ -401,6 +402,7 @@ export class OWSContext implements IOWSContext {
       }
       return pathA.length - pathB.length;
     });
+    this.rebuildFolderLookup()
     return this.features
   }
 

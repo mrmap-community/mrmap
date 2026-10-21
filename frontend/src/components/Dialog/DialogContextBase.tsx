@@ -9,7 +9,7 @@ export interface DialogContextBaseProps {
 }
 
 export interface DialogContextBaseType extends DialogContextBaseProps {
-  open: (title: any, content:any, actions: any) => void;
+  open: (title: ReactNode, content: ReactNode, actions: ReactNode) => void;
   close: () => void;
 }
 
@@ -18,9 +18,9 @@ export const context = createContext<DialogContextBaseType | undefined>(undefine
 
 export const DialogBase = ({children}: PropsWithChildren): ReactNode => {
   const [isOpen, setIsOpen] = useState(false)
-  const [title, setTitle] = useState()
-  const [content, setContent] = useState()
-  const [actions, setActions] = useState()
+  const [title, setTitle] = useState<ReactNode>()
+  const [content, setContent] = useState<ReactNode>()
+  const [actions, setActions] = useState<ReactNode>()
   const value = useMemo<DialogContextBaseType>(() => {
     return {
       isOpen: isOpen,

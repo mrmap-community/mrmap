@@ -32,10 +32,9 @@ Run the following checks before starting a pullrequest to avoid of error while g
   the change is risky or touches shared code (see ``backend/AGENTS.md`` for commands and timings,
   ``backend/tests/AGENTS.md`` for test conventions)
 
-|uncheck| run ``npm run type-check`` and the specs of the touched components
-  (``npm run test -- --run src/components/Resource/<Resource>``). Both have an open red baseline on
-  ``main``; compare against the counts in ``frontend/AGENTS.md`` instead of expecting a green run,
-  and do not add new failures or spec files that are named ``.spec.ts`` / ``.spec.tsx``
+|uncheck| run ``npm run lint``, ``npm run type-check`` and the relevant frontend specs. Run
+  ``npm run test-coverage`` for broad changes. These are required CI checks; see
+  :ref:`development-code-quality` for commands and coverage reports.
 
 |uncheck| run :ref:`makemigrations <running_management_commands_makemigrations>`
 

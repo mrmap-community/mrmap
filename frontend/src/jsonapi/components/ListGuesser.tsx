@@ -1,11 +1,11 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
-import { Box } from '@mui/material'
 import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
-
+import { Box } from '@mui/material'
+import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
 import { merge } from 'lodash'
+
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'

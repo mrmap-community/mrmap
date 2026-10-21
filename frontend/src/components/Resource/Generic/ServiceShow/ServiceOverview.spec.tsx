@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import type { ServiceProtocol } from "./ServiceDetailsCard";
+
 import type { ComponentProps } from "react";
 import {
   AdminContext,
@@ -6,9 +7,11 @@ import {
   ResourceContextProvider,
   TextField,
 } from "react-admin";
+
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
 import ServiceOverview from "./ServiceOverview";
-import type { ServiceProtocol } from "./ServiceDetailsCard";
 
 vi.mock("../../../../context/HttpClientContext", () => ({
   API_BASE_URL: "https://mrmap.test",

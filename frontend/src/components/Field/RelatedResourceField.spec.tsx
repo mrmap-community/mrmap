@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes } from "react";
+
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import RelatedResourceField from "./RelatedResourceField";
 
 const state = vi.hoisted(() => ({

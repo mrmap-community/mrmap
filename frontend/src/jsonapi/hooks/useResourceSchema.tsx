@@ -1,8 +1,8 @@
 import { useMemo } from "react";
+import { SortPayload } from "react-admin";
 
 import { type OpenAPIV3, type Operation } from "openapi-client-axios";
 
-import { SortPayload } from "react-admin";
 import { getEncapsulatedSchema } from "../openapi/parser";
 import {
   getIncludeOptions,

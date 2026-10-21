@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren, ReactElement } from 'react'
 import { AdminContext, testDataProvider, useListContext, type RaRecord } from 'react-admin'
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
 import ListGuesser from './ListGuesser'
 import { useSelectedRecordContext } from './SelectedRecordContext'
 

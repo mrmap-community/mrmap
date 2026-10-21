@@ -3,9 +3,9 @@ import { IconButtonWithTooltip, IconButtonWithTooltipProps, RaRecord, useUpdate,
 
 export interface SimpleUpdateButtonProps extends IconButtonWithTooltipProps{
   resource: string
-  data: any
+  data: Partial<RaRecord>
   record: RaRecord
-  options?: UseUpdateOptions<any, Error>
+  options?: UseUpdateOptions<RaRecord, Error>
 }
 
 const SimpleUpdateButton = ({

@@ -1,7 +1,9 @@
-import { act, render, screen } from "@testing-library/react";
 import { BasenameContextProvider, type RaRecord } from "react-admin";
 import { MemoryRouter } from "react-router-dom";
+
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import SpatialSecurityCard from "./SpatialSecurityCard";
 
 const state = vi.hoisted(() => ({

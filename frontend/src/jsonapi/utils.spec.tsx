@@ -1,9 +1,12 @@
+import type { JsonApiDocument, JsonApiPrimaryData } from "./types/jsonapi";
+
 import { describe, expect, it, vi } from "vitest";
+
 import {
   encapsulateJsonApiDocumentData,
   encapsulateJsonApiPrimaryData,
+  getFieldForFormat,
 } from "./utils";
-import type { JsonApiDocument, JsonApiPrimaryData } from "./types/jsonapi";
 vi.mock("../components/Dialog/CreateSuggestionDialog", () => ({
   default: () => null,
 }));
@@ -78,5 +81,18 @@ describe("JSON:API response conversion", () => {
       type: "User",
       id: 3,
     });
+  });
+});
+
+
+describe("formatted field validation", () => {
+  it.each(["email", "uri"])("keeps length validation alongside %s validation", format => {
+    const field = getFieldForFormat("address", { type: "string", format, minLength: 12 }, true);
+    const validators = field.props.validate ?? [];
+    expect(validators).toHaveLength(2);
+    const validate = (value: string) => validators.map(validator => validator(value, {}, { source: "address" }));
+    expect(validate(format === "email" ? "a@b.co" : "https://a.co").some(Boolean)).toBe(true);
+    expect(validate("invalid-value").some(Boolean)).toBe(true);
+    expect(validate(format === "email" ? "person@example.com" : "https://example.com").every(value => value === undefined)).toBe(true);
   });
 });

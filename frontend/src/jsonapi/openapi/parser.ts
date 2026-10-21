@@ -26,7 +26,7 @@ export const getEncapsulatedSchema = (operation: AxiosOperation): OpenAPIV3.NonA
   }
 }
 
-export const buildChoices = (property: OpenAPIV3.SchemaObject): Object[] => {
+export const buildChoices = (property: OpenAPIV3.SchemaObject): { id: number; name: string }[] => {
   return property.description?.split("*")?.map(choiceMeaning => {
     const match = choiceMeaning.match(/`(\d+)`\s*-\s*(.+)/);
 
@@ -35,7 +35,7 @@ export const buildChoices = (property: OpenAPIV3.SchemaObject): Object[] => {
       const name = match[2];         // "Fatal"
       return {id, name}
     }
-  }).filter(item => item !== undefined)
+  }).filter(item => item !== undefined) ?? []
 }
 
 /** Index nested operations by their exact parent resource, in schema order. */

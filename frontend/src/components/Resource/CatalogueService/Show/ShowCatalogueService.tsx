@@ -1,5 +1,6 @@
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+
 import CronInput from "../../../Input/CronInput";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
@@ -7,9 +8,9 @@ import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
+import MonitoringTab from "./MonitoringTab";
 import Overview from "./Overview";
 import Records from "./Records";
-import MonitoringTab from "./MonitoringTab";
 
 const tabs: ServiceTab[] = [
   {

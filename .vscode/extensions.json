@@ -6,5 +6,7 @@
         "ms-toolsai.jupyter-keymap",
         "ms-python.vscode-pylance",
         "ms-python.python",
+        "ms-python.flake8",
+        "ms-python.autopep8"
     ]
 }

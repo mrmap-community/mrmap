@@ -1,6 +1,4 @@
 
-import { deepmerge } from '@mui/utils';
-import { type OpenAPIV3 } from 'openapi-client-axios';
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   Admin,
@@ -12,24 +10,26 @@ import {
   type RaThemeOptions
 } from 'react-admin';
 import { BrowserRouter, Route } from 'react-router-dom';
+
+import { deepmerge } from '@mui/utils';
+import { type OpenAPIV3 } from 'openapi-client-axios';
+
 import { useHttpClientContext } from '../context/HttpClientContext';
 import ListGuesser from '../jsonapi/components/ListGuesser';
+import ListWithDialogs from '../jsonapi/components/ListWithDialogs';
 import { getResourceSchema, indexRelatedOperations } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
+import Dashboard from './Dashboard/Dashboard';
+import MyLayout from './Layout/Layout';
+import LoadingOpenApi from './Loading/LoadingOpenApi';
 import MapViewer from './MapViewer/MapViewer';
-import ServiceExplorer from './Resource/ServiceExplorer/ServiceExplorer';
 import PortalSearch from './PortalSearch/PortalSearch';
 import CatalogueServiceClient from './Resource/CatalogueService/CatalogueServiceClient';
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
-
-
-import ListWithDialogs from '../jsonapi/components/ListWithDialogs';
-import Dashboard from './Dashboard/Dashboard';
-import MyLayout from './Layout/Layout';
-import LoadingOpenApi from './Loading/LoadingOpenApi';
+import ServiceExplorer from './Resource/ServiceExplorer/ServiceExplorer';
 
 const STORE_VERSION = '1'
 const store = localStorageStore(STORE_VERSION)

@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
 import GeoJsonField from "../Field/GeoJsonField";
 import GeoJsonInput from "../Input/GeoJsonInput";
 

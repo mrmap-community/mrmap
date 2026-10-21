@@ -1,54 +1,37 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type ServiceListConfig } from "../../Generic/ServiceList/config";
-import ListWebMapService, {
-  WEB_MAP_SERVICE_LIST_FIELDS,
-} from "./ListWebMapService";
 
-const state = vi.hoisted(() => ({
-  /** the props the screen hands to the list of the resource */
-  props: undefined as Record<string, unknown> | undefined,
-}));
+import { serviceListProps } from "../../Generic/ServiceList/serviceListProps";
+import ListWebMapService, { WMS_SERVICE_LIST_CONFIG, WEB_MAP_SERVICE_LIST_FIELDS } from "./ListWebMapService";
 
-vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
-  default: (props: Record<string, unknown>) => {
-    state.props = props;
-    return null;
-  },
-}));
-
-beforeEach(() => {
-  state.props = undefined;
-});
+const state = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
+vi.mock("../../../../jsonapi/components/ListGuesser", () => ({ default: (props: Record<string, unknown>) => { state.props = props; return null; } }));
+beforeEach(() => { state.props = undefined; });
 
 describe("ListWebMapService", () => {
-  it("shows the dedicated screen instead of a table of every column", () => {
+  it("uses the shared service table, header and detail aside", () => {
     render(<ListWebMapService />);
-    expect(state.props?.listContent).toBeDefined();
-    expect((state.props?.listContent as { type: unknown }).type).toBeTypeOf(
-      "function",
-    );
-    expect(state.props?.perPage).toEqual(25);
+    expect(state.props?.header).toBeDefined();
+    expect(state.props?.columns).toBeDefined();
+    expect(state.props?.aside).toBeDefined();
+    expect(state.props?.perPage).toBe(25);
     expect(state.props?.sort).toEqual({ field: "title", order: "ASC" });
-    // the details of a service are shown beside its row and not in a side card
-    expect(state.props?.aside).toEqual(false);
-    // a view without services is answered by the screen itself, so its facets
-    // and its search stay usable when it narrows the list to none
-    expect((state.props?.empty as { type: unknown } | undefined)?.type).toBe(
-      (state.props?.listContent as { type: unknown }).type,
-    );
   });
-
-  it("searches the services by what the api answers as filter", () => {
+  it("keeps search and alert filters always available", () => {
+    const props = serviceListProps(WMS_SERVICE_LIST_CONFIG);
+    expect(props.additionalFilters?.map(filter => filter.props)).toEqual([
+      { source: "search", alwaysOn: true }, { source: "has_alert", alwaysOn: true },
+    ]);
+  });
+  it("requests the configured API fieldset and protocol", () => {
     render(<ListWebMapService />);
-    const filters = state.props?.additionalFilters as {
-      props: { source: string; alwaysOn?: boolean };
-    }[];
-    expect(filters).toHaveLength(1);
-    expect(filters[0].props.source).toEqual("search");
-    expect(filters[0].props.alwaysOn).toEqual(true);
+    expect(state.props?.queryOptions).toEqual({
+      meta: { jsonApiParams: { ["fields[" + WMS_SERVICE_LIST_CONFIG.resource + "]"]: WEB_MAP_SERVICE_LIST_FIELDS.join(",") } },
+    });
+    expect(WMS_SERVICE_LIST_CONFIG).toMatchObject({ protocol: "WMS", countLabelKey: "layers" });
+    expect(WEB_MAP_SERVICE_LIST_FIELDS).toEqual(expect.arrayContaining(["id", "title", "abstract", "has_alert", "element_count"]));
+    expect(WEB_MAP_SERVICE_LIST_FIELDS).not.toContain("xml");
   });
-
   it("asks every attribute a row and the details of a service show", () => {
     expect(WEB_MAP_SERVICE_LIST_FIELDS).toEqual(
       expect.arrayContaining([
@@ -83,26 +66,4 @@ describe("ListWebMapService", () => {
     expect(WEB_MAP_SERVICE_LIST_FIELDS).not.toContain("xml");
   });
 
-  it("asks the attributes by the options of the query, which reach the request", () => {
-    render(<ListWebMapService />);
-    // the attributes of a resource are a parameter of the request and not a prop
-    // of the list: only the options of the query are given to the data provider
-    const queryOptions = state.props?.queryOptions as {
-      meta: { jsonApiParams: Record<string, string> };
-    };
-    expect(queryOptions.meta.jsonApiParams["fields[WebMapService]"]).toEqual(
-      WEB_MAP_SERVICE_LIST_FIELDS.join(","),
-    );
-  });
-
-  it("shows the layers of a web map service with the wms details", () => {
-    render(<ListWebMapService />);
-    const config = (
-      state.props?.listContent as { props: { config: ServiceListConfig } }
-    ).props.config;
-    expect(config.resource).toEqual("WebMapService");
-    expect(config.protocol).toEqual("WMS");
-    expect(config.countLabelKey).toEqual("layers");
-    expect(config.countRelation).toEqual("layers");
-  });
 });

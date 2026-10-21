@@ -1,5 +1,6 @@
-import type { ComponentType } from "react";
 import type { ServiceProtocol } from "../ServiceShow/ServiceDetailsCard";
+
+import type { ComponentType } from "react";
 
 /** the kinds of services the screen of registered services answers */
 export type ServiceListResource =

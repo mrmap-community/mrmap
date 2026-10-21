@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { AdminContext, Button, RecordContextProvider } from "react-admin";
+
+import { fireEvent, render, screen } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
 import { describe, expect, it, vi } from "vitest";
+
 import en from "../../../../i18n/en";
 import WmsViewerButtons from "./ListActions";
 

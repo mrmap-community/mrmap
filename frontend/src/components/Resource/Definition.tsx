@@ -1,4 +1,3 @@
-import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import {
   ResourceProps
 } from 'react-admin';
@@ -16,34 +15,36 @@ import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import NotListedLocationIcon from '@mui/icons-material/NotListedLocation';
 import CustomerIcon from '@mui/icons-material/Person';
 import PlagiarismIcon from '@mui/icons-material/Plagiarism';
+import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
-import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
+import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
-import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
-import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
-import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
-import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
-import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
-import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
-import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
+import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
+import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
+import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
+import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
+import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
+import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
-import WfsShow from './WebFeatureService/Show/WfsShow';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
+import WfsShow from './WebFeatureService/Show/WfsShow';
+import ShowWebFeatureServiceUpdateJob from './WebFeatureServiceUpdateJob/ShowWebFeatureServiceUpdateJob';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import ListWebMapService, { WEB_MAP_SERVICE_LIST_FIELDS } from './WebMapService/List/ListWebMapService';
 import { WmsShow } from './WebMapService/Show/WmsShow';
-import ShowWebFeatureServiceUpdateJob from './WebFeatureServiceUpdateJob/ShowWebFeatureServiceUpdateJob';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
 

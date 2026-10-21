@@ -1,4 +1,3 @@
-import { Stack, Typography } from "@mui/material";
 import { createElement } from "react";
 import {
   Labeled,
@@ -8,6 +7,9 @@ import {
   useResourceContext,
   useTranslate
 } from "react-admin";
+
+import { Stack, Typography } from "@mui/material";
+
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
 import SimpleCard from "../../../MUI/SimpleCard";

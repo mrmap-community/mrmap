@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { EditGuesserProps } from "../../../jsonapi/components/EditGuesser";
+
 import {
   AdminContext,
   RecordContextProvider,
@@ -7,10 +8,12 @@ import {
   TextInput,
   type RaRecord,
 } from "react-admin";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { wfsUpdateConfig } from "../Generic/Update/serviceUpdateConfig";
 import { EditLayerMapping } from "./EditLayerMapping";
-import type { EditGuesserProps } from "../../../jsonapi/components/EditGuesser";
 const { save, mapping, job, definitions, fieldsForOperation, editProps } =
   vi.hoisted(() => ({
     fieldsForOperation: vi.fn(),

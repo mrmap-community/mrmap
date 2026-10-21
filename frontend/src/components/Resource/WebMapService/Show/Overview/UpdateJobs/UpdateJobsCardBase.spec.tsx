@@ -1,8 +1,11 @@
-import "@testing-library/jest-dom/vitest";
+import { useGetList, useListContext } from "react-admin";
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGetList, useListContext } from "react-admin";
+
 import UpdateJobsCardBase from "./UpdateJobsCardBase";
+
+import "@testing-library/jest-dom/vitest";
 
 vi.mock("react-admin", () => ({
   CreateButton: ({ to, label }: { to: string; label: string }) => (
@@ -21,6 +24,7 @@ vi.mock("react-admin", () => ({
 
 beforeEach(() => {
   vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceUpdateJob",
     data: [],
     isPending: false,
   });
@@ -98,6 +102,7 @@ describe("update jobs empty state", () => {
 
   it("preserves review status and the job list when jobs exist", () => {
     vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceUpdateJob",
       data: [{ id: 1, statusCode: 2 }],
       isPending: false,
     });
@@ -108,6 +113,7 @@ describe("update jobs empty state", () => {
   });
   it("warns about a missed schedule even when older results exist", () => {
     vi.mocked(useListContext, { partial: true }).mockReturnValue({
+    resource: "WebMapServiceUpdateJob",
       data: [{ id: 1, success: true, statusCode: 4 }],
       isPending: false,
     });
@@ -128,3 +134,6 @@ describe("update jobs empty state", () => {
     );
   });
 });
+
+vi.mock("../../../../Generic/ServiceShow/RunServiceUpdateButton", () => ({ default: () => <span>Run update</span> }));
+vi.mock("./UpdateJobChangeChart", () => ({ LayerChangesChart: () => <span>Change chart</span> }));

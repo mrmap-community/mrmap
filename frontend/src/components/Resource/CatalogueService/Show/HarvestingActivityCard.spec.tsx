@@ -1,12 +1,14 @@
+import type { ReactNode } from "react";
+import type { RaRecord } from "react-admin";
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { RaRecord } from "react-admin";
-import type { ReactNode } from "react";
+
+import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import HarvestingActivityCard, {
   HarvestingActivityList,
   HarvestingPhaseStepper,
 } from "./HarvestingActivityCard";
-import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 
 const state = vi.hoisted(() => ({
   data: [] as RaRecord[],

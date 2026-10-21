@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { RaRecord, ReferenceManyField, ReferenceManyFieldProps, SortPayload, useRecordContext } from "react-admin";
+
 import useOnError from "../hooks/useOnError";
 import useOperation from "../hooks/useOperation";
 import useResourceSchema from "../hooks/useResourceSchema";
@@ -36,7 +37,7 @@ const JsonApiReferenceManyField = <
     const onError = useOnError(preferenceKey)
 
     const sparseFieldsParam = useMemo(()=>{
-      const _sparseFieldsParam: any = {}
+      const _sparseFieldsParam: Record<string, string> = {}
       _sparseFieldsParam[`fields[${reference}]`] = 'id,string_representation'
       return _sparseFieldsParam
     },[reference])

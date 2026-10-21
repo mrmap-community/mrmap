@@ -1,4 +1,3 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   AdminContext,
   type GetManyReferenceParams,
@@ -7,8 +6,11 @@ import {
   memoryStore,
   testDataProvider,
 } from "react-admin";
+
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
 import { describe, expect, it, vi } from "vitest";
+
 import en from "../../../../i18n/en";
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";

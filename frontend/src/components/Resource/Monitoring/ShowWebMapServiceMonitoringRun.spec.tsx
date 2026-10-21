@@ -1,9 +1,11 @@
-import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
 import { AdminContext, testDataProvider } from "react-admin";
+
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ShowWebMapServiceMonitoringRun from "./ShowWebMapServiceMonitoringRun";
+
+import "@testing-library/jest-dom/vitest";
 
 vi.mock("./MonitoringProbeResults", () => ({
   default: ({ groups }: { groups: { ids: string[] }[] }) => (

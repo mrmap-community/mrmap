@@ -1,16 +1,16 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RaRecord, RecordRepresentation, useRecordContext, useShowContext } from 'react-admin';
 
-import { Tooltip } from '@mui/material';
-import { useSimpleTreeViewApiRef } from '@mui/x-tree-view/hooks';
-import { SimpleTreeView, SimpleTreeViewProps } from '@mui/x-tree-view/SimpleTreeView';
-
 import ToggleOffIcon from '@mui/icons-material/ToggleOff';
 import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import { Tooltip } from '@mui/material';
+import { useSimpleTreeViewApiRef } from '@mui/x-tree-view/hooks';
+import { SimpleTreeView, SimpleTreeViewProps } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItemProps } from '@mui/x-tree-view/TreeItem';
+
 import SimpleUpdateButton from '../../../../jsonapi/components/SimpleUpdateButton';
 import { getAnchestors } from '../../../MapViewer/utils';
 import { getSubTree, useQueryParam } from '../../../utils';
@@ -114,17 +114,17 @@ const WmsTreeView = ({
 
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
 
-  const onItemExpansionToggle =  useCallback((event: React.SyntheticEvent, itemIds: string[]) => {
-      if (event.target.closest('.MuiTreeItem-iconContainer')) {
+  const onItemExpansionToggle =  useCallback((event: React.SyntheticEvent | null, itemIds: string[]) => {
+      if (event?.target instanceof Element && event.target.closest('.MuiTreeItem-iconContainer')) {
           setExpandedItems(itemIds)
 
       } else {
-          event.stopPropagation();
+          event?.stopPropagation();
       }
   }, [])
 
-  const onSelectedItemsChange = useCallback( (event: React.SyntheticEvent, itemids: string | null) =>{
-    if (event.target.closest('.MuiTreeItem-iconContainer')) {
+  const onSelectedItemsChange = useCallback( (event: React.SyntheticEvent | null, itemids: string | null) =>{
+    if (event?.target instanceof Element && event.target.closest('.MuiTreeItem-iconContainer')) {
         return;
     }
     itemids !== null && setSelectedLayer(itemids);

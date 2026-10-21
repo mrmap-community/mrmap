@@ -1,10 +1,12 @@
-import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import {
   BasenameContextProvider,
   ShowButton,
   SimpleList,
   useTranslate,
 } from "react-admin";
+
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+
 import { formatMonitoringRun, getDuration } from "./formatMonitoringRun";
 
 const MonitoringRunsList = () => {

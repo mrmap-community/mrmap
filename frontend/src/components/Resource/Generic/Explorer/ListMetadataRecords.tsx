@@ -1,4 +1,5 @@
-import { Button } from "@mui/material";
+import type { CoverageMapProps } from "./CoverageMap";
+
 import type { ComponentType } from "react";
 import {
   type ListProps,
@@ -6,11 +7,13 @@ import {
   useListContext,
   useTranslate,
 } from "react-admin";
+
+import { Button } from "@mui/material";
+
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
-import type { CoverageMapProps } from "./CoverageMap";
 import { ExplorerView } from "./ExplorerView";
 
 const ExplorerActions = (props: CustomListActionsProps) => (

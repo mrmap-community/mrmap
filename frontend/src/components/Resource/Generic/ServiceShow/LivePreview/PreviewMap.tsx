@@ -1,6 +1,6 @@
-import { Box, Button, Stack, Typography } from "@mui/material";
-import { CRS, Map as LeafletMap, latLngBounds } from "leaflet";
+import type { LiveRecord } from "./usePreview";
 import type { FeatureCollection } from "geojson";
+
 import { useCallback, useEffect, useState } from "react";
 import { useTranslate } from "react-admin";
 import {
@@ -11,8 +11,11 @@ import {
   useMap,
   useMapEvents,
 } from "react-leaflet";
+
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { CRS, Map as LeafletMap, latLngBounds } from "leaflet";
+
 import AutoResizeMapContainer from "../../../../MapContainer/ResizeAbleMapContainer";
-import type { LiveRecord } from "./usePreview";
 
 export interface Viewport {
   bbox: string;

@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
+import { RaRecord, useFieldValue, useRecordContext } from 'react-admin'
 
 import Box from '@mui/material/Box'
 import LinearProgress, { LinearProgressPropsColorOverrides, type LinearProgressProps } from '@mui/material/LinearProgress'
 import Typography from '@mui/material/Typography'
 import { OverridableStringUnion } from '@mui/types'
-import { RaRecord, useFieldValue, useRecordContext } from 'react-admin'
 
 
 export interface ProgressFieldProps extends LinearProgressProps {

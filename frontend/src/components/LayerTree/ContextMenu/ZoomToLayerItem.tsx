@@ -1,7 +1,9 @@
-import SearchIcon from '@mui/icons-material/Search';
-import proj4 from 'proj4';
 import { useCallback } from 'react';
 import { useTranslate } from 'react-admin';
+
+import SearchIcon from '@mui/icons-material/Search';
+import proj4 from 'proj4';
+
 import { useOwsContextBase } from "../../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from '../../MapViewer/MapViewerBase';
 import { useContextMenuBase } from "./ContextMenuBase";

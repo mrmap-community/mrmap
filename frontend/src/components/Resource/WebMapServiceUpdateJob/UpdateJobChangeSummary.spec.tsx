@@ -1,78 +1,33 @@
-import { QueryClient } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
-import { AdminContext, testDataProvider } from "react-admin";
-import { describe, expect, it, vi } from "vitest";
+import { AdminContext, RecordContextProvider } from "react-admin";
+
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import UpdateJobChangeSummary from "./UpdateJobChangeSummary";
 
 describe("update job change summary", () => {
-  it("uses server totals rather than the returned page length, including zero", async () => {
-    const totals: Record<string, number> = {
-      modified: 12,
-      unchanged: 204,
-      added: 3,
-      removed: 0,
-    };
-    const getList = vi
-      .fn()
-      .mockImplementation((_resource, params) =>
-        Promise.resolve({ data: [], total: totals[params.filter.change_type] }),
-      );
+  it("uses recorded job totals, including zero", () => {
     render(
-      <AdminContext
-        queryClient={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
-        dataProvider={testDataProvider({ getList })}
-      >
-        <UpdateJobChangeSummary jobId={2} serviceId="service" />
+      <AdminContext>
+        <RecordContextProvider value={{ id: 2, changedLayers: 12, unchangedLayers: 204, addedLayers: 3, deletedLayers: 0 }}>
+          <UpdateJobChangeSummary />
+        </RecordContextProvider>
       </AdminContext>,
     );
-    for (const [type, total] of Object.entries(totals)) {
-      expect(
-        await screen.findByLabelText(`updateReview.summary.${type}: ${total}`),
-      ).toHaveTextContent(String(total));
-      expect(getList).toHaveBeenCalledWith(
-        "HistoricalLayer",
-        expect.objectContaining({
-          filter: {
-            history_change_reason: "updatejob_id: 2",
-            service: "service",
-            change_type: type,
-          },
-          pagination: { page: 1, perPage: 1 },
-        }),
-      );
+    for (const [type, total] of Object.entries({ changedLayers: 12, unchangedLayers: 204, addedLayers: 3, deletedLayers: 0 })) {
+      expect(screen.getByLabelText(`updateReview.summary.${type}: ${total}`)).toHaveTextContent(String(total));
     }
   });
-  it.each([false, true])(
-    "does not show failed counts as zero (compact=%s)",
-    async (compact) => {
-      const getList = vi.fn().mockRejectedValue(new Error("Offline"));
-      render(
-        <AdminContext
-          queryClient={
-            new QueryClient({ defaultOptions: { queries: { retry: false } } })
-          }
-          dataProvider={testDataProvider({ getList })}
-        >
-          <UpdateJobChangeSummary
-            jobId={2}
-            serviceId="service"
-            compact={compact}
-          />
-        </AdminContext>,
-      );
-      const region = screen.getByRole("region", {
-        name: "updateReview.changeSummary",
-      });
-      await waitFor(
-        () =>
-          expect(
-            within(region).getAllByText("updateReview.countLoadError"),
-          ).toHaveLength(compact ? 3 : 4),
-        { timeout: 10000 },
-      );
-      expect(within(region).queryByText("0")).not.toBeInTheDocument();
-    },
-  );
+  it.each([false, true])("keeps missing totals unknown (compact=%s)", compact => {
+    render(
+      <AdminContext>
+        <RecordContextProvider value={{ id: 2 }}>
+          <UpdateJobChangeSummary compact={compact} />
+        </RecordContextProvider>
+      </AdminContext>,
+    );
+    const region = screen.getByRole("region", { name: "updateReview.changeSummary" });
+    expect(within(region).getAllByLabelText(/: —$/)).toHaveLength(compact ? 3 : 4);
+    expect(within(region).queryByLabelText(/: 0$/)).not.toBeInTheDocument();
+  });
 });

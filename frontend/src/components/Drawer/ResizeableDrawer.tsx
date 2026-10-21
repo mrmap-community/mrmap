@@ -4,7 +4,6 @@ import { Drawer, type DrawerProps } from '@mui/material'
 
 const ResizeableDrawer = ({ children, ...rest }: DrawerProps): ReactNode => {
   const [isResizing, setIsResizing] = useState<boolean>(false)
-  const [lastDownX, setLastDownX] = useState<number>(0)
   const [newWidth, setNewWidth] = useState<number>()
 
   const hangleMouseMove = useCallback((event: MouseEvent) => {
@@ -18,11 +17,10 @@ const ResizeableDrawer = ({ children, ...rest }: DrawerProps): ReactNode => {
     if (offsetRight > minWidth && offsetRight < maxWidth) {
       setNewWidth(offsetRight)
     }
-  }, [])
+  }, [isResizing])
 
-  const handleMouseDown = useCallback((event: MouseEvent) => {
+  const handleMouseDown = useCallback(() => {
     setIsResizing(true)
-    setLastDownX(event.clientX)
   }, [])
 
   const handleMouseUp = useCallback(() => {
@@ -32,7 +30,7 @@ const ResizeableDrawer = ({ children, ...rest }: DrawerProps): ReactNode => {
   return (
     <Drawer
       onMouseMove={hangleMouseMove}
-      PaperProps={{ sx: { width: newWidth } }}
+      slotProps={{ paper: { sx: { width: newWidth } } }}
       {...rest}
     >
       <div

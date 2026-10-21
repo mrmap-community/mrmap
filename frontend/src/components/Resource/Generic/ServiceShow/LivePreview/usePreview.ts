@@ -1,4 +1,7 @@
+import type { FeatureCollection } from "geojson";
+
 import { useQuery } from "@tanstack/react-query";
+
 import {
   API_BASE_URL,
   useHttpClientContext,
@@ -6,7 +9,6 @@ import {
 import useOperation from "../../../../../jsonapi/hooks/useOperation";
 import { updateOrAppendSearchParam } from "../../../../../ows-lib/OwsContext/utils";
 import { getAuthToken } from "../../../../../providers/authProvider";
-import type { FeatureCollection } from "geojson";
 
 export type Protocol = "WMS" | "WFS" | "CSW";
 export const serviceResource = {

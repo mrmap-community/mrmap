@@ -24,13 +24,13 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        PaperProps={{
+        slotProps={{ paper: {
           component: 'form',
-          onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit: (event: React.FormEvent<HTMLDivElement>) => {
             event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-            const getCapabilitiesUrl = formJson.getCapabilitiesUrl;
+            const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
+            const formJson = Object.fromEntries(formData.entries());
+            const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
             const username = formJson.username;
             const password = formJson.password;
 
@@ -45,7 +45,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             addWMSByUrl(getCapabilitiesUrl, headers)
             setOpen(false)
           },
-        }}
+        } }}
       >
         <DialogTitle>Append Web Map Service</DialogTitle>
         <DialogContent>

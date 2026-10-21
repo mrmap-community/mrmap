@@ -1,9 +1,11 @@
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
 import Dialog from "./Dialog";
-import DialogHeader from "./DialogHeader";
 import { context } from "./DialogContextBase";
+import DialogHeader from "./DialogHeader";
 import useDialogMutationSuccess from "./useDialogMutationSuccess";
 
 const mocks = vi.hoisted(() => ({ refetch: vi.fn(), notify: vi.fn() }));

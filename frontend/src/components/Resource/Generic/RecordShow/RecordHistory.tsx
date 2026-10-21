@@ -1,4 +1,3 @@
-import { Chip } from "@mui/material";
 import { createElement, useMemo } from "react";
 import {
   Datagrid,
@@ -9,10 +8,13 @@ import {
   useResourceContext,
   useTranslate,
 } from "react-admin";
+
+import { Chip } from "@mui/material";
+
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
-import ServiceHistoryList from "../History/ServiceHistoryList";
 import { recordHistorySource } from "../History/historySources";
+import ServiceHistoryList from "../History/ServiceHistoryList";
 import { choiceLabel } from "./RecordFields";
 
 const CollectingState = ({ source }: { source: string; label?: string }) => {

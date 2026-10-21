@@ -1,54 +1,37 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type ServiceListConfig } from "../Generic/ServiceList/config";
-import CatalogueServiceList, {
-  CATALOGUE_SERVICE_LIST_FIELDS,
-  HarvestButton,
-} from "./CatalogueServiceList";
 
-const state = vi.hoisted(() => ({
-  /** the props the screen hands to the list with the dialog routes */
-  props: undefined as Record<string, unknown> | undefined,
-}));
+import { serviceListProps } from "../Generic/ServiceList/serviceListProps";
+import CatalogueServiceList, { CATALOGUE_SERVICE_LIST_CONFIG, CATALOGUE_SERVICE_LIST_FIELDS } from "./CatalogueServiceList";
 
-// the create and edit dialogs of the resource are routed by the ListWithDialogs
-vi.mock("../../../jsonapi/components/ListWithDialogs", () => ({
-  default: (props: Record<string, unknown>) => {
-    state.props = props;
-    return null;
-  },
-}));
-
-beforeEach(() => {
-  state.props = undefined;
-});
-
-const listGuesserProps = () =>
-  state.props?.listGuesserProps as Record<string, unknown> & {
-    queryOptions: { meta: { jsonApiParams: Record<string, string> } };
-    listContent: { props: { config: ServiceListConfig } };
-  };
+const state = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
+vi.mock("../../../jsonapi/components/ListGuesser", () => ({ default: (props: Record<string, unknown>) => { state.props = props; return null; } }));
+beforeEach(() => { state.props = undefined; });
 
 describe("CatalogueServiceList", () => {
-  it("keeps the dialog routes of the resource beside the screen of services", () => {
+  it("uses the shared service table, header and detail aside", () => {
     render(<CatalogueServiceList />);
-    // the screen is rendered by the ListWithDialogs and not by a bare list, so
-    // the routes of the create and edit dialogs stay registered
-    expect(state.props).toBeDefined();
-    expect(listGuesserProps().listContent).toBeDefined();
-    expect(listGuesserProps().perPage).toEqual(25);
-    expect(listGuesserProps().sort).toEqual({ field: "title", order: "ASC" });
-    expect(listGuesserProps().aside).toEqual(false);
-    // the screen of services replaces the datagrid of the generic list, so the
-    // harvesting is not offered by an additional action of that datagrid - it
-    // is offered per row by the configuration of the screen
-    expect(listGuesserProps().additionalActions).toBeUndefined();
-    // the list of catalogues introduces no filter of its own - and especially
-    // not the filter of the update candidates, which only the lists of web map
-    // services and of web feature services answer
-    expect(listGuesserProps().filter).toBeUndefined();
+    expect(state.props?.header).toBeDefined();
+    expect(state.props?.columns).toBeDefined();
+    expect(state.props?.aside).toBeDefined();
+    expect(state.props?.perPage).toBe(25);
+    expect(state.props?.sort).toEqual({ field: "title", order: "ASC" });
   });
-
+  it("keeps search and alert filters always available", () => {
+    const props = serviceListProps(CATALOGUE_SERVICE_LIST_CONFIG);
+    expect(props.additionalFilters?.map(filter => filter.props)).toEqual([
+      { source: "search", alwaysOn: true }, { source: "has_alert", alwaysOn: true },
+    ]);
+  });
+  it("requests the configured API fieldset and protocol", () => {
+    render(<CatalogueServiceList />);
+    expect(state.props?.queryOptions).toEqual({
+      meta: { jsonApiParams: { ["fields[" + CATALOGUE_SERVICE_LIST_CONFIG.resource + "]"]: CATALOGUE_SERVICE_LIST_FIELDS.join(",") } },
+    });
+    expect(CATALOGUE_SERVICE_LIST_CONFIG).toMatchObject({ protocol: "CSW", countLabelKey: "records" });
+    expect(CATALOGUE_SERVICE_LIST_FIELDS).toEqual(expect.arrayContaining(["id", "title", "abstract", "has_alert", "element_count"]));
+    expect(CATALOGUE_SERVICE_LIST_FIELDS).not.toContain("xml");
+  });
   it("asks only the attributes the csw screen answers", () => {
     // the shared presentation of the screens of services
     expect(CATALOGUE_SERVICE_LIST_FIELDS).toEqual(
@@ -87,30 +70,4 @@ describe("CatalogueServiceList", () => {
     expect(CATALOGUE_SERVICE_LIST_FIELDS).not.toContain("preview_url");
   });
 
-  it("asks the attributes by the options of the query, which reach the request", () => {
-    render(<CatalogueServiceList />);
-    // the key names the resource of this list and no other
-    expect(
-      Object.keys(listGuesserProps().queryOptions.meta.jsonApiParams),
-    ).toEqual(["fields[CatalogueService]"]);
-    expect(
-      listGuesserProps().queryOptions.meta.jsonApiParams[
-        "fields[CatalogueService]"
-      ],
-    ).toEqual(CATALOGUE_SERVICE_LIST_FIELDS.join(","));
-  });
-
-  it("counts the records of a catalogue with the csw details and its harvest button", () => {
-    render(<CatalogueServiceList />);
-    const config = listGuesserProps().listContent.props.config;
-    expect(config.resource).toEqual("CatalogueService");
-    expect(config.protocol).toEqual("CSW");
-    expect(config.countLabelKey).toEqual("records");
-    // the records of a catalogue are not answered within its records, so the
-    // count of them is answered by the annotation of the page alone
-    expect(config.countRelation).toBeUndefined();
-    // the harvest button stays exported for its other consumers and is offered
-    // per row through the shared action slot
-    expect(config.RowAction).toBe(HarvestButton);
-  });
 });

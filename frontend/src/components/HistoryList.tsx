@@ -1,11 +1,12 @@
 import { type ReactNode, useMemo } from 'react'
-import { camelCase, startCase } from 'lodash'
 import { type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, useGetList, useLocaleState, useTranslate } from 'react-admin'
 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import UpdateIcon from '@mui/icons-material/Update'
 import { Tooltip, Typography } from '@mui/material'
+import { camelCase, startCase } from 'lodash'
+
 import { useSelectedRecordContext } from '../jsonapi/components/SelectedRecordContext'
 
 const getIcon = (record: RaRecord): ReactNode => {

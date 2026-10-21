@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+import { TextInputProps, useInput } from "react-admin";
+
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Dialog from "@mui/material/Dialog";
@@ -12,8 +15,6 @@ import MenuItem from "@mui/material/MenuItem";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
-import { useEffect, useRef, useState } from "react";
-import { TextInputProps, useInput } from "react-admin";
 
 
 const range = (start: number, end: number) =>
@@ -81,7 +82,7 @@ const CronInput = ({
     setPreview(cron);
   }, [minute.join(), hour.join(), day.join(), month.join(), weekday.join()]);
 
-  const handleSelect = (setter: (v: string[]) => void) => (event: any) => {
+  const handleSelect = (setter: (v: string[]) => void) => (event: import("@mui/material").SelectChangeEvent<string[]>) => {
     const value = event.target.value as string[];
     // if * selected take only *
     if (value.includes("*")) setter(["*"]);

@@ -30,7 +30,6 @@
     "build",
     "dist",
     "scripts",
-    "src/vite-env.d.ts",
     "vite.config.mjs",
     "__tests__"
   ]

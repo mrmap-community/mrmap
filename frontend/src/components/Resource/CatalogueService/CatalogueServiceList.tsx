@@ -1,5 +1,3 @@
-import { PlayArrow } from "@mui/icons-material";
-import AgricultureIcon from "@mui/icons-material/Agriculture";
 import { type ReactNode } from "react";
 import {
   CreateButton,
@@ -8,6 +6,10 @@ import {
   ShowButton,
   useRecordContext,
 } from "react-admin";
+
+import { PlayArrow } from "@mui/icons-material";
+import AgricultureIcon from "@mui/icons-material/Agriculture";
+
 import { type ServiceListConfig } from "../Generic/ServiceList/config";
 import ServiceList from "../Generic/ServiceList/ServiceList";
 

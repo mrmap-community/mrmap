@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { AdminContext, ResourceContextProvider, TextField } from "react-admin";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { fireEvent, render, screen } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import en from "../../../../i18n/en";
 import { SelectedRecordContextProvider, useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import ServiceListAside from "./ServiceListAside";

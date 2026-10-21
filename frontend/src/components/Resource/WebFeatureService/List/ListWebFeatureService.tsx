@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ListProps } from "react-admin";
+
 import { type ServiceListConfig } from "../../Generic/ServiceList/config";
 import ServiceList from "../../Generic/ServiceList/ServiceList";
 
@@ -55,6 +56,7 @@ export const WFS_SERVICE_LIST_CONFIG: ServiceListConfig = {
  */
 const ListWebFeatureService = (props: Partial<ListProps>): ReactNode => (
   <ServiceList
+    {...props}
     config={WFS_SERVICE_LIST_CONFIG}
   />
 );

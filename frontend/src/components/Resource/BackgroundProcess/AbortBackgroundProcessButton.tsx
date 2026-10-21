@@ -1,5 +1,3 @@
-import StopIcon from "@mui/icons-material/Stop";
-import { CircularProgress, IconButton, Tooltip } from "@mui/material";
 import {
   useNotify,
   useRecordContext,
@@ -7,6 +5,9 @@ import {
   useTranslate,
   useUpdate,
 } from "react-admin";
+
+import StopIcon from "@mui/icons-material/Stop";
+import { CircularProgress, IconButton, Tooltip } from "@mui/material";
 
 /** the statuses a process can still be moved away from */
 export const ACTIVE_STATUSES = ["pending", "running"];

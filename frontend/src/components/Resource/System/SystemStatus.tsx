@@ -1,10 +1,12 @@
-import SimpleCard from "../../MUI/SimpleCard";
-import {
-    Alert, Box,
-    Chip, LinearProgress, Stack, Typography
-} from '@mui/material';
 import { useTranslate } from 'react-admin';
+
+import {
+  Alert, Box,
+  Chip, LinearProgress, Stack, Typography
+} from '@mui/material';
+
 import { systemComponents, useSystemStatus, type SystemStatusRecord } from '../../../context/SystemStatusContext';
+import SimpleCard from "../../MUI/SimpleCard";
 
 const label = (value?: string | null) => value ? new Date(value).toLocaleString() : '—';
 const color = (status: string): 'success' | 'error' | 'warning' | 'default' => {

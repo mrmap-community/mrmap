@@ -1,6 +1,8 @@
-import { Box } from "@mui/material";
 import type { PropsWithChildren } from "react";
 import { MapContainer, TileLayer, type MapContainerProps } from "react-leaflet";
+
+import { Box } from "@mui/material";
+
 import AutoResizeMapContainer from "./ResizeAbleMapContainer";
 
 const GeoJsonMap = ({

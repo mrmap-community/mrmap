@@ -66,3 +66,25 @@ Now you are able to debug code in vscode. See full example video below.
   :alt: Full example of starting container and connect with debugger
 
   Full example of starting container and connect with debugger
+
+
+4. Automatic linting and formatting
+==================================
+
+Install the workspace recommendations from ``.vscode/extensions.json``: Python, Pylance,
+Flake8, autopep8 and ESLint. Select the project's ``.venv`` with ``Python: Select Interpreter``.
+Python formatting runs on save; Flake8 uses ``backend/setup.cfg`` and the tools installed in
+that environment. Python linting does not require loading Django or host GDAL.
+
+ESLint reports frontend findings while typing and fixes supported findings on explicit save.
+It uses ``frontend/eslint.config.mjs``. The separate TypeScript import organizer is not enabled,
+so Perfectionist owns import ordering. Some lint findings require a manual correction.
+
+Editor ESLint needs Node and the project dependencies in the environment where its extension
+runs. In a Docker-only environment, attach VS Code to the frontend container and open
+``/opt/mrmap/frontend`` there; do not install Node or dependencies into the host checkout.
+The ``Frontend: run lint``, ``Frontend: run type check``, ``Frontend: run test`` and
+``Frontend: run test with coverage`` tasks always use the dedicated Compose test service.
+Initialize its dependency volume with the command in :ref:`development-code-quality` first.
+
+See :ref:`development-code-quality` for CI gates, coverage reports and static security analysis.

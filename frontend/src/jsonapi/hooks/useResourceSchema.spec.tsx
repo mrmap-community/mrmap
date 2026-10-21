@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { HttpMethod, type Operation } from "openapi-client-axios";
 import { expect, it, vi } from "vitest";
+
 import useResourceSchema from "./useResourceSchema";
 const state = vi.hoisted(() => ({
   operation: undefined as Operation | undefined,

@@ -1,23 +1,25 @@
+import { useMemo } from 'react';
+import { useListContext } from 'react-admin';
+
 import { useTheme } from '@mui/material/styles';
 import { AllSeriesType, ChartsContainerProps } from '@mui/x-charts';
 import { ChartSeriesType } from '@mui/x-charts/internals';
-import { useMemo } from 'react';
-import { useListContext } from 'react-admin';
+
 import GradientChartsContainer from '../../MUI/GradientChartsContainer';
 import HistoryListBase from '../Generic/History/HistoryListBase';
 
 
 
-export interface HistoryChartProps extends ChartsContainerProps{
+export interface HistoryChartProps extends Omit<ChartsContainerProps, "filter">{
   resource?: string
   total?: number
-  filter?: any
+  filter?: import("react-admin").FilterPayload
 }
 
 
 const HarvestingDailyStatsCore = (
   {
-    ...props
+    filter: _filter, resource: _resource, ...props
   }: HistoryChartProps
 ) => {
   const { data } = useListContext();
@@ -28,14 +30,14 @@ const HarvestingDailyStatsCore = (
     if (!data || data.length === 0) return [];
 
     // Erstelle ein Map für schnelleren Zugriff nach Datum
-    const dataMap = new Map<string, any>();
+    const dataMap = new Map<string, import("react-admin").RaRecord>();
     data?.forEach(record => {
       const day = new Date(record?.day).toISOString().split("T")[0]; // Nur yyyy-mm-dd
       dataMap.set(day, record);
     });
 
     const today = new Date();
-    const result: any[] = [];
+    const result: import("react-admin").RaRecord[] = [];
     let lastTotal = 0; // Zum Fortschreiben der Werte
 
     for (let i = 29; i >= 0; i--) {
@@ -68,19 +70,19 @@ const HarvestingDailyStatsCore = (
   },[data])
 
   const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
-    const newDataSeries: any[] = []
-    const deletedDataSeries: any[] = []
-    const updatedDataSeries: any[] = []
-    const existedDataSeries: any[] = []
+    const newDataSeries: number[] = []
+    const deletedDataSeries: number[] = []
+    const updatedDataSeries: number[] = []
+    const existedDataSeries: number[] = []
 
-    const dailyTotal: any[] = []
+    const dailyTotal: number[] = []
     
     const series = [
-      { type: 'line', data: dailyTotal, label: 'Records', connectNulls: true, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
-      //{ type: 'line', data: newDataSeries, label:'new' ,},
-      //{ type: 'line', data: deletedDataSeries, label:'deleted'},
-      //{ type: 'line', data: updatedDataSeries, label:'updated'},
-      //{ type: 'line', data: existedDataSeries, label:'existed'},
+      { type: 'line' as const, data: dailyTotal, label: 'Records', connectNulls: true, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
+      //{ type: 'line' as const, data: newDataSeries, label:'new' ,},
+      //{ type: 'line' as const, data: deletedDataSeries, label:'deleted'},
+      //{ type: 'line' as const, data: updatedDataSeries, label:'updated'},
+      //{ type: 'line' as const, data: existedDataSeries, label:'existed'},
     ]
   
     monthlyStats?.forEach(data => {
@@ -97,7 +99,7 @@ const HarvestingDailyStatsCore = (
 
   const xAxis = useMemo(()=>(
     [{
-      scaleType: 'band',
+      scaleType: 'band' as const,
       data: monthlyStats?.map(data => (data.id)) || [],
       id: 'x-axis-id',
       height: 45,

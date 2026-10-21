@@ -1,3 +1,5 @@
+import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
+
 import {
   BooleanInput,
   DateField,
@@ -11,13 +13,13 @@ import {
   TextField,
   WrapperField,
 } from "react-admin";
-import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
+
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
-import ServiceListAside from "./ServiceListAside";
 import { type ServiceListConfig } from "./config";
+import ServiceListAside from "./ServiceListAside";
 
 /** the rows of a screen of services are navigated page by page */
 export const SERVICE_LIST_PER_PAGE = 25;

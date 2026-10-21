@@ -1,13 +1,16 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { PreviewResult } from "./usePreview";
+
 import { useEffect, type PropsWithChildren } from "react";
 import {
   AdminContext,
   RecordContextProvider,
   testDataProvider,
 } from "react-admin";
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import LivePreview from "./LivePreview";
-import type { PreviewResult } from "./usePreview";
 
 const state = vi.hoisted(() => ({
   request: vi.fn(),

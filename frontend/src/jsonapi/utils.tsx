@@ -1,13 +1,13 @@
-import OpenAPIClientAxios, { type OpenAPIV3, type Operation, type ParameterObject } from 'openapi-client-axios'
 import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, SelectField, SelectInput, SingleFieldList, SortPayload, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
-
-import { ComponentType } from 'react'
 import {
   email,
   maxLength,
   minLength,
   regex
 } from 'react-admin'
+
+import OpenAPIClientAxios, { type OpenAPIV3, type Operation, type ParameterObject } from 'openapi-client-axios'
+
 import CreateSuggestionDialog from '../components/Dialog/CreateSuggestionDialog'
 import GeoJsonField from '../components/Field/GeoJsonField'
 import TruncatedTextField from '../components/Field/TruncatedTextField'
@@ -29,15 +29,20 @@ export interface FieldSchema {
 }
 
 export interface FieldDefinition {
-  component: ComponentType<any>,
+  component: import("react").ElementType,
   props: {
     source: string
-    [key: string]: any
+    label?: string
+    reference?: string
+    helperText?: import("react").ReactNode
+    choices?: { id: unknown; name: string }[]
+    validate?: import("react-admin").Validator[]
+    [key: string]: unknown
   }
 }
 
 
-export const capsulateJsonApiPrimaryData = (data: RaRecord | Partial<any>, type: string, operation: Operation): JsonApiPrimaryData => {
+export const capsulateJsonApiPrimaryData = (data: Partial<RaRecord>, type: string, operation: Operation): JsonApiPrimaryData => {
   /** helper to transform react admin data to json:api conform primary data object
      *
      */
@@ -70,7 +75,7 @@ export const capsulateJsonApiPrimaryData = (data: RaRecord | Partial<any>, type:
   }
 
   const primaryData: JsonApiPrimaryData = {
-    id,
+    id: id!,
     type,
     attributes,
     ...(Object.keys(relationships).length > 0 && {relationships: relationships})
@@ -80,24 +85,24 @@ export const capsulateJsonApiPrimaryData = (data: RaRecord | Partial<any>, type:
 
 export const encapsulateJsonApiRelationship = (
   relationships: Record<string, ResourceLinkage>,
-  allRecords: any,
+  allRecords: Record<string, RaRecord>,
   currentRecordId: string,
   preventCircular = false
 ) => {
-  const linkId = (type: string, id: string) => `${type}:${id}`
+  const linkId = (type: string, id: string | number) => `${type}:${id}`
 
-  const buildRef = (id: string) => ({ id })
+  const buildRef = (id: string | number) => ({ id })
 
-  const mergeRecord = (id: string, type: string) => {
+  const mergeRecord = (id: string | number, type: string) => {
     const key = linkId(type, id)
     allRecords[key] = {
-      id,
-      ...(allRecords[key] || {})
+      ...(allRecords[key] || {}),
+      id
     }
     return allRecords[key]
   }
 
-  const handleItem = (item: any, relationName: string) => {
+  const handleItem = (item: import("./types/jsonapi").ResourceIdentifierObject) => {
     if (preventCircular) return buildRef(item.id)
     return mergeRecord(item.id, item.type)
   }
@@ -110,10 +115,10 @@ export const encapsulateJsonApiRelationship = (
 
     if (Array.isArray(data)) {
       target[relationName] = data.map(item =>
-        handleItem(item, relationName)
+        handleItem(item)
       )
     } else {
-      target[relationName] = handleItem(data, relationName)
+      target[relationName] = handleItem(data)
     }
   }
 }
@@ -210,7 +215,7 @@ export const getSortOptions = (operation?: Operation): SortPayload[] => {
 }
 
 
-export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).find(([name, schema]) => name !== 'id') != null)
+export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).find(([name]) => name !== 'id') != null)
 
 
 export const encapsulateFields = (schema: OpenAPIV3.NonArraySchemaObject) => {
@@ -414,14 +419,14 @@ export const getFieldForFormat = (
     case 'uri':
       definition.component = forInput ? TextInput: UrlField;
       definition.props.validate = [
-        ...(definition.props.validate > 0 ? definition.props.validate: []),
-        regex(/^(http(s?):\/\/.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/)
+        ...(definition.props.validate ?? []),
+        regex(/^(http(s?):\/\/.)[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&//=]*)$/)
       ]
       break;
     case 'email':
       definition.component = forInput ? TextInput: EmailField;
       definition.props.validate = [
-        ...(definition.props.validate > 0 ? definition.props.validate: []),
+        ...(definition.props.validate ?? []),
         email()
       ]
       break;

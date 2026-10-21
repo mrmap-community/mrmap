@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { historicalSource } from "../../Generic/History/historySources";
 import type { RaRecord, SimpleListProps } from "react-admin";
+
+import { historicalSource } from "../../Generic/History/historySources";
 import ServiceHistoryList from "../../Generic/History/ServiceHistoryList";
 
 export interface HistoryListProps extends SimpleListProps {

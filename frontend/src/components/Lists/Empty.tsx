@@ -1,9 +1,10 @@
-import { Box, Typography } from '@mui/material';
 import {
   CreateButton,
   useResourceDefinition,
   useTranslate
 } from 'react-admin';
+
+import { Box, Typography } from '@mui/material';
 
 
 const EmptyList = () => {

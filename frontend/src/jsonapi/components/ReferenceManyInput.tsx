@@ -1,27 +1,20 @@
-import _ from 'lodash';
-import {
-  CreateMutationFunction,
-  CreateParams,
-  HttpError,
-  RaRecord,
-  UpdateMutationFunction,
-  UpdateParams,
-  useCreate,
-  UseCreateOptions,
-  useDelete,
-  useInfiniteGetList,
-  useLocation,
-  useNavigate,
-  useRecordContext,
-  useRedirect,
-  useRegisterMutationMiddleware,
-  useResourceContext,
-  useUpdate,
-  UseUpdateOptions
-} from 'ra-core';
 import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
+
+import _ from 'lodash';
+import {
+  CreateMutationFunction, HttpError,
+  type Middleware,
+  RaRecord, useCreate, useDelete,
+  useInfiniteGetList,
+  useLocation,
+  useNavigate,
+  useRecordContext, useRegisterMutationMiddleware,
+  useResourceContext,
+  useUpdate
+} from 'ra-core';
+
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import { ReferenceManyError, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 
@@ -116,7 +109,7 @@ export const ReferenceManyInput = (
           if (typeof value === 'object' && value.id && value.stringRepresentation) {
             return value; // already has completed data
           }
-        }).filter((value: any) => value !== undefined)
+        }).filter((value: RaRecord | undefined): value is RaRecord => value !== undefined)
       }
     , [currentRecordValues])
   
@@ -161,38 +154,30 @@ export const ReferenceManyInput = (
   const [ create ] = useCreate();
   const [ update ] = useUpdate();
 
-  const redirect = useRedirect();
 
-  const onError = useCallback((index: number, error: unknown) => {
-    const httpError = error as HttpError 
-    httpError?.body?.errors && Object.entries(httpError?.body?.errors).forEach(([key, value]) => {    
-      setError(
-        `${source}.${index}.${key}`,
-        {message: value as string}
-      )
-    });    
-  },[source])
 
-  const memoizedMiddleWare = useCallback(async (
-      resource: string | undefined,
-      params: CreateParams | UpdateParams,
-      next: CreateMutationFunction | UpdateMutationFunction,
+  const memoizedMiddleWare = useCallback<Middleware<CreateMutationFunction>>(async (
+      resource,
+      params,
+      options,
+      next,
   ) => {
 
       // Call the next middleware
-      const result = await next(resource, params);
+      const result = await next(resource, params, { ...options, returnPromise: true });
+      if (!result) return result;
 
        // create/update all nested records and wait for all to finish
-      const promises = (values ?? []).map((rec: RaRecord, index: number) => {
+      const promises = (values ?? []).map((rec: RaRecord) => {
         // ensure target relation points to parent result
-        const data = { ...rec, [target]: { id: result.data.id } } as RaRecord;
+        const data = { ...rec, [target]: { id: result.id } } as RaRecord;
 
         // ask react-admin to return a promise for the mutation
-        const createOpts: UseCreateOptions = { returnPromise: true as const } as any;
-        const updateOpts: UseUpdateOptions = { returnPromise: true as const } as any;
+        const createOpts = { returnPromise: true as const };
+        const updateOpts = { returnPromise: true as const };
 
         if (rec.id === undefined) {
-          return create(reference, { data }, createOpts as any);
+          return create(reference, { data }, createOpts);
         }
 
         return update(
@@ -202,7 +187,7 @@ export const ReferenceManyInput = (
             data,
             previousData: valuesRef.current?.find((v: RaRecord) => v.id === rec.id),
           },
-          updateOpts as any
+          updateOpts
         );
       });
 
@@ -213,7 +198,7 @@ export const ReferenceManyInput = (
         let candidateErrors: Record<string, string> | undefined;
 
         if (result.status === 'rejected') {
-            const reason: any = result.reason;
+            const reason = result.reason as HttpError & { response?: { body?: HttpError["body"] } };
             const httpError = reason as HttpError | undefined;
 
             const body =
@@ -227,7 +212,7 @@ export const ReferenceManyInput = (
                 body?.error ??
                 body?.validationErrors;
         } else {
-            const value: any = result.value;
+            const value = result.value as RaRecord | undefined;
 
             const body =
                 value?.body ??
@@ -265,7 +250,7 @@ export const ReferenceManyInput = (
                 errors: {
                     root: {
                         message:
-                            (result.reason as any)?.message ??
+                            (result.reason as Error)?.message ??
                             'Unknown error',
                     },
                 },
@@ -397,8 +382,8 @@ export const ReferenceManyInput = (
         >
             {
               createFieldDefinitions.map(
-                (fieldDefinition, index) => {
-                  const props: any = {
+                (fieldDefinition) => {
+                  const props: import("../utils").FieldDefinition["props"] = {
                     key: `${reference}-${fieldDefinition.props.source}`,
                     ...fieldDefinition.props,
                   }

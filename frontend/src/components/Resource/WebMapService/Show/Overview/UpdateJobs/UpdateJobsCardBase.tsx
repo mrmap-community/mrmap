@@ -8,8 +8,8 @@ import RunHistoryCard from "../RunHistoryCard";
 import { LayerChangesChart } from "./UpdateJobChangeChart";
 
 export interface UpdateJobsCardBaseProps extends PropsWithChildren {
-  resource: string;
-  settingsResource: string;
+  resource?: string;
+  settingsResource?: string;
 }
 
 const UpdateJobsCardBase = ({ children }: UpdateJobsCardBaseProps) => {

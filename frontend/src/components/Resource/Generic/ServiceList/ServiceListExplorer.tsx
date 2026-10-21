@@ -1,3 +1,15 @@
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import {
+  DateField,
+  EditButton,
+  RecordContext,
+  RecordContextProvider,
+  ShowButton,
+  useListContext,
+  useTranslate,
+  type Identifier
+} from "react-admin";
+
 import VpnLockIcon from "@mui/icons-material/VpnLock";
 import {
   Box,
@@ -16,17 +28,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import {
-  DateField,
-  EditButton,
-  RecordContext,
-  RecordContextProvider,
-  ShowButton,
-  useListContext,
-  useTranslate,
-  type Identifier
-} from "react-admin";
+
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import ServiceDetailsCard from "../ServiceShow/ServiceDetailsCard";
 import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";

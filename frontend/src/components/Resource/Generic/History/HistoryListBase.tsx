@@ -1,10 +1,11 @@
 import { Fragment, PropsWithChildren, useMemo } from 'react';
 import { ListContextProvider, ResourceContextProvider, useGetList, useList, useResourceDefinition } from 'react-admin';
+
 import { useHttpClientContext } from '../../../../context/HttpClientContext';
 
 export interface HistoryBaseProps extends PropsWithChildren{
   resource?: string
-  filter?: any
+  filter?: import("react-admin").FilterPayload
 }
 
 const HistoryListProvider = ({

@@ -88,6 +88,12 @@ const dataProvider = testDataProvider({
   unsubscribe,
 });
 
+/** the filter a list of this kind of service applies on its own - only the lists
+ *  of web map services and of web feature services filter the update candidates
+ *  out, which jsonapi/components/ListGuesser.tsx decides */
+const ownFilterOf = (config: ServiceListConfig): Record<string, unknown> =>
+  config.resource === "CatalogueService" ? {} : { is_update_candidate: false };
+
 /** the list controller the screen of the services reads its services from */
 const listContext = (
   config: ServiceListConfig,
@@ -95,13 +101,7 @@ const listContext = (
   records: unknown[] = recordsFor(config),
   isPending = false,
 ): ListControllerResult => {
-  // only the lists of web map services and of web feature services apply the
-  // filter of the update candidates on their own - see jsonapi/components/
-  // ListGuesser.tsx
-  const own =
-    config.resource === "CatalogueService"
-      ? {}
-      : { is_update_candidate: false };
+  const own = ownFilterOf(config);
   return {
     data: records,
     total: records.length,
@@ -110,9 +110,9 @@ const listContext = (
     isEmpty: false,
     error: null,
     resource: config.resource,
-    // the filter of the query carries the filter the list applies on its own,
-    // the filters which are stored are the ones a facet narrows
-    filter: { ...own, ...filter },
+    // the list controller answers the filter it applies on its own and the
+    // filters a user chose apart - the first is not one of the stored filters
+    filter: own,
     filterValues: filter,
     displayedFilters: {},
     setFilters,
@@ -200,7 +200,7 @@ describe.each(CONFIGS)("$name", ({ config }) => {
     ).toBeInTheDocument();
     // the service without any state is the only one which needs no attention
     expect(
-      screen.getAllByText("serviceAttention.shortLabels.healthy"),
+      screen.getAllByText("serviceAttention.shortLabels.noAlerts"),
     ).toHaveLength(1);
     // the security of a service is marked only where the api answers it
     const secured = within(row).queryByText("serviceList.secured");
@@ -275,24 +275,25 @@ describe.each(CONFIGS)("$name", ({ config }) => {
       screen.getByText("serviceList.tiles.runningUpdates"),
     ).toBeInTheDocument();
     await screen.findByText("serviceList.tiles.needsAttention");
-    // the services are counted with the search of the list and the state of the
-    // tile, both named as the api filters them
+    // the services are counted with the search of the list and with the filter
+    // the list applies on its own, narrowed by the state of the tile - all of
+    // them named as the api filters them
     expect(getList).toHaveBeenCalledWith(
       config.resource,
       expect.objectContaining({
-        filter: expect.objectContaining({ search: "soil", has_alert: true }),
+        filter: expect.objectContaining({
+          search: "soil",
+          has_alert: true,
+          ...ownFilterOf(config),
+        }),
       }),
     );
-    // the running updates stay the processes of any service - no filter of the
-    // resource of the list is introduced on them
+    // the running updates are counted for the whole registry: no filter of the
+    // services reaches the background processes, not even the search
     expect(getList).toHaveBeenCalledWith(
       "BackgroundProcess",
       expect.objectContaining({
-        filter: expect.objectContaining({
-          search: "soil",
-          status: "pending,running",
-          process_type: "update",
-        }),
+        filter: { status: "pending,running", process_type: "update" },
       }),
     );
     // every tile is marked by the icon of its state

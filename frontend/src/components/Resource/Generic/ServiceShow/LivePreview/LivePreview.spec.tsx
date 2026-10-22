@@ -53,7 +53,6 @@ vi.mock("../../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
   }),
 }));
 vi.mock("./PreviewMap", () => ({
-  validExtent: (extent?: number[]) => Boolean(extent),
   default: (props: {
     onViewport: (value: Record<string, unknown>) => void;
     image?: string;

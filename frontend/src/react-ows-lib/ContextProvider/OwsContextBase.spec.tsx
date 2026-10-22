@@ -143,3 +143,56 @@ it('persists supplied capabilities authentication for subsequent same-origin WMS
   expect(operations.every(operation => typeof operation['x-authentication-id'] === 'string')).toBe(true);
   vi.unstubAllGlobals();
 });
+
+describe('OwsContextBase document extent', () => {
+
+  const ExtentTester = () => {
+    const { owsContext, documentRevision, setContextBbox, updateOwsContext } = useOwsContextBase();
+
+    return (
+      <div>
+        <span data-testid="bbox">{JSON.stringify(owsContext.bbox)}</span>
+        <span data-testid="revision">{documentRevision}</span>
+        <span data-testid="features">{owsContext.features.length}</span>
+        <button
+          data-testid="publish"
+          onClick={() => setContextBbox([1, 2, 3, 4])}>
+            publish viewport
+        </button>
+        <button
+          data-testid="replace"
+          onClick={() => updateOwsContext({
+            type: 'FeatureCollection',
+            id: 'urn:uuid:0f8fad5b-d9cb-469f-a165-70867728950e',
+            bbox: [10, 20, 30, 40],
+            properties: { lang: 'en', title: 'document', updated: '2026-10-21T00:00:00Z' },
+            features: []
+          })}>
+            replace document
+        </button>
+      </div>
+    );
+  };
+
+  it('keeps the rest of the document when the viewer publishes its viewport', () => {
+    render(<ExtentTester />, { wrapper: MapViewerBaseWrapper });
+
+    fireEvent.click(screen.getByTestId('publish'));
+
+    expect(screen.getByTestId('bbox')).toHaveTextContent('[1,2,3,4]');
+    expect(screen.getByTestId('features')).toHaveTextContent(String(testdata.length));
+    // publishing the view of a document is not a document that replaced the state of the viewer
+    expect(screen.getByTestId('revision')).toHaveTextContent('0');
+  });
+
+  it('counts the documents that replaced the state of the viewer', () => {
+    render(<ExtentTester />, { wrapper: MapViewerBaseWrapper });
+
+    fireEvent.click(screen.getByTestId('replace'));
+
+    expect(screen.getByTestId('bbox')).toHaveTextContent('[10,20,30,40]');
+    expect(screen.getByTestId('features')).toHaveTextContent('0');
+    expect(screen.getByTestId('revision')).toHaveTextContent('1');
+  });
+
+});

@@ -31,7 +31,8 @@ import {
   OwsContextBase,
   useOwsContextBase,
 } from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
-import PreviewMap, { type Viewport, validExtent } from "./PreviewMap";
+import { validExtent } from "../../../../MapViewer/utils";
+import PreviewMap, { type Viewport } from "./PreviewMap";
 import {
   PreviewFailure,
   serviceResource,

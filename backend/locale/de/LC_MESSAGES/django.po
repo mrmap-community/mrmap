@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-21 16:31+0200\n"
+"POT-Creation-Date: 2026-10-22 09:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,7 +71,7 @@ msgid "Country"
 msgstr "Land"
 
 #: accounts/models/groups.py:93 notify/models.py:64
-#: registry/models/mapcontext.py:272 registry/models/security.py:253
+#: registry/models/mapcontext.py:312 registry/models/security.py:253
 msgid "description"
 msgstr "Beschreibung"
 
@@ -781,8 +781,8 @@ msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 #: registry/models/security.py:450 registry/models/security.py:461
 #: registry/models/service.py:590 registry/models/service.py:843
 #: registry/models/update.py:120 registry/models/update.py:163
-#: registry/models/update.py:206 registry/models/update.py:462
-#: registry/models/update.py:701 registry/models/update.py:889
+#: registry/models/update.py:206 registry/models/update.py:464
+#: registry/models/update.py:703 registry/models/update.py:891
 msgid "service"
 msgstr "Dienst"
 
@@ -950,49 +950,49 @@ msgstr "Periodische Ernteaufgabe"
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
-#: registry/models/mapcontext.py:24 registry/models/mapcontext.py:266
+#: registry/models/mapcontext.py:51 registry/models/mapcontext.py:306
 #: registry/models/metadata.py:268 registry/models/metadata.py:664
 #: registry/serializers/mapcontext.py:22
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:25
+#: registry/models/mapcontext.py:52
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:30 registry/models/metadata.py:246
+#: registry/models/mapcontext.py:57 registry/models/metadata.py:246
 msgid "language"
 msgstr "Sprache"
 
-#: registry/models/mapcontext.py:31
+#: registry/models/mapcontext.py:58
 msgid "language of context document"
 msgstr "Sprache des Dokuments"
 
-#: registry/models/mapcontext.py:36 registry/models/metadata.py:668
+#: registry/models/mapcontext.py:63 registry/models/metadata.py:668
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:37
+#: registry/models/mapcontext.py:64
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
-#: registry/models/mapcontext.py:41
+#: registry/models/mapcontext.py:68
 msgid "pixel width"
 msgstr "Pixel Breite"
 
-#: registry/models/mapcontext.py:135
+#: registry/models/mapcontext.py:174
 msgid "Rendering layer"
 msgstr "Darstellungsebene"
 
-#: registry/models/mapcontext.py:136
+#: registry/models/mapcontext.py:175
 msgid "Select a layer for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:140 registry/models/service.py:624
+#: registry/models/mapcontext.py:179 registry/models/service.py:624
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:142 registry/models/service.py:626
+#: registry/models/mapcontext.py:181 registry/models/service.py:626
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1002,11 +1002,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:148 registry/models/service.py:635
+#: registry/models/mapcontext.py:187 registry/models/service.py:635
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:150 registry/models/service.py:637
+#: registry/models/mapcontext.py:189 registry/models/service.py:637
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1016,51 +1016,51 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:158
+#: registry/models/mapcontext.py:197
 msgid "Style"
 msgstr "Style"
 
-#: registry/models/mapcontext.py:159
+#: registry/models/mapcontext.py:198
 msgid "Select a style for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:161 registry/serializers/service.py:627
+#: registry/models/mapcontext.py:200 registry/serializers/service.py:627
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:163
+#: registry/models/mapcontext.py:202
 msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:170 registry/models/mapcontext.py:236
+#: registry/models/mapcontext.py:209 registry/models/mapcontext.py:275
 msgid "rendering active"
 msgstr "Darstellungsebene"
 
-#: registry/models/mapcontext.py:171 registry/models/mapcontext.py:237
+#: registry/models/mapcontext.py:210 registry/models/mapcontext.py:276
 msgid "should this offering be visible?"
 msgstr "Soll dieses Datenangebot sichtbar sein?"
 
-#: registry/models/mapcontext.py:230
+#: registry/models/mapcontext.py:269
 msgid "Selection layer"
 msgstr "Selektionsebene"
 
-#: registry/models/mapcontext.py:231
+#: registry/models/mapcontext.py:270
 msgid "Select a layer for feature selection."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:267 registry/serializers/mapcontext.py:23
+#: registry/models/mapcontext.py:307 registry/serializers/mapcontext.py:23
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
-#: registry/models/mapcontext.py:273
+#: registry/models/mapcontext.py:313
 msgid "a short description for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:279
+#: registry/models/mapcontext.py:319
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/mapcontext.py:280
+#: registry/models/mapcontext.py:320
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
@@ -2034,25 +2034,25 @@ msgstr "Aktualisierungskonfigurationen Web Catalogue Service"
 msgid "the background process which reports this job"
 msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
 
-#: registry/models/update.py:463
+#: registry/models/update.py:465
 msgid "the wms this job is running for"
 msgstr "der WMS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:469
+#: registry/models/update.py:471
 msgid "Web Map Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Map Service"
 
-#: registry/models/update.py:470
+#: registry/models/update.py:472
 msgid "Web Map Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Map Service"
 
-#: registry/models/update.py:679 registry/models/update.py:867
-#: registry/models/update.py:958
+#: registry/models/update.py:681 registry/models/update.py:869
+#: registry/models/update.py:960
 msgid "Can only resume a job with status REVIEW_REQUIRED"
 msgstr ""
 "Nur eine Aufgabe mit dem Status REVIEW_REQUIRED kann fortgesetzt werden"
 
-#: registry/models/update.py:683
+#: registry/models/update.py:685
 msgid ""
 "Cannot resume the job, because not all layers are updateable. Please review "
 "the layer mappings first."
@@ -2060,19 +2060,19 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Ebenen "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Ebenen-Zuordnungen."
 
-#: registry/models/update.py:702
+#: registry/models/update.py:704
 msgid "the WFS this job is running for"
 msgstr "der WFS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:708
+#: registry/models/update.py:710
 msgid "Web Feature Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Feature Service"
 
-#: registry/models/update.py:709
+#: registry/models/update.py:711
 msgid "Web Feature Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Feature Service"
 
-#: registry/models/update.py:871
+#: registry/models/update.py:873
 msgid ""
 "Cannot resume the job, because not all featuretypes are updateable. Please "
 "review the featuretype mappings first."
@@ -2080,27 +2080,27 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Featuretypes "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Featuretype-Zuordnungen."
 
-#: registry/models/update.py:890
+#: registry/models/update.py:892
 msgid "the CSW this job is running for"
 msgstr "der CSW, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:896
+#: registry/models/update.py:898
 msgid "Web Catalogue Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Catalogue Service"
 
-#: registry/models/update.py:897
+#: registry/models/update.py:899
 msgid "Web Catalogue Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Catalogue Service"
 
-#: registry/models/update.py:1023
+#: registry/models/update.py:1025
 msgid "Layer Mapping"
 msgstr "Ebenen-Zuordnung"
 
-#: registry/models/update.py:1024
+#: registry/models/update.py:1026
 msgid "Layer Mappings"
 msgstr "Ebenen-Zuordnungen"
 
-#: registry/models/update.py:1030
+#: registry/models/update.py:1032
 msgid ""
 "A new layer can only be mapped once. Please adjust the layer mappings "
 "accordingly."
@@ -2108,15 +2108,15 @@ msgstr ""
 "Eine neue Ebene kann nur einmal zugeordnet werden. Bitte passen Sie die "
 "Ebenen-Zuordnungen entsprechend an."
 
-#: registry/models/update.py:1064
+#: registry/models/update.py:1066
 msgid "Feature Type Mapping"
 msgstr "Featuretype-Zuordnung"
 
-#: registry/models/update.py:1065
+#: registry/models/update.py:1067
 msgid "Feature Type Mappings"
 msgstr "Featuretype-Zuordnungen"
 
-#: registry/models/update.py:1071
+#: registry/models/update.py:1073
 msgid ""
 "A new feature type can only be mapped once. Please adjust the feature type "
 "mappings accordingly."

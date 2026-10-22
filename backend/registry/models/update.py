@@ -280,6 +280,8 @@ class ServiceUpdateJob(models.Model):
 
         if not adding:
             self.report_process()
+        from notify.utils import invalidate_service_alerts
+        invalidate_service_alerts()
         return saved
 
     def build_process(self):

@@ -9,19 +9,22 @@ api and to every report which may follow.
 
 The states are answered as annotations of the services themselves, which keeps
 them filterable, sortable and countable like every other attribute of a service
-and keeps them out of an endpoint of their own. The schedules a service did not
-keep are not answered here, because the time a crontab promised a run at is
-calculated in python: they are answered by the settings of a service themselves,
-which answer their `runOverdue`.
+on existing service endpoints. The cross-service projection is answered by the
+union which `service_alert_rows()` builds from these annotations and which
+creates the view of the alerts in `registry/models/alerts.py`. Only the
+schedules behind the settings' `runOverdue` field stay calculated in python,
+because a crontab occurrence is not answered by the database - see
+`extras/scheduling.py`.
 
 A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
 was followed by a passing one does not need attention any more.
 """
 from camel_converter import to_camel
-from django.db.models import (BooleanField, Case, Exists, ExpressionWrapper, F,
-                              OuterRef, Q, Subquery, Value, When)
-from django.db.models.functions import Coalesce
+from django.db.models import (BooleanField, Case, CharField, Exists,
+                              ExpressionWrapper, F, OuterRef, Q, Subquery,
+                              Value, When)
+from django.db.models.functions import Cast, Coalesce, Concat
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.harvest import HarvestingJob
@@ -252,8 +255,10 @@ def alert_annotations(queryset):
             newest_update_job.values('status')[:1]),
         alert_newest_job_moment=moment(newest_update_job),
         alert_review_job_moment=moment(newest_review_job),
-        update_review_required=Exists(kind.update_job.objects.filter(
-            service_id=OuterRef('pk'), status=REVIEW_STATUS)),
+        alert_review_job_id=Subquery(newest_review_job.values('pk')[:1]),
+        update_review_required=(Exists(kind.update_job.objects.filter(
+            service_id=OuterRef('pk'), status=REVIEW_STATUS)) | Exists(
+                kind.service.objects.filter(update_candidate_of_id=OuterRef('pk')))),
     )
 
     failing_run = Q(alert_newest_run=F('alert_newest_failing_run'))
@@ -362,3 +367,183 @@ def alerts_requested(request, resource: str, attributes: tuple) -> bool:
         field.strip() for field in request.GET.get(
             f'fields[{resource}]', '').split(',') if field.strip()]
     return not sparse_fields or any(name in sparse_fields for name in names)
+
+
+# Cross-service projections deliberately reuse the annotations above. No alert
+# state is persisted, and candidates are never counted as separate services.
+ALERT_CATEGORIES = {
+    'monitoring_failed': ('error', 'monitoring_failed_at', 'MonitoringSetting'),
+    'update_failed': ('error', 'update_failed_at', 'UpdateSetting'),
+    'update_review_required': ('warning', 'update_review_required_at', 'UpdateSetting'),
+    'harvest_aborted': ('error', 'harvest_failed_at', 'HarvestingJob'),
+    'harvest_incomplete': ('warning', 'harvest_failed_at', 'HarvestingJob'),
+}
+
+
+def collect_service_alerts(user):
+    """Project visible published services and enabled schedules into alerts.
+
+    The alerts which the states of the services answer are projected by the
+    view of the alerts - one query which unions the annotations that the
+    services themselves answer, see `registry/models/alerts.py`. The schedules
+    which did not keep their time are not answered by that view, because a
+    crontab is calculated in python and not by the database, so they are
+    projected from the settings here.
+    """
+    from extras.scheduling import next_run_expected_at, run_overdue
+    from guardian.shortcuts import get_objects_for_user
+    from registry.models import monitoring, update
+    from registry.models.alerts import ServiceAlertView
+    from registry.models.harvest import PeriodicHarvestingJob
+
+    scope = Q()
+    visible = {}
+    for model in SERVICE_KIND_OF:
+        services = get_objects_for_user(
+            user, f'registry.view_{model._meta.model_name}',
+            klass=model.objects.filter(update_candidate_of__isnull=True))
+        if not user.is_superuser:
+            # the view of the alerts and the settings below both ask the
+            # visible services: answer the visibility once, so that the
+            # permission subqueries of get_objects_for_user are part of one
+            # query instead of repeated by every query which uses the
+            # queryset - the superuser needs none of it, guardian answers
+            # without them
+            ids = list(services.values_list('pk', flat=True))
+            services = model.objects.filter(pk__in=ids)
+            scope |= Q(service_type=model.__name__,
+                       service__in=[str(pk) for pk in ids])
+        visible[model] = services
+    if user.is_superuser:
+        alerts = list(ServiceAlertView.objects.all().values())
+    else:
+        alerts = list(ServiceAlertView.objects.filter(scope).values())
+    for model in SERVICE_KIND_OF:
+        resource = model.__name__
+        settings = [
+            (getattr(monitoring, resource + 'MonitoringSetting'), 'monitoring_overdue'),
+            (getattr(update, resource + 'UpdateSetting'), 'update_overdue'),
+        ]
+        if model is CatalogueService:
+            settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
+        for setting_model, category in settings:
+            for setting in setting_model.objects.filter(
+                    enabled=True, service__in=visible[model]).select_related('crontab', 'service'):
+                if run_overdue(setting):
+                    alerts.append(service_alert(
+                        setting.service, category, 'warning',
+                        next_run_expected_at(setting), setting_model.__name__,
+                        source=setting.pk))
+    return alerts
+
+
+def service_alert(service, category, severity, occurred_at, target, source=None):
+    """One stable problem identity and its existing service workflow target."""
+    resource = type(service).__name__
+    # CSW updates have no dedicated settings tab; its overview owns that action.
+    tab = '' if target == 'CatalogueServiceUpdateSetting' else target
+    return {
+        'id': f'{category}:{resource}:{source or service.pk}',
+        'severity': severity, 'category': category, 'message': category,
+        'service_type': resource, 'service': str(service.pk),
+        'service_title': service.title, 'resource_type': resource,
+        'resource_id': str(service.pk), 'occurred_at': occurred_at,
+        'target_path': f'/{resource}/{service.pk}/show/{tab}',
+    }
+
+
+def alert_branch(model, category: str, severity: str, at: str, target: str):
+    """One category of alerts of one kind of service as alert rows.
+
+    The rows of a branch are the services of its kind which answer this
+    category - decided by the very annotations which the services themselves
+    answer - projected into the identity, the message and the workflow target
+    which `service_alert()` answers for a single alert, so that the union of
+    the branches and the services cannot drift apart.
+
+    Args:
+        model: the model of the kind of service to project
+        category (str): the name of the state which answers the alert
+        severity (str): the severity which the alert of it has
+        at (str): the attribute which names the moment of the alert
+        target (str): the resource which owns the workflow of the alert
+
+    Returns:
+        QuerySet: the rows of this category, shaped as the view of the alerts
+    """
+    resource = model.__name__
+    if target == 'HarvestingJob':
+        tab = 'HarvestingJob'
+    else:
+        # CSW updates have no dedicated settings tab; its overview owns that
+        # action - the same rule which service_alert() answers
+        tab = '' if resource + target == 'CatalogueServiceUpdateSetting' \
+            else resource + target
+    # every column is answered as an `alert_` annotation: the services answer
+    # their own fields, and the view maps its fields onto these columns
+    rows = model.objects.filter(
+        update_candidate_of__isnull=True
+    ).with_alert_information().filter(**{category: True}).annotate(
+        alert_id=Concat(Value(f'{category}:{resource}:'),
+                        Cast('pk', CharField()), output_field=CharField()),
+        alert_severity=Value(severity, output_field=CharField()),
+        alert_category=Value(category, output_field=CharField()),
+        alert_message=Value(category, output_field=CharField()),
+        alert_service_type=Value(resource, output_field=CharField()),
+        alert_service=Cast('pk', CharField()),
+        alert_service_title=F('title'),
+        alert_occurred_at=F(at),
+        alert_service_path=Concat(
+            Value(f'/{resource}/'), Cast('pk', CharField()),
+            Value(f'/show/{tab}'), output_field=CharField()))
+    if category == 'update_review_required' and model is not CatalogueService:
+        # a review is decided about at the job which waits for it - unless
+        # only a candidate is dangling, which asks about the service itself
+        waiting = Q(alert_review_job_id__isnull=False)
+        rows = rows.annotate(
+            alert_resource_type=Case(
+                When(waiting, then=Value(resource + 'UpdateJob')),
+                default=Value(resource), output_field=CharField()),
+            alert_resource_id=Case(
+                When(waiting, then=Cast('alert_review_job_id', CharField())),
+                default=Cast('pk', CharField()), output_field=CharField()),
+            alert_target_path=Case(
+                When(waiting, then=Concat(
+                    Value(f'/{resource}UpdateJob/'),
+                    Cast('alert_review_job_id', CharField()),
+                    Value('/show'), output_field=CharField())),
+                default='alert_service_path', output_field=CharField()))
+    else:
+        rows = rows.annotate(
+            alert_resource_type=Value(resource, output_field=CharField()),
+            alert_resource_id=Cast('pk', CharField()),
+            alert_target_path=F('alert_service_path'))
+    return rows.order_by().values(
+        'alert_id', 'alert_severity', 'alert_category', 'alert_message',
+        'alert_service_type', 'alert_service', 'alert_service_title',
+        'alert_resource_type', 'alert_resource_id', 'alert_occurred_at',
+        'alert_target_path')
+
+
+def service_alert_rows():
+    """The alerts of every kind of service as the rows of one relation.
+
+    One branch per kind of service and category of alerts, answered by the
+    annotations which the services themselves answer, united into the rows
+    which the view of the alerts is created from - see
+    `registry/models/alerts.py`.
+
+    Returns:
+        QuerySet: the rows of every alert a service of a deployment answers
+    """
+    branches = []
+    for model in SERVICE_KIND_OF:
+        for category, (severity, at, target) in ALERT_CATEGORIES.items():
+            if target == 'HarvestingJob' \
+                    and SERVICE_KIND_OF[model].harvesting_job is None:
+                # only the records of a catalogue are pulled by a harvesting
+                # job, so only a catalogue answers the state it leaves behind
+                continue
+            branches.append(
+                alert_branch(model, category, severity, at, target))
+    return branches[0].union(*branches[1:], all=True)

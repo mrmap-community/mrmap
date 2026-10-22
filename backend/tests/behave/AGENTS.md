@@ -15,6 +15,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/manual_updates.py` | the pattern for domain steps: state setup and state assertions of one workflow |
 | `steps/periodic_updates.py` | periodic WFS/CSW job creation and unfinished-job reuse assertions |
 | `steps/automatic_updates.py` | WMS/WFS additions, removals and reviewed identifier renames |
+| `steps/service_alerts.py` | failed update and object visibility setup for cross-service attention |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
 | `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |

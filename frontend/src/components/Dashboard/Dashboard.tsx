@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 
 import ResourceListCard from './Cards/ResourceListCard';
+import ServiceAttentionCard from './Cards/ServiceAttentionCard';
 
 const styles = {
   flex: { display: 'flex' },
@@ -15,6 +16,7 @@ const Spacer = () => <span style={{ width: '1em' }} />;
 const Dashboard = (): ReactNode => {
   return (
     <div style={styles.singleCol}>
+      <ServiceAttentionCard />
       <div style={styles.singleCol}>
         <div style={styles.flex}>
           <ResourceListCard resource={'WebMapService'} withList={false}/>

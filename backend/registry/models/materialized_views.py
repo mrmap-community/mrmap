@@ -18,6 +18,30 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 
 
+def queryset_view_sql(queryset) -> pg.ViewSQL:
+    """The statement a queryset answers, with its parameters set inline.
+
+    A view is created by one statement which takes no parameters, so the
+    queryset is answered once with the debug cursor on and the statement it
+    leaves behind is the one the view is created from.
+
+    Args:
+        queryset: the queryset which answers the rows of the view
+
+    Returns:
+        ViewSQL: the statement the view is created by
+    """
+    # sql debug cursor is only available on debug True. So we need to force it temporaly
+    # https://docs.djangoproject.com/en/5.0/faq/models/#how-can-i-see-the-raw-sql-queries-django-is-running
+    connection.force_debug_cursor = True
+    # repr() --> this will trigger the execition
+    list(queryset)
+    # get the last query; this should be the execution from the line below
+    last_query = connection.queries[-1].get('sql')
+    connection.force_debug_cursor = False
+    return pg.ViewSQL(last_query, None)
+
+
 class DynamicMaterializedView(pg.MaterializedView):
     base_model = None
 
@@ -31,15 +55,7 @@ class DynamicMaterializedView(pg.MaterializedView):
 
     @classmethod
     def get_sql(cls):
-        # sql debug cursor is only available on debug True. So we need to force it temporaly
-        # https://docs.djangoproject.com/en/5.0/faq/models/#how-can-i-see-the-raw-sql-queries-django-is-running
-        connection.force_debug_cursor = True
-        # repr() --> this will trigger the execition
-        list(cls.get_queryset().all())
-        # get the last query; this should be the execution from the line below
-        last_query = connection.queries[-1].get('sql')
-        connection.force_debug_cursor = False
-        return pg.ViewSQL(last_query, None)
+        return queryset_view_sql(cls.get_queryset().all())
 
 
 class ResourceHistroyStatsPerDay(DynamicMaterializedView):

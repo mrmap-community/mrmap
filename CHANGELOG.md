@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.x.x] - UNRELEASED
 
+### Added
+- Cross-service attention list, app-bar count and dashboard card for service failures, update reviews and overdue schedules (#567).
+
 ### Changed
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.
 

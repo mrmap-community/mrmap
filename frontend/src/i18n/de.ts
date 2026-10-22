@@ -260,16 +260,22 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     facets: {
       all: "Alle",
       needsAttention: "Aufmerksamkeit nötig",
-      healthy: "Fehlerfrei",
+      noAlerts: "Keine Warnungen",
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",
     },
     tiles: {
-      total: "Dienste insgesamt",
-      healthy: "Fehlerfrei",
-      runningUpdates: "Aktualisierungen laufen",
-      needsAttention: "Mit Aufmerksamkeit",
+      total: "Dienste in dieser Ansicht",
+      noAlerts: "Keine Warnungen",
+      runningUpdates: "Aktualisierungen laufen (alle Dienste)",
+      needsAttention: "Aufmerksamkeit nötig",
+      hints: {
+        total: "Die Dienste, die diese Ansicht beantwortet - dieselbe Zahl wie die Zeilen der Liste.",
+        noAlerts: "Dienste dieser Ansicht, deren letztes Monitoring, deren letzte Aktualisierung und deren letzte Ernte keinen Fehler gemeldet haben. Das sagt nicht, dass ein Dienst kürzlich geprüft wurde.",
+        runningUpdates: "Aktualisierungsprozesse aller Dienstarten, die gerade warten oder laufen - für das gesamte Registry gezählt und nicht für diese Ansicht.",
+        needsAttention: "Dienste dieser Ansicht, die ein fehlgeschlagenes Monitoring, eine fehlgeschlagene oder ungeklärte Aktualisierung oder eine abgebrochene oder unvollständige Ernte melden.",
+      },
     },
     columns: {
       title: "Titel",
@@ -305,7 +311,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",
     at: "seit",
     shortLabels: {
-      healthy: "Fehlerfrei",
+      noAlerts: "Keine Warnungen",
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",

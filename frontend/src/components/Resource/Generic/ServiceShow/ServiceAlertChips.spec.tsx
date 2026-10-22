@@ -30,14 +30,14 @@ describe("ServiceAlertChips", () => {
       screen.getByText("serviceAttention.shortLabels.updateReviewRequired"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("serviceAttention.shortLabels.healthy"),
+      screen.queryByText("serviceAttention.shortLabels.noAlerts"),
     ).not.toBeInTheDocument();
   });
 
   it("answers a service which needs nothing without an alert", () => {
     renderChips({ id: "wms-1", monitoringFailed: false });
     expect(
-      screen.getByText("serviceAttention.shortLabels.healthy"),
+      screen.getByText("serviceAttention.shortLabels.noAlerts"),
     ).toBeInTheDocument();
   });
 
@@ -53,7 +53,7 @@ describe("ServiceAlertChips", () => {
       screen.queryByText("serviceAttention.shortLabels.harvestAborted"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("serviceAttention.shortLabels.healthy"),
+      screen.getByText("serviceAttention.shortLabels.noAlerts"),
     ).toBeInTheDocument();
   });
 });

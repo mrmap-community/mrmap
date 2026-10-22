@@ -43,11 +43,19 @@ export interface StatusFacet {
  * The facets the list of services can be narrowed to. Every one of them is
  * answered by a filter on the attributes of the services themselves, which keeps
  * the facet, the tiles and the rows of the list three looks at one query.
+ *
+ * The facet of the services without an alert is named by what the api answers and
+ * never by the health of a service: `has_alert` is false for a service which
+ * passed its last monitoring run as it is for a service whose monitoring never
+ * ran at all, so no answer of that filter says that a service was checked. The
+ * state of the checks which are overdue is not answered by these attributes
+ * either, because a crontab is no rule of the database (see
+ * registry/querys/alerts.py).
  */
 export const STATUS_FACETS: StatusFacet[] = [
   { key: "all" },
   { key: "needsAttention", filter: { has_alert: true } },
-  { key: "healthy", filter: { has_alert: false } },
+  { key: "noAlerts", filter: { has_alert: false } },
   { key: "monitoringFailed", filter: { monitoring_failed: true } },
   { key: "updateFailed", filter: { update_failed: true } },
   { key: "updateReviewRequired", filter: { update_review_required: true } },
@@ -64,12 +72,47 @@ const asBoolean = (value: unknown): boolean | undefined => {
   return undefined;
 };
 
-/** the filters of the list without the ones a facet or a tile answers */
-export const withoutFacetKeys = (filter?: FilterPayload): FilterPayload =>
+/**
+ * The query a list answers: the filters a user chose and the filter the list
+ * applies on its own.
+ *
+ * The list controller answers these two apart - the permanent filter of a list is
+ * not one of the filters which are stored - so everything which asks what the list
+ * answers has to merge them: the tiles above the rows, the facet which is lit and
+ * the rows themselves. Reading only one of them answers another question than the
+ * list does.
+ */
+export const queryOfList = (
+  filter?: FilterPayload,
+  filterValues?: FilterPayload,
+): FilterPayload => ({ ...filterValues, ...filter });
+
+/**
+ * The filters of a query without the states of attention.
+ *
+ * The tiles above the list count one state each, so they narrow the query of the
+ * list by the state of their own and by nothing else which answers attention.
+ * Everything else the list asks - the search, the filters of the filter button
+ * and the filter the list applies on its own - stays with the tile, because only
+ * then does a tile answer the same services as the rows of the list do.
+ */
+export const withoutAlertKeys = (filter?: FilterPayload): FilterPayload =>
   Object.fromEntries(
     Object.entries(filter ?? {}).filter(
-      ([key]) =>
-        !ALERT_FILTER_KEYS.includes(key) && !OWN_FILTER_KEYS.includes(key),
+      ([key]) => !ALERT_FILTER_KEYS.includes(key),
+    ),
+  );
+
+/**
+ * The filters of the list without the ones a facet answers.
+ *
+ * A facet replaces the states of attention with the one which is chosen and never
+ * carries the filter the list applies on its own, which the list adds itself.
+ */
+export const withoutFacetKeys = (filter?: FilterPayload): FilterPayload =>
+  Object.fromEntries(
+    Object.entries(withoutAlertKeys(filter)).filter(
+      ([key]) => !OWN_FILTER_KEYS.includes(key),
     ),
   );
 
@@ -80,7 +123,7 @@ export const facetOf = (filter?: FilterPayload): string => {
     return "needsAttention";
   }
   if (hasAlert === false) {
-    return "healthy";
+    return "noAlerts";
   }
   const facet = STATUS_FACETS.filter(
     (candidate) => candidate.filter !== undefined,

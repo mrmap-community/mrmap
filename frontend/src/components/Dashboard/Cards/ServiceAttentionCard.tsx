@@ -1,6 +1,8 @@
 import { Link, useCreatePath, useTranslate } from "react-admin";
 
-import { Alert, Button, Stack } from "@mui/material";
+import ErrorIcon from "@mui/icons-material/Error";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { Button, Stack, Typography } from "@mui/material";
 
 import SimpleCard from "../../MUI/SimpleCard";
 import useServiceAlerts from "../../Resource/ServiceAlert/useServiceAlerts";
@@ -13,25 +15,43 @@ const ServiceAttentionCard = () => {
   return (
     <SimpleCard
       title={translate("serviceAlerts.title")}
-      footer={
-        <Button
-          component={Link}
-          to={createPath({ resource: "ServiceAlert", type: "list" })}
-        >
-          {translate("serviceAlerts.viewAll")}
-        </Button>
-      }
-    >
-      <Stack spacing={1}>
-        {data.map((record) => (
-          <Alert
-            key={record.id}
-            severity={record.severity === "error" ? "error" : "warning"}
+      subheader={translate("serviceAlerts.count", { smart_count: total })}
+      // the layout answers a resolvable height for its content column, so the
+      // "100%" of the summary tiles would stretch this card over the whole
+      // page - a single card above the rows is as high as its problems are
+      cardProps={{ sx: { boxShadow: 4, height: "auto" } }}
+      headerProps={{
+        action: (
+          <Button
+            component={Link}
+            size="small"
+            to={createPath({ resource: "ServiceAlert", type: "list" })}
           >
-            <Link to={record.targetPath}>{record.serviceTitle}</Link>
-            {" — "}
-            {translate(`serviceAlerts.categories.${record.category}`)}
-          </Alert>
+            {translate("serviceAlerts.viewAll")}
+          </Button>
+        ),
+      }}
+      contentProps={{ sx: { pt: 0.5, pb: 1 } }}
+    >
+      <Stack spacing={0.5}>
+        {data.map((record) => (
+          <Stack
+            key={record.id}
+            direction="row"
+            spacing={1}
+            alignItems="center"
+          >
+            {record.severity === "error" ? (
+              <ErrorIcon color="error" fontSize="small" />
+            ) : (
+              <WarningAmberIcon color="warning" fontSize="small" />
+            )}
+            <Typography variant="body2">
+              <Link to={record.targetPath}>{record.serviceTitle}</Link>
+              {" — "}
+              {translate(`serviceAlerts.categories.${record.category}`)}
+            </Typography>
+          </Stack>
         ))}
       </Stack>
     </SimpleCard>

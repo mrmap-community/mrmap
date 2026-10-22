@@ -4,6 +4,27 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    viewerAuth: {
+      "method": "Authentication method",
+      "username": "Username",
+      "password": "Password",
+      "title": "Manage authentications",
+      "session": "Credentials are kept in this viewer session. Copied context documents omit secrets. Assign credentials separately to operations on other origins.",
+      "secret": "Header value",
+      "newSecret": "New header value",
+      "origin": "Allowed origin URL",
+      "header": "Header name",
+      "invalid": "Enter an HTTP(S) origin, a valid header name and a value.",
+      "add": "Add",
+      "delete": "Delete credential",
+      "none": "No authentication",
+      "missing": "Missing credentials. Configure or remove this assignment.",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "loading": "Loading feature info",
+      "redacted": "Secret values are omitted from this document.",
+      "blocked": "Credentials are not configured for this operation origin."
+    },
     livePreview: {
       "title": "Live preview",
       "storedDiscovery": "Layer and feature-type choices come from stored capabilities. Images, features and catalogue records are fetched live.",

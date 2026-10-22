@@ -73,3 +73,28 @@ In this case you need to study the logs to get more information why the file can
 .. image:: ../images/sequence_diagram_file_import.svg
   :width: 100%
   :alt: Celery tasks livecycle
+
+Protected services in the map viewer
+====================================
+
+When adding a protected WMS, enter its username and password in Add Resource.
+The viewer uses these credentials for capabilities and assigns them to operations
+of that newly added service on the same origin (scheme, host and port).
+Advertised endpoints on other origins require a separate, explicit assignment.
+Authenticated requests do not follow redirects; configure the final endpoint directly.
+The remote service must permit browser access through CORS, including the configured headers.
+
+Use Manage authentications in the viewer toolbar or a layer's context menu to add
+Basic or custom header credentials, update header values, and assign or remove
+credentials for each operation. The layer menu limits the operation list to that
+layer and its descendants. Removing an assignment permits an unauthenticated
+request; deleting a credential retains its assignments and blocks those requests
+with a missing-credentials message until they are configured or removed.
+GetMap and GetFeatureInfo activation remain independent.
+
+Protected GetFeatureInfo results are fetched with their assigned headers and shown
+in the viewer. Remote markup is displayed as text, never executed. Credentials
+remain in the viewer session. The JSON context editor omits secret values from
+copyable documents, retaining assignments so a recipient can enter their own
+credentials. Saving local JSON edits preserves existing session secrets only for
+unchanged credential identities, headers and origins.

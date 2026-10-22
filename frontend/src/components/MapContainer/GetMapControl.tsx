@@ -1,14 +1,18 @@
 import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-admin'
+import { Link, useTranslate } from 'react-admin'
 import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
 
+import { Alert, Stack } from '@mui/material'
+import { useQuery } from '@tanstack/react-query'
 import { point, type LatLng } from 'leaflet'
 import proj4 from 'proj4'
 
+import { resolveOperationAuthentication } from '../../ows-lib/OwsContext/authentication'
 import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
 import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
+import { FeatureInfoResult } from '../Resource/Generic/ServiceShow/LivePreview/LivePreview'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
 
@@ -21,6 +25,33 @@ export interface Tile {
 }
 
 
+
+const FeatureInfoRequest = ({ request }: { request: OptimizedUrlsMap }) => {
+  const { owsContext } = useOwsContextBase();
+  const translate = useTranslate();
+  const { headers, error: authError } = resolveOperationAuthentication(owsContext, request.operations[0], request.url.href);
+  const protectedRequest = request.operations[0]['x-authentication-id'] !== undefined;
+  const query = useQuery({
+    queryKey: ['viewerFeatureInfo', request.url.href, headers ? Array.from(headers) : undefined, authError],
+    enabled: protectedRequest && !authError,
+    retry: false,
+    gcTime: 0,
+    queryFn: async ({ signal }) => {
+      const response = await fetch(request.url.href, { headers, signal, redirect: 'error', credentials: 'omit' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return { text: await response.text(), contentType: response.headers.get('content-type') ?? 'text/plain' };
+    },
+  });
+  if (authError) return <Alert severity="error">{translate(`viewerAuth.${authError}`)}</Alert>;
+  if (!protectedRequest) return <Link to={request.url.href} target="_blank" rel="noopener noreferrer">
+    {request.url.searchParams.get('QUERY_LAYERS') ?? request.url.searchParams.get('query_layers') ?? 'Feature Info'}
+  </Link>;
+  return <Stack spacing={1}>
+    {query.isFetching && translate('viewerAuth.loading')}
+    {query.error && <Alert severity="error">{query.error.message}</Alert>}
+    {query.data && <FeatureInfoResult {...query.data} />}
+  </Stack>;
+};
 
 const WebMapServiceControl = () => {
   const map = useMap()
@@ -47,18 +78,6 @@ const WebMapServiceControl = () => {
     return [minXy.x, minXy.y, maxXy.x, maxXy.y]
 
   }, [bounds, selectedCrs])
-
-  // Helper function to get auth headers for a GetMap URL
-  const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
-    const authId = getMapUrl.operations[0]["x-authentication-id"]
-    const authenticationHeaders = owsContext.authenticationHeaders as import("../../ows-lib/OwsContext/contrib").Authentication[] | undefined
-    const authHeader = authenticationHeaders?.find(header => header.id === authId)
-    
-    const headerInit: Record<string, string> = {}
-    if (authHeader) headerInit[authHeader.name] = authHeader.value
-    return authHeader && new Headers(headerInit)
-    
-  }
 
   const tiles = useMemo(() => {
     const _tiles: Tile[] = []
@@ -92,6 +111,7 @@ const WebMapServiceControl = () => {
       if (![...params.keys()].some(key => key.toUpperCase() === 'STYLES')) {
         updateOrAppendSearchParam(params, 'STYLES', '')
       }
+      const authentication = resolveOperationAuthentication(owsContext, atomicGetMapUrl.operations[0], atomicGetMapUrl.url.href)
       _tiles.push(
         {
           leafletTile: <AuthImageOverlay
@@ -99,7 +119,8 @@ const WebMapServiceControl = () => {
             bounds={bounds}
             interactive={true}
             optimiuedUrl={atomicGetMapUrl}
-            auth={getAuthForGetMapUrl(atomicGetMapUrl)}            
+            auth={authentication.headers}
+            authenticationError={authentication.error}
           />,
           getMapUrl: atomicGetMapUrl.url,
           getFeatureinfoUrl: undefined
@@ -108,7 +129,7 @@ const WebMapServiceControl = () => {
     })
     
     return _tiles
-  }, [bounds, size, atomicGetMapUrls, selectedCrs])
+  }, [bounds, size, atomicGetMapUrls, selectedCrs, owsContext])
   
   const getFeatureInfoUrls = useMemo(() => {
     if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
@@ -196,9 +217,7 @@ const WebMapServiceControl = () => {
       {position && <Marker position={position} >
         <Popup>
           {getFeatureInfoUrls?.map((url, index) => (
-              <Link to={url.url.href} target="_blank" rel="noopener noreferrer" key={index}>
-                {url.url.searchParams.get('QUERY_LAYERS') ?? url.url.searchParams.get('query_layers') ?? 'Feature Info'}
-              </Link>
+              <FeatureInfoRequest request={url} key={index} />
           ))}
         </Popup>
         <Tooltip direction="top">Click on the marker to see feature info</Tooltip>

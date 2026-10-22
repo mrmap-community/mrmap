@@ -1,6 +1,27 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerAuth: {
+    "method": "Authentifizierungsmethode",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "title": "Authentifizierungen verwalten",
+    "session": "Zugangsdaten bleiben in dieser Sitzung. Kopierte Kontextdokumente enthalten keine Geheimnisse. Weisen Sie Zugangsdaten für andere Ursprünge ausdrücklich zu.",
+    "secret": "Header-Wert",
+    "newSecret": "Neuer Header-Wert",
+    "origin": "Erlaubte Ursprungs-URL",
+    "header": "Header-Name",
+    "invalid": "Geben Sie einen HTTP(S)-Ursprung, einen gültigen Header-Namen und einen Wert ein.",
+    "add": "Hinzufügen",
+    "delete": "Zugangsdaten löschen",
+    "none": "Keine Authentifizierung",
+    "missing": "Zugangsdaten fehlen. Konfigurieren oder entfernen Sie die Zuweisung.",
+    "cancel": "Abbrechen",
+    "save": "Änderungen speichern",
+    "loading": "Objektinformationen werden geladen",
+    "redacted": "Geheime Werte werden in diesem Dokument ausgelassen.",
+    "blocked": "Für diesen Operationsursprung sind keine Zugangsdaten konfiguriert."
+  },
   livePreview: {
     title: "Live-Vorschau",
     storedDiscovery: "Auswahl aus gespeicherten Capabilities. Bilder, Features und Katalogeinträge werden live abgerufen.",

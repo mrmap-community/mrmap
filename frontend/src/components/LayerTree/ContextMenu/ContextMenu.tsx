@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { RecordContextProvider } from 'react-admin';
 
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -6,13 +7,14 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from '@mui/material/MenuList';
 
+import EditAuthenticationsDialog from '../../MapViewer/OwsContextGuiActions/EditAuthenticationsDialog';
 import ActivateLayerItem from './ActivateLayerItem';
 import { useContextMenuBase } from "./ContextMenuBase";
 import ManageAuthenticationItem from './ManageAuthenticationItem';
 import ZoomToLayerItem from './ZoomToLayerItem';
 
 
-const MenuItems = () => {
+const MenuItems = ({ onManage }: { onManage: (folder?: string) => void }) => {
   const { node } = useContextMenuBase()
 
   if (node === undefined ) return null
@@ -42,7 +44,7 @@ const MenuItems = () => {
           </MenuItem> : 
           null
       }
-      <ManageAuthenticationItem/>
+      <ManageAuthenticationItem onManage={onManage}/>
       <ZoomToLayerItem/>
       <ActivateLayerItem/>
     </MenuList>
@@ -53,20 +55,23 @@ const MenuItems = () => {
 const ContextMenu = () => {
   const {isOpen, close, mouseX, mouseY, record} = useContextMenuBase()
   
+  const [authenticationEditor, setAuthenticationEditor] = useState<{ folder?: string }>();
+
   // Only render Menu if we have valid coordinates
   if (!isOpen || mouseX === undefined || mouseY === undefined) {
-    return null
+    if (!authenticationEditor) return null
   }
   
   return (
     <RecordContextProvider
       value={record}
     >
+      <EditAuthenticationsDialog open={Boolean(authenticationEditor)} folder={authenticationEditor?.folder} setOpen={open => { if (!open) setAuthenticationEditor(undefined); }} />
       <Menu
-        open={true}
+        open={isOpen}
         onClose={close}
         anchorReference="anchorPosition"
-        anchorPosition={{ top: mouseY, left: mouseX }}
+        anchorPosition={{ top: mouseY ?? 0, left: mouseX ?? 0 }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -76,7 +81,7 @@ const ContextMenu = () => {
           horizontal: "left",
         }}
       >
-        <MenuItems />
+        <MenuItems onManage={folder => { setAuthenticationEditor({ folder }); close(); }} />
       </Menu>
     </RecordContextProvider>
   )

@@ -514,6 +514,27 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
         collector.error('properties', 'is required and must be an object')
     }
 
+    // The viewer consumes this extension directly; malformed credentials must be rejected
+    // before they can replace the working context. Missing values/origins remain repairable.
+    if (context.authenticationHeaders !== undefined) {
+        if (!Array.isArray(context.authenticationHeaders)) {
+            collector.error('authenticationHeaders', 'must be an array of header credentials')
+        } else {
+            const ids = new Set<string>()
+            context.authenticationHeaders.forEach((auth, index) => {
+                const path = `authenticationHeaders[${index}]`
+                if (!isRecord(auth) || auth.type !== 'header' || !isFilledString(auth.id) ||
+                    !isFilledString(auth.name) || typeof auth.value !== 'string' ||
+                    (auth.origin !== undefined && typeof auth.origin !== 'string')) {
+                    collector.error(path, 'must describe a header credential with an id, name and string value')
+                    return
+                }
+                if (ids.has(auth.id)) collector.error(`${path}.id`, 'must be unique')
+                ids.add(auth.id)
+            })
+        }
+    }
+
     if (Array.isArray(context.features)) validateFeatures(collector, context.features)
     else collector.error('features', 'is required and must be an array of OWS Context resources')
 

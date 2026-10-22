@@ -29,7 +29,7 @@ const makeBlob = (parts: string[], { type }: { type: string }) => ({
     text: async () => parts.join("").slice(start, end),
   })),
 });
-const prepare = (blob: ReturnType<typeof makeBlob>) => {
+const prepare = (blob: ReturnType<typeof makeBlob>, authenticationError?: string) => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => blob });
   vi.stubGlobal("fetch", fetch);
   render(
@@ -40,6 +40,7 @@ const prepare = (blob: ReturnType<typeof makeBlob>) => {
         features: [],
         operations: [],
       }}
+      authenticationError={authenticationError}
       auth={{ headers: { Authorization: "test" } }}
     />,
   );
@@ -57,7 +58,7 @@ describe("map image requests", () => {
     expect(readWholeBlob).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledWith(
       "https://example.test/wms",
-      expect.objectContaining({ signal, headers: { Authorization: "test" } }),
+      expect.objectContaining({ signal, headers: { Authorization: "test" }, redirect: "error", credentials: "omit" }),
     );
   });
   it.each(["application/xml", "image/png"])(
@@ -76,4 +77,10 @@ describe("map image requests", () => {
       ).rejects.toThrow("LayerNotDefined: Missing layer");
     },
   );
+});
+
+it("does not fetch a map when credentials are missing", async () => {
+  const fetch = prepare(makeBlob(["image"], { type: "image/png" }), "missing");
+  await expect(query.run!({ signal: new AbortController().signal })).rejects.toThrow();
+  expect(fetch).not.toHaveBeenCalled();
 });

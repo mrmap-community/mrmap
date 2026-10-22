@@ -2,6 +2,7 @@ import { BBox, Geometry } from 'geojson';
 import { v4 as uuidv4 } from 'uuid';
 
 import { parseWms } from '../XMLParser/parseCapabilities';
+import { migrateLegacyAuthentications } from './authentication';
 import { Position } from './enums';
 import { compareFolderPaths, normalizeFolderPaths } from './folders';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
@@ -111,6 +112,7 @@ export class OWSContext implements IOWSContext {
   type: 'FeatureCollection';
   folderToResource: Map<string, OWSResource>;
   authentications?: Authentication[];
+  authenticationHeaders?: import('./contrib').HeaderAuthentication[];
 
   constructor(
     id: string = `urn:uuid:${uuidv4()}`,
@@ -155,6 +157,7 @@ export class OWSContext implements IOWSContext {
       }
     }
 
+    migrateLegacyAuthentications(context);
     return context;
   }
 

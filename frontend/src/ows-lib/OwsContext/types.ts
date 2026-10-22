@@ -1,5 +1,7 @@
 import { BBox, Feature, FeatureCollection, Geometry } from 'geojson'
 
+import { HeaderAuthentication } from './contrib'
+
 export interface Link {
     href: string
     type?: string
@@ -139,6 +141,7 @@ export interface OWSContext extends Omit<FeatureCollection, "features"> {
     bbox?: BBox // is this the current bbox of the leaflet for example?
     date?: string // iso-8601 date; is this the current selected time dimension?
     authentications?: Authentication[]
+    authenticationHeaders?: HeaderAuthentication[]
     features: OWSResource[]
     [name: string]: unknown // extension, any other
 }

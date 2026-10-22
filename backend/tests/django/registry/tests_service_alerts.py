@@ -11,7 +11,8 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test import (RequestFactory, SimpleTestCase, TestCase,
+                         TransactionTestCase)
 from django.urls import reverse
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule
@@ -492,6 +493,38 @@ class ServiceAlertViewParityTest(ServiceAlertsMixin, TestCase):
                 expected[alert['id']] = alert
         answered = {row['id']: row for row in ServiceAlertView.objects.values()}
         self.assertEqual(answered, expected)
+
+
+class ServiceAlertViewSyncTest(ServiceAlertsMixin, TransactionTestCase):
+    """Tests the hook which creates the view of the alerts when it is missing.
+
+    The settings of this deployment keep the sync of the pgviews package away
+    from the migrations (see MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE), so
+    the hook of the system app answers the creation of the plain view of the
+    alerts too - a deployment which updates to this code must not answer the
+    alerts of its services with a missing relation.
+    """
+    fixtures = CrossServiceAlertsApiTest.fixtures
+    response = CrossServiceAlertsApiTest.response
+
+    def test_the_hook_creates_a_missing_view_of_the_alerts(self):
+        from django.db import connection
+        from system.apps import sync_pg_views_if_missing
+        with connection.cursor() as cursor:
+            cursor.execute('DROP VIEW registry_servicealertview')
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_views"
+                " WHERE viewname = 'registry_servicealertview')")
+            self.assertFalse(cursor.fetchone()[0])
+        sync_pg_views_if_missing(None)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_views"
+                " WHERE viewname = 'registry_servicealertview')")
+            self.assertTrue(cursor.fetchone()[0])
+        # the endpoint of the attention answers its alerts again
+        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.assertEqual(len(self.response()['data']), 1)
 
 
 class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):

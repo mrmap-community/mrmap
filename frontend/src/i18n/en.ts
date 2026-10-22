@@ -247,6 +247,26 @@ const en = lodashMerge(
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
+    dashboard: {
+      workQueue: {
+        title: "Work which waits",
+        scope: "Counted over everything you are allowed to see",
+        alerts: "Services with an alert",
+        updateReviews: "Updates awaiting review",
+        runningWork: "Background work running",
+        failedWork: "Background work failed",
+      },
+    },
+    historyChart: {
+      total: "Total %{unit}",
+      new: "Additions",
+      updated: "Updates",
+      deleted: "Deletions",
+      caption: "Additions, updates and deletions per day of the last %{days} days, counted for %{unit}",
+      asking: "Asking the change statistics ...",
+      noStatistics: "No change statistics for this kind of resource.",
+      error: "Change statistics could not be loaded.",
+    },
     historyList: {
       title: "Recent changes",
       selectedService: "Latest 10 changes to %{service}",

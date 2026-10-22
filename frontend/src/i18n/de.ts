@@ -228,6 +228,26 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
+  dashboard: {
+    workQueue: {
+      title: "Wartende Arbeit",
+      scope: "Gezählt über alles, was Sie sehen dürfen",
+      alerts: "Dienste mit einer Meldung",
+      updateReviews: "Aktualisierungen zur Prüfung",
+      runningWork: "Laufende Hintergrundarbeit",
+      failedWork: "Fehlgeschlagene Hintergrundarbeit",
+    },
+  },
+  historyChart: {
+    total: "Bestand %{unit}",
+    new: "Neuaufnahmen",
+    updated: "Aktualisierungen",
+    deleted: "Löschungen",
+    caption: "Neuaufnahmen, Aktualisierungen und Löschungen pro Tag der letzten %{days} Tage, gezählt für %{unit}",
+    asking: "Frage die Änderungsstatistik ...",
+    noStatistics: "Keine Änderungsstatistik für diese Art von Ressource.",
+    error: "Änderungsstatistik konnte nicht geladen werden.",
+  },
   historyList: {
     title: "Letzte Änderungen",
     selectedService: "Die letzten 10 Änderungen an %{service}",

@@ -3,6 +3,7 @@ import { LoadingIndicator, LocalesMenuButton, ToggleThemeButton, useLocales, use
 import { Stack } from "@mui/material";
 
 import BackgroundActivityPanel from '../Resource/BackgroundProcess/BackgroundActivityPanel';
+import AttentionIndicator from './AttentionIndicator';
 import SystemStatusIndicator from './SystemStatusIndicator';
 
 const AppBarToolbar = () => {
@@ -15,6 +16,7 @@ const AppBarToolbar = () => {
         >
             <BackgroundActivityPanel />
             <SystemStatusIndicator />
+            <AttentionIndicator />
             {locales && locales.length > 1 ? <LocalesMenuButton /> : null}
             {darkTheme && <ToggleThemeButton />}
             <LoadingIndicator />

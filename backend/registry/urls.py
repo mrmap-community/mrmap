@@ -9,6 +9,7 @@ from registry.views import security as security_views
 from registry.views import service as service_views
 from registry.views import statistical as stats_views
 from registry.views import update as update_views
+from registry.views.alerts import ServiceAlertListView
 
 app_name = 'registry'
 
@@ -364,6 +365,7 @@ router.register(r'historical-csw',
                 historical_views.CatalogueServiceHistoricalViewSet, basename='csw-historical')
 
 urlpatterns = router.urls + [
+    path('service-alerts', ServiceAlertListView.as_view(), name='service-alert-list'),
     path(
         route=r'statistical/webmapservices',
         view=stats_views.StatisticalWebMapServiceListView.as_view(),

@@ -36,6 +36,7 @@ import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonito
 import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
@@ -49,6 +50,7 @@ import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServ
 
 
 const RESOURCES: Array<ResourceProps> = [
+  { name: "ServiceAlert", list: ListServiceAlert, options: { label: "serviceAlerts.title", menu: { group: "System", order: 5 } } },
   {
     name: "WebMapService", 
     icon: MapIcon, 

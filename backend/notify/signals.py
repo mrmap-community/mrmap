@@ -87,6 +87,9 @@ def update_harvesting_job_listeners_on_harvesting_job_save(**kwargs):
     registry/tasks/harvest.py and registry/querys/harvest_history.py), which are
     exactly what the harvesting views of the frontend are waiting for.
     """
+    from notify.utils import invalidate_service_alerts
+    if kwargs['instance'].service_id is not None:
+        invalidate_service_alerts()
     if hasattr(HistoricalRecords.context, "request"):
         request = HistoricalRecords.context.request
     else:

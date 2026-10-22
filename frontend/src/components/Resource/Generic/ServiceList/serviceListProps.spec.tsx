@@ -66,7 +66,7 @@ describe("service list columns", () => {
     const weather = screen.getByText("Weather WMS").closest("tr")!;
     const imagery = screen.getByText("Orthophotos").closest("tr")!;
     expect(within(weather).getByText("24")).toBeInTheDocument();
-    expect(within(weather).getByText("Healthy")).toBeInTheDocument();
+    expect(within(weather).getByText("No alerts")).toBeInTheDocument();
     expect(within(imagery).getByText("Review required")).toBeInTheDocument();
     expect(await within(weather).findByText("Succeeded")).toBeInTheDocument();
     expect(await within(imagery).findByText("Failed")).toBeInTheDocument();

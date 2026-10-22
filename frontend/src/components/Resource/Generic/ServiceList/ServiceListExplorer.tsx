@@ -31,7 +31,7 @@ import {
 
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import ServiceDetailsCard from "../ServiceShow/ServiceDetailsCard";
-import { facetOf, filterForFacet, STATUS_FACETS } from "./alertFacets";
+import { facetOf, filterForFacet, queryOfList, STATUS_FACETS } from "./alertFacets";
 import { type ServiceListConfig } from "./config";
 import ServiceElementCount from "./ServiceElementCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
@@ -190,7 +190,7 @@ export const ServiceListExplorer = ({
           <ToggleButtonGroup
             exclusive
             size="small"
-            value={facetOf(filter)}
+            value={facetOf(queryOfList(filter, filterValues))}
             onChange={changeFacet}
             aria-label={translate("serviceList.facetGroup")}
           >

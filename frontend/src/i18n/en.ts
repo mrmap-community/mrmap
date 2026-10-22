@@ -279,16 +279,22 @@ const en = lodashMerge(
       facets: {
         all: "All",
         needsAttention: "Needs attention",
-        healthy: "Healthy",
+        noAlerts: "No alerts",
         monitoringFailed: "Monitoring failed",
         updateFailed: "Update failed",
         updateReviewRequired: "Review required",
       },
       tiles: {
-        total: "Total services",
-        healthy: "Healthy",
-        runningUpdates: "Updates running",
+        total: "Services in this view",
+        noAlerts: "No alerts",
+        runningUpdates: "Updates running (all services)",
         needsAttention: "Needs attention",
+        hints: {
+          total: "The services this view answers - the same number as the rows of the list.",
+          noAlerts: "Services of this view whose last monitoring, whose last update and whose last harvesting reported no failure. This does not say that a service was checked recently.",
+          runningUpdates: "Update processes of every kind of service which are pending or running now - counted for the whole registry and not for this view.",
+          needsAttention: "Services of this view which report a failed monitoring, a failed or undecided update or an aborted or incomplete harvesting.",
+        },
       },
       columns: {
         title: "Title",
@@ -341,7 +347,7 @@ const en = lodashMerge(
       none: "Nothing about this service needs the attention of an administrator.",
       at: "since",
       shortLabels: {
-        healthy: "Healthy",
+        noAlerts: "No alerts",
         monitoringFailed: "Monitoring failed",
         updateFailed: "Update failed",
         updateReviewRequired: "Review required",

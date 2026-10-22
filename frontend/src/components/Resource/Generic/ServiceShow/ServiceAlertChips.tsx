@@ -34,7 +34,7 @@ const ServiceAlertChips = ({ record }: ServiceAlertChipsProps) => {
       <Chip
         size="small"
         color="success"
-        label={translate("serviceAttention.shortLabels.healthy")}
+        label={translate("serviceAttention.shortLabels.noAlerts")}
       />
     );
   }

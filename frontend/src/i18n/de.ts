@@ -728,7 +728,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       number: "Muss eine Nummer sein",
       email: "Muss eine gültige E-Mail sein",
       oneOf: "Muss eine der folgenden Optionen sein: %{options}",
-      regex: "Muss einem gewissen Format entsprechen (regexp): %{pattern}"
+      regex: "Muss einem gewissen Format entsprechen (regexp): %{pattern}",
+      unique: "Muss eindeutig sein"
     },
     saved_queries: {
       label: "Gespeicherte Anfragen",

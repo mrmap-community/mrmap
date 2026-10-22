@@ -13,6 +13,8 @@ export default [
   { files: ["**/*.js", "**/*.jsx"], languageOptions: { globals: globals.node } },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
+  // eslint-plugin-react still declares ESLint <=9; package.json overrides its peer.
+  // Keep this adapter for the rule APIs removed in v10 until the plugin supports it.
   ...fixupConfigRules(pluginReactConfig),
   {
     "plugins": {

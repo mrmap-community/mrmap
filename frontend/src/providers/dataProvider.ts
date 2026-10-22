@@ -354,7 +354,7 @@ const dataProvider = ({
       // json:api specific stuff like 'include' or 'fields[Resource]'
       Object.entries(params.meta?.jsonApiParams ?? {}).forEach(([key, value]) => { parameters.push({ name: key, value: typeof value === 'string' ? value : '' }) })
 
-      let conf = undefined;
+      let conf: AxiosRequestConfig;
       try {
         conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       } catch {

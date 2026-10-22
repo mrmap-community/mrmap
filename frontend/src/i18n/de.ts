@@ -339,7 +339,18 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   serviceAttention: {
     title: "Aufmerksamkeit dieses Dienstes",
     none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",
-    at: "seit",
+    dates: {
+      lastRunDone: "der letzte fehlgeschlagene Monitoring-Lauf endete am",
+      lastUpdateDone: "die letzte fehlgeschlagene Aktualisierung endete am",
+      waitingSince: "die Aktualisierung wartet seit auf eine Entscheidung",
+      harvestDone: "das Harvesting endete am",
+    },
+    records: {
+      MonitoringRun: "Lauf anzeigen",
+      UpdateJob: "Aktualisierung anzeigen",
+      HarvestingJob: "Harvesting anzeigen",
+    },
+    noRecord: "Dieser Zustand hat keinen Eintrag, den er ansehen kann, gefragt wird er am Dienst selbst.",
     shortLabels: {
       noAlerts: "Keine Warnungen",
       monitoringFailed: "Monitoring fehlgeschlagen",

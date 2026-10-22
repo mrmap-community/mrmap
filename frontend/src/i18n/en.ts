@@ -345,7 +345,18 @@ const en = lodashMerge(
     serviceAttention: {
       title: "Attention of this service",
       none: "Nothing about this service needs the attention of an administrator.",
-      at: "since",
+      dates: {
+        lastRunDone: "the last monitoring run which failed ended at",
+        lastUpdateDone: "the last update which failed ended at",
+        waitingSince: "the update waits for a decision since",
+        harvestDone: "the harvesting ended at",
+      },
+      records: {
+        MonitoringRun: "Show the run",
+        UpdateJob: "Show the update",
+        HarvestingJob: "Show the harvesting",
+      },
+      noRecord: "This state has no record to look at, it is asked about at the service itself.",
       shortLabels: {
         noAlerts: "No alerts",
         monitoringFailed: "Monitoring failed",

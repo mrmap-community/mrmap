@@ -389,6 +389,14 @@ def collect_service_alerts(user):
         visible = get_objects_for_user(
             user, f'registry.view_{model._meta.model_name}',
             klass=model.objects.filter(update_candidate_of__isnull=True))
+        if not user.is_superuser:
+            # the services and the settings below both ask the visible
+            # services: answer the visibility once, so that the permission
+            # subqueries of get_objects_for_user are part of one query
+            # instead of repeated by every query which uses visible - the
+            # superuser needs none of it, guardian answers without them
+            visible = model.objects.filter(
+                pk__in=list(visible.values_list('pk', flat=True)))
         services = visible.with_alert_information().filter(has_alert=True)
         for service in services:
             for category, (severity, at, target) in ALERT_CATEGORIES.items():

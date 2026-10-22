@@ -39,7 +39,7 @@ const ServiceAttentionCard = () => {
             key={record.id}
             direction="row"
             spacing={1}
-            alignItems="center"
+            sx={{ alignItems: "center" }}
           >
             {record.severity === "error" ? (
               <ErrorIcon color="error" fontSize="small" />

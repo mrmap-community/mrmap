@@ -9,10 +9,9 @@ api and to every report which may follow.
 
 The states are answered as annotations of the services themselves, which keeps
 them filterable, sortable and countable like every other attribute of a service
-and keeps them out of an endpoint of their own. The schedules a service did not
-keep are not answered here, because the time a crontab promised a run at is
-calculated in python: they are answered by the settings of a service themselves,
-which answer their `runOverdue`.
+on existing service endpoints. The cross-service projection below reuses these
+annotations and the scheduling helper behind the settings' `runOverdue` field;
+cron occurrences are calculated in Python.
 
 A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
@@ -252,8 +251,10 @@ def alert_annotations(queryset):
             newest_update_job.values('status')[:1]),
         alert_newest_job_moment=moment(newest_update_job),
         alert_review_job_moment=moment(newest_review_job),
-        update_review_required=Exists(kind.update_job.objects.filter(
-            service_id=OuterRef('pk'), status=REVIEW_STATUS)),
+        alert_review_job_id=Subquery(newest_review_job.values('pk')[:1]),
+        update_review_required=(Exists(kind.update_job.objects.filter(
+            service_id=OuterRef('pk'), status=REVIEW_STATUS)) | Exists(
+                kind.service.objects.filter(update_candidate_of_id=OuterRef('pk')))),
     )
 
     failing_run = Q(alert_newest_run=F('alert_newest_failing_run'))
@@ -362,3 +363,73 @@ def alerts_requested(request, resource: str, attributes: tuple) -> bool:
         field.strip() for field in request.GET.get(
             f'fields[{resource}]', '').split(',') if field.strip()]
     return not sparse_fields or any(name in sparse_fields for name in names)
+
+
+# Cross-service projections deliberately reuse the annotations above. No alert
+# state is persisted, and candidates are never counted as separate services.
+ALERT_CATEGORIES = {
+    'monitoring_failed': ('error', 'monitoring_failed_at', 'MonitoringSetting'),
+    'update_failed': ('error', 'update_failed_at', 'UpdateSetting'),
+    'update_review_required': ('warning', 'update_review_required_at', 'UpdateSetting'),
+    'harvest_aborted': ('error', 'harvest_failed_at', 'HarvestingJob'),
+    'harvest_incomplete': ('warning', 'harvest_failed_at', 'HarvestingJob'),
+}
+
+
+def collect_service_alerts(user):
+    """Project visible published services and enabled schedules into alerts."""
+    from extras.scheduling import next_run_expected_at, run_overdue
+    from guardian.shortcuts import get_objects_for_user
+    from registry.models import monitoring, update
+    from registry.models.harvest import PeriodicHarvestingJob
+
+    alerts = []
+    for model in SERVICE_KIND_OF:
+        resource = model.__name__
+        visible = get_objects_for_user(
+            user, f'registry.view_{model._meta.model_name}',
+            klass=model.objects.filter(update_candidate_of__isnull=True))
+        services = visible.with_alert_information().filter(has_alert=True)
+        for service in services:
+            for category, (severity, at, target) in ALERT_CATEGORIES.items():
+                if getattr(service, category, False):
+                    alert = service_alert(
+                        service, category, severity, getattr(service, at),
+                        target if target == 'HarvestingJob' else resource + target)
+                    if category == 'update_review_required' and service.alert_review_job_id \
+                            and model is not CatalogueService:
+                        alert['resource_type'] = resource + 'UpdateJob'
+                        alert['resource_id'] = str(service.alert_review_job_id)
+                        alert['target_path'] = (
+                            f"/{alert['resource_type']}/{alert['resource_id']}/show")
+                    alerts.append(alert)
+        settings = [
+            (getattr(monitoring, resource + 'MonitoringSetting'), 'monitoring_overdue'),
+            (getattr(update, resource + 'UpdateSetting'), 'update_overdue'),
+        ]
+        if model is CatalogueService:
+            settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
+        for setting_model, category in settings:
+            for setting in setting_model.objects.filter(
+                    enabled=True, service__in=visible).select_related('crontab', 'service'):
+                if run_overdue(setting):
+                    alerts.append(service_alert(
+                        setting.service, category, 'warning',
+                        next_run_expected_at(setting), setting_model.__name__,
+                        source=setting.pk))
+    return alerts
+
+
+def service_alert(service, category, severity, occurred_at, target, source=None):
+    """One stable problem identity and its existing service workflow target."""
+    resource = type(service).__name__
+    # CSW updates have no dedicated settings tab; its overview owns that action.
+    tab = '' if target == 'CatalogueServiceUpdateSetting' else target
+    return {
+        'id': f'{category}:{resource}:{source or service.pk}',
+        'severity': severity, 'category': category, 'message': category,
+        'service_type': resource, 'service': str(service.pk),
+        'service_title': service.title, 'resource_type': resource,
+        'resource_id': str(service.pk), 'occurred_at': occurred_at,
+        'target_path': f'/{resource}/{service.pk}/show/{tab}',
+    }

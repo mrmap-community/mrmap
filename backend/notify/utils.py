@@ -114,3 +114,16 @@ def build_action_payload(request, instance, resource_type, serializer_cls, actio
         }
     )
     return msg
+
+
+def invalidate_service_alerts():
+    """Publish no service data: each subscriber refetches its scoped alerts."""
+    def publish():
+        try:
+            send_msg({
+                'topic': 'resource/ServiceAlert',
+                'event': {'type': 'created', 'payload': {'ids': []}},
+            })
+        except Exception:
+            logger.exception("can't invalidate service alerts")
+    transaction.on_commit(publish)

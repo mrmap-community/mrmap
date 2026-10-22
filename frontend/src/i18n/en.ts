@@ -319,6 +319,23 @@ const en = lodashMerge(
       recentEvents: "Recent updates",
       noRecentEvents: "No update has run for this service yet.",
     },
+    serviceAlerts: {
+      title: "Attention required",
+      count: "%{smart_count} alert |||| %{smart_count} alerts",
+      viewAll: "View all alerts",
+      error: "Error",
+      warning: "Warning",
+      categories: {
+        monitoring_failed: "Monitoring failed",
+        update_failed: "Update failed",
+        update_review_required: "Update review required",
+        harvest_aborted: "Harvesting aborted",
+        harvest_incomplete: "Harvesting import errors",
+        monitoring_overdue: "Monitoring overdue",
+        update_overdue: "Update overdue",
+        harvest_overdue: "Harvesting overdue",
+      },
+    },
     serviceAttention: {
       title: "Attention of this service",
       none: "Nothing about this service needs the attention of an administrator.",
@@ -568,6 +585,17 @@ const en = lodashMerge(
       },
     },
     resources: {
+      ServiceAlert: {
+        name: "Attention required",
+        fields: {
+          severity: "Severity",
+          category: "Category",
+          serviceType: "Service type",
+          serviceTitle: "Service",
+          service: "Service ID",
+          occurredAt: "Occurred at",
+        },
+      },
       ChangeLog: {
         historyDate: "Datestamp",
         historyUser: "User",

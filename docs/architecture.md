@@ -122,3 +122,30 @@ The schedules a service did not keep are not answered this way, because the time
 a crontab promised a run at is calculated in python and not by the database: the
 monitoring and update settings of a service answer their `runOverdue` instead
 (see `backend/extras/scheduling.py`).
+
+### Cross-service overview
+
+`GET /api/registry/service-alerts` exposes the current problems of published
+WMS, WFS and CSW services as a computed JSON:API `ServiceAlert` collection.
+It reuses `registry/querys/alerts.py` annotations and `extras/scheduling.py`:
+latest monitoring and update failures, pending update reviews (including dangling
+candidates), harvesting failures/import errors, and enabled overdue schedules.
+Candidates and their update jobs produce one review alert for the original service.
+
+The endpoint requires authentication and scopes services with guardian view
+permissions, including group and global permissions, before counting or filtering.
+It supports `filter[severity]`, `filter[category]`, `filter[serviceType]`,
+`filter[service]`, `sort=severity,-occurredAt` (also `occurred_at`) and ordinary
+JSON:API pagination. `meta.pagination.count` counts problems, so one service can
+contribute several alerts. IDs remain stable while a problem remains open.
+`targetPath` opens the existing service workflow or update review; no state or
+schema migration is introduced.
+
+The app bar, dashboard and schema-driven attention list share this collection.
+Monitoring completion, update job saves and harvesting transitions publish a
+payload-free `resource/ServiceAlert` invalidation after commit. Clients refetch
+their own scoped data, with a 20-second polling fallback that also detects
+schedules becoming overdue. The indicator and dashboard card disappear at zero
+and do not display cached counts on request errors. Collection and schedule
+projection currently happen in memory before pagination; a deployment with many
+services may need database-side aggregation in a later performance change.

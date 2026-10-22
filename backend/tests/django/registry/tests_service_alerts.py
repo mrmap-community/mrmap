@@ -375,3 +375,182 @@ class AlertsRequestedTest(SimpleTestCase):
         self.assertTrue(self.requested(
             **{"fields[WebMapService]": "title",
                "sort": "-monitoringFailedAt"}))
+
+
+class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
+    fixtures = ServiceAlertsMixin.fixtures + ["test_wfs.json"]
+
+    def response(self, client=None, **query):
+        response = (client or self.client).get(
+            reverse('registry:service-alert-list'), query)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def test_cross_service_shape_filters_and_pagination(self):
+        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.harvesting_job(phase=Phase.ABORTED)
+        response = self.response(**{'page[size]': 1})
+        self.assertEqual(response['meta']['pagination']['count'], 2)
+        self.assertEqual(len(response['data']), 1)
+        alert = response['data'][0]
+        self.assertEqual(alert['type'], 'ServiceAlert')
+        self.assertEqual(alert['attributes']['severity'], 'error')
+        self.assertEqual(alert['attributes']['serviceType'], 'CatalogueService')
+        self.assertIn('/show/HarvestingJob', alert['attributes']['targetPath'])
+        response = self.response(**{'filter[severity]': 'warning'})
+        self.assertEqual(len(response['data']), 1)
+        self.assertEqual(response['data'][0]['attributes']['category'], 'update_review_required')
+        self.assertEqual(self.response(**{'filter[service]': WMS_TWO})['data'], [])
+        self.assertEqual(self.response(**{'filter[serviceType]': 'WebFeatureService'})['data'], [])
+        self.assertEqual(self.response(**{'filter[category]': 'update_failed'})['data'], [])
+
+    def test_resolved_alert_disappears_and_identity_is_stable(self):
+        job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        before = self.response()['data'][0]['id']
+        self.assertEqual(self.response()['data'][0]['id'], before)
+        job.finish(JobState.UPDATED)
+        self.assertEqual(self.response()['data'], [])
+
+    def test_permission_scoping_applies_before_count_and_filters(self):
+        from guardian.shortcuts import assign_perm
+        self.update_job(self.wms_one, JobState.ERROR)
+        self.update_job(self.wms_two, JobState.ERROR)
+        self.assertEqual(self.response(self.user_client)['data'], [])
+        assign_perm('registry.view_webmapservice', self.user, self.wms_one)
+        response = self.response(self.user_client, **{'page[size]': 1})
+        self.assertEqual(response['meta']['pagination']['count'], 1)
+        self.assertEqual(response['data'][0]['attributes']['service'], WMS_ONE)
+        self.assertEqual(self.response(self.user_client, **{'filter[service]': WMS_TWO})['data'], [])
+
+    def test_monitoring_recovery_and_newest_first(self):
+        setting = self.monitoring_setting(self.wms_one)
+        self.monitoring_run(setting, False, hours_ago=3)
+        self.update_job(self.wms_two, JobState.ERROR, done_at=now())
+        response = self.response(**{'filter[severity]': 'error', 'sort': '-occurred_at'})
+        self.assertEqual([row['attributes']['service'] for row in response['data']], [WMS_TWO, WMS_ONE])
+        self.monitoring_run(setting, True)
+        self.assertEqual(len(self.response()['data']), 1)
+
+    def test_overdue_enabled_setting_reuses_scheduling_rule(self):
+        setting = self.monitoring_setting(self.wms_one)
+        type(setting).objects.filter(pk=setting.pk).update(last_run_at=now() - timedelta(hours=1))
+        response = self.response(**{'filter[category]': 'monitoring_overdue'})
+        self.assertEqual(len(response['data']), 1)
+        self.assertIn('/show/WebMapServiceMonitoringSetting', response['data'][0]['attributes']['targetPath'])
+        type(setting).objects.filter(pk=setting.pk).update(enabled=False)
+        self.assertEqual(self.response()['data'], [])
+
+    def test_unknown_filter_and_sort_are_rejected(self):
+        for query in ({'filter[unknown]': 'x'}, {'sort': 'unknown'}, {'filter[severity]': 'unknown'}):
+            response = self.client.get(reverse('registry:service-alert-list'), query)
+            self.assertEqual(response.status_code, 400, response.content)
+
+    def test_endpoint_is_read_only_and_requires_authentication(self):
+        response = APIClient().get(reverse('registry:service-alert-list'))
+        self.assertIn(response.status_code, (401, 403))
+        response = self.client.post(reverse('registry:service-alert-list'), {}, format='vnd.api+json')
+        self.assertEqual(response.status_code, 405)
+
+
+class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
+    fixtures = CrossServiceAlertsApiTest.fixtures
+    response = CrossServiceAlertsApiTest.response
+
+    # Keep source-specific cases separate from the API contract assertions.
+    def test_wfs_and_csw_updates_share_the_same_projection(self):
+        from registry.models.service import WebFeatureService
+        from registry.models.update import CatalogueServiceUpdateJob, WebFeatureServiceUpdateJob
+        wfs = WebFeatureService.objects.first()
+        WebFeatureServiceUpdateJob.objects.create(service=wfs, status=JobState.REVIEW_REQUIRED.value)
+        CatalogueServiceUpdateJob.objects.create(service=self.csw, status=JobState.ERROR.value)
+        response = self.response()
+        self.assertEqual({row['attributes']['serviceType'] for row in response['data']},
+                         {'WebFeatureService', 'CatalogueService'})
+        review = next(row for row in response['data'] if row['attributes']['category'] == 'update_review_required')
+        self.assertIn('/WebFeatureServiceUpdateJob/', review['attributes']['targetPath'])
+
+    def test_update_candidate_and_job_are_one_problem(self):
+        candidate = WebMapService.objects.create(
+            title='Candidate', service_url=self.wms_one.service_url,
+            version=self.wms_one.version, origin=self.wms_one.origin,
+            update_candidate_of=self.wms_one,
+            metadata_contact=self.wms_one.metadata_contact,
+            service_contact=self.wms_one.service_contact)
+        # A dangling candidate still asks for attention, even without a job.
+        self.assertEqual(len(self.response()['data']), 1)
+        job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        response = self.response()
+        self.assertEqual(len(response['data']), 1)
+        self.assertEqual(response['data'][0]['attributes']['service'], WMS_ONE)
+        self.assertEqual(response['data'][0]['attributes']['resourceId'], str(job.pk))
+        candidate.delete()
+        job.finish(JobState.UPDATED)
+        self.assertEqual(self.response()['data'], [])
+
+    def test_overdue_harvesting_uses_the_shared_schedule_helper(self):
+        from registry.models.harvest import PeriodicHarvestingJob
+        setting = PeriodicHarvestingJob.objects.create(service=self.csw, crontab=self.crontab)
+        PeriodicHarvestingJob.objects.filter(pk=setting.pk).update(last_run_at=now() - timedelta(hours=1))
+        response = self.response(**{'filter[category]': 'harvest_overdue'})
+        self.assertEqual(len(response['data']), 1)
+        self.assertIsNotNone(response['data'][0]['attributes']['occurredAt'])
+        self.assertIn('/show/PeriodicHarvestingJob', response['data'][0]['attributes']['targetPath'])
+        PeriodicHarvestingJob.objects.filter(pk=setting.pk).update(enabled=False)
+        self.assertEqual(self.response()['data'], [])
+
+    def test_overdue_updates_are_collected_for_every_protocol(self):
+        from registry.models.service import WebFeatureService
+        from registry.models.update import (
+            CatalogueServiceUpdateSetting, WebFeatureServiceUpdateSetting, WebMapServiceUpdateSetting)
+        for model, service in (
+                (WebMapServiceUpdateSetting, self.wms_one),
+                (WebFeatureServiceUpdateSetting, WebFeatureService.objects.first()),
+                (CatalogueServiceUpdateSetting, self.csw)):
+            setting = model.objects.create(service=service, crontab=self.crontab)
+            model.objects.filter(pk=setting.pk).update(last_run_at=now() - timedelta(hours=1))
+        response = self.response(**{'filter[category]': 'update_overdue'})
+        self.assertEqual(len(response['data']), 3)
+        self.assertEqual({row['attributes']['serviceType'] for row in response['data']},
+                         {'WebMapService', 'WebFeatureService', 'CatalogueService'})
+        self.assertTrue(all(row['attributes']['occurredAt'] for row in response['data']))
+
+    def test_invalidation_waits_for_commit_and_contains_no_service_data(self):
+        from unittest.mock import patch
+        from registry.tasks.monitoring import finish_run
+        with patch('notify.utils.send_msg') as send:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.update_job(self.wms_one, JobState.ERROR)
+                self.assertFalse(send.called)
+            self.assertEqual(send.call_args.args[0] if send.call_args.args else send.call_args.kwargs['msg'], {
+                'topic': 'resource/ServiceAlert',
+                'event': {'type': 'created', 'payload': {'ids': []}},
+            })
+            send.reset_mock()
+            with self.captureOnCommitCallbacks(execute=True):
+                self.harvesting_job(phase=Phase.ABORTED)
+                self.assertFalse(send.called)
+            self.assertTrue(any(call.args and call.args[0].get('topic') == 'resource/ServiceAlert'
+                                for call in send.call_args_list))
+            send.reset_mock()
+            run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+            with self.captureOnCommitCallbacks(execute=True):
+                finish_run(None, run.pk)
+                self.assertFalse(send.called)
+            self.assertTrue(any(call.args and call.args[0].get('topic') == 'resource/ServiceAlert'
+                                for call in send.call_args_list))
+
+
+class ServiceAlertOrderingTest(SimpleTestCase):
+    def test_overdue_schedule_and_run_timestamps_compare_as_instants(self):
+        from datetime import datetime
+        from registry.views.alerts import ServiceAlertListView
+        from rest_framework.request import Request
+        view = ServiceAlertListView()
+        view.request = Request(RequestFactory().get('/', {'sort': '-occurredAt'}))
+        rows = [
+            {'id': 'schedule', 'occurred_at': datetime.fromisoformat('2026-10-22T10:00:00+02:00')},
+            {'id': 'run', 'occurred_at': datetime.fromisoformat('2026-10-22T09:00:00+00:00')},
+            {'id': 'candidate', 'occurred_at': None},
+        ]
+        self.assertEqual([row['id'] for row in view.filter_queryset(rows)],
+                         ['run', 'schedule', 'candidate'])

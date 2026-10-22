@@ -2,6 +2,7 @@ from celery import chain, group, shared_task
 from django.apps import apps
 from django.utils import timezone
 from notify.enums import ProcessStatusEnum
+from notify.utils import invalidate_service_alerts
 
 WMS_RUN_MODEL = "registry.webmapservicemonitoringrun"
 
@@ -40,6 +41,7 @@ def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kw
     run.date_done = timezone.now()
     run.save()
     run.report_process(ProcessStatusEnum.COMPLETED)
+    invalidate_service_alerts()
     return run.pk
 
 

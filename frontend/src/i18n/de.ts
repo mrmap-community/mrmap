@@ -306,6 +306,36 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     recentEvents: "Letzte Aktualisierungen",
     noRecentEvents: "Für diesen Dienst wurde noch keine Aktualisierung ausgeführt.",
   },
+  resources: {
+    ServiceAlert: {
+      name: "Handlungsbedarf",
+      fields: {
+        severity: "Schweregrad",
+        category: "Kategorie",
+        serviceType: "Diensttyp",
+        serviceTitle: "Dienst",
+        service: "Dienst-ID",
+        occurredAt: "Zeitpunkt",
+      },
+    },
+  },
+  serviceAlerts: {
+    title: "Handlungsbedarf",
+    count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
+    viewAll: "Alle Hinweise anzeigen",
+    error: "Fehler",
+    warning: "Warnung",
+    categories: {
+      monitoring_failed: "Monitoring fehlgeschlagen",
+      update_failed: "Aktualisierung fehlgeschlagen",
+      update_review_required: "Aktualisierung prüfen",
+      harvest_aborted: "Harvesting abgebrochen",
+      harvest_incomplete: "Importfehler beim Harvesting",
+      monitoring_overdue: "Monitoring überfällig",
+      update_overdue: "Aktualisierung überfällig",
+      harvest_overdue: "Harvesting überfällig",
+    },
+  },
   serviceAttention: {
     title: "Aufmerksamkeit dieses Dienstes",
     none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",

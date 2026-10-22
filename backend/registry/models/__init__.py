@@ -8,3 +8,4 @@ from .monitoring import *  # noqa
 from .security import *  # noqa
 from .service import *  # noqa
 from .update import *  # noqa
+from .alerts import *  # noqa

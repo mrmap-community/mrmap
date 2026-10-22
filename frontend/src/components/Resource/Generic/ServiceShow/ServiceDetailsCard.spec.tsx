@@ -1,4 +1,13 @@
-import { AdminContext, RecordContextProvider, ResourceContextProvider, SelectField, TextField } from "react-admin";
+import {
+  AdminContext,
+  type RaRecord,
+  RecordContextProvider,
+  ResourceContextProvider,
+  SelectField,
+  TextField,
+  testDataProvider,
+} from "react-admin";
+import { MemoryRouter } from "react-router-dom";
 
 import { render, screen } from "@testing-library/react";
 import polyglotI18nProvider from "ra-i18n-polyglot";
@@ -10,28 +19,79 @@ import ServiceDetailsCard from "./ServiceDetailsCard";
 
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () => [
-    ...["id", "title", "abstract"].map(source => ({ component: TextField, props: { source, label: source } })),
-    { component: SelectField, props: { source: "version", choices: [{ id: 0, name: "1.3.0" }] } },
+    ...["id", "title", "abstract"].map((source) => ({
+      component: TextField,
+      props: { source, label: source },
+    })),
+    {
+      component: SelectField,
+      props: { source: "version", choices: [{ id: 0, name: "1.3.0" }] },
+    },
   ],
 }));
 vi.mock("./ServicePreviewImage", () => ({ default: () => null }));
 vi.mock("./ActivateServiceButton", () => ({ default: () => null }));
-vi.mock("../../WebMapService/Button/MapViewerButton", () => ({ default: () => null }));
+vi.mock("../../WebMapService/Button/MapViewerButton", () => ({
+  default: () => null,
+}));
 
-const renderDetails = (version?: number, locale = "en") => render(
-  <AdminContext i18nProvider={polyglotI18nProvider(() => locale === "de" ? de : en, locale)}>
-    <ResourceContextProvider value="WebMapService">
-      <RecordContextProvider value={{ id: "service", title: "Weather WMS", abstract: "Weather maps", version }}>
-        <ServiceDetailsCard protocol="WMS" />
-      </RecordContextProvider>
-    </ResourceContextProvider>
-  </AdminContext>,
+const renderDetails = (version?: number, locale = "en") =>
+  render(
+    <AdminContext
+      i18nProvider={polyglotI18nProvider(
+        () => (locale === "de" ? de : en),
+        locale,
+      )}
+    >
+      <ResourceContextProvider value="WebMapService">
+        <RecordContextProvider
+          value={{
+            id: "service",
+            title: "Weather WMS",
+            abstract: "Weather maps",
+            version,
+          }}
+        >
+          <ServiceDetailsCard protocol="WMS" />
+        </RecordContextProvider>
+      </ResourceContextProvider>
+    </AdminContext>,
+  );
+
+/** the card of a service which a screen of services only selects */
+const selectedCard = (
+  record: Record<string, unknown>,
+  dataProvider: ReturnType<typeof testDataProvider>,
+) => (
+  <MemoryRouter>
+    <AdminContext
+      i18nProvider={polyglotI18nProvider(() => en, "en")}
+      dataProvider={dataProvider}
+    >
+      <ResourceContextProvider value="WebMapService">
+        <RecordContextProvider value={record}>
+          <ServiceDetailsCard protocol="WMS" attention openDetails />
+        </RecordContextProvider>
+      </ResourceContextProvider>
+    </AdminContext>
+  </MemoryRouter>
 );
+
+/** the runs and jobs a screen of services answers for one service */
+const answersOutcome = (resource: string) => ({
+  data: (resource.endsWith("UpdateJob")
+    ? [{ id: "job", doneAt: "2026-10-07T12:15:00Z", status: "Succeeded" }]
+    : [
+        { id: "run", dateDone: "2026-10-08T06:00:00Z", success: true },
+      ]) as RaRecord[],
+  total: 1,
+});
 
 describe("ServiceDetailsCard labels", () => {
   it("shows readable labels and hides an absent version", () => {
     renderDetails();
-    for (const label of ["ID", "Title", "Abstract"]) expect(screen.getByText(label)).toBeInTheDocument();
+    for (const label of ["ID", "Title", "Abstract"])
+      expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
   });
 
@@ -45,5 +105,114 @@ describe("ServiceDetailsCard labels", () => {
     renderDetails(undefined, "de");
     expect(screen.getByText("Titel")).toBeInTheDocument();
     expect(screen.getByText("Beschreibung")).toBeInTheDocument();
+  });
+});
+
+describe("ServiceDetailsCard of a selected service", () => {
+  it("asks the outcome of the runs and the jobs of the selected service", async () => {
+    const getList = vi
+      .fn()
+      .mockImplementation(async (resource: string) => answersOutcome(resource));
+    const { rerender } = render(
+      selectedCard(
+        { id: "service-1", title: "Weather WMS" },
+        testDataProvider({ getList }),
+      ),
+    );
+    expect(await screen.findByText(/Succeeded/)).toBeInTheDocument();
+    expect(screen.getByText(/passed/)).toBeInTheDocument();
+    expect(screen.getByText("last monitoring run:")).toBeInTheDocument();
+    expect(screen.getByText("last update:")).toBeInTheDocument();
+    // the date of a monitoring run is the point in time it was done at
+    expect(screen.getByText(/10\/8\/2026/)).toBeInTheDocument();
+    expect(getList).toHaveBeenCalledWith(
+      "WebMapServiceMonitoringRun",
+      expect.objectContaining({
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "dateDone", order: "DESC" },
+      }),
+    );
+
+    // a service which is selected afterwards asks its own runs and jobs
+    rerender(
+      selectedCard(
+        { id: "service-2", title: "Orthophotos" },
+        testDataProvider({
+          getList: vi.fn().mockImplementation(async (resource: string) => ({
+            data: (resource.endsWith("UpdateJob")
+              ? [
+                  {
+                    id: "job",
+                    doneAt: "2026-10-09T08:00:00Z",
+                    status: "Failed",
+                  },
+                ]
+              : []) as RaRecord[],
+            total: resource.endsWith("UpdateJob") ? 1 : 0,
+          })),
+        }),
+      ),
+    );
+    expect(await screen.findByText(/Failed/)).toBeInTheDocument();
+    expect(screen.queryByText(/Succeeded/)).not.toBeInTheDocument();
+    expect(screen.getByText("not recorded yet")).toBeInTheDocument();
+  });
+
+  it("names the states which need attention and the way to the service", () => {
+    render(
+      selectedCard(
+        {
+          id: "service-1",
+          title: "Weather WMS",
+          monitoringFailed: true,
+          updateReviewRequired: true,
+        },
+        testDataProvider({
+          getList: vi
+            .fn()
+            .mockImplementation(async () =>
+              answersOutcome("WebMapServiceUpdateJob"),
+            ),
+        }),
+      ),
+    );
+    expect(screen.getByText("Monitoring failed")).toBeInTheDocument();
+    expect(screen.getByText("Review required")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open details" })).toHaveAttribute(
+      "href",
+      "/WebMapService/service-1/show",
+    );
+  });
+
+  it("names a run or job which cannot be read instead of pretending it is absent", async () => {
+    render(
+      selectedCard(
+        { id: "service-1", title: "Weather WMS" },
+        testDataProvider({
+          getList: vi.fn().mockRejectedValue(new Error("forbidden")),
+        }),
+      ),
+    );
+    expect(await screen.findAllByText("not readable")).toHaveLength(2);
+  });
+
+  it("asks nothing and shows no outcome of a service which is not selected", () => {
+    const getList = vi.fn().mockResolvedValue({ data: [], total: 0 });
+    render(
+      <AdminContext
+        i18nProvider={polyglotI18nProvider(() => en, "en")}
+        dataProvider={testDataProvider({ getList })}
+      >
+        <ResourceContextProvider value="WebMapService">
+          <ServiceDetailsCard protocol="WMS" />
+        </ResourceContextProvider>
+      </AdminContext>,
+    );
+    expect(
+      screen.getByText("Select a service to see its details."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("last monitoring run:")).not.toBeInTheDocument();
+    expect(screen.queryByText("No alerts")).not.toBeInTheDocument();
+    expect(getList).not.toHaveBeenCalled();
   });
 });

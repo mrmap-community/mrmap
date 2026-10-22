@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Cross-service attention list, app-bar count and dashboard card for service failures, update reviews and overdue schedules (#567).
+- The aside of a screen of services answers the selected service first: its states which need attention, the outcome of its last monitoring run and update job and a direct way to its screen (#597).
 
 ### Changed
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.

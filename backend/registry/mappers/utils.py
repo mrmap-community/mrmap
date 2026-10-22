@@ -161,7 +161,9 @@ def get_unique_fields(model_cls: models.Model):
     unique_sets = []
 
     for field in model_cls._meta.concrete_fields:
-        if field.unique:
+        # Nullable unique fields (such as update_candidate_of) may be NULL on
+        # multiple rows, so they cannot reliably identify a parsed instance.
+        if field.unique and not field.null:
             unique_sets.append((field.name,))
 
     for constraint in getattr(model_cls._meta, "constraints", []):

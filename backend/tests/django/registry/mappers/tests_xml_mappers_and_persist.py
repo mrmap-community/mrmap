@@ -5,6 +5,8 @@ from uuid import uuid4
 from django.test import TestCase
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.models.metadata import MetadataContact
+from registry.models.service import WebFeatureService
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
@@ -326,6 +328,25 @@ class XmlMapperTest(TestCase):
         # self.__export_parsed_wfs_data(self.data[0].featuretypes.all())
         self._test_service_success(expected=EXPECTED_WFS_SERVICE_DATA_2_0_0)
         self._test_wfs_success()
+
+    def test_hamburg_wfs_featuretypes(self):
+        contact = MetadataContact.objects.create(name='Existing contact')
+        existing = WebFeatureService.objects.create(
+            title='Z existing WFS', version=200,
+            metadata_contact=contact, service_contact=contact,
+        )
+        self.xml = Path(__file__).parent / '../../test_data/capabilities/wfs/hamburg_2.0.0.xml'
+        self._call_service_mapper_and_persistence_handler()
+        service = self.data[0]
+        self.assertCountEqual(
+            service.featuretypes.values_list('identifier', flat=True),
+            ['cp:CadastralParcel', 'cp:CadastralZoning'],
+        )
+        self.assertEqual(existing.featuretypes.count(), 0)
+        self.assertEqual(existing.operation_urls.count(), 0)
+        self.assertTrue(service.operation_urls.exists())
+        self.assertTrue(service.remote_metadata.exists())
+        self.assertEqual(service.change_log.count(), 2)
 
     def test_csw_2_0_2(self):
         self.xml = Path(Path.joinpath(

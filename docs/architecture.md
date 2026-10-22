@@ -146,6 +146,10 @@ Monitoring completion, update job saves and harvesting transitions publish a
 payload-free `resource/ServiceAlert` invalidation after commit. Clients refetch
 their own scoped data, with a 20-second polling fallback that also detects
 schedules becoming overdue. The indicator and dashboard card disappear at zero
-and do not display cached counts on request errors. Collection and schedule
-projection currently happen in memory before pagination; a deployment with many
-services may need database-side aggregation in a later performance change.
+and do not display cached counts on request errors. The alerts which the states
+of the services answer are read from one database view, which is created by a
+union of the same annotations and not by a second definition of the rules (see
+`backend/registry/models/alerts.py`); only the schedule projection still
+happens in memory before pagination, because a crontab is calculated in python
+- answering it from the database too would need the expected run time stored on
+the settings, a later performance change.

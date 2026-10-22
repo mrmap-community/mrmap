@@ -452,6 +452,48 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.assertEqual(response.status_code, 405)
 
 
+class ServiceAlertViewParityTest(ServiceAlertsMixin, TestCase):
+    """Tests that the view of the alerts and the services cannot drift apart.
+
+    The view is created by the union which `service_alert_rows()` builds from
+    the very annotations which the services themselves answer - so its rows
+    must be the rows which the annotations project, decided by the same rules.
+    """
+    fixtures = CrossServiceAlertsApiTest.fixtures
+
+    def test_the_view_answers_the_projection_of_the_annotations(self):
+        from registry.models.alerts import ServiceAlertView
+        from registry.models.service import WebFeatureService
+        from registry.querys.alerts import ALERT_CATEGORIES, service_alert
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.harvesting_job(phase=Phase.ABORTED)
+        services = []
+        for model in (WebMapService, WebFeatureService, CatalogueService):
+            services += list(model.objects.filter(
+                update_candidate_of__isnull=True))
+        expected = {}
+        for service in services:
+            annotated = self.alerts(service)
+            resource = type(service).__name__
+            for category, (severity, at, target) in ALERT_CATEGORIES.items():
+                if not getattr(annotated, category, False):
+                    continue
+                alert = service_alert(
+                    service, category, severity, getattr(annotated, at),
+                    target if target == 'HarvestingJob' else resource + target)
+                if category == 'update_review_required' \
+                        and getattr(annotated, 'alert_review_job_id', None) \
+                        and resource != 'CatalogueService':
+                    alert['resource_type'] = resource + 'UpdateJob'
+                    alert['resource_id'] = str(annotated.alert_review_job_id)
+                    alert['target_path'] = (
+                        f"/{alert['resource_type']}/{alert['resource_id']}/show")
+                expected[alert['id']] = alert
+        answered = {row['id']: row for row in ServiceAlertView.objects.values()}
+        self.assertEqual(answered, expected)
+
+
 class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
     fixtures = CrossServiceAlertsApiTest.fixtures
     response = CrossServiceAlertsApiTest.response

@@ -22,8 +22,8 @@ was followed by a passing one does not need attention any more.
 """
 from camel_converter import to_camel
 from django.db.models import (BooleanField, Case, CharField, Exists,
-                              ExpressionWrapper, F, OuterRef, Q, Subquery,
-                              Value, When)
+                              ExpressionWrapper, F, IntegerField, OuterRef, Q,
+                              Subquery, Value, When)
 from django.db.models.functions import Cast, Coalesce, Concat
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.enums.update import UpdateJobStatusEnum
@@ -46,15 +46,22 @@ ERROR_STATUS = UpdateJobStatusEnum.ERROR.value
 #: the phase of a harvesting job which ended before it was done
 ABORTED_PHASE = HarvestingPhaseEnum.ABORTED.value
 
-#: the attributes which answer the attention of every kind of service
+#: the attributes which answer the attention of every kind of service. The
+#: attributes which end in `_run` and `_job` answer *which* run or job decided
+#: an alert as the identifier of that row - they are no relationships and are
+#: answered by the very subqueries which decide the alert next to them, so that
+#: a client links an alert to the record behind it instead of searching it.
 ALERT_ATTRIBUTES = (
     'has_alert',
     'monitoring_failed',
     'monitoring_failed_at',
+    'monitoring_failed_run',
     'update_review_required',
     'update_review_required_at',
+    'update_review_job',
     'update_failed',
     'update_failed_at',
+    'update_failed_job',
 )
 
 #: the attributes which answer the attention of a catalogue in addition
@@ -62,6 +69,7 @@ HARVEST_ALERT_ATTRIBUTES = (
     'harvest_aborted',
     'harvest_incomplete',
     'harvest_failed_at',
+    'harvest_job',
 )
 
 
@@ -251,6 +259,7 @@ def alert_annotations(queryset):
         # a run names the point in time it was done with `date_done`, while a
         # job names it `done_at` - see the models of the runs and the jobs
         alert_newest_run_moment=moment(newest, field='date_done'),
+        alert_newest_job=Subquery(newest_update_job.values('pk')[:1]),
         alert_newest_job_status=Subquery(
             newest_update_job.values('status')[:1]),
         alert_newest_job_moment=moment(newest_update_job),
@@ -268,10 +277,23 @@ def alert_annotations(queryset):
         monitoring_failed=is_true(failing_run),
         monitoring_failed_at=Case(
             When(failing_run, then=F('alert_newest_run_moment'))),
+        # a failing monitoring is decided by two rows which are the same row -
+        # the newest run of the service answers the failing one, so the newest
+        # run is the record behind the alert
+        monitoring_failed_run=Case(
+            When(failing_run, then=F('alert_newest_run')),
+            output_field=IntegerField()),
         update_failed=is_true(failed_job),
         update_failed_at=Case(
             When(failed_job, then=F('alert_newest_job_moment'))),
+        update_failed_job=Case(
+            When(failed_job, then=F('alert_newest_job')),
+            output_field=IntegerField()),
         update_review_required_at=F('alert_review_job_moment'),
+        # an update can wait for a decision without a job which waits for it,
+        # because only a candidate of an update dangles - nothing to decide
+        # about at a job answers no job then
+        update_review_job=F('alert_review_job_id'),
     )
 
     if kind.harvesting_job is not None:
@@ -333,6 +355,9 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
         harvest_failed_at=Case(
             When(aborted | incomplete,
                  then=F('alert_newest_harvest_moment'))),
+        harvest_job=Case(
+            When(aborted | incomplete, then=F('alert_newest_harvest')),
+            output_field=IntegerField()),
     )
 
 

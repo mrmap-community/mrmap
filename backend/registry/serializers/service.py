@@ -233,6 +233,15 @@ class ServiceAlertSerializerMixin(ModelSerializer):
     The schedules a service did not keep are not answered here, because a
     crontab is no rule of the database: a client reads them from the monitoring
     and update settings of the service, which answer their `runOverdue`.
+
+    Next to the states themselves the mixin answers *which* run or job decided a
+    state: `monitoring_failed_run`, `update_failed_job` and `update_review_job`
+    are the identifiers of the rows behind the alerts of the same name. These
+    references are additive - a client which ignores them reads the same alerts
+    as before - and they are no relationships: the row of another resource is
+    named by its identifier alone, so that a client which may view it reads it at
+    the endpoint of its own kind and a client which may not view it is answered
+    nothing but the alert of its own service.
     """
 
     has_alert = BooleanField(
@@ -250,6 +259,13 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         help_text=_(
             "the point in time the last monitoring run of the service was done"),
         read_only=True)
+    monitoring_failed_run = IntegerField(
+        label=_("monitoring failed run"),
+        help_text=_(
+            "the monitoring run which reported the failure, answered as its "
+            "identifier and nothing if the service needs no attention in "
+            "monitoring"),
+        read_only=True)
 
     update_review_required = BooleanField(
         label=_("update review required"),
@@ -261,6 +277,13 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         help_text=_(
             "the point in time the update which waits for a decision was made"),
         read_only=True)
+    update_review_job = IntegerField(
+        label=_("update review job"),
+        help_text=_(
+            "the update job which waits for a decision, answered as its "
+            "identifier and nothing if the service waits for a decision "
+            "because of a dangling update candidate only"),
+        read_only=True)
     update_failed = BooleanField(
         label=_("update failed"),
         help_text=_(
@@ -270,6 +293,12 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         label=_("update failed at"),
         help_text=_(
             "the point in time the last update of the service was made"),
+        read_only=True)
+    update_failed_job = IntegerField(
+        label=_("update failed job"),
+        help_text=_(
+            "the update job which came back broken, answered as its identifier "
+            "and nothing if the last update of the service did not fail"),
         read_only=True)
 
     class Meta:
@@ -768,6 +797,14 @@ class CatalogueServiceSerializer(
         help_text=_(
             "the point in time the last harvesting job of the catalogue was "
             "made"),
+        read_only=True)
+    harvest_job = IntegerField(
+        label=_("harvest job"),
+        help_text=_(
+            "the harvesting job of the catalogue which ended before it was done "
+            "or which left records behind, answered as its identifier and "
+            "nothing if the last harvesting of the catalogue needs no "
+            "attention"),
         read_only=True)
     # TODO: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()

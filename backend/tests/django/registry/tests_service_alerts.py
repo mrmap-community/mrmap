@@ -144,10 +144,49 @@ class ServiceAlertsQueryTest(ServiceAlertsMixin, TestCase):
         self.assertFalse(alerts.has_alert)
         self.assertFalse(alerts.monitoring_failed)
         self.assertIsNone(alerts.monitoring_failed_at)
+        self.assertIsNone(alerts.monitoring_failed_run)
         self.assertFalse(alerts.update_review_required)
         self.assertIsNone(alerts.update_review_required_at)
+        self.assertIsNone(alerts.update_review_job)
         self.assertFalse(alerts.update_failed)
         self.assertIsNone(alerts.update_failed_at)
+        self.assertIsNone(alerts.update_failed_job)
+
+    def test_the_run_which_failed_is_answered_behind_the_alert(self):
+        """An alert names the run a client has to look at"""
+        run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        self.assertEqual(
+            self.alerts(self.wms_one).monitoring_failed_run, run.pk)
+        # a service which is healthy again answers nothing behind its alert
+        self.monitoring_run(
+            self.monitoring_setting(self.wms_one), True, hours_ago=0)
+        self.assertIsNone(
+            self.alerts(self.wms_one).monitoring_failed_run)
+
+    def test_the_job_which_failed_is_answered_behind_the_alert(self):
+        failed = self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        self.assertEqual(
+            self.alerts(self.wms_one).update_failed_job, failed.pk)
+
+    def test_the_job_which_waits_for_a_review_is_answered_behind_the_alert(
+            self):
+        waiting = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.assertEqual(
+            self.alerts(self.wms_one).update_review_job, waiting.pk)
+        waiting.finish(JobState.UPDATED)
+        self.assertIsNone(self.alerts(self.wms_one).update_review_job)
+
+    def test_a_dangling_candidate_waits_without_a_job_to_decide_about(self):
+        """The decision of a candidate is asked at the service and not at a job"""
+        WebMapService.objects.create(
+            title="Candidate", service_url=self.wms_one.service_url,
+            version=self.wms_one.version, origin=self.wms_one.origin,
+            update_candidate_of=self.wms_one,
+            metadata_contact=self.wms_one.metadata_contact,
+            service_contact=self.wms_one.service_contact)
+        alerts = self.alerts(self.wms_one)
+        self.assertTrue(alerts.update_review_required)
+        self.assertIsNone(alerts.update_review_job)
 
     def test_a_failing_monitoring_run_needs_attention(self):
         run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
@@ -215,6 +254,14 @@ class ServiceAlertsQueryTest(ServiceAlertsMixin, TestCase):
         self.assertTrue(alerts.harvest_incomplete)
         self.assertFalse(alerts.harvest_aborted)
         self.assertTrue(alerts.has_alert)
+
+    def test_the_harvesting_which_left_a_state_behind_is_answered(self):
+        """The harvesting of a catalogue is answered as the job which ran"""
+        aborted = self.harvesting_job(phase=Phase.ABORTED)
+        self.assertEqual(self.alerts(self.csw).harvest_job, aborted.pk)
+        # a harvesting which is done again answers nothing behind the alert
+        self.harvesting_job(hours_ago=0)
+        self.assertIsNone(self.alerts(self.csw).harvest_job)
 
     def test_a_harvesting_which_left_nothing_behind_needs_no_attention(self):
         self.harvesting_job()
@@ -313,6 +360,29 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         answered = self.services(CatalogueService)
         self.assertTrue(answered[CSW_ONE]["harvestIncomplete"])
         self.assertTrue(answered[CSW_ONE]["hasAlert"])
+        self.assertIsNotNone(answered[CSW_ONE]["harvestJob"])
+
+    def test_the_alerts_answer_the_record_which_decided_them(self):
+        """An alert names the run or job a client has to look at
+
+        The reference is answered as the identifier of the record alone - not as
+        a relationship - because a client reads the record at the endpoint of its
+        own kind, and a client which may not read it is answered nothing but the
+        alert of its own service.
+        """
+        run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        waiting = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        answered = self.services(WebMapService)
+        self.assertEqual(answered[WMS_ONE]["monitoringFailedRun"], run.pk)
+        self.assertEqual(answered[WMS_ONE]["updateReviewJob"], waiting.pk)
+        self.assertIsNone(answered[WMS_ONE]["updateFailedJob"])
+        # a kind of service which has no harvesting answers no reference of it
+        self.assertNotIn("harvestJob", answered[WMS_ONE])
+
+    def test_a_catalogue_answers_the_harvesting_behind_its_alert(self):
+        job = self.harvesting_job(import_errors=1)
+        answered = self.services(CatalogueService)
+        self.assertEqual(answered[CSW_ONE]["harvestJob"], job.pk)
 
     def test_the_alerts_of_a_service_cannot_be_written(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
@@ -376,6 +446,13 @@ class AlertsRequestedTest(SimpleTestCase):
         self.assertTrue(self.requested(
             **{"fields[WebMapService]": "title",
                "sort": "-monitoringFailedAt"}))
+
+    def test_the_reference_of_a_run_or_job_wants_the_alerts(self):
+        """A client which asks which run decided an alert wants the alerts"""
+        self.assertTrue(
+            self.requested(**{"fields[WebMapService]": "monitoring_failed_run"}))
+        self.assertTrue(
+            self.requested(**{"fields[WebMapService]": "updateFailedJob"}))
 
 
 class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):

@@ -6,7 +6,9 @@ from django.test import TestCase
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.metadata import MetadataContact
-from registry.models.service import WebFeatureService
+from registry.models.service import (CatalogueService, FeatureType,
+                                     OperationUrl, WebFeatureService,
+                                     WebMapService)
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
@@ -368,3 +370,113 @@ class XmlMapperTest(TestCase):
             '../../test_data/iso_metadata/service.xml'))
         self._call_iso_mapper_and_persistence_handler()
         self._test_md_success(expected=EXPECTED_SERVICE_DATA)
+
+
+class ServiceOwnershipRegressionTest(TestCase):
+    """Registering a second service must not redirect the operation urls,
+    feature types or layers of a capabilities document to another published
+    service.
+
+    The ambiguous natural-key lookup that caused this selected the nullable
+    unique ``update_candidate_of`` field (see #659 and #661): all published
+    services share the NULL value and collapse under the same key. The tests
+    control the model ordering, which decides which NULL-key row wins an
+    unordered lookup, so an adverse ordering is exercised deterministically.
+    That ordering is a test control, not a production configuration.
+    """
+
+    CAPABILITIES = Path(__file__).parent / '../../test_data/capabilities'
+    SECOND_URL = "https://second.example.test/service"
+
+    def _adverse_ordering(self, model_cls):
+        original_ordering = model_cls._meta.ordering
+        self.addCleanup(setattr, model_cls._meta, "ordering", original_ordering)
+        model_cls._meta.ordering = ["title"]
+
+    def _register(self, xml_path, title, rename_children=False):
+        mapper = OGCServiceXmlMapper.from_xml(xml_path)
+        service = mapper.xml_to_django()[0]
+        service.title = title
+        if rename_children:
+            for inst in mapper.read_all_from_cache().values():
+                if inst is None:
+                    continue
+                if isinstance(inst, OperationUrl):
+                    inst.url = self.SECOND_URL
+                elif isinstance(inst, FeatureType):
+                    inst.identifier = "second_" + inst.identifier
+        PersistenceHandler(mapper).persist_all()
+        return service
+
+    def _assert_owned_operation_urls(self, first, second):
+        """Both services own the operation urls of their own document.
+
+        ``operation_urls`` is the relationship the API answers for a service,
+        so agreeing with the database rows here means the API relationship
+        agrees with the owning service id as well.
+        """
+        self.assertGreater(second.operation_urls.count(), 0)
+        self.assertEqual(
+            first.operation_urls.count(), second.operation_urls.count())
+        self.assertCountEqual(
+            set(second.operation_urls.values_list("url", flat=True)),
+            {self.SECOND_URL})
+        self.assertNotIn(
+            self.SECOND_URL, set(first.operation_urls.values_list("url", flat=True)))
+        first_rows = {
+            (row["method"], row["operation"], row["mime_types__mime_type"])
+            for row in first.operation_urls.values("method", "operation", "mime_types__mime_type")}
+        second_rows = {
+            (row["method"], row["operation"], row["mime_types__mime_type"])
+            for row in second.operation_urls.values("method", "operation", "mime_types__mime_type")}
+        self.assertEqual(first_rows, second_rows)
+        # every row advertising the second endpoint belongs to the second
+        # service; the endpoint text alone must not own rows of another
+        # service (the deployment seeds its own CSW, so no global count here).
+        model_cls = first.operation_urls.model
+        second_owned = model_cls.objects.filter(url=self.SECOND_URL)
+        self.assertEqual(
+            second_owned.count(), second.operation_urls.count())
+        self.assertCountEqual(
+            set(second_owned.values_list("service_id", flat=True)), {second.pk})
+
+    def test_wfs_2_0_0_second_service_keeps_operation_urls(self):
+        self._adverse_ordering(WebFeatureService)
+        first = self._register(self.CAPABILITIES / 'wfs/2.0.0.xml', 'ZZZ first service')
+        second = self._register(
+            self.CAPABILITIES / 'wfs/2.0.0.xml', 'AAA second service', rename_children=True)
+
+        self._assert_owned_operation_urls(first, second)
+        self.assertGreater(first.featuretypes.count(), 0)
+        self.assertEqual(first.featuretypes.count(), second.featuretypes.count())
+        self.assertCountEqual(
+            second.featuretypes.values_list("identifier", flat=True),
+            ["second_" + ident for ident in first.featuretypes.values_list("identifier", flat=True)])
+
+    def test_wms_1_3_0_second_service_keeps_operation_urls(self):
+        self._adverse_ordering(WebMapService)
+        first = self._register(self.CAPABILITIES / 'wms/1.3.0.xml', 'ZZZ first service')
+        second = self._register(
+            self.CAPABILITIES / 'wms/1.3.0.xml', 'AAA second service', rename_children=True)
+
+        self._assert_owned_operation_urls(first, second)
+        self.assertGreater(first.layers.count(), 0)
+        self.assertEqual(first.layers.count(), second.layers.count())
+
+    def test_wms_1_1_1_second_service_keeps_operation_urls(self):
+        self._adverse_ordering(WebMapService)
+        first = self._register(self.CAPABILITIES / 'wms/1.1.1.xml', 'ZZZ first service')
+        second = self._register(
+            self.CAPABILITIES / 'wms/1.1.1.xml', 'AAA second service', rename_children=True)
+
+        self._assert_owned_operation_urls(first, second)
+        self.assertGreater(first.layers.count(), 0)
+        self.assertEqual(first.layers.count(), second.layers.count())
+
+    def test_csw_2_0_2_second_service_keeps_operation_urls(self):
+        self._adverse_ordering(CatalogueService)
+        first = self._register(self.CAPABILITIES / 'csw/2.0.2.xml', 'ZZZ first service')
+        second = self._register(
+            self.CAPABILITIES / 'csw/2.0.2.xml', 'AAA second service', rename_children=True)
+
+        self._assert_owned_operation_urls(first, second)

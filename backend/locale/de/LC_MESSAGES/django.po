@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-22 09:25+0200\n"
+"POT-Creation-Date: 2026-10-23 10:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -809,7 +809,7 @@ msgid "the feature type targeted by this check"
 msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
 #: registry/models/conformity.py:176 registry/models/metadata.py:1097
-#: registry/models/metadata.py:1098 registry/serializers/service.py:100
+#: registry/models/metadata.py:1098 registry/serializers/service.py:101
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
@@ -934,7 +934,7 @@ msgstr ""
 #: registry/models/harvest.py:841 registry/models/metadata.py:593
 #: registry/models/monitoring.py:98 registry/models/service.py:371
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
-#: registry/serializers/service.py:851 registry/serializers/update.py:101
+#: registry/serializers/service.py:946 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
@@ -1024,7 +1024,7 @@ msgstr "Style"
 msgid "Select a style for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:200 registry/serializers/service.py:627
+#: registry/models/mapcontext.py:200 registry/serializers/service.py:709
 msgid "preview image"
 msgstr "Vorschau"
 
@@ -1187,7 +1187,7 @@ msgstr "Der Inhalt der heruntergeladenen URL."
 #: registry/models/metadata.py:553 registry/models/monitoring.py:74
 #: registry/models/security.py:150 registry/models/service.py:245
 #: registry/models/update.py:97 registry/serializers/monitoring.py:118
-#: registry/serializers/service.py:54 registry/serializers/service.py:85
+#: registry/serializers/service.py:55 registry/serializers/service.py:86
 #: registry/serializers/update.py:64
 msgid "web map service"
 msgstr "Ihre registrierten Web Map Services"
@@ -1205,7 +1205,7 @@ msgstr ""
 #: registry/models/metadata.py:573 registry/models/monitoring.py:86
 #: registry/models/security.py:165 registry/models/security.py:180
 #: registry/models/service.py:337 registry/models/update.py:140
-#: registry/serializers/monitoring.py:263 registry/serializers/service.py:550
+#: registry/serializers/monitoring.py:263 registry/serializers/service.py:632
 #: registry/serializers/update.py:82
 msgid "web feature service"
 msgstr "Ihre registrierten Web Feature Services"
@@ -1312,8 +1312,8 @@ msgstr "Treffer"
 msgid "how many times this metadata was requested by a client"
 msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
-#: registry/models/metadata.py:697 registry/serializers/service.py:91
-#: registry/serializers/service.py:558
+#: registry/models/metadata.py:697 registry/serializers/service.py:92
+#: registry/serializers/service.py:640
 msgid "keywords"
 msgstr "Schlüsselwörter"
 
@@ -1390,7 +1390,7 @@ msgstr ""
 "ist."
 
 #: registry/models/metadata.py:910 registry/models/service.py:536
-#: registry/serializers/service.py:167 registry/serializers/service.py:567
+#: registry/serializers/service.py:168 registry/serializers/service.py:649
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
@@ -1729,8 +1729,8 @@ msgstr "Featuretyp bearbeiten"
 msgid "Select one or more feature types."
 msgstr "Wählen Sie einen oder mehere Medientypen."
 
-#: registry/models/security.py:384 registry/serializers/service.py:385
-#: registry/serializers/service.py:586
+#: registry/models/security.py:384 registry/serializers/service.py:467
+#: registry/serializers/service.py:668
 msgid "camouflage"
 msgstr "tarnen"
 
@@ -1744,8 +1744,8 @@ msgstr ""
 "alleInternetadressen von verwiesenen Diensten durch den von MrMap ersetzt "
 "werden."
 
-#: registry/models/security.py:394 registry/serializers/service.py:391
-#: registry/serializers/service.py:592
+#: registry/models/security.py:394 registry/serializers/service.py:473
+#: registry/serializers/service.py:674
 msgid "log response"
 msgstr "Antworten protokollieren"
 
@@ -1906,11 +1906,11 @@ msgstr "alle Zeitbereiche, die für diese Ebene verfügbar sind."
 msgid "the extras service where this element is part of"
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/models/service.py:596 registry/serializers/service.py:124
+#: registry/models/service.py:596 registry/serializers/service.py:125
 msgid "is queryable"
 msgstr "Abfragbar"
 
-#: registry/models/service.py:598 registry/serializers/service.py:127
+#: registry/models/service.py:598 registry/serializers/service.py:128
 msgid ""
 "flag to signal if this layer provides factual information or not. Parsed "
 "from capabilities."
@@ -1918,11 +1918,11 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene Sachinformationen liefert oder nicht. "
 "Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:605 registry/serializers/service.py:133
+#: registry/models/service.py:605 registry/serializers/service.py:134
 msgid "is opaque"
 msgstr "Durchsichtig"
 
-#: registry/models/service.py:607 registry/serializers/service.py:136
+#: registry/models/service.py:607 registry/serializers/service.py:137
 msgid ""
 "flag to signal if this layer support transparency content or not. Parsed "
 "from capabilities."
@@ -1930,11 +1930,11 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene transparent geschaltet werden kann "
 "oder nicht. Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:614 registry/serializers/service.py:142
+#: registry/models/service.py:614 registry/serializers/service.py:143
 msgid "is cascaded"
 msgstr "Kaskadiert"
 
-#: registry/models/service.py:616 registry/serializers/service.py:145
+#: registry/models/service.py:616 registry/serializers/service.py:146
 msgid ""
 "WMS cascading allows to expose layers coming from other WMS servers as if "
 "they were local layers"
@@ -2293,248 +2293,287 @@ msgstr "GetRecords-Überprüfungsergebnisse"
 msgid "results for get records requests"
 msgstr "Ergebnisse für GetRecords-Anfragen"
 
-#: registry/serializers/service.py:56
+#: registry/serializers/service.py:57
 msgid "the web map service, where this operation url is part of."
 msgstr "der Web Map Service, zu dem diese Operations-URL gehört."
 
-#: registry/serializers/service.py:86
+#: registry/serializers/service.py:87
 msgid "the web map service, where this layer is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/serializers/service.py:92
+#: registry/serializers/service.py:93
 msgid "keywords help to find layers by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:101
+#: registry/serializers/service.py:102
 msgid "related dataset metadata objects"
 msgstr "zugehörige Datensatz-Metadatenobjekte"
 
-#: registry/serializers/service.py:110
+#: registry/serializers/service.py:111
 msgid "bbox_l_l"
 msgstr "bbox"
 
-#: registry/serializers/service.py:111 registry/serializers/service.py:118
+#: registry/serializers/service.py:112 registry/serializers/service.py:119
 msgid "this is the spatial extent of the layer."
 msgstr "Dies ist die räumliche Ausdehnung der Ebene."
 
-#: registry/serializers/service.py:117
+#: registry/serializers/service.py:118
 msgid "bbox"
 msgstr "bbox"
 
-#: registry/serializers/service.py:151
+#: registry/serializers/service.py:152
 msgid "minimal scale"
 msgstr "Minimale Skalierung"
 
-#: registry/serializers/service.py:153
+#: registry/serializers/service.py:154
 msgid "the minimum scale value."
 msgstr "minimaler Maßstabswert"
 
-#: registry/serializers/service.py:156
+#: registry/serializers/service.py:157
 msgid "maximum scale"
 msgstr "maximaler Maßstabswert"
 
-#: registry/serializers/service.py:158
+#: registry/serializers/service.py:159
 msgid "the maximum scale value."
 msgstr "maximaler Maßstabswert"
 
-#: registry/serializers/service.py:160 registry/serializers/service.py:181
+#: registry/serializers/service.py:161 registry/serializers/service.py:182
 msgid "styles"
 msgstr "Style"
 
-#: registry/serializers/service.py:161
+#: registry/serializers/service.py:162
 msgid "related styles of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: registry/serializers/service.py:168
+#: registry/serializers/service.py:169
 msgid "available reference systems of this layer."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/serializers/service.py:174
+#: registry/serializers/service.py:175
 msgid "time extents"
 msgstr "Zeitbereiche"
 
-#: registry/serializers/service.py:175
+#: registry/serializers/service.py:176
 msgid "available time extents of this layer."
 msgstr "verfügbare Zeitbereiche dieser Ebene."
 
-#: registry/serializers/service.py:182
+#: registry/serializers/service.py:183
 msgid "available styles of this layer."
 msgstr "verfügbare Stile dieser Ebene."
 
-#: registry/serializers/service.py:188 registry/serializers/service.py:403
-#: registry/serializers/service.py:604
+#: registry/serializers/service.py:189 registry/serializers/service.py:485
+#: registry/serializers/service.py:686
 msgid "is spatial secured"
 msgstr "ist räumlich abgesichert"
 
-#: registry/serializers/service.py:190
+#: registry/serializers/service.py:191
 msgid "true is the layer is spatial secured by a allowed operation object."
 msgstr ""
 "true, wenn die Ebene durch ein erlaubtes Operationsobjekt räumlich "
 "abgesichert ist."
 
-#: registry/serializers/service.py:239
+#: registry/serializers/service.py:251
 msgid "has alert"
 msgstr "Aufmerksamkeit erforderlich"
 
-#: registry/serializers/service.py:240
+#: registry/serializers/service.py:252
 msgid "true if any state of the service needs attention"
 msgstr "true, wenn ein Zustand des Dienstes die Aufmerksamkeit benötigt"
 
-#: registry/serializers/service.py:244
+#: registry/serializers/service.py:256
 msgid "monitoring failed"
 msgstr "Monitoring fehlgeschlagen"
 
-#: registry/serializers/service.py:246
+#: registry/serializers/service.py:258
 msgid "true if the last monitoring run of the service reported a failure"
 msgstr ""
 "true, wenn der letzte Monitoring-Lauf des Dienstes eine Störung gemeldet hat"
 
-#: registry/serializers/service.py:249
+#: registry/serializers/service.py:261
 msgid "monitoring failed at"
 msgstr "Monitoring fehlgeschlagen am"
 
-#: registry/serializers/service.py:251
+#: registry/serializers/service.py:263
 msgid "the point in time the last monitoring run of the service was done"
 msgstr "der Zeitpunkt, an dem der letzte Monitoring-Lauf des Dienstes endete"
 
-#: registry/serializers/service.py:255
+#: registry/serializers/service.py:267
 msgid "update review required"
 msgstr "Aktualisierung benötigt Prüfung"
 
-#: registry/serializers/service.py:257
+#: registry/serializers/service.py:269
 msgid "true if an update of the service waits for a decision about it"
 msgstr "true, wenn eine Aktualisierung des Dienstes auf ihre Prüfung wartet"
 
-#: registry/serializers/service.py:260
+#: registry/serializers/service.py:272
 msgid "update review required at"
 msgstr "Aktualisierung benötigt Prüfung am"
 
-#: registry/serializers/service.py:262
+#: registry/serializers/service.py:274
 msgid "the point in time the update which waits for a decision was made"
 msgstr ""
 "der Zeitpunkt, an dem die Aktualisierung, die auf ihre Prüfung wartet, "
 "erstellt wurde"
 
-#: registry/serializers/service.py:265
+#: registry/serializers/service.py:277
 msgid "update failed"
 msgstr "Aktualisierung fehlgeschlagen"
 
-#: registry/serializers/service.py:267
+#: registry/serializers/service.py:279
 msgid "true if the last update of the service came back broken"
 msgstr "true, wenn die letzte Aktualisierung des Dienstes fehlgeschlagen ist"
 
-#: registry/serializers/service.py:270
+#: registry/serializers/service.py:282
 msgid "update failed at"
 msgstr "Aktualisierung fehlgeschlagen am"
 
-#: registry/serializers/service.py:272
+#: registry/serializers/service.py:284
 msgid "the point in time the last update of the service was made"
 msgstr ""
 "der Zeitpunkt, an dem die letzte Aktualisierung des Dienstes erstellt wurde"
 
-#: registry/serializers/service.py:372 registry/serializers/service.py:659
-#: registry/serializers/service.py:803
+#: registry/serializers/service.py:297
+msgid "monitoring failed run"
+msgstr "fehlgeschlagener Monitoring-Lauf"
+
+#: registry/serializers/service.py:299
+msgid ""
+"the monitoring run which reported the failure, answered as its identifier "
+"and nothing if the service needs no attention in monitoring"
+msgstr ""
+"der Monitoring-Lauf, der den Fehler gemeldet hat, beantwortet als seine "
+"Kennung und nichts, wenn der Dienst beim Monitoring nichts zu beachten hat"
+
+#: registry/serializers/service.py:305
+msgid "update review job"
+msgstr "Job der ausstehenden Aktualisierung"
+
+#: registry/serializers/service.py:307
+msgid ""
+"the update job which waits for a decision, answered as its identifier and "
+"nothing if the service waits for a decision because of a dangling update "
+"candidate only"
+msgstr ""
+"der Aktualisierungsjob, der auf eine Entscheidung wartet, beantwortet als "
+"seine Kennung und nichts, wenn der Dienst nur wegen einer hängen gebliebenen "
+"Aktualisierung auf eine Entscheidung wartet"
+
+#: registry/serializers/service.py:313
+msgid "update failed job"
+msgstr "fehlgeschlagener Aktualisierungsjob"
+
+#: registry/serializers/service.py:315
+msgid ""
+"the update job which came back broken, answered as its identifier and "
+"nothing if the last update of the service did not fail"
+msgstr ""
+"der Aktualisierungsjob, der fehlerhaft zurückkam, beantwortet als seine "
+"Kennung und nichts, wenn die letzte Aktualisierung des Dienstes nicht "
+"fehlgeschlagen ist"
+
+#: registry/serializers/service.py:454 registry/serializers/service.py:741
+#: registry/serializers/service.py:894
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
-#: registry/serializers/service.py:373 registry/serializers/service.py:660
-#: registry/serializers/service.py:804
+#: registry/serializers/service.py:455 registry/serializers/service.py:742
+#: registry/serializers/service.py:895
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
-#: registry/serializers/service.py:387 registry/serializers/service.py:588
+#: registry/serializers/service.py:469 registry/serializers/service.py:670
 msgid "true means the service only accessable via mrmap proxy"
 msgstr "true bedeutet, dass der Dienst nur über den mrmap-Proxy erreichbar ist"
 
-#: registry/serializers/service.py:393 registry/serializers/service.py:594
+#: registry/serializers/service.py:475 registry/serializers/service.py:676
 msgid "true means that all responses via mrmap proxy are detected and logged"
 msgstr ""
 "true bedeutet, dass alle Antworten über den mrmap-Proxy erkannt und "
 "protokolliert werden"
 
-#: registry/serializers/service.py:397 registry/serializers/service.py:598
+#: registry/serializers/service.py:479 registry/serializers/service.py:680
 msgid "is secured"
 msgstr "ist abgesichert"
 
-#: registry/serializers/service.py:399 registry/serializers/service.py:600
+#: registry/serializers/service.py:481 registry/serializers/service.py:682
 msgid "true means the service is secured by a allowed operation object."
 msgstr ""
 "true bedeutet, dass der Dienst durch ein erlaubtes Operationsobjekt "
 "abgesichert ist."
 
-#: registry/serializers/service.py:405 registry/serializers/service.py:606
+#: registry/serializers/service.py:487 registry/serializers/service.py:688
 msgid ""
 "true means the service is spatial secured by a allowed operation object."
 msgstr ""
 "true bedeutet, dass der Dienst durch ein erlaubtes Operationsobjekt räumlich "
 "abgesichert ist."
 
-#: registry/serializers/service.py:409
+#: registry/serializers/service.py:491
 msgid "secured xml backup file"
 msgstr "gesicherte XML-Sicherungsdatei"
 
-#: registry/serializers/service.py:411
+#: registry/serializers/service.py:493
 msgid "the original xml backup file as secured url to restore the xml field."
 msgstr ""
 "die ursprüngliche XML-Sicherungsdatei als gesicherte URL, um das XML-Feld "
 "wiederherzustellen."
 
-#: registry/serializers/service.py:416 registry/serializers/service.py:668
-#: registry/serializers/service.py:818
+#: registry/serializers/service.py:498 registry/serializers/service.py:750
+#: registry/serializers/service.py:909
 msgid "monitoring settings"
 msgstr "Monitoring-Einstellungen"
 
-#: registry/serializers/service.py:417 registry/serializers/service.py:669
-#: registry/serializers/service.py:819
+#: registry/serializers/service.py:499 registry/serializers/service.py:751
+#: registry/serializers/service.py:910
 msgid "This are the configured monitoring settings."
 msgstr "Dies sind die konfigurierten Monitoring-Einstellungen."
 
-#: registry/serializers/service.py:423
+#: registry/serializers/service.py:505
 msgid "update settings"
 msgstr "Aktualisierungseinstellungen"
 
-#: registry/serializers/service.py:424
+#: registry/serializers/service.py:506
 msgid "This are the configured update settings."
 msgstr "Dies sind die konfigurierten Aktualisierungseinstellungen."
 
-#: registry/serializers/service.py:430
+#: registry/serializers/service.py:512
 msgid "preview url"
 msgstr "Vorschau-URL"
 
-#: registry/serializers/service.py:431
+#: registry/serializers/service.py:513
 msgid "the url to the preview image of the service."
 msgstr "die URL zum Vorschaubild des Dienstes."
 
-#: registry/serializers/service.py:498
+#: registry/serializers/service.py:580
 msgid "get capabilities url"
 msgstr "Capabilities"
 
-#: registry/serializers/service.py:499
+#: registry/serializers/service.py:581
 msgid "a valid get capabilities url."
 msgstr "Capabilities"
 
-#: registry/serializers/service.py:505
+#: registry/serializers/service.py:587
 msgid "authentication credentials"
 msgstr "Authentifizierungstyp"
 
-#: registry/serializers/service.py:506
+#: registry/serializers/service.py:588
 msgid "Optional authentication credentials to request the remote service."
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
-#: registry/serializers/service.py:509
+#: registry/serializers/service.py:591
 msgid "owner"
 msgstr "Besitzer"
 
-#: registry/serializers/service.py:510
+#: registry/serializers/service.py:592
 msgid "The selected organization grants all rights on the registered service."
 msgstr ""
 "Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
 
-#: registry/serializers/service.py:513
+#: registry/serializers/service.py:595
 msgid "collect metadata records"
 msgstr "Metadaten wiederherstellen"
 
-#: registry/serializers/service.py:514
+#: registry/serializers/service.py:596
 msgid ""
 "If checked, Mr. Map collects all related metadata documents after the "
 "registration task."
@@ -2542,34 +2581,34 @@ msgstr ""
 "Wenn Sie die Checkbox aktivieren, sammelt Mr. Map alle verbundenen "
 "Metadatendokumente nach der Registrierung herunter."
 
-#: registry/serializers/service.py:552
+#: registry/serializers/service.py:634
 msgid "the web feature service, where this featuretype is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/serializers/service.py:559
+#: registry/serializers/service.py:641
 msgid "keywords help to find featuretypes by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:568
+#: registry/serializers/service.py:650
 msgid "available reference systems of this featuretype."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/serializers/service.py:755
+#: registry/serializers/service.py:837
 msgid "harvest aborted"
 msgstr "Harvesting abgebrochen"
 
-#: registry/serializers/service.py:757
+#: registry/serializers/service.py:839
 msgid ""
 "true if the last harvesting job of the catalogue ended before it was done"
 msgstr ""
 "true, wenn der letzte Harvesting-Lauf des Katalogs vor seinem Ende "
 "abgebrochen wurde"
 
-#: registry/serializers/service.py:761
+#: registry/serializers/service.py:843
 msgid "harvest incomplete"
 msgstr "Harvesting unvollständig"
 
-#: registry/serializers/service.py:763
+#: registry/serializers/service.py:845
 msgid ""
 "true if the last harvesting job of the catalogue could not import records "
 "into the registry"
@@ -2577,24 +2616,38 @@ msgstr ""
 "true, wenn der letzte Harvesting-Lauf des Katalogs keine Metadaten in die "
 "Registry übernehmen konnte"
 
-#: registry/serializers/service.py:767
+#: registry/serializers/service.py:849
 msgid "harvest failed at"
 msgstr "Harvesting fehlgeschlagen am"
 
-#: registry/serializers/service.py:769
+#: registry/serializers/service.py:851
 msgid "the point in time the last harvesting job of the catalogue was made"
 msgstr ""
 "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"
 
-#: registry/serializers/service.py:810
+#: registry/serializers/service.py:855
+msgid "harvest job"
+msgstr "Ernteaufgabe"
+
+#: registry/serializers/service.py:857
+msgid ""
+"the harvesting job of the catalogue which ended before it was done or which "
+"left records behind, answered as its identifier and nothing if the last "
+"harvesting of the catalogue needs no attention"
+msgstr ""
+"die Ernteaufgabe des Katalogs, die vor dem Abschluss endete oder welche "
+"Datensätze zurückließ, beantwortet als ihre Kennung und nichts, wenn das "
+"letzte Harvesting des Katalogs nichts zu beachten hat"
+
+#: registry/serializers/service.py:901
 msgid "periodic harvesting jobs"
 msgstr "periodische Ernteaufgaben"
 
-#: registry/serializers/service.py:811
+#: registry/serializers/service.py:902
 msgid "this are the related harvesting job objects."
 msgstr "dies sind die zugehörigen Ernteaufgaben."
 
-#: registry/serializers/service.py:853
+#: registry/serializers/service.py:948
 msgid "the catalogue service, where this operation url is part of."
 msgstr "der Katalogdienst, zu dem diese Operations-URL gehört."
 
@@ -2753,7 +2806,7 @@ msgstr "Diese Ressource ist aktiviert."
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
 
-#: system/apps.py:81
+#: system/apps.py:89
 msgid "System"
 msgstr "System"
 

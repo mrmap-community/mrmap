@@ -22,8 +22,8 @@ was followed by a passing one does not need attention any more.
 """
 from camel_converter import to_camel
 from django.db.models import (BooleanField, Case, CharField, Exists,
-                              ExpressionWrapper, F, OuterRef, Q, Subquery,
-                              Value, When)
+                              ExpressionWrapper, F, IntegerField, OuterRef, Q,
+                              Subquery, Value, When)
 from django.db.models.functions import Cast, Coalesce, Concat
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.enums.update import UpdateJobStatusEnum
@@ -46,15 +46,24 @@ ERROR_STATUS = UpdateJobStatusEnum.ERROR.value
 #: the phase of a harvesting job which ended before it was done
 ABORTED_PHASE = HarvestingPhaseEnum.ABORTED.value
 
-#: the attributes which answer the attention of every kind of service
+#: the attributes which answer the attention of every kind of service. The
+#: attributes which end in `_run` and `_job` answer *which* run or job decided
+#: an alert as the identifier of that row - they are answered by the very
+#: subqueries which decide the alert next to them, so that a state and its
+#: reference can never disagree, and the serializers of the services expose
+#: them as relationships to the records behind them, which `alert_records()`
+#: loads for a whole page of services at once.
 ALERT_ATTRIBUTES = (
     'has_alert',
     'monitoring_failed',
     'monitoring_failed_at',
+    'monitoring_failed_run',
     'update_review_required',
     'update_review_required_at',
+    'update_review_job',
     'update_failed',
     'update_failed_at',
+    'update_failed_job',
 )
 
 #: the attributes which answer the attention of a catalogue in addition
@@ -62,6 +71,7 @@ HARVEST_ALERT_ATTRIBUTES = (
     'harvest_aborted',
     'harvest_incomplete',
     'harvest_failed_at',
+    'harvest_job',
 )
 
 
@@ -251,6 +261,7 @@ def alert_annotations(queryset):
         # a run names the point in time it was done with `date_done`, while a
         # job names it `done_at` - see the models of the runs and the jobs
         alert_newest_run_moment=moment(newest, field='date_done'),
+        alert_newest_job=Subquery(newest_update_job.values('pk')[:1]),
         alert_newest_job_status=Subquery(
             newest_update_job.values('status')[:1]),
         alert_newest_job_moment=moment(newest_update_job),
@@ -268,10 +279,23 @@ def alert_annotations(queryset):
         monitoring_failed=is_true(failing_run),
         monitoring_failed_at=Case(
             When(failing_run, then=F('alert_newest_run_moment'))),
+        # a failing monitoring is decided by two rows which are the same row -
+        # the newest run of the service answers the failing one, so the newest
+        # run is the record behind the alert
+        monitoring_failed_run=Case(
+            When(failing_run, then=F('alert_newest_run')),
+            output_field=IntegerField()),
         update_failed=is_true(failed_job),
         update_failed_at=Case(
             When(failed_job, then=F('alert_newest_job_moment'))),
+        update_failed_job=Case(
+            When(failed_job, then=F('alert_newest_job')),
+            output_field=IntegerField()),
         update_review_required_at=F('alert_review_job_moment'),
+        # an update can wait for a decision without a job which waits for it,
+        # because only a candidate of an update dangles - nothing to decide
+        # about at a job answers no job then
+        update_review_job=F('alert_review_job_id'),
     )
 
     if kind.harvesting_job is not None:
@@ -333,7 +357,51 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
         harvest_failed_at=Case(
             When(aborted | incomplete,
                  then=F('alert_newest_harvest_moment'))),
+        harvest_job=Case(
+            When(aborted | incomplete, then=F('alert_newest_harvest')),
+            output_field=IntegerField()),
     )
+
+
+def alert_records(services: list) -> dict:
+    """Load the rows which decided the alerts of some services.
+
+    The annotations of the alerts answer the deciding rows as identifiers,
+    while a serializer which answers them as relationships needs the rows
+    themselves. Fetching a row per service would ask the database once per
+    alert of a page, so the identifiers of a page are collected and read in
+    one query per kind of row instead - a page of services pays three queries
+    at most, no matter how many services it holds.
+
+    Args:
+        services (list): the services of a page, annotated by `alert_annotations`
+
+    Returns:
+        dict: the rows behind the alerts, by the model of the row and its
+            identifier
+    """
+    ids_by_model = {}
+
+    def collect(model, identifier):
+        if identifier is not None:
+            ids_by_model.setdefault(model, set()).add(identifier)
+
+    for service in services:
+        kind = SERVICE_KIND_OF.get(type(service))
+        if kind is None:
+            continue
+        collect(kind.monitoring_run,
+                getattr(service, 'monitoring_failed_run', None))
+        collect(kind.update_job, getattr(service, 'update_failed_job', None))
+        collect(kind.update_job, getattr(service, 'update_review_job', None))
+        if kind.harvesting_job is not None:
+            collect(kind.harvesting_job,
+                    getattr(service, 'harvest_job', None))
+
+    return {
+        model: {row.pk: row for row in model.objects.filter(pk__in=ids)}
+        for model, ids in ids_by_model.items()
+    }
 
 
 def alerts_requested(request, resource: str, attributes: tuple) -> bool:

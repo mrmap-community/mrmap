@@ -81,13 +81,18 @@ const ServiceDetailsCard = ({
           <>
             {openDetails && (
               <ShowButton
-                key={record.id}
                 label="serviceShow.openDetails"
                 variant="outlined"
                 sx={{ flex: 1, minWidth: 0 }}
               />
             )}
             {protocol === "WMS" && (
+              /* the capabilities URL of the map viewer lives in the state of the
+                 button, so a new record must remount it - the open details button
+                 above needs no key of its own: it answers its way from the record
+                 context on every render and a second child of the same key as the
+                 one of this button leaves an open details button of a selection
+                 before behind */
               <MapViewerButton
                 key={record.id}
                 label="serviceShow.openMapViewer"

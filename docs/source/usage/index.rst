@@ -125,6 +125,17 @@ and table structure; remote scripts and other active markup are never executed.
 The raw response can be expanded and downloaded. Collapse the inspector to uncover
 the map while keeping results, or clear the selection to cancel pending requests.
 
+The viewer keeps a local draft of the composed map, so a browser reload restores it, and offers
+three transfer actions: "export map as file" downloads the composed map as a GeoJSON document,
+"open map from file" loads such a document back through the same import validation as any URL
+import, and "share map link" puts the document into the link fragment for a shareable URL.
+Exports and share links never carry credentials - protected services ask for them again - and a
+shared link wins over the local draft when both are present. Saved server side map contexts
+(`MapContext`) describe their layers by references to registry resources and cannot yet represent
+a composed viewer document with its own service URLs, drawings, styles and dimensions; a
+server-side document storage API would be required to offer named, permissioned saved maps and
+is reported as follow-up work.
+
 Credentials remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for

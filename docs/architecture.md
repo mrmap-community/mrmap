@@ -118,6 +118,15 @@ disappears as soon as the state behind it is fixed, which means that no model
 and no migration backs it, and it is answered to exactly those users which may
 see the service it tells about.
 
+Next to a state, an alert names the record which decided it: `monitoringFailedRun`,
+`updateReviewJob` and `updateFailedJob` answer the run or job behind the alert of a
+service and, for a catalogue, `harvestJob` answers the harvesting which ran. These
+references are identifiers of the row which decided the alert and no relationships,
+so the record is read at the endpoint of its own kind and a client which may not read
+it is answered nothing but the alert of its own service. An alert can wait without a
+record to decide it: an update which waits only because a candidate of it dangles
+answers no `updateReviewJob`.
+
 The schedules a service did not keep are not answered this way, because the time
 a crontab promised a run at is calculated in python and not by the database: the
 monitoring and update settings of a service answer their `runOverdue` instead

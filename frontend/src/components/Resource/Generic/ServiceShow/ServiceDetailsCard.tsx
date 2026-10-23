@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import {
   Labeled,
+  ShowButton,
   SimpleShowLayout,
   UrlField,
   useRecordContext,
@@ -15,6 +16,8 @@ import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils
 import SimpleCard from "../../../MUI/SimpleCard";
 import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import ActivateServiceButton from "./ActivateServiceButton";
+import ServiceAlertChips from "./ServiceAlertChips";
+import ServiceOutcomes from "./ServiceOutcomes";
 import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
@@ -39,8 +42,17 @@ export function capabilitiesUrl(
 
 const ServiceDetailsCard = ({
   protocol,
+  attention,
+  openDetails,
 }: {
   protocol: ServiceProtocol;
+  /** the states of the service which need attention and the outcome of its last
+   *  run and job, which the screen which only selects a service shows beside its
+   *  identity - a screen which shows the service itself answers them apart */
+  attention?: boolean;
+  /** the way to the screen of the service, which the card of a service which is
+   *  only selected cannot show by itself */
+  openDetails?: boolean;
 }) => {
   const resource = useResourceContext();
   const record = useRecordContext();
@@ -67,7 +79,20 @@ const ServiceDetailsCard = ({
       footer={
         record ? (
           <>
+            {openDetails && (
+              <ShowButton
+                label="serviceShow.openDetails"
+                variant="outlined"
+                sx={{ flex: 1, minWidth: 0 }}
+              />
+            )}
             {protocol === "WMS" && (
+              /* the capabilities URL of the map viewer lives in the state of the
+                 button, so a new record must remount it - the open details button
+                 above needs no key of its own: it answers its way from the record
+                 context on every render and a second child of the same key as the
+                 one of this button leaves an open details button of a selection
+                 before behind */
               <MapViewerButton
                 key={record.id}
                 label="serviceShow.openMapViewer"
@@ -105,6 +130,21 @@ const ServiceDetailsCard = ({
             <Labeled label="serviceShow.capabilities">
               <UrlField source="url" record={{ id: record?.id, url }} />
             </Labeled>
+          )}
+          {attention && (
+            <Stack spacing={0.5} sx={{ pt: 1, minWidth: 0 }}>
+              <Stack
+                direction="row"
+                spacing={0.5}
+                sx={{ alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+              >
+                <ServiceAlertChips record={record} />
+              </Stack>
+              {/* the record of the last run and job belongs to one service, so a
+                  new selection asks for the record of the service it names and
+                  not for the record of the service before it */}
+              <ServiceOutcomes key={`${resource}:${record.id}`} />
+            </Stack>
           )}
         </SimpleShowLayout>
       </Stack> : (

@@ -10,6 +10,17 @@ import HistoryList from "../../../HistoryList";
 import SimpleCard from "../../../MUI/SimpleCard";
 import SelectedServiceDetailsCard from "../ServiceShow/SelectedServiceDetailsCard";
 
+/**
+ * The aside of the screen of the registered services of one kind of service.
+ *
+ * The card of the service which is selected comes first, because a screen of
+ * services is navigated by looking at one service after another: its identity,
+ * the states which need attention and the outcome of its last run and job are
+ * answered above the changelog, and the way to the screen of the service is
+ * offered next to its identity. The changelog is asked for the selected service
+ * when there is one and for all services of the resource when there is none,
+ * which its subheader names.
+ */
 const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
   const resource = useResourceContext();
   const historyResource = `Historical${resource}`;
@@ -30,6 +41,7 @@ const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
         alignSelf: "flex-start",
       }}
     >
+      <SelectedServiceDetailsCard protocol={protocol} />
       {historyOperation && resource && (
         <SimpleCard
           headerProps={{ sx: { flexShrink: 0 } }}
@@ -47,10 +59,17 @@ const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
               })
             : translate("historyList.allServices")}
         >
-          <HistoryList resource={historyResource} related={resource} record={undefined} />
+          {/* the events of the changelog belong to one service, so a new selection
+              asks for the events of the service it names and not for the events of
+              the service before it */}
+          <HistoryList
+            key={selectedRecord?.id ?? "all"}
+            resource={historyResource}
+            related={resource}
+            record={undefined}
+          />
         </SimpleCard>
       )}
-      <SelectedServiceDetailsCard protocol={protocol} />
     </Stack>
   );
 };

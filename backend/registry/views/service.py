@@ -42,8 +42,8 @@ from registry.models.service import (CatalogueService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
 from registry.models.update import WebMapServiceUpdateSetting
-from registry.querys.alerts import (SERVICE_KIND_OF, alerts_requested,
-                                    has_alert_annotations)
+from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
+                                    alerts_requested, has_alert_annotations)
 from registry.querys.service import LayerPrefetch
 from registry.querys.explorer import ServiceExplorerMixin
 from registry.serializers.service import (
@@ -157,6 +157,25 @@ class ServiceAlertAnnotationMixin:
         if not has_alert_annotations(queryset):
             queryset = self.with_alerts_if_requested(queryset)
         return super().filter_queryset(queryset)
+
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Read the rows behind the references of the alerts of a page.
+
+        The references of the alerts name rows of other resources, and a page
+        of services shares nothing of them with any other page: they are read
+        once for the page, so that no request asks the database per service or
+        per alert it answers.
+        """
+        page = super().paginate_queryset(queryset, *args, **kwargs)
+        if page and has_alert_annotations(queryset):
+            self.alert_records = alert_records(page)
+        return page
+
+    def get_serializer_context(self):
+        """Hand the rows read for the page to the serializers."""
+        context = super().get_serializer_context()
+        context['alert_records'] = getattr(self, 'alert_records', None)
+        return context
 
 
 class ServicePreviewMixin:

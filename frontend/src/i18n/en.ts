@@ -365,7 +365,18 @@ const en = lodashMerge(
     serviceAttention: {
       title: "Attention of this service",
       none: "Nothing about this service needs the attention of an administrator.",
-      at: "since",
+      dates: {
+        lastRunDone: "the last monitoring run which failed ended at",
+        lastUpdateDone: "the last update which failed ended at",
+        waitingSince: "the update waits for a decision since",
+        harvestDone: "the harvesting ended at",
+      },
+      records: {
+        MonitoringRun: "Show the run",
+        UpdateJob: "Show the update",
+        HarvestingJob: "Show the harvesting",
+      },
+      noRecord: "This state has no record to look at, it is asked about at the service itself.",
       shortLabels: {
         noAlerts: "No alerts",
         monitoringFailed: "Monitoring failed",
@@ -543,6 +554,16 @@ const en = lodashMerge(
       activated: "The service is activated",
       deactivated: "The service is deactivated",
       activationFailed: "Unable to change the activation of the service.",
+      openDetails: "Open details",
+      outcome: {
+        lastMonitoring: "last monitoring run:",
+        lastUpdate: "last update:",
+        passed: "passed",
+        failed: "failed",
+        none: "not recorded yet",
+        asking: "asking",
+        unavailable: "not readable",
+      },
       metadata: "Metadata",
       capabilities: "GetCapabilities URL",
       operationUrls: "Operation URLs",

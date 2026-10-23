@@ -84,6 +84,20 @@ const en = lodashMerge(
       "redacted": "Secret values are omitted from this document.",
       "blocked": "Credentials are not configured for this operation origin."
     },
+    viewerFeatureInfo: {
+      featurePage: "Feature %{current} of %{total}",
+      title: "Feature information",
+      identify: "Identify",
+      reopen: "Identify results",
+      collapse: "Collapse results",
+      clear: "Clear",
+      hint: "Click Identify, then a location. Right-click also works.",
+
+      "loading": "Loading feature information…",
+      "error": "The feature information could not be retrieved.",
+      "raw": "Open raw response",
+      "tooltip": "Click on the marker to see feature information"
+    },
     livePreview: {
       "title": "Live preview",
       "storedDiscovery": "Layer and feature-type choices come from stored capabilities. Images, features and catalogue records are fetched live.",
@@ -104,8 +118,9 @@ const en = lodashMerge(
       "emptyRecords": "No live catalogue records returned.",
       "noIdentify": "Identify is unavailable for this layer.",
       "identify": "Identify at map centre",
-      "featureInfo": "Open GetFeatureInfo result",
-      "htmlNotRendered": "The service returned markup, which is not rendered for security reasons. The raw result is shown below.",
+      "featureInfo": "Download raw response",
+      "rawResponse": "Raw response",
+      "noFeatures": "No features at this position.",
       "attributes": "Select feature attributes",
       "record": "Catalogue record",
       "coverage": "Metadata coverage · current page only. These extents are not feature geometry.",

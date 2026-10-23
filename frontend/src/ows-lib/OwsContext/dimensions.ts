@@ -1,22 +1,25 @@
 import type { Offering, OfferingDimension } from './types';
 
+import moment from 'moment';
+
 /**
  * WMS asks the request for an advertised dimension through a well known parameter:
- * "elevation" answers as ELEVATION and every other advertised name as DIM_<name>.
+ * Standard time/elevation use TIME/ELEVATION; custom dimensions use DIM_<name>.
  */
 export const getDimensionParameter = (name: string): string => {
     const trimmed = name.trim();
     if (trimmed.toLowerCase() === 'elevation') return 'ELEVATION';
+    if (trimmed.toLowerCase() === 'time') return 'TIME';
     return `DIM_${trimmed.replace(/^dim_/i, '').toUpperCase()}`;
 };
 
 export type AdvertisedValues =
     | { kind: 'list'; values: string[] }
-    | { kind: 'range'; start: number; stop: number; step?: number };
+    | { kind: 'range'; start: number; stop: number; step?: number }
+    | { kind: 'time-range'; start: string; stop: string; step?: string };
 
 /**
- * The stated value text of a dimension. Only a slash separated numeric pair or triple counts as a
- * range; everything else - including ISO 8601 time spans - stays a list of selectable values.
+ * Read advertised numeric and ISO 8601 temporal intervals without expanding large ranges.
  */
 export const parseAdvertisedValues = (values: string): AdvertisedValues => {
     const parts = values.split('/');
@@ -27,6 +30,13 @@ export const parseAdvertisedValues = (values: string): AdvertisedValues => {
         const step = parts.length === 3 ? Number(parts[2]) : undefined;
         return { kind: 'range', start, stop, ...(step !== undefined && step > 0 ? { step } : {}) };
     }
+    if ((parts.length === 2 || parts.length === 3) &&
+        moment.utc(parts[0], moment.ISO_8601, true).isValid() &&
+        moment.utc(parts[1], moment.ISO_8601, true).isValid() &&
+        moment.utc(parts[0]).valueOf() <= moment.utc(parts[1]).valueOf() &&
+        (parts[2] === undefined || (/^P(?=.+)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=.+)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/.test(parts[2]) && moment.duration(parts[2]).asMilliseconds() > 0))) {
+        return { kind: 'time-range', start: parts[0], stop: parts[1], ...(parts[2] && { step: parts[2] }) };
+    }
     return { kind: 'list', values: values.split(',').map(value => value.trim()).filter(Boolean) };
 };
 
@@ -36,6 +46,25 @@ export const isAllowedDimensionValue = (dimension: OfferingDimension, value: str
     const advertised = parseAdvertisedValues(dimension.values);
     if (advertised.kind === 'list')
         return advertised.values.includes(value) || value === dimension.default;
+    if (advertised.kind === 'time-range') {
+        if (value === dimension.default || value === dimension.values) return true;
+        const instant = moment.utc(value, moment.ISO_8601, true);
+        const start = moment.utc(advertised.start);
+        const stop = moment.utc(advertised.stop);
+        if (!instant.isValid() || instant.isBefore(start) || instant.isAfter(stop)) return false;
+        if (!advertised.step) return true;
+        const at = (index: number) => timeRangeInstant(advertised, index);
+        let low = 0, high = 1;
+        while (at(high) < instant.valueOf() && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
+        while (low <= high) {
+            const middle = Math.floor((low + high) / 2);
+            const candidate = at(middle);
+            if (candidate === instant.valueOf()) return true;
+            if (candidate < instant.valueOf()) low = middle + 1;
+            else high = middle - 1;
+        }
+        return false;
+    }
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return false;
     if (numeric < Math.min(advertised.start, advertised.stop)
@@ -52,7 +81,7 @@ export const getWmsDimensionSelection = (offering: Offering, dimension: Offering
         ?? offering.operations?.find(item => item.code === 'GetFeatureInfo');
     if (operation === undefined) return '';
     const current = [...new URL(operation.href).searchParams.entries()]
-        .find(([key]) => key.toUpperCase() === parameter)?.[1];
+        .find(([key]) => key.toUpperCase() === parameter || (parameter === 'TIME' && key.toUpperCase() === 'DIM_TIME'))?.[1];
     return current ?? dimension.default ?? '';
 };
 
@@ -70,9 +99,71 @@ export const setWmsDimension = (offering: Offering, name: string, value: string)
         .forEach(operation => {
             const url = new URL(operation.href);
             [...url.searchParams.keys()]
-                .filter(key => key.toUpperCase() === parameter)
+                .filter(key => key.toUpperCase() === parameter || (parameter === 'TIME' && key.toUpperCase() === 'DIM_TIME'))
                 .forEach(key => url.searchParams.delete(key));
             if (value !== '') url.searchParams.set(parameter, value);
             operation.href = url.href;
         });
+};
+
+/** Non-default selections shown beside the layer, using the same values as its requests. */
+export const getWmsDimensionOverrides = (offering?: Offering) =>
+    (offering?.dimensions ?? []).flatMap(dimension => {
+        const value = getWmsDimensionSelection(offering!, dimension);
+        if (value === '' || value === dimension.default) return [];
+        const a = moment.utc(value, moment.ISO_8601, true);
+        const b = moment.utc(dimension.default ?? '', moment.ISO_8601, true);
+        if (a.isValid() && b.isValid() && a.isSame(b)) return [];
+        return [{ name: dimension.name, value }];
+    });
+
+// Anchor calendar steps at the advertised start, without enumerating large time ranges.
+const timeRangeInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' }>, index: number) => {
+    const duration = moment.duration(range.step);
+    const milliseconds = duration.days() * 86400000 + duration.hours() * 3600000 +
+        duration.minutes() * 60000 + duration.seconds() * 1000 + duration.milliseconds();
+    return moment.utc(range.start)
+        .add((duration.years() * 12 + duration.months()) * index, 'months')
+        .add(milliseconds * index, 'milliseconds').valueOf();
+};
+
+/** A slider position names an available timestamp, even for calendar or irregular steps. */
+export const getTimeDimensionAxis = (dimension: OfferingDimension) => {
+    if (!/^(?:dim_)?time$/i.test(dimension.name) && dimension.units !== 'ISO8601') return undefined;
+    const advertised = parseAdvertisedValues(dimension.values);
+    let count: number;
+    let instantAt: (index: number) => number;
+    let valueAt: (index: number) => string;
+    if (advertised.kind === 'time-range' && advertised.step) {
+        instantAt = index => timeRangeInstant(advertised, index);
+        if (!(instantAt(1) > instantAt(0))) return undefined;
+        const stop = moment.utc(advertised.stop).valueOf();
+        let low = 0, high = 1;
+        while (instantAt(high) <= stop && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
+        while (low + 1 < high) {
+            const middle = Math.floor((low + high) / 2);
+            if (instantAt(middle) <= stop) low = middle;
+            else high = middle;
+        }
+        count = low + 1;
+        valueAt = index => moment.utc(instantAt(index)).toISOString();
+    } else if (advertised.kind === 'list' && advertised.values.length > 0 && advertised.values.every(value => moment.utc(value, moment.ISO_8601, true).isValid())) {
+        const values = [...new Set(advertised.values)].sort((a, b) => moment.utc(a).valueOf() - moment.utc(b).valueOf());
+        count = values.length;
+        instantAt = index => moment.utc(values[index]).valueOf();
+        valueAt = index => values[index];
+    } else return undefined; // Continuous ranges retain their exact date input.
+    const indexOf = (value: string) => {
+        const target = moment.utc(value, moment.ISO_8601, true).valueOf();
+        if (!Number.isFinite(target)) return -1;
+        let low = 0, high = count - 1;
+        while (low <= high) {
+            const middle = Math.floor((low + high) / 2), instant = instantAt(middle);
+            if (instant === target) return middle;
+            if (instant < target) low = middle + 1;
+            else high = middle - 1;
+        }
+        return -1;
+    };
+    return { count, valueAt, indexOf };
 };

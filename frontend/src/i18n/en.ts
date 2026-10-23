@@ -9,8 +9,6 @@ const en = lodashMerge(
       options: "Options for %{layer}",
       noStyles: "No advertised styles available.",
       legendTitle: "Legend",
-      immediate: "Changes apply immediately",
-      done: "Done",
       custom: "Custom style",
 
       style: "Style for %{layer}",
@@ -19,7 +17,18 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    viewerControls: {
+      selectLayer: "Select a layer in the tree to edit its style and dimensions.",
+      edit: "Edit %{layer}",
+      title: "Layer settings",
+      pin: "Pin timeline",
+      unpin: "Unpin timeline",
+      timeline: "Pinned timeline",
+    },
     viewerDimensions: {
+      position: "%{current} of %{total}",
+      sliderHint: "Drag to preview; release to update. Arrow keys move one step. Enter an exact UTC time and leave the field to apply.",
+      custom: "Custom dimension values",
       title: "Dimensions",
       dimension: "Dimension %{name}",
       serverDefault: "Server default",

@@ -1,18 +1,19 @@
-import { useId, type PropsWithChildren, type ReactNode } from 'react'
-import { type SimpleShowLayoutProps } from 'react-admin'
+import { useCallback, useId, type PropsWithChildren, type ReactNode } from 'react'
+import { useTranslate, type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 import { useLocation } from 'react-router-dom'
 
-import { Box, Divider, Stack } from '@mui/material'
+import { Box, Divider, Stack, useMediaQuery, useTheme } from '@mui/material'
 import { CRS } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
 import BottomDrawer from '../Drawer/BottomDrawer'
-import { DrawerBase } from '../Drawer/DrawerContext'
+import { DrawerBase, useDrawerContext } from '../Drawer/DrawerContext'
 import RightDrawer from '../Drawer/RightDrawer'
-import LayerTree from '../LayerTree/LayerTree'
+import { ContextMenuBase } from '../LayerTree/ContextMenu/ContextMenuBase'
+import LayerTree, { LayerControlsPanel } from '../LayerTree/LayerTree'
 import WebMapServiceControl from '../MapContainer/GetMapControl'
-import { TabListBase } from '../Tab/TabListContext'
+import { TabListBase, useTabListContext } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
 import { MapViewerBase, useMapViewerBase } from './MapViewerBase'
@@ -32,13 +33,27 @@ export interface Tile {
   getFeatureinfoUrl?: URL
 }
 
-const MapViewerCore = (): ReactNode => {
+const ViewerLayerControls = ({ children }: PropsWithChildren) => {
+  const { setBottomDrawer } = useDrawerContext();
+  const { setTabList } = useTabListContext();
+  const open = useCallback(() => {
+    setBottomDrawer(previous => ({ ...previous, isOpen: true }));
+    setTabList(previous => ({ ...previous, activeTab: '2' }));
+  }, [setBottomDrawer, setTabList]);
+  return <ContextMenuBase onOpenControls={open}>{children}</ContextMenuBase>;
+};
+
+export const MapViewerCore = (): ReactNode => {
   const containerId = useId()
   const {map, setMap} = useMapViewerBase()
+  const translate = useTranslate()
+  const theme = useTheme()
+  const wide = useMediaQuery(theme.breakpoints.up('md'))
 
   return (
       <DrawerBase>
         <TabListBase>
+          <ViewerLayerControls>
           <Box id={containerId} sx={{ ...style }}>
             <MapContainer
               ref={setMap}
@@ -58,6 +73,7 @@ const MapViewerCore = (): ReactNode => {
             </MapContainer>
           </Box>
           <RightDrawer
+            fullHeight={wide}
             leftComponentId={containerId}
             callback={() => map?.invalidateSize()}
           >
@@ -82,10 +98,12 @@ const MapViewerCore = (): ReactNode => {
             </Stack>
           </RightDrawer>
           <BottomDrawer
+            alongsideRightDrawer={wide}
             aboveComponentId={containerId}
             callback={() => map?.invalidateSize()}
           >
-            <Tabs
+            <Box sx={{ '& .MuiTabPanel-root': { p: 1.5 } }}>
+            <Tabs scrollable
               defaultTabs={
                 [{
                   tab: { label: 'Map Settings' },
@@ -106,10 +124,16 @@ const MapViewerCore = (): ReactNode => {
                     />
                   },
                   closeable: false
+                }, {
+                  tab: { label: translate('viewerControls.title') },
+                  tabPanel: { value: 'layer-settings', children: <LayerControlsPanel /> },
+                  closeable: false
                 }]
               }
             />
+            </Box>
           </BottomDrawer>
+          </ViewerLayerControls>
         </TabListBase>
       </DrawerBase>
   )

@@ -92,11 +92,28 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
-Resources imported from a WMS carry the dimensions their capabilities advertise. The layer
-context menu's "Dimensions" dialog lets you pick among the advertised values - as a list or as
-a validated number within the advertised range and interval - and the choice applies to both
-the map and the identify requests. Resources asking for different dimension values are
-requested separately, and the selections survive in the context document.
+Click a layer's name to open Layer settings in the bottom drawer. Its style, legend
+and dimension controls stay outside the tree, keeping layer rows compact and visible.
+Selecting another layer updates the same panel. The context menu's Style and Dimensions
+actions open the same settings tab. On wider screens the bottom settings drawer sits
+beside the right-hand tree so the tree retains its full height. Visibility and query
+activation remain independent.
+
+Dimensions are initialized from the WMS capabilities. Lists and numeric ranges use the
+advertised values and resolution. A discrete time slider represents advertised time
+steps, including calendar intervals and irregular timestamp lists, in UTC. Dragging
+previews a time; releasing applies it to both map and identify requests. Previous/next
+buttons move one advertised step. The exact date/time field applies when you leave it.
+Continuous time ranges retain the exact date field without an invented slider step.
+Choose Server default to reset a time selection.
+
+Use Pin timeline to keep a compact time slider over the map while the layer panel is
+closed. Pinning does not pan or resize the map. The timeline follows its layer when
+layers are reordered and disappears if that layer is removed. Unpin timeline hides it.
+
+Resources asking for different dimension values are requested separately, and the
+selections survive in the context document. A dimension icon beside the layer identifies
+non-default values; its tooltip lists the selected values.
 
 Select Identify and click a location, or right-click the map, to fetch GetFeatureInfo
 results. The viewer shows results in an overlay inspector without moving or resizing

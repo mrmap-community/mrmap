@@ -7,7 +7,9 @@ import dimensionsCapabilities from '../XMLParser/tests/capabilities_dimensions_1
 import { OWSContext, OWSResource } from './core';
 import {
     getDimensionParameter,
+    getTimeDimensionAxis,
     getWmsDimensionSelection,
+    getWmsDimensionOverrides,
     isAllowedDimensionValue,
     parseAdvertisedValues,
     setWmsDimension,
@@ -34,6 +36,7 @@ describe('WMS dimension parameters and advertised values', () => {
         expect(getDimensionParameter('DIM_sensor')).toBe('DIM_SENSOR');
         expect(getDimensionParameter('dim_sensor')).toBe('DIM_SENSOR');
         expect(getDimensionParameter('depth')).toBe('DIM_DEPTH');
+        expect(getDimensionParameter('time')).toBe('TIME');
     });
 
     test('reads value lists and numeric ranges, keeping everything else a list', () => {
@@ -41,7 +44,7 @@ describe('WMS dimension parameters and advertised values', () => {
         expect(parseAdvertisedValues('0/100/10')).toEqual({ kind: 'range', start: 0, stop: 100, step: 10 });
         expect(parseAdvertisedValues('0/100')).toEqual({ kind: 'range', start: 0, stop: 100 });
         expect(parseAdvertisedValues('2000-01-01/2020-01-01/P1D'))
-            .toEqual({ kind: 'list', values: ['2000-01-01/2020-01-01/P1D'] });
+            .toEqual({ kind: 'time-range', start: '2000-01-01', stop: '2020-01-01', step: 'P1D' });
     });
 
     test('validates values against the advertised list, range and interval', () => {
@@ -153,5 +156,67 @@ describe('WMS dimensions in the context document', () => {
         const validated = validateOwsContext(JSON.parse(JSON.stringify(broken)));
         expect(validated.issues.some(issue =>
             issue.severity === 'error' && issue.path.endsWith('dimensions[0].values'))).toBe(true);
+    });
+});
+
+
+describe('temporal dimension selections and indicators', () => {
+    const time = { name: 'time', units: 'ISO8601', values: '2025-04-01T00:00:00.000Z/2026-10-01T00:00:00.000Z/P1D', default: '2026-10-01T00:00:00.000Z' };
+    test('accepts specific UTC instants on the advertised grid and rejects out-of-range or intermediate times', () => {
+        expect(isAllowedDimensionValue(time, '2025-04-02T00:00:00.000Z')).toBe(true);
+        expect(isAllowedDimensionValue(time, '2025-04-02T12:00:00.000Z')).toBe(false);
+        expect(isAllowedDimensionValue(time, '2025-03-31T00:00:00.000Z')).toBe(false);
+        expect(isAllowedDimensionValue(time, '2026-10-02T00:00:00.000Z')).toBe(false);
+        expect(isAllowedDimensionValue(time, 'invalid')).toBe(false);
+        expect(isAllowedDimensionValue(time, time.values)).toBe(true);
+    });
+    test('handles calendar months, leap years, subsecond steps and continuous intervals', () => {
+        expect(isAllowedDimensionValue({ ...time, values: '2024-01-31/2024-05-31/P1M' }, '2024-02-29T00:00:00Z')).toBe(true);
+        expect(isAllowedDimensionValue({ ...time, values: '2024-01-31/2024-05-31/P1M' }, '2024-03-30T00:00:00Z')).toBe(false);
+        expect(isAllowedDimensionValue({ ...time, values: '2024-01-01T00:00:00Z/2024-01-01T00:00:01Z/PT0.25S' }, '2024-01-01T00:00:00.500Z')).toBe(true);
+        expect(isAllowedDimensionValue({ ...time, values: '2024-01-01/2024-01-02' }, '2024-01-01T12:34:56Z')).toBe(true);
+    });
+    test('migrates saved DIM_TIME selections, updates both operations and clears the custom indicator on reset', () => {
+        const target = offering(); target.dimensions!.push(time);
+        target.operations![0].href += '&DIM_TIME=2025-04-02T00:00:00.000Z';
+        expect(getWmsDimensionSelection(target, time)).toBe('2025-04-02T00:00:00.000Z');
+        expect(getWmsDimensionOverrides(target)).toEqual([{name:'time',value:'2025-04-02T00:00:00.000Z'}]);
+        setWmsDimension(target, 'time', '2025-04-03T00:00:00.000Z');
+        target.operations!.forEach(operation => {
+            const params = new URL(operation.href).searchParams;
+            expect(params.get('TIME')).toBe('2025-04-03T00:00:00.000Z');
+            expect(params.has('DIM_TIME')).toBe(false);
+        });
+        setWmsDimension(target, 'time', '');
+        expect(getWmsDimensionOverrides(target)).toEqual([]);
+        setWmsDimension(target, 'time', time.default);
+        expect(getWmsDimensionOverrides(target)).toEqual([]);
+    });
+});
+
+
+describe('time slider axis', () => {
+    test('represents long five-minute ranges without expanding their timestamps', () => {
+        const axis = getTimeDimensionAxis({name:'time', values:'2011-02-16/2026-12-31/PT5M'})!;
+        expect(axis.count).toBeGreaterThan(1000000);
+        const index = axis.indexOf('2024-05-21T21:00:00Z');
+        expect(index).toBeGreaterThan(0);
+        expect(axis.valueAt(index)).toBe('2024-05-21T21:00:00.000Z');
+        expect(axis.valueAt(index + 1)).toBe('2024-05-21T21:05:00.000Z');
+        expect(axis.indexOf('2024-05-21T21:01:00Z')).toBe(-1);
+    });
+    test('honors calendar intervals and irregular timestamp lists', () => {
+        const months = getTimeDimensionAxis({name:'time',values:'2024-01-31/2024-05-31/P1M'})!;
+        expect(months.count).toBe(5);
+        expect(months.valueAt(1)).toBe('2024-02-29T00:00:00.000Z');
+        const list = getTimeDimensionAxis({name:'time',values:'2024-05-23T06:15:00Z,2024-05-21T09:00:00Z,2024-05-21T10:30:00Z'})!;
+        expect(list.count).toBe(3);
+        expect(list.valueAt(0)).toBe('2024-05-21T09:00:00Z');
+        expect(list.indexOf('2024-05-21T10:30:00.000Z')).toBe(1);
+        expect(getTimeDimensionAxis({name:'time',values:'2024-01-01/2024-12-31'})).toBeUndefined();
+        expect(getTimeDimensionAxis({name:'elevation',values:'0/100/10'})).toBeUndefined();
+        const fractional = getTimeDimensionAxis({name:'time',values:'2024-01-01/2024-01-03/P0.5D'})!;
+        expect(fractional.count).toBe(5);
+        expect(fractional.valueAt(1)).toBe('2024-01-01T12:00:00.000Z');
     });
 });

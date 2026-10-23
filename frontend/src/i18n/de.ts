@@ -6,8 +6,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     options: "Optionen für %{layer}",
     noStyles: "Keine angebotenen Stile verfügbar.",
     legendTitle: "Legende",
-    immediate: "Änderungen werden sofort angewendet",
-    done: "Fertig",
     custom: "Benutzerdefinierter Stil",
 
     style: "Stil für %{layer}",
@@ -16,7 +14,18 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  viewerControls: {
+    selectLayer: "Wählen Sie einen Layer im Baum, um Stil und Dimensionen zu bearbeiten.",
+    edit: "%{layer} bearbeiten",
+    title: "Layer-Einstellungen",
+    pin: "Zeitleiste anheften",
+    unpin: "Zeitleiste lösen",
+    timeline: "Angeheftete Zeitleiste",
+  },
   viewerDimensions: {
+    position: "%{current} von %{total}",
+    sliderHint: "Ziehen für Vorschau, loslassen zum Anwenden. Pfeiltasten ändern einen Schritt. Exakte UTC-Zeit eingeben und das Feld zum Anwenden verlassen.",
+    custom: "Benutzerdefinierte Dimensionswerte",
     title: "Dimensionen",
     dimension: "Dimension %{name}",
     serverDefault: "Serverstandard",

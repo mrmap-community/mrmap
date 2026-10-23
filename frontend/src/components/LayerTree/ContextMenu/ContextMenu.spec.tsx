@@ -2,12 +2,16 @@ import type { OfferingDimension } from '../../../ows-lib/OwsContext/types';
 
 import { AdminContext } from 'react-admin';
 
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OWSResource } from '../../../ows-lib/OwsContext/core';
 import { OwsContextBase, useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import LayerTree from '../LayerTree';
+
+const mapState = vi.hoisted(() => ({ map: undefined as undefined | { getContainer: () => HTMLElement; invalidateSize: ReturnType<typeof vi.fn>; panTo: ReturnType<typeof vi.fn> } }));
+beforeEach(() => { mapState.map = undefined; });
+afterEach(() => vi.unstubAllGlobals());
 
 const wmsOperations = (active: boolean, dimensions?: OfferingDimension[]) => [{
   code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
@@ -23,6 +27,7 @@ const testFeatures = () => [
   new OWSResource({ title: 'first', updated: '', folder: '/0/0', active: true, offerings: wmsOperations(true, [
     { name: 'elevation', values: '0,10,20', default: '10' },
     { name: 'DIM_sensor', values: '0/100/10' },
+    { name: 'time', units: 'ISO8601', values: '2025-04-01/2026-10-01/P1D' },
   ]) }, 'first'),
   new OWSResource({ title: 'second', updated: '', folder: '/0/1', active: false, offerings: wmsOperations(false) }, 'second'),
   new OWSResource({ title: 'other root', updated: '', folder: '/1' }, 'root2'),
@@ -152,6 +157,55 @@ describe('layer tree context menu', () => {
     ]);
   }, TEST_TIMEOUT);
 
+  it('previews a drag without requests, commits on release and keeps a pinned timeline through reorder until removal', async () => {
+    vi.stubGlobal('PointerEvent', MouseEvent);
+    mapState.map = { getContainer: () => document.body, invalidateSize: vi.fn(), panTo: vi.fn() };
+    renderTree(); expandGroup();
+    fireEvent.click(screen.getByRole('button', { name: 'viewerControls.edit' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const slider = screen.getByRole('slider');
+    const track = slider.closest('.MuiSlider-root')!;
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ left:0,right:200,width:200,top:0,bottom:20,height:20,x:0,y:0,toJSON:()=>({}) });
+    const before = positionOf('first').mapHref;
+    fireEvent.pointerDown(track, { button:0,clientX:100,clientY:10 });
+    fireEvent.pointerMove(document, { buttons:1,clientX:110,clientY:10 });
+    expect(positionOf('first').mapHref).toBe(before);
+    fireEvent.pointerUp(document, { clientX:110,clientY:10 });
+    expect(positionOf('first').mapHref).toContain('TIME=');
+    fireEvent.click(screen.getByRole('button', { name:'viewerControls.pin' }));
+    const timeline = screen.getByRole('region', { name:'viewerControls.timeline' });
+    fireEvent.click(within(screen.getByRole('region', { name:'viewerControls.edit' })).getByRole('button', { name:'ra.action.close' }));
+    const selected = new URL(positionOf('first').mapHref).searchParams.get('TIME');
+    fireEvent.click(within(timeline).getByRole('button', { name:'ra.navigation.next' }));
+    const next = new URL(positionOf('first').mapHref).searchParams.get('TIME');
+    expect(Date.parse(next!) - Date.parse(selected!)).toBe(86400000);
+    expect(mapState.map.invalidateSize).not.toHaveBeenCalled();
+    expect(mapState.map.panTo).not.toHaveBeenCalled();
+    openMenuOf(1); fireEvent.click(await item('moveDown'));
+    expect(screen.getByRole('region', { name:'viewerControls.timeline' })).toBeVisible();
+    expect(positionOf('first').folder).toBe('/0/1');
+    openMenuOf(2); fireEvent.click(await item('remove'));
+    await waitFor(() => expect(screen.queryByRole('region', { name:'viewerControls.timeline' })).not.toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('selects an instant, shows custom dimensions and resets to the server default', async () => {
+    renderTree(); expandGroup(); openMenuOf(1);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerDimensions.title' }, { timeout: 4000 }));
+    const input = await screen.findByLabelText('viewerDimensions.dimension (ISO8601) · UTC', { selector: 'input[type=datetime-local]' });
+    fireEvent.change(input, { target: { value: '2025-04-02T00:00' } });
+    fireEvent.blur(input);
+    expect(positionOf('first').mapHref).toContain('TIME=2025-04-02T00%3A00%3A00.000Z');
+    expect(positionOf('first').infoHref).toContain('TIME=2025-04-02T00%3A00%3A00.000Z');
+    expect(document.querySelector('[aria-label="viewerDimensions.custom"]')).toBeInTheDocument();
+    const updated = screen.getByLabelText('viewerDimensions.dimension (ISO8601) · UTC', { selector: 'input[type=datetime-local]' });
+    fireEvent.change(updated, { target: { value: '2025-04-02T12:00' } }); fireEvent.blur(updated);
+    expect(await screen.findByText('viewerDimensions.invalid')).toBeInTheDocument();
+    expect(positionOf('first').mapHref).not.toContain('T12');
+    fireEvent.click(screen.getByRole('button', { name: 'viewerDimensions.serverDefault' }));
+    expect(positionOf('first').mapHref).not.toContain('TIME=');
+    expect(document.querySelector('[aria-label="viewerDimensions.custom"]')).toBeNull();
+  }, TEST_TIMEOUT);
+
   it('applies an advertised dimension value to both operations and refuses values the service does not offer', async () => {
     renderTree();
     expandGroup();
@@ -176,5 +230,5 @@ describe('layer tree context menu', () => {
 });
 
 vi.mock('../../MapViewer/MapViewerBase', () => ({
-  useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] }, map: undefined }),
+  useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] }, map: mapState.map }),
 }));

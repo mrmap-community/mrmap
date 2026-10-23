@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WFS_Capabilities version="2.0.0" xmlns="http://www.opengis.net/wfs/2.0" xmlns:ows="http://www.opengis.net/ows/1.1">
+  <ows:ServiceIdentification>
+    <ows:Title>Minimal WFS</ows:Title>
+    <ows:ServiceType>WFS</ows:ServiceType>
+    <ows:ServiceTypeVersion>2.0.0</ows:ServiceTypeVersion>
+  </ows:ServiceIdentification>
+  <ows:OperationsMetadata>
+    <ows:Operation name="GetFeature">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:href="https://example.test/wfs" xmlns:xlink="http://www.w3.org/1999/xlink"/>
+        </ows:HTTP>
+      </ows:DCP>
+      <ows:Parameter name="outputFormat">
+        <ows:AllowedValues>
+          <ows:Value>application/gml+xml; version=3.2</ows:Value>
+        </ows:AllowedValues>
+      </ows:Parameter>
+    </ows:Operation>
+  </ows:OperationsMetadata>
+  <FeatureTypeList>
+    <FeatureType>
+      <Name>plain_type</Name>
+      <Title>Plain type without optional fields</Title>
+    </FeatureType>
+  </FeatureTypeList>
+</WFS_Capabilities>

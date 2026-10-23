@@ -13,7 +13,7 @@ import { PreviewImage } from '../../Resource/Generic/ServiceShow/ServicePreviewI
 import { useContextMenuBase } from './ContextMenuBase';
 import ContextMenuItem from './ContextMenuItem';
 
-const WmsStyleControls = ({ folder }: { folder?: string }) => {
+const WmsStyleControls = ({ folder, previewOnly = false }: { folder?: string; previewOnly?: boolean }) => {
   const { owsContext, setOwsContext } = useOwsContextBase()
   const translate = useTranslate()
   const id = useId()
@@ -23,15 +23,15 @@ const WmsStyleControls = ({ folder }: { folder?: string }) => {
   const selections = getWmsOperationStyles(node?.getWmsOperationByCode('GetMap') ?? node?.getWmsOperationByCode('GetFeatureInfo'))
   const styles = offering?.styles?.filter(style => style.name.trim() !== '') ?? []
 
-  return <Stack spacing={3} sx={{ minWidth: 0, py: 1 }}>
-    <Typography variant="body2" color="text.secondary">{layerTitle}</Typography>
+  return <Stack spacing={previewOnly ? 1 : 3} sx={{ minWidth: 0, py: 1 }}>
+    {!previewOnly && <Typography variant="body2" color="text.secondary">{layerTitle}</Typography>}
     {selections.length === 0 && <Typography>{translate('viewerStyles.noStyles')}</Typography>}
     {selections.map(({ layer, style }, index) => {
       const selected = style ? styles.find(item => item.name === style) : styles.find(item => item.default)
       const legend = selected?.legendURL
       const src = legend && /^https?:\/\//i.test(legend) ? legend : undefined
       return <Stack key={`${layer}:${index}`} spacing={1.5}>
-        <TextField
+        {!previewOnly && <TextField
           id={`${id}-${index}`}
           select
           fullWidth
@@ -51,8 +51,8 @@ const WmsStyleControls = ({ folder }: { folder?: string }) => {
           <option value="">{translate('viewerStyles.default')}</option>
           {style && !styles.some(item => item.name === style) && <option value={style} disabled>{style}</option>}
           {styles.map(item => <option key={item.name} value={item.name}>{item.title || item.name}</option>)}
-        </TextField>
-        <Typography variant="subtitle2">{translate('viewerStyles.legendTitle')}</Typography>
+        </TextField>}
+        <Typography variant="subtitle2">{previewOnly ? `${layer} · ${selected?.title || style || translate('viewerStyles.default')}` : translate('viewerStyles.legendTitle')}</Typography>
         <PreviewImage
           key={`${layer}:${style}:${src}`}
           src={src}
@@ -66,6 +66,8 @@ const WmsStyleControls = ({ folder }: { folder?: string }) => {
     })}
   </Stack>
 }
+
+export const StyleLegendPreview = ({ folder }: { folder?: string }) => <WmsStyleControls folder={folder} previewOnly />;
 
 const StyleLegendActions = () => {
   const { close } = useDialogContextBase();
@@ -83,6 +85,7 @@ const StyleLegendItem = () => {
   if (!node?.getWmsOperationByCode('GetMap') && !node?.getWmsOperationByCode('GetFeatureInfo')) return null;
 
   return <ContextMenuItem
+    disabled={!node?.getWmsOffering()?.styles?.some(style => style.name.trim() !== '')}
     icon={<PaletteOutlinedIcon fontSize="small" />}
     label={translate('viewerStyles.title')}
     onClick={() => {

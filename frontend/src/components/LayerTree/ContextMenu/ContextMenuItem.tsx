@@ -7,17 +7,20 @@ export interface ContextMenuItemProps {
   onClick?: MouseEventHandler
   icon?: ReactElement
   label?: string
+  disabled?: boolean
 }
 
 
 const ContextMenuItem = ({
   onClick,
   icon,
-  label
+  label,
+  disabled = false
 }: ContextMenuItemProps) => {
   return (
     <MenuItem
       onClick={onClick}
+      disabled={disabled}
     >
       {icon}
       {label}

@@ -115,7 +115,7 @@ describe('LayerTree', () => {
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('fill');
   });
 
-  it.each([undefined, [], [{ name: '', title: 'Unnamed' }]])('disables style selection when no named styles are advertised: %j', async styles => {
+  it.each([undefined, [], [{ name: '', title: 'Unnamed' }]])('disables the style menu action when no named styles are advertised: %j', async styles => {
     const feature = new OWSResource({
       title: 'No styles', updated: '', folder: '/0',
       offerings: [{
@@ -124,10 +124,12 @@ describe('LayerTree', () => {
       }],
     });
     render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
-    await openStyleDialog();
-    expect(screen.getByRole('combobox')).toBeDisabled();
-    expect(screen.getByRole('combobox')).toHaveValue('imported');
-    expect(screen.getByText('viewerStyles.noStyles')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'viewerStyles.options' }));
+    const action = await screen.findByRole('menuitem', { name: 'viewerStyles.title' });
+    expect(action).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(action);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'viewerAuth.title' })).not.toHaveAttribute('aria-disabled', 'true');
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
   });
 
@@ -135,6 +137,7 @@ describe('LayerTree', () => {
     const feature = new OWSResource({
       title: 'Right-click layer', updated: '', folder: '/0',
       offerings: [{
+        styles: [{ name: 'outline', title: 'Outline' }],
         code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
         operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a' }],
       }],
@@ -143,9 +146,29 @@ describe('LayerTree', () => {
     fireEvent.contextMenu(screen.getByText('Right-click layer'), { clientX: 100, clientY: 100 });
     fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerStyles.title' }));
     expect(await screen.findByRole('dialog')).toHaveTextContent('Right-click layer');
-    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'ra.action.close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('shows the selected style legend in the custom-style tooltip only on hover', async () => {
+    const feature = new OWSResource({
+      title: 'Styled layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        styles: [{ name: 'outline', title: 'Outline', legendURL: 'https://example.org/outline.png' }],
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&STYLES=outline' }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /></OwsContextBase></AdminContext>);
+    expect(screen.queryByRole('img', { hidden: true })).not.toBeInTheDocument();
+    fireEvent.mouseOver(screen.getByLabelText('viewerStyles.custom'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('a · Outline');
+    const image = screen.getByRole('img', { hidden: true });
+    expect(image).toHaveAttribute('src', 'https://example.org/outline.png');
+    fireEvent.load(image);
+    expect(screen.getByRole('img')).toBeVisible();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('LayerTree renders with initial data', () => {

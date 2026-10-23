@@ -23,6 +23,7 @@ import { DialogBase } from '../Dialog/DialogContextBase'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import ContextMenu from './ContextMenu/ContextMenu'
 import { ContextMenuBase, useContextMenuBase } from './ContextMenu/ContextMenuBase'
+import { StyleLegendPreview } from './ContextMenu/StyleLegendItem'
 import { DragableTreeItem } from './DragableTreeItem'
 
 
@@ -206,7 +207,11 @@ const TreeItemLabel = memo(
 
       <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto", flexShrink: 0}}>
         {getWmsOperationStyles(node.getWmsOperationByCode('GetMap')).some(item => item.style !== '') &&
-          <Tooltip title={translate('viewerStyles.custom')}><PaletteOutlinedIcon color="info" fontSize="small" /></Tooltip>}
+          <Tooltip title={<StyleLegendPreview folder={node.properties.folder} />} describeChild>
+            <Box component="span" tabIndex={0} aria-label={translate('viewerStyles.custom')} sx={{ display: 'flex' }}>
+              <PaletteOutlinedIcon color="info" fontSize="small" />
+            </Box>
+          </Tooltip>}
         <NodeIcons
           isActive={record?.isActive}
           isSpatialSecured={record?.isSpatialSecured}

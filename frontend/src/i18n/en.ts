@@ -19,6 +19,18 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    mapTransfer: {
+      export: "Export map as file",
+      import: "Open map from file",
+      share: "Share map link",
+      copy: "Copy link",
+      close: "Close",
+      importOk: "The map was loaded from the file.",
+      shareHint: "Protected services will ask for their credentials again; the link carries no secrets.",
+      credentialsHint: "Exported documents never carry credentials - protected services will ask again.",
+      restoredDraft: "Restored the map of your last session",
+      restoredShare: "Opened the shared map",
+    },
     viewerUnsupported: {
       summary: "%{count} resources cannot be rendered by this viewer",
       resource: "This resource cannot be rendered:",

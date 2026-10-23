@@ -113,10 +113,61 @@ export interface WmsCapabilitites extends Capabilites {
     }
 }
 
-export interface WfsCapabilitites extends Capabilites {
-    // TODO: featuretypes
+/**
+ * One `ows:Operation` entry of a WFS 2.0 OperationsMetadata section. The
+ * advertised `ows:Parameter` AllowedValues and `ows:Constraint` values are
+ * retained with their exact spellings, because WFS requests must send the
+ * tokens the service declared. A missing entry stays missing: it must never
+ * be read as "unbounded" or "supported".
+ */
+export interface WfsOperation extends OperationUrl {
+    /** AllowedValues of every ows:Parameter of the operation, keyed by name. */
+    parameters: Record<string, string[]>
+    /**
+     * ows:Constraint values of the operation: the DefaultValue when stated,
+     * otherwise the single AllowedValues entry. Constraints without an
+     * answerable value (NoValues without DefaultValue) are omitted, so an
+     * absent key means "not advertised" and not "unlimited".
+     */
+    constraints: Record<string, string>
+}
+
+export interface WfsFeatureType {
+    metadata: Metadata
+    /** The advertised qualified name, e.g. "dwd:RBSN_T2m". */
+    name: string
+    /** Namespace URI the prefix of the name is bound to, undefined for an unprefixed name. */
+    namespaceUri?: string
+    /** WGS84BoundingBox as [west, south, east, north] in lon/lat degrees. */
+    bounds?: [number, number, number, number]
+    defaultCrs?: string
+    otherCrs: string[]
+    /** Per-type OutputFormats; an empty list means the type states none. */
+    outputFormats: string[]
+    metadataUrl?: string
+}
+
+export interface WfsCapabilitites {
+    version: string
+    metadata: Metadata
+    serviceType?: string
+    serviceTypeVersions: string[]
+    /** Named ows:Constraint entries of the Filter_Capabilities section. */
+    filterConstraints: Record<string, string>
+    featureTypes: WfsFeatureType[]
     operationUrls: {
-        getCapabilities: OperationUrl
-        // TODO: other operation urls
+        getCapabilities: WfsOperation
+        describeFeatureType?: WfsOperation
+        getFeature: WfsOperation
     }
+}
+
+/**
+ * The shared format negotiation rule for WFS (coordinated with the backend):
+ * a feature type only overrides the operation-wide GetFeature outputFormat
+ * list when it states its own OutputFormats; otherwise the operation-wide
+ * advertised tokens apply. Both keep the exact advertised spellings.
+ */
+export const negotiatedFeatureTypeFormats = (featureType: WfsFeatureType, getFeature: WfsOperation): string[] => {
+    return featureType.outputFormats.length > 0 ? featureType.outputFormats : getFeature.mimeTypes
 }

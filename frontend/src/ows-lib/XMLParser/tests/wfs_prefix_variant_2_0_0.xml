@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<w:WFS_Capabilities version="2.0.0"
+    xmlns:w="http://www.opengis.net/wfs/2.0"
+    xmlns:o="http://www.opengis.net/ows/1.1"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:alpha="https://alpha.example.test/schema"
+    xmlns:beta="https://beta.example.test/schema">
+  <o:ServiceIdentification>
+    <o:Title>Prefixed WFS</o:Title>
+    <o:ServiceType>WFS</o:ServiceType>
+    <o:ServiceTypeVersion>2.0.0</o:ServiceTypeVersion>
+    <o:ServiceTypeVersion>1.0.0</o:ServiceTypeVersion>
+  </o:ServiceIdentification>
+  <o:OperationsMetadata>
+    <o:Operation name="GetCapabilities">
+      <o:DCP><o:HTTP><o:Get xlink:href="https://prefixed.example.test/wfs"/></o:HTTP></o:DCP>
+    </o:Operation>
+    <o:Operation name="DescribeFeatureType">
+      <o:DCP><o:HTTP><o:Post xlink:href="https://prefixed.example.test/wfs"/></o:HTTP></o:DCP>
+      <o:Parameter name="outputFormat">
+        <o:AllowedValues><o:Value>application/gml+xml; version=3.2</o:Value></o:AllowedValues>
+      </o:Parameter>
+    </o:Operation>
+    <o:Operation name="GetFeature">
+      <o:DCP><o:HTTP>
+        <o:Get xlink:href="https://prefixed.example.test/wfs"/>
+        <o:Post xlink:href="https://prefixed.example.test/wfs"/>
+      </o:HTTP></o:DCP>
+      <o:Parameter name="resultType">
+        <o:AllowedValues><o:Value>results</o:Value><o:Value>hits</o:Value></o:AllowedValues>
+      </o:Parameter>
+      <o:Parameter name="outputFormat">
+        <o:AllowedValues>
+          <o:Value>application/gml+xml; version=3.2</o:Value>
+          <o:Value>application/json</o:Value>
+        </o:AllowedValues>
+      </o:Parameter>
+      <o:Constraint name="ImplementsResultPaging">
+        <o:AllowedValues><o:Value>TRUE</o:Value></o:AllowedValues>
+      </o:Constraint>
+      <o:Constraint name="PagingIsTransactionSafe">
+        <o:NoValues/>
+      </o:Constraint>
+    </o:Operation>
+  </o:OperationsMetadata>
+  <w:FeatureTypeList>
+    <w:FeatureType>
+      <w:Name>alpha:parcels</w:Name>
+      <w:Title>Alpha parcels</w:Title>
+      <w:DefaultCRS>urn:ogc:def:crs:EPSG::4326</w:DefaultCRS>
+      <w:OtherCRS>urn:ogc:def:crs:EPSG::25832</w:OtherCRS>
+      <o:WGS84BoundingBox>
+        <o:LowerCorner>-1.5 -0.25</o:LowerCorner>
+        <o:UpperCorner>2.75 0.5</o:UpperCorner>
+      </o:WGS84BoundingBox>
+    </w:FeatureType>
+    <w:FeatureType>
+      <w:Name>beta:parcels</w:Name>
+      <w:Title>Beta parcels</w:Title>
+      <w:OutputFormats>
+        <w:Format>application/json</w:Format>
+        <w:Format>text/xml; subtype=gml/3.2</w:Format>
+      </w:OutputFormats>
+      <w:MetadataURL xlink:href="https://beta.example.test/parcels"/>
+    </w:FeatureType>
+  </w:FeatureTypeList>
+  <fes:Filter_Capabilities xmlns:fes="http://www.opengis.net/fes/2.0">
+    <fes:Constraints>
+      <fes:Constraint name="ImplementsBasicFilters">
+        <o:NoValues/>
+        <o:DefaultValue>TRUE</o:DefaultValue>
+      </fes:Constraint>
+    </fes:Constraints>
+  </fes:Filter_Capabilities>
+</w:WFS_Capabilities>

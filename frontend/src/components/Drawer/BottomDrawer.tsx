@@ -8,6 +8,7 @@ import { Button, useTheme } from '@mui/material'
 import { type DrawerState, useDrawerContext } from './DrawerContext'
 
 export interface BottomDrawerProps extends DrawerProps {
+  alongsideRightDrawer?: boolean
   aboveComponentId?: string
   height?: string
   callback?: () => void
@@ -15,10 +16,13 @@ export interface BottomDrawerProps extends DrawerProps {
 
 const BottomDrawer = ({
   aboveComponentId,
+  alongsideRightDrawer = false,
   callback = () => { },
   children,
   ...rest
 }: BottomDrawerProps): ReactNode => {
+  const callbackRef = useRef(callback)
+  callbackRef.current = callback
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   const { bottomDrawer, setBottomDrawer, rightDrawer, setRightDrawer } = useDrawerContext()
@@ -36,11 +40,13 @@ const BottomDrawer = ({
         } else {
           div.style.paddingBottom = bottomDrawer.height
         }
+        callbackRef.current()
       }
     }
   }, [aboveComponentId, bottomDrawer.height, bottomDrawer.isOpen])
 
   useEffect(() => {
+    if (alongsideRightDrawer) return
     // to prevent infinity looping on rightDrawer state change
     if (bottomDrawer.isOpen !== bottomDrawerIsOpenRef.current) {
       bottomDrawerIsOpenRef.current = bottomDrawer.isOpen
@@ -50,13 +56,12 @@ const BottomDrawer = ({
         setRightDrawer({ ...rightDrawer, height: lastRightDrawerState?.current?.height })
       }
     }
-  }, [bottomDrawer.height, bottomDrawer.isOpen, rightDrawer, setRightDrawer])
+  }, [alongsideRightDrawer, bottomDrawer.height, bottomDrawer.isOpen, rightDrawer, setRightDrawer])
 
   const toggleVisible = useCallback(() => {
     setBottomDrawer({ ...bottomDrawer, isOpen: !bottomDrawer.isOpen })
     buttonRef.current?.blur()
-    callback()
-  }, [bottomDrawer, callback, setBottomDrawer])
+  }, [bottomDrawer, setBottomDrawer])
 
   return (
     <div
@@ -91,7 +96,7 @@ const BottomDrawer = ({
         sx={{
           '& .MuiDrawer-paper': {
             height: bottomDrawer.height,
-            width: bottomDrawer.width,
+            width: `calc(${bottomDrawer.width} - ${bottomDrawer.marginLeft ?? '0px'} - ${alongsideRightDrawer && rightDrawer.isOpen ? rightDrawer.width : '0px'})`,
             marginLeft: bottomDrawer.marginLeft,
             backgroundColor: theme.palette.background.default,
             bottom: '40px',

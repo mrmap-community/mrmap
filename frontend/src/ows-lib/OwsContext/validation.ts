@@ -311,6 +311,18 @@ const validateOfferings = (collector: IssueCollector, offerings: unknown, path: 
                 else if (!isFilledString(style.name)) collector.error(`${stylePath}.name`, 'is required and must be a non empty string')
             })
         }
+
+        if (offering.dimensions !== undefined) {
+            if (!Array.isArray(offering.dimensions)) collector.error(`${offeringPath}.dimensions`, 'must be an array of dimensions')
+            else offering.dimensions.forEach((dimension, index) => {
+                const dimensionPath = `${offeringPath}.dimensions[${index}]`
+                if (!isRecord(dimension)) collector.error(dimensionPath, 'must be an object with a "name" and a "values" member')
+                else {
+                    if (!isFilledString(dimension.name)) collector.error(`${dimensionPath}.name`, 'is required and must be a non empty string')
+                    if (!isFilledString(dimension.values)) collector.error(`${dimensionPath}.values`, 'is required and must be a non empty string')
+                }
+            })
+        }
     })
 }
 

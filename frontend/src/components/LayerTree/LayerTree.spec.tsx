@@ -40,10 +40,10 @@ const ContextProbe = () => {
   );
 };
 
-const openStyleDialog = async () => {
-  fireEvent.click(screen.getByRole('button', { name: 'viewerStyles.options' }));
-  fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerStyles.title' }));
-  await screen.findByRole('dialog');
+const openStyleControls = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'viewerControls.edit' }));
+  await screen.findByRole('region', { name: 'viewerControls.edit' });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 };
 
 describe('LayerTree', () => {
@@ -68,8 +68,9 @@ describe('LayerTree', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.queryByRole('img', { hidden: true })).not.toBeInTheDocument();
     expect(screen.queryByText('viewerStyles.unavailable')).not.toBeInTheDocument();
-    await openStyleDialog();
+    await openStyleControls();
     expect(screen.getByRole('combobox')).toHaveValue('outline');
+    expect(document.querySelector('[role=tree] [role=region]')).toBeNull();
     expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'viewerStyles.loading');
     const first = screen.getByRole('img', { hidden: true });
     expect(first).toHaveAttribute('src', 'https://example.org/outline.png');
@@ -85,10 +86,10 @@ describe('LayerTree', () => {
     fireEvent.error(screen.getByRole('img', { hidden: true }));
     expect(screen.getByRole('status')).toHaveTextContent('viewerStyles.unavailable');
 
-    fireEvent.click(screen.getByRole('button', { name: 'viewerStyles.done' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'ra.action.close' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'viewerControls.edit' })).not.toBeInTheDocument());
     fireEvent.click(screen.getByText('Reload context'));
-    await openStyleDialog();
+    await openStyleControls();
     expect(screen.getByRole('combobox')).toHaveValue('fill');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no-legend' } });
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -107,7 +108,7 @@ describe('LayerTree', () => {
       }],
     });
     render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
-    await openStyleDialog();
+    await openStyleControls();
     expect(screen.getByRole('combobox')).toHaveValue('imported');
     expect(screen.getByRole('option', { name: 'imported' })).toBeDisabled();
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
@@ -133,7 +134,7 @@ describe('LayerTree', () => {
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
   });
 
-  it('opens the style dialog through the existing right-click context menu', async () => {
+  it('opens layer settings through the existing right-click context menu', async () => {
     const feature = new OWSResource({
       title: 'Right-click layer', updated: '', folder: '/0',
       offerings: [{
@@ -145,10 +146,11 @@ describe('LayerTree', () => {
     render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /></OwsContextBase></AdminContext>);
     fireEvent.contextMenu(screen.getByText('Right-click layer'), { clientX: 100, clientY: 100 });
     fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerStyles.title' }));
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Right-click layer');
+    expect(await screen.findByRole('region', { name: 'viewerControls.edit' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'ra.action.close' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'viewerControls.edit' })).not.toBeInTheDocument());
   });
 
   it('shows the selected style legend in the custom-style tooltip only on hover', async () => {

@@ -32,8 +32,10 @@ from registry.ows_lib.wms.wms import WebMapServiceClient
 from registry.querys.alerts import SERVICE_KIND_OF
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
+                                           MimeTypeSerializer,
                                            ReferenceSystemDefaultSerializer,
-                                           StyleSerializer)
+                                           StyleSerializer,
+                                           TimeExtentSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
                                    SerializerMethodField, URLField)
@@ -200,6 +202,7 @@ class LayerSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "reference_systems": ReferenceSystemDefaultSerializer,
+        "time_extents": TimeExtentSerializer,
         # "dimensions": DimensionSerializer,
     }
 
@@ -661,7 +664,9 @@ class FeatureTypeSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        # TODO: "reference_systems": ReferenceSystemDefaultSerializer
+        "reference_systems": ReferenceSystemDefaultSerializer,
+        "default_reference_system": ReferenceSystemDefaultSerializer,
+        "output_formats": MimeTypeSerializer,
     }
 
     camouflage = BooleanField(

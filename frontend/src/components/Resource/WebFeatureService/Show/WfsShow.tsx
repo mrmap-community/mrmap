@@ -1,11 +1,13 @@
-import { UrlField, useRecordContext, useTranslate } from "react-admin";
+import { useState } from "react";
+import { UrlField, useRecordContext, useTranslate, type RaRecord } from "react-admin";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { Stack, Typography } from "@mui/material";
+import { Grid, Stack, Typography } from "@mui/material";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -58,6 +60,34 @@ function AccessRules() {
   );
 }
 
+/**
+ * Feature type rows next to the read oriented inspection of the clicked row,
+ * so a user can read a feature type before opening its editor.
+ */
+function FeatureTypesTab() {
+  const record = useRecordContext();
+  const [selected, setSelected] = useState<RaRecord>();
+  return (
+    <Grid container spacing={2} sx={{ justifyContent: "space-between" }}>
+      <Grid size={{ xs: 12, md: 7 }}>
+        <ServiceRelatedTab
+          resource="FeatureType"
+          defaultSelectedColumns={["name", "title", "abstract"]}
+          onRowClick={setSelected}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, md: 5 }}>
+        <ElementInspection
+          resource="FeatureType"
+          id={selected?.id}
+          serviceResource="WebFeatureService"
+          serviceId={record?.id}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
 const tabs: ServiceTab[] = [
   {
     path: "",
@@ -92,12 +122,7 @@ const tabs: ServiceTab[] = [
     resource: "FeatureType",
     countSource: "featuretypes",
     operation: "list_related_FeatureType_of_WebFeatureService",
-    content: (
-      <ServiceRelatedTab
-        resource="FeatureType"
-        defaultSelectedColumns={["name", "title", "abstract"]}
-      />
-    ),
+    content: <FeatureTypesTab />,
   },
   {
     path: "ProxySetting",

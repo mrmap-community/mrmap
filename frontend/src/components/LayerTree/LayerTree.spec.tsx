@@ -278,3 +278,44 @@ describe('LayerTree', () => {
   });
 });
 vi.mock("../MapViewer/MapViewerBase", () => ({ useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] } }) }));
+
+describe('unsupported offerings', () => {
+  it('marks a resource whose offering the viewer cannot render and leaves a renderable one alone', () => {
+    const wmts = new OWSResource({
+      title: 'wmts layer', updated: '', folder: '/0', active: true,
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc-geojson/1.0/req/wmts',
+        operations: [{ code: 'GetTile', method: 'GET', href: 'https://example.org/wmts' }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[wmts]}><LayerTree /></OwsContextBase></AdminContext>);
+
+    expect(screen.getByTestId('WarningAmberIcon')).toBeInTheDocument();
+  });
+
+  it('marks a resource whose GetMap is offered as POST only', () => {
+    const postOnly = new OWSResource({
+      title: 'post layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc-geojson/1.0/req/wms',
+        operations: [{ code: 'GetMap', method: 'POST', href: 'https://example.org/wms?A', active: true }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[postOnly]}><LayerTree /></OwsContextBase></AdminContext>);
+
+    expect(screen.getByTestId('WarningAmberIcon')).toBeInTheDocument();
+  });
+
+  it('leaves a resource the viewer can render unmarked', () => {
+    const renderable = new OWSResource({
+      title: 'wms layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc-geojson/1.0/req/wms',
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?A', active: true }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[renderable]}><LayerTree /></OwsContextBase></AdminContext>);
+
+    expect(screen.queryByTestId('WarningAmberIcon')).not.toBeInTheDocument();
+  });
+});

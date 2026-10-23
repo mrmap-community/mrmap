@@ -98,3 +98,28 @@ remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for
 unchanged credential identities, headers and origins.
+
+Supported offerings in the map viewer
+=====================================
+
+The map viewer renders exactly one encoding combination of the
+`OWS Context GeoJSON profile <https://docs.ogc.org/is/14-055r2/14-055r2.html>`_:
+a WMS offering (``http://www.opengis.net/spec/owc-geojson/1.0/req/wms``, accepted
+also in its legacy ``owc/1.0`` and ``owc-atom/1.0`` spellings) whose ``GetMap``
+and ``GetFeatureInfo`` operations are offered as HTTP ``GET`` with an ``href``.
+
+Everything else in an imported document is kept but not executed:
+
+* offerings of other codes (e.g. WMTS, WFS, WCS) and inline or referenced
+  contents (e.g. GeoTIFF, GML) are preserved unchanged through import, editing
+  and export, so the document round-trips losslessly;
+* operations offered with other methods (e.g. ``POST`` with a request body) are
+  not executed;
+* the layer tree marks each resource that cannot be rendered with a warning
+  indicator naming the unsupported offering code, operation method or content
+  type, and the status bar names the resources the document asks to render while
+  the supported resources keep rendering.
+
+Adding renderers or executors for further offerings, methods or content types
+are separate increments; supporting every OWS offering is not a conformance
+requirement of the viewer.

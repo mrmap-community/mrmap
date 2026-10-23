@@ -16,6 +16,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  viewerUnsupported: {
+    summary: "%{count} Ressourcen können von diesem Viewer nicht gerendert werden",
+    resource: "Diese Ressource kann nicht gerendert werden:",
+    offering: "Angebot %{code} wird nicht unterstützt",
+    method: "Operation %{code} als %{method} angeboten; nur GET wird unterstützt",
+    operation: "keine nutzbare GetMap-Operation angeboten",
+    content: "Inhalt %{type} kann nicht gerendert werden",
+  },
   viewerAuth: {
     "method": "Authentifizierungsmethode",
     "username": "Benutzername",

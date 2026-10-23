@@ -19,6 +19,14 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    viewerUnsupported: {
+      summary: "%{count} resources cannot be rendered by this viewer",
+      resource: "This resource cannot be rendered:",
+      offering: "offering %{code} is not supported",
+      method: "operation %{code} offered as %{method}; only GET is supported",
+      operation: "no usable GetMap operation is offered",
+      content: "content %{type} cannot be rendered",
+    },
     viewerAuth: {
       "method": "Authentication method",
       "username": "Username",

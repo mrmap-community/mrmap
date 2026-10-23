@@ -2,6 +2,7 @@ import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, 
 
 import { Map } from "leaflet";
 
+import { getUnsupportedReasons, isRequestedByActivation } from "../../ows-lib/OwsContext/capabilities";
 import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { boundsToExtent, boundsToGeoJSON, extentBounds, featuresToCollection, latLngToGeoJSON, validExtent } from './utils';
@@ -43,6 +44,12 @@ export interface MapViewerBaseType {
   featureCollection: string | undefined
   atomicGetMapUrls: OptimizedUrlsMap[]
   atomicGetFeatureInfoUrls: OptimizedUrlsMap[]
+  /**
+   * The resources the document asks to render but this viewer cannot: they are kept visible by
+   * name while the supported resources keep rendering, so that a partially rendered map is not
+   * mistaken for the complete context.
+   */
+  unsupportedFeatures: OWSResource[]
   mapLoading: MapLoadingState
   reportMapLoading: (id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => void
   removeMapLoading: (id: string) => void
@@ -171,6 +178,17 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     )
   }, [owsContext])
 
+  // the resources the document asks to render but the request building skips in silence: an
+  // unsupported offering, method or content. Group nodes answer through their children and are
+  // asked by activation alone, so only childless resources are named here
+  const unsupportedFeatures = useMemo(() => owsContext.features.filter(feature => {
+    const folder = feature.properties.folder
+    if (folder !== undefined && owsContext.features.some(other => other.getParentFolder() === folder)) {
+      return false
+    }
+    return getUnsupportedReasons(feature).length > 0 && isRequestedByActivation(feature)
+  }), [owsContext])
+
   const onMove = useCallback(() => {
     if (map !== undefined) {
       setPosition(map.getCenter())
@@ -246,6 +264,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       featureCollection,
       atomicGetMapUrls,
       atomicGetFeatureInfoUrls,
+      unsupportedFeatures,
       mapLoading,
       reportMapLoading,
       removeMapLoading
@@ -258,6 +277,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     featureCollection,
     atomicGetMapUrls,
     atomicGetFeatureInfoUrls,
+    unsupportedFeatures,
     mapLoading,
     reportMapLoading,
     removeMapLoading

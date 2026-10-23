@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource } from './core';
-import { OWSResource as IOWSResource, OWSContext, StyleSet, Operation } from "./types";
+import { OWSResource as IOWSResource, OWSContext, StyleSet, Operation, Offering } from "./types";
 import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE } from "./validation";
 
 export const OWSContextDocument = (
@@ -211,6 +211,35 @@ const getWmsLayerStyles = (parameters: NonNullable<ReturnType<typeof getWmsParam
     if (!styles) return layers.map(() => '');
     const values = styles.split(',');
     return values.length === layers.length ? values : undefined;
+};
+
+/** Read positional styles without rewriting imported operation URLs. */
+export const getWmsOperationStyles = (operation?: Operation) => {
+    if (!operation) return [];
+    const parameters = getWmsParameters(new URL(operation.href));
+    if (!parameters) return [];
+    // Older contexts only describe the queried layers; the viewer uses these as map layers too.
+    if (operation.code === 'GetFeatureInfo' && !parameters.has('LAYERS') && parameters.has('QUERY_LAYERS')) {
+        parameters.set('LAYERS', { key: 'LAYERS', value: parameters.get('QUERY_LAYERS')!.value });
+    }
+    const styles = getWmsLayerStyles(parameters);
+    return styles?.map((style, index) => ({
+        layer: parameters.get('LAYERS')!.value.split(',')[index], style,
+    })) ?? [];
+};
+
+/** Change only this layer's style, preserving independent operation activation and query subsets. */
+export const setWmsLayerStyle = (offering: Offering, layer: string, style: string) => {
+    if (style !== '' && !offering.styles?.some(item => item.name === style)) return;
+    offering.operations?.filter(operation => ['GetMap', 'GetFeatureInfo'].includes(operation.code)).forEach(operation => {
+        const values = getWmsOperationStyles(operation);
+        if (!values.some(value => value.layer === layer)) return;
+        const url = new URL(operation.href);
+        const parameters = getWmsParameters(url)!;
+        url.searchParams.set(parameters.get('STYLES')?.key ?? 'STYLES',
+            values.map(value => value.layer === layer ? style : value.style).join(','));
+        operation.href = url.href;
+    });
 };
 
 export const areWmsOperationsCompatible = (first: Operation, second: Operation): boolean => {

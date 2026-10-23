@@ -1,6 +1,21 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerStyles: {
+    title: "Stil & Legende",
+    options: "Optionen für %{layer}",
+    noStyles: "Keine angebotenen Stile verfügbar.",
+    legendTitle: "Legende",
+    immediate: "Änderungen werden sofort angewendet",
+    done: "Fertig",
+    custom: "Benutzerdefinierter Stil",
+
+    style: "Stil für %{layer}",
+    default: "Serverstandard",
+    legend: "Legende für %{layer}: %{style}",
+    loading: "Legende wird geladen",
+    unavailable: "Legende nicht verfügbar",
+  },
   viewerAuth: {
     "method": "Authentifizierungsmethode",
     "username": "Benutzername",

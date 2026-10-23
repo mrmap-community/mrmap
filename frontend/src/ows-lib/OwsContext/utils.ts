@@ -197,6 +197,34 @@ export const prepareGetFeatureUrl = (capabilities: WfsCapabilitites, featureType
     return url
 }
 
+/** The feature count the viewer asks a single viewport request for, mirroring the backend preview limit. */
+export const WFS_VIEWER_FEATURE_LIMIT = 500
+
+/**
+ * The bounded GetFeature request for one viewport. The exact negotiated version and type name from
+ * the imported descriptor are kept; the viewport replaces the BBOX and the coordinate reference
+ * system is pinned to EPSG:4326 in the axis order the WFS 1.1/2.0 specification states for it,
+ * exactly like the backend previews its registered WFS services. The count parameter bounds the
+ * response: no request ever asks a service for its whole store.
+ */
+export const prepareViewportGetFeatureUrl = (
+    operation: Operation,
+    format: string,
+    bbox: [number, number, number, number],
+    limit: number = WFS_VIEWER_FEATURE_LIMIT,
+): URL => {
+    const url = new URL(operation.href)
+    const params = url.searchParams
+    const version = params.get('VERSION') ?? params.get('version') ?? ''
+    const [west, south, east, north] = bbox
+    updateOrAppendSearchParam(params, 'SRSNAME', 'EPSG:4326')
+    updateOrAppendSearchParam(params, 'BBOX', `${south},${west},${north},${east},EPSG:4326`)
+    updateOrAppendSearchParam(params, version.startsWith('2.') ? 'COUNT' : 'MAXFEATURES', String(limit))
+    updateOrAppendSearchParam(params, 'OUTPUTFORMAT', format)
+
+    return url
+}
+
 /**
  * Converts parsed WFS capabilities into the flat resources of one context tree: a root node for the
  * service and one leaf per feature type. Unlike the WMS conversion there is no shared request to

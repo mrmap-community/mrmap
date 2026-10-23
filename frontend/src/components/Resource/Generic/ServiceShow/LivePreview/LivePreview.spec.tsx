@@ -15,6 +15,7 @@ import LivePreview, { FeatureInfoResult } from "./LivePreview";
 const state = vi.hoisted(() => ({
   request: vi.fn(),
   transfer: vi.fn(),
+  transferWfs: vi.fn(),
   reset: vi.fn(),
   mapProps: undefined as Record<string, unknown> | undefined,
 }));
@@ -49,6 +50,7 @@ vi.mock("../../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
   ),
   useOwsContextBase: () => ({
     addWMSByUrl: state.transfer,
+    addWFSByUrl: state.transferWfs,
     resetContext: state.reset,
   }),
 }));
@@ -331,6 +333,35 @@ describe("live overview previews", () => {
     expect(screen.getByText("livePreview.emptyFeatures")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("livePreview.visible"));
     expect(screen.queryByText("live features")).toBeNull();
+  });
+  it("hands a WFS selection to the viewer through the security proxy", async () => {
+    state.request.mockImplementation(async ({ params }) =>
+      result(
+        params.bbox
+          ? {
+              features: { type: "FeatureCollection", features: [] },
+              fetchedAt: "2026-10-13T12:00:00Z",
+              configuration,
+            }
+          : { configuration },
+      ),
+    );
+    prepare("WFS");
+    fireEvent.click(screen.getByText("livePreview.title"));
+    fireEvent.mouseDown(screen.getByLabelText("livePreview.featureType"));
+    fireEvent.click(await screen.findByRole("option", { name: "Roads" }));
+    await screen.findByText("live features");
+    fireEvent.click(screen.getByRole("button", { name: "ra.action.mapviewer" }));
+    await waitFor(() => expect(state.transferWfs).toHaveBeenCalledTimes(1));
+    expect(state.transfer).not.toHaveBeenCalled();
+    const [href, headers] = state.transferWfs.mock.calls[0] as [
+      string,
+      Headers | undefined,
+    ];
+    expect(new URL(href).pathname).toBe("/mrmap-proxy/wfs/service");
+    expect(new URL(href).searchParams.get("SERVICE")).toBe("WFS");
+    expect(new URL(href).searchParams.get("REQUEST")).toBe("GetCapabilities");
+    expect(headers?.get("Authorization")).toBe("Token mrmap-token");
   });
   it("shows a retryable failure without replacing stored overview content", async () => {
     state.request.mockRejectedValue({

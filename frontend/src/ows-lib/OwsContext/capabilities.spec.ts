@@ -1,10 +1,10 @@
-import type { Offering, OWSResourceProperties } from './types';
+import type { Offering, Operation, OWSResourceProperties } from './types';
 
 import { describe, expect, it } from 'vitest';
 
-import { getRenderableGetMapOperation, getUnsupportedReasons, isRenderableResource, isRequestedByActivation } from './capabilities';
+import { getRenderableGetFeatureOperation, getRenderableGetMapOperation, getUnsupportedReasons, isRenderableResource, isRequestedByActivation } from './capabilities';
 import { OWSContext, OWSResource } from './core';
-import { validateOwsContext, WMS_OFFERING_CODE } from './validation';
+import { validateOwsContext, WFS_OFFERING_CODE, WMS_OFFERING_CODE } from './validation';
 
 const WMTS_OFFERING_CODE = 'http://www.opengis.net/spec/owc-geojson/1.0/req/wmts';
 
@@ -24,6 +24,18 @@ const wmsGetMap = (method = 'GET', active = true) => ({
   operations: [
     { code: 'GetMap', method, href: 'https://example.org/wms?LAYERS=a', active },
   ],
+});
+
+const wfsGetFeature = (
+  overrides: Record<string, unknown> = {},
+  operations: Operation[] = [{ code: 'GetFeature', method: 'GET', href: 'https://example.org/wfs?TYPENAME=a' }],
+) => ({
+  code: WFS_OFFERING_CODE,
+  operations,
+  outputFormats: ['application/json'],
+  defaultCrs: 'EPSG:4326',
+  otherCrs: [],
+  ...overrides,
 });
 
 describe('resource capabilities', () => {
@@ -84,6 +96,62 @@ describe('resource capabilities', () => {
 
     const keptInactive = resource([wmsGetMap('POST', false)], { active: false });
     expect(isRequestedByActivation(keptInactive)).toBe(false);
+  });
+
+  it('resolves the GetFeature of a WFS type the viewer can draw and names nothing else', () => {
+    const renderable = resource([wfsGetFeature()]);
+
+    expect(getRenderableGetFeatureOperation(renderable)?.format).toBe('application/json');
+    expect(isRenderableResource(renderable)).toBe(true);
+    expect(getUnsupportedReasons(renderable)).toEqual([]);
+  });
+
+  it('names a GetFeature offered as POST instead of executing it in silence', () => {
+    const postOnly = resource([wfsGetFeature({}, [
+      { code: 'GetFeature', method: 'POST', href: 'https://example.org/wfs' },
+    ])]);
+
+    expect(getRenderableGetFeatureOperation(postOnly)).toBeUndefined();
+    expect(getUnsupportedReasons(postOnly)).toEqual([
+      { kind: 'method', code: 'GetFeature', method: 'POST' },
+    ]);
+  });
+
+  it('names the missing GeoJSON output format of a type the viewer cannot draw', () => {
+    const gmlOnly = resource([wfsGetFeature({ outputFormats: ['gml'] })]);
+
+    expect(getRenderableGetFeatureOperation(gmlOnly)).toBeUndefined();
+    expect(getUnsupportedReasons(gmlOnly)).toEqual([
+      { kind: 'format', code: 'GetFeature' },
+    ]);
+  });
+
+  it('names the missing WGS 84 CRS of a type the viewer cannot place on its map', () => {
+    const projected = resource([wfsGetFeature({ defaultCrs: 'EPSG:25832', otherCrs: ['http://www.opengis.net/def/crs/EPSG/0/25832'] })]);
+
+    expect(getRenderableGetFeatureOperation(projected)).toBeUndefined();
+    expect(getUnsupportedReasons(projected)).toEqual([
+      { kind: 'crs', code: 'GetFeature' },
+    ]);
+  });
+
+  it('names the missing GetFeature of a service root which only carries GetCapabilities', () => {
+    const root = resource([{
+      code: WFS_OFFERING_CODE,
+      operations: [{ code: 'GetCapabilities', method: 'GET', href: 'https://example.org/wfs' }],
+    }]);
+
+    expect(getUnsupportedReasons(root)).toEqual([{ kind: 'operation', code: 'GetFeature' }]);
+  });
+
+  it('keeps a renderable WFS type free while a foreign offering next to it stays named', () => {
+    const mixed = resource([wfsGetFeature(), {
+      code: WMTS_OFFERING_CODE,
+      operations: [{ code: 'GetTile', method: 'GET', href: 'https://example.org/wmts' }],
+    }]);
+
+    // the supported alternative outranks everything else the resource carries
+    expect(getUnsupportedReasons(mixed)).toEqual([]);
   });
 });
 

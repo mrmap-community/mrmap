@@ -6,6 +6,7 @@ import { Stack, Typography } from "@mui/material";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -37,24 +38,30 @@ function OperationUrls() {
 function AccessRules() {
   const record = useRecordContext();
   return (
-    <ServiceRelatedTab
-      resource="AllowedWebFeatureServiceOperation"
-      defaultSelectedColumns={[
-        "operations",
-        "description",
-        "allowedGroups",
-        "securedFeatureTypes",
-      ]}
-      formFieldOverrides={[
-        {
-          component: SchemaAutocompleteInput,
-          props: {
-            source: "securedFeatureTypes",
-            relatedResource: { resource: "WebFeatureService", id: record?.id },
+    <Stack spacing={2}>
+      <AccessRulesSummary
+        ruleResource="AllowedWebFeatureServiceOperation"
+        serviceId={record?.id}
+      />
+      <ServiceRelatedTab
+        resource="AllowedWebFeatureServiceOperation"
+        defaultSelectedColumns={[
+          "operations",
+          "description",
+          "allowedGroups",
+          "securedFeatureTypes",
+        ]}
+        formFieldOverrides={[
+          {
+            component: SchemaAutocompleteInput,
+            props: {
+              source: "securedFeatureTypes",
+              relatedResource: { resource: "WebFeatureService", id: record?.id },
+            },
           },
-        },
-      ]}
-    />
+        ]}
+      />
+    </Stack>
   );
 }
 

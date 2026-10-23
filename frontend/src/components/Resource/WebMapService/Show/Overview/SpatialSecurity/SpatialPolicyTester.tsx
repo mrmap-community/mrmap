@@ -21,8 +21,8 @@ import { useFilterInputForOperation } from "../../../../../../jsonapi/hooks/useF
 import FeatureGroupEditor from "../../../../../Input/FeatureGroupEditor";
 import GeoJsonMap from "../../../../../MapContainer/GeoJsonMap";
 import SimpleCard from "../../../../../MUI/SimpleCard";
+import useCompleteList from "../../../../Generic/ServiceShow/useCompleteList";
 import { getSpatialAccess } from "./spatialAccess";
-import useCompleteList from "./useCompleteList";
 
 const resource = "AllowedWebMapServiceOperation";
 const operationId = `list_related_${resource}_of_WebMapService`;

@@ -19,6 +19,15 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    LayerTree: {
+      ContextMenu: {
+        moveUp: "Move up",
+        moveDown: "Move down",
+        remove: "Remove from map",
+        activateLayer: "Activate layer",
+        zoomToLayer: "Zoom to layer",
+      },
+    },
     viewerScale: {
       notRendered: "Out of scale: this layer is rendered at scale denominators between %{min} and %{max} (current: %{current}).",
       notRenderedShort: "Layer is out of scale",

@@ -6,6 +6,7 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
@@ -16,6 +17,7 @@ import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 import { v4 as uuidv4 } from 'uuid'
 
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
+import { isWithinScaleLimits } from '../../ows-lib/OwsContext/scales'
 import { getWmsOperationStyles } from '../../ows-lib/OwsContext/utils'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
@@ -75,7 +77,13 @@ const TreeItemLabel = memo(
     const translate = useTranslate()
     const { setContextMenu } = useContextMenuBase()
     const { owsContext, setOwsContext } = useOwsContextBase()
-    const { mapLoading } = useMapViewerBase()
+    const { mapLoading, scaleDenominator } = useMapViewerBase()
+
+    // an out of scale layer keeps its activation and is only not rendered, so the tree says so
+    const isOutOfScale = useMemo(() =>
+      node.getWmsOperationByCode('GetMap')?.active === true &&
+      !isWithinScaleLimits(node.properties, scaleDenominator),
+    [node, scaleDenominator])
 
     const hasError = useMemo(()=>{
       const hasError = mapLoading.failedFeatures.some(feature => feature.properties.folder === node.properties.folder)
@@ -206,6 +214,16 @@ const TreeItemLabel = memo(
       </Box>
 
       <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto", flexShrink: 0}}>
+        {isOutOfScale &&
+          <Tooltip title={translate('viewerScale.notRendered', {
+            min: node.properties.minscaledenominator ?? 0,
+            max: node.properties.maxscaledenominator ?? '∞',
+            current: scaleDenominator === undefined ? '-' : Math.round(scaleDenominator),
+          })}>
+            <Box component="span" aria-label={translate('viewerScale.notRenderedShort')} sx={{ display: 'flex' }}>
+              <VisibilityOffIcon color="warning" fontSize="small" />
+            </Box>
+          </Tooltip>}
         {getWmsOperationStyles(node.getWmsOperationByCode('GetMap')).some(item => item.style !== '') &&
           <Tooltip title={<StyleLegendPreview folder={node.properties.folder} />} describeChild>
             <Box component="span" tabIndex={0} aria-label={translate('viewerStyles.custom')} sx={{ display: 'flex' }}>

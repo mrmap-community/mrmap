@@ -27,6 +27,51 @@ const documentWithBbox = (bbox: number[]) => ({
 });
 
 /**
+ * A document with one activated WMS layer which may advertise scale limits; its GetMap and
+ * GetFeatureInfo operations are activated independently, the way the layer tree does.
+ */
+const documentWithLayer = (limits: Record<string, number> = {}) => ({
+  ...documentWithBbox([0, 0, 4, 8]),
+  features: [
+    {
+      type: "Feature",
+      id: "group",
+      properties: { title: "group", updated: "2026-10-21T00:00:00Z", folder: "/0" },
+    },
+    {
+      type: "Feature",
+      id: "layer",
+      properties: {
+        title: "layer",
+        updated: "2026-10-21T00:00:00Z",
+        folder: "/0/0",
+        active: true,
+        ...limits,
+        offerings: [
+          {
+            code: "http://www.opengis.net/spec/owc/1.0/req/wms",
+            operations: [
+              {
+                code: "GetMap",
+                method: "GET",
+                active: true,
+                href: "https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=layer",
+              },
+              {
+                code: "GetFeatureInfo",
+                method: "GET",
+                active: true,
+                href: "https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=layer&QUERY_LAYERS=layer",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+});
+
+/**
  * The map of the viewer, answering the way leaflet does: a fit chooses a view that is wider than the
  * extent it was asked for, and both a fit and a pan of the user end with a viewport event.
  */
@@ -48,6 +93,7 @@ const createMap = (extent = [0, 0, 4, 8]) => {
     }),
     getBounds: () => latLngBounds([view[1], view[0]], [view[3], view[2]]),
     getCenter: () => latLng(30, 0),
+    getSize: () => ({ x: 1000, y: 800 }),
     off: (events: string, handler: () => void) => {
       events.split(" ").forEach((event) => {
         handlers[event] = (handlers[event] ?? []).filter(
@@ -73,11 +119,14 @@ const createMap = (extent = [0, 0, 4, 8]) => {
 };
 
 const Viewer = ({ map }: { map: ReturnType<typeof createMap> }) => {
-  const { setMap } = useMapViewerBase();
+  const { setMap, atomicGetMapUrls, atomicGetFeatureInfoUrls } = useMapViewerBase();
   const { owsContext, updateOwsContext } = useOwsContextBase();
   useEffect(() => {
     setMap(map as unknown as LeafletMap);
   }, [map, setMap]);
+  const layer = owsContext.features.find(
+    (feature) => feature.properties.title === "layer",
+  );
   return (
     <>
       <p data-testid="bbox">{owsContext.bbox?.join(",")}</p>
@@ -88,11 +137,26 @@ const Viewer = ({ map }: { map: ReturnType<typeof createMap> }) => {
           title: owsContext.properties.title,
         })}
       </p>
+      <p data-testid="getmap">{JSON.stringify(atomicGetMapUrls.map((batch) => batch.features.length))}</p>
+      <p data-testid="getfeatureinfo">{String(atomicGetFeatureInfoUrls.length)}</p>
+      <p data-testid="mapactivation">
+        {String(layer?.getWmsOperationByCode("GetMap")?.active ?? false)}
+      </p>
       <button onClick={() => updateOwsContext(documentWithBbox([10, 20, 30, 40]))}>
         Load document
       </button>
       <button onClick={() => updateOwsContext(documentWithBbox([0, 0, 0, 0]))}>
         Load document without an area
+      </button>
+      <button
+        onClick={() =>
+          updateOwsContext(documentWithLayer({ maxscaledenominator: 1_000_000 }))
+        }
+      >
+        Load layer with a scale limit
+      </button>
+      <button onClick={() => updateOwsContext(documentWithLayer())}>
+        Load layer without a scale limit
       </button>
       <button
         onClick={() =>
@@ -212,6 +276,62 @@ describe("viewer extent", () => {
     const map = renderViewer([Number.NaN, 50, 60, 70]);
 
     expect(lastFit(map)).toEqual([-180, -90, 180, 90]);
+  });
+});
+
+const loadScaledLayer = () =>
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load layer with a scale limit" }),
+  );
+const loadPlainLayer = () =>
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load layer without a scale limit" }),
+  );
+const mapBatches = () => screen.getByTestId("getmap").textContent;
+const featureInfoRequests = () =>
+  screen.getByTestId("getfeatureinfo").textContent;
+const mapActivation = () => screen.getByTestId("mapactivation").textContent;
+
+describe("layer scale limits", () => {
+  // the mocked map spans 4 degrees of longitude over 1000 px, i.e. a scale denominator of ~1.59e6;
+  // the layer under test is advertised with maxscaledenominator 1e6, so it starts out of scale
+  it("does not request a layer which is out of scale at the current view", () => {
+    renderViewer();
+    loadScaledLayer();
+
+    expect(mapBatches()).toBe("[]");
+  });
+
+  it("keeps the activation and the feature info of a layer which is out of scale", () => {
+    renderViewer();
+    loadScaledLayer();
+
+    // the user activated GetMap and GetFeatureInfo independently; the scale limit only
+    // suppresses the rendering and never changes the activation (#606)
+    expect(mapActivation()).toBe("true");
+    expect(featureInfoRequests()).toBe("1");
+  });
+
+  it("requests the layer once the view is within the advertised limits and again when it leaves them", () => {
+    const map = renderViewer();
+    loadScaledLayer();
+
+    // panning onto a view spanning 2 degrees answers a scale denominator of ~795000, within the limits
+    pan(map, [1, 0, 2, 1]);
+    expect(mapBatches()).toBe("[1]");
+
+    // zooming out to a view spanning 8 degrees answers ~3.18e6, out of scale again
+    pan(map, [0, 0, 8, 4]);
+    expect(mapBatches()).toBe("[]");
+  });
+
+  it("renders a layer which advertises no limits at any scale", () => {
+    const map = renderViewer();
+    loadPlainLayer();
+
+    expect(mapBatches()).toBe("[1]");
+    pan(map, [0, 0, 80, 40]);
+    expect(mapBatches()).toBe("[1]");
   });
 });
 

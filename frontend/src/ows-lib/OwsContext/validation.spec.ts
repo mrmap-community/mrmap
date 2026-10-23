@@ -178,7 +178,7 @@ describe('validateOwsContext', () => {
     it('reports unsupported offerings and operations as warnings', () => {
         const document = validDocument()
         const offerings = firstFeatureProperties(document).offerings as MutableContext[]
-        offerings[0].code = 'http://www.opengis.net/spec/owc/1.0/req/wfs'
+        offerings[0].code = 'http://www.opengis.net/spec/owc/1.0/req/wcs'
         offerings.push({
             code: WMS_OFFERING_CODE,
             operations: [{ code: 'GetLegendGraphic', method: 'GET', href: 'https://www.example.org/wms' }]
@@ -193,7 +193,7 @@ describe('validateOwsContext', () => {
         ])
         // an unsupported offering is kept, it is only not rendered by the viewer
         expect(result.context?.features[0].properties.offerings?.[0].code)
-            .toEqual('http://www.opengis.net/spec/owc/1.0/req/wfs')
+            .toEqual('http://www.opengis.net/spec/owc/1.0/req/wcs')
     })
 
     it('accepts a resource which activates GetFeatureInfo without GetMap', () => {

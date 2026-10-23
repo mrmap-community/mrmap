@@ -144,6 +144,29 @@ it('persists supplied capabilities authentication for subsequent same-origin WMS
   vi.unstubAllGlobals();
 });
 
+it('persists supplied capabilities authentication for subsequent same-origin WFS operations', async () => {
+  const xml = await import('../../ows-lib/XMLParser/tests/wfs_minimal_2_0_0.xml?raw');
+  const fetch = vi.fn(async (_request: Request) => new Response(xml.default, { status: 200 }));
+  vi.stubGlobal('fetch', fetch);
+  let current: ReturnType<typeof useOwsContextBase>;
+  const Tester = () => {
+    current = useOwsContextBase();
+    return <button onClick={() => current.addWFSByUrl('https://example.test/wfs', new Headers({ Authorization: 'Basic secret' }))}>append</button>;
+  };
+  render(<OwsContextBase><Tester /></OwsContextBase>);
+  fireEvent.click(screen.getByRole('button', { name: 'append' }));
+  await waitFor(() => expect(current.loadingStatus).toBe('ready'));
+  const features = current!.owsContext.features;
+  expect(features.length).toBe(2);
+  expect(features[1].getWfsOffering()?.qualifiedName).toBe('plain_type');
+  const operations = features.flatMap(feature => feature.getWfsOffering()?.operations ?? []);
+  expect(operations.filter(operation => operation.code === 'GetFeature' && operation.method === 'GET').length).toBe(1);
+  expect(operations.every(operation => operation['x-authentication-id'] === current!.owsContext.authenticationHeaders![0].id)).toBe(true);
+  const request = fetch.mock.calls[0][0] as unknown as Request;
+  expect(request.headers.get('Authorization')).toBe('Basic secret');
+  vi.unstubAllGlobals();
+});
+
 describe('OwsContextBase document extent', () => {
 
   const ExtentTester = () => {

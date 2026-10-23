@@ -1,17 +1,22 @@
+import { useTranslate } from 'react-admin';
+
 import ArticleIcon from '@mui/icons-material/Article';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import { Box, Stack, Typography } from "@mui/material";
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Box, Stack, Tooltip, Typography } from "@mui/material";
 
+import { getUnsupportedReasons, unsupportedReasonLabel } from '../../ows-lib/OwsContext/capabilities';
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from './MapViewerBase';
 
 const StatusBar = () => {
+  const translate = useTranslate()
   const { loadingStatus, loadingMessage, loadingTimings } = useOwsContextBase()
-  const { mapLoading } = useMapViewerBase()
+  const { mapLoading, unsupportedFeatures } = useMapViewerBase()
   const mapErrorMessage = Object.values(mapLoading.errors)[0]?.message
   const effectiveStatus = mapLoading.status === 'error' || mapLoading.status === 'loading'
     ? mapLoading.status
@@ -88,6 +93,30 @@ const StatusBar = () => {
             : statusText}
         </Typography>
       </Stack>
+
+      {unsupportedFeatures.length > 0 && (
+        <Tooltip
+          title={
+            <Stack spacing={0.5}>
+              {unsupportedFeatures.map(feature => (
+                <Typography variant="caption" key={`${feature.id}:${feature.properties.folder}`}>
+                  {feature.properties.title}: {' '}
+                  {getUnsupportedReasons(feature)
+                    .map(reason => unsupportedReasonLabel(reason, translate))
+                    .join(', ')}
+                </Typography>
+              ))}
+            </Stack>
+          }
+        >
+          <Stack direction="row" spacing={0.5} sx={{ cursor: 'default', minWidth: 0, alignItems: 'center' }}>
+            <WarningAmberIcon fontSize="small" color="warning" />
+            <Typography variant="body2" color="warning.main" noWrap>
+              {translate('viewerUnsupported.summary', { count: unsupportedFeatures.length })}
+            </Typography>
+          </Stack>
+        </Tooltip>
+      )}
 
       {timingEntries.length > 0 ? (
         <Stack component="ul" spacing={0.5} sx={{ listStyle: 'none', m: 0, p: 0, width: '100%', maxWidth: 240 }}>

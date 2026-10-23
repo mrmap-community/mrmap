@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { latLng, latLngBounds } from "leaflet";
 import { describe, expect, it, vi } from "vitest";
 
+import { OWSResource } from "../../ows-lib/OwsContext/core";
 import {
   OwsContextBase,
   useOwsContextBase,
@@ -278,6 +279,69 @@ describe("viewer extent", () => {
     expect(lastFit(map)).toEqual([-180, -90, 180, 90]);
   });
 });
+
+/** the mixed document: one resource the viewer renders, two it must name instead of drop */
+const mixedFeatures = () => [
+  new OWSResource({
+    title: "supported",
+    updated: "2026-01-01T00:00:00Z",
+    folder: "/0",
+    offerings: [{
+      code: "http://www.opengis.net/spec/owc-geojson/1.0/req/wms",
+      operations: [{ code: "GetMap", method: "GET", href: "https://example.org/wms?A", active: true }],
+    }],
+  }, "supported"),
+  new OWSResource({
+    title: "post only",
+    updated: "2026-01-01T00:00:00Z",
+    folder: "/1",
+    active: true,
+    offerings: [{
+      code: "http://www.opengis.net/spec/owc-geojson/1.0/req/wms",
+      operations: [{ code: "GetMap", method: "POST", href: "https://example.org/wms?B", active: true }],
+    }],
+  }, "post only"),
+  new OWSResource({
+    title: "wmts",
+    updated: "2026-01-01T00:00:00Z",
+    folder: "/2",
+    active: true,
+    offerings: [{
+      code: "http://www.opengis.net/spec/owc-geojson/1.0/req/wmts",
+      operations: [{ code: "GetTile", method: "GET", href: "https://example.org/wmts" }],
+    }],
+  }, "wmts"),
+];
+
+const UnsupportedProbe = () => {
+  const { unsupportedFeatures, atomicGetMapUrls } = useMapViewerBase();
+  return (
+    <p data-testid="unsupported">
+      {JSON.stringify({
+        unsupported: unsupportedFeatures.map((feature) => feature.id),
+        rendered: atomicGetMapUrls.flatMap((request) => request.features.map((feature) => feature.id)),
+      })}
+    </p>
+  );
+};
+
+describe("unsupported offerings", () => {
+  it("keeps supported resources rendering and names what the viewer cannot render", () => {
+    render(
+      <OwsContextBase initialFeatures={mixedFeatures()}>
+        <MapViewerBase>
+          <UnsupportedProbe />
+        </MapViewerBase>
+      </OwsContextBase>,
+    );
+
+    expect(JSON.parse(screen.getByTestId("unsupported").textContent ?? "{}")).toEqual({
+      unsupported: ["post only", "wmts"],
+      rendered: ["supported"],
+    });
+  });
+});
+
 
 const loadScaledLayer = () =>
   fireEvent.click(

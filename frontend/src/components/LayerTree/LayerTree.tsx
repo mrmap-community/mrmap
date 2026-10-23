@@ -7,6 +7,7 @@ import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
@@ -16,6 +17,7 @@ import Typography from '@mui/material/Typography'
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 import { v4 as uuidv4 } from 'uuid'
 
+import { getUnsupportedReasons, unsupportedReasonLabel } from '../../ows-lib/OwsContext/capabilities'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { isWithinScaleLimits } from '../../ows-lib/OwsContext/scales'
 import { getWmsOperationStyles } from '../../ows-lib/OwsContext/utils'
@@ -91,6 +93,12 @@ const TreeItemLabel = memo(
         return mapLoading.errors.find(error => error.features?.some(feature => feature.properties.folder === node.properties.folder))?.message || ''
       }
     }, [mapLoading.errors, node.properties.folder])
+
+    // what the viewer cannot use about this resource; a group answers through its children and
+    // carries no offerings of its own, so only childless nodes are asked
+    const unsupportedReasons = useMemo(() =>
+      node.children.length === 0 ? getUnsupportedReasons(node) : [],
+    [node])
 
     const indeterminateVisibility = useMemo(() => {
       const mapOperations = owsContext
@@ -228,6 +236,24 @@ const TreeItemLabel = memo(
           <Tooltip title={<StyleLegendPreview folder={node.properties.folder} />} describeChild>
             <Box component="span" tabIndex={0} aria-label={translate('viewerStyles.custom')} sx={{ display: 'flex' }}>
               <PaletteOutlinedIcon color="info" fontSize="small" />
+            </Box>
+          </Tooltip>}
+        {unsupportedReasons.length > 0 &&
+          <Tooltip
+            title={
+              <Stack spacing={0.5}>
+                <Typography variant="caption">{translate('viewerUnsupported.resource')}</Typography>
+                {unsupportedReasons.map((reason, index) => (
+                  <Typography variant="caption" key={index}>
+                    {unsupportedReasonLabel(reason, translate)}
+                  </Typography>
+                ))}
+              </Stack>
+            }
+            describeChild
+          >
+            <Box component="span" aria-label={translate('viewerUnsupported.resource')} sx={{ display: 'flex' }}>
+              <WarningAmberIcon color="warning" fontSize="small" />
             </Box>
           </Tooltip>}
         <NodeIcons

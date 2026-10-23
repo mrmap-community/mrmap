@@ -15,6 +15,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
+import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -82,6 +83,7 @@ function FeatureTypesTab() {
           id={selected?.id}
           serviceResource="WebFeatureService"
           serviceId={record?.id}
+          previewAction={record ? <MapViewerButton key={record.id} protocol="WFS" wmsRecord={record} size="small" /> : undefined}
         />
       </Grid>
     </Grid>

@@ -1,6 +1,14 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerAdd: {
+    title: "Kartendienst hinzufügen",
+    description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
+    protocol: "Diensttyp",
+    url: "GetCapabilities-URL",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)",
+  },
   viewerStyles: {
     title: "Stil & Legende",
     options: "Optionen für %{layer}",

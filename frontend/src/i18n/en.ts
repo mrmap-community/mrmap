@@ -4,6 +4,14 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    viewerAdd: {
+      title: "Add map service",
+      description: "Select WMS or WFS and enter its GetCapabilities URL.",
+      protocol: "Service type",
+      url: "GetCapabilities URL",
+      username: "Username (optional)",
+      password: "Password (optional)",
+    },
     viewerStyles: {
       title: "Style & legend",
       options: "Options for %{layer}",

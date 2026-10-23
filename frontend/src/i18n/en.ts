@@ -19,6 +19,15 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    LayerTree: {
+      ContextMenu: {
+        moveUp: "Move up",
+        moveDown: "Move down",
+        remove: "Remove from map",
+        activateLayer: "Activate layer",
+        zoomToLayer: "Zoom to layer",
+      },
+    },
     viewerAuth: {
       "method": "Authentication method",
       "username": "Username",

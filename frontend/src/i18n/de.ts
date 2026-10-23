@@ -16,6 +16,15 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  LayerTree: {
+    ContextMenu: {
+      moveUp: "Nach oben verschieben",
+      moveDown: "Nach unten verschieben",
+      remove: "Aus der Karte entfernen",
+      activateLayer: "Ebene aktivieren",
+      zoomToLayer: "Auf Ebene zoomen",
+    },
+  },
   viewerAuth: {
     "method": "Authentifizierungsmethode",
     "username": "Benutzername",

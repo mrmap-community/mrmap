@@ -299,7 +299,11 @@ class LayerQuerySet(QuerySet):
             **security_annotation_kwargs
         )
 
-        return qs
+        # The security CTE has no row for an element without configured rules.
+        return qs.annotate(**{
+            field: Coalesce(F(field), Value(False))
+            for field in security_annotation_kwargs
+        })
 
 
 class LayerPrefetch(Prefetch):

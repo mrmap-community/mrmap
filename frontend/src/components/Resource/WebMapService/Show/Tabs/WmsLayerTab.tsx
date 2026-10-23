@@ -1,10 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { RaRecord, useGetMany, useNotify, useRecordContext } from 'react-admin';
 
-import { Container, Grid } from '@mui/material';
+import { Container, Grid, Stack } from '@mui/material';
 
 import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
+import ElementInspection from '../../../Generic/ServiceShow/ElementInspection';
+import MapViewerButton from '../../Button/MapViewerButton';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
 
@@ -53,16 +55,26 @@ export const WmsLayers = () => {
   },[notify, refetch])
 
   const rightContent = useMemo(()=> {
+      const inspection = <ElementInspection
+          resource='Layer'
+          id={selectedLayer ?? undefined}
+          serviceResource='WebMapService'
+          serviceId={record?.id}
+          previewAction={<MapViewerButton wmsRecord={record} size='small'/>}
+      />
       if (selectedLayer !== null && selectedLayer !== undefined) {
-            return <EditGuesser
-              id={selectedLayer}
-              resource='Layer'
-              redirect={false}
-              mutationOptions={{ meta: { type: "Layer" }, onSuccess}}
-              
-          />
+            return <Stack spacing={2}>
+              {inspection}
+              <EditGuesser
+                id={selectedLayer}
+                resource='Layer'
+                redirect={false}
+                mutationOptions={{ meta: { type: "Layer" }, onSuccess}}
+
+            />
+            </Stack>
       }
-      return <Container>Select a layer to edit it</Container>
+      return <Container>{inspection}</Container>
   }, [selectedLayer])
     
   return (

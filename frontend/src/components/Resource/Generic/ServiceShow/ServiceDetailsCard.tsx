@@ -86,7 +86,7 @@ const ServiceDetailsCard = ({
                 sx={{ flex: 1, minWidth: 0 }}
               />
             )}
-            {protocol === "WMS" && (
+            {(protocol === "WMS" || protocol === "WFS") && (
               /* the capabilities URL of the map viewer lives in the state of the
                  button, so a new record must remount it - the open details button
                  above needs no key of its own: it answers its way from the record
@@ -95,6 +95,7 @@ const ServiceDetailsCard = ({
                  before behind */
               <MapViewerButton
                 key={record.id}
+                protocol={protocol}
                 label="serviceShow.openMapViewer"
                 variant="outlined"
                 sx={{ flex: 1, minWidth: 0 }}

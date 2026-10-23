@@ -107,7 +107,7 @@ XPATH_MAP = {
                         "url": "./@xlink:href",
                         "mime_types": {
                             "_model": "registry.MimeType",
-                            "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
+                            "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:AllowedValues/ows:Value',
                             "_create_mode": "get_or_create",
                             "fields": {
                                 "mime_type": "."

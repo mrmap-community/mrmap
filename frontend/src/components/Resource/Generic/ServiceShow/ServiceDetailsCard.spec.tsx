@@ -32,7 +32,7 @@ vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
 vi.mock("./ServicePreviewImage", () => ({ default: () => null }));
 vi.mock("./ActivateServiceButton", () => ({ default: () => null }));
 vi.mock("../../WebMapService/Button/MapViewerButton", () => ({
-  default: () => null,
+  default: ({ protocol }: { protocol: string }) => <span data-testid="map-viewer" data-protocol={protocol} />,
 }));
 
 const renderDetails = (version?: number, locale = "en") =>
@@ -88,6 +88,18 @@ const answersOutcome = (resource: string) => ({
 });
 
 describe("ServiceDetailsCard labels", () => {
+  it.each(['WMS', 'WFS'] as const)('offers the map viewer for a %s service', (protocol) => {
+    render(
+      <AdminContext>
+        <ResourceContextProvider value={protocol === 'WFS' ? 'WebFeatureService' : 'WebMapService'}>
+          <RecordContextProvider value={{ id: 'service', title: 'Service' }}>
+            <ServiceDetailsCard protocol={protocol} />
+          </RecordContextProvider>
+        </ResourceContextProvider>
+      </AdminContext>,
+    );
+    expect(screen.getByTestId('map-viewer')).toHaveAttribute('data-protocol', protocol);
+  });
   it("shows readable labels and hides an absent version", () => {
     renderDetails();
     for (const label of ["ID", "Title", "Abstract"])

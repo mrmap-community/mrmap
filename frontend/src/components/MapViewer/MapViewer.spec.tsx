@@ -17,6 +17,7 @@ vi.mock('./MapViewerBase', () => ({
   useMapViewerBase: () => ({ setMap: vi.fn(), mapLoading: { errors: [], failedFeatures: [] } }),
 }));
 vi.mock('../MapContainer/GetMapControl', () => ({ default: () => null }));
+vi.mock('../MapContainer/GetFeatureControl', () => ({ default: () => null }));
 vi.mock('./OwsContextGuiActions/OwsContextGuiActions', () => ({ OwsContextActionButtons: () => null }));
 vi.mock('./StatusBar', () => ({ default: () => null }));
 vi.mock('./MapSettings', () => ({ default: () => <div>Map settings</div> }));

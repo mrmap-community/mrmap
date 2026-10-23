@@ -1,6 +1,14 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerAdd: {
+    title: "Kartendienst hinzufügen",
+    description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
+    protocol: "Diensttyp",
+    url: "GetCapabilities-URL",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)",
+  },
   viewerStyles: {
     title: "Stil & Legende",
     options: "Optionen für %{layer}",
@@ -72,8 +80,17 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     resource: "Diese Ressource kann nicht gerendert werden:",
     offering: "Angebot %{code} wird nicht unterstützt",
     method: "Operation %{code} als %{method} angeboten; nur GET wird unterstützt",
-    operation: "keine nutzbare GetMap-Operation angeboten",
+    operation: "keine nutzbare %{code}-Operation angeboten",
+    format: "Operation %{code} bietet kein GeoJSON-Ausgabeformat",
+    crs: "Operation %{code} bietet kein WGS 84 (EPSG:4326)-Koordinatenbezugssystem",
     content: "Inhalt %{type} kann nicht gerendert werden",
+  },
+  viewerFeatures: {
+    title: "Feature-Attribute",
+    close: "Schließen",
+    limited: "%{title}: maximal %{count} Features dieser Ansicht dargestellt",
+    empty: "%{title}: keine Features in dieser Ansicht",
+    tooltip: "Klicken Sie auf ein Feature, um seine Attribute zu sehen"
   },
   LayerTree: {
     ContextMenu: {
@@ -153,6 +170,37 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       operation: "Der benötigte registrierte Operationsendpunkt ist nicht verfügbar.",
       spatialVersion: "Dieser räumlich eingeschränkte WFS kann mit seiner registrierten Version oder Geometriedefinition nicht angezeigt werden."
     }
+  },
+  layerInspection: {
+    "select": "Wählen Sie eine Ebene oder einen Feature-Type zur Ansicht aus.",
+    "edit": "Bearbeiten",
+    "loadError": "Das Element konnte nicht geladen werden.",
+    "noAbstract": "Kein Abstract vorhanden.",
+    "coverage": "Räumlicher Bezug",
+    "noCoverage": "Für diese Ebene ist kein räumlicher Bezug gespeichert.",
+    "noFeatureTypeCoverage": "Keine räumliche Ausdehnung für diesen Feature-Type gespeichert.",
+    "referenceSystems": "Bezugssysteme",
+    "none": "Keine geliefert",
+    "time": "Zeitliche Bezüge",
+    "begin": "Beginn",
+    "end": "Ende",
+    "resolution": "Auflösung",
+    "noTime": "Keine zeitlichen Bezüge geliefert.",
+    "rendering": "Darstellungs- und Abfrageeinschränkungen",
+    "queryable": "Abfragbar",
+    "opaque": "Undurchsichtig",
+    "cascaded": "Kaskadiert",
+    "scaleLimits": "Maßstabsbegrenzungen",
+    "yes": "ja",
+    "no": "nein",
+    "unknown": "unbekannt",
+    "formats": "Ausgabeformate",
+    "noDescription": "Keine Beschreibung vom Dienst abgerufen.",
+    "metadata": "Zugehörige Metadaten",
+    "access": "Zugriff",
+    "secured": "Zugriffsregeln konfiguriert",
+    "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",
+    "rules": "Zugriffsregeln",
   },
   recordShow: {
     "catalogue": "Katalog",

@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { useTranslate } from 'react-admin';
 
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -6,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
@@ -18,7 +20,9 @@ export interface AddResourceDialogProps {
 
 
 const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode => {
-  const { addWMSByUrl } = useOwsContextBase() 
+  const { addWMSByUrl, addWFSByUrl } = useOwsContextBase()
+  const [protocol, setProtocol] = useState('WMS');
+  const translate = useTranslate();
 
   return (
       <Dialog
@@ -42,23 +46,35 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
               headers.set('Authorization', `Basic ${basicAuth}`);
             }
 
-            addWMSByUrl(getCapabilitiesUrl, headers)
+            const addService = protocol === 'WFS' ? addWFSByUrl : addWMSByUrl;
+            addService(getCapabilitiesUrl, headers)
             setOpen(false)
           },
         } }}
       >
-        <DialogTitle>Append Web Map Service</DialogTitle>
+        <DialogTitle>{translate('viewerAdd.title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            To add a Web Map Service to the current OWS Context, please enter a valid GetCapabilitiesUrl.
+            {translate('viewerAdd.description')}
           </DialogContentText>
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label={translate('viewerAdd.protocol')}
+            value={protocol}
+            onChange={(event) => setProtocol(event.target.value)}
+          >
+            <MenuItem value="WMS">WMS</MenuItem>
+            <MenuItem value="WFS">WFS</MenuItem>
+          </TextField>
           <TextField
             autoFocus
             required
             margin="dense"
             id="getCapabilitiesUrl"
             name="getCapabilitiesUrl"
-            label="Get Capabilities Url"
+            label={translate('viewerAdd.url')}
             type="url"
             fullWidth
             variant="standard"
@@ -67,7 +83,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             margin="dense"
             id="username"
             name="username"
-            label="Username (optional)"
+            label={translate('viewerAdd.username')}
             fullWidth
             variant="standard"
           />
@@ -75,15 +91,15 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             margin="dense"
             id="password"
             name="password"
-            label="Password (optional)"
+            label={translate('viewerAdd.password')}
             type="password"
             fullWidth
             variant="standard"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setOpen(false)}>Cancel</Button>
-          <Button type="submit" color='primary'>Add</Button>
+          <Button onClick={()=>setOpen(false)}>{translate('ra.action.cancel')}</Button>
+          <Button type="submit" color='primary'>{translate('ra.action.add')}</Button>
         </DialogActions>
       </Dialog>
   );

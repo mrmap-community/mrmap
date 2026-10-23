@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WMS_Capabilities
+  xmlns="http://www.opengis.net/wms"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  version="1.3.0"
+  >
+  <Service>
+    <Name>WMS</Name>
+    <Title>WMS describing advertised dimensions</Title>
+    <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms"/>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>text/xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetMap>
+      <GetFeatureInfo>
+        <Format>text/html</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="https://www.example.org/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetFeatureInfo>
+    </Request>
+    <Layer>
+      <Title>root</Title>
+      <CRS>EPSG:4326</CRS>
+      <Dimension name="elevation" units="CRS:84" unitSymbol="m" default="10">0,10,20</Dimension>
+      <Dimension name="DIM_sensor" units="C" default="0">0/100/10</Dimension>
+      <Layer queryable="1">
+        <Title>inheriting</Title>
+        <Name>tests:inheriting</Name>
+      </Layer>
+      <Layer>
+        <Title>overriding</Title>
+        <Name>tests:overriding</Name>
+        <Dimension name="DIM_sensor">5,15</Dimension>
+      </Layer>
+      <Layer>
+        <Title>dimensionless</Title>
+        <Name>tests:dimensionless</Name>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMS_Capabilities>

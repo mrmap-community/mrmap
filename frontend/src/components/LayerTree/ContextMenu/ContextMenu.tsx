@@ -13,6 +13,7 @@ import EditAuthenticationsDialog from '../../MapViewer/OwsContextGuiActions/Edit
 import ActivateLayerItem from './ActivateLayerItem';
 import { useContextMenuBase } from "./ContextMenuBase";
 import ContextMenuItem from './ContextMenuItem';
+import DimensionItem from './DimensionItem';
 import ManageAuthenticationItem from './ManageAuthenticationItem';
 import StyleLegendItem from './StyleLegendItem';
 import ZoomToLayerItem from './ZoomToLayerItem';
@@ -80,6 +81,7 @@ const MenuItems = ({ onManage }: { onManage: (folder?: string) => void }) => {
         label={label('remove')}
       />
       <StyleLegendItem/>
+      <DimensionItem/>
       <ManageAuthenticationItem onManage={onManage}/>
       <ZoomToLayerItem/>
       <ActivateLayerItem/>

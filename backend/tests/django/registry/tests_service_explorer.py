@@ -103,6 +103,31 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
                 qs = filterset({f'bounding_geometry__{lookup}': bounds.wkt}, queryset=model.objects.all()).qs
                 self.assertEqual(list(qs.values_list('pk', flat=True)), [inside.pk])
 
+    def test_metadata_quality_filters(self):
+        from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
+        from registry.models.metadata import Licence
+        licence = Licence.objects.create(name='CC0', identifier='cc0-indicators', description='public domain')
+        for model, filterset in [(DatasetMetadataRecord, DatasetMetadataRecordSpatialFilterSet),
+                                 (ServiceMetadataRecord, ServiceMetadataRecordSpatialFilterSet)]:
+            extra = {'dataset_contact_id': '1234'} if model is DatasetMetadataRecord else {}
+            flagged = model.objects.create(title='Flagged', is_broken=True, insufficient_quality='missing title',
+                                           bounding_geometry=None, licence=None, metadata_contact_id='1234', **extra)
+            covered = Polygon.from_bbox((6, 49, 7, 50))
+            covered.srid = 4326
+            fine = model.objects.create(title='Fine', bounding_geometry=MultiPolygon(covered),
+                                        licence=licence, metadata_contact_id='1234', **extra)
+
+            def pks(params):
+                qs = model.objects.filter(pk__in=[flagged.pk, fine.pk])
+                return set(filterset(params, queryset=qs).qs.values_list('pk', flat=True))
+            self.assertEqual(pks({'is_broken': 'true'}), {flagged.pk})
+            self.assertEqual(pks({'has_insufficient_quality': 'true'}), {flagged.pk})
+            self.assertEqual(pks({'has_insufficient_quality': 'false'}), {fine.pk})
+            self.assertEqual(pks({'has_coverage': 'false'}), {flagged.pk})
+            self.assertEqual(pks({'has_coverage': 'true'}), {fine.pk})
+            self.assertEqual(pks({'has_licence': 'false'}), {flagged.pk})
+            self.assertEqual(pks({'has_licence': 'true'}), {fine.pk})
+
     def test_permissions_are_opt_in(self):
         status, body, _ = self.request('/api/registry/wms', **{'fields[WebMapService]': 'id,can_edit'})
         self.assertEqual(status, 200)

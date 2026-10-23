@@ -1,5 +1,5 @@
 
-import { PropsWithChildren, ReactNode, createContext, useContext, useMemo, useState } from "react";
+import { PropsWithChildren, ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
 import { RaRecord } from "react-admin";
 
 import { OWSResource } from "../../../ows-lib/OwsContext/core";
@@ -17,6 +17,10 @@ export interface ContextMenuBaseProps {
 }
 
 export interface ContextMenuBaseType extends ContextMenuBaseProps {
+  controlsId?: string | number;
+  setControlsId: (id?: string | number) => void;
+  pinnedId?: string | number;
+  setPinnedId: (id?: string | number) => void;
   setContextMenu: (value: ContextMenuBaseProps) => void;
   close: () => void;
 }
@@ -24,7 +28,9 @@ export interface ContextMenuBaseType extends ContextMenuBaseProps {
 export const context = createContext<ContextMenuBaseType | undefined>(undefined)
 
 
-export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
+export const ContextMenuBase = ({children, onOpenControls}: PropsWithChildren<{ onOpenControls?: () => void }>): ReactNode => {
+  const [controlsId, updateControlsId] = useState<string | number>();
+  const [pinnedId, setPinnedId] = useState<string | number>();
   const [node, setNode] = useState<OWSResource | undefined>(undefined)
   const [itemId, setItemId] = useState<string | undefined>(undefined)
   const [isOpen, setIsOpen] = useState(false)
@@ -33,8 +39,14 @@ export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
   const [mouseY, setMouseY] = useState<number | undefined>()
   const [record, setRecord] = useState<RaRecord | undefined>()
 
+  const setControlsId = useCallback((id?: string | number) => {
+    updateControlsId(id);
+    if (id !== undefined) onOpenControls?.();
+  }, [onOpenControls]);
+
   const value = useMemo<ContextMenuBaseType>(() => {
     return {
+      controlsId, setControlsId, pinnedId, setPinnedId,
       node: node,
       record: record,
       itemId: itemId,
@@ -57,7 +69,7 @@ export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
         setMouseY(undefined)
       }
     }
-  }, [node, isOpen, anchorElement, mouseX, mouseY])
+  }, [node, isOpen, anchorElement, mouseX, mouseY, record, itemId, controlsId, pinnedId, setControlsId])
     
 
   return (

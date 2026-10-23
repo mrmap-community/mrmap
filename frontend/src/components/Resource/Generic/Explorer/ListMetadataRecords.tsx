@@ -1,8 +1,9 @@
 import type { CoverageMapProps } from "./CoverageMap";
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
   type ListProps,
+  type RaRecord,
   SearchInput,
   useListContext,
   useTranslate,
@@ -15,6 +16,7 @@ import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
 import { ExplorerView } from "./ExplorerView";
+import { MetadataFacets, MetadataIndicators } from "./MetadataIndicators";
 
 const ExplorerActions = (props: CustomListActionsProps) => (
   <CustomListActions {...props} isConfigureable={false} />
@@ -23,12 +25,14 @@ interface MetadataExplorerProps {
   namespace?: string;
   MapComponent?: ComponentType<CoverageMapProps>;
   showDetails?: boolean;
+  rowDetails?: (record: RaRecord) => ReactNode;
 }
 
 export const MetadataExplorer = ({
   namespace = "datasetExplorer",
   MapComponent,
   showDetails = true,
+  rowDetails,
 }: MetadataExplorerProps) => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
   const translate = useTranslate();
@@ -48,6 +52,7 @@ export const MetadataExplorer = ({
         MapComponent={MapComponent}
         namespace={namespace}
         showDetails={showDetails}
+        rowDetails={rowDetails}
         onSearchArea={(geometry) =>
           setFilters(
             { ...filterValues, bounding_geometry__intersects: geometry },
@@ -76,16 +81,20 @@ const ListMetadataRecords = ({
       meta: {
         jsonApiParams: {
           [`fields[${props.resource}]`]:
-            "id,title,abstract,bounding_geometry,date_stamp",
+            "id,title,abstract,bounding_geometry,date_stamp,is_broken,insufficient_quality,licence",
         },
       },
     }}
     listContent={
-      <MetadataExplorer
-        namespace={namespace}
-        MapComponent={MapComponent}
-        showDetails={showDetails}
-      />
+      <>
+        <MetadataFacets />
+        <MetadataExplorer
+          namespace={namespace}
+          MapComponent={MapComponent}
+          showDetails={showDetails}
+          rowDetails={(record) => <MetadataIndicators record={record} />}
+        />
+      </>
     }
   />
 );

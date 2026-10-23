@@ -57,7 +57,19 @@ export interface Offering {
     operations?: Operation[]
     contents?: Content[]
     styles?: StyleSet[]
+    /** WMS dimensions as the capabilities advertise them; the viewer lets the map user pick among the stated values. */
+    dimensions?: OfferingDimension[]
     [name: string]: unknown // extension, any other
+}
+
+
+/** One advertised dimension: the stated name, the raw value text and the optional units and default. */
+export interface OfferingDimension {
+    name: string
+    values: string
+    units?: string
+    unitSymbol?: string
+    default?: string
 }
 
 

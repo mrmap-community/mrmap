@@ -84,6 +84,36 @@ describe("ServiceListAside", () => {
     expect(screen.getByText("serviceList.noSelection")).toBeInTheDocument();
   });
 
+  it("offers exactly one way to the service which is selected after another", () => {
+    const SelectTwo = () => {
+      const { setSelectedRecord } = useSelectedRecordContext();
+      return <>
+        <button onClick={() => setSelectedRecord({ id: "a", title: "First WMS" })}>Select first</button>
+        <button onClick={() => setSelectedRecord({ id: "b", title: "Second WMS" })}>Select second</button>
+      </>;
+    };
+    render(
+      <AdminContext i18nProvider={polyglotI18nProvider(() => en, "en")}>
+        <ResourceContextProvider value="WebMapService">
+          <SelectedRecordContextProvider>
+            <SelectTwo />
+            <ServiceListAside protocol="WMS" />
+          </SelectedRecordContextProvider>
+        </ResourceContextProvider>
+      </AdminContext>,
+    );
+    // the footer of the card of a WMS holds the way to the details and the way
+    // to the map viewer: a way to the details which is mounted anew under the
+    // same key as the way to the map viewer leaves a button of every selection
+    // before behind
+    fireEvent.click(screen.getByRole("button", { name: "Select first" }));
+    expect(screen.getAllByRole("link", { name: "Open details" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Select second" }));
+    const ways = screen.getAllByRole("link", { name: "Open details" });
+    expect(ways).toHaveLength(1);
+    expect(ways[0]).toHaveAttribute("href", "#/WebMapService/b/show");
+  });
+
   it("explains the changelog scope using the service title", () => {
     renderAside(true);
     expect(screen.getByText("Recent changes")).toBeInTheDocument();

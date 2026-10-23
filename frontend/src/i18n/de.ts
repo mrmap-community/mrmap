@@ -25,6 +25,10 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       zoomToLayer: "Auf Ebene zoomen",
     },
   },
+  viewerScale: {
+    notRendered: "Nicht maßstabsgerecht: Dieser Dienst wird bei Maßstabsnennern zwischen %{min} und %{max} gerendert (aktuell: %{current}).",
+    notRenderedShort: "Dienst ist nicht maßstabsgerecht",
+  },
   viewerAuth: {
     "method": "Authentifizierungsmethode",
     "username": "Benutzername",

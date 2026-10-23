@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
   type RaRecord,
   useGetList,
@@ -20,6 +20,11 @@ import {
   Link,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -109,22 +114,43 @@ const identifyFeatures = (value: unknown) => {
   return Array.isArray(features) ? features : undefined;
 };
 
-/**
- * Renders an identify result by its media type.
- *
- * Nothing of the upstream response becomes markup of this page: JSON is read into
- * attributes, everything else is shown as text, and the download link is always typed
- * `text/plain`. `text/html` is refused, because the security proxy answers it from the
- * MrMap origin and it could read the credentials stored there.
- */
+/** Extract only text and table structure; upstream nodes never enter the live DOM. */
+const readIdentifyHtml = (text: string) => {
+  const document = new DOMParser().parseFromString(text, "text/html");
+  document
+    .querySelectorAll(
+      "script, style, template, noscript, iframe, object, embed, svg, math, form",
+    )
+    .forEach((node) => node.remove());
+  const tables = Array.from(document.querySelectorAll("table"), (table) => ({
+    caption: table.caption?.textContent?.trim(),
+    rows: Array.from(table.rows, (row) =>
+      Array.from(row.cells, (cell) => ({
+        text: cell.textContent?.trim() ?? "",
+        header: cell.tagName === "TH",
+      })),
+    ).filter((row) => row.some((cell) => cell.text)),
+  })).filter((table) => table.rows.length > 0);
+  document.querySelectorAll("table").forEach((node) => node.remove());
+  document.body
+    .querySelectorAll("br, p, div, li, h1, h2, h3, h4, h5, h6")
+    .forEach((node) => node.append("\n"));
+  return { tables, text: document.body.textContent?.trim() ?? "" };
+};
+
+/** Presents service data as React text and tables, with the original available on demand. */
 export const FeatureInfoResult = ({
   text,
   contentType,
+  paginate = false,
 }: {
   text: string;
   contentType: string;
+  paginate?: boolean;
 }) => {
   const translate = useTranslate();
+  const [featureIndex, setFeatureIndex] = useState(0);
+  useEffect(() => setFeatureIndex(0), [text]);
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     const next = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
@@ -132,47 +158,168 @@ export const FeatureInfoResult = ({
     return () => URL.revokeObjectURL(next);
   }, [text]);
   const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  const html = useMemo(
+    () =>
+      mediaType === "text/html" || mediaType === "application/xhtml+xml"
+        ? readIdentifyHtml(text)
+        : undefined,
+    [mediaType, text],
+  );
   const parsed =
     mediaType === "application/json" || mediaType === "application/geo+json"
       ? parseIdentify(text)
       : undefined;
   const features = parsed === undefined ? undefined : identifyFeatures(parsed);
   return (
-    <Stack spacing={1}>
-      {url && (
-        <Link href={url} target="_blank" rel="noopener noreferrer">
-          {translate("livePreview.featureInfo")}
-        </Link>
-      )}
-      {(mediaType === "text/html" ||
-        mediaType === "application/xhtml+xml") && (
-        <Alert severity="warning">
-          {translate("livePreview.htmlNotRendered")}
-        </Alert>
-      )}
-      {features ? (
-        <Stack spacing={1}>
-          {features.map((feature, index) => (
-            <Stack
-              key={index}
-              sx={{ border: 1, borderColor: "divider", p: 1 }}
+    <Stack spacing={1} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+      {html ? (
+        <>
+          {!html.tables.length && !html.text && (
+            <Typography variant="body2" color="text.secondary">
+              {translate("livePreview.noFeatures")}
+            </Typography>
+          )}
+          {html.text && (
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
             >
-              {(entries(
-                (feature as { properties?: unknown })?.properties,
-              ).length
-                ? entries((feature as { properties?: unknown }).properties)
-                : entries(feature)
-              ).map(([key, value]) => (
-                <Typography key={key} component="div" variant="body2">
-                  {key}:{" "}
-                  {typeof value === "object"
-                    ? JSON.stringify(value)
-                    : String(value ?? "")}
-                </Typography>
-              ))}
-            </Stack>
+              {html.text}
+            </Typography>
+          )}
+          {html.tables.map((table, index) => (
+            <TableContainer key={index} sx={{ maxHeight: 300 }}>
+              <Table
+                size="small"
+                sx={{
+                  "& td, & th": {
+                    verticalAlign: "top",
+                    minWidth: 100,
+                    maxWidth: 280,
+                    overflowWrap: "anywhere",
+                  },
+                }}
+              >
+                {table.caption && (
+                  <caption style={{ captionSide: "top" }}>
+                    {table.caption}
+                  </caption>
+                )}
+                <TableBody>
+                  {table.rows.map((row, rowIndex) => (
+                    <TableRow key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <TableCell
+                          key={cellIndex}
+                          component={cell.header ? "th" : "td"}
+                          sx={
+                            cell.header
+                              ? { fontWeight: "bold", bgcolor: "action.hover" }
+                              : undefined
+                          }
+                        >
+                          {cell.text}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           ))}
-        </Stack>
+        </>
+      ) : features ? (
+        features.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {translate("livePreview.noFeatures")}
+          </Typography>
+        ) : (
+          <Stack spacing={1}>
+            {paginate && (
+              <Stack direction="row" sx={{ alignItems: "center" }} spacing={1}>
+                <Typography variant="caption" sx={{ flex: 1 }}>
+                  {translate("viewerFeatureInfo.featurePage", {
+                    current: Math.min(featureIndex + 1, features.length),
+                    total: features.length,
+                  })}
+                </Typography>
+                <Button
+                  size="small"
+                  disabled={featureIndex === 0}
+                  onClick={() => setFeatureIndex((index) => index - 1)}
+                  aria-label={translate("ra.navigation.previous")}
+                >
+                  ‹
+                </Button>
+                <Button
+                  size="small"
+                  disabled={featureIndex >= features.length - 1}
+                  onClick={() => setFeatureIndex((index) => index + 1)}
+                  aria-label={translate("ra.navigation.next")}
+                >
+                  ›
+                </Button>
+              </Stack>
+            )}
+            {(paginate
+              ? features.slice(featureIndex, featureIndex + 1)
+              : features
+            ).map((feature, index) => (
+              <Stack
+                key={index}
+                sx={{
+                  border: paginate ? 0 : 1,
+                  borderColor: "divider",
+                  p: paginate ? 0 : 1,
+                }}
+              >
+                {(entries((feature as { properties?: unknown })?.properties)
+                  .length
+                  ? entries((feature as { properties?: unknown }).properties)
+                  : entries(feature)
+                ).map(([key, value]) => (
+                  <Typography
+                    key={key}
+                    component="div"
+                    variant="body2"
+                    sx={
+                      paginate
+                        ? {
+                            display: "grid",
+                            gridTemplateColumns:
+                              "minmax(90px, .8fr) minmax(0, 1.2fr)",
+                            gap: 1,
+                            py: 1,
+                            borderTop: 1,
+                            borderColor: "divider",
+                            overflowWrap: "anywhere",
+                          }
+                        : undefined
+                    }
+                  >
+                    {paginate ? (
+                      <>
+                        <span>{key}</span>
+                        <span>
+                          {typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value ?? "")}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {key}:{" "}
+                        {typeof value === "object"
+                          ? JSON.stringify(value)
+                          : String(value ?? "")}
+                      </>
+                    )}
+                  </Typography>
+                ))}
+              </Stack>
+            ))}
+          </Stack>
+        )
       ) : (
         <Typography
           component="pre"
@@ -181,6 +328,41 @@ export const FeatureInfoResult = ({
           {parsed === undefined ? text : JSON.stringify(parsed, null, 2)}
         </Typography>
       )}
+      <Accordion
+        slotProps={{ transition: { unmountOnExit: true } }}
+        disableGutters
+        elevation={0}
+        sx={{
+          "&:before": { display: "none" },
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="body2">
+            {translate("livePreview.rawResponse")}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          {url && (
+            <Link href={url} download="getfeatureinfo.txt">
+              {translate("livePreview.featureInfo")}
+            </Link>
+          )}
+          <Typography
+            component="pre"
+            sx={{
+              fontFamily: "monospace",
+              fontSize: "0.75rem",
+              whiteSpace: "pre",
+              maxHeight: 200,
+              overflow: "auto",
+            }}
+          >
+            {text}
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
     </Stack>
   );
 };
@@ -397,9 +579,7 @@ const DataPreview = ({
         <FeatureInfoResult
           text={info.data.info}
           contentType={
-            info.data.contentType ??
-            discovery.data?.identify?.infoFormat ??
-            ""
+            info.data.contentType ?? discovery.data?.identify?.infoFormat ?? ""
           }
         />
       )}

@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 import { Alert, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
 
 import SimpleCard from "../../../../../MUI/SimpleCard";
-import useCompleteList from "./useCompleteList";
+import useCompleteList from "../../../../Generic/ServiceShow/useCompleteList";
 
 const SpatialSecuritySummary = () => {
   const service = useRecordContext();

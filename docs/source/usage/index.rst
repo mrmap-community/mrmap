@@ -92,6 +92,12 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
+Resources imported from a WMS carry the dimensions their capabilities advertise. The layer
+context menu's "Dimensions" dialog lets you pick among the advertised values - as a list or as
+a validated number within the advertised range and interval - and the choice applies to both
+the map and the identify requests. Resources asking for different dimension values are
+requested separately, and the selections survive in the context document.
+
 Protected GetFeatureInfo results are fetched with their assigned headers and shown
 in the viewer. Remote markup is displayed as text, never executed. Credentials
 remain in the viewer session. The JSON context editor omits secret values from

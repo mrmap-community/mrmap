@@ -1,3 +1,5 @@
+import type { OfferingDimension } from '../../../ows-lib/OwsContext/types';
+
 import { AdminContext } from 'react-admin';
 
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -7,8 +9,9 @@ import { OWSResource } from '../../../ows-lib/OwsContext/core';
 import { OwsContextBase, useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import LayerTree from '../LayerTree';
 
-const wmsOperations = (active: boolean) => [{
+const wmsOperations = (active: boolean, dimensions?: OfferingDimension[]) => [{
   code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+  ...(dimensions !== undefined && { dimensions }),
   operations: [
     { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a', active },
     { code: 'GetFeatureInfo', method: 'GET', href: 'https://example.org/wms?LAYERS=a&QUERY_LAYERS=a', active },
@@ -17,7 +20,10 @@ const wmsOperations = (active: boolean) => [{
 
 const testFeatures = () => [
   new OWSResource({ title: 'group', updated: '', folder: '/0' }, 'group'),
-  new OWSResource({ title: 'first', updated: '', folder: '/0/0', active: true, offerings: wmsOperations(true) }, 'first'),
+  new OWSResource({ title: 'first', updated: '', folder: '/0/0', active: true, offerings: wmsOperations(true, [
+    { name: 'elevation', values: '0,10,20', default: '10' },
+    { name: 'DIM_sensor', values: '0/100/10' },
+  ]) }, 'first'),
   new OWSResource({ title: 'second', updated: '', folder: '/0/1', active: false, offerings: wmsOperations(false) }, 'second'),
   new OWSResource({ title: 'other root', updated: '', folder: '/1' }, 'root2'),
 ];
@@ -31,6 +37,8 @@ const ContextProbe = () => {
         folder: feature.properties.folder,
         title: feature.properties.title,
         map: feature.getWmsOperationByCode('GetMap')?.active ?? null,
+        mapHref: feature.getWmsOperationByCode('GetMap')?.href ?? null,
+        infoHref: feature.getWmsOperationByCode('GetFeatureInfo')?.href ?? null,
       })))}
     </p>
   );
@@ -140,8 +148,30 @@ describe('layer tree context menu', () => {
     fireEvent.click(await item('remove'));
 
     expect(context()).toEqual([
-      { id: 'root2', folder: '/0', title: 'other root', map: null },
+      { id: 'root2', folder: '/0', title: 'other root', map: null, mapHref: null, infoHref: null },
     ]);
+  }, TEST_TIMEOUT);
+
+  it('applies an advertised dimension value to both operations and refuses values the service does not offer', async () => {
+    renderTree();
+    expandGroup();
+    openMenuOf(1);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerDimensions.title' }, { timeout: 4000 }));
+
+    // the list dimension offers the advertised values, the range dimension asks for a validated number
+    const select = await screen.findByRole('combobox');
+    expect(select).toHaveValue('10');
+    fireEvent.change(select, { target: { value: '20' } });
+    expect(positionOf('first').mapHref).toContain('ELEVATION=20');
+    expect(positionOf('first').infoHref).toContain('ELEVATION=20');
+
+    const range = screen.getByRole('spinbutton');
+    fireEvent.change(range, { target: { value: '155' } });
+    expect(await screen.findByText('viewerDimensions.invalid')).toBeInTheDocument();
+    expect(positionOf('first').mapHref).not.toContain('DIM_SENSOR=155');
+
+    fireEvent.change(range, { target: { value: '50' } });
+    expect(positionOf('first').mapHref).toContain('DIM_SENSOR=50');
   }, TEST_TIMEOUT);
 });
 

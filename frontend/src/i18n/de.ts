@@ -16,6 +16,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  viewerDimensions: {
+    title: "Dimensionen",
+    dimension: "Dimension %{name}",
+    serverDefault: "Serverstandard",
+    invalid: "Diesen Wert bietet der Dienst nicht an.",
+    none: "Diese Ressource bietet keine Dimensionen an.",
+  },
   viewerUnsupported: {
     summary: "%{count} Ressourcen können von diesem Viewer nicht gerendert werden",
     resource: "Diese Ressource kann nicht gerendert werden:",

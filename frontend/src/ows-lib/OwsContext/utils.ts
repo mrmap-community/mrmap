@@ -129,6 +129,9 @@ export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCap
                         }
                     })
                 }),
+                ...(node.advertisedDimension && node.advertisedDimension.length > 0 && {
+                    dimensions: node.advertisedDimension.map(dimension => ({ ...dimension }))
+                }),
             }],
             ...(node.minScaleDenominator !== undefined && { minscaledenominator: node.minScaleDenominator }),
             ...(node.maxScaleDenominator !== undefined && { maxscaledenominator: node.maxScaleDenominator }),

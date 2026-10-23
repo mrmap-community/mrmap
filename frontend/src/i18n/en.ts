@@ -19,6 +19,13 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    viewerDimensions: {
+      title: "Dimensions",
+      dimension: "Dimension %{name}",
+      serverDefault: "Server default",
+      invalid: "The service does not offer this value.",
+      none: "This resource advertises no dimensions.",
+    },
     viewerUnsupported: {
       summary: "%{count} resources cannot be rendered by this viewer",
       resource: "This resource cannot be rendered:",

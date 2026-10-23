@@ -103,8 +103,11 @@ a composed viewer document with its own service URLs, drawings, styles and dimen
 server-side document storage API would be required to offer named, permissioned saved maps and
 is reported as follow-up work.
 
-Protected GetFeatureInfo results are fetched with their assigned headers and shown
-in the viewer. Remote markup is displayed as text, never executed. Credentials
+Credentials GetFeatureInfo results are fetched by the viewer itself and shown in the marker
+popup: protected requests with their assigned headers, unprotected requests
+directly. Loading, empty and error states are named, and a failed request offers
+an explicit link to the raw response. Remote markup is displayed as text, never
+executed. Credentials
 remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for

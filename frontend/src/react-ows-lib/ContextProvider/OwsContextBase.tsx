@@ -14,7 +14,7 @@ export type OwsContextLoadingTimings = Partial<{
   performFetch: number
   responseText: number
   fromPlainObject: number
-  appendWms: number
+  appendService: number
   beforeSetHook: number
   jsonParse: number
   initialize: number
@@ -49,6 +49,12 @@ export interface OwsContextBaseType {
   resetContext: () => void
   addWMSByRecord: (record: RaRecord) => void
   addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  /**
+   * Imports WFS capabilities into the context. Like addWMSByUrl it appends a new tree and keeps the
+   * existing service trees and the area of interest of the document intact.
+   */
+  addWFSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  addWFSByRecord: (record: RaRecord) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: OWSResource[]
   activeFeatures: OWSResource[]
@@ -238,12 +244,20 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [])
 
-  const addWMSByUrl = useCallback(async (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => {
+  // one loader for both service types: fetch the capabilities, parse and append them as a new tree
+  // and only then replace the state, so a failing import keeps the existing trees and viewport
+  const appendServiceByUrl = useCallback(async (
+    url: string,
+    serviceLabel: 'WMS' | 'WFS',
+    appendService: (context: OWSContext, url: string, capabilities: string) => number,
+    headers?: Headers,
+    beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext
+  ) => {
     const timings = {
       performFetch: 0,
       responseText: 0,
       fromPlainObject: 0,
-      appendWms: 0,
+      appendService: 0,
       beforeSetHook: 0,
       total: 0
     }
@@ -251,12 +265,12 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
     try {
       setLoadingStatus('fetching')
-      setLoadingMessage('Downloading WMS capabilities...')
+      setLoadingMessage(`Downloading ${serviceLabel} capabilities...`)
       setLoadingTimings({
         performFetch: 0,
         responseText: 0,
         fromPlainObject: 0,
-        appendWms: 0,
+        appendService: 0,
         beforeSetHook: 0,
         total: 0
       })
@@ -274,7 +288,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       }
 
       setLoadingStatus('reading')
-      setLoadingMessage('Reading WMS capabilities...')
+      setLoadingMessage(`Reading ${serviceLabel} capabilities...`)
 
       const responseTextStart = performance.now()
       const xmlString = await response.text()
@@ -282,7 +296,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingTimings((previous) => ({ ...previous, responseText: timings.responseText }))
 
       if (!xmlString) {
-        throw new Error('Empty WMS response')
+        throw new Error(`Empty ${serviceLabel} response`)
       }
 
       const serviceExceptionMessage = getOgcServiceExceptionMessage(xmlString)
@@ -294,7 +308,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       }
 
       setLoadingStatus('parsing')
-      setLoadingMessage('Parsing WMS capabilities...')
+      setLoadingMessage(`Parsing ${serviceLabel} capabilities...`)
 
       let parseError: Error | undefined
       setOwsContext((prev) => {
@@ -304,11 +318,11 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
           timings.fromPlainObject = performance.now() - fromPlainObjectStart
           setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
 
-          const appendWmsStart = performance.now()
-          const treeId = newContext.appendWms(url, xmlString)
+          const appendServiceStart = performance.now()
+          const treeId = appendService(newContext, url, xmlString)
           assignServiceAuthentication(newContext, treeId, url, headers)
-          timings.appendWms = performance.now() - appendWmsStart
-          setLoadingTimings((previous) => ({ ...previous, appendWms: timings.appendWms }))
+          timings.appendService = performance.now() - appendServiceStart
+          setLoadingTimings((previous) => ({ ...previous, appendService: timings.appendService }))
 
           if (beforeSetHook !== undefined) {
             const beforeSetHookStart = performance.now()
@@ -335,7 +349,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
       setLoadingStatus('ready')
-      setLoadingMessage('WMS capabilities loaded')
+      setLoadingMessage(`${serviceLabel} capabilities loaded`)
     } catch (error) {
       
       const message = error instanceof Error ? error.message : String(error)
@@ -344,6 +358,14 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setErrorMessage(message)
     }
   }, [performFetch])
+
+  const addWMSByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) =>
+    appendServiceByUrl(url, 'WMS', (context, serviceUrl, capabilities) => context.appendWms(serviceUrl, capabilities), headers, beforeSetHook),
+  [appendServiceByUrl])
+
+  const addWFSByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) =>
+    appendServiceByUrl(url, 'WFS', (context, serviceUrl, capabilities) => context.appendWfs(serviceUrl, capabilities), headers, beforeSetHook),
+  [appendServiceByUrl])
 
   const initialFromOwsContext = useCallback(async (url: string, headers?: Headers) => {
     const totalStart = performance.now()
@@ -429,6 +451,14 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     addWMSByUrl(url)
   }, [addWMSByUrl])
 
+  const addWFSByRecord = useCallback((record: RaRecord) => {
+    const url = (record.url ?? record.href ?? record.wfsUrl ?? record.serviceUrl) as string | undefined
+    if (typeof url !== 'string' || url.length === 0) {
+      return
+    }
+    addWFSByUrl(url)
+  }, [addWFSByUrl])
+
   const resetContext = useCallback(() => {
     setOwsContext(new OWSContext())
     setDocumentRevision((revision) => revision + 1)
@@ -505,6 +535,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       resetContext,
       addWMSByRecord,
       addWMSByUrl,
+      addWFSByUrl,
+      addWFSByRecord,
       initialFromOwsContext,
       trees,
       activeFeatures,
@@ -530,6 +562,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     resetContext,
     addWMSByRecord,
     addWMSByUrl,
+    addWFSByUrl,
+    addWFSByRecord,
     initialFromOwsContext,
     trees,
     activeFeatures,

@@ -96,7 +96,7 @@ describe('EditOwsContextDialog', () => {
     const setOpen = renderDialog();
     const document = documentWith('Neu');
     document.features[0].properties.offerings = [{
-      code: 'http://www.opengis.net/spec/owc/1.0/req/wfs',
+      code: 'http://www.opengis.net/spec/owc/1.0/req/wcs',
       operations: [{ code: 'GetFeatureInfo', method: 'GET', href: 'https://www.example.org/wfs' }]
     }];
 

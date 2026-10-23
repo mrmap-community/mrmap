@@ -4,7 +4,7 @@ import { AdminContext } from "react-admin";
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { OWSResource } from '../../ows-lib/OwsContext/core';
+import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core';
 import { karteRpFeatures as testdata } from '../../ows-lib/OwsContext/tests/data';
 import { OwsContextBase, useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
 import LayerTree from './LayerTree';
@@ -24,7 +24,7 @@ const MapViewerBaseWrapper = ({ children }: { children: ReactNode }) => {
 
 
 const ContextProbe = () => {
-  const { owsContext } = useOwsContextBase();
+  const { owsContext, setOwsContext } = useOwsContextBase();
   const target = owsContext.findResourceByFolder('/0');
   const getMapOperation = target?.getWmsOperationByCode('GetMap');
   const getFeatureInfoOperation = target?.getWmsOperationByCode('GetFeatureInfo');
@@ -33,11 +33,74 @@ const ContextProbe = () => {
     <div>
       <span data-testid="get-map-state">{String(getMapOperation?.active ?? false)}</span>
       <span data-testid="get-feature-info-state">{String(getFeatureInfoOperation?.active ?? false)}</span>
+      <span data-testid="map-href">{getMapOperation?.href}</span>
+      <span data-testid="info-href">{getFeatureInfoOperation?.href}</span>
+      <button onClick={() => setOwsContext(OWSContext.fromPlainObject(JSON.parse(JSON.stringify(owsContext))))}>Reload context</button>
     </div>
   );
 };
 
 describe('LayerTree', () => {
+  it('selects advertised styles, reloads them and displays legend loading, success and failure states', () => {
+    const feature = new OWSResource({
+      title: 'Styled layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        styles: [
+          { name: 'outline', title: 'Outline', legendURL: 'https://example.org/outline.png' },
+          { name: 'fill', title: 'Fill', legendURL: 'https://example.org/fill.png' },
+          { name: 'no-legend', title: 'No legend' },
+        ],
+        operations: [
+          { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&STYLES=outline', active: true },
+          { code: 'GetFeatureInfo', method: 'GET', href: 'https://example.org/wms?LAYERS=a&QUERY_LAYERS=a&STYLES=outline', active: false },
+        ],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
+
+    expect(screen.getByRole('combobox')).toHaveValue('outline');
+    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'viewerStyles.loading');
+    const first = screen.getByRole('img', { hidden: true });
+    expect(first).toHaveAttribute('src', 'https://example.org/outline.png');
+    fireEvent.load(first);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'fill' } });
+    expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('fill');
+    expect(new URL(screen.getByTestId('info-href').textContent!).searchParams.get('STYLES')).toBe('fill');
+    expect(screen.getByTestId('get-map-state')).toHaveTextContent('true');
+    expect(screen.getByTestId('get-feature-info-state')).toHaveTextContent('false');
+    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'viewerStyles.loading');
+    fireEvent.error(screen.getByRole('img', { hidden: true }));
+    expect(screen.getByRole('status')).toHaveTextContent('viewerStyles.unavailable');
+
+    fireEvent.click(screen.getByText('Reload context'));
+    expect(screen.getByRole('combobox')).toHaveValue('fill');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no-legend' } });
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('viewerStyles.unavailable');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } });
+    expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('');
+  });
+
+  it('keeps unadvertised imported styles until the user chooses a replacement', () => {
+    const feature = new OWSResource({
+      title: 'Imported layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        styles: [{ name: 'fill', title: 'Fill' }],
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&STYLES=imported' }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
+    expect(screen.getByRole('combobox')).toHaveValue('imported');
+    expect(screen.getByRole('option', { name: 'imported' })).toBeDisabled();
+    expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'fill' } });
+    expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('fill');
+  });
+
   it('LayerTree renders with initial data', () => {
     render(<LayerTree />, {wrapper: MapViewerBaseWrapper})
     

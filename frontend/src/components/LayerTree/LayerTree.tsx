@@ -1,5 +1,5 @@
-import { Fragment, memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
-import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext } from 'react-admin'
+import { Fragment, memo, useCallback, useId, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext, useTranslate } from 'react-admin'
 
 import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
@@ -7,16 +7,19 @@ import VpnLockIcon from '@mui/icons-material/VpnLock'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
 import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 import { v4 as uuidv4 } from 'uuid'
 
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
+import { getWmsOperationStyles, setWmsLayerStyle } from '../../ows-lib/OwsContext/utils'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
+import { PreviewImage } from '../Resource/Generic/ServiceShow/ServicePreviewImage'
 import ContextMenu from './ContextMenu/ContextMenu'
 import { ContextMenuBase } from './ContextMenu/ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
@@ -61,6 +64,55 @@ export interface TreeItemLabelProps {
 }
 
 NodeIcons.displayName = "NodeIcons";
+
+const WmsStyleControls = ({ node }: TreeItemLabelProps) => {
+  const { owsContext, setOwsContext } = useOwsContextBase()
+  const translate = useTranslate()
+  const id = useId()
+  const offering = node.getWmsOffering()
+  const selections = getWmsOperationStyles(node.getWmsOperationByCode('GetMap') ?? node.getWmsOperationByCode('GetFeatureInfo'))
+  const styles = offering?.styles ?? []
+
+  return <Stack spacing={1} sx={{ ml: 5, mt: 0.5, minWidth: 0 }}
+    onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}
+    onKeyDown={event => event.stopPropagation()}>
+    {selections.map(({ layer, style }, index) => {
+      const selected = style ? styles.find(item => item.name === style) : styles.find(item => item.default)
+      const legend = selected?.legendURL
+      const src = legend && /^https?:\/\//i.test(legend) ? legend : undefined
+      return <Stack key={`${layer}:${index}`} spacing={0.5}>
+        <TextField
+          id={`${id}-${index}`}
+          select
+          size="small"
+          label={translate('viewerStyles.style', { layer })}
+          value={style}
+          slotProps={{ select: { native: true } }}
+          onChange={event => {
+            const next = OWSContext.fromPlainObject(owsContext)
+            const target = next.findResourceByFolder(node.properties.folder)?.getWmsOffering()
+            if (!target) return
+            setWmsLayerStyle(target, layer, event.target.value)
+            setOwsContext(next)
+          }}
+        >
+          <option value="">{translate('viewerStyles.default')}</option>
+          {style && !styles.some(item => item.name === style) && <option value={style} disabled>{style}</option>}
+          {styles.filter(item => item.name !== '').map(item => <option key={item.name} value={item.name}>{item.title || item.name}</option>)}
+        </TextField>
+        <PreviewImage
+          key={`${layer}:${style}:${src}`}
+          src={src}
+          alt={translate('viewerStyles.legend', { layer, style: selected?.title || style || translate('viewerStyles.default') })}
+          loadingLabel={translate('viewerStyles.loading')}
+          unavailableLabel={translate('viewerStyles.unavailable')}
+          containerSx={{ width: '100%', height: 'auto', minHeight: 48, justifyContent: 'flex-start' }}
+          imageSx={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: 240 }}
+        />
+      </Stack>
+    })}
+  </Stack>
+}
 
 const TreeItemLabel = memo(
   ({
@@ -153,6 +205,7 @@ const TreeItemLabel = memo(
 
 
     return (
+      <Stack sx={{ minWidth: 0, width: '100%' }}>
       <Stack direction="row" sx={{ justifyContent: "flex-start", }}>
         <Box sx={{display:"flex", alignItems:"flex-start"}} >
          <Tooltip title="Toggle the visibility of this service">
@@ -204,6 +257,8 @@ const TreeItemLabel = memo(
           isSpatialSecured={record?.isSpatialSecured}
         />
       </Stack>
+    </Stack>
+    <WmsStyleControls node={node} />
     </Stack>
     )
   }

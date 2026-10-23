@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRecordContext, useTranslate } from "react-admin";
 
-import { Box, Skeleton, Typography } from "@mui/material";
+import { Box, Skeleton, Typography, type SxProps, type Theme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -10,14 +10,22 @@ import {
 } from "../../../../context/HttpClientContext";
 import { getAuthToken } from "../../../../providers/authProvider";
 
-const PreviewImage = ({
+export const PreviewImage = ({
   src,
   alt,
   pending = false,
+  loadingLabel,
+  unavailableLabel,
+  containerSx,
+  imageSx,
 }: {
   src?: string;
   alt: string;
   pending?: boolean;
+  loadingLabel?: string;
+  unavailableLabel?: string;
+  containerSx?: SxProps<Theme>;
+  imageSx?: SxProps<Theme>;
 }) => {
   const translate = useTranslate();
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
@@ -28,7 +36,7 @@ const PreviewImage = ({
   return (
     <Box
       aria-busy={loading}
-      sx={{
+      sx={[{
         position: "relative",
         width: { xs: "100%", sm: 160 },
         height: 200,
@@ -39,7 +47,7 @@ const PreviewImage = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-      }}
+      }, ...(Array.isArray(containerSx) ? containerSx : [containerSx ?? {}])]}
     >
       {(!src && !pending) || status === "error" ? (
         <Typography
@@ -48,7 +56,7 @@ const PreviewImage = ({
           role="status"
           sx={{ px: 2, textAlign: "center" }}
         >
-          {translate("serviceShow.previewUnavailable")}
+          {unavailableLabel ?? translate("serviceShow.previewUnavailable")}
         </Typography>
       ) : (
         <>
@@ -58,7 +66,7 @@ const PreviewImage = ({
               width="100%"
               height="100%"
               role="status"
-              aria-label={translate("serviceShow.previewLoading")}
+              aria-label={loadingLabel ?? translate("serviceShow.previewLoading")}
               sx={{ position: "absolute", inset: 0 }}
             />
           )}
@@ -69,13 +77,13 @@ const PreviewImage = ({
               alt={alt}
               onLoad={() => setStatus("loaded")}
               onError={() => setStatus("error")}
-              sx={{
+              sx={[{
                 display: "block",
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
                 visibility: loading ? "hidden" : "visible",
-              }}
+              }, ...(Array.isArray(imageSx) ? imageSx : [imageSx ?? {}])]}
             />
           )}
         </>

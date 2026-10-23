@@ -10,7 +10,7 @@ import {
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import LivePreview from "./LivePreview";
+import LivePreview, { FeatureInfoResult } from "./LivePreview";
 
 const state = vi.hoisted(() => ({
   request: vi.fn(),
@@ -401,5 +401,23 @@ describe("live overview previews", () => {
         }),
       ),
     );
+  });
+  it("names an identify result that holds no features", () => {
+    render(
+      <AdminContext
+        dataProvider={testDataProvider()}
+        i18nProvider={{
+          translate: (key) => key,
+          changeLocale: async () => {},
+          getLocale: () => "en",
+        }}
+      >
+        <FeatureInfoResult
+          text='{"type":"FeatureCollection","features":[]}'
+          contentType="application/json"
+        />
+      </AdminContext>,
+    );
+    expect(screen.getByText("livePreview.noFeatures")).toBeInTheDocument();
   });
 });

@@ -92,8 +92,11 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
-Protected GetFeatureInfo results are fetched with their assigned headers and shown
-in the viewer. Remote markup is displayed as text, never executed. Credentials
+GetFeatureInfo results are fetched by the viewer itself and shown in the marker
+popup: protected requests with their assigned headers, unprotected requests
+directly. Loading, empty and error states are named, and a failed request offers
+an explicit link to the raw response. Remote markup is displayed as text, never
+executed. Credentials
 remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for

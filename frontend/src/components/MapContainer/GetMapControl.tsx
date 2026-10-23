@@ -2,7 +2,7 @@ import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link, useTranslate } from 'react-admin'
 import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
 
-import { Alert, Stack } from '@mui/material'
+import { Alert, Stack, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { point, type LatLng } from 'leaflet'
 import proj4 from 'proj4'
@@ -30,10 +30,9 @@ const FeatureInfoRequest = ({ request }: { request: OptimizedUrlsMap }) => {
   const { owsContext } = useOwsContextBase();
   const translate = useTranslate();
   const { headers, error: authError } = resolveOperationAuthentication(owsContext, request.operations[0], request.url.href);
-  const protectedRequest = request.operations[0]['x-authentication-id'] !== undefined;
   const query = useQuery({
     queryKey: ['viewerFeatureInfo', request.url.href, headers ? Array.from(headers) : undefined, authError],
-    enabled: protectedRequest && !authError,
+    enabled: !authError,
     retry: false,
     gcTime: 0,
     queryFn: async ({ signal }) => {
@@ -43,18 +42,21 @@ const FeatureInfoRequest = ({ request }: { request: OptimizedUrlsMap }) => {
     },
   });
   if (authError) return <Alert severity="error">{translate(`viewerAuth.${authError}`)}</Alert>;
-  if (!protectedRequest) return <Link to={request.url.href} target="_blank" rel="noopener noreferrer">
-    {request.url.searchParams.get('QUERY_LAYERS') ?? request.url.searchParams.get('query_layers') ?? 'Feature Info'}
-  </Link>;
-  return <Stack spacing={1}>
-    {query.isFetching && translate('viewerAuth.loading')}
-    {query.error && <Alert severity="error">{query.error.message}</Alert>}
+  const layers = request.url.searchParams.get('QUERY_LAYERS') ?? request.url.searchParams.get('query_layers') ?? 'Feature Info';
+  return <Stack spacing={0.5}>
+    <Typography variant="subtitle2">{layers}</Typography>
+    {query.isPending && translate('viewerFeatureInfo.loading')}
+    {query.error && <Stack spacing={0.5}>
+      <Alert severity="error">{translate('viewerFeatureInfo.error')}</Alert>
+      <Link to={request.url.href} target="_blank" rel="noopener noreferrer">{translate('viewerFeatureInfo.raw')}</Link>
+    </Stack>}
     {query.data && <FeatureInfoResult {...query.data} />}
   </Stack>;
 };
 
 const WebMapServiceControl = () => {
   const map = useMap()
+  const translate = useTranslate()
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
   const { owsContext } = useOwsContextBase()
@@ -137,10 +139,20 @@ const WebMapServiceControl = () => {
       const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
       getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl) => {
         const params = atomicGetFeatureInfoUrl.url.searchParams
-        updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
-        updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
-        updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
-        updateOrAppendSearchParam(params, 'Y', layerPoint.y.toFixed(0).toString())
+        const version = params.get('version') ?? params.get('VERSION')
+        // WMS 1.3.0 asks for the pixel through I/J, earlier versions through X/Y;
+        // sending the foreign pair makes strict servers reject or misplace the query.
+        if (version === '1.3.0') {
+          updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
+          updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
+          params.delete('X')
+          params.delete('Y')
+        } else {
+          updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
+          updateOrAppendSearchParam(params, 'Y', layerPoint.y.toFixed(0).toString())
+          params.delete('I')
+          params.delete('J')
+        }
         updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
         updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
         if (![...params.keys()].some(key => key.toUpperCase() === 'LAYERS')) {
@@ -152,8 +164,6 @@ const WebMapServiceControl = () => {
           updateOrAppendSearchParam(params, 'STYLES', '')
         }
         
-        const version = params.get('version') ?? params.get('VERSION')
-
         if (version === '1.3.0') {
           if (selectedCrs.isXyOrder) {
             // no axis order correction needed.
@@ -216,11 +226,11 @@ const WebMapServiceControl = () => {
       {tiles.map(tile => tile.leafletTile)}
       {position && <Marker position={position} >
         <Popup>
-          {getFeatureInfoUrls?.map((url, index) => (
-              <FeatureInfoRequest request={url} key={index} />
+          {getFeatureInfoUrls?.map((url) => (
+              <FeatureInfoRequest request={url} key={url.url.href} />
           ))}
         </Popup>
-        <Tooltip direction="top">Click on the marker to see feature info</Tooltip>
+        <Tooltip direction="top">{translate('viewerFeatureInfo.tooltip')}</Tooltip>
       </Marker>  
       }
     </Fragment>

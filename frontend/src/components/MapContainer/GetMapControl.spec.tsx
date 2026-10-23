@@ -70,28 +70,71 @@ test('the final map URL preserves configured positional styles and vendor parame
     expect(url.searchParams.get('WIDTH')).toBe('256');
 });
 
-test('the final feature info URL preserves map layers, query subset and styles', () => {
+test('the final feature info URL preserves map layers, query subset and styles', async () => {
     state.info = [batch('LAYERS=backdrop,a,b&QUERY_LAYERS=a,b&STYLES=,outline,fill&token=info')];
+    const fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => '{"features":[]}', headers: new Headers({ 'content-type': 'application/json' }) });
+    vi.stubGlobal('fetch', fetch);
     render(<WebMapServiceControl />);
     act(() => state.onContextMenu?.({ latlng: latLng(5, 5), containerPoint: point(20, 30) }));
-    const url = new URL(screen.getByRole('link').getAttribute('href')!);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const url = new URL(fetch.mock.calls[0][0]);
     expect(url.searchParams.get('LAYERS')).toBe('backdrop,a,b');
     expect(url.searchParams.get('QUERY_LAYERS')).toBe('a,b');
     expect(url.searchParams.get('STYLES')).toBe(',outline,fill');
     expect(url.searchParams.get('token')).toBe('info');
     expect(url.searchParams.get('I')).toBe('20');
     expect(url.searchParams.get('J')).toBe('30');
+    expect(url.searchParams.get('X')).toBeNull();
+    expect(url.searchParams.get('Y')).toBeNull();
+    expect(url.searchParams.get('INFO_FORMAT')).toBe('application/json');
+    expect(url.searchParams.get('FEATURE_COUNT')).toBe('10');
 });
 
-test('keeps the defaults for requests without styles or feature info map layers', () => {
+test('a 1.1.1 query answers through X/Y pixels and drops the 1.3.0 pair', async () => {
+    state.info = [{
+        url: new URL('https://example.org/wms?VERSION=1.1.1&SRS=EPSG:4326&QUERY_LAYERS=a&I=99&J=98'),
+        features: [],
+        operations: [{ code: 'GetFeatureInfo', method: 'GET', href: 'https://example.org/wms' }],
+    }];
+    const fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => '{"features":[]}', headers: new Headers({ 'content-type': 'application/json' }) });
+    vi.stubGlobal('fetch', fetch);
+    render(<WebMapServiceControl />);
+    act(() => state.onContextMenu?.({ latlng: latLng(5, 5), containerPoint: point(20, 30) }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const params = new URL(fetch.mock.calls[0][0]).searchParams;
+    expect(params.get('X')).toBe('20');
+    expect(params.get('Y')).toBe('30');
+    expect(params.get('I')).toBeNull();
+    expect(params.get('J')).toBeNull();
+});
+
+test('keeps the defaults for requests without styles or feature info map layers', async () => {
     state.maps = [batch('LAYERS=a')];
     state.info = [batch('QUERY_LAYERS=a')];
+    const fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => 'plain', headers: new Headers({ 'content-type': 'text/plain' }) });
+    vi.stubGlobal('fetch', fetch);
     render(<WebMapServiceControl />);
     expect(new URL(screen.getByTestId('image-url').textContent!).searchParams.get('STYLES')).toBe('');
     act(() => state.onContextMenu?.({ latlng: latLng(5, 5), containerPoint: point(20, 30) }));
-    const params = new URL(screen.getByRole('link').getAttribute('href')!).searchParams;
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const params = new URL(fetch.mock.calls[0][0]).searchParams;
     expect(params.get('LAYERS')).toBe('a');
     expect(params.get('STYLES')).toBe('');
+});
+
+test('fetches unprotected queries inline and offers the raw response on failure', async () => {
+    state.info = [batch('QUERY_LAYERS=a,b')];
+    const fetch = vi.fn().mockRejectedValue(new Error('network down'));
+    vi.stubGlobal('fetch', fetch);
+    render(<WebMapServiceControl />);
+    act(() => state.onContextMenu?.({ latlng: latLng(5, 5), containerPoint: point(20, 30) }));
+    expect(screen.getByText('viewerFeatureInfo.loading')).toBeInTheDocument();
+    expect(screen.getByText('a,b')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('viewerFeatureInfo.error');
+    const link = screen.getByRole('link');
+    expect(link).toHaveTextContent('viewerFeatureInfo.raw');
+    expect(new URL(link.getAttribute('href')!).searchParams.get('QUERY_LAYERS')).toBe('a,b');
 });
 
 

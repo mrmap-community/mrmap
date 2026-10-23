@@ -58,6 +58,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "redacted": "Geheime Werte werden in diesem Dokument ausgelassen.",
     "blocked": "Für diesen Operationsursprung sind keine Zugangsdaten konfiguriert."
   },
+  viewerFeatureInfo: {
+    "loading": "Objektinformationen werden geladen …",
+    "error": "Die Objektinformationen konnten nicht abgerufen werden.",
+    "raw": "Rohergebnis öffnen",
+    "tooltip": "Klicken Sie auf die Markierung, um die Objektinformationen zu sehen"
+  },
   livePreview: {
     title: "Live-Vorschau",
     storedDiscovery: "Auswahl aus gespeicherten Capabilities. Bilder, Features und Katalogeinträge werden live abgerufen.",
@@ -70,7 +76,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     emptyFeatures: "Keine Features in diesem Kartenausschnitt zurückgegeben.",
     emptySelections: "Keine registrierten Layer oder Feature-Types vorhanden.", emptyRecords: "Keine aktuellen Katalogeinträge zurückgegeben.",
     noIdentify: "Objektinformationen sind für diesen Layer nicht verfügbar.", identify: "Objektinformationen in der Kartenmitte",
-    featureInfo: "GetFeatureInfo-Ergebnis öffnen", htmlNotRendered: "Der Dienst liefert Markup, das aus Sicherheitsgründen nicht gerendert wird. Das Rohergebnis wird unten angezeigt.", attributes: "Feature-Attribute auswählen", record: "Katalogeintrag",
+    featureInfo: "GetFeatureInfo-Ergebnis öffnen", htmlNotRendered: "Der Dienst liefert Markup, das aus Sicherheitsgründen nicht gerendert wird. Das Rohergebnis wird unten angezeigt.", noFeatures: "Keine Features an dieser Position.", attributes: "Feature-Attribute auswählen", record: "Katalogeintrag",
     coverage: "Metadatenabdeckung · nur aktuelle Seite. Diese Ausdehnungen sind keine Feature-Geometrien.",
     noCoverage: "Keine Metadatenabdeckung für diesen Eintrag vorhanden.", noRegistered: "Kein registrierter Vorschaudienst",
     previewLinked: "%{title} ansehen", pageScope: "Aktuelle Seite: %{count} Einträge ab Position %{start}, %{total} Treffer.", untitled: "Eintrag ohne Titel",

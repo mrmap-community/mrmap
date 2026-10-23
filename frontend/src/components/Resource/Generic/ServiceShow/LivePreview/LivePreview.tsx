@@ -151,6 +151,11 @@ export const FeatureInfoResult = ({
         </Alert>
       )}
       {features ? (
+        features.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {translate("livePreview.noFeatures")}
+          </Typography>
+        ) : (
         <Stack spacing={1}>
           {features.map((feature, index) => (
             <Stack
@@ -173,6 +178,7 @@ export const FeatureInfoResult = ({
             </Stack>
           ))}
         </Stack>
+        )
       ) : (
         <Typography
           component="pre"

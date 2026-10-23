@@ -17,6 +17,29 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    metadataIndicators: {
+      broken: {
+        ok: "Metadata intact",
+        error: "Broken metadata",
+        unknown: "Metadata state unknown",
+      },
+      quality: {
+        ok: "Quality check passed",
+        warning: "Insufficient quality",
+        unknown: "Quality state unknown",
+      },
+      licence: {
+        ok: "Licence stated",
+        warning: "No licence stated",
+        unknown: "Licence state unknown",
+      },
+      facets: {
+        broken: "Broken metadata",
+        quality: "Insufficient quality",
+        coverage: "Missing coverage",
+        licence: "No licence",
+      },
+    },
     viewerControls: {
       selectLayer: "Select a layer in the tree to edit its style and dimensions.",
       edit: "Edit %{layer}",

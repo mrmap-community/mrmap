@@ -53,6 +53,10 @@ vi.mock("../../../jsonapi/components/ListGuesser", () => ({
   ),
 }));
 vi.mock("../../Lists/CustomListActions", () => ({ default: () => null }));
+vi.mock("../Generic/Explorer/MetadataIndicators", () => ({
+  MetadataFacets: () => null,
+  MetadataIndicators: () => null,
+}));
 vi.mock("../Generic/Explorer/CoverageMap", () => ({
   default: ({
     selected,
@@ -85,7 +89,7 @@ describe("service metadata explorer", () => {
       "ServiceMetadataRecord",
     );
     expect(screen.getByTestId("query-options")).toHaveTextContent(
-      '"fields[ServiceMetadataRecord]":"id,title,abstract,bounding_geometry,date_stamp"',
+      '"fields[ServiceMetadataRecord]":"id,title,abstract,bounding_geometry,date_stamp,is_broken,insufficient_quality,licence"',
     );
     expect(
       screen.getByText("serviceMetadataExplorer.title"),

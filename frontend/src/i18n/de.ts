@@ -16,6 +16,29 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  metadataIndicators: {
+    broken: {
+      ok: "Metadaten intakt",
+      error: "Beschädigte Metadaten",
+      unknown: "Metadatenzustand unbekannt",
+    },
+    quality: {
+      ok: "Qualitätsprüfung bestanden",
+      warning: "Unzureichende Qualität",
+      unknown: "Qualitätszustand unbekannt",
+    },
+    licence: {
+      ok: "Lizenz angegeben",
+      warning: "Keine Lizenz angegeben",
+      unknown: "Lizenzstatus unbekannt",
+    },
+    facets: {
+      broken: "Beschädigte Metadaten",
+      quality: "Unzureichende Qualität",
+      coverage: "Fehlende räumliche Abdeckung",
+      licence: "Keine Lizenz",
+    },
+  },
   viewerUnsupported: {
     summary: "%{count} Ressourcen können von diesem Viewer nicht gerendert werden",
     resource: "Diese Ressource kann nicht gerendert werden:",

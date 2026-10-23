@@ -6,8 +6,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     options: "Optionen für %{layer}",
     noStyles: "Keine angebotenen Stile verfügbar.",
     legendTitle: "Legende",
-    immediate: "Änderungen werden sofort angewendet",
-    done: "Fertig",
     custom: "Benutzerdefinierter Stil",
 
     style: "Stil für %{layer}",
@@ -15,6 +13,59 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     legend: "Legende für %{layer}: %{style}",
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
+  },
+  metadataIndicators: {
+    broken: {
+      ok: "Metadaten intakt",
+      error: "Beschädigte Metadaten",
+      unknown: "Metadatenzustand unbekannt",
+    },
+    quality: {
+      ok: "Qualitätsprüfung bestanden",
+      warning: "Unzureichende Qualität",
+      unknown: "Qualitätszustand unbekannt",
+    },
+    licence: {
+      ok: "Lizenz angegeben",
+      warning: "Keine Lizenz angegeben",
+      unknown: "Lizenzstatus unbekannt",
+    },
+    facets: {
+      broken: "Beschädigte Metadaten",
+      quality: "Unzureichende Qualität",
+      coverage: "Fehlende räumliche Abdeckung",
+      licence: "Keine Lizenz",
+    },
+  },
+  viewerControls: {
+    selectLayer: "Wählen Sie einen Layer im Baum, um Stil und Dimensionen zu bearbeiten.",
+    edit: "%{layer} bearbeiten",
+    title: "Layer-Einstellungen",
+    pin: "Zeitleiste anheften",
+    unpin: "Zeitleiste lösen",
+    timeline: "Angeheftete Zeitleiste",
+  },
+  viewerDimensions: {
+    position: "%{current} von %{total}",
+    sliderHint: "Ziehen für Vorschau, loslassen zum Anwenden. Pfeiltasten ändern einen Schritt. Exakte UTC-Zeit eingeben und das Feld zum Anwenden verlassen.",
+    custom: "Benutzerdefinierte Dimensionswerte",
+    title: "Dimensionen",
+    dimension: "Dimension %{name}",
+    serverDefault: "Serverstandard",
+    invalid: "Diesen Wert bietet der Dienst nicht an.",
+    none: "Diese Ressource bietet keine Dimensionen an.",
+  },
+  mapTransfer: {
+    export: "Karte als Datei exportieren",
+    import: "Karte aus Datei öffnen",
+    share: "Link zur Karte teilen",
+    copy: "Link kopieren",
+    close: "Schließen",
+    importOk: "Die Karte wurde aus der Datei geladen.",
+    shareHint: "Geschützte Dienste fragen ihre Zugangsdaten erneut ab; der Link enthält keine Geheimnisse.",
+    credentialsHint: "Exportierte Dokumente enthalten nie Zugangsdaten - geschützte Dienste fragen erneut nach.",
+    restoredDraft: "Die Karte der letzten Sitzung wurde wiederhergestellt",
+    restoredShare: "Die geteilte Karte wurde geöffnet",
   },
   viewerUnsupported: {
     summary: "%{count} Ressourcen können von diesem Viewer nicht gerendert werden",
@@ -58,6 +109,20 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "redacted": "Geheime Werte werden in diesem Dokument ausgelassen.",
     "blocked": "Für diesen Operationsursprung sind keine Zugangsdaten konfiguriert."
   },
+  viewerFeatureInfo: {
+      featurePage: "Objekt %{current} von %{total}",
+      title: "Objektinformationen",
+      identify: "Identifizieren",
+      reopen: "Ergebnisse öffnen",
+      collapse: "Ergebnisse einklappen",
+      clear: "Leeren",
+      hint: "Identifizieren wählen, dann in die Karte klicken. Auch per Rechtsklick.",
+
+    "loading": "Objektinformationen werden geladen …",
+    "error": "Die Objektinformationen konnten nicht abgerufen werden.",
+    "raw": "Rohergebnis öffnen",
+    "tooltip": "Klicken Sie auf die Markierung, um die Objektinformationen zu sehen"
+  },
   livePreview: {
     title: "Live-Vorschau",
     storedDiscovery: "Auswahl aus gespeicherten Capabilities. Bilder, Features und Katalogeinträge werden live abgerufen.",
@@ -70,7 +135,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     emptyFeatures: "Keine Features in diesem Kartenausschnitt zurückgegeben.",
     emptySelections: "Keine registrierten Layer oder Feature-Types vorhanden.", emptyRecords: "Keine aktuellen Katalogeinträge zurückgegeben.",
     noIdentify: "Objektinformationen sind für diesen Layer nicht verfügbar.", identify: "Objektinformationen in der Kartenmitte",
-    featureInfo: "GetFeatureInfo-Ergebnis öffnen", htmlNotRendered: "Der Dienst liefert Markup, das aus Sicherheitsgründen nicht gerendert wird. Das Rohergebnis wird unten angezeigt.", attributes: "Feature-Attribute auswählen", record: "Katalogeintrag",
+    featureInfo: "Rohergebnis herunterladen", rawResponse: "Rohergebnis", noFeatures: "Keine Features an dieser Position.", attributes: "Feature-Attribute auswählen", record: "Katalogeintrag",
     coverage: "Metadatenabdeckung · nur aktuelle Seite. Diese Ausdehnungen sind keine Feature-Geometrien.",
     noCoverage: "Keine Metadatenabdeckung für diesen Eintrag vorhanden.", noRegistered: "Kein registrierter Vorschaudienst",
     previewLinked: "%{title} ansehen", pageScope: "Aktuelle Seite: %{count} Einträge ab Position %{start}, %{total} Treffer.", untitled: "Eintrag ohne Titel",

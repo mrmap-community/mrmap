@@ -44,6 +44,8 @@ export const DragableTreeItem = ({
       
       return Sortable.create(ref.current, {
         group: {name: 'general',},
+        filter: 'button, input, select, textarea, [role=slider], [role=region]',
+        preventOnFilter: false,
         animation: 150,
         fallbackOnBody: true,
         swapThreshold: 0.25,

@@ -1,6 +1,6 @@
 import moment from 'moment'
 
-import { ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
+import { AdvertisedDimension, ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getDocument } from './utils'
 
 
@@ -174,6 +174,7 @@ export const parseLayer = (
   const crsValues: string[] = []
   const declaredStyles: Style[] = []
   const declaredDimensions: (TimeDimension | TempDimension | ElevationDimension)[] = []
+  const declaredAdvertisedDimensions: AdvertisedDimension[] = []
   let minScaleDenominator: string | undefined
   let maxScaleDenominator: string | undefined
   let bboxElement: Element | undefined
@@ -196,6 +197,20 @@ export const parseLayer = (
       case 'Dimension': {
         const dimension = parseDimension(child)
         if (dimension) declaredDimensions.push(dimension)
+        const name = getAttribute(child, 'name')
+        const values = child.textContent?.trim() ?? ''
+        if (name && values) {
+          const units = getAttribute(child, 'units')
+          const unitSymbol = getAttribute(child, 'unitSymbol')
+          const defaultValue = getAttribute(child, 'default')
+          declaredAdvertisedDimensions.push({
+            name,
+            values,
+            ...(units !== undefined && { units }),
+            ...(unitSymbol !== undefined && { unitSymbol }),
+            ...(defaultValue !== undefined && { default: defaultValue })
+          })
+        }
         break
       }
       case 'MinScaleDenominator':
@@ -231,6 +246,11 @@ export const parseLayer = (
   const styles = [...new Map([...(inherited?.styles ?? []), ...declaredStyles]
     .map(style => [style.metadata.name, style] as [string, Style])).values()]
   const dimensions = declaredDimensions.length > 0 ? declaredDimensions : inherited?.dimension
+  // A dimension a layer states replaces the inherited dimension of the same name; the others stay inherited.
+  const advertisedDimensions = [...new Map([
+    ...(inherited?.advertisedDimension ?? []),
+    ...declaredAdvertisedDimensions
+  ].map(dimension => [dimension.name.toLowerCase(), dimension] as [string, AdvertisedDimension])).values()]
   const bbox = getLayerBoundsFromBbox(bboxElement) ?? inherited?.bbox
   const minScaleDenominatorValue = parseScaleDenominator(minScaleDenominator) ?? inherited?.minScaleDenominator
   const maxScaleDenominatorValue = parseScaleDenominator(maxScaleDenominator) ?? inherited?.maxScaleDenominator
@@ -244,6 +264,7 @@ export const parseLayer = (
     styles,
     ...(bbox && { bbox }),
     ...(dimensions && { dimension: dimensions }),
+    ...(advertisedDimensions.length > 0 && { advertisedDimension: advertisedDimensions }),
     ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),
     ...(maxScaleDenominatorValue !== undefined && { maxScaleDenominator: maxScaleDenominatorValue }),
     ...(isQueryable !== undefined && { isQueryable }),
@@ -259,6 +280,7 @@ export const parseLayer = (
     },
     ...(referenceSystems.length > 0 && { referenceSystems }),
     ...(dimensions && dimensions.length > 0 && { dimension: dimensions }),
+    ...(advertisedDimensions.length > 0 && { advertisedDimension: advertisedDimensions }),
     ...(bbox && { bbox }),
     ...(styles.length > 0 && { styles }),
     ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),

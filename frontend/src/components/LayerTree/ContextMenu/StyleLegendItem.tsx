@@ -2,18 +2,16 @@ import { useId } from 'react';
 import { useTranslate } from 'react-admin';
 
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import { Button, Stack, TextField, Typography } from '@mui/material';
+import { Stack, TextField, Typography } from '@mui/material';
 
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { getWmsOperationStyles, setWmsLayerStyle } from '../../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
-import { useDialogContextBase } from '../../Dialog/DialogContextBase';
-import DialogHeader from '../../Dialog/DialogHeader';
 import { PreviewImage } from '../../Resource/Generic/ServiceShow/ServicePreviewImage';
 import { useContextMenuBase } from './ContextMenuBase';
 import ContextMenuItem from './ContextMenuItem';
 
-const WmsStyleControls = ({ folder, previewOnly = false }: { folder?: string; previewOnly?: boolean }) => {
+export const WmsStyleControls = ({ folder, previewOnly = false, inline = false }: { folder?: string; previewOnly?: boolean; inline?: boolean }) => {
   const { owsContext, setOwsContext } = useOwsContextBase()
   const translate = useTranslate()
   const id = useId()
@@ -24,7 +22,7 @@ const WmsStyleControls = ({ folder, previewOnly = false }: { folder?: string; pr
   const styles = offering?.styles?.filter(style => style.name.trim() !== '') ?? []
 
   return <Stack spacing={previewOnly ? 1 : 3} sx={{ minWidth: 0, py: 1 }}>
-    {!previewOnly && <Typography variant="body2" color="text.secondary">{layerTitle}</Typography>}
+    {!previewOnly && !inline && <Typography variant="body2" color="text.secondary">{layerTitle}</Typography>}
     {selections.length === 0 && <Typography>{translate('viewerStyles.noStyles')}</Typography>}
     {selections.map(({ layer, style }, index) => {
       const selected = style ? styles.find(item => item.name === style) : styles.find(item => item.default)
@@ -59,7 +57,7 @@ const WmsStyleControls = ({ folder, previewOnly = false }: { folder?: string; pr
           alt={translate('viewerStyles.legend', { layer, style: selected?.title || style || translate('viewerStyles.default') })}
           loadingLabel={translate('viewerStyles.loading')}
           unavailableLabel={translate('viewerStyles.unavailable')}
-          containerSx={{ width: { xs: '100%', sm: '100%' }, height: 'auto', minHeight: 96, justifyContent: 'flex-start' }}
+          containerSx={{ width: { xs: '100%', sm: '100%' }, height: 'auto', minHeight: inline ? 40 : 96, justifyContent: 'flex-start' }}
           imageSx={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: 240 }}
         />
       </Stack>
@@ -69,19 +67,9 @@ const WmsStyleControls = ({ folder, previewOnly = false }: { folder?: string; pr
 
 export const StyleLegendPreview = ({ folder }: { folder?: string }) => <WmsStyleControls folder={folder} previewOnly />;
 
-const StyleLegendActions = () => {
-  const { close } = useDialogContextBase();
-  const translate = useTranslate();
-  return <Stack direction="row" sx={{ width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-    <Typography variant="caption" color="text.secondary">{translate('viewerStyles.immediate')}</Typography>
-    <Button onClick={close}>{translate('viewerStyles.done')}</Button>
-  </Stack>;
-};
-
 const StyleLegendItem = () => {
   const translate = useTranslate();
-  const { node, close } = useContextMenuBase();
-  const { open } = useDialogContextBase();
+  const { node, close, setControlsId } = useContextMenuBase();
   if (!node?.getWmsOperationByCode('GetMap') && !node?.getWmsOperationByCode('GetFeatureInfo')) return null;
 
   return <ContextMenuItem
@@ -89,11 +77,7 @@ const StyleLegendItem = () => {
     icon={<PaletteOutlinedIcon fontSize="small" />}
     label={translate('viewerStyles.title')}
     onClick={() => {
-      open(
-        <DialogHeader>{translate('viewerStyles.title')}</DialogHeader>,
-        <WmsStyleControls folder={node?.properties.folder} />,
-        <StyleLegendActions />,
-      );
+      setControlsId(node.id);
       close();
     }}
   />;

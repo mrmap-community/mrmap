@@ -13,6 +13,7 @@ import AddResourceDialog from './AddResourceDialog';
 import EditAuthenticationsDialog from './EditAuthenticationsDialog';
 import EditOwsContextDialog from './EditOwsContextDialog';
 import InitialFromOwsContextDialog from './InitialFromOwsContextDialog';
+import { MapTransferControls } from './MapTransferControls';
 
 
 export const OwsContextActionButtons = () => {
@@ -77,6 +78,8 @@ export const OwsContextActionButtons = () => {
                 </Fab>
                 </span>
             </Tooltip>
+
+            <MapTransferControls />
         </Grid>
         <EditAuthenticationsDialog open={openAuthenticationsEditor} setOpen={setOpenAuthenticationsEditor} />
         

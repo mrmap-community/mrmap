@@ -16,6 +16,18 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loading: "Legende wird geladen",
     unavailable: "Legende nicht verfügbar",
   },
+  mapTransfer: {
+    export: "Karte als Datei exportieren",
+    import: "Karte aus Datei öffnen",
+    share: "Link zur Karte teilen",
+    copy: "Link kopieren",
+    close: "Schließen",
+    importOk: "Die Karte wurde aus der Datei geladen.",
+    shareHint: "Geschützte Dienste fragen ihre Zugangsdaten erneut ab; der Link enthält keine Geheimnisse.",
+    credentialsHint: "Exportierte Dokumente enthalten nie Zugangsdaten - geschützte Dienste fragen erneut nach.",
+    restoredDraft: "Die Karte der letzten Sitzung wurde wiederhergestellt",
+    restoredShare: "Die geteilte Karte wurde geöffnet",
+  },
   viewerUnsupported: {
     summary: "%{count} Ressourcen können von diesem Viewer nicht gerendert werden",
     resource: "Diese Ressource kann nicht gerendert werden:",

@@ -92,6 +92,17 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
+The viewer keeps a local draft of the composed map, so a browser reload restores it, and offers
+three transfer actions: "export map as file" downloads the composed map as a GeoJSON document,
+"open map from file" loads such a document back through the same import validation as any URL
+import, and "share map link" puts the document into the link fragment for a shareable URL.
+Exports and share links never carry credentials - protected services ask for them again - and a
+shared link wins over the local draft when both are present. Saved server side map contexts
+(`MapContext`) describe their layers by references to registry resources and cannot yet represent
+a composed viewer document with its own service URLs, drawings, styles and dimensions; a
+server-side document storage API would be required to offer named, permissioned saved maps and
+is reported as follow-up work.
+
 Protected GetFeatureInfo results are fetched with their assigned headers and shown
 in the viewer. Remote markup is displayed as text, never executed. Credentials
 remain in the viewer session. The JSON context editor omits secret values from

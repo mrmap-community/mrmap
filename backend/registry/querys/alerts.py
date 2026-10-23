@@ -48,9 +48,11 @@ ABORTED_PHASE = HarvestingPhaseEnum.ABORTED.value
 
 #: the attributes which answer the attention of every kind of service. The
 #: attributes which end in `_run` and `_job` answer *which* run or job decided
-#: an alert as the identifier of that row - they are no relationships and are
-#: answered by the very subqueries which decide the alert next to them, so that
-#: a client links an alert to the record behind it instead of searching it.
+#: an alert as the identifier of that row - they are answered by the very
+#: subqueries which decide the alert next to them, so that a state and its
+#: reference can never disagree, and the serializers of the services expose
+#: them as relationships to the records behind them, which `alert_records()`
+#: loads for a whole page of services at once.
 ALERT_ATTRIBUTES = (
     'has_alert',
     'monitoring_failed',
@@ -359,6 +361,47 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
             When(aborted | incomplete, then=F('alert_newest_harvest')),
             output_field=IntegerField()),
     )
+
+
+def alert_records(services: list) -> dict:
+    """Load the rows which decided the alerts of some services.
+
+    The annotations of the alerts answer the deciding rows as identifiers,
+    while a serializer which answers them as relationships needs the rows
+    themselves. Fetching a row per service would ask the database once per
+    alert of a page, so the identifiers of a page are collected and read in
+    one query per kind of row instead - a page of services pays three queries
+    at most, no matter how many services it holds.
+
+    Args:
+        services (list): the services of a page, annotated by `alert_annotations`
+
+    Returns:
+        dict: the rows behind the alerts, by the model of the row and its
+            identifier
+    """
+    ids_by_model = {}
+
+    def collect(model, identifier):
+        if identifier is not None:
+            ids_by_model.setdefault(model, set()).add(identifier)
+
+    for service in services:
+        kind = SERVICE_KIND_OF.get(type(service))
+        if kind is None:
+            continue
+        collect(kind.monitoring_run,
+                getattr(service, 'monitoring_failed_run', None))
+        collect(kind.update_job, getattr(service, 'update_failed_job', None))
+        collect(kind.update_job, getattr(service, 'update_review_job', None))
+        if kind.harvesting_job is not None:
+            collect(kind.harvesting_job,
+                    getattr(service, 'harvest_job', None))
+
+    return {
+        model: {row.pk: row for row in model.objects.filter(pk__in=ids)}
+        for model, ids in ids_by_model.items()
+    }
 
 
 def alerts_requested(request, resource: str, attributes: tuple) -> bool:

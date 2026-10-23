@@ -136,7 +136,8 @@ describe("the way to the record which decided an alert", () => {
         id: "wfs-1",
         hasAlert: true,
         monitoringFailed: true,
-        monitoringFailedRun: "run-7",
+        // the api answers the record behind an alert as a relationship
+        monitoringFailedRun: { id: "run-7" },
       },
       "WebFeatureService",
     );
@@ -149,7 +150,7 @@ describe("the way to the record which decided an alert", () => {
         id: "csw-1",
         hasAlert: true,
         harvestIncomplete: true,
-        harvestJob: 12,
+        harvestJob: { id: "12" },
       },
       "CatalogueService",
     );
@@ -172,7 +173,7 @@ describe("the way to the record which decided an alert", () => {
         id: "csw-1",
         hasAlert: true,
         updateReviewRequired: true,
-        updateReviewJob: 3,
+        updateReviewJob: { id: "3" },
       },
       "CatalogueService",
     );

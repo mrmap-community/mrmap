@@ -29,6 +29,7 @@ from registry.models.service import (CatalogueService,
 from registry.models.update import WebMapServiceUpdateSetting
 from registry.ows_lib.client.exceptions import InitialError
 from registry.ows_lib.wms.wms import WebMapServiceClient
+from registry.querys.alerts import SERVICE_KIND_OF
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemDefaultSerializer,
@@ -236,12 +237,14 @@ class ServiceAlertSerializerMixin(ModelSerializer):
 
     Next to the states themselves the mixin answers *which* run or job decided a
     state: `monitoring_failed_run`, `update_failed_job` and `update_review_job`
-    are the identifiers of the rows behind the alerts of the same name. These
+    are relationships to the rows behind the alerts of the same name. These
     references are additive - a client which ignores them reads the same alerts
-    as before - and they are no relationships: the row of another resource is
-    named by its identifier alone, so that a client which may view it reads it at
-    the endpoint of its own kind and a client which may not view it is answered
-    nothing but the alert of its own service.
+    as before - and they name a record of its own kind, so that a client which
+    may view it reads it at the endpoint of that kind and a client which may not
+    view it is answered nothing but the alert of its own service. A reference is
+    answered by the very subquery which decides the alert next to it, so that a
+    state and its reference can never disagree, and a list reads the rows behind
+    the references of its page with `registry.querys.alerts.alert_records()`.
     """
 
     has_alert = BooleanField(
@@ -259,13 +262,6 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         help_text=_(
             "the point in time the last monitoring run of the service was done"),
         read_only=True)
-    monitoring_failed_run = IntegerField(
-        label=_("monitoring failed run"),
-        help_text=_(
-            "the monitoring run which reported the failure, answered as its "
-            "identifier and nothing if the service needs no attention in "
-            "monitoring"),
-        read_only=True)
 
     update_review_required = BooleanField(
         label=_("update review required"),
@@ -277,13 +273,6 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         help_text=_(
             "the point in time the update which waits for a decision was made"),
         read_only=True)
-    update_review_job = IntegerField(
-        label=_("update review job"),
-        help_text=_(
-            "the update job which waits for a decision, answered as its "
-            "identifier and nothing if the service waits for a decision "
-            "because of a dangling update candidate only"),
-        read_only=True)
     update_failed = BooleanField(
         label=_("update failed"),
         help_text=_(
@@ -294,12 +283,76 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         help_text=_(
             "the point in time the last update of the service was made"),
         read_only=True)
-    update_failed_job = IntegerField(
-        label=_("update failed job"),
-        help_text=_(
-            "the update job which came back broken, answered as its identifier "
-            "and nothing if the last update of the service did not fail"),
-        read_only=True)
+
+    def get_fields(self):
+        """Answer the references of the alerts as relationships of the kind
+
+        The row behind an alert belongs to a model of the kind of the service,
+        so the fields which reference it are built from the kind of `Meta.model`
+        here instead of being declared on the mixin itself.
+        """
+        fields = super().get_fields()
+        kind = SERVICE_KIND_OF[self.Meta.model]
+        fields['monitoring_failed_run'] = SerializerMethodResourceRelatedField(
+            label=_("monitoring failed run"),
+            help_text=_(
+                "the monitoring run which reported the failure, answered as its "
+                "identifier and nothing if the service needs no attention in "
+                "monitoring"),
+            model=kind.monitoring_run,
+            read_only=True)
+        fields['update_review_job'] = SerializerMethodResourceRelatedField(
+            label=_("update review job"),
+            help_text=_(
+                "the update job which waits for a decision, answered as its "
+                "identifier and nothing if the service waits for a decision "
+                "because of a dangling update candidate only"),
+            model=kind.update_job,
+            read_only=True)
+        fields['update_failed_job'] = SerializerMethodResourceRelatedField(
+            label=_("update failed job"),
+            help_text=_(
+                "the update job which came back broken, answered as its identifier "
+                "and nothing if the last update of the service did not fail"),
+            model=kind.update_job,
+            read_only=True)
+        return fields
+
+    def alert_record(self, model, identifier):
+        """The row behind a reference of an alert, if there is one
+
+        A list of services reads the rows of its page at once, see
+        `registry.querys.alerts.alert_records()`; a single service reads its row
+        alone, which is one query per reference of one service.
+
+        Args:
+            model: the model of the rows to look in
+            identifier: the identifier which the annotation answered, optional
+
+        Returns:
+            the row behind the reference, None if the alert answers none
+        """
+        if identifier is None:
+            return None
+        records = self.context.get('alert_records')
+        if records is None:
+            return model.objects.filter(pk=identifier).first()
+        return records.get(model, {}).get(identifier)
+
+    def get_monitoring_failed_run(self, instance):
+        return self.alert_record(
+            SERVICE_KIND_OF[self.Meta.model].monitoring_run,
+            getattr(instance, 'monitoring_failed_run', None))
+
+    def get_update_review_job(self, instance):
+        return self.alert_record(
+            SERVICE_KIND_OF[self.Meta.model].update_job,
+            getattr(instance, 'update_review_job', None))
+
+    def get_update_failed_job(self, instance):
+        return self.alert_record(
+            SERVICE_KIND_OF[self.Meta.model].update_job,
+            getattr(instance, 'update_failed_job', None))
 
     class Meta:
         abstract = True
@@ -798,13 +851,14 @@ class CatalogueServiceSerializer(
             "the point in time the last harvesting job of the catalogue was "
             "made"),
         read_only=True)
-    harvest_job = IntegerField(
+    harvest_job = SerializerMethodResourceRelatedField(
         label=_("harvest job"),
         help_text=_(
             "the harvesting job of the catalogue which ended before it was done "
             "or which left records behind, answered as its identifier and "
             "nothing if the last harvesting of the catalogue needs no "
             "attention"),
+        model=HarvestingJob,
         read_only=True)
     # TODO: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
@@ -876,6 +930,10 @@ class CatalogueServiceSerializer(
     def get_running_harvesting_job(self, instance):
         if hasattr(instance, "running_harvesting_job") and instance.running_harvesting_job.__len__() == 1:
             return instance.running_harvesting_job[0]
+
+    def get_harvest_job(self, instance):
+        return self.alert_record(
+            HarvestingJob, getattr(instance, 'harvest_job', None))
 
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):

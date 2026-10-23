@@ -23,7 +23,7 @@ export interface ServiceAlert {
   at?: string;
   /** the key which names what the point in time of the state is */
   atLabel?: string;
-  /** the attribute which names the record which decided the state */
+  /** the relationship which names the record which decided the state */
   reference?: string;
   /** the kind of record which decided the state */
   target?: "MonitoringRun" | "UpdateJob" | "HarvestingJob";
@@ -105,8 +105,8 @@ interface ServiceAlertRecordProps {
 /**
  * The way to the record which decided an alert.
  *
- * The api answers an alert with the identifier of the record behind it alone, so
- * that record is read at the endpoint of its own kind - which means a client which
+ * The api answers an alert as a relationship to the record behind it, so that
+ * record is read at the endpoint of its own kind - which means a client which
  * may not read it is answered the alert of its service and nothing more. An alert
  * without a record behind it is asked about at the service itself, as the update
  * of a dangling candidate is: nothing is linked then.
@@ -119,7 +119,7 @@ const ServiceAlertRecord = ({
   const translate = useTranslate();
   const definitions = useResourceDefinitions();
   const resource = alert.target && alertResource(service, alert.target);
-  // a record named by its identifier alone is read at the screen of its own kind,
+  // a record named by a relationship is read at the screen of its own kind,
   // which this deployment does not have for every kind of record: the update of a
   // catalogue has none
   const shown = resource ? definitions[resource]?.hasShow : undefined;
@@ -203,7 +203,10 @@ export const ServiceAttentionTab = (): ReactNode => {
               <ServiceAlertRecord
                 service={service}
                 alert={alert}
-                recordId={record?.[alert.reference] as string | number}
+                recordId={
+                  (record?.[alert.reference] as { id?: string | number } | undefined)
+                    ?.id
+                }
               />
             )}
           </Alert>

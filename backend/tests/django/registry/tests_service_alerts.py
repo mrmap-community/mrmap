@@ -311,6 +311,23 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
             resource["id"]: resource["attributes"]
             for resource in response.json()["data"]}
 
+    def references(self, service_type, **query):
+        """The answered relationships of the services of one kind
+
+        Args:
+            service_type: the kind of service to ask for
+            **query: the query parameters of the request
+
+        Returns:
+            dict: the answered relationships of the services by their id
+        """
+        response = self.client.get(
+            reverse(SERVICE_ROUTE[service_type]), query)
+        self.assertEqual(response.status_code, 200, response.content)
+        return {
+            resource["id"]: resource.get("relationships", {})
+            for resource in response.json()["data"]}
+
     def test_the_attributes_of_a_service_answer_its_alerts(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
         answered = self.services(WebMapService)
@@ -360,29 +377,36 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         answered = self.services(CatalogueService)
         self.assertTrue(answered[CSW_ONE]["harvestIncomplete"])
         self.assertTrue(answered[CSW_ONE]["hasAlert"])
-        self.assertIsNotNone(answered[CSW_ONE]["harvestJob"])
+        self.assertIsNotNone(
+            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"])
 
     def test_the_alerts_answer_the_record_which_decided_them(self):
         """An alert names the run or job a client has to look at
 
-        The reference is answered as the identifier of the record alone - not as
-        a relationship - because a client reads the record at the endpoint of its
-        own kind, and a client which may not read it is answered nothing but the
+        The reference is answered as a relationship to the record behind the
+        alert, so that a client reads that record at the endpoint of its own
+        kind, and a client which may not read it is answered nothing but the
         alert of its own service.
         """
         run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
         waiting = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        answered = self.services(WebMapService)
-        self.assertEqual(answered[WMS_ONE]["monitoringFailedRun"], run.pk)
-        self.assertEqual(answered[WMS_ONE]["updateReviewJob"], waiting.pk)
-        self.assertIsNone(answered[WMS_ONE]["updateFailedJob"])
+        references = self.references(WebMapService)
+        self.assertEqual(
+            references[WMS_ONE]["monitoringFailedRun"]["data"],
+            {"type": "WebMapServiceMonitoringRun", "id": str(run.pk)})
+        self.assertEqual(
+            references[WMS_ONE]["updateReviewJob"]["data"],
+            {"type": "WebMapServiceUpdateJob", "id": str(waiting.pk)})
+        # an alert which the service does not answer references no record
+        self.assertIsNone(references[WMS_ONE]["updateFailedJob"]["data"])
         # a kind of service which has no harvesting answers no reference of it
-        self.assertNotIn("harvestJob", answered[WMS_ONE])
+        self.assertNotIn("harvestJob", references[WMS_ONE])
 
     def test_a_catalogue_answers_the_harvesting_behind_its_alert(self):
         job = self.harvesting_job(import_errors=1)
-        answered = self.services(CatalogueService)
-        self.assertEqual(answered[CSW_ONE]["harvestJob"], job.pk)
+        self.assertEqual(
+            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"],
+            {"type": "HarvestingJob", "id": str(job.pk)})
 
     def test_the_alerts_of_a_service_cannot_be_written(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)

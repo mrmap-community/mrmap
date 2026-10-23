@@ -9,6 +9,15 @@ export interface Metadata {
 
 export type Dimension = Record<string, unknown>;
 
+/** A dimension exactly as the capabilities advertise it: the stated name, units, default and the raw value text. */
+export interface AdvertisedDimension {
+    name: string
+    values: string
+    units?: string
+    unitSymbol?: string
+    default?: string
+}
+
 export interface TempDimension {
     unit: string
     unitSymbol: string
@@ -50,6 +59,7 @@ export interface WmsLayer {
     bbox?: [number, number, number, number]
     bboxBounds?: [number, number, number, number]
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[]
+    advertisedDimension?: AdvertisedDimension[]
     children?: WmsLayer[]
     parent?: WmsLayer
     path?: WmsLayer[]
@@ -72,6 +82,7 @@ export interface InheritableProperties {
     styles: Style[]                     // 0+; add
     bbox?: WmsLayer["bbox"]             // 1+; replace
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[] // 0+; replace
+    advertisedDimension?: AdvertisedDimension[] // 0+; replace by name
     minScaleDenominator?: number        // 0/1; replace
     maxScaleDenominator?: number        // 0/1; replace
     isQueryable?: boolean               // replace

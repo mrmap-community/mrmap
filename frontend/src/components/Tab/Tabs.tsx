@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, type SyntheticEvent, useCallback, useMemo } from 'react'
+import { type ReactNode, type SyntheticEvent, useCallback, useMemo } from 'react'
 
 import CancelIcon from '@mui/icons-material/Cancel'
 import TabContext from '@mui/lab/TabContext'
@@ -11,10 +11,12 @@ import Tab from '@mui/material/Tab'
 import { type TabListProps, useTabListContext } from './TabListContext'
 
 export interface TabsProps {
+  scrollable?: boolean
   defaultTabs?: TabListProps[]
 }
 
 export const Tabs = ({
+  scrollable = false,
   defaultTabs = []
 }: TabsProps): ReactNode => {
   const { tabList, setTabList } = useTabListContext()
@@ -43,7 +45,7 @@ export const Tabs = ({
           ? <IconButton onClick={(event) => { handleTabClose(event, index) }}>
             <CancelIcon />
           </IconButton>
-          : <Fragment></Fragment>
+          : undefined
         }
       />
   )), [defaultTabs, tabList.tabs, handleTabClose])
@@ -56,7 +58,7 @@ export const Tabs = ({
     <Box sx={{ width: '100%', typography: 'body1' }}>
       <TabContext value={tabList.activeTab === '' ? '0' : tabList.activeTab}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <TabList onChange={handleChange} aria-label="lab API tabs example">
+          <TabList variant={scrollable ? 'scrollable' : 'standard'} scrollButtons={scrollable ? 'auto' : false} allowScrollButtonsMobile={scrollable} onChange={handleChange} aria-label="lab API tabs example">
             {...tabs}
           </TabList>
         </Box>

@@ -9,12 +9,14 @@ import { useDrawerContext } from './DrawerContext'
 
 
 export interface RightDrawerProps extends DrawerProps {
+  fullHeight?: boolean
   leftComponentId?: string
   callback?: () => void
 }
 
 const RightDrawer = ({
   leftComponentId,
+  fullHeight = false,
   callback = () => { },
   children,
   ...rest
@@ -50,7 +52,7 @@ const RightDrawer = ({
       window.removeEventListener('resize', updateAppBarOffset)
     }
   }, [])
-  const drawerHeight = bottomDrawer.isOpen ? `calc(100% - ${bottomDrawer.height} - ${appBarOffset})` : `calc(100% - ${appBarOffset})`
+  const drawerHeight = bottomDrawer.isOpen && !fullHeight ? `calc(100% - ${bottomDrawer.height} - ${appBarOffset})` : `calc(100% - ${appBarOffset})`
 
   // adjust padding of map div
   useEffect(() => {

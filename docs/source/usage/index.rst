@@ -92,6 +92,39 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
+Click a layer's name to open Layer settings in the bottom drawer. Its style, legend
+and dimension controls stay outside the tree, keeping layer rows compact and visible.
+Selecting another layer updates the same panel. The context menu's Style and Dimensions
+actions open the same settings tab. On wider screens the bottom settings drawer sits
+beside the right-hand tree so the tree retains its full height. Visibility and query
+activation remain independent.
+
+Dimensions are initialized from the WMS capabilities. Lists and numeric ranges use the
+advertised values and resolution. A discrete time slider represents advertised time
+steps, including calendar intervals and irregular timestamp lists, in UTC. Dragging
+previews a time; releasing applies it to both map and identify requests. Previous/next
+buttons move one advertised step. The exact date/time field applies when you leave it.
+Continuous time ranges retain the exact date field without an invented slider step.
+Choose Server default to reset a time selection.
+
+Use Pin timeline to keep a compact time slider over the map while the layer panel is
+closed. Pinning does not pan or resize the map. The timeline follows its layer when
+layers are reordered and disappears if that layer is removed. Unpin timeline hides it.
+
+Resources asking for different dimension values are requested separately, and the
+selections survive in the context document. A dimension icon beside the layer identifies
+non-default values; its tooltip lists the selected values.
+
+Select Identify and click a location, or right-click the map, to fetch GetFeatureInfo
+results. The viewer shows results in an overlay inspector without moving or resizing
+the map, using a side panel on larger screens and a bottom sheet on smaller screens.
+Protected requests use their assigned headers; unprotected requests are fetched directly.
+The inspector shows loading, empty and error states, with retry for failed requests.
+JSON feature collections support feature navigation. HTML tables are extracted as text
+and table structure; remote scripts and other active markup are never executed.
+The raw response can be expanded and downloaded. Collapse the inspector to uncover
+the map while keeping results, or clear the selection to cancel pending requests.
+
 The viewer keeps a local draft of the composed map, so a browser reload restores it, and offers
 three transfer actions: "export map as file" downloads the composed map as a GeoJSON document,
 "open map from file" loads such a document back through the same import validation as any URL
@@ -103,12 +136,7 @@ a composed viewer document with its own service URLs, drawings, styles and dimen
 server-side document storage API would be required to offer named, permissioned saved maps and
 is reported as follow-up work.
 
-Credentials GetFeatureInfo results are fetched by the viewer itself and shown in the marker
-popup: protected requests with their assigned headers, unprotected requests
-directly. Loading, empty and error states are named, and a failed request offers
-an explicit link to the raw response. Remote markup is displayed as text, never
-executed. Credentials
-remain in the viewer session. The JSON context editor omits secret values from
+Credentials remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for
 unchanged credential identities, headers and origins.

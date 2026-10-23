@@ -1,7 +1,10 @@
 import { type ReactNode } from 'react';
 
+import { Stack } from '@mui/material';
+
 import ResourceListCard from './Cards/ResourceListCard';
 import ServiceAttentionCard from './Cards/ServiceAttentionCard';
+import WorkQueueCard from './Cards/WorkQueueCard';
 
 const styles = {
   flex: { display: 'flex' },
@@ -13,10 +16,24 @@ const styles = {
 
 const Spacer = () => <span style={{ width: '1em' }} />;
 
+/**
+ * The dashboard of the deployment.
+ *
+ * It answers the work before the inventory: what waits for an administrator,
+ * which services carry a problem and which work the deployment is doing right
+ * now are answered above the counts of the registered resources, because an
+ * administrator opens this screen to decide what to do next and not to read the
+ * size of the registry. The inventory stays below and is the same as before.
+ */
 const Dashboard = (): ReactNode => {
   return (
     <div style={styles.singleCol}>
-      <ServiceAttentionCard />
+      {/* the queues of work and the alerts of the services answer the work which
+          waits - on a narrow screen they are asked one below the other */}
+      <Stack spacing={2} sx={{ mb: 2 }}>
+        <WorkQueueCard />
+        <ServiceAttentionCard />
+      </Stack>
       <div style={styles.singleCol}>
         <div style={styles.flex}>
           <ResourceListCard resource={'WebMapService'} withList={false}/>

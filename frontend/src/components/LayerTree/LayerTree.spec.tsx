@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { AdminContext } from "react-admin";
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core';
@@ -40,8 +40,14 @@ const ContextProbe = () => {
   );
 };
 
+const openStyleDialog = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'viewerStyles.options' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerStyles.title' }));
+  await screen.findByRole('dialog');
+};
+
 describe('LayerTree', () => {
-  it('selects advertised styles, reloads them and displays legend loading, success and failure states', () => {
+  it('selects advertised styles, reloads them and displays legend loading, success and failure states', async () => {
     const feature = new OWSResource({
       title: 'Styled layer', updated: '', folder: '/0',
       offerings: [{
@@ -59,6 +65,10 @@ describe('LayerTree', () => {
     });
     render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
 
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { hidden: true })).not.toBeInTheDocument();
+    expect(screen.queryByText('viewerStyles.unavailable')).not.toBeInTheDocument();
+    await openStyleDialog();
     expect(screen.getByRole('combobox')).toHaveValue('outline');
     expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'viewerStyles.loading');
     const first = screen.getByRole('img', { hidden: true });
@@ -75,7 +85,10 @@ describe('LayerTree', () => {
     fireEvent.error(screen.getByRole('img', { hidden: true }));
     expect(screen.getByRole('status')).toHaveTextContent('viewerStyles.unavailable');
 
+    fireEvent.click(screen.getByRole('button', { name: 'viewerStyles.done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     fireEvent.click(screen.getByText('Reload context'));
+    await openStyleDialog();
     expect(screen.getByRole('combobox')).toHaveValue('fill');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no-legend' } });
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -84,7 +97,7 @@ describe('LayerTree', () => {
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('');
   });
 
-  it('keeps unadvertised imported styles until the user chooses a replacement', () => {
+  it('keeps unadvertised imported styles until the user chooses a replacement', async () => {
     const feature = new OWSResource({
       title: 'Imported layer', updated: '', folder: '/0',
       offerings: [{
@@ -94,11 +107,45 @@ describe('LayerTree', () => {
       }],
     });
     render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
+    await openStyleDialog();
     expect(screen.getByRole('combobox')).toHaveValue('imported');
     expect(screen.getByRole('option', { name: 'imported' })).toBeDisabled();
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'fill' } });
     expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('fill');
+  });
+
+  it.each([undefined, [], [{ name: '', title: 'Unnamed' }]])('disables style selection when no named styles are advertised: %j', async styles => {
+    const feature = new OWSResource({
+      title: 'No styles', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms', styles,
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&STYLES=imported', active: true }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /><ContextProbe /></OwsContextBase></AdminContext>);
+    await openStyleDialog();
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).toHaveValue('imported');
+    expect(screen.getByText('viewerStyles.noStyles')).toBeInTheDocument();
+    expect(new URL(screen.getByTestId('map-href').textContent!).searchParams.get('STYLES')).toBe('imported');
+  });
+
+  it('opens the style dialog through the existing right-click context menu', async () => {
+    const feature = new OWSResource({
+      title: 'Right-click layer', updated: '', folder: '/0',
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a' }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /></OwsContextBase></AdminContext>);
+    fireEvent.contextMenu(screen.getByText('Right-click layer'), { clientX: 100, clientY: 100 });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerStyles.title' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Right-click layer');
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'ra.action.close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('LayerTree renders with initial data', () => {

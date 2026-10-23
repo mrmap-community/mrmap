@@ -1,27 +1,28 @@
-import { Fragment, memo, useCallback, useId, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { Fragment, memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext, useTranslate } from 'react-admin'
 
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
+import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
-import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 import { v4 as uuidv4 } from 'uuid'
 
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
-import { getWmsOperationStyles, setWmsLayerStyle } from '../../ows-lib/OwsContext/utils'
+import { getWmsOperationStyles } from '../../ows-lib/OwsContext/utils'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
-import { PreviewImage } from '../Resource/Generic/ServiceShow/ServicePreviewImage'
 import ContextMenu from './ContextMenu/ContextMenu'
-import { ContextMenuBase } from './ContextMenu/ContextMenuBase'
+import { ContextMenuBase, useContextMenuBase } from './ContextMenu/ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 
 
@@ -65,60 +66,13 @@ export interface TreeItemLabelProps {
 
 NodeIcons.displayName = "NodeIcons";
 
-const WmsStyleControls = ({ node }: TreeItemLabelProps) => {
-  const { owsContext, setOwsContext } = useOwsContextBase()
-  const translate = useTranslate()
-  const id = useId()
-  const offering = node.getWmsOffering()
-  const selections = getWmsOperationStyles(node.getWmsOperationByCode('GetMap') ?? node.getWmsOperationByCode('GetFeatureInfo'))
-  const styles = offering?.styles ?? []
-
-  return <Stack spacing={1} sx={{ ml: 5, mt: 0.5, minWidth: 0 }}
-    onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}
-    onKeyDown={event => event.stopPropagation()}>
-    {selections.map(({ layer, style }, index) => {
-      const selected = style ? styles.find(item => item.name === style) : styles.find(item => item.default)
-      const legend = selected?.legendURL
-      const src = legend && /^https?:\/\//i.test(legend) ? legend : undefined
-      return <Stack key={`${layer}:${index}`} spacing={0.5}>
-        <TextField
-          id={`${id}-${index}`}
-          select
-          size="small"
-          label={translate('viewerStyles.style', { layer })}
-          value={style}
-          slotProps={{ select: { native: true } }}
-          onChange={event => {
-            const next = OWSContext.fromPlainObject(owsContext)
-            const target = next.findResourceByFolder(node.properties.folder)?.getWmsOffering()
-            if (!target) return
-            setWmsLayerStyle(target, layer, event.target.value)
-            setOwsContext(next)
-          }}
-        >
-          <option value="">{translate('viewerStyles.default')}</option>
-          {style && !styles.some(item => item.name === style) && <option value={style} disabled>{style}</option>}
-          {styles.filter(item => item.name !== '').map(item => <option key={item.name} value={item.name}>{item.title || item.name}</option>)}
-        </TextField>
-        <PreviewImage
-          key={`${layer}:${style}:${src}`}
-          src={src}
-          alt={translate('viewerStyles.legend', { layer, style: selected?.title || style || translate('viewerStyles.default') })}
-          loadingLabel={translate('viewerStyles.loading')}
-          unavailableLabel={translate('viewerStyles.unavailable')}
-          containerSx={{ width: '100%', height: 'auto', minHeight: 48, justifyContent: 'flex-start' }}
-          imageSx={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: 240 }}
-        />
-      </Stack>
-    })}
-  </Stack>
-}
-
 const TreeItemLabel = memo(
   ({
     node
   }: TreeItemLabelProps) => {
     const record = useRecordContext()
+    const translate = useTranslate()
+    const { setContextMenu } = useContextMenuBase()
     const { owsContext, setOwsContext } = useOwsContextBase()
     const { mapLoading } = useMapViewerBase()
 
@@ -205,9 +159,8 @@ const TreeItemLabel = memo(
 
 
     return (
-      <Stack sx={{ minWidth: 0, width: '100%' }}>
-      <Stack direction="row" sx={{ justifyContent: "flex-start", }}>
-        <Box sx={{display:"flex", alignItems:"flex-start"}} >
+      <Stack direction="row" sx={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
+        <Box sx={{display:"flex", alignItems:"center", minWidth: 0}} >
          <Tooltip title="Toggle the visibility of this service">
           <Checkbox
             size="small"
@@ -238,27 +191,44 @@ const TreeItemLabel = memo(
             disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
           />
         </Tooltip>
-        <Box sx={{display:"flex", alignItems:"center"}} >
+        <Box sx={{display:"flex", alignItems:"center", minWidth: 0}} >
           {hasError !== undefined ? 
              <Tooltip
                 title={`Requesting Layer failed: ${hasError}`}
               >
-            <Typography variant="body2" color='warning'>{node.properties.title}</Typography>
+            <Typography variant="body2" noWrap color='warning'>{node.properties.title}</Typography>
           </Tooltip>:
-          <Typography variant="body2">{node.properties.title}</Typography>
+          <Typography variant="body2" noWrap>{node.properties.title}</Typography>
         }
          
         </Box>
       </Box>
 
-      <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto"}}>
+      <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto", flexShrink: 0}}>
+        {getWmsOperationStyles(node.getWmsOperationByCode('GetMap')).some(item => item.style !== '') &&
+          <Tooltip title={translate('viewerStyles.custom')}><PaletteOutlinedIcon color="info" fontSize="small" /></Tooltip>}
         <NodeIcons
           isActive={record?.isActive}
           isSpatialSecured={record?.isSpatialSecured}
         />
+        <IconButton
+          size="small"
+          aria-label={translate('viewerStyles.options', { layer: node.properties.title })}
+          onMouseDown={event => event.stopPropagation()}
+          onClick={event => {
+            event.stopPropagation()
+            const anchor = event.currentTarget
+            const bounds = anchor.getBoundingClientRect()
+            setContextMenu({
+              node, record, itemId: node.properties.folder,
+              isOpen: true, anchorElement: anchor,
+              mouseX: bounds.right, mouseY: bounds.bottom,
+            })
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
       </Stack>
-    </Stack>
-    <WmsStyleControls node={node} />
     </Stack>
     )
   }
@@ -421,7 +391,7 @@ const LayerTree = ({
         <ContextMenuBase>
           <TreeViews initialExpanded={initialExpanded} layers={data} />
           <ContextMenu />
-          <Dialog/>
+          <Dialog maxWidth="sm"/>
         </ContextMenuBase>
       </ListContextProvider>
     </DialogBase>

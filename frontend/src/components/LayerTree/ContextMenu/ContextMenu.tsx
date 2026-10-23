@@ -11,6 +11,7 @@ import EditAuthenticationsDialog from '../../MapViewer/OwsContextGuiActions/Edit
 import ActivateLayerItem from './ActivateLayerItem';
 import { useContextMenuBase } from "./ContextMenuBase";
 import ManageAuthenticationItem from './ManageAuthenticationItem';
+import StyleLegendItem from './StyleLegendItem';
 import ZoomToLayerItem from './ZoomToLayerItem';
 
 
@@ -44,6 +45,7 @@ const MenuItems = ({ onManage }: { onManage: (folder?: string) => void }) => {
           </MenuItem> : 
           null
       }
+      <StyleLegendItem/>
       <ManageAuthenticationItem onManage={onManage}/>
       <ZoomToLayerItem/>
       <ActivateLayerItem/>

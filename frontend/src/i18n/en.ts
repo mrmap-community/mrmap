@@ -5,6 +5,14 @@ const en = lodashMerge(
   englishMessages,
   {
     viewerStyles: {
+      title: "Style & legend",
+      options: "Options for %{layer}",
+      noStyles: "No advertised styles available.",
+      legendTitle: "Legend",
+      immediate: "Changes apply immediately",
+      done: "Done",
+      custom: "Custom style",
+
       style: "Style for %{layer}",
       default: "Server default",
       legend: "Legend for %{layer}: %{style}",

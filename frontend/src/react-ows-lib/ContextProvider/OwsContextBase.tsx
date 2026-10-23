@@ -54,6 +54,11 @@ export interface OwsContextBaseType {
   activeFeatures: OWSResource[]
   setFeatureActive: (folder: string, active: boolean) => void
   moveFeature: (source: OWSResource, target: OWSResource, position: Position) => void
+  /**
+   * Removes one resource from the context. Removing a group removes its whole subtree: children
+   * without their group would lose the grouping the document describes for them.
+   */
+  removeFeature: (folder: string) => void
 }
 
 export const context = createContext<OwsContextBaseType | undefined>(undefined)
@@ -470,6 +475,16 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     })
   }, [])
 
+  const removeFeature = useCallback((folder: string) => {
+    setOwsContext((prev) => {
+      const newContext = OWSContext.fromPlainObject(prev)
+      const target = newContext.findResourceByFolder(folder)
+      if (target === undefined) return prev
+      newContext.removeFeature(target)
+      return newContext
+    })
+  }, [])
+
 
   const value = useMemo<OwsContextBaseType>(() => {
     return {
@@ -494,7 +509,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       trees,
       activeFeatures,
       setFeatureActive,
-      moveFeature
+      moveFeature,
+      removeFeature
     }
   }, [
     owsContext,
@@ -518,7 +534,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     trees,
     activeFeatures,
     setFeatureActive,
-    moveFeature
+    moveFeature,
+    removeFeature
   ])
 
   return (

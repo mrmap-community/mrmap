@@ -4,6 +4,7 @@ import { Map } from "leaflet";
 
 import { getUnsupportedReasons, isRequestedByActivation } from "../../ows-lib/OwsContext/capabilities";
 import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
+import { isWithinScaleLimits, scaleDenominatorForMap } from "../../ows-lib/OwsContext/scales";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { boundsToExtent, boundsToGeoJSON, extentBounds, featuresToCollection, latLngToGeoJSON, validExtent } from './utils';
 
@@ -50,6 +51,12 @@ export interface MapViewerBaseType {
    * mistaken for the complete context.
    */
   unsupportedFeatures: OWSResource[]
+  /**
+   * The scale denominator of the current view, measured with the 0.28 mm pixel convention the WMS
+   * scale type is stated in, or undefined while the map cannot answer its view. Layers advertise
+   * their scale limits with it.
+   */
+  scaleDenominator: number | undefined
   mapLoading: MapLoadingState
   reportMapLoading: (id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => void
   removeMapLoading: (id: string) => void
@@ -79,6 +86,24 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
   const setMap: SetMapRef = useCallback((instance) => {
     setMapState(instance ?? undefined)
   }, [])
+
+  const [scaleDenominator, setScaleDenominator] = useState<number>()
+
+  // the scale limits of a layer are measured against the scale of the current view, so every zoom,
+  // pan and resize answers which active layers are rendered and which of them are out of scale
+  useEffect(() => {
+    if (map === undefined) {
+      return
+    }
+    const updateScaleDenominator = () => {
+      setScaleDenominator(scaleDenominatorForMap(map))
+    }
+    updateScaleDenominator()
+    map.on('zoomend resize moveend', updateScaleDenominator)
+    return () => {
+      map.off('zoomend resize moveend', updateScaleDenominator)
+    }
+  }, [map])
 
 
   const positionGeoJSON = useMemo(()=>{
@@ -160,14 +185,18 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     })
   }, [])
      
+  // a layer which is active but out of scale stays active: only its rendering is temporarily
+  // suppressed, and the feature info of a layer answers independently of the scale limits its
+  // rendering obeys (#606)
   const atomicGetMapUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
       "GetMap",
       (feature) => (
-        feature.getWmsOperationByCode("GetMap")?.active === true
+        feature.getWmsOperationByCode("GetMap")?.active === true &&
+        isWithinScaleLimits(feature.properties, scaleDenominator)
       )
     )
-  }, [owsContext])
+  }, [owsContext, scaleDenominator])
 
   const atomicGetFeatureInfoUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
@@ -265,6 +294,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       atomicGetMapUrls,
       atomicGetFeatureInfoUrls,
       unsupportedFeatures,
+      scaleDenominator,
       mapLoading,
       reportMapLoading,
       removeMapLoading
@@ -278,6 +308,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     atomicGetMapUrls,
     atomicGetFeatureInfoUrls,
     unsupportedFeatures,
+    scaleDenominator,
     mapLoading,
     reportMapLoading,
     removeMapLoading

@@ -27,6 +27,19 @@ const en = lodashMerge(
       operation: "no usable GetMap operation is offered",
       content: "content %{type} cannot be rendered",
     },
+    LayerTree: {
+      ContextMenu: {
+        moveUp: "Move up",
+        moveDown: "Move down",
+        remove: "Remove from map",
+        activateLayer: "Activate layer",
+        zoomToLayer: "Zoom to layer",
+      },
+    },
+    viewerScale: {
+      notRendered: "Out of scale: this layer is rendered at scale denominators between %{min} and %{max} (current: %{current}).",
+      notRenderedShort: "Layer is out of scale",
+    },
     viewerAuth: {
       "method": "Authentication method",
       "username": "Username",

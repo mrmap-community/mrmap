@@ -276,8 +276,34 @@ describe('LayerTree', () => {
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes[0]).toHaveAttribute('data-indeterminate', 'true');
   });
+
+  it('marks an active layer out of scale without touching its activation', () => {
+    const feature = new OWSResource({
+      title: 'Scaled Layer', updated: '', folder: '/0', active: true,
+      maxscaledenominator: 1000,
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        operations: [
+          { code: 'GetMap', method: 'GET', href: 'https://example.com/wms', active: true },
+        ],
+      }],
+    });
+
+    viewerState.scaleDenominator = 5000;
+    render(
+      <AdminContext><OwsContextBase initialFeatures={[feature]}>
+        <LayerTree />
+        <ContextProbe />
+      </OwsContextBase></AdminContext>
+    );
+
+    // the viewer knows the view is out of the advertised limits and says so in the tree
+    expect(screen.getByLabelText('viewerScale.notRenderedShort')).toBeInTheDocument();
+    // the indicator only explains the suppressed rendering: the user's activation stays untouched
+    expect(screen.getByTestId('get-map-state')).toHaveTextContent('true');
+    viewerState.scaleDenominator = undefined;
+  });
 });
-vi.mock("../MapViewer/MapViewerBase", () => ({ useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] } }) }));
 
 describe('unsupported offerings', () => {
   it('marks a resource whose offering the viewer cannot render and leaves a renderable one alone', () => {
@@ -319,3 +345,10 @@ describe('unsupported offerings', () => {
     expect(screen.queryByTestId('WarningAmberIcon')).not.toBeInTheDocument();
   });
 });
+
+const viewerState: {
+  mapLoading: { failedFeatures: unknown[], errors: unknown[] };
+  scaleDenominator?: number;
+} = { mapLoading: { failedFeatures: [], errors: [] }, scaleDenominator: undefined };
+
+vi.mock("../MapViewer/MapViewerBase", () => ({ useMapViewerBase: () => viewerState }));

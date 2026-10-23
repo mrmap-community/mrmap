@@ -161,7 +161,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "noAbstract": "Kein Abstract vorhanden.",
     "coverage": "Räumlicher Bezug",
     "noCoverage": "Für diese Ebene ist kein räumlicher Bezug gespeichert.",
-    "coverageNotExposed": "Der API liefert keinen räumlichen Bezug für Feature-Types.",
+    "noFeatureTypeCoverage": "Keine räumliche Ausdehnung für diesen Feature-Type gespeichert.",
     "referenceSystems": "Bezugssysteme",
     "none": "Keine geliefert",
     "time": "Zeitliche Bezüge",
@@ -181,6 +181,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "noDescription": "Keine Beschreibung vom Dienst abgerufen.",
     "metadata": "Zugehörige Metadaten",
     "access": "Zugriff",
+    "secured": "Zugriffsregeln konfiguriert",
+    "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",
     "rules": "Zugriffsregeln",
   },
   recordShow: {

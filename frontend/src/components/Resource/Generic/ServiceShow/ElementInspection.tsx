@@ -10,9 +10,7 @@ import GeoJsonMap from "../../../MapContainer/GeoJsonMap";
 import { getCoverageBounds } from "../../DatasetMetadataRecord/coverage";
 import { IncludedRecordFields } from "../RecordShow/RecordFields";
 
-// The api expands the relationships behind these camelCase include paths and
-// answers them per detail request; a path an api does not know is never asked
-// for, so an older backend keeps answering without the expansion.
+// Expand the relationships needed to display the selected element's details.
 const INCLUDE_OF_RESOURCE: Record<string, string> = {
   Layer: "styles,referenceSystems,timeExtents",
   FeatureType: "referenceSystems,defaultReferenceSystem,outputFormats",
@@ -41,14 +39,14 @@ const Chips = ({ items }: { items: RaRecord[] }) => {
 };
 
 /** A parsed boolean answers yes or no; an absent one stays unknown. */
-const TriState = ({ value }: { value: unknown }) => {
+const TriState = ({ value, label }: { value: unknown; label?: string }) => {
   const translate = useTranslate();
   const state = value === true ? "yes" : value === false ? "no" : "unknown";
   return (
     <Chip
       size="small"
       color={state === "yes" ? "success" : state === "no" ? "default" : "warning"}
-      label={translate(`layerInspection.${state}`)}
+      label={label ? `${label}: ${translate(`layerInspection.${state}`)}` : translate(`layerInspection.${state}`)}
     />
   );
 };
@@ -91,10 +89,12 @@ const ElementInspection = ({
 
   const { data: record, isPending, error, refetch } = useGetOne(
     resource,
-    { id: id as string },
+    {
+      id: id as string,
+      meta: { jsonApiParams: { include: INCLUDE_OF_RESOURCE[resource] } },
+    },
     {
       enabled: id !== undefined && id !== null,
-      meta: { jsonApiParams: { include: INCLUDE_OF_RESOURCE[resource] } },
     },
   );
 
@@ -122,10 +122,15 @@ const ElementInspection = ({
     );
   if (isPending || record === undefined) return <Loading />;
 
-  const geometry = record.bbox as Feature["geometry"] | string | undefined;
+  const geometry = (record.bboxLatLon ?? record.bbox) as Feature["geometry"] | string | undefined;
   const coverage =
     typeof geometry === "object" && getCoverageBounds(geometry) ? geometry : undefined;
   const isLayer = resource === "Layer";
+  const referenceSystems = relatedRecords(record.referenceSystems);
+  const defaultReferenceSystem = record.defaultReferenceSystem as RaRecord | null | undefined;
+  const availableReferenceSystems = !isLayer && defaultReferenceSystem
+    ? [defaultReferenceSystem, ...referenceSystems.filter((item) => String(item.id) !== String(defaultReferenceSystem.id))]
+    : referenceSystems;
   const ruleResource = isLayer
     ? "AllowedWebMapServiceOperation"
     : "AllowedWebFeatureServiceOperation";
@@ -166,12 +171,12 @@ const ElementInspection = ({
             </GeoJsonMap>
           ) : (
             <Alert severity="info">
-              {isLayer ? message("noCoverage") : message("coverageNotExposed")}
+              {isLayer ? message("noCoverage") : message("noFeatureTypeCoverage")}
             </Alert>
           )}
         </Section>
         <Section title={message("referenceSystems")}>
-          <Chips items={relatedRecords(record.referenceSystems)} />
+          <Chips items={availableReferenceSystems} />
         </Section>
         {isLayer && (
           <Section title={message("time")}>
@@ -259,8 +264,8 @@ const ElementInspection = ({
         )}
         <Section title={message("access")}>
           <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", gap: 1 }}>
-            <TriState value={record.isSecured} />
-            <TriState value={record.isSpatialSecured} />
+            <TriState value={record.isSecured} label={message("secured")} />
+            <TriState value={record.isSpatialSecured} label={message("spatialSecured")} />
             {serviceId !== undefined && serviceId !== null && (
               <Button
                 size="small"

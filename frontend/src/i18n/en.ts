@@ -181,7 +181,7 @@ const en = lodashMerge(
       noAbstract: "No abstract available.",
       coverage: "Coverage",
       noCoverage: "No coverage stored for this layer.",
-      coverageNotExposed: "The api does not expose a coverage for feature types.",
+      noFeatureTypeCoverage: "No coverage stored for this feature type.",
       referenceSystems: "Reference systems",
       none: "None exposed",
       time: "Time extents",
@@ -201,6 +201,8 @@ const en = lodashMerge(
       noDescription: "No feature type description fetched from the service.",
       metadata: "Related metadata",
       access: "Access",
+      secured: "Access rules configured",
+      spatialSecured: "Spatial access rules configured",
       rules: "Access rules",
     },
     recordShow: {

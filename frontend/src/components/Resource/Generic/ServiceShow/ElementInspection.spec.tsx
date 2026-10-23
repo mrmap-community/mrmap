@@ -18,8 +18,8 @@ const state = vi.hoisted(() => ({
 vi.mock("react-admin", async () => ({
   ...(await vi.importActual<typeof import("react-admin")>("react-admin")),
   useTranslate: () => (key: string) => key,
-  useGetOne: (_resource: string, _params: unknown, options?: { meta?: unknown }) => {
-    state.getOneMeta = options?.meta as Record<string, unknown>;
+  useGetOne: (_resource: string, params: { meta?: unknown }) => {
+    state.getOneMeta = params.meta as Record<string, unknown>;
     return {
       data: state.record,
       isPending: state.isPending,
@@ -148,10 +148,29 @@ describe("element inspection", () => {
     expect(screen.getByText("layerInspection.noAbstract")).toBeInTheDocument();
   });
 
+  it("labels access-rule flags and distinguishes false from unavailable", () => {
+    state.record = { ...layer, isSecured: false, isSpatialSecured: false };
+    const { unmount } = showLayer();
+    expect(screen.getByText("layerInspection.secured: layerInspection.no")).toBeInTheDocument();
+    expect(screen.getByText("layerInspection.spatialSecured: layerInspection.no")).toBeInTheDocument();
+    unmount();
+    state.record = { ...featureType, isSecured: true, isSpatialSecured: null };
+    showFeatureType();
+    expect(screen.getByText("layerInspection.secured: layerInspection.yes")).toBeInTheDocument();
+    expect(screen.getByText("layerInspection.spatialSecured: layerInspection.unknown")).toBeInTheDocument();
+  });
+
   it("states the missing coverage of a layer explicitly", () => {
     state.record = { ...layer, bbox: null };
     showLayer();
     expect(screen.getByText("layerInspection.noCoverage")).toBeInTheDocument();
+  });
+
+  it("uses the inherited coverage of a layer without its own bounding box", () => {
+    state.record = { ...layer, bbox: null, bboxLatLon: layer.bbox };
+    showLayer();
+    expect(screen.getByTestId("map")).toBeInTheDocument();
+    expect(screen.queryByText("layerInspection.noCoverage")).not.toBeInTheDocument();
   });
 
   it("offers no edit destination when the user may not edit", () => {
@@ -169,12 +188,34 @@ describe("element inspection", () => {
     expect(screen.getByText("application/json")).toBeInTheDocument();
     expect(screen.getByText("Buildings of the city.")).toBeInTheDocument();
     expect(screen.getByText("layerInspection.noDescription")).toBeInTheDocument();
-    expect(screen.getByText("layerInspection.coverageNotExposed")).toBeInTheDocument();
+    expect(screen.getByText("layerInspection.noFeatureTypeCoverage")).toBeInTheDocument();
     expect(state.getOneMeta).toEqual({
       jsonApiParams: {
         include: "referenceSystems,defaultReferenceSystem,outputFormats",
       },
     });
+  });
+
+  it("shows the coverage and default CRS returned for a feature type", () => {
+    state.record = {
+      ...featureType,
+      bboxLatLon: layer.bbox,
+      referenceSystems: [],
+      defaultReferenceSystem: { id: "1", stringRepresentation: "EPSG:25832" },
+    };
+    showFeatureType();
+    expect(screen.getByTestId("map")).toBeInTheDocument();
+    expect(screen.getByText("EPSG:25832")).toBeInTheDocument();
+    expect(screen.queryByText("layerInspection.noFeatureTypeCoverage")).not.toBeInTheDocument();
+  });
+
+  it("shows a default CRS only once when it is also an available reference system", () => {
+    state.record = {
+      ...featureType,
+      defaultReferenceSystem: featureType.referenceSystems[0],
+    };
+    showFeatureType();
+    expect(screen.getAllByText("EPSG:4326")).toHaveLength(1);
   });
 
   it("answers loading and error states for the selected element", () => {

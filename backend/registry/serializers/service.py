@@ -187,6 +187,7 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
+    is_secured = BooleanField(label=_("is secured"), read_only=True)
     is_spatial_secured = BooleanField(
         label=_("is spatial secured"),
         help_text=_(

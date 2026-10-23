@@ -827,6 +827,15 @@ class FeatureTypeViewSetMixin(
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        rules = AllowedWebFeatureServiceOperation.objects.filter(
+            secured_feature_types=OuterRef('pk'))
+        return qs.annotate(
+            is_secured=Exists(rules),
+            is_spatial_secured=Exists(rules.filter(allowed_area__isnull=False)),
+        )
+
 
 class FeatureTypeViewSet(
     FeatureTypeViewSetMixin,

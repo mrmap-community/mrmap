@@ -19,6 +19,10 @@ const en = lodashMerge(
       loading: "Loading legend",
       unavailable: "Legend unavailable",
     },
+    viewerScale: {
+      notRendered: "Out of scale: this layer is rendered at scale denominators between %{min} and %{max} (current: %{current}).",
+      notRenderedShort: "Layer is out of scale",
+    },
     viewerAuth: {
       "method": "Authentication method",
       "username": "Username",

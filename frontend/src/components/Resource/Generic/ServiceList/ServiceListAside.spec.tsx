@@ -16,13 +16,14 @@ vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () => [{ component: TextField, props: { source: "title" } }],
 }));
 vi.mock("../../../HistoryList", () => ({
-  default: ({ resource, record }: { resource: string; record?: { id: string } }) => (
-    <div>Last 10 events: {resource} {record?.id ?? "all services"}</div>
+  default: ({ resource }: { resource: string }) => (
+    <div>Recent changes of {resource}</div>
   ),
 }));
 vi.mock("../ServiceShow/ServicePreviewImage", () => ({ default: () => <div>Service preview</div> }));
 vi.mock("../ServiceShow/ActivateServiceButton", () => ({ default: () => <button>Activate service</button> }));
 vi.mock("../../WebMapService/Button/MapViewerButton", () => ({ default: () => <button>Map viewer</button> }));
+vi.mock("../ServiceShow/ServiceOutcomes", () => ({ default: () => <div>Outcomes of the service</div> }));
 
 const Selection = () => {
   const { setSelectedRecord } = useSelectedRecordContext();
@@ -51,29 +52,35 @@ describe("ServiceListAside", () => {
     expect(screen.getByText("serviceList.noSelection")).toBeInTheDocument();
     expect(screen.queryByText("Service preview")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Map viewer" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Outcomes of the service")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select service" }));
     expect(screen.getByText("Selected WMS")).toBeInTheDocument();
     expect(screen.getByText("Service preview")).toBeInTheDocument();
+    expect(screen.getByText("Outcomes of the service")).toBeInTheDocument();
     expect(screen.queryByText("serviceList.noSelection")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.getByText("serviceList.noSelection")).toBeInTheDocument();
     expect(screen.queryByText("Selected WMS")).not.toBeInTheDocument();
+    expect(screen.queryByText("Outcomes of the service")).not.toBeInTheDocument();
   });
 
-  it("keeps resource-wide events above the details when selection changes", () => {
+  it("answers the selected service above the recent changes of the resource", () => {
     renderAside();
-    const events = screen.getByText("Last 10 events: HistoricalWebMapService all services");
-    expect(events.compareDocumentPosition(screen.getByText("serviceShow.details")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const changes = screen.getByText("Recent changes of HistoricalWebMapService");
+    expect(
+      changes.compareDocumentPosition(screen.getByText("serviceShow.details")) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Select service" }));
-    expect(events).toHaveTextContent("all services");
+    expect(changes).toHaveTextContent("HistoricalWebMapService");
   });
 
   it("does not request history when the resource has no history endpoint", () => {
     state.hasHistory = false;
     renderAside();
-    expect(screen.queryByText(/Last 10 events/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recent changes of/)).not.toBeInTheDocument();
     expect(screen.getByText("serviceList.noSelection")).toBeInTheDocument();
   });
 

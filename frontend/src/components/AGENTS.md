@@ -107,7 +107,7 @@ cheap and correct option; shrinking or copying the card to avoid the field is th
 
 | Folder | Holds | Do not write |
 | --- | --- | --- |
-| `Resource/Generic/ServiceShow/` | per-service cards and actions: `ServiceDetailsCard`, `SelectedServiceDetailsCard`, `ServiceOverview`, `ServicePreviewImage`, `ServiceAlertChips`, `ServiceUpdateJobsCard`, `ServiceHistoryCard`, `ServiceAttentionTab`, `ActivateServiceButton`, `RunServiceUpdateButton` | a card with one service's metadata, alerts, preview, update runs or history |
+| `Resource/Generic/ServiceShow/` | per-service cards and actions: `ServiceDetailsCard`, `SelectedServiceDetailsCard`, `ServiceOverview`, `ServicePreviewImage`, `ServiceAlertChips`, `ServiceOutcomes`, `ServiceUpdateJobsCard`, `ServiceHistoryCard`, `ServiceAttentionTab`, `ActivateServiceButton`, `RunServiceUpdateButton` | a card with one service's metadata, alerts, preview, update runs or history |
 | `Resource/Generic/ServiceList/` | the shared WMS/WFS/CSW list: `ServiceList`, `ServiceListExplorer`, `ServiceListAside`, `ServiceSummaryTiles`, `ServiceElementCount`, `alertFacets`, `serviceListProps`, `config` | a second service list layout, facet or summary tile |
 | `Resource/Generic/RecordShow/` | `RecordShow`, `RecordHeader`, `RecordFields`, `RecordContacts`, `RecordRelations`, `RecordOverview`, `RecordSpatial`, `RecordHistory` | a label/value stack for record attributes |
 | `Resource/Generic/History/` | `HistoryList`, `HistoryListBase`, `ServiceHistoryList`, `HistoryTimeline`, `HistoryChart`, `historySources` | a timeline, changelog or event list |

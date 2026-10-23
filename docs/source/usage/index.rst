@@ -98,9 +98,17 @@ a validated number within the advertised range and interval - and the choice app
 the map and the identify requests. Resources asking for different dimension values are
 requested separately, and the selections survive in the context document.
 
-Protected GetFeatureInfo results are fetched with their assigned headers and shown
-in the viewer. Remote markup is displayed as text, never executed. Credentials
-remain in the viewer session. The JSON context editor omits secret values from
+Select Identify and click a location, or right-click the map, to fetch GetFeatureInfo
+results. The viewer shows results in an overlay inspector without moving or resizing
+the map, using a side panel on larger screens and a bottom sheet on smaller screens.
+Protected requests use their assigned headers; unprotected requests are fetched directly.
+The inspector shows loading, empty and error states, with retry for failed requests.
+JSON feature collections support feature navigation. HTML tables are extracted as text
+and table structure; remote scripts and other active markup are never executed.
+The raw response can be expanded and downloaded. Collapse the inspector to uncover
+the map while keeping results, or clear the selection to cancel pending requests.
+
+Credentials remain in the viewer session. The JSON context editor omits secret values from
 copyable documents, retaining assignments so a recipient can enter their own
 credentials. Saving local JSON edits preserves existing session secrets only for
 unchanged credential identities, headers and origins.

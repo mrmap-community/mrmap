@@ -10,7 +10,7 @@ import {
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import LivePreview from "./LivePreview";
+import LivePreview, { FeatureInfoResult } from "./LivePreview";
 
 const state = vi.hoisted(() => ({
   request: vi.fn(),
@@ -121,10 +121,11 @@ describe("live overview previews", () => {
         static revokeObjectURL = vi.fn();
       },
     );
-    const identify = vi.fn(async (_url: string, _init: RequestInit) =>
-      new Response("<script>remote</script>", {
-        headers: { "Content-Type": "text/plain" },
-      }),
+    const identify = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response("<script>remote</script>", {
+          headers: { "Content-Type": "text/plain" },
+        }),
     );
     vi.stubGlobal("fetch", identify);
     state.request.mockImplementation(async ({ params }) =>
@@ -153,10 +154,14 @@ describe("live overview previews", () => {
       ),
     );
     await screen.findByText("<script>remote</script>", {}, { timeout: 5000 });
+    fireEvent.click(screen.getByText("livePreview.rawResponse"));
     expect(
       screen.getByRole("link", { name: "livePreview.featureInfo" }),
     ).toHaveAttribute("href", "blob:safe-result");
-    expect(document.querySelector("script")).toBeNull();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "download",
+      "getfeatureinfo.txt",
+    );
     // The preview endpoint only negotiates; the pixel request goes to the security proxy.
     const [url, options] = identify.mock.calls[0];
     const params = new URL(url).searchParams;
@@ -204,7 +209,11 @@ describe("live overview previews", () => {
     const view = prepare("WMS");
     fireEvent.click(screen.getByText("livePreview.title"));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Identify" }, { timeout: 5000 }),
+      await screen.findByRole(
+        "button",
+        { name: "Identify" },
+        { timeout: 5000 },
+      ),
     );
     await screen.findByText("livePreview.errors.denied", {}, { timeout: 5000 });
     expect(fetched).not.toHaveBeenCalled();
@@ -213,16 +222,20 @@ describe("live overview previews", () => {
   it("reads a json identify body into feature attributes instead of markup", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            type: "FeatureCollection",
-            features: [
-              { type: "Feature", properties: { name: "Main", street: "<b>x</b>" } },
-            ],
-          }),
-          { headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: { name: "Main", street: "<b>x</b>" },
+                },
+              ],
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
     state.request.mockImplementation(async ({ params }) =>
@@ -244,7 +257,11 @@ describe("live overview previews", () => {
     const view = prepare("WMS");
     fireEvent.click(screen.getByText("livePreview.title"));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Identify" }, { timeout: 5000 }),
+      await screen.findByRole(
+        "button",
+        { name: "Identify" },
+        { timeout: 5000 },
+      ),
     );
     expect(
       await screen.findByText("street: <b>x</b>", {}, { timeout: 5000 }),
@@ -401,5 +418,86 @@ describe("live overview previews", () => {
         }),
       ),
     );
+  });
+  it("names an identify result that holds no features", () => {
+    render(
+      <AdminContext
+        dataProvider={testDataProvider()}
+        i18nProvider={{
+          translate: (key) => key,
+          changeLocale: async () => {},
+          getLocale: () => "en",
+        }}
+      >
+        <FeatureInfoResult
+          text='{"type":"FeatureCollection","features":[]}'
+          contentType="application/json"
+        />
+      </AdminContext>,
+    );
+    expect(screen.getByText("livePreview.noFeatures")).toBeInTheDocument();
+  });
+});
+
+describe("HTML feature info presentation", () => {
+  const showResult = (text: string, contentType = "text/html; charset=UTF-8") =>
+    render(
+      <AdminContext
+        i18nProvider={{
+          translate: (key) => key,
+          changeLocale: async () => {},
+          getLocale: () => "en",
+        }}
+      >
+        <FeatureInfoResult text={text} contentType={contentType} />
+      </AdminContext>,
+    );
+
+  it("recognizes the empty GeoServer HTML response and keeps its source collapsed", () => {
+    showResult(
+      "<html><head><title>Geoserver GetFeatureInfo output</title><style>table.featureInfo {border:1px solid}</style></head><body>\n</body></html>",
+    );
+    expect(screen.getByText("livePreview.noFeatures")).toBeVisible();
+    expect(screen.queryByText(/table.featureInfo/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "livePreview.rawResponse" }),
+    );
+    expect(screen.getByText(/table.featureInfo/)).toBeVisible();
+  });
+
+  it("rebuilds feature tables with headers, captions and decoded text while discarding active markup", () => {
+    const { container } =
+      showResult(`<html><head><style>body{display:none}</style></head><body>
+      <script>window.stolen = localStorage.token</script><iframe src="https://untrusted.test"></iframe>
+      <table onclick="alert(1)"><caption>Places</caption><tr><th>Name</th><th>Population</th></tr>
+      <tr><td><a href="javascript:alert(1)">Berlin &amp; Mitte</a></td><td>123</td></tr>
+      <tr><td>&lt;script&gt;literal&lt;/script&gt;</td><td><img src="missing" onerror="alert(1)">456</td></tr></table>
+      </body></html>`);
+    expect(screen.getByRole("table")).toHaveAccessibleName("Places");
+    expect(
+      screen.getByRole("columnheader", { name: "Name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("cell", { name: "Berlin & Mitte" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("cell", { name: "<script>literal</script>" }),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector("script, iframe, img, a, [onclick], [onerror]"),
+    ).toBeNull();
+    expect(screen.queryByText("livePreview.noFeatures")).toBeNull();
+  });
+
+  it("retains readable non-table HTML content including XHTML", () => {
+    showResult(
+      '<html xmlns="http://www.w3.org/1999/xhtml"><body><h2>Service message</h2><p>No matching records &amp; no errors.</p></body></html>',
+      "application/xhtml+xml",
+    );
+    expect(screen.getByText(/Service message/)).toHaveTextContent(
+      "No matching records & no errors.",
+    );
+    expect(screen.queryByText("livePreview.noFeatures")).toBeNull();
   });
 });

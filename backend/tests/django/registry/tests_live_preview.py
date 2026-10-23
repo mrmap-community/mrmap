@@ -227,6 +227,33 @@ class LivePreviewTests(TestCase):
         self.assertEqual(self.request('wfs', selection='ms:Countries', bbox='0,0,4,8').json()['error'], 'format')
         self.send.assert_not_called()
 
+    def test_per_type_output_formats_replace_the_operation_wide_advertisement(self):
+        # The shared negotiation rule (same as the frontend capabilities
+        # parser): a feature type only overrides the operation-wide
+        # outputFormat list when it states its own OutputFormats; stating a
+        # list replaces the fallback instead of merging with it.
+        self.send.return_value = response(json.dumps(self.features).encode())
+        with_json = capabilities('WFS').replace(
+            b'</FeatureType>', b'<OutputFormats><Format>application/json</Format></OutputFormats></FeatureType>')
+        # only the operation-wide advertisement is switched to GML, the
+        # first occurrence precedes the FeatureTypeList
+        gml_operation_json_type = with_json.replace(b'application/json', b'application/gml+xml', 1)
+        self.wfs.xml_backup_file = SimpleUploadedFile('type_json.xml', gml_operation_json_type)
+        self.wfs.save()
+        result = self.request('wfs', selection='ms:Countries', bbox='-2,0,4,8')
+        self.assertEqual(result.status_code, 200, result.content)
+        params = parse_qs(urlsplit(self.send.call_args.args[0].url).query)
+        self.assertEqual(params['OUTPUTFORMAT'], ['application/json'])
+        self.assertEqual(params['SRSNAME'], ['EPSG:4326'])
+
+        gml_only_type = capabilities('WFS').replace(
+            b'</FeatureType>', b'<OutputFormats><Format>application/gml+xml</Format></OutputFormats></FeatureType>')
+        self.wfs.xml_backup_file = SimpleUploadedFile('type_gml.xml', gml_only_type)
+        self.wfs.save()
+        self.send.reset_mock()
+        self.assertEqual(self.request('wfs', selection='ms:Countries', bbox='0,0,4,8').json()['error'], 'format')
+        self.send.assert_not_called()
+
     def test_wfs_spatial_permissions_are_caller_scoped_and_keep_viewport_and_limit(self):
         user = get_user_model().objects.create_user(username='restricted')
         group = Group.objects.create(name='preview-area')

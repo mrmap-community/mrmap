@@ -506,6 +506,27 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.assertEqual(self.response(**{'filter[serviceType]': 'WebFeatureService'})['data'], [])
         self.assertEqual(self.response(**{'filter[category]': 'update_failed'})['data'], [])
 
+    def test_a_dashboard_queue_counts_the_records_its_list_shows(self):
+        """A queue of the dashboard counts what its list answers.
+
+        The dashboard counts a queue with the sparsest request possible and links
+        to the list which asks the very filter of that count, so the sparse fields
+        of the count must never answer another amount than the filter alone.
+        """
+        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.update_job(self.wms_two, JobState.ERROR)
+        queue = {'filter[category]': 'update_review_required'}
+        counted = self.response(**queue, **{'page[size]': 1,
+                                            'fields[ServiceAlert]': 'id'})
+        self.assertEqual(counted['meta']['pagination']['count'], 1)
+        self.assertEqual(len(counted['data']), 1)
+        # the sparse fields ask nothing of the attributes of an alert, so the count
+        # is answered without them and still names the alert it counted
+        self.assertEqual(counted['data'][0].get('attributes', {}), {})
+        self.assertEqual(
+            self.response(**queue)['meta']['pagination']['count'],
+            counted['meta']['pagination']['count'])
+
     def test_resolved_alert_disappears_and_identity_is_stable(self):
         job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
         before = self.response()['data'][0]['id']

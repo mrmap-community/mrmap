@@ -167,6 +167,41 @@ it('persists supplied capabilities authentication for subsequent same-origin WFS
   vi.unstubAllGlobals();
 });
 
+it('appends the protocol the capabilities document announces when the import leaves it open', async () => {
+  const xml = await import('../../ows-lib/XMLParser/tests/wfs_minimal_2_0_0.xml?raw');
+  const fetch = vi.fn(async (_request: Request) => new Response(xml.default, { status: 200 }));
+  vi.stubGlobal('fetch', fetch);
+  let current: ReturnType<typeof useOwsContextBase>;
+  const Tester = () => {
+    current = useOwsContextBase();
+    return <button onClick={() => current.addServiceByUrl('https://example.test/ows')}>append</button>;
+  };
+  render(<OwsContextBase><Tester /></OwsContextBase>);
+  fireEvent.click(screen.getByRole('button', { name: 'append' }));
+  await waitFor(() => expect(current.loadingStatus).toBe('ready'));
+  const features = current!.owsContext.features;
+  expect(features.length).toBe(2);
+  expect(features[1].getWfsOffering()?.qualifiedName).toBe('plain_type');
+  vi.unstubAllGlobals();
+});
+
+it('reports capabilities of no detectable protocol without touching the context', async () => {
+  const fetch = vi.fn(async (_request: Request) => new Response(
+    '<html><body>login wall</body></html>', { status: 200 }));
+  vi.stubGlobal('fetch', fetch);
+  let current: ReturnType<typeof useOwsContextBase>;
+  const Tester = () => {
+    current = useOwsContextBase();
+    return <button onClick={() => current.addServiceByUrl('https://example.test/ows')}>append</button>;
+  };
+  render(<OwsContextBase><Tester /></OwsContextBase>);
+  fireEvent.click(screen.getByRole('button', { name: 'append' }));
+  await waitFor(() => expect(current.loadingStatus).toBe('error'));
+  expect(current!.errorMessage).toContain('does not announce a WMS or WFS');
+  expect(current!.owsContext.features).toHaveLength(0);
+  vi.unstubAllGlobals();
+});
+
 describe('OwsContextBase document extent', () => {
 
   const ExtentTester = () => {

@@ -87,6 +87,18 @@ const en = lodashMerge(
       empty: "%{title}: no features in this view",
       tooltip: "Click a feature to see its attributes"
     },
+    wfsViewer: {
+      selectTitle: "Which feature types of %{service} shall the map show?"
+    },
+    addResource: {
+      title: "Append service",
+      description: "To add a Web Map Service or Web Feature Service to the current OWS context, enter a valid GetCapabilities url. The protocol is read from the delivered capabilities unless it is fixed here.",
+      url: "Get Capabilities Url",
+      protocol: "Protocol",
+      protocolAuto: "Detect from capabilities",
+      username: "Username (optional)",
+      password: "Password (optional)"
+    },
     LayerTree: {
       ContextMenu: {
         moveUp: "Move up",

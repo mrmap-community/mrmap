@@ -84,6 +84,18 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     empty: "%{title}: keine Features in dieser Ansicht",
     tooltip: "Klicken Sie auf ein Feature, um seine Attribute zu sehen"
   },
+  wfsViewer: {
+    selectTitle: "Welche Feature-Typen von %{service} soll die Karte zeigen?"
+  },
+  addResource: {
+    title: "Dienst hinzufügen",
+    description: "Um einen Web Map Service oder Web Feature Service zum aktuellen OWS-Kontext hinzuzufügen, geben Sie eine gültige GetCapabilities-URL ein. Das Protokoll wird aus den übermittelten Capabilities gelesen, sofern es hier nicht festgelegt wird.",
+    url: "Get-Capabilities-URL",
+    protocol: "Protokoll",
+    protocolAuto: "Aus Capabilities erkennen",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)"
+  },
   LayerTree: {
     ContextMenu: {
       moveUp: "Nach oben verschieben",

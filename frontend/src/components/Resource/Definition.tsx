@@ -40,6 +40,7 @@ import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
+import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
 import ShowWebFeatureServiceUpdateJob from './WebFeatureServiceUpdateJob/ShowWebFeatureServiceUpdateJob';
@@ -73,7 +74,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
-  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
+  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   

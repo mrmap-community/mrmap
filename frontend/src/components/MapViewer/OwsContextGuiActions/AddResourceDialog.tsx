@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { useTranslate } from 'react-admin';
 
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -6,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
@@ -18,7 +20,9 @@ export interface AddResourceDialogProps {
 
 
 const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode => {
-  const { addWMSByUrl } = useOwsContextBase() 
+  const { addWMSByUrl, addWFSByUrl, addServiceByUrl } = useOwsContextBase()
+  const translate = useTranslate()
+  const t = (key: string) => translate(`addResource.${key}`)
 
   return (
       <Dialog
@@ -31,6 +35,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
             const formJson = Object.fromEntries(formData.entries());
             const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
+            const protocol = String(formJson.protocol ?? "");
             const username = formJson.username;
             const password = formJson.password;
 
@@ -42,15 +47,22 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
               headers.set('Authorization', `Basic ${basicAuth}`);
             }
 
-            addWMSByUrl(getCapabilitiesUrl, headers)
+            // the protocols the document cannot decide for itself are fixed here; the async
+            // loading, parsing and error reporting of the context answer the rest visibly
+            if (protocol === 'WMS')
+              addWMSByUrl(getCapabilitiesUrl, headers)
+            else if (protocol === 'WFS')
+              addWFSByUrl(getCapabilitiesUrl, headers)
+            else
+              addServiceByUrl(getCapabilitiesUrl, headers)
             setOpen(false)
           },
         } }}
       >
-        <DialogTitle>Append Web Map Service</DialogTitle>
+        <DialogTitle>{t('title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            To add a Web Map Service to the current OWS Context, please enter a valid GetCapabilitiesUrl.
+            {t('description')}
           </DialogContentText>
           <TextField
             autoFocus
@@ -58,16 +70,30 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             margin="dense"
             id="getCapabilitiesUrl"
             name="getCapabilitiesUrl"
-            label="Get Capabilities Url"
+            label={t('url')}
             type="url"
             fullWidth
             variant="standard"
           />
           <TextField
             margin="dense"
+            select
+            id="protocol"
+            name="protocol"
+            label={t('protocol')}
+            defaultValue=""
+            fullWidth
+            variant="standard"
+          >
+            <MenuItem value="">{t('protocolAuto')}</MenuItem>
+            <MenuItem value="WMS">WMS</MenuItem>
+            <MenuItem value="WFS">WFS</MenuItem>
+          </TextField>
+          <TextField
+            margin="dense"
             id="username"
             name="username"
-            label="Username (optional)"
+            label={t('username')}
             fullWidth
             variant="standard"
           />
@@ -75,15 +101,15 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             margin="dense"
             id="password"
             name="password"
-            label="Password (optional)"
+            label={t('password')}
             type="password"
             fullWidth
             variant="standard"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setOpen(false)}>Cancel</Button>
-          <Button type="submit" color='primary'>Add</Button>
+          <Button onClick={()=>setOpen(false)}>{translate('ra.action.cancel')}</Button>
+          <Button type="submit" color='primary'>{translate('ra.action.add')}</Button>
         </DialogActions>
       </Dialog>
   );

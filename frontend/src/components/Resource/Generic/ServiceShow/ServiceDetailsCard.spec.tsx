@@ -34,6 +34,12 @@ vi.mock("./ActivateServiceButton", () => ({ default: () => null }));
 vi.mock("../../WebMapService/Button/MapViewerButton", () => ({
   default: () => null,
 }));
+// the WFS button asks for the feature types of the service, which the card itself must not answer
+vi.mock("../../WebFeatureService/Button/MapViewerButton", () => ({
+  default: ({ label }: { label?: string }) => (
+    <span data-testid="wfs-mapviewer">{label}</span>
+  ),
+}));
 
 const renderDetails = (version?: number, locale = "en") =>
   render(
@@ -105,6 +111,27 @@ describe("ServiceDetailsCard labels", () => {
     renderDetails(undefined, "de");
     expect(screen.getByText("Titel")).toBeInTheDocument();
     expect(screen.getByText("Beschreibung")).toBeInTheDocument();
+  });
+
+  it("opens a web feature service in the map viewer from its own screen", () => {
+    render(
+      <AdminContext i18nProvider={polyglotI18nProvider(() => en, "en")}>
+        <ResourceContextProvider value="WebFeatureService">
+          <RecordContextProvider value={{ id: "wfs", title: "Buildings", version: 2 }}>
+            <ServiceDetailsCard protocol="WFS" />
+          </RecordContextProvider>
+        </ResourceContextProvider>
+      </AdminContext>,
+    );
+    // the WFS screen answers the viewer action of its own protocol, and not the WMS one
+    expect(screen.getByTestId("wfs-mapviewer")).toHaveTextContent(
+      "serviceShow.openMapViewer",
+    );
+  });
+
+  it("answers no feature type viewer action to a web map service", () => {
+    renderDetails();
+    expect(screen.queryByTestId("wfs-mapviewer")).not.toBeInTheDocument();
   });
 });
 

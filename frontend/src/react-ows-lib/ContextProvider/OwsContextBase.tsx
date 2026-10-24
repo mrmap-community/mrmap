@@ -5,6 +5,7 @@ import { BBox } from 'geojson'
 
 import { assignServiceAuthentication } from '../../ows-lib/OwsContext/authentication'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
+import { detectCapabilitiesService } from '../../ows-lib/OwsContext/utils'
 import { Position } from '../../ows-lib/OwsContext/enums'
 import { formatOwsContextIssues, validateOwsContext, type OwsContextIssue, type OwsContextValidationResult } from '../../ows-lib/OwsContext/validation'
 
@@ -54,6 +55,12 @@ export interface OwsContextBaseType {
    * existing service trees and the area of interest of the document intact.
    */
   addWFSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  /**
+   * Appends the capabilities of the url whatever protocol the document announces: the text is
+   * read before it is parsed, so no foreign document is ever parsed with the wrong parser. A
+   * document that names no protocol fails visibly instead of guessing.
+   */
+  addServiceByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
   addWFSByRecord: (record: RaRecord) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: OWSResource[]
@@ -248,7 +255,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   // and only then replace the state, so a failing import keeps the existing trees and viewport
   const appendServiceByUrl = useCallback(async (
     url: string,
-    serviceLabel: 'WMS' | 'WFS',
+    serviceLabel: string,
     appendService: (context: OWSContext, url: string, capabilities: string) => number,
     headers?: Headers,
     beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext
@@ -365,6 +372,17 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
   const addWFSByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) =>
     appendServiceByUrl(url, 'WFS', (context, serviceUrl, capabilities) => context.appendWfs(serviceUrl, capabilities), headers, beforeSetHook),
+  [appendServiceByUrl])
+
+  const addServiceByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) =>
+    appendServiceByUrl(url, 'service', (context, serviceUrl, capabilities) => {
+      const detected = detectCapabilitiesService(capabilities)
+      if (detected === undefined)
+        throw new Error('The document does not announce a WMS or WFS; choose the protocol explicitly')
+      return detected === 'WFS'
+        ? context.appendWfs(serviceUrl, capabilities)
+        : context.appendWms(serviceUrl, capabilities)
+    }, headers, beforeSetHook),
   [appendServiceByUrl])
 
   const initialFromOwsContext = useCallback(async (url: string, headers?: Headers) => {
@@ -536,6 +554,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       addWMSByRecord,
       addWMSByUrl,
       addWFSByUrl,
+      addServiceByUrl,
       addWFSByRecord,
       initialFromOwsContext,
       trees,
@@ -563,6 +582,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     addWMSByRecord,
     addWMSByUrl,
     addWFSByUrl,
+    addServiceByUrl,
     addWFSByRecord,
     initialFromOwsContext,
     trees,

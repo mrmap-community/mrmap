@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { resolveOperationAuthentication } from "../../../ows-lib/OwsContext/authentication";
 import { OWSContext } from "../../../ows-lib/OwsContext/core";
-import { isWmsOfferingCode } from "../../../ows-lib/OwsContext/validation";
+import { isWfsOfferingCode, isWmsOfferingCode } from "../../../ows-lib/OwsContext/validation";
 import { useOwsContextBase } from "../../../react-ows-lib/ContextProvider/OwsContextBase";
 
 export interface EditAuthenticationsDialogProps {
@@ -185,7 +185,7 @@ const EditAuthenticationsDialog = ({
             )
             .map((feature) =>
               (feature.properties.offerings ?? [])
-                .filter((offering) => isWmsOfferingCode(offering.code))
+                .filter((offering) => isWmsOfferingCode(offering.code) || isWfsOfferingCode(offering.code))
                 .map((offering, offeringIndex) =>
                   (offering.operations ?? []).map(
                     (operation, operationIndex) => {

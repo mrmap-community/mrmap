@@ -201,6 +201,36 @@ export const prepareGetFeatureUrl = (capabilities: WfsCapabilitites, featureType
 export const WFS_VIEWER_FEATURE_LIMIT = 500
 
 /**
+ * The protocol a capabilities text announces, read from the document itself: the WMS and WFS
+ * roots name their service, and the shared OGC root carries a ServiceIdentification/Type.
+ * Undefined when nothing in the document decides - guessing a protocol would parse a foreign
+ * document with the wrong parser and fill the context with the wrong operations.
+ */
+export const detectCapabilitiesService = (capabilities: string): 'WMS' | 'WFS' | undefined => {
+    try {
+        const document = new DOMParser().parseFromString(capabilities, 'application/xml')
+        if (document.querySelector('parsererror') || document.documentElement === null) return undefined
+        const root = document.documentElement
+        if (root.localName.includes('WFS_Capabilities')) return 'WFS'
+        if (root.localName.includes('WMS_Capabilities') || root.localName.includes('WMT_MS_Capabilities')) return 'WMS'
+        // a shared OGC root decides through its ServiceIdentification/Type, e.g. codeList values
+        // like "OGC WFS"; the older Service element carries the same statement as an attribute
+        const identification = Array.from(root.children)
+            .find(child => child.localName === 'ServiceIdentification' || child.localName === 'Service')
+        const type = identification === undefined
+            ? ''
+            : (identification.getAttribute('serviceType')
+                ?? Array.from(identification.children).find(child => child.localName === 'Type')?.textContent
+                ?? '').trim().toUpperCase()
+        if (type.startsWith('WFS') || type.includes('WFS ')) return 'WFS'
+        if (type.startsWith('WMS') || type.includes('WMS ')) return 'WMS'
+        return undefined
+    } catch {
+        return undefined
+    }
+}
+
+/**
  * The bounded GetFeature request for one viewport. The exact negotiated version and type name from
  * the imported descriptor are kept; the viewport replaces the BBOX and the coordinate reference
  * system is pinned to EPSG:4326 in the axis order the WFS 1.1/2.0 specification states for it,

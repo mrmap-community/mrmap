@@ -20,6 +20,13 @@ Feature: Featuretype List Endpoint
         Then I expect that response json has an attribute "data.attributes.lastModifiedAt"
         Then I expect that response json has an attribute "data.relationships.service.data.id" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
+    Scenario: Reports no access rules for an unconfigured feature type
+        Given I set a queryparam "fields[FeatureType]" with value "isSecured,isSpatialSecured"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "data.attributes.isSecured" with value "false"
+        And I expect that response json has an attribute "data.attributes.isSpatialSecured" with value "false"
+
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method

@@ -78,6 +78,11 @@ export interface TreeItemLabelProps {
 
 NodeIcons.displayName = "NodeIcons";
 
+// WMS rendering has independent operation activation; WFS rendering uses resource activation.
+const getVisibilityState = (resource: OWSResource) =>
+  resource.getWmsOperationByCode('GetMap') ??
+  (resource.getWfsOffering() !== undefined ? resource.properties : undefined)
+
 const TreeItemLabel = memo(
   ({
     node
@@ -132,7 +137,7 @@ const TreeItemLabel = memo(
 
       const mapOperations = owsContext
         .getDescandantsOf(node, true)
-        .map(descendant => descendant.getWmsOperationByCode('GetMap'))
+        .map(getVisibilityState)
         .filter((operation) => operation !== undefined)
 
       if (mapOperations.length === 0) {
@@ -185,7 +190,9 @@ const TreeItemLabel = memo(
           if (target === undefined) return
 
           const updateOperationState = (resource: OWSResource | undefined) => {
-            const operation = resource?.getWmsOperationByCode(operationCode)
+            const operation = resource === undefined ? undefined : operationCode === 'GetMap'
+              ? getVisibilityState(resource)
+              : resource.getWmsOperationByCode(operationCode)
             if (operation) {
               operation['active'] = checked
             }
@@ -199,7 +206,8 @@ const TreeItemLabel = memo(
           })
 
           // set parent also active if all siblings of target are active
-          if (checked === true && newContext.getSiblingsOf(target).every(feature => feature.getWmsOperationByCode(operationCode)?.active === true)) {
+          if (checked === true && newContext.getSiblingsOf(target).every(feature =>
+            (operationCode === 'GetMap' ? getVisibilityState(feature) : feature.getWmsOperationByCode(operationCode))?.active === true)) {
             const parent = newContext.getParentOf(target)
             updateOperationState(parent)
           }
@@ -231,7 +239,7 @@ const TreeItemLabel = memo(
             onClick={(event)  => event.stopPropagation()}
             checked={usesFeatureActivation
               ? node.properties.active === true
-              : node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
+              : getVisibilityState(node)?.active === true}
             indeterminate={indeterminateVisibility}
             onChange={usesFeatureActivation ? toggleFeatures : toggle('GetMap')}
           />

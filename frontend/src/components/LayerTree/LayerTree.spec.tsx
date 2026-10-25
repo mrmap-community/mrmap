@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { AdminContext } from "react-admin";
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core';
@@ -35,6 +35,7 @@ const ContextProbe = () => {
       <span data-testid="get-feature-info-state">{String(getFeatureInfoOperation?.active ?? false)}</span>
       <span data-testid="map-href">{getMapOperation?.href}</span>
       <span data-testid="info-href">{getFeatureInfoOperation?.href}</span>
+      <span data-testid="wfs-requests">{owsContext.getWfsFeatureRequests().map(({ feature }) => feature.properties.title).join(',')}</span>
       <button onClick={() => setOwsContext(OWSContext.fromPlainObject(JSON.parse(JSON.stringify(owsContext))))}>Reload context</button>
     </div>
   );
@@ -47,6 +48,46 @@ const openStyleControls = async () => {
 };
 
 describe('LayerTree', () => {
+  it('toggles WFS offerings individually and as a group using resource activation', () => {
+    const offerings = [{
+      code: 'http://www.opengis.net/spec/owc/1.0/req/wfs',
+      outputFormats: ['application/json'], defaultCrs: 'EPSG:4326',
+      operations: [{ code: 'GetFeature', method: 'GET', href: 'https://example.org/wfs?TYPENAMES=roads' }],
+    }];
+    const features = [
+      new OWSResource({ title: 'WFS', updated: '', folder: '/0', active: false, offerings: [{ code: offerings[0].code }] }),
+      new OWSResource({ title: 'Roads', updated: '', folder: '/0/0', active: false, offerings }),
+      new OWSResource({ title: 'Rivers', updated: '', folder: '/0/1', active: false, offerings }),
+    ];
+    render(<AdminContext><OwsContextBase initialFeatures={features}>
+      <LayerTree initialExpanded={['/0']} /><ContextProbe />
+    </OwsContextBase></AdminContext>);
+
+    const checkboxes = (title: string) => within(screen.getByText(title, { selector: 'p' }).closest('.MuiTreeItem-label') as HTMLElement).getAllByRole('checkbox');
+    expect(checkboxes('Roads')[0]).not.toBeChecked();
+    expect(checkboxes('Roads')).toHaveLength(1);
+    fireEvent.click(checkboxes('Roads')[0]);
+    expect(checkboxes('Roads')[0]).toBeChecked();
+    expect(checkboxes('Rivers')[0]).not.toBeChecked();
+    expect(checkboxes('WFS')[0]).toHaveAttribute('data-indeterminate', 'true');
+    expect(screen.getByTestId('wfs-requests')).toHaveTextContent(/^Roads$/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload context' }));
+    expect(checkboxes('Roads')[0]).toBeChecked();
+    fireEvent.click(checkboxes('Rivers')[0]);
+    expect(checkboxes('WFS')[0]).toBeChecked();
+    expect(checkboxes('WFS')[0]).toHaveAttribute('data-indeterminate', 'false');
+
+    fireEvent.click(checkboxes('WFS')[0]);
+    expect(checkboxes('Roads')[0]).not.toBeChecked();
+    expect(checkboxes('Rivers')[0]).not.toBeChecked();
+    expect(screen.getByTestId('wfs-requests')).toBeEmptyDOMElement();
+    fireEvent.click(checkboxes('WFS')[0]);
+    expect(checkboxes('Roads')[0]).toBeChecked();
+    expect(checkboxes('Rivers')[0]).toBeChecked();
+    expect(screen.getByTestId('wfs-requests')).toHaveTextContent('Roads,Rivers');
+  });
+
   it('selects advertised styles, reloads them and displays legend loading, success and failure states', async () => {
     const feature = new OWSResource({
       title: 'Styled layer', updated: '', folder: '/0',

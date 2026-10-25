@@ -33,7 +33,7 @@ describe('AddResourceDialog', () => {
     vi.clearAllMocks();
   });
 
-  it('appends the wms of the entered capabilities url', () => {
+  it('detects the protocol of the entered capabilities url', () => {
     render(<AddResourceDialog open setOpen={state.setOpen} />);
 
     enterCapabilitiesUrl();
@@ -66,5 +66,34 @@ describe('AddResourceDialog', () => {
     const [url, headers] = state.addServiceByUrl.mock.calls[0];
     expect(url).toBe(capabilitiesUrl);
     expect(headers?.get('Authorization')).toBe(`Basic ${btoa('reader:test-password')}`);
+  });
+
+  it('appends a WFS using the selected service type and preserves credentials', () => {
+    render(<AddResourceDialog open setOpen={state.setOpen} />);
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'addResource.protocol' }));
+    fireEvent.click(screen.getByRole('option', { name: 'WFS' }));
+    const wfsUrl = 'https://wfs.example.test/ows?SERVICE=WFS&REQUEST=GetCapabilities';
+    fireEvent.change(screen.getByLabelText(/addResource.url/), { target: { value: wfsUrl } });
+    fireEvent.change(screen.getByLabelText(/addResource.username/), { target: { value: 'reader' } });
+    fireEvent.change(screen.getByLabelText(/addResource.password/), { target: { value: 'secret' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ra.action.add' }));
+    expect(state.addWMSByUrl).not.toHaveBeenCalled();
+    const [url, headers] = state.addWFSByUrl.mock.calls[0];
+    expect(url).toBe(wfsUrl);
+    expect(headers?.get('Authorization')).toBe(`Basic ${btoa('reader:secret')}`);
+    expect(state.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('routes an explicitly chosen WMS to the matching append', () => {
+    render(<AddResourceDialog open setOpen={state.setOpen} />);
+
+    enterCapabilitiesUrl();
+    fireEvent.mouseDown(screen.getByLabelText('addResource.protocol'));
+    fireEvent.click(screen.getByRole('option', { name: 'WMS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ra.action.add' }));
+
+    expect(state.addWMSByUrl).toHaveBeenCalledWith(capabilitiesUrl, undefined);
+    expect(state.addServiceByUrl).not.toHaveBeenCalled();
+    expect(state.addWFSByUrl).not.toHaveBeenCalled();
   });
 });

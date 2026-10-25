@@ -1,11 +1,15 @@
-import { UrlField, useRecordContext, useTranslate } from "react-admin";
+import { useState } from "react";
+import { UrlField, useRecordContext, useTranslate, type RaRecord } from "react-admin";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { Stack, Typography } from "@mui/material";
+import { Grid, Stack, Typography } from "@mui/material";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import CustomListActions from "../../../Lists/CustomListActions";
+import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
+import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -13,6 +17,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
+import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -34,17 +39,22 @@ function OperationUrls() {
   );
 }
 
-function AccessRules() {
+const AccessRules = () => {
   const record = useRecordContext();
+  const summary = (
+    <AccessRulesSummary
+      ruleResource="AllowedWebFeatureServiceOperation"
+      serviceId={record?.id}
+    />
+  );
   return (
     <ServiceRelatedTab
       resource="AllowedWebFeatureServiceOperation"
-      defaultSelectedColumns={[
-        "operations",
-        "description",
-        "allowedGroups",
-        "securedFeatureTypes",
-      ]}
+      listContent={summary}
+      actions={<CustomListActions isConfigureable={false} />}
+      queryOptions={{
+        meta: { jsonApiParams: { include: "operations,allowedGroups,securedFeatureTypes" } },
+      }}
       formFieldOverrides={[
         {
           component: SchemaAutocompleteInput,
@@ -55,6 +65,35 @@ function AccessRules() {
         },
       ]}
     />
+  );
+};
+
+/**
+ * Feature type rows next to the read oriented inspection of the clicked row,
+ * so a user can read a feature type before opening its editor.
+ */
+function FeatureTypesTab() {
+  const record = useRecordContext();
+  const [selected, setSelected] = useState<RaRecord>();
+  return (
+    <Grid container spacing={2} sx={{ justifyContent: "space-between" }}>
+      <Grid size={{ xs: 12, md: 7 }}>
+        <ServiceRelatedTab
+          resource="FeatureType"
+          defaultSelectedColumns={["name", "title", "abstract"]}
+          onRowClick={setSelected}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, md: 5 }}>
+        <ElementInspection
+          resource="FeatureType"
+          id={selected?.id}
+          serviceResource="WebFeatureService"
+          serviceId={record?.id}
+          previewAction={record ? <MapViewerButton key={record.id} protocol="WFS" wmsRecord={record} size="small" /> : undefined}
+        />
+      </Grid>
+    </Grid>
   );
 }
 
@@ -92,12 +131,7 @@ const tabs: ServiceTab[] = [
     resource: "FeatureType",
     countSource: "featuretypes",
     operation: "list_related_FeatureType_of_WebFeatureService",
-    content: (
-      <ServiceRelatedTab
-        resource="FeatureType"
-        defaultSelectedColumns={["name", "title", "abstract"]}
-      />
-    ),
+    content: <FeatureTypesTab />,
   },
   {
     path: "ProxySetting",

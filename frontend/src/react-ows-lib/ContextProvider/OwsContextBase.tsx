@@ -5,8 +5,8 @@ import { BBox } from 'geojson'
 
 import { assignServiceAuthentication } from '../../ows-lib/OwsContext/authentication'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
-import { detectCapabilitiesService } from '../../ows-lib/OwsContext/utils'
 import { Position } from '../../ows-lib/OwsContext/enums'
+import { detectCapabilitiesService } from '../../ows-lib/OwsContext/utils'
 import { formatOwsContextIssues, validateOwsContext, type OwsContextIssue, type OwsContextValidationResult } from '../../ows-lib/OwsContext/validation'
 
 export type OwsContextLoadingStatus = 'idle' | 'fetching' | 'reading' | 'parsing' | 'ready' | 'error'

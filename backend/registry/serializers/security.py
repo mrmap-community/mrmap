@@ -79,6 +79,12 @@ class AllowedWebMapServiceOperationSerializer(
         required=False)
     allowed_area = GeometryField(required=False, allow_null=True)
 
+    included_serializers = {
+        "operations": WebMapServiceOperationSerializer,
+        "allowed_groups": "accounts.serializers.groups.GroupSerializer",
+        "secured_layers": "registry.serializers.service.LayerSerializer",
+    }
+
     class Meta:
         model = AllowedWebMapServiceOperation
         fields = '__all__'
@@ -136,6 +142,12 @@ class AllowedWebFeatureServiceOperationSerializer(
         many=True,
         required=False)
     allowed_area = GeometryField(required=False, allow_null=True)
+
+    included_serializers = {
+        "operations": WebFeatureServiceOperationSerializer,
+        "allowed_groups": "accounts.serializers.groups.GroupSerializer",
+        "secured_feature_types": "registry.serializers.service.FeatureTypeSerializer",
+    }
 
     class Meta:
         model = AllowedWebFeatureServiceOperation

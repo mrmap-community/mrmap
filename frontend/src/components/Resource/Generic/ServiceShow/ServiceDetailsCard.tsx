@@ -96,6 +96,7 @@ const ServiceDetailsCard = ({
                  before behind */
               <MapViewerButton
                 key={record.id}
+                protocol={protocol}
                 label="serviceShow.openMapViewer"
                 variant="outlined"
                 sx={{ flex: 1, minWidth: 0 }}

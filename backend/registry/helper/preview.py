@@ -21,10 +21,11 @@ from registry.mappers.factory import MDMetadataXmlMapper
 from registry.managers.security import GEOMETRY_DATA_TYPES
 from registry.models.harvest import HarvestedMetadataRelation
 from registry.models.metadata import MetadataRelation
-from registry.models.service import FeatureType, Layer
+from registry.models.service import FeatureType, FeatureTypeProperty, Layer
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.request.utils import update_queryparams
+from registry.ows_lib.wfs import gml
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.helper.preview_image import render_feature_collection
@@ -170,6 +171,20 @@ def negotiate_info_format(formats):
     return next((name for name in INFO_FORMATS if name in advertised), None)
 
 
+# The GML 3.2 answer of a WFS 2.0 service, as it is spelled in a capabilities document. The exact
+# advertised token is what gets requested, so only these spellings are treated as GML 3.2; GML 3.1
+# and the WFS 1.x answers stay outside the supported subset.
+GML_32 = ("application/gml+xml;version=3.2", "gml32")
+# A document outside the supported GML subset keeps the states the caller already knows: an
+# unsupported encoding, geometry type or reference is a format state, a foreign CRS a CRS state.
+GML_STATES = {"format": "format", "malformed": "malformed", "crs": "crs", "limit": "limit"}
+
+
+def is_gml32(output_format):
+    """Match an advertised GML 3.2 output token, ignoring the whitespace variants of its version."""
+    return output_format.lower().replace(" ", "") in GML_32
+
+
 def identify_request(service, selection, version, info_format):
     """Build the same-origin security proxy URL for an identify done in the browser.
 
@@ -217,6 +232,10 @@ def selected_configuration(service, selection, client):
         "//*[local-name()='Operation' and @name='GetFeature']/*[local-name()='Parameter' and @name='outputFormat']//*[local-name()='Value']/text()")
     output_format = next((fmt.strip() for fmt in formats if fmt.strip().lower() in
                           {"application/json", "application/geo+json", "json", "geojson"}), None)
+    if not output_format and client.service_version.startswith("2."):
+        # Without a GeoJSON extension the standard GML 3.2 answer is the fallback, so a service
+        # that only advertises GML stays available. The advertised token is used as advertised.
+        output_format = next((fmt.strip() for fmt in formats if is_gml32(fmt.strip())), None)
     if not output_format:
         raise PreviewError("format")
     crs = node.xpath("./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
@@ -297,6 +316,30 @@ class WfsPreviewProxy(PreviewProxyMixin, WebFeatureServiceProxy):
         return self.return_http_response(self.remote_service.send_request(request))
 
 
+def json_features(content):
+    """Read the GeoJSON answer of a GetFeature request."""
+    try:
+        return json.loads(content)
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        raise PreviewError("malformed")
+
+
+def gml_features(root, element):
+    """Convert a negotiated GML 3.2 answer into the normalized feature collection.
+
+    The geometry property is the one the stored DescribeFeatureType schema declares for the
+    feature type, so a qualified feature is read the way the registry described it. Nothing is
+    written back: reading a map never modifies the stored schema.
+    """
+    stored = FeatureTypeProperty.objects.filter(
+        feature_type=element,
+        data_type__in=GEOMETRY_DATA_TYPES).values_list("name", flat=True).first()
+    try:
+        return gml.feature_collection(root, FEATURE_LIMIT, stored)
+    except gml.GmlError as error:
+        raise PreviewError(GML_STATES.get(error.code, "format"), error.status) from error
+
+
 def data_preview(service, caller, query, client=None, request_params=None):
     client = client or stored_client(service)
     selection = query.get("selection", "")
@@ -347,18 +390,19 @@ def data_preview(service, caller, query, client=None, request_params=None):
         raise PreviewError("denied", 403)
     if response.status_code >= 400:
         raise PreviewError("unavailable", 502)
-    if content.lstrip().startswith(b"<"):
-        parse_xml(content)
+    # An XML body is only readable where an XML format was negotiated. A negotiated GML 3.2
+    # feature answer is converted into the same normalized collection the GeoJSON path fills, so
+    # the renderer, the coordinate check and the spatial check below never see a second format.
+    # An OGC exception report is already refused by the safe parse itself.
+    root = parse_xml(content) if content.lstrip().startswith(b"<") else None
+    if root is not None and (protocol == "WMS" or not is_gml32(output_format)):
         raise PreviewError("format")
     result = {"configuration": configuration, "identify": identify, "fetchedAt": now().isoformat()}
     if protocol == "WMS":
         validate_image(content)
         result["image"] = f"data:{output_format};base64,{base64.b64encode(content).decode()}"
     else:
-        try:
-            features = json.loads(content)
-        except (ValueError, UnicodeDecodeError, RecursionError):
-            raise PreviewError("malformed")
+        features = gml_features(root, element) if root is not None else json_features(content)
         validate_features(features, getattr(proxy, "preview_allowed", None))
         result.update(features=features, limit=FEATURE_LIMIT, limited=True)
     return result

@@ -12,6 +12,7 @@ import { DrawerBase, useDrawerContext } from '../Drawer/DrawerContext'
 import RightDrawer from '../Drawer/RightDrawer'
 import { ContextMenuBase } from '../LayerTree/ContextMenu/ContextMenuBase'
 import LayerTree, { LayerControlsPanel } from '../LayerTree/LayerTree'
+import WebFeatureServiceControl from '../MapContainer/GetFeatureControl'
 import WebMapServiceControl from '../MapContainer/GetMapControl'
 import { TabListBase, useTabListContext } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
@@ -69,6 +70,7 @@ export const MapViewerCore = (): ReactNode => {
               }}
             >
               <WebMapServiceControl />
+              <WebFeatureServiceControl />
               <ScaleControl position="topleft" />
             </MapContainer>
           </Box>

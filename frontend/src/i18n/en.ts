@@ -4,6 +4,14 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    viewerAdd: {
+      title: "Add map service",
+      description: "Select WMS or WFS and enter its GetCapabilities URL.",
+      protocol: "Service type",
+      url: "GetCapabilities URL",
+      username: "Username (optional)",
+      password: "Password (optional)",
+    },
     viewerStyles: {
       title: "Style & legend",
       options: "Options for %{layer}",
@@ -75,8 +83,17 @@ const en = lodashMerge(
       resource: "This resource cannot be rendered:",
       offering: "offering %{code} is not supported",
       method: "operation %{code} offered as %{method}; only GET is supported",
-      operation: "no usable GetMap operation is offered",
+      operation: "no usable %{code} operation is offered",
+      format: "operation %{code} offers no GeoJSON output format",
+      crs: "operation %{code} offers no WGS 84 (EPSG:4326) coordinate reference system",
       content: "content %{type} cannot be rendered",
+    },
+    viewerFeatures: {
+      title: "Feature attributes",
+      close: "Close",
+      limited: "%{title}: showing at most %{count} features of this view",
+      empty: "%{title}: no features in this view",
+      tooltip: "Click a feature to see its attributes"
     },
     LayerTree: {
       ContextMenu: {

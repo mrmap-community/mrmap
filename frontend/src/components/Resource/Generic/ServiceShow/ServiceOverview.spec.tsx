@@ -41,7 +41,9 @@ vi.mock("./LivePreview/LivePreview", () => ({
   ),
 }));
 vi.mock("../../WebMapService/Button/MapViewerButton", () => ({
-  default: ({ label }: { label: string }) => <button>{label}</button>,
+  default: ({ label, protocol }: { label: string; protocol: string }) => (
+    <button data-protocol={protocol}>{label}</button>
+  ),
 }));
 
 const service = {
@@ -121,7 +123,7 @@ describe("service overview previews", () => {
     ).toBeInTheDocument();
   });
 
-  it("loads the WFS thumbnail in service details without a live preview or viewer action", () => {
+  it("loads the WFS thumbnail and offers the WFS viewer action without a live preview", () => {
     setup("WFS", {
       ...service,
       previewUrl: "/api/registry/wfs/service-1/preview-image/",
@@ -136,8 +138,8 @@ describe("service overview previews", () => {
       screen.getByRole("button", { name: "serviceShow.activate" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "serviceShow.openMapViewer" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "serviceShow.openMapViewer" }),
+    ).toHaveAttribute("data-protocol", "WFS");
   });
 
   it("preserves the CSW live preview without a thumbnail or viewer action", () => {

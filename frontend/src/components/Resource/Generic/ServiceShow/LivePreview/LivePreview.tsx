@@ -705,13 +705,26 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
   const [expanded, setExpanded] = useState(false);
   const globalContext = useOwsContextBase();
   const navigate = useNavigate();
+  // the viewer is handed the service through the security proxy: a registered service keeps its
+  // stored credentials and its spatial security on the server side, because the camouflaged
+  // operations of the delivered capabilities point back to this origin and the viewer will ask
+  // the proxy, which bounds the requests, instead of the upstream service
   const transfer = useCallback(
     async (selection: string, viewport: Viewport) => {
-      const url = new URL(`/mrmap-proxy/wms/${record?.id}`, API_BASE_URL);
-      url.search = "SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0";
+      const wms = protocol === "WMS";
+      const url = new URL(
+        `/mrmap-proxy/${wms ? "wms" : "wfs"}/${record?.id}`,
+        API_BASE_URL,
+      );
+      url.search = wms
+        ? "SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0"
+        : "SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0";
       const token = getAuthToken()?.token;
       const authenticationId = uuidv4();
-      await globalContext.addWMSByUrl(
+      const appendService = wms
+        ? globalContext.addWMSByUrl
+        : globalContext.addWFSByUrl;
+      await appendService(
         url.href,
         token ? new Headers({ Authorization: `Token ${token}` }) : undefined,
         (context, treeId) => {
@@ -728,6 +741,7 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
                 type: "header",
                 name: "Authorization",
                 value: `Token ${token}`,
+                origin: url.origin,
               },
             ];
           context.features
@@ -735,13 +749,16 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
               feature.properties.folder?.startsWith(`/${treeId}`),
             )
             .forEach((feature) => {
-              const operation = feature.getWmsOperationByCode("GetMap");
+              const operation = wms
+                ? feature.getWmsOperationByCode("GetMap")
+                : feature.getWfsOperationByCode("GetFeature");
               if (operation) {
                 const request = new URL(operation.href);
-                const layer = [...request.searchParams.entries()].find(
-                  ([key]) => key.toLowerCase() === "layers",
+                const requested = [...request.searchParams.entries()].find(
+                  ([key]) =>
+                    key.toLowerCase() === (wms ? "layers" : "typename"),
                 )?.[1];
-                const active = layer === selection;
+                const active = requested === selection;
                 operation.active = active;
                 feature.properties.active = active;
                 feature.properties.offerings?.forEach((offering) =>
@@ -766,7 +783,13 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
         state: { previewExtent: viewport.bbox.split(",").map(Number) },
       });
     },
-    [record?.id, globalContext.addWMSByUrl, navigate],
+    [
+      protocol,
+      record?.id,
+      globalContext.addWMSByUrl,
+      globalContext.addWFSByUrl,
+      navigate,
+    ],
   );
   if (!record) return null;
   return (
@@ -791,7 +814,7 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
               <DataPreview
                 protocol={protocol}
                 serviceId={String(record.id)}
-                onViewer={protocol === "WMS" ? transfer : undefined}
+                onViewer={transfer}
               />
             )}
           </OwsContextBase>

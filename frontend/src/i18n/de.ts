@@ -1,6 +1,14 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerAdd: {
+    title: "Kartendienst hinzufügen",
+    description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
+    protocol: "Diensttyp",
+    url: "GetCapabilities-URL",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)",
+  },
   viewerStyles: {
     title: "Stil & Legende",
     options: "Optionen für %{layer}",
@@ -72,8 +80,17 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     resource: "Diese Ressource kann nicht gerendert werden:",
     offering: "Angebot %{code} wird nicht unterstützt",
     method: "Operation %{code} als %{method} angeboten; nur GET wird unterstützt",
-    operation: "keine nutzbare GetMap-Operation angeboten",
+    operation: "keine nutzbare %{code}-Operation angeboten",
+    format: "Operation %{code} bietet kein GeoJSON-Ausgabeformat",
+    crs: "Operation %{code} bietet kein WGS 84 (EPSG:4326)-Koordinatenbezugssystem",
     content: "Inhalt %{type} kann nicht gerendert werden",
+  },
+  viewerFeatures: {
+    title: "Feature-Attribute",
+    close: "Schließen",
+    limited: "%{title}: maximal %{count} Features dieser Ansicht dargestellt",
+    empty: "%{title}: keine Features in dieser Ansicht",
+    tooltip: "Klicken Sie auf ein Feature, um seine Attribute zu sehen"
   },
   LayerTree: {
     ContextMenu: {

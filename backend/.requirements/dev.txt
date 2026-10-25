@@ -5,6 +5,6 @@ watchdog[watchmedo]==6.0.0
 debugpy==1.8.17
 autopep8==2.3.2
 django-debug-toolbar==8.0.0
-xmldiff==2.7.0
+xmldiff==3.0
 async-timeout==5.0.1
 types-lxml

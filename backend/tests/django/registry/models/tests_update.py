@@ -720,6 +720,24 @@ class WfsUpdateJobTest(TestCase):
             "FeatureType bounding box should be updated",
         )
 
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_SIMPLE_UPDATE_REMOTE_RESPONSE])
+    def test_update_applies_configured_metadata_but_not_advertised_operation_urls(self, mock):
+        service = self.update_job.service
+        urls_before = list(service.operation_urls.values_list("url", flat=True))
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+        service.refresh_from_db()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        self.assertEqual(service.title, "DWD GeoServer WFS Neu", "Configured metadata is applied")
+        self.assertCountEqual(
+            list(service.operation_urls.values_list("url", flat=True)), urls_before,
+            "The update copies only the configured fields; advertised operation urls and their stored "
+            "output formats remain as registered until the service is re-registered",
+        )
+        # The update candidate which carries the freshly advertised AllowedValues
+        # formats is created and removed again within the same run.
+        self.assertFalse(WebFeatureService.objects.filter(update_candidate_of=service).exists())
+
     @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_NEW_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
     def test_automatically_finishes_if_one_featuretype_is_added(self, mock):
         original_ids = dict(self.wfs.featuretypes.values_list("identifier", "pk"))

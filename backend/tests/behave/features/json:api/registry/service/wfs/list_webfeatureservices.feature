@@ -40,7 +40,10 @@ Feature: WebFeatureService List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "FeatureType"
-        Then I expect that "34" queries where made
+        Then I expect that response json has an attribute "included.[0].relationships.defaultReferenceSystem.data.type" with value "ReferenceSystem"
+        Then I expect that response json has an attribute "included.[0].relationships.defaultReferenceSystem.data.id" with value "1"
+        # The default CRS relationship uses its foreign key without fetching a CRS per feature type.
+        Then I expect that "29" queries where made
 
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"

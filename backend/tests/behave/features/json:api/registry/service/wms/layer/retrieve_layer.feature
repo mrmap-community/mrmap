@@ -21,6 +21,14 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "data.attributes.lastModifiedAt"
         Then I expect that response json has an attribute "data.relationships.service.data.id" with value "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
 
+    Scenario: Reports no access rules for an unconfigured layer
+        Given I use the endpoint http://localhost:8000/api/registry/layers/05977f90-3bd9-4017-95e1-5252735d213f
+        And I set a queryparam "fields[Layer]" with value "isSecured,isSpatialSecured"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "data.attributes.isSecured" with value "false"
+        And I expect that response json has an attribute "data.attributes.isSpatialSecured" with value "false"
+
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"
         When I send the request with GET method

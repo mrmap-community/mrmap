@@ -1,39 +1,8 @@
 import moment from 'moment'
 
 import { AdvertisedDimension, ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
-import { getDocument } from './utils'
+import { getAttribute, getDescendantByPath, getDocument, getChild, getText } from './utils'
 
-
-
-const getChild = (parent: Element | Document | undefined, localName: string): Element | undefined => {
-  if (!parent) return undefined
-  return Array.from(parent.childNodes).find((node): node is Element => {
-    return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName
-  })
-}
-
-const getDescendantByPath = (parent: Element | Document | undefined, path: string[]): Element | undefined => {
-  let node: Element | Document | undefined = parent
-  for (const name of path) {
-    if (!node) return undefined
-    node = getChild(node, name)
-  }
-  return node instanceof Element ? node : undefined
-}
-
-const getText = (parent: Element | Document | undefined, ...path: string[]): string | undefined => {
-  const node = getDescendantByPath(parent, path)
-  return node?.textContent?.trim() || undefined
-}
-
-const getAttribute = (element: Element | undefined, ...names: string[]): string | undefined => {
-  if (!element) return undefined
-  for (const name of names) {
-    const value = element.getAttribute(name)
-    if (value !== null) return value
-  }
-  return undefined
-}
 
 const parseLayerMetrics = {
   count: 0,

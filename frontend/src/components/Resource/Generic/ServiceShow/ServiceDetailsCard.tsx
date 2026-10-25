@@ -14,6 +14,7 @@ import { Stack, Typography } from "@mui/material";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
 import SimpleCard from "../../../MUI/SimpleCard";
+import WfsMapViewerButton from "../../WebFeatureService/Button/MapViewerButton";
 import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import ActivateServiceButton from "./ActivateServiceButton";
 import ServiceAlertChips from "./ServiceAlertChips";
@@ -86,7 +87,7 @@ const ServiceDetailsCard = ({
                 sx={{ flex: 1, minWidth: 0 }}
               />
             )}
-            {(protocol === "WMS" || protocol === "WFS") && (
+            {protocol === "WMS" && (
               /* the capabilities URL of the map viewer lives in the state of the
                  button, so a new record must remount it - the open details button
                  above needs no key of its own: it answers its way from the record
@@ -96,6 +97,17 @@ const ServiceDetailsCard = ({
               <MapViewerButton
                 key={record.id}
                 protocol={protocol}
+                label="serviceShow.openMapViewer"
+                variant="outlined"
+                sx={{ flex: 1, minWidth: 0 }}
+              />
+            )}
+            {protocol === "WFS" && (
+              /* the same remount rule as the WMS button above, and the same reason:
+                 the WFS button asks which feature types the map shall show and keeps
+                 that answer in its own state */
+              <WfsMapViewerButton
+                key={record.id}
                 label="serviceShow.openMapViewer"
                 variant="outlined"
                 sx={{ flex: 1, minWidth: 0 }}

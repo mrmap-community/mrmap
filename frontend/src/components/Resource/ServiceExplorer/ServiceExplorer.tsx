@@ -17,6 +17,7 @@ import CustomListActions, {
 } from "../../Lists/CustomListActions";
 import { HarvestButton } from "../CatalogueService/CatalogueServiceList";
 import { ExplorerView } from "../Generic/Explorer/ExplorerView";
+import WfsViewerButtons from "../WebFeatureService/Button/ListActions";
 import WmsViewerButtons from "../WebMapService/Button/ListActions";
 
 const protocols = ["WebMapService", "WebFeatureService", "CatalogueService"];
@@ -107,6 +108,7 @@ export const ServiceResults = ({ resource }: { resource: string }) => {
             <ShowButton />
             {record.canEdit && <EditButton />}
             {resource === "WebMapService" && <WmsViewerButtons />}
+            {resource === "WebFeatureService" && <WfsViewerButtons />}
             {resource === "CatalogueService" && <HarvestButton />}
           </>
         )}

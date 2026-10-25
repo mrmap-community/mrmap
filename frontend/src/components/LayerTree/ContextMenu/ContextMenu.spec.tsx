@@ -63,8 +63,12 @@ const openMenuOf = (index: number) => {
   fireEvent.click(screen.getAllByRole('button', { name: 'viewerStyles.options' })[index]);
 };
 
+/** the root group opens as the tree arrives; open it by its arrow when it is closed */
 const expandGroup = () => {
-  fireEvent.click(screen.getByTestId('KeyboardArrowRightIcon'));
+  const groupRow = document.querySelector('[data-owscontext-folder="/0"]');
+  if (groupRow !== null && groupRow.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(groupRow.querySelector(':scope > div svg[data-testid="KeyboardArrowRightIcon"]') as Element);
+  }
 };
 
 const closeMenu = () => {
@@ -123,8 +127,11 @@ describe('layer tree context menu', () => {
 
   it('moves a whole group with its children when a root tree is reordered', async () => {
     renderTree();
-    // the second root tree moves above the first one, its subtree moves along
-    openMenuOf(1);
+    // the second root tree moves above the first one, its subtree moves along; the
+    // option button is taken from that row, since the arrival of a tree opens its
+    // groups and shifts the plain index order of the other rows
+    fireEvent.click((document.querySelector('[data-owscontext-folder="/1"]') as HTMLElement)
+      .querySelector('[aria-label="viewerStyles.options"]') as Element);
     expect(await item('moveUp')).not.toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(await item('moveUp'));
 

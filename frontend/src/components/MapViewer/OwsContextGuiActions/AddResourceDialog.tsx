@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useTranslate } from 'react-admin';
 
 import Button from '@mui/material/Button';
@@ -20,9 +20,9 @@ export interface AddResourceDialogProps {
 
 
 const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode => {
-  const { addWMSByUrl, addWFSByUrl } = useOwsContextBase()
-  const [protocol, setProtocol] = useState('WMS');
-  const translate = useTranslate();
+  const { addWMSByUrl, addWFSByUrl, addServiceByUrl } = useOwsContextBase()
+  const translate = useTranslate()
+  const t = (key: string) => translate(`addResource.${key}`)
 
   return (
       <Dialog
@@ -35,6 +35,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
             const formJson = Object.fromEntries(formData.entries());
             const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
+            const protocol = String(formJson.protocol ?? "");
             const username = formJson.username;
             const password = formJson.password;
 
@@ -46,44 +47,53 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
               headers.set('Authorization', `Basic ${basicAuth}`);
             }
 
-            const addService = protocol === 'WFS' ? addWFSByUrl : addWMSByUrl;
-            addService(getCapabilitiesUrl, headers)
+            // the protocols the document cannot decide for itself are fixed here; the async
+            // loading, parsing and error reporting of the context answer the rest visibly
+            if (protocol === 'WMS')
+              addWMSByUrl(getCapabilitiesUrl, headers)
+            else if (protocol === 'WFS')
+              addWFSByUrl(getCapabilitiesUrl, headers)
+            else
+              addServiceByUrl(getCapabilitiesUrl, headers)
             setOpen(false)
           },
         } }}
       >
-        <DialogTitle>{translate('viewerAdd.title')}</DialogTitle>
+        <DialogTitle>{t('title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {translate('viewerAdd.description')}
+            {t('description')}
           </DialogContentText>
-          <TextField
-            select
-            fullWidth
-            margin="dense"
-            label={translate('viewerAdd.protocol')}
-            value={protocol}
-            onChange={(event) => setProtocol(event.target.value)}
-          >
-            <MenuItem value="WMS">WMS</MenuItem>
-            <MenuItem value="WFS">WFS</MenuItem>
-          </TextField>
           <TextField
             autoFocus
             required
             margin="dense"
             id="getCapabilitiesUrl"
             name="getCapabilitiesUrl"
-            label={translate('viewerAdd.url')}
+            label={t('url')}
             type="url"
             fullWidth
             variant="standard"
           />
           <TextField
             margin="dense"
+            select
+            id="protocol"
+            name="protocol"
+            label={t('protocol')}
+            defaultValue=""
+            fullWidth
+            variant="standard"
+          >
+            <MenuItem value="">{t('protocolAuto')}</MenuItem>
+            <MenuItem value="WMS">WMS</MenuItem>
+            <MenuItem value="WFS">WFS</MenuItem>
+          </TextField>
+          <TextField
+            margin="dense"
             id="username"
             name="username"
-            label={translate('viewerAdd.username')}
+            label={t('username')}
             fullWidth
             variant="standard"
           />
@@ -91,7 +101,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             margin="dense"
             id="password"
             name="password"
-            label={translate('viewerAdd.password')}
+            label={t('password')}
             type="password"
             fullWidth
             variant="standard"

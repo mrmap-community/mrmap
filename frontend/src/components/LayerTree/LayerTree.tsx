@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { Fragment, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext, useTranslate } from 'react-admin'
 import { createPortal } from 'react-dom'
 
@@ -41,6 +41,7 @@ import { DragableTreeItem } from './DragableTreeItem'
 export interface LayerTreeProps {
   initialExpanded?: string[],
   layers?: RaRecord[]
+  featureTypes?: RaRecord[]
 }
 
 export interface LayerProperties {
@@ -77,10 +78,16 @@ export interface TreeItemLabelProps {
 
 NodeIcons.displayName = "NodeIcons";
 
-// WMS rendering has independent operation activation; WFS rendering uses resource activation.
-const getVisibilityState = (resource: OWSResource) =>
-  resource.getWmsOperationByCode('GetMap') ??
-  (resource.getWfsOffering() !== undefined ? resource.properties : undefined)
+// Raster activation belongs to GetMap; vector activation belongs to WMS identify and WFS resources.
+const getLayerStates = (resource: OWSResource, operationCode: 'GetMap' | 'GetFeatureInfo') => {
+  const operation = resource.getWmsOperationByCode(operationCode)
+  return [
+    ...(operation === undefined ? [] : [operation]),
+    ...(operationCode === 'GetFeatureInfo' && resource.getWfsOffering() !== undefined
+      ? [resource.properties]
+      : []),
+  ]
+}
 
 const TreeItemLabel = memo(
   ({
@@ -115,87 +122,54 @@ const TreeItemLabel = memo(
       node.children.length === 0 ? getUnsupportedReasons(node) : [],
     [node])
 
-    const indeterminateVisibility = useMemo(() => {
-      const mapOperations = owsContext
-        .getDescandantsOf(node, true)
-        .map(getVisibilityState)
-        .filter((operation) => operation !== undefined)
-
-      if (mapOperations.length === 0) {
-        return false
+    const layerStates = useMemo(() => {
+      const subtree = owsContext.getDescandantsOf(node, true)
+      return {
+        raster: subtree.flatMap(resource => getLayerStates(resource, 'GetMap')),
+        vector: subtree.flatMap(resource => getLayerStates(resource, 'GetFeatureInfo')),
       }
-
-      const hasActive = mapOperations.some(operation => operation.active === true)
-      const hasInactive = mapOperations.some(operation => operation.active !== true)
-
-      return hasActive && hasInactive
     }, [owsContext, node])
 
-    const indeterminateQueryability = useMemo(() => {
-      const mapOperations = owsContext
-        .getDescandantsOf(node, true)
-        .map(descendant => descendant.getWmsOperationByCode('GetFeatureInfo'))
-        .filter((operation) => operation !== undefined)
+    const isChecked = (operationCode: 'GetMap' | 'GetFeatureInfo') => {
+      const ownStates = getLayerStates(node, operationCode)
+      const states = ownStates.length > 0 ? ownStates
+        : operationCode === 'GetMap' ? layerStates.raster : layerStates.vector
+      return states.length > 0 && states.every(state => state.active === true)
+    }
 
-      if (mapOperations.length === 0) {
-        return false
-      }
-
-      const hasActive = mapOperations.some(operation => operation.active === true)
-      const hasInactive = mapOperations.some(operation => operation.active !== true)
-
-      return hasActive && hasInactive
-    }, [owsContext, node])
+    const isIndeterminate = (states: ReturnType<typeof getLayerStates>) =>
+      states.some(state => state.active === true) && states.some(state => state.active !== true)
 
     const toggle = useCallback(
       (operationCode: 'GetMap' | 'GetFeatureInfo') =>
         (event: React.ChangeEvent<HTMLInputElement, Element>, checked: boolean) => {
           event.stopPropagation()
-          
-
           const newContext = OWSContext.fromPlainObject(owsContext)
           const target = newContext.findResourceByFolder(node.properties.folder)
           if (target === undefined) return
 
-          const updateOperationState = (resource: OWSResource | undefined) => {
-            const operation = resource === undefined ? undefined : operationCode === 'GetMap'
-              ? getVisibilityState(resource)
-              : resource.getWmsOperationByCode(operationCode)
-            if (operation) {
-              operation['active'] = checked
+          const updateState = (resource: OWSResource) => {
+            getLayerStates(resource, operationCode).forEach(state => { state.active = checked })
+          }
+          newContext.getDescandantsOf(target, true).forEach(updateState)
+
+          // Update ancestors only within this channel, leaving raster and vector independent.
+          newContext.getAncestorsOf(target).reverse().forEach(ancestor => {
+            const descendantStates = newContext.getDescandantsOf(ancestor)
+              .flatMap(resource => getLayerStates(resource, operationCode))
+            if (!checked || descendantStates.every(state => state.active === true)) {
+              updateState(ancestor)
             }
-          }
-
-          updateOperationState(target)
-
-          // activate/deactivate all descendants
-          newContext.getDescandantsOf(target, true).forEach(descendant => {
-            updateOperationState(descendant)
           })
-
-          // set parent also active if all siblings of target are active
-          if (checked === true && newContext.getSiblingsOf(target).every(feature =>
-            (operationCode === 'GetMap' ? getVisibilityState(feature) : feature.getWmsOperationByCode(operationCode))?.active === true)) {
-            const parent = newContext.getParentOf(target)
-            updateOperationState(parent)
-          }
-          // deactivate parent to prevent from parent layer using for getmap calls etc.
-          else if (checked === false) {
-            newContext.getAncestorsOf(target).forEach(ancestor => {
-              updateOperationState(ancestor)
-            })
-          }
-
           setOwsContext(newContext)
         },
       [node.properties.folder, owsContext, setOwsContext],
     )
 
-
     return (
       <Stack direction="row" sx={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
         <Box sx={{display:"flex", alignItems:"center", minWidth: 0}} >
-         <Tooltip title="Toggle the visibility of this service">
+         <Tooltip title={translate('LayerTree.raster')}>
           <Checkbox
             size="small"
             disableRipple
@@ -205,12 +179,14 @@ const TreeItemLabel = memo(
               
             }}
             onClick={(event)  => event.stopPropagation()}
-            checked={getVisibilityState(node)?.active === true}
-            indeterminate={indeterminateVisibility}
+            checked={isChecked('GetMap')}
+            indeterminate={isIndeterminate(layerStates.raster)}
             onChange={toggle('GetMap')}
+            disabled={layerStates.raster.length === 0}
+            slotProps={{ input: { 'aria-label': translate('LayerTree.raster') } }}
           />
         </Tooltip>
-        <Tooltip title="Toggle the queryability of this service">
+        <Tooltip title={translate('LayerTree.vector')}>
           <Checkbox
             size="small"
             disableRipple
@@ -219,10 +195,11 @@ const TreeItemLabel = memo(
               mr: 0.25,
             }}
             onClick={(event)  => event.stopPropagation()}
-            checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
-            indeterminate={indeterminateQueryability}
+            checked={isChecked('GetFeatureInfo')}
+            indeterminate={isIndeterminate(layerStates.vector)}
             onChange={toggle('GetFeatureInfo')}
-            disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
+            disabled={layerStates.vector.length === 0}
+            slotProps={{ input: { 'aria-label': translate('LayerTree.vector') } }}
           />
         </Tooltip>
         <ButtonBase disabled={!hasControls} aria-pressed={hasControls ? expandedControls : undefined}
@@ -349,12 +326,33 @@ const PinnedTimeline = () => {
 const TreeViews = (
   { 
     initialExpanded = [],
-    layers
+    layers,
+    featureTypes
   }: LayerTreeProps
 ) => {
   const { trees, owsContext, setFeatureActive } = useOwsContextBase()
-  const defaultExpandedNodes = useMemo(()=> owsContext.getLeafNodes().map(feature => feature.properties.folder ?? ''),[owsContext])
-  const [expanded, setExpanded] = useState<string[] >([...initialExpanded, ...defaultExpandedNodes])
+  // the roots of the trees open as they arrive, so an imported service shows its layers right
+  // away; deeper groups stay closed like in a loaded document and open through their arrow. The
+  // folders of the leaves keep their state because the drag target of a leaf sits inside it
+  const defaultExpandedNodes = useMemo(() => [
+    ...owsContext.features
+      .filter(feature => (feature.properties.folder ?? '').split('/').filter(Boolean).length === 1)
+      .map(feature => feature.properties.folder ?? ''),
+    ...owsContext.getLeafNodes().map(feature => feature.properties.folder ?? '')
+  ], [owsContext])
+  const [expanded, setExpanded] = useState<string[]>([...initialExpanded, ...defaultExpandedNodes])
+  // a tree that arrives after the mount - the import of a service or of a stored context - would
+  // stay closed with the folders known at the mount; everything that appears later opens up too,
+  // while folders the user closed by hand keep their state and removed ones are forgotten
+  const knownFolders = useRef(new Set<string>(expanded))
+  useEffect(() => {
+    const unknown = defaultExpandedNodes.filter(folder => !knownFolders.current.has(folder))
+    // folders that are gone are forgotten, so a reimport of a removed tree opens fresh
+    knownFolders.current = new Set(defaultExpandedNodes)
+    if (unknown.length > 0) {
+      setExpanded(prev => [...new Set([...prev, ...unknown])])
+    }
+  }, [defaultExpandedNodes])
 
   const onItemExpansionToggle = useCallback(
   (
@@ -399,10 +397,15 @@ const TreeViews = (
     //     - styles
     const layerId = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-id"] as Identifier
     const layerRecord = layerId ? layers?.find(layer => layer.id === layerId) : undefined
+    // a registered WFS feature type answers with its database record, like a WMS layer does
+    const featureTypeId = node?.getWfsOperationByCode("GetFeature")?.["x-mrmap-feature-type-id"] as Identifier
+    const featureTypeRecord = layerRecord === undefined && featureTypeId !== undefined
+      ? featureTypes?.find(featureType => featureType.id === featureTypeId)
+      : undefined
 
     return node !== undefined ? (
         <RecordContextProvider
-          value={layerRecord}
+          value={layerRecord ?? featureTypeRecord}
         >
           <DragableTreeItem
             node={node}                    
@@ -479,10 +482,42 @@ const LayerTreeContent = ({
     }
   )
 
+  const mrmapFeatureTypes = useMemo(()=>(
+    [
+      ...new Set(
+        owsContext.features
+          .map(
+            feature =>
+              feature.getWfsOperationByCode("GetFeature")?.["x-mrmap-feature-type-id"]
+          )
+          .filter(Boolean)
+      )
+    ]
+  ),[owsContext])
+
+  const {
+    data: featureTypeData,
+    refetch: refetchFeatureTypes
+  } = useGetMany(
+    "FeatureType",
+    {
+      ids: mrmapFeatureTypes,
+      meta: {
+        jsonApiParams:{
+          'fields[FeatureType]': 'identifier,is_active'
+        }
+      }
+    },
+    {
+      enabled: mrmapFeatureTypes.length > 0
+    }
+  )
+
   const listContext = useMemo(() => {
-    const ids = Array.isArray(data) ? data.map(d => d.id as Identifier) : []
+    const records = [...(Array.isArray(data) ? data : []), ...(Array.isArray(featureTypeData) ? featureTypeData : [])]
+    const ids = records.map(d => d.id as Identifier)
     const dataObject: Record<string, RaRecord> = {}
-    data?.forEach((d: RaRecord) => {
+    records.forEach((d: RaRecord) => {
       if (d && d.id !== undefined) dataObject[d.id as Identifier] = d
     })
 
@@ -493,14 +528,18 @@ const LayerTreeContent = ({
       page: 1,
       perPage: ids.length || 0,
       loaded: !!data,
-      refetch,
+      // a refresh answers for both database record kinds the tree shows
+      refetch: () => {
+        refetch();
+        refetchFeatureTypes();
+      },
     }
-  }, [data, refetch]) as unknown as ListControllerResult
+  }, [data, featureTypeData, refetch, refetchFeatureTypes]) as unknown as ListControllerResult
 
   return (
     <DialogBase>
       <ListContextProvider value={listContext}>
-          <TreeViews initialExpanded={initialExpanded} layers={data} />
+          <TreeViews initialExpanded={initialExpanded} layers={data} featureTypes={featureTypeData} />
           <PinnedTimeline />
           <ContextMenu />
           <Dialog maxWidth="sm"/>

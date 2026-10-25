@@ -46,6 +46,12 @@ vi.mock("../../WebMapService/Button/MapViewerButton", () => ({
   ),
 }));
 
+vi.mock("../../WebFeatureService/Button/MapViewerButton", () => ({
+  default: ({ label }: { label: string }) => (
+    <button data-protocol="WFS">{label}</button>
+  ),
+}));
+
 const service = {
   id: "service-1",
   title: "Example service",

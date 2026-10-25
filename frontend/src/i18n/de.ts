@@ -105,6 +105,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     password: "Passwort (optional)"
   },
   LayerTree: {
+      raster: "Rasterebenen (GetMap)",
+      vector: "Vektorebenen (WFS / GetFeatureInfo)",
     ContextMenu: {
       moveUp: "Nach oben verschieben",
       moveDown: "Nach unten verschieben",

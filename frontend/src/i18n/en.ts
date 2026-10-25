@@ -108,6 +108,8 @@ const en = lodashMerge(
       password: "Password (optional)"
     },
     LayerTree: {
+      raster: "Raster layers (GetMap)",
+      vector: "Vector layers (WFS / GetFeatureInfo)",
       ContextMenu: {
         moveUp: "Move up",
         moveDown: "Move down",

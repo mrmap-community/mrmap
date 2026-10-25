@@ -64,28 +64,103 @@ describe('LayerTree', () => {
     </OwsContextBase></AdminContext>);
 
     const checkboxes = (title: string) => within(screen.getByText(title, { selector: 'p' }).closest('.MuiTreeItem-label') as HTMLElement).getAllByRole('checkbox');
-    expect(checkboxes('Roads')[0]).not.toBeChecked();
-    expect(checkboxes('Roads')).toHaveLength(1);
-    fireEvent.click(checkboxes('Roads')[0]);
-    expect(checkboxes('Roads')[0]).toBeChecked();
-    expect(checkboxes('Rivers')[0]).not.toBeChecked();
-    expect(checkboxes('WFS')[0]).toHaveAttribute('data-indeterminate', 'true');
+    expect(checkboxes('Roads')[1]).not.toBeChecked();
+    expect(checkboxes('Roads')).toHaveLength(2);
+    expect(checkboxes('Roads')[0]).toBeDisabled();
+    fireEvent.click(checkboxes('Roads')[1]);
+    expect(checkboxes('Roads')[1]).toBeChecked();
+    expect(checkboxes('Rivers')[1]).not.toBeChecked();
+    expect(checkboxes('WFS')[1]).toHaveAttribute('data-indeterminate', 'true');
     expect(screen.getByTestId('wfs-requests')).toHaveTextContent(/^Roads$/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Reload context' }));
-    expect(checkboxes('Roads')[0]).toBeChecked();
-    fireEvent.click(checkboxes('Rivers')[0]);
-    expect(checkboxes('WFS')[0]).toBeChecked();
-    expect(checkboxes('WFS')[0]).toHaveAttribute('data-indeterminate', 'false');
+    expect(checkboxes('Roads')[1]).toBeChecked();
+    fireEvent.click(checkboxes('Rivers')[1]);
+    expect(checkboxes('WFS')[1]).toBeChecked();
+    expect(checkboxes('WFS')[1]).toHaveAttribute('data-indeterminate', 'false');
 
-    fireEvent.click(checkboxes('WFS')[0]);
-    expect(checkboxes('Roads')[0]).not.toBeChecked();
-    expect(checkboxes('Rivers')[0]).not.toBeChecked();
+    fireEvent.click(checkboxes('WFS')[1]);
+    expect(checkboxes('Roads')[1]).not.toBeChecked();
+    expect(checkboxes('Rivers')[1]).not.toBeChecked();
     expect(screen.getByTestId('wfs-requests')).toBeEmptyDOMElement();
-    fireEvent.click(checkboxes('WFS')[0]);
-    expect(checkboxes('Roads')[0]).toBeChecked();
-    expect(checkboxes('Rivers')[0]).toBeChecked();
+    fireEvent.click(checkboxes('WFS')[1]);
+    expect(checkboxes('Roads')[1]).toBeChecked();
+    expect(checkboxes('Rivers')[1]).toBeChecked();
     expect(screen.getByTestId('wfs-requests')).toHaveTextContent('Roads,Rivers');
+  });
+
+  it('toggles raster and vector independently through folders containing WMS and WFS', () => {
+    const features = [
+      new OWSResource({ title: 'Mixed folder', updated: '', folder: '/0' }),
+      new OWSResource({ title: 'Nested folder', updated: '', folder: '/0/0' }),
+      new OWSResource({
+        title: 'WMS layer', updated: '', folder: '/0/0/0',
+        offerings: [{
+          code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+          operations: [
+            { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=roads', active: false },
+            { code: 'GetFeatureInfo', method: 'GET', href: 'https://example.org/wms?QUERY_LAYERS=roads', active: false },
+          ],
+        }],
+      }),
+      new OWSResource({
+        title: 'WFS layer', updated: '', folder: '/0/0/1', active: false,
+        offerings: [{
+          code: 'http://www.opengis.net/spec/owc/1.0/req/wfs',
+          outputFormats: ['application/json'], defaultCrs: 'EPSG:4326',
+          operations: [{ code: 'GetFeature', method: 'GET', href: 'https://example.org/wfs?TYPENAMES=roads' }],
+        }],
+      }),
+    ];
+    render(<AdminContext><OwsContextBase initialFeatures={features}>
+      <LayerTree initialExpanded={['/0', '/0/0']} /><ContextProbe />
+    </OwsContextBase></AdminContext>);
+
+    const controls = (title: string) => within(screen.getByText(title, { selector: 'p' }).closest('.MuiTreeItem-label') as HTMLElement);
+    const raster = (title: string) => controls(title).getByRole('checkbox', { name: 'LayerTree.raster' });
+    const vector = (title: string) => controls(title).getByRole('checkbox', { name: 'LayerTree.vector' });
+    for (const title of ['Mixed folder', 'Nested folder', 'WMS layer', 'WFS layer']) {
+      expect(controls(title).getAllByRole('checkbox')).toHaveLength(2);
+    }
+    expect(raster('WFS layer')).toBeDisabled();
+    expect(raster('Mixed folder')).toBeEnabled();
+    expect(vector('Mixed folder')).toBeEnabled();
+
+    fireEvent.click(raster('Mixed folder'));
+    expect(raster('WMS layer')).toBeChecked();
+    expect(raster('Nested folder')).toBeChecked();
+    expect(vector('WMS layer')).not.toBeChecked();
+    expect(vector('WFS layer')).not.toBeChecked();
+    expect(screen.getByTestId('wfs-requests')).toBeEmptyDOMElement();
+
+    fireEvent.click(vector('WFS layer'));
+    expect(vector('Mixed folder')).toHaveAttribute('data-indeterminate', 'true');
+    expect(vector('Nested folder')).toHaveAttribute('data-indeterminate', 'true');
+    expect(vector('WMS layer')).not.toBeChecked();
+    expect(raster('WMS layer')).toBeChecked();
+
+    fireEvent.click(vector('Mixed folder'));
+    expect(vector('WMS layer')).toBeChecked();
+    expect(vector('WFS layer')).toBeChecked();
+    expect(vector('Mixed folder')).toBeChecked();
+    expect(vector('Mixed folder')).toHaveAttribute('data-indeterminate', 'false');
+    expect(screen.getByTestId('wfs-requests')).toHaveTextContent(/^WFS layer$/);
+
+    fireEvent.click(raster('Nested folder'));
+    expect(raster('Mixed folder')).not.toBeChecked();
+    expect(raster('WMS layer')).not.toBeChecked();
+    expect(vector('WMS layer')).toBeChecked();
+    expect(vector('WFS layer')).toBeChecked();
+
+    fireEvent.click(vector('WMS layer'));
+    expect(vector('Mixed folder')).toHaveAttribute('data-indeterminate', 'true');
+    expect(vector('WFS layer')).toBeChecked();
+    fireEvent.click(vector('Mixed folder'));
+    expect(vector('WMS layer')).toBeChecked();
+    fireEvent.click(vector('Mixed folder'));
+    expect(vector('WMS layer')).not.toBeChecked();
+    expect(vector('WFS layer')).not.toBeChecked();
+    expect(screen.getByTestId('wfs-requests')).toBeEmptyDOMElement();
   });
 
   it('selects advertised styles, reloads them and displays legend loading, success and failure states', async () => {
@@ -418,13 +493,11 @@ describe('unsupported offerings', () => {
     fireEvent.click(screen.getByText('add tree'));
 
     expect(screen.getByText('buildings')).toBeInTheDocument();
-    const leafCheckbox = screen.getAllByRole('checkbox')
-      .find(checkbox => checkbox.closest('[role=treeitem]')?.textContent?.includes('buildings'));
-    fireEvent.click(leafCheckbox as HTMLElement);
+    const leafRow = screen.getByText('buildings', { selector: 'p' }).closest('.MuiTreeItem-label') as HTMLElement;
+    fireEvent.click(within(leafRow).getAllByRole('checkbox')[1]);
 
-    // the folder paths are normalized onto complete numbered trees, so the type sits at '/0/0'
-    const leafActive = () => document.querySelector('[role=treeitem][data-owscontext-folder="/0/0"] input[type=checkbox]') as HTMLInputElement | null;
-    expect(leafActive()?.checked).toBe(true);
+    // The imported folders are normalized; WFS activation belongs to the vector column.
+    expect(within(leafRow).getAllByRole('checkbox')[1]).toBeChecked();
   });
 
   it('leaves a resource the viewer can render unmarked', () => {
@@ -440,7 +513,7 @@ describe('unsupported offerings', () => {
     expect(screen.queryByTestId('WarningAmberIcon')).not.toBeInTheDocument();
   });
 
-  it('activates a WFS type through the resource itself and keeps WMS identify out of its row', () => {
+  it('activates a WFS type through the vector checkbox and disables its raster checkbox', () => {
     const root = new OWSResource({
       title: 'wfs service', updated: '', folder: '/0',
       offerings: [{
@@ -472,12 +545,13 @@ describe('unsupported offerings', () => {
 
     render(<AdminContext><OwsContextBase initialFeatures={[root, leaf]}><LayerTree /><WfsProbe /></OwsContextBase></AdminContext>);
 
-    // a WMS row carries two checkboxes, a WFS row only the visibility one
+    // Every row carries raster and vector checkboxes, even when raster is unavailable.
     const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes).toHaveLength(4);
+    expect(checkboxes[2]).toBeDisabled();
     expect(screen.getByTestId('leaf-active')).toHaveTextContent('false');
 
-    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[3]);
 
     expect(screen.getByTestId('leaf-active')).toHaveTextContent('true');
     // the group of a fully active subtree answers active as well
@@ -485,7 +559,7 @@ describe('unsupported offerings', () => {
 
     // react-admin hands the same input element over to the re-rendered row, so its checked
     // property is stale after the activation - the tree's second row is asked for the leaf again
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getAllByRole('checkbox')[3]);
 
     expect(screen.getByTestId('leaf-active')).toHaveTextContent('false');
   });

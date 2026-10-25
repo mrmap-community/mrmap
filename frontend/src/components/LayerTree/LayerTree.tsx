@@ -78,10 +78,16 @@ export interface TreeItemLabelProps {
 
 NodeIcons.displayName = "NodeIcons";
 
-// WMS rendering has independent operation activation; WFS rendering uses resource activation.
-const getVisibilityState = (resource: OWSResource) =>
-  resource.getWmsOperationByCode('GetMap') ??
-  (resource.getWfsOffering() !== undefined ? resource.properties : undefined)
+// Raster activation belongs to GetMap; vector activation belongs to WMS identify and WFS resources.
+const getLayerStates = (resource: OWSResource, operationCode: 'GetMap' | 'GetFeatureInfo') => {
+  const operation = resource.getWmsOperationByCode(operationCode)
+  return [
+    ...(operation === undefined ? [] : [operation]),
+    ...(operationCode === 'GetFeatureInfo' && resource.getWfsOffering() !== undefined
+      ? [resource.properties]
+      : []),
+  ]
+}
 
 const TreeItemLabel = memo(
   ({
@@ -90,16 +96,12 @@ const TreeItemLabel = memo(
     const record = useRecordContext()
     const translate = useTranslate()
     const { setContextMenu, controlsId, setControlsId } = useContextMenuBase()
-    const { owsContext, setOwsContext, setFeatureActive } = useOwsContextBase()
+    const { owsContext, setOwsContext } = useOwsContextBase()
     const { mapLoading, scaleDenominator } = useMapViewerBase()
 
     const offering = node.getWmsOffering()
     const hasControls = Boolean(offering?.styles?.some(style => style.name.trim()) || offering?.dimensions?.length)
     const expandedControls = controlsId === node.id
-
-    // a WFS resource is asked for by the activation of the resource itself, not by a WMS operation;
-    // the WMS offering decides, exactly like the rendering
-    const usesFeatureActivation = node.getWmsOffering() === undefined && node.getWfsOffering() !== undefined
 
     // an out of scale layer keeps its activation and is only not rendered, so the tree says so
     const isOutOfScale = useMemo(() =>
@@ -120,114 +122,54 @@ const TreeItemLabel = memo(
       node.children.length === 0 ? getUnsupportedReasons(node) : [],
     [node])
 
-    const indeterminateVisibility = useMemo(() => {
-      if (usesFeatureActivation) {
-        // the activation of a WFS subtree answers through the resources themselves
-        const activations = owsContext
-          .getDescandantsOf(node, true)
-          .filter(descendant => descendant.getWfsOffering() !== undefined)
-          .map(descendant => descendant.properties.active === true)
-
-        if (activations.length === 0) {
-          return false
-        }
-
-        return activations.some(active => active) && activations.some(active => !active)
+    const layerStates = useMemo(() => {
+      const subtree = owsContext.getDescandantsOf(node, true)
+      return {
+        raster: subtree.flatMap(resource => getLayerStates(resource, 'GetMap')),
+        vector: subtree.flatMap(resource => getLayerStates(resource, 'GetFeatureInfo')),
       }
-
-      const mapOperations = owsContext
-        .getDescandantsOf(node, true)
-        .map(getVisibilityState)
-        .filter((operation) => operation !== undefined)
-
-      if (mapOperations.length === 0) {
-        return false
-      }
-
-      const hasActive = mapOperations.some(operation => operation.active === true)
-      const hasInactive = mapOperations.some(operation => operation.active !== true)
-
-      return hasActive && hasInactive
-    }, [owsContext, node, usesFeatureActivation])
-
-    const indeterminateQueryability = useMemo(() => {
-      const mapOperations = owsContext
-        .getDescandantsOf(node, true)
-        .map(descendant => descendant.getWmsOperationByCode('GetFeatureInfo'))
-        .filter((operation) => operation !== undefined)
-
-      if (mapOperations.length === 0) {
-        return false
-      }
-
-      const hasActive = mapOperations.some(operation => operation.active === true)
-      const hasInactive = mapOperations.some(operation => operation.active !== true)
-
-      return hasActive && hasInactive
     }, [owsContext, node])
 
-    // a WFS type is shown or hidden through the activation of the resource itself; groups keep
-    // their activation semantics of the document: a group activates its whole subtree. Only the
-    // propagation is stopped here, never the change event itself: preventing it would leave the
-    // input's checked state desynchronized from the context and the row un-togglable afterwards
-    const toggleFeatures = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement, Element>) => {
-        event.stopPropagation()
-        if (node.properties.folder === undefined) return
-        setFeatureActive(node.properties.folder, event.target.checked)
-      },
-      [node.properties.folder, setFeatureActive],
-    )
+    const isChecked = (operationCode: 'GetMap' | 'GetFeatureInfo') => {
+      const ownStates = getLayerStates(node, operationCode)
+      const states = ownStates.length > 0 ? ownStates
+        : operationCode === 'GetMap' ? layerStates.raster : layerStates.vector
+      return states.length > 0 && states.every(state => state.active === true)
+    }
+
+    const isIndeterminate = (states: ReturnType<typeof getLayerStates>) =>
+      states.some(state => state.active === true) && states.some(state => state.active !== true)
 
     const toggle = useCallback(
       (operationCode: 'GetMap' | 'GetFeatureInfo') =>
         (event: React.ChangeEvent<HTMLInputElement, Element>, checked: boolean) => {
           event.stopPropagation()
-          
-
           const newContext = OWSContext.fromPlainObject(owsContext)
           const target = newContext.findResourceByFolder(node.properties.folder)
           if (target === undefined) return
 
-          const updateOperationState = (resource: OWSResource | undefined) => {
-            const operation = resource === undefined ? undefined : operationCode === 'GetMap'
-              ? getVisibilityState(resource)
-              : resource.getWmsOperationByCode(operationCode)
-            if (operation) {
-              operation['active'] = checked
+          const updateState = (resource: OWSResource) => {
+            getLayerStates(resource, operationCode).forEach(state => { state.active = checked })
+          }
+          newContext.getDescandantsOf(target, true).forEach(updateState)
+
+          // Update ancestors only within this channel, leaving raster and vector independent.
+          newContext.getAncestorsOf(target).reverse().forEach(ancestor => {
+            const descendantStates = newContext.getDescandantsOf(ancestor)
+              .flatMap(resource => getLayerStates(resource, operationCode))
+            if (!checked || descendantStates.every(state => state.active === true)) {
+              updateState(ancestor)
             }
-          }
-
-          updateOperationState(target)
-
-          // activate/deactivate all descendants
-          newContext.getDescandantsOf(target, true).forEach(descendant => {
-            updateOperationState(descendant)
           })
-
-          // set parent also active if all siblings of target are active
-          if (checked === true && newContext.getSiblingsOf(target).every(feature =>
-            (operationCode === 'GetMap' ? getVisibilityState(feature) : feature.getWmsOperationByCode(operationCode))?.active === true)) {
-            const parent = newContext.getParentOf(target)
-            updateOperationState(parent)
-          }
-          // deactivate parent to prevent from parent layer using for getmap calls etc.
-          else if (checked === false) {
-            newContext.getAncestorsOf(target).forEach(ancestor => {
-              updateOperationState(ancestor)
-            })
-          }
-
           setOwsContext(newContext)
         },
       [node.properties.folder, owsContext, setOwsContext],
     )
 
-
     return (
       <Stack direction="row" sx={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
         <Box sx={{display:"flex", alignItems:"center", minWidth: 0}} >
-         <Tooltip title="Toggle the visibility of this service">
+         <Tooltip title={translate('LayerTree.raster')}>
           <Checkbox
             size="small"
             disableRipple
@@ -237,15 +179,14 @@ const TreeItemLabel = memo(
               
             }}
             onClick={(event)  => event.stopPropagation()}
-            checked={usesFeatureActivation
-              ? node.properties.active === true
-              : getVisibilityState(node)?.active === true}
-            indeterminate={indeterminateVisibility}
-            onChange={usesFeatureActivation ? toggleFeatures : toggle('GetMap')}
+            checked={isChecked('GetMap')}
+            indeterminate={isIndeterminate(layerStates.raster)}
+            onChange={toggle('GetMap')}
+            disabled={layerStates.raster.length === 0}
+            slotProps={{ input: { 'aria-label': translate('LayerTree.raster') } }}
           />
         </Tooltip>
-        {!usesFeatureActivation &&
-        <Tooltip title="Toggle the queryability of this service">
+        <Tooltip title={translate('LayerTree.vector')}>
           <Checkbox
             size="small"
             disableRipple
@@ -254,13 +195,13 @@ const TreeItemLabel = memo(
               mr: 0.25,
             }}
             onClick={(event)  => event.stopPropagation()}
-            checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
-            indeterminate={indeterminateQueryability}
+            checked={isChecked('GetFeatureInfo')}
+            indeterminate={isIndeterminate(layerStates.vector)}
             onChange={toggle('GetFeatureInfo')}
-            disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
+            disabled={layerStates.vector.length === 0}
+            slotProps={{ input: { 'aria-label': translate('LayerTree.vector') } }}
           />
         </Tooltip>
-        }
         <ButtonBase disabled={!hasControls} aria-pressed={hasControls ? expandedControls : undefined}
           aria-label={hasControls ? translate('viewerControls.edit', { layer: node.properties.title }) : undefined}
           onMouseDown={event => event.stopPropagation()}

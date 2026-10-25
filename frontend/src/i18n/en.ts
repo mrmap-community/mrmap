@@ -4,6 +4,14 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    viewerAdd: {
+      title: "Add map service",
+      description: "Select WMS or WFS and enter its GetCapabilities URL.",
+      protocol: "Service type",
+      url: "GetCapabilities URL",
+      username: "Username (optional)",
+      password: "Password (optional)",
+    },
     viewerStyles: {
       title: "Style & legend",
       options: "Options for %{layer}",
@@ -75,10 +83,33 @@ const en = lodashMerge(
       resource: "This resource cannot be rendered:",
       offering: "offering %{code} is not supported",
       method: "operation %{code} offered as %{method}; only GET is supported",
-      operation: "no usable GetMap operation is offered",
+      operation: "no usable %{code} operation is offered",
+      format: "operation %{code} offers no GeoJSON output format",
+      crs: "operation %{code} offers no WGS 84 (EPSG:4326) coordinate reference system",
       content: "content %{type} cannot be rendered",
     },
+    viewerFeatures: {
+      title: "Feature attributes",
+      close: "Close",
+      limited: "%{title}: showing at most %{count} features of this view",
+      empty: "%{title}: no features in this view",
+      tooltip: "Click a feature to see its attributes"
+    },
+    wfsViewer: {
+      selectTitle: "Which feature types of %{service} shall the map show?"
+    },
+    addResource: {
+      title: "Append service",
+      description: "To add a Web Map Service or Web Feature Service to the current OWS context, enter a valid GetCapabilities url. The protocol is read from the delivered capabilities unless it is fixed here.",
+      url: "Get Capabilities Url",
+      protocol: "Protocol",
+      protocolAuto: "Detect from capabilities",
+      username: "Username (optional)",
+      password: "Password (optional)"
+    },
     LayerTree: {
+      raster: "Raster layers (GetMap)",
+      vector: "Vector layers (WFS / GetFeatureInfo)",
       ContextMenu: {
         moveUp: "Move up",
         moveDown: "Move down",
@@ -634,6 +665,25 @@ const en = lodashMerge(
       failed: "Unable to queue the update.",
       existing: "View unfinished update",
       loadError: "Unable to check for unfinished updates.",
+    },
+    accessRules: {
+      showMore: "Show %{count} more",
+      showLess: "Show less",
+      title: "Configured access rules",
+      operations: "Operations",
+      groups: "Groups",
+      layers: "Layers",
+      featureTypes: "Feature types",
+      area: "Spatial constraint",
+      edit: "Edit",
+      allGroups: "Every group",
+      restricted: "Area restricted",
+      unrestricted: "Unrestricted",
+      empty: "No access rules are configured for this service. The proxy does not restrict any operation.",
+      mapScope: "Allowed area of the selected rule {{rule}}. Other rules are not displayed.",
+      unrestrictedExplanation: "The selected rule {{rule}} has no allowed area, so it restricts nothing spatially: matching groups may request the listed operations over the whole extent of the listed content.",
+      configuredOnly: "These are the configured rules. Effective access is decided by the security proxy for each request and may also depend on user permissions and service state.",
+      loadError: "Unable to load the configured access rules.",
     },
     spatialSecurity: {
       user: "Access for user",

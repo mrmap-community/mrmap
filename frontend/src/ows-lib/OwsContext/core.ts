@@ -2,12 +2,13 @@ import { BBox, Geometry } from 'geojson';
 import { v4 as uuidv4 } from 'uuid';
 
 import { parseWms } from '../XMLParser/parseCapabilities';
+import { parseWfs } from '../XMLParser/parseWfs';
 import { migrateLegacyAuthentications } from './authentication';
 import { Position } from './enums';
 import { compareFolderPaths, normalizeFolderPaths } from './folders';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties, Authentication } from './types';
-import { appendWmsOperationParameters, areWmsOperationsCompatible, getFeatureFolderIndex, getParentFolder, isDescendant, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
-import { ensureCoreProfile, isWmsOfferingCode, normalizeResourceProperties } from './validation';
+import { appendWmsOperationParameters, areWmsOperationsCompatible, getFeatureFolderIndex, getParentFolder, isDescendant, prepareGetCapabilititesUrl, treeToList, updateFolders, wfsToOWSResources, wmsToOWSResources } from './utils';
+import { ensureCoreProfile, isWmsOfferingCode, isWfsOfferingCode, normalizeResourceProperties } from './validation';
 
 const VALID_PATH = /(\/\d*)+/
 
@@ -54,6 +55,18 @@ export class OWSResource implements IOWSResource {
     const wmsOffering = this.getWmsOffering()
     if (wmsOffering !== undefined) {
       return wmsOffering.operations?.find(operation => operation.code === code)
+    }
+  }
+
+  getWfsOffering() {
+    return this.properties.offerings?.find(offering => isWfsOfferingCode(offering.code))
+  }
+
+  getWfsOperationByCode(code: string, method: string = 'GET') {
+    const wfsOffering = this.getWfsOffering()
+    if (wfsOffering !== undefined) {
+      return wfsOffering.operations?.find(operation =>
+        operation.code === code && operation.method.toLowerCase() === method.toLowerCase())
     }
   }
 
@@ -191,8 +204,29 @@ export class OWSContext implements IOWSContext {
     return treeId
   }
 
-  appendWfs(_capabilities: string): this {
-    throw new Error('Method not implemented.');
+  /**
+   * Appends parsed WFS capabilities as a new tree of resources: a root node for the service and one
+   * leaf per feature type. The existing trees and the area of interest of the document stay
+   * untouched, so importing a WFS never disturbs the WMS selections of a mixed map. Returns the id
+   * of the new tree, as appendWms does.
+   */
+  appendWfs(href: string, capabilities: string): number {
+
+    const parsedWfs = parseWfs(capabilities)
+
+    const url = prepareGetCapabilititesUrl(href, 'WFS', parsedWfs.version)
+
+    const treeId = this.getNextRootId()
+
+    const additionalFeatures = wfsToOWSResources(url.href, parsedWfs, treeId).map(
+      resource => new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry, resource.children)
+    )
+
+    this.features.push(...additionalFeatures)
+
+    this.rebuildFolderLookup()
+
+    return treeId
   }
 
   findResourceByFolder(folder?: string) {
@@ -634,6 +668,25 @@ export class OWSContext implements IOWSContext {
       })
     })
     return urls
+  }
+
+  /**
+   * Build the GetFeature request descriptors of the active WFS features. Every feature type keeps
+   * its own descriptor: unrelated types and endpoints are never combined into one shared request,
+   * so the WMS batching of getOptimizedUrlsByCode does not apply here. A POST binding stays an
+   * advertised alternative without a descriptor in phase 1 and WMS features never appear.
+   */
+  getWfsFeatureRequests(
+    featureFilter?: (feature: OWSResource) => boolean
+  ): { feature: OWSResource, operation: Operation }[] {
+    return this.features
+      .filter(feature => {
+        if (typeof featureFilter === 'function') return featureFilter(feature)
+        return feature.properties.active === true && feature.getWfsOffering() !== undefined
+      })
+      .map(feature => ({ feature, operation: feature.getWfsOperationByCode('GetFeature', 'GET') }))
+      .filter((descriptor): descriptor is { feature: OWSResource, operation: Operation } =>
+        descriptor.operation !== undefined && descriptor.operation.href.length > 0)
   }
 
   /**

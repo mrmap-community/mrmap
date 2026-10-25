@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import PublicIcon from '@mui/icons-material/Public';
 import { v4 as uuidv4 } from 'uuid';
 
+import { API_BASE_URL } from '../../../../context/HttpClientContext';
 import { Authentication } from '../../../../ows-lib/OwsContext/contrib';
 import { OWSContext } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
@@ -16,45 +17,57 @@ import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/Ows
 export interface MapViewerButtonProps extends ButtonProps{
   wmsRecord?: RaRecord
   capabilititesUrl?: string
+  protocol?: 'WMS' | 'WFS'
 }
 
 const MapViewerButton = (
   {
     wmsRecord, 
     capabilititesUrl,
+    protocol = 'WMS',
     children,
     ...rest
   }: MapViewerButtonProps
 ): ReactNode => {
   const navigate = useNavigate();
-  const { addWMSByUrl, resetContext, owsContext } = useOwsContextBase()
-  const record = useRecordContext(wmsRecord)
+  const { addWMSByUrl, addWFSByUrl, resetContext, owsContext } = useOwsContextBase()
+  const record = useRecordContext({ record: wmsRecord })
   const translate = useTranslate()
 
   const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState(
-    capabilititesUrl || record?.operationUrls?.find(
+    capabilititesUrl || (protocol === 'WFS' && record?.id !== undefined
+      ? new URL(`/mrmap-proxy/wfs/${String(record.id)}?SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0`, API_BASE_URL).href
+      : record?.operationUrls?.find(
       (opUrl: RaRecord) => {
         return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
-      })?.url
+      })?.url)
   )
 
   const [clicked, setClicked] = useState(false)
 
   const authHeader = useMemo<Authentication | undefined>(()=>(
-    getCapaibilitesUrl && new URL(getCapaibilitesUrl).hostname === window.location.hostname ? {
+    getAuthToken()?.token && getCapaibilitesUrl && (
+      new URL(getCapaibilitesUrl).hostname === window.location.hostname ||
+      new URL(getCapaibilitesUrl).origin === new URL(API_BASE_URL).origin
+    ) ? {
       id: uuidv4(),
       type: "header",
       name: "Authorization",
       value: `Token ${getAuthToken()?.token}`,
+      origin: new URL(getCapaibilitesUrl).origin,
     } : undefined
   ),[getCapaibilitesUrl])
 
   const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
-    "WebMapService",
+    protocol === 'WFS' ? 'WebFeatureService' : 'WebMapService',
     {
       id: record?.id,
       meta: {
-        "jsonApiParams": {
+        "jsonApiParams": protocol === 'WFS' ? {
+          include: 'featuretypes',
+          'fields[WebFeatureService]': 'featuretypes,version',
+          'fields[FeatureType]': 'identifier,is_active',
+        } : {
           "include": "operationUrls,layers",
           "fields[WebMapService]": "operation_urls,version,layers",
           "fields[WebMapServiceOperationUrl]": "url,method,operation",
@@ -86,24 +99,30 @@ const MapViewerButton = (
     addedFeatures.forEach(feature => {
       authHeader && feature.properties.offerings?.forEach(offering => {
         offering.operations?.forEach(operation => {
-          operation["x-authentication-id"] = authHeader?.id
+          if (new URL(operation.href).origin === new URL(getCapaibilitesUrl).origin)
+            operation["x-authentication-id"] = authHeader?.id
         })
       })
-      const operation = feature.getWmsOperationByCode("GetMap")
+      const operation = protocol === 'WFS'
+        ? feature.getWfsOperationByCode('GetFeature')
+        : feature.getWmsOperationByCode("GetMap")
       if (operation !== undefined) {
         operation["x-mrmap-service-id"] = wmsRecordWithUrl?.id
         
         const url = new URL(operation.href)
-        const identifier = [...url.searchParams.entries()].find(([key]) => key.toLowerCase() === 'layers')?.[1];
-        const dbLayer = wmsRecordWithUrl?.layers?.find((layer: RaRecord) => layer.identifier === identifier)
+        const identifier = [...url.searchParams.entries()].find(([key]) =>
+          protocol === 'WFS' ? ['typename', 'typenames'].includes(key.toLowerCase()) : key.toLowerCase() === 'layers')?.[1];
+        const elements = protocol === 'WFS' ? wmsRecordWithUrl?.featuretypes : wmsRecordWithUrl?.layers;
+        const dbLayer = elements?.find((layer: RaRecord) => layer.identifier === identifier)
         if (dbLayer !== undefined){
-          operation["x-mrmap-layer-id"] = dbLayer?.id
-          operation["x-mrmap-layer-properties"] = {...dbLayer}
+          const element = protocol === 'WFS' ? 'featuretype' : 'layer';
+          operation[`x-mrmap-${element}-id`] = dbLayer?.id
+          operation[`x-mrmap-${element}-properties`] = {...dbLayer}
         }
       }
     })
     return context
-  }, [wmsRecordWithUrl])
+  }, [wmsRecordWithUrl, protocol, authHeader, getCapaibilitesUrl])
 
   useEffect(() => {
     if (capabilititesUrl !== undefined) {
@@ -137,10 +156,11 @@ const MapViewerButton = (
       owsContext.features.length === 0 && 
       getCapaibilitesUrl !== undefined
     ){
-      // wait until context is reset and then add wms by url
-      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
+      // Wait until the context is reset before adding the selected service.
+      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, protocol)
       
-      addWMSByUrl(
+      const addService = protocol === 'WFS' ? addWFSByUrl : addWMSByUrl;
+      addService(
         url.href, 
         authHeader && new Headers({"Authorization": authHeader?.value}), 
         beforeSetHook

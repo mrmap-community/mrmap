@@ -7,6 +7,8 @@ import { Grid, Stack, Typography } from "@mui/material";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import CustomListActions from "../../../Lists/CustomListActions";
+import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
 import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
@@ -15,6 +17,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
+import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -36,17 +39,22 @@ function OperationUrls() {
   );
 }
 
-function AccessRules() {
+const AccessRules = () => {
   const record = useRecordContext();
+  const summary = (
+    <AccessRulesSummary
+      ruleResource="AllowedWebFeatureServiceOperation"
+      serviceId={record?.id}
+    />
+  );
   return (
     <ServiceRelatedTab
       resource="AllowedWebFeatureServiceOperation"
-      defaultSelectedColumns={[
-        "operations",
-        "description",
-        "allowedGroups",
-        "securedFeatureTypes",
-      ]}
+      listContent={summary}
+      actions={<CustomListActions isConfigureable={false} />}
+      queryOptions={{
+        meta: { jsonApiParams: { include: "operations,allowedGroups,securedFeatureTypes" } },
+      }}
       formFieldOverrides={[
         {
           component: SchemaAutocompleteInput,
@@ -58,7 +66,7 @@ function AccessRules() {
       ]}
     />
   );
-}
+};
 
 /**
  * Feature type rows next to the read oriented inspection of the clicked row,
@@ -82,6 +90,7 @@ function FeatureTypesTab() {
           id={selected?.id}
           serviceResource="WebFeatureService"
           serviceId={record?.id}
+          previewAction={record ? <MapViewerButton key={record.id} protocol="WFS" wmsRecord={record} size="small" /> : undefined}
         />
       </Grid>
     </Grid>

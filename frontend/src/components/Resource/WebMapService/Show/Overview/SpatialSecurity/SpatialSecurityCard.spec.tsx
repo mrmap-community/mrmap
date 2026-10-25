@@ -18,7 +18,7 @@ vi.mock("react-admin", async () => ({
     options ? `${key}: ${options.count}` : key,
   Loading: () => <span>Loading configuration</span>,
 }));
-vi.mock("./useCompleteList", () => ({
+vi.mock("../../../../Generic/ServiceShow/useCompleteList", () => ({
   default: () => ({
     ...state,
     isPending: false,

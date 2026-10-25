@@ -14,6 +14,7 @@ import { Stack, Typography } from "@mui/material";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
 import SimpleCard from "../../../MUI/SimpleCard";
+import WfsMapViewerButton from "../../WebFeatureService/Button/MapViewerButton";
 import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import ActivateServiceButton from "./ActivateServiceButton";
 import ServiceAlertChips from "./ServiceAlertChips";
@@ -94,6 +95,18 @@ const ServiceDetailsCard = ({
                  one of this button leaves an open details button of a selection
                  before behind */
               <MapViewerButton
+                key={record.id}
+                protocol={protocol}
+                label="serviceShow.openMapViewer"
+                variant="outlined"
+                sx={{ flex: 1, minWidth: 0 }}
+              />
+            )}
+            {protocol === "WFS" && (
+              /* the same remount rule as the WMS button above, and the same reason:
+                 the WFS button asks which feature types the map shall show and keeps
+                 that answer in its own state */
+              <WfsMapViewerButton
                 key={record.id}
                 label="serviceShow.openMapViewer"
                 variant="outlined"

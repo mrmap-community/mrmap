@@ -1,6 +1,14 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  viewerAdd: {
+    title: "Kartendienst hinzufügen",
+    description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
+    protocol: "Diensttyp",
+    url: "GetCapabilities-URL",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)",
+  },
   viewerStyles: {
     title: "Stil & Legende",
     options: "Optionen für %{layer}",
@@ -72,10 +80,33 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     resource: "Diese Ressource kann nicht gerendert werden:",
     offering: "Angebot %{code} wird nicht unterstützt",
     method: "Operation %{code} als %{method} angeboten; nur GET wird unterstützt",
-    operation: "keine nutzbare GetMap-Operation angeboten",
+    operation: "keine nutzbare %{code}-Operation angeboten",
+    format: "Operation %{code} bietet kein GeoJSON-Ausgabeformat",
+    crs: "Operation %{code} bietet kein WGS 84 (EPSG:4326)-Koordinatenbezugssystem",
     content: "Inhalt %{type} kann nicht gerendert werden",
   },
+  viewerFeatures: {
+    title: "Feature-Attribute",
+    close: "Schließen",
+    limited: "%{title}: maximal %{count} Features dieser Ansicht dargestellt",
+    empty: "%{title}: keine Features in dieser Ansicht",
+    tooltip: "Klicken Sie auf ein Feature, um seine Attribute zu sehen"
+  },
+  wfsViewer: {
+    selectTitle: "Welche Feature-Typen von %{service} soll die Karte zeigen?"
+  },
+  addResource: {
+    title: "Dienst hinzufügen",
+    description: "Um einen Web Map Service oder Web Feature Service zum aktuellen OWS-Kontext hinzuzufügen, geben Sie eine gültige GetCapabilities-URL ein. Das Protokoll wird aus den übermittelten Capabilities gelesen, sofern es hier nicht festgelegt wird.",
+    url: "Get-Capabilities-URL",
+    protocol: "Protokoll",
+    protocolAuto: "Aus Capabilities erkennen",
+    username: "Benutzername (optional)",
+    password: "Passwort (optional)"
+  },
   LayerTree: {
+      raster: "Rasterebenen (GetMap)",
+      vector: "Vektorebenen (WFS / GetFeatureInfo)",
     ContextMenu: {
       moveUp: "Nach oben verschieben",
       moveDown: "Nach unten verschieben",
@@ -627,6 +658,25 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     failed: "Die Aktualisierung konnte nicht eingereiht werden.",
     existing: "Offene Aktualisierung anzeigen",
     loadError: "Offene Aktualisierungen konnten nicht geprüft werden.",
+  },
+  accessRules: {
+    showMore: "%{count} weitere anzeigen",
+    showLess: "Weniger anzeigen",
+    title: "Konfigurierte Zugriffsregeln",
+    operations: "Operationen",
+    groups: "Gruppen",
+    layers: "Ebenen",
+    featureTypes: "Feature-Typen",
+    area: "Räumliche Einschränkung",
+    edit: "Bearbeiten",
+    allGroups: "Alle Gruppen",
+    restricted: "Fläche beschränkt",
+    unrestricted: "Unbeschränkt",
+    empty: "Für diesen Dienst sind keine Zugriffsregeln konfiguriert. Der Proxy schränkt keine Operation ein.",
+    mapScope: "Erlaubter Bereich der ausgewählten Regel {{rule}}. Andere Regeln werden nicht angezeigt.",
+    unrestrictedExplanation: "Die ausgewählte Regel {{rule}} hat keinen erlaubten Bereich und schränkt räumlich nichts ein: passende Gruppen dürfen die gelisteten Operationen über die gesamte Ausdehnung der gelisteten Inhalte anfragen.",
+    configuredOnly: "Dies sind die konfigurierten Regeln. Der effektive Zugriff wird pro Anfrage vom Security-Proxy entschieden und hängt auch von Benutzerrechten und Dienstzustand ab.",
+    loadError: "Die konfigurierten Zugriffsregeln konnten nicht geladen werden.",
   },
   spatialSecurity: {
     user: "Zugriff für Benutzer",

@@ -19,6 +19,14 @@ Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
         Then I expect the response status is 403
         Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
 
+    Scenario: Include readable access rule relationships
+        Given I am logged in as User1 with password User1
+        Given I set a queryparam "include" with value "operations,allowedGroups,securedLayers"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "3"
+        Then I expect that response json has an attribute "included.[0].attributes.stringRepresentation"
+
     Scenario: Filter access rules for a group
         Given I am logged in as User1 with password User1
         Given I set a queryparam "filter[access_group]" with value "1"

@@ -24,6 +24,64 @@ class WebMapServiceOperationOrderingTest(TestCase):
                 self.assertEqual(list(queryset.values_list("value", flat=True)), expected)
 
 
+class AllowedServiceOperationIncludeTest(TestCase):
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
+                'test_wms.json', 'test_wfs_proxy.json']
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+        from registry.models.security import (AllowedWebFeatureServiceOperation,
+                                              AllowedWebMapServiceOperation,
+                                              WebFeatureServiceOperation)
+        from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
+
+        cls.user = get_user_model().objects.create_superuser(username='rule-includes')
+        group = Group.objects.create(name='Included policy group')
+        cls.rules = []
+        for protocol, model, service_model, content_model, relation, operation_model in [
+            ('wms', AllowedWebMapServiceOperation, WebMapService, Layer,
+             'secured_layers', WebMapServiceOperation),
+            ('wfs', AllowedWebFeatureServiceOperation, WebFeatureService, FeatureType,
+             'secured_feature_types', WebFeatureServiceOperation),
+        ]:
+            content = content_model.objects.first()
+            service = service_model.objects.get(pk=content.service_id)
+            rule = model.objects.create(secured_service=service)
+            operation = operation_model.objects.first()
+            rule.operations.set([operation])
+            rule.allowed_groups.set([group])
+            getattr(rule, relation).set([content])
+            cls.rules.append((protocol, rule, content, operation, group))
+
+    def test_list_detail_and_related_list_include_readable_rule_relationships(self):
+        from rest_framework.test import APIClient
+
+        client = APIClient()
+        client.force_authenticate(self.user)
+        for protocol, rule, content, operation, group in self.rules:
+            content_path = 'securedLayers' if protocol == 'wms' else 'securedFeatureTypes'
+            include = f'operations,allowedGroups,{content_path}'
+            base = f'/api/registry/security/allowed-{protocol}-operations'
+            for url in [base, f'{base}/{rule.pk}',
+                        f'/api/registry/{protocol}/{rule.secured_service_id}/allowed-{protocol}-operations']:
+                with self.subTest(url=url):
+                    response = client.get(url, {'include': include}, HTTP_ACCEPT='application/vnd.api+json')
+                    self.assertEqual(response.status_code, 200, response.content)
+                    document = response.json()
+                    records = document['data'] if isinstance(document['data'], list) else [document['data']]
+                    record = next(item for item in records if item['id'] == str(rule.pk))
+                    included = {(item['type'], item['id']): item for item in document['included']}
+                    for path, related in [('operations', operation), ('allowedGroups', group),
+                                          (content_path, content)]:
+                        linkage = record['relationships'][path]['data']
+                        self.assertTrue(any(item['id'] == str(related.pk) for item in linkage))
+                        for item in linkage:
+                            attributes = included[(item['type'], item['id'])]['attributes']
+                            self.assertTrue(attributes['stringRepresentation'])
+
+
 class AllowedWebMapServiceOperationGroupFilterTest(TestCase):
     fixtures = ['test_users.json', 'test_keywords.json', 'test_wms.json']
 

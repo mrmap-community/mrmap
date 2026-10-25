@@ -12,12 +12,13 @@ from registry.ows_lib.wfs import gml
 WFS_NS = 'xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:ms="http://ns.example.com/ms"'
 GML_NS = 'xmlns:gml="http://www.opengis.net/gml/3.2"'
 XLINK_NS = 'xmlns:xlink="http://www.w3.org/1999/xlink"'
+XSI_NS = 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
 CRS = "urn:ogc:def:crs:EPSG::4326"
 
 
 def collection(*members, srs_name=""):
     """Wrap feature members into a GetFeature response root."""
-    return (f'<wfs:FeatureCollection {WFS_NS} {GML_NS} {XLINK_NS} {srs_name}>'
+    return (f'<wfs:FeatureCollection {WFS_NS} {GML_NS} {XLINK_NS} {XSI_NS} {srs_name}>'
             f'{"".join(members)}</wfs:FeatureCollection>')
 
 
@@ -301,13 +302,15 @@ class GmlFeatureTests(SimpleTestCase):
         self.assertEqual(converted["features"][1]["properties"], {})
 
     def test_a_null_geometry_is_a_feature_without_geometry(self):
-        converted = convert(collection(
-            '<wfs:member><ms:Feature gml:id="ms.1">'
-            '<ms:geom gml:nil="true"></ms:geom><ms:name>Rathaus</ms:name>'
-            '</ms:Feature></wfs:member>'))
-        validate_features(converted)
-        self.assertIsNone(converted["features"][0]["geometry"])
-        self.assertEqual(converted["features"][0]["properties"], {"name": "Rathaus"})
+        for nil_attribute in ('gml:nil="true"', 'xsi:nil="true"'):
+            with self.subTest(nil_attribute=nil_attribute):
+                converted = convert(collection(
+                    f'<wfs:member><ms:Feature gml:id="ms.1">'
+                    f'<ms:geom {nil_attribute}></ms:geom><ms:name>Rathaus</ms:name>'
+                    '</ms:Feature></wfs:member>'))
+                validate_features(converted)
+                self.assertIsNone(converted["features"][0]["geometry"])
+                self.assertEqual(converted["features"][0]["properties"], {"name": "Rathaus"})
 
     def test_the_stored_schema_names_which_property_holds_the_geometry(self):
         converted = convert(collection(

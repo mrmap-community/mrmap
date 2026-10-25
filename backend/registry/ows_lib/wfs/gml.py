@@ -46,8 +46,8 @@ AGGREGATES = {
 }
 GEOMETRY_COLLECTION = "MultiGeometry"
 GEOMETRIES = {POINT, LINE_STRING, LINEAR_RING, POLYGON, SURFACE, GEOMETRY_COLLECTION} | set(AGGREGATES)
-# Property content that is not a simple value, i.e. a complex application schema.
-NIL = "nilReason"
+# The nil statement of a property or a geometry: gml:nil in GML 3.2, xsi:nil in older encodings.
+NIL_ATTRIBUTES = (f"{{{GML}}}nil", f"{{{XSI}}}nil")
 
 
 class GmlError(Exception):
@@ -63,8 +63,7 @@ def _name(element):
 
 
 def _is_nil(element):
-    return (element.get(NIL) is not None or element.get(f"{{{XSI}}}nil") in ("true", "1")
-            or element.get(f"{{{GML}}}nil") in ("true", "1"))
+    return any(element.get(attribute) in ("true", "1") for attribute in NIL_ATTRIBUTES)
 
 
 def _elements(element):

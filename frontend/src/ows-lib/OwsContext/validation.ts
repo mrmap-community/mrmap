@@ -31,11 +31,21 @@ export const OWS_CONTEXT_CORE_PROFILE = 'http://www.opengis.net/spec/owc-geojson
 /** Offering code of the only offering the viewer is able to render. */
 export const WMS_OFFERING_CODE = 'http://www.opengis.net/spec/owc-geojson/1.0/req/wms'
 
+/** Offering code of the WFS offering the viewer imports and requests per feature type. */
+export const WFS_OFFERING_CODE = 'http://www.opengis.net/spec/owc-geojson/1.0/req/wfs'
+
 /** Legacy viewer and backend identifiers remain readable; new exports use GeoJSON. */
 export const isWmsOfferingCode = (code: unknown): boolean => [
     WMS_OFFERING_CODE,
     'http://www.opengis.net/spec/owc/1.0/req/wms',
     'http://www.opengis.net/spec/owc-atom/1.0/req/wms'
+].includes(code as string)
+
+/** Legacy WFS identifiers are normalized like the WMS ones. */
+export const isWfsOfferingCode = (code: unknown): boolean => [
+    WFS_OFFERING_CODE,
+    'http://www.opengis.net/spec/owc/1.0/req/wfs',
+    'http://www.opengis.net/spec/owc-atom/1.0/req/wfs'
 ].includes(code as string)
 
 /** Normalize losslessly recoverable fields of older MrMap exports. */
@@ -51,6 +61,7 @@ export const normalizeResourceProperties = (properties: OWSResourceProperties): 
     if (Array.isArray(result.offerings)) {
         result.offerings.forEach(offering => {
             if (offering && isWmsOfferingCode(offering.code)) offering.code = WMS_OFFERING_CODE
+            else if (offering && isWfsOfferingCode(offering.code)) offering.code = WFS_OFFERING_CODE
         })
         // Old backend exports split GetMap/GetFeatureInfo into plain offerings.
         // Merge only these plain objects so unrelated extension metadata is retained.
@@ -66,6 +77,13 @@ export const normalizeResourceProperties = (properties: OWSResourceProperties): 
 
 /** Operation codes of the WMS offering the viewer makes use of. */
 export const SUPPORTED_WMS_OPERATIONS = ['GetCapabilities', 'GetMap', 'GetFeatureInfo']
+
+/**
+ * Operation codes of the WFS offering the viewer makes use of. Phase 1 executes GetFeature over
+ * GET only; a POST binding stays in the document as an unsupported alternative and is never
+ * dropped.
+ */
+export const SUPPORTED_WFS_OPERATIONS = ['GetCapabilities', 'DescribeFeatureType', 'GetFeature']
 
 export type OwsContextIssueSeverity = 'error' | 'warning'
 
@@ -237,7 +255,7 @@ const validateLinks = (collector: IssueCollector, links: unknown, path: string) 
     })
 }
 
-const validateOperations = (collector: IssueCollector, operations: unknown, path: string, isWmsOffering: boolean) => {
+const validateOperations = (collector: IssueCollector, operations: unknown, path: string, supportedOperations: string[] | undefined) => {
     if (operations === undefined) return
     if (!Array.isArray(operations)) {
         collector.error(path, 'must be an array of operations')
@@ -251,7 +269,7 @@ const validateOperations = (collector: IssueCollector, operations: unknown, path
         }
         if (!isFilledString(operation.code))
             collector.error(`${operationPath}.code`, 'is required and must be a non empty string')
-        else if (isWmsOffering && !SUPPORTED_WMS_OPERATIONS.includes(operation.code))
+        else if (supportedOperations !== undefined && !supportedOperations.includes(operation.code))
             collector.warn(`${operationPath}.code`, `"${operation.code}" is not supported by the viewer and is kept as an extension`)
 
         if (!isFilledString(operation.method))
@@ -289,10 +307,16 @@ const validateOfferings = (collector: IssueCollector, offerings: unknown, path: 
             return
         }
         const isWmsOffering = isWmsOfferingCode(offering.code)
-        if (!isWmsOffering)
+        const isWfsOffering = isWfsOfferingCode(offering.code)
+        if (!isWmsOffering && !isWfsOffering)
             collector.warn(`${offeringPath}.code`, `"${offering.code}" is an offering the viewer cannot render; the resource is kept as an extension`)
 
-        validateOperations(collector, offering.operations, `${offeringPath}.operations`, isWmsOffering)
+        validateOperations(
+            collector,
+            offering.operations,
+            `${offeringPath}.operations`,
+            isWmsOffering ? SUPPORTED_WMS_OPERATIONS : isWfsOffering ? SUPPORTED_WFS_OPERATIONS : undefined
+        )
 
         if (offering.contents !== undefined) {
             if (!Array.isArray(offering.contents)) collector.error(`${offeringPath}.contents`, 'must be an array of contents')

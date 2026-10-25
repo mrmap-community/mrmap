@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import { WmsCapabilitites, WmsLayer } from "../XMLParser/types";
+import { WfsCapabilitites, WfsFeatureType, WmsCapabilitites, WmsLayer, negotiatedFeatureTypeFormats } from "../XMLParser/types";
 import { OWSResource } from './core';
 import { OWSResource as IOWSResource, OWSContext, StyleSet, Operation, Offering } from "./types";
-import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE } from "./validation";
+import { ensureCoreProfile, isWmsOfferingCode, WMS_OFFERING_CODE, WFS_OFFERING_CODE } from "./validation";
 
 export const OWSContextDocument = (
     id: string = `urn:uuid:${uuidv4()}`,
@@ -171,6 +171,119 @@ export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, 
         '',
         treeId
     )
+}
+
+/**
+ * The GetFeature GET request descriptor for one feature type, with the exact advertised tokens:
+ * the qualified type name, the negotiated output format (the types own OutputFormats replace the
+ * operation wide advertised ones, they never merge) and the default CRS. A service without a GET
+ * binding has no request descriptor in phase 1 and gets undefined instead of a fabricated URL.
+ */
+export const prepareGetFeatureUrl = (capabilities: WfsCapabilitites, featureType: WfsFeatureType): URL | undefined => {
+    const getFeature = capabilities.operationUrls.getFeature
+    if (getFeature.get.length === 0) return undefined
+
+    const url = new URL(getFeature.get)
+    const params = url.searchParams
+    updateOrAppendSearchParam(params, 'SERVICE', 'WFS')
+    updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetFeature')
+    updateOrAppendSearchParam(params, 'TYPENAME', featureType.name)
+    if (featureType.defaultCrs !== undefined)
+        updateOrAppendSearchParam(params, 'SRSNAME', featureType.defaultCrs)
+    const formats = negotiatedFeatureTypeFormats(featureType, getFeature)
+    if (formats.length > 0) updateOrAppendSearchParam(params, 'OUTPUTFORMAT', formats[0])
+
+    return url
+}
+
+/**
+ * Converts parsed WFS capabilities into the flat resources of one context tree: a root node for the
+ * service and one leaf per feature type. Unlike the WMS conversion there is no shared request to
+ * batch into, so every leaf carries its own GetFeature request and the data a later request needs -
+ * qualified name and namespace, negotiated formats, supported CRS - as offering extensions, which
+ * the OWS Context standard allows and the viewer keeps losslessly through export and reimport. An
+ * advertised POST binding is kept as an operation the viewer does not execute in phase 1.
+ */
+export const wfsToOWSResources = (href: string, capabilities: WfsCapabilitites, treeId: number = 0): OWSResource[] => {
+    const rootFolder = `/${treeId}`
+    const getCapabilitiesOperation: Operation = {
+        code: 'GetCapabilities',
+        href: href,
+        method: 'GET',
+        type: 'application/xml'
+    }
+    const describeFeatureType = capabilities.operationUrls.describeFeatureType
+    const getFeature = capabilities.operationUrls.getFeature
+
+    const resources: OWSResource[] = [
+        OWSResource.fromPlainObject({
+            type: 'Feature',
+            properties: {
+                title: capabilities.metadata.title,
+                abstract: capabilities.metadata.abstract,
+                updated: new Date().toISOString(),
+                offerings: [{
+                    code: WFS_OFFERING_CODE,
+                    operations: [
+                        getCapabilitiesOperation,
+                        ...(describeFeatureType !== undefined && describeFeatureType.get.length > 0 ? [{
+                            code: 'DescribeFeatureType',
+                            href: describeFeatureType.get,
+                            method: 'GET',
+                            type: 'text/xml'
+                        } satisfies Operation] : [])
+                    ],
+                    version: capabilities.version
+                }],
+                folder: rootFolder
+            }
+        })
+    ]
+
+    capabilities.featureTypes.forEach((featureType, index) => {
+        const getFeatureUrl = prepareGetFeatureUrl(capabilities, featureType)
+        const formats = negotiatedFeatureTypeFormats(featureType, getFeature)
+
+        resources.push(OWSResource.fromPlainObject({
+            type: 'Feature',
+            bbox: featureType.bounds,
+            properties: {
+                title: featureType.metadata.title.length > 0 ? featureType.metadata.title : featureType.name,
+                abstract: featureType.metadata.abstract,
+                updated: new Date().toISOString(),
+                offerings: [{
+                    code: WFS_OFFERING_CODE,
+                    operations: [
+                        getCapabilitiesOperation,
+                        ...(getFeatureUrl !== undefined ? [{
+                            code: 'GetFeature',
+                            href: getFeatureUrl.toString(),
+                            method: 'GET',
+                            type: formats.length > 0 ? formats[0] : undefined
+                        } satisfies Operation] : []),
+                        // the advertised POST binding stays in the document; phase 1 does not execute it
+                        ...(getFeature.post !== undefined ? [{
+                            code: 'GetFeature',
+                            href: getFeature.post,
+                            method: 'POST',
+                            type: formats.length > 0 ? formats[0] : undefined
+                        } satisfies Operation] : [])
+                    ],
+                    version: capabilities.version,
+                    qualifiedName: featureType.name,
+                    ...(featureType.namespaceUri !== undefined && { namespace: featureType.namespaceUri }),
+                    outputFormats: formats,
+                    ...(featureType.defaultCrs !== undefined && { defaultCrs: featureType.defaultCrs }),
+                    otherCrs: featureType.otherCrs,
+                    ...(featureType.metadataUrl !== undefined && { metadataUrl: featureType.metadataUrl })
+                }],
+                folder: `${rootFolder}/${index}`
+            }
+        }))
+    })
+
+    return resources
 }
 
 export const treeToList = (node: OWSResource) => {

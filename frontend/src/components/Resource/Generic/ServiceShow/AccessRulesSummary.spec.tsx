@@ -10,24 +10,19 @@ import AccessRulesSummary from "./AccessRulesSummary";
 const state = vi.hoisted(() => ({
   records: [] as RaRecord[],
   error: false,
-  options: undefined as Record<string, unknown> | undefined,
+  isPending: false,
 }));
 vi.mock("react-admin", async () => ({
   ...(await vi.importActual<typeof import("react-admin")>("react-admin")),
-  useTranslate: () => (key: string) => key,
+  useTranslate: () => (key: string, options?: { count?: number }) =>
+    options?.count === undefined ? key : `${key} ${options.count}`,
   Loading: () => <span>Loading</span>,
-}));
-vi.mock("./useCompleteList", () => ({
-  default: (resource: string, serviceId: unknown, options: Record<string, unknown>) => {
-    state.options = { resource, serviceId, ...options };
-    return {
-      ...state,
-      isPending: false,
-      isFetchingNextPage: false,
-      hasNextPage: false,
-      refetch: vi.fn(),
-    };
-  },
+  useListContext: () => ({
+    data: state.records,
+    isPending: state.isPending,
+    error: state.error,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock("../../../MapContainer/GeoJsonMap", () => ({
   default: ({ children }: { children?: ReactNode }) => (
@@ -70,22 +65,10 @@ const show = () =>
 beforeEach(() => {
   state.records = [];
   state.error = false;
-  state.options = undefined;
+  state.isPending = false;
 });
 
 describe("access rules summary", () => {
-  it("asks the api for the related rules with readable relationships", () => {
-    show();
-    expect(state.options).toMatchObject({
-      resource: "AllowedWebMapServiceOperation",
-      serviceId: "4",
-      serviceResource: "WebMapService",
-      jsonApiParams: {
-        include: "operations,allowedGroups,securedLayers",
-      },
-    });
-  });
-
   it("names groups, operations and content of every configured rule", () => {
     state.records = [restricted];
     show();
@@ -93,6 +76,43 @@ describe("access rules summary", () => {
     expect(screen.getByText("editors")).toBeInTheDocument();
     expect(screen.getByText("base")).toBeInTheDocument();
     expect(screen.getByText("accessRules.restricted")).toBeInTheDocument();
+  });
+
+  it("renders feature types from the WFS list context", () => {
+    state.records = [{
+      ...restricted,
+      securedFeatureTypes: [{ id: 12, title: "roads" }],
+    }];
+    render(
+      <MemoryRouter>
+        <AccessRulesSummary
+          ruleResource="AllowedWebFeatureServiceOperation"
+          serviceId="5"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("roads")).toBeInTheDocument();
+    expect(screen.getByText("accessRules.featureTypes")).toBeInTheDocument();
+    expect(screen.queryByText("base")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+  });
+
+  it("collapses long layer lists and expands each rule independently without selecting it", () => {
+    const layers = Array.from({ length: 20 }, (_, id) => ({ id, title: `Layer ${id}` }));
+    state.records = [restricted, { ...open, securedLayers: layers }];
+    show();
+    expect(screen.getByText("Layer 2")).toBeInTheDocument();
+    expect(screen.queryByText("Layer 3")).not.toBeInTheDocument();
+    const expand = screen.getByRole("button", { name: "accessRules.showMore 17" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(expand);
+    expect(screen.getByText("Layer 19")).toBeInTheDocument();
+    expect(screen.getByTestId("geojson-map")).toBeInTheDocument();
+    const collapse = screen.getByRole("button", { name: "accessRules.showLess" });
+    expect(collapse).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(collapse);
+    expect(screen.queryByText("Layer 3")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "accessRules.showLess" })).not.toBeInTheDocument();
   });
 
   it("explains rules without groups and without an allowed area", () => {
@@ -126,6 +146,13 @@ describe("access rules summary", () => {
       "href",
       "/WebMapService/4/show/AllowedWebMapServiceOperation/1/edit",
     );
+  });
+
+  it("shows the list loading state", () => {
+    state.isPending = true;
+    show();
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("separates loading, empty and error states", () => {

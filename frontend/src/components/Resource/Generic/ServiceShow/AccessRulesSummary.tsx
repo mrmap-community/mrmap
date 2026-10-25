@@ -1,5 +1,5 @@
 import { useMemo, useState, type MouseEvent } from "react";
-import { Link, Loading, type RaRecord, useBasename, useTranslate } from "react-admin";
+import { Link, Loading, type RaRecord, useBasename, useListContext, useTranslate } from "react-admin";
 
 import {
   Alert,
@@ -16,29 +16,21 @@ import {
 
 import FeatureGroupEditor from "../../../Input/FeatureGroupEditor";
 import GeoJsonMap from "../../../MapContainer/GeoJsonMap";
-import useCompleteList from "./useCompleteList";
 
 interface AccessRulesConfig {
-  serviceResource: string;
   contentSource: string;
   contentLabelKey: "layers" | "featureTypes";
-  include: string;
 }
 
-// The api resolves these camelCase include paths on the rule endpoints and
-// answers the related list query for each spatial service type.
+// Presentation fields for the related rule list of each spatial service type.
 const RULE_CONFIG: Record<string, AccessRulesConfig> = {
   AllowedWebMapServiceOperation: {
-    serviceResource: "WebMapService",
     contentSource: "securedLayers",
     contentLabelKey: "layers",
-    include: "operations,allowedGroups,securedLayers",
   },
   AllowedWebFeatureServiceOperation: {
-    serviceResource: "WebFeatureService",
     contentSource: "securedFeatureTypes",
     contentLabelKey: "featureTypes",
-    include: "operations,allowedGroups,securedFeatureTypes",
   },
 };
 
@@ -53,17 +45,47 @@ const displayName = (item: RaRecord): string =>
   (item.title as string) ??
   `#${String(item.id)}`;
 
-const NameChips = ({ items }: { items: RaRecord[] }) => (
-  <Stack
-    direction="row"
-    spacing={0.5}
-    sx={{ flexWrap: "wrap", rowGap: 0.5 }}
-  >
-    {items.map((item) => (
-      <Chip key={String(item.id)} size="small" variant="outlined" label={displayName(item)} />
-    ))}
-  </Stack>
-);
+const NameChips = ({ items, limit }: { items: RaRecord[]; limit?: number }) => {
+  const translate = useTranslate();
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = limit !== undefined && items.length > limit;
+  const visibleItems = hasMore && !expanded ? items.slice(0, limit) : items;
+
+  return (
+    <Stack spacing={0.5} sx={{ minWidth: 0, alignItems: "flex-start" }}>
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{ flexWrap: "wrap", rowGap: 0.5, maxWidth: "100%", maxHeight: 200, overflowY: "auto" }}
+      >
+        {visibleItems.map((item) => (
+          <Chip
+            key={String(item.id)}
+            size="small"
+            variant="outlined"
+            label={displayName(item)}
+            title={displayName(item)}
+            sx={{ maxWidth: "100%" }}
+          />
+        ))}
+      </Stack>
+      {hasMore && (
+        <Button
+          size="small"
+          aria-expanded={expanded}
+          onClick={(event: MouseEvent) => {
+            event.stopPropagation();
+            setExpanded((value) => !value);
+          }}
+        >
+          {expanded
+            ? translate("accessRules.showLess")
+            : translate("accessRules.showMore", { count: items.length - limit })}
+        </Button>
+      )}
+    </Stack>
+  );
+};
 
 interface AccessRulesSummaryProps {
   ruleResource: "AllowedWebMapServiceOperation" | "AllowedWebFeatureServiceOperation";
@@ -71,7 +93,7 @@ interface AccessRulesSummaryProps {
 }
 
 /**
- * Read-oriented summary of the access rules configured for one service: which
+ * Summary of the current page of the related access rule list: which
  * groups are allowed to use which operations on which content, and where an
  * allowed area restricts the response spatially. It describes configured
  * rules only; the proxy decides effective access at request time.
@@ -84,12 +106,7 @@ const AccessRulesSummary = ({ ruleResource, serviceId }: AccessRulesSummaryProps
     translate(`accessRules.${key}`, options);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 
-  const rules = useCompleteList(ruleResource, serviceId, {
-    serviceResource: config.serviceResource,
-    jsonApiParams: { include: config.include },
-  });
-  const records = rules.records;
-  const pending = rules.isPending || rules.hasNextPage || rules.isFetchingNextPage;
+  const { data: records = [], isPending, error, refetch } = useListContext();
 
   const selected = useMemo(
     () => records.find((rule) => String(rule.id) === selectedId) ?? records[0],
@@ -106,12 +123,12 @@ const AccessRulesSummary = ({ ruleResource, serviceId }: AccessRulesSummaryProps
     [selectedArea],
   );
 
-  if (rules.error)
+  if (error)
     return (
       <Alert
         severity="error"
         action={
-          <Button onClick={() => void rules.refetch()}>
+          <Button onClick={() => void refetch()}>
             {translate("ra.action.retry")}
           </Button>
         }
@@ -119,7 +136,7 @@ const AccessRulesSummary = ({ ruleResource, serviceId }: AccessRulesSummaryProps
         {message("loadError")}
       </Alert>
     );
-  if (pending) return <Loading />;
+  if (isPending) return <Loading />;
   if (records.length === 0)
     return (
       <Stack spacing={1}>
@@ -165,8 +182,12 @@ const AccessRulesSummary = ({ ruleResource, serviceId }: AccessRulesSummaryProps
                     <NameChips items={relatedRecords(rule.allowedGroups)} />
                   )}
                 </TableCell>
-                <TableCell>
-                  <NameChips items={relatedRecords(rule[config.contentSource])} />
+                <TableCell sx={{ width: "50%", maxWidth: 360 }}>
+                  <NameChips
+                    key={`${ruleResource}-${id}`}
+                    items={relatedRecords(rule[config.contentSource])}
+                    limit={3}
+                  />
                 </TableCell>
                 <TableCell>
                   <Chip

@@ -636,6 +636,8 @@ const en = lodashMerge(
       loadError: "Unable to check for unfinished updates.",
     },
     accessRules: {
+      showMore: "Show %{count} more",
+      showLess: "Show less",
       title: "Configured access rules",
       operations: "Operations",
       groups: "Groups",

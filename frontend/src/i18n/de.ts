@@ -629,6 +629,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loadError: "Offene Aktualisierungen konnten nicht geprüft werden.",
   },
   accessRules: {
+    showMore: "%{count} weitere anzeigen",
+    showLess: "Weniger anzeigen",
     title: "Konfigurierte Zugriffsregeln",
     operations: "Operationen",
     groups: "Gruppen",

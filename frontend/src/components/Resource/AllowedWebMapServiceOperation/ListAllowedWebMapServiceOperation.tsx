@@ -20,6 +20,7 @@ const ListAllowedWebMapServiceOperation = (
   const actions = useMemo(()=>(
     record ? 
     <CustomListActions
+      isConfigureable={!props.listGuesserProps?.listContent}
       additionalActions={
         <MapViewerButton 
           wmsRecord={undefined} 
@@ -29,7 +30,7 @@ const ListAllowedWebMapServiceOperation = (
     />: 
     undefined
 
-  ),[record])
+  ),[record, props.listGuesserProps?.listContent])
 
   return (
     <ListWithDialogs

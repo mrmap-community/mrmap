@@ -110,6 +110,34 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
         self.assertCountEqual(
             TemporaryMdMetadataFile.objects.filter(job_id=1).values_list('pk', flat=True), before)
 
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_recovered_page_is_not_requested_again(self, send_request):
+        """a page which is stored is complete, so a redelivery of it asks nothing of the remote
+        service - the deduplication must be visible in the requests sent and not only in the rows
+        left behind (#688)"""
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+        self.assertEqual(send_request.call_count, 1)
+
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1, recovering=True)
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1, recovering=True)
+
+        self.assertEqual(send_request.call_count, 1)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_page_which_is_missing_is_requested_when_recovering(self, send_request):
+        """the recovery of a worker restart still downloads the pages which never arrived"""
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+        call_fetch_records.delay(harvesting_job_id=1, start_position=11, recovering=True)
+
+        self.assertEqual(send_request.call_count, 2)
+        self.assertEqual(TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 20)
+
 
 
 class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):

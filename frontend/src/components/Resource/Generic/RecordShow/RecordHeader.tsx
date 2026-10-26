@@ -15,9 +15,6 @@ import {
 import {
   Button,
   Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Stack,
   Tooltip,
   Typography,
@@ -25,6 +22,8 @@ import {
 
 import EditGuesser from "../../../../jsonapi/components/EditGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
+import ContextBasedDialog from "../../../Dialog/Dialog";
+import DialogHeader from "../../../Dialog/DialogHeader";
 import RecordFields, { choiceLabel } from "./RecordFields";
 
 const RecordHeader = () => {
@@ -119,20 +118,19 @@ const RecordHeader = () => {
           </Button>
         )}
       </Stack>
-      <Dialog
+      <ContextBasedDialog
         open={editing}
         onClose={() => setEditing(false)}
         maxWidth="lg"
         fullWidth
+        contentDividers={false}
+        title={
+          <DialogHeader onClose={() => setEditing(false)}>
+            {translate("ra.action.edit")} {representation(record)}
+          </DialogHeader>
+        }
       >
-        <DialogTitle>
-          {translate("ra.action.edit")}{" "}
-          <Button onClick={() => setEditing(false)}>
-            {translate("ra.action.close")}
-          </Button>
-        </DialogTitle>
-        <DialogContent>
-          {editing && (
+        {editing && (
             <EditGuesser
               id={record.id}
               resource={resource}
@@ -156,9 +154,8 @@ const RecordHeader = () => {
                 },
               }}
             />
-          )}
-        </DialogContent>
-      </Dialog>
+        )}
+      </ContextBasedDialog>
     </Stack>
   );
 };

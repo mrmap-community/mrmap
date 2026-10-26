@@ -1,14 +1,11 @@
-import { ReactNode } from 'react';
+import { Fragment, ReactNode } from 'react';
 
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
 
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+import ContextBasedDialog from '../../Dialog/Dialog';
+import DialogHeader from '../../Dialog/DialogHeader';
 
 
 export interface InitialFromOwsContextDialogProps {
@@ -20,10 +17,20 @@ export interface InitialFromOwsContextDialogProps {
 const InitialFromOwsContextDialog = ({open, setOpen}: InitialFromOwsContextDialogProps): ReactNode => {
   const { initialFromOwsContext } = useOwsContextBase() 
 
+  const dismiss = () => setOpen(false)
+
   return (
-      <Dialog
+      <ContextBasedDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={dismiss}
+        contentDividers={false}
+        title={<DialogHeader onClose={dismiss}>Initial</DialogHeader>}
+        description="To add a Web Map Service to the current OWS Context, please enter a valid GetCapabilitiesUrl."
+        actions={<Fragment>
+          <Button onClick={dismiss}>Cancel</Button>
+          <Button type="submit" color='primary'>Add</Button>
+        </Fragment>}
+        actionsAlign="flex-end"
         slotProps={{ paper: {
           component: 'form',
           onSubmit: (event: React.FormEvent<HTMLDivElement>) => {
@@ -36,11 +43,7 @@ const InitialFromOwsContextDialog = ({open, setOpen}: InitialFromOwsContextDialo
           },
         } }}
       >
-        <DialogTitle>Initial</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            To add a Web Map Service to the current OWS Context, please enter a valid GetCapabilitiesUrl.
-          </DialogContentText>
+        <Fragment>
           <TextField
             autoFocus
             required
@@ -52,12 +55,8 @@ const InitialFromOwsContextDialog = ({open, setOpen}: InitialFromOwsContextDialo
             fullWidth
             variant="standard"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={()=>setOpen(false)}>Cancel</Button>
-          <Button type="submit" color='primary'>Add</Button>
-        </DialogActions>
-      </Dialog>
+        </Fragment>
+      </ContextBasedDialog>
   );
 }
 

@@ -15,8 +15,8 @@ vi.mock("../../../../jsonapi/hooks/useOperation", () => ({
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () => [{ component: TextField, props: { source: "title" } }],
 }));
-vi.mock("../../../HistoryList", () => ({
-  default: ({ resource }: { resource: string }) => (
+vi.mock("../History/HistoryList", () => ({
+  default: ({ resource }: { resource?: string }) => (
     <div>Recent changes of {resource}</div>
   ),
 }));

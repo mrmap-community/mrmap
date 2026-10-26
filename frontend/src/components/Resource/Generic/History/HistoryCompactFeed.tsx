@@ -1,4 +1,4 @@
-import type { TimelineRecord } from './Resource/Generic/History/HistoryTimeline'
+import type { TimelineRecord } from './HistoryTimeline'
 
 import { type ReactNode, useMemo } from 'react'
 import {
@@ -19,10 +19,10 @@ import UpdateIcon from '@mui/icons-material/Update'
 import { Alert, Button, Typography } from '@mui/material'
 import { camelCase, startCase } from 'lodash'
 
-import { useSelectedRecordContext } from '../jsonapi/components/SelectedRecordContext'
-import ContextBasedDialog from './Dialog/Dialog'
-import { DialogBase, useDialogContextBase } from './Dialog/DialogContextBase'
-import HistoryEventDetails from './Resource/Generic/History/HistoryEventDetails'
+import { useSelectedRecordContext } from '../../../../jsonapi/components/SelectedRecordContext'
+import ContextBasedDialog from '../../../Dialog/Dialog'
+import { DialogBase, useDialogContextBase } from '../../../Dialog/DialogContextBase'
+import HistoryEventDetails from './HistoryEventDetails'
 
 const getIcon = (record: RaRecord): ReactNode => {
   if (record.historyType === 'created') {
@@ -83,17 +83,19 @@ const PrimaryText = ({ record, related, selectedRecord }: PrimaryTextProps): Rea
 }
 
 
-export interface HistoryListProps extends SimpleListProps {
+export interface HistoryCompactFeedProps extends Omit<SimpleListProps, 'resource'> {
+  /** Resource of the changed objects, used for field labels and the "view all" link. */
   related: string
-  record: RaRecord | undefined
+  /** Historical resource to read; defaults to `Historical<related>`. */
+  resource?: string
 }
 
 const HistoryFeed = ({
   related,
-  record: _record,
+  resource = `Historical${related}`,
   sx,
   ...props
-}: HistoryListProps): ReactNode => {
+}: HistoryCompactFeedProps): ReactNode => {
   const { selectedRecord } = useSelectedRecordContext()
   const [locale] = useLocaleState()
   const translate = useTranslate()
@@ -102,7 +104,6 @@ const HistoryFeed = ({
   const jsonApiParams = useMemo(() => {
     const params: Record<string, string | number> = { include: 'historyUser' }
     params['fields[User]'] = 'username,string_representation'
-    params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
     if (selectedRecord?.id !== undefined) {
       params['filter[historyRelation]'] = selectedRecord.id
     }
@@ -110,7 +111,7 @@ const HistoryFeed = ({
   }, [selectedRecord?.id])
 
   const { data, total, isLoading, error } = useGetList(
-    props.resource ?? '',
+    resource,
     {
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
@@ -191,15 +192,14 @@ const HistoryFeed = ({
 
 const EventDialog = (): ReactNode => <ContextBasedDialog />
 
-const HistoryList = ({
+const HistoryCompactFeed = ({
   related,
-  record,
   ...props
-}: HistoryListProps): ReactNode => (
+}: HistoryCompactFeedProps): ReactNode => (
   <DialogBase>
-    <HistoryFeed related={related} record={record} {...props} />
+    <HistoryFeed related={related} {...props} />
     <EventDialog />
   </DialogBase>
 )
 
-export default HistoryList
+export default HistoryCompactFeed

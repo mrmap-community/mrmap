@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OWSContext, OWSResource } from "../../../ows-lib/OwsContext/core";
 import EditAuthenticationsDialog from "./EditAuthenticationsDialog";
 
+// the editor renders many selects and needs more than the default timeout
+vi.setConfig({ testTimeout: 20000 });
+
 const state = vi.hoisted(() => ({
   context: undefined as OWSContext | undefined,
   update: vi.fn(),

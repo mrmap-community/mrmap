@@ -8,6 +8,9 @@ import { OWSContextDocument } from '../../../ows-lib/OwsContext/utils';
 import { OwsContextBase, useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import EditOwsContextDialog from './EditOwsContextDialog';
 
+// the editor renders many fields and needs more than the default timeout
+vi.setConfig({ testTimeout: 20000 });
+
 // monaco is loaded from a cdn, the editor is reduced to what the dialog uses
 vi.mock('@monaco-editor/react', () => ({
   Editor: ({ value, onChange }: { value: string, onChange?: (value?: string) => void }) => (

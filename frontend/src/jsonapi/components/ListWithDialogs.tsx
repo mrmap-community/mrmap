@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { DeleteButton, RecordRepresentation, SaveButton, useRedirect, useResourceContext, useResourceDefinition, useTranslate } from "react-admin";
 import { Route, Routes, useParams, useLocation } from 'react-router-dom';
 
-import CloseIcon from '@mui/icons-material/Close';
-import { Dialog, DialogActions, DialogContent, DialogProps, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
+import { DialogProps } from "@mui/material";
 import { Fragment } from "react/jsx-runtime";
 
+import ContextBasedDialog from '../../components/Dialog/Dialog';
+import DialogHeader from '../../components/Dialog/DialogHeader';
 import CreateGuesser, { CreateGuesserProps } from './CreateGuesser';
 import EditGuesser, { EditGuesserProps } from "./EditGuesser";
 import ListGuesser, { ListGuesserProps } from "./ListGuesser";
@@ -15,6 +16,7 @@ const DialogRoute = (
   {
     children,
     open,
+    onClose: _onClose,
     ...rest
   }: DialogProps
 ) => {
@@ -33,6 +35,7 @@ const DialogRoute = (
   const {name, options} = useResourceDefinition()
   const redirect = useRedirect();
   const translate = useTranslate()
+  const closeToList = () => redirect("list", resource, dialogId)
 
 
 const isCurrentResource = useMemo(() => {
@@ -79,42 +82,16 @@ const isCurrentResource = useMemo(() => {
 
   return (
 
-    <Dialog 
-      open={open ||
+    <ContextBasedDialog
+      open={Boolean(open) ||
         (isCurrentResource && (Boolean(dialogId) || isCreate))}
-      onClose={() => redirect("list", resource, dialogId)}
-      scroll={'paper'}
-      maxWidth={'xl'}
-      fullWidth
-      aria-labelledby="scroll-dialog-title"
-      aria-describedby="scroll-dialog-description"
+      onClose={closeToList}
+      title={<DialogHeader onClose={closeToList}>{title}</DialogHeader>}
+      actions={actions}
       {...rest}
     >
-      <DialogTitle id="scroll-dialog-title">
-        <Stack 
-          direction="row"
-          sx={{
-            justifyContent: "space-between"
-          }}
-        >
-          <Typography variant='h6'>
-            {title}
-          </Typography>
-          <IconButton onClick={() => redirect("list", resource, dialogId)}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-      <DialogContent 
-        dividers={true} 
-        id="scroll-dialog-description"
-      >
-        {children}
-      </DialogContent>
-      <DialogActions style={{ justifyContent: "space-between" }}>
-        {actions}
-      </DialogActions>
-    </Dialog>
+      {children}
+    </ContextBasedDialog>
   )
 }
 

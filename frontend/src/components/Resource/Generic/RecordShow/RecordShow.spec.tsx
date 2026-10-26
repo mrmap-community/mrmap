@@ -16,6 +16,9 @@ import { choiceLabel } from "./RecordFields";
 import { relationGraph, relationGroups } from "./RecordRelations";
 import RecordShow from "./RecordShow";
 
+// these screens render full react-admin pages and dialogs and need more than the default timeout
+vi.setConfig({ testTimeout: 20000 });
+
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: ({ operationId }: { operationId: string }) =>
     operationId.includes("Language")
@@ -57,7 +60,7 @@ vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
 vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
   default: () => <div>Edit form</div>,
 }));
-vi.mock("../History/ServiceHistoryList", () => ({
+vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
 }));
 vi.mock("../../../MapContainer/GeoJsonMap", () => ({

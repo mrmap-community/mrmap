@@ -20,6 +20,18 @@
   },
   "packageRules": [
     {
+      "description": "Keep TypeScript compatible with typescript-eslint 8.72.0",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "Keep Django compatible with django-celery-beat 2.9.0",
+      "matchManagers": ["pip_requirements"],
+      "matchPackageNames": ["Django"],
+      "allowedVersions": "<6.1"
+    },
+    {
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "frontend non-major dependencies"

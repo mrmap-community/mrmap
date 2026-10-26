@@ -48,6 +48,12 @@ const en = lodashMerge(
         licence: "No licence",
       },
     },
+    drawer: {
+      openRight: "Open side panel",
+      closeRight: "Close side panel",
+      openBottom: "Open bottom panel",
+      closeBottom: "Close bottom panel",
+    },
     viewerControls: {
       selectLayer: "Select a layer in the tree to edit its style and dimensions.",
       edit: "Edit %{layer}",

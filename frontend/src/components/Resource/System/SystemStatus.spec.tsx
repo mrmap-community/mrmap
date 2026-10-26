@@ -129,3 +129,94 @@ describe('global system status', () => {
         expect(container).toBeEmptyDOMElement();
     });
 });
+
+describe('system status polling', () => {
+    const refetch = vi.fn();
+
+    type PollingOptions = {
+        refetchInterval: (query: { state: { error: unknown } }) => number | false,
+        refetchIntervalInBackground: boolean,
+    };
+
+    // The options the provider last handed to the query are what an instance of
+    // MrMap would poll with; the query itself is react-admin's.
+    const pollingOptions = () => vi.mocked(useGetOne).mock.calls.at(-1)?.[2] as unknown as PollingOptions;
+    const interval = (error: unknown = null) => pollingOptions().refetchInterval({ state: { error } });
+
+    /** Pretends the user left or returned, the way a browser tells the page about it. */
+    const setPageActive = (active: boolean, reason: 'visibilitychange' | 'focus' = 'visibilitychange') => {
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(active ? 'visible' : 'hidden');
+        vi.spyOn(document, 'hasFocus').mockReturnValue(active);
+        act(() => {
+            if (reason === 'visibilitychange') document.dispatchEvent(new Event('visibilitychange'));
+            else window.dispatchEvent(new Event(active ? 'focus' : 'blur'));
+        });
+    };
+
+    beforeEach(() => {
+        refetch.mockClear();
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+        vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        vi.mocked(useGetOne, { partial: true })
+            .mockReturnValue({ data: snapshot(), isPending: false, refetch });
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('polls while the page is visible and focused', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        expect(interval()).toBe(15000);
+        expect(pollingOptions().refetchIntervalInBackground).toBe(false);
+        expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it('pauses while the tab is hidden', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        setPageActive(false);
+        expect(interval()).toBe(false);
+        expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it('pauses while the window is unfocused', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        setPageActive(false, 'focus');
+        expect(interval()).toBe(false);
+    });
+
+    it('resumes and refreshes the status when the tab becomes visible again', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        setPageActive(false);
+        setPageActive(true);
+        expect(refetch).toHaveBeenCalledTimes(1);
+        expect(interval()).toBe(15000);
+    });
+
+    it('resumes and refreshes the status when the window regains focus', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        setPageActive(false, 'focus');
+        setPageActive(true, 'focus');
+        expect(refetch).toHaveBeenCalledTimes(1);
+        expect(interval()).toBe(15000);
+    });
+
+    it('does not request anything while it stays active', () => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        setPageActive(true);
+        setPageActive(true);
+        expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it.each([401, 403])('keeps polling stopped after HTTP %s also when the page is active', status => {
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        const error = Object.assign(new Error('Forbidden'), { response: { status } });
+        setPageActive(false);
+        setPageActive(true);
+        expect(interval(error)).toBe(false);
+    });
+
+    it('does not poll a page which was already hidden when the panel was mounted', () => {
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
+        expect(interval()).toBe(false);
+        expect(refetch).not.toHaveBeenCalled();
+    });
+});

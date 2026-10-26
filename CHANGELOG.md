@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The capabilities document of a stored WMS or WFS publishes the dataset coupling a curator maintains in MrMap: a curated relation of a layer or feature type adds a metadata reference which points to the iso record of the linked dataset, beside the references which were imported with the document (#674).
 
 ### Changed
+- The system status of the app bar stops polling `/api/system/status/current` while the MrMap tab is hidden or its window is unfocused and refreshes the displayed status as soon as the user returns (#749).
 - A metadata reference of an imported capabilities document is published as it was imported and is removed only if the database does not know its link anymore; a reference which holds no online resource is no longer published, because it is not valid xml (#674).
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.
 - The history chart of a resource counts the changes per day of the last 30 days as stacked bars of the additions, the updates and the deletions, draws the inventory as a line above them and names the time, the unit and the resource it counts in a caption; a resource which answers no statistics, a request which is still asked and a request which failed are told apart from a resource without any change (#601).

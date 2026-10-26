@@ -66,7 +66,7 @@ describe("layer selection scrolling with the real MUI tree", () => {
   it("reveals the selected item using MUI's DOM lookup", () => {
     const { getByRole } = renderTree();
     expect(getByRole("treeitem", { name: "layer-1" })).toHaveAttribute(
-      "aria-checked",
+      "aria-selected",
       "true",
     );
     expect(scrollTo).toHaveBeenCalledWith({ top: 316, behavior: "smooth" });
@@ -74,8 +74,12 @@ describe("layer selection scrolling with the real MUI tree", () => {
   it("uses the controlled selection instead of the URL default", () => {
     const { getByRole } = renderTree("layer-2");
     expect(getByRole("treeitem", { name: "layer-2" })).toHaveAttribute(
-      "aria-checked",
+      "aria-selected",
       "true",
+    );
+    expect(getByRole("treeitem", { name: "layer-1" })).toHaveAttribute(
+      "aria-selected",
+      "false",
     );
     expect(scrollTo).toHaveBeenCalledWith({ top: 316, behavior: "smooth" });
   });

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { SortPayload } from "react-admin";
 
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +8,11 @@ import WorkQueueCard, { workQueues } from "./WorkQueueCard";
 
 const state = vi.hoisted(() => ({
   /** what every queue asked the api for, in the order the card asks it */
-  asked: [] as { resource: string; filter?: Record<string, unknown> }[],
+  asked: [] as {
+    resource: string;
+    filter?: Record<string, unknown>;
+    sort?: SortPayload;
+  }[],
   /** the total the api answered per resource */
   totals: {} as Record<string, number>,
 }));
@@ -16,11 +21,13 @@ vi.mock("../../../jsonapi/components/Count", () => ({
   Count: ({
     resource,
     filter,
+    sort,
   }: {
     resource: string;
     filter?: Record<string, unknown>;
+    sort?: SortPayload;
   }) => {
-    state.asked.push({ resource, filter });
+    state.asked.push({ resource, filter, sort });
     return <>{state.totals[resource] ?? 0}</>;
   },
 }));
@@ -75,16 +82,26 @@ describe("WorkQueueCard", () => {
   it("counts every queue by the api with the filter its link carries", () => {
     render(<WorkQueueCard />);
     expect(state.asked).toEqual([
-      { resource: "ServiceAlert", filter: undefined },
+      {
+        resource: "ServiceAlert",
+        filter: undefined,
+        sort: { field: "severity,-occurredAt", order: "ASC" },
+      },
       {
         resource: "ServiceAlert",
         filter: { category: "update_review_required" },
+        sort: { field: "severity,-occurredAt", order: "ASC" },
       },
       {
         resource: "BackgroundProcess",
         filter: { status: "pending,running" },
+        sort: undefined,
       },
-      { resource: "BackgroundProcess", filter: { status: "failed" } },
+      {
+        resource: "BackgroundProcess",
+        filter: { status: "failed" },
+        sort: undefined,
+      },
     ]);
   });
 

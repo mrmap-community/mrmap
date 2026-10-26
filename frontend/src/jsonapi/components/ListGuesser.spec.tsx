@@ -31,7 +31,7 @@ vi.mock('react-admin', async importOriginal => ({
   useStore: () => [[], vi.fn()],
 }))
 vi.mock('react-router-dom', () => ({ useParams: () => ({}) }))
-vi.mock('../../components/HistoryList', () => ({ default: () => null }))
+vi.mock('../../components/Resource/Generic/History/HistoryList', () => ({ default: () => null }))
 vi.mock('../../components/Layout/AsideCard', () => ({ default: () => null }))
 vi.mock('../../components/Lists/CustomListActions', () => ({ default: () => null }))
 vi.mock('../../components/Lists/Empty', () => ({ default: () => null }))

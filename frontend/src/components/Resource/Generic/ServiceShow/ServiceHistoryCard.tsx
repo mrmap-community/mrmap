@@ -3,8 +3,8 @@ import { useRecordContext, useResourceContext } from 'react-admin';
 
 import useOperation from '../../../../jsonapi/hooks/useOperation';
 import { harvestHistorySource } from '../../CatalogueService/Show/harvestHistorySource';
+import HistoryList from '../History/HistoryList';
 import { historicalSource } from '../History/historySources';
-import ServiceHistoryList from '../History/ServiceHistoryList';
 
 const ServiceHistoryCard = () => {
   const resource = useResourceContext();
@@ -21,7 +21,7 @@ const ServiceHistoryCard = () => {
     }
   }, [resource, record?.id]);
   if (!operation || !record || !sources.length) return null;
-  return <ServiceHistoryList key={`${resource}:${record.id}`} sources={sources} record={record} />;
+  return <HistoryList variant="timeline" key={`${resource}:${record.id}`} sources={sources} record={record} />;
 }
 
 

@@ -28,6 +28,7 @@ from registry.managers.service import (CatalogueServiceManager, LayerManager,
                                        WebFeatureServiceQuerySet,
                                        WebMapServiceQuerySet)
 from registry.mappers.configs import XPATH_MAP
+from registry.mappers.parsers.metadata_links import PublishedMetadataLink
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.xml_mapper import XmlMapper
 from registry.models.document import CapabilitiesDocumentModelMixin
@@ -573,6 +574,62 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
             except NoReverseMatch:
                 pass
         return ""
+
+    def published_metadata_links(self) -> list:
+        """ Return the metadata references this element publishes in its capabilities document.
+
+            This is the single source of the ``MetadataURL`` elements of a layer or
+            feature type. It implements the coupling policy of MrMap, see
+            :class:`registry.querys.metadata.MetadataRelationQuerySet`:
+
+            * the references which were imported with the capabilities document
+              (``remote_metadata``) are published as they are,
+            * the curated links of a curator
+              (:class:`registry.models.metadata.MetadataRelation`) are published as an
+              additional reference,
+            * local only relations are not published at all.
+
+            A publishable relation whose dataset metadata record has no resolvable
+            origin url can not be published. Such a relation is reported explicitly and
+            left out of the result.
+
+            :return: the links to publish, imported references first
+            :rtype: list[:class:`registry.mappers.parsers.metadata_links.PublishedMetadataLink`]
+        """
+        links = []
+        published_links = set()
+
+        for remote_metadata in self.remote_metadata.all():
+            if remote_metadata.link and remote_metadata.link not in published_links:
+                published_links.add(remote_metadata.link)
+                links.append(PublishedMetadataLink(link=remote_metadata.link))
+
+        # The managers of the services prefetch the publishable relations of every
+        # element of a service, see
+        # registry.managers.service.WebMapServiceQuerySet.prefetch_whole_service. They
+        # are filtered again here for the elements which are not loaded that way, and
+        # are sorted, so that the same state always publishes the same document.
+        relations = sorted(
+            (relation for relation in self.metadata_relations.all()
+             if relation.is_publishable),
+            key=lambda relation: relation.pk)
+
+        for relation in relations:
+            link = relation.publication_url
+            if not link:
+                logger.warning(
+                    f"Can not publish metadata relation {relation.pk} of "
+                    f"{self.__class__.__name__} {self.pk}: "
+                    f"{'; '.join(relation.publication_blockers)}")
+                continue
+            if link in published_links:
+                # the curated link is the same reference as an imported one, the
+                # imported reference is already published.
+                continue
+            published_links.add(link)
+            links.append(PublishedMetadataLink(link=link))
+
+        return links
 
 
 class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):

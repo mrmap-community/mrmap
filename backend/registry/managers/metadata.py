@@ -1,7 +1,8 @@
 from logging import Logger
 from django.conf import settings
 from django.db import models
-from registry.querys.metadata import TimeExtentQuerySet
+from registry.querys.metadata import (MetadataRelationQuerySet,
+                                      TimeExtentQuerySet)
 from extras.managers import UniqueConstraintDefaultValueManager
 
 
@@ -56,3 +57,21 @@ class TimeExtentManager(models.Manager):
 
     def with_effective_timerange(self):
         return self.get_queryset().with_effective_timerange()
+
+
+class MetadataRelationManager(models.Manager):
+    """ Manager which exposes the coupling policy of MrMap, see
+        :class:`registry.querys.metadata.MetadataRelationQuerySet`.
+    """
+
+    def get_queryset(self):
+        return MetadataRelationQuerySet(self.model, using=self._db)
+
+    def imported_evidence(self):
+        return self.get_queryset().imported_evidence()
+
+    def local_only(self):
+        return self.get_queryset().local_only()
+
+    def publishable(self):
+        return self.get_queryset().publishable()

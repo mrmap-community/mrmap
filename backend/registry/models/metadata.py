@@ -19,11 +19,13 @@ from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
                                 MetadataCharsetChoices, UpdateFrequencyChoices)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
+                                     MetadataRelationPublicationEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
+                                        MetadataRelationManager,
                                         ServiceMetadataRecordManager,
                                         TimeExtentManager)
 from registry.mappers.factory import MDMetadataXmlMapper
@@ -793,6 +795,14 @@ class MetadataRelation(models.Model):
         This is the most important table in the system, to find concrete service data!
         This cross table allows us to join all the different model types in one database query
 
+        Publication:
+        Not every relation is published in the xml MrMap serves. The coupling policy is
+        implemented by :class:`registry.querys.metadata.MetadataRelationQuerySet` and
+        described in :attr:`publication_kind`. Only relations which are added by a curator
+        with `origin=EDITOR` and `is_internal=True` contribute a metadata reference to the
+        capabilities document of the related resource, see
+        :attr:`registry.models.service.ServiceElement.published_metadata_links`.
+
     """
     # resource relations
     layer = models.ForeignKey(to="registry.Layer",
@@ -850,6 +860,8 @@ class MetadataRelation(models.Model):
                                               verbose_name=_("origin"),
                                               help_text=_("determines where this relation was found or it is added by a user."))
 
+    objects = MetadataRelationManager()
+
     class Meta:
 
         constraints = [
@@ -879,6 +891,68 @@ class MetadataRelation(models.Model):
                 fields=["service_metadata", "wfs"]
             )
         ]
+
+    @property
+    def publication_kind(self):
+        """ Return the kind of publication this relation contributes to the published xml.
+
+            :return: the calculated publication kind
+            :rtype: :class:`registry.enums.metadata.MetadataRelationPublicationEnum`
+        """
+        if not self.is_internal:
+            return MetadataRelationPublicationEnum.IMPORTED_EVIDENCE
+        if self.origin == MetadataOriginEnum.EDITOR.value:
+            return MetadataRelationPublicationEnum.CURATED_PUBLICATION
+        return MetadataRelationPublicationEnum.LOCAL_ONLY
+
+    @property
+    def is_publishable(self) -> bool:
+        """ Return True if a curator added this relation with the intention to publish it. """
+        return self.publication_kind == MetadataRelationPublicationEnum.CURATED_PUBLICATION
+
+    @property
+    def publication_url(self) -> str:
+        """ Return the url which represents this relation in the published xml.
+
+            The published reference is the location of the iso metadata document the
+            linked dataset record was imported from. It is an empty string if the
+            coupling can not be resolved to a printable location, see
+            :attr:`publication_blockers`.
+
+            :return: the url to publish or an empty string
+            :rtype: str
+        """
+        if not self.is_publishable:
+            return ""
+        dataset = self.dataset_metadata
+        if not dataset:
+            return ""
+        return dataset.origin_url or ""
+
+    @property
+    def publication_blockers(self) -> list:
+        """ Return the reasons why this relation is not published.
+
+            The strings are diagnostics for registry curators and are not translated.
+
+            :return: a list with a reason for each blocker, empty if the relation is published
+            :rtype: list
+        """
+        blockers = []
+        if not self.is_publishable:
+            blockers.append(
+                f"relation of kind '{self.publication_kind.label}' is not intended for publication")
+            return blockers
+        if not self.dataset_metadata:
+            blockers.append(
+                "relation does not link a dataset metadata record, which is the only "
+                "relation kind with a xml representation for a service element")
+            return blockers
+        if not self.dataset_metadata.origin_url:
+            blockers.append(
+                f"dataset metadata record '{self.dataset_metadata.file_identifier}' has no "
+                f"origin url to publish")
+        return blockers
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):

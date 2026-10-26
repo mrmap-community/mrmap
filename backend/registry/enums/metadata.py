@@ -31,6 +31,28 @@ class MetadataOriginEnum(SmartIntegerChoices):
     CATALOGUE = 5, _("Catalogue")
 
 
+class MetadataRelationPublicationEnum(SmartIntegerChoices):
+    """ Defines how a MetadataRelation contributes to the xml which MrMap publishes.
+
+        The kind is never persisted. It is calculated from the provenance fields
+        `origin` and `is_internal` of the relation, see
+        :meth:`registry.models.metadata.MetadataRelation.publication_kind`.
+
+        Note: This is no choice of a model field and is only used to report the
+        coupling of a relation, thats why the labels are not translated.
+    """
+    # The relation only documents a link which was found in a imported document. The
+    # link it self is stored in the related *RemoteMetadata model and is published
+    # through it, the relation adds nothing to the published xml.
+    IMPORTED_EVIDENCE = 1, "Imported evidence"
+    # The relation was created by a user but is not intended for publication. MrMap
+    # knows the coupling, but no client shall see it.
+    LOCAL_ONLY = 2, "Local only"
+    # The relation was created by a curator and shall be published. It is the only
+    # kind which contributes a new node to the published xml.
+    CURATED_PUBLICATION = 3, "Curated publication"
+
+
 class DatasetFormatEnum(SmartIntegerChoices):
     DATABASE = 1, _("Database")
     ESRI_SHAPE = 2, _("Esri shape")

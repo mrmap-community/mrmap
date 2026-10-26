@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Alerts of a service answer which monitoring run, update job or harvesting job decided them, and the attention tab of a service links to that record (#596).
 - The aside of a screen of services answers the selected service first: its states which need attention, the outcome of its last monitoring run and update job and a direct way to its screen (#597).
 - Work queue card on the dashboard which counts the alerts, the update reviews and the running and failed background work of everything the user may see, and links to the list of those very records (#601).
+- The capabilities document of a stored WMS or WFS publishes the dataset coupling a curator maintains in MrMap: a curated relation of a layer or feature type adds a metadata reference which points to the iso record of the linked dataset, beside the references which were imported with the document (#674).
 
 ### Changed
+- A metadata reference of an imported capabilities document is published as it was imported and is removed only if the database does not know its link anymore; a reference which holds no online resource is no longer published, because it is not valid xml (#674).
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.
 - The history chart of a resource counts the changes per day of the last 30 days as stacked bars of the additions, the updates and the deletions, draws the inventory as a line above them and names the time, the unit and the resource it counts in a caption; a resource which answers no statistics, a request which is still asked and a request which failed are told apart from a resource without any change (#601).
 

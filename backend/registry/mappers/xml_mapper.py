@@ -487,8 +487,14 @@ class XmlMapper:
             elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
                 # related model
                 nsmap = self.mapping.get("_namespaces", {})
+                reverse = xpath_or_spec.get("_reverse", {}) or {}
+                # A spec may render an other set of instances than the relation it is
+                # parsed from. The name of a zero argument method of db_instance which
+                # returns the instances to render. Using it implies a 'many' relation.
+                source_name = reverse.get("_source")
                 field = getattr(db_instance, field_name, None)
-                is_many = is_many_relation(db_instance.__class__, field_name)
+                is_many = True if source_name else is_many_relation(
+                    db_instance.__class__, field_name)
                 base_xpath = xpath_or_spec.get("_base_xpath", ".")
 
                 try:
@@ -502,7 +508,10 @@ class XmlMapper:
                     raise ValueError(msg)
                 if is_many:
 
-                    for related_obj in field.all():
+                    related_instances = getattr(
+                        db_instance, source_name)() if source_name else field.all()
+
+                    for related_obj in related_instances:
                         synced = self.sync_xml_with_instance(
                             xml_element,
                             xpath_or_spec,
@@ -513,6 +522,14 @@ class XmlMapper:
 
                     for elem in delete_able_elements.values():
                         remove_element_or_attribute(elem, ".", nsmap)
+
+                    # Remove wrapper elements which lost their last meaningfull child
+                    # while syncing, because they are not valid xml anymore.
+                    for prune_xpath in reverse.get("_prune", []):
+                        for orphan in xml_element.xpath(prune_xpath, namespaces=nsmap):
+                            parent = orphan.getparent()
+                            if parent is not None:
+                                parent.remove(orphan)
                 else:
                     if not field:
                         # happens if a one to one kind relation is None.

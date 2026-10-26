@@ -58,6 +58,16 @@ class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
             )
         )
 
+        # the published metadata links of a layer are rendered out of its remote
+        # metadata and its publishable metadata relations, see
+        # registry.models.service.ServiceElement.published_metadata_links
+        metadata_relations_prefetch = Prefetch(
+            "metadata_relations",
+            queryset=models.MetadataRelation.objects.publishable().select_related(
+                "dataset_metadata"
+            )
+        )
+
         layer_prefetch = Prefetch(
             "layers",
             Layer.objects.select_related(
@@ -65,6 +75,8 @@ class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
             ).prefetch_related(
                 "keywords",
                 "reference_systems",
+                "remote_metadata",
+                metadata_relations_prefetch,
                 "time_extents",
                 styles_prefetch
             ).annotate(
@@ -103,10 +115,20 @@ class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
 
 class WebFeatureServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
     def prefetch_whole_service(self) -> "WebFeatureServiceQuerySet":
+        # the published metadata links of a feature type are rendered out of its remote
+        # metadata and its publishable metadata relations, see
+        # registry.models.service.ServiceElement.published_metadata_links
         featuretypes = Prefetch(
             "featuretypes",
             queryset=models.FeatureType.objects.prefetch_related(
-                "keywords", "output_formats", "reference_systems"),
+                "keywords", "output_formats", "reference_systems", "remote_metadata",
+                Prefetch(
+                    "metadata_relations",
+                    queryset=models.MetadataRelation.objects.publishable().select_related(
+                        "dataset_metadata"
+                    )
+                )
+            ),
         )
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls__mime_types", "keywords", featuretypes

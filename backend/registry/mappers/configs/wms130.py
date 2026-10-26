@@ -228,7 +228,10 @@ XPATH_MAP = {
                             "_model": "registry.LayerRemoteMetadata",
                             "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
                             "_create_mode": "bulk",
+                            "_reverse_parser": "registry.mappers.parsers.metadata_links.serialize_wms_metadata_url",
                             "_reverse": {
+                                "_source": "published_metadata_links",
+                                "_prune": ["./wms:MetadataURL[not(wms:OnlineResource)]"],
                                 "_identifier": {
                                     "xpath": "./wms:MetadataURL/wms:OnlineResource[@xlink:href='{link}']",
                                 },

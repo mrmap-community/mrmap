@@ -202,7 +202,9 @@ XPATH_MAP = {
                             "_model": "registry.FeatureTypeRemoteMetadata",
                             "_base_xpath": "./wfs:MetadataURL",
                             "_create_mode": "bulk",
+                            "_reverse_parser": "registry.mappers.parsers.metadata_links.serialize_wfs_metadata_url",
                             "_reverse": {
+                                "_source": "published_metadata_links",
                                 "_identifier": {
                                     "xpath": "./wfs:MetadataURL[@xlink:href='{link}']",
                                 },

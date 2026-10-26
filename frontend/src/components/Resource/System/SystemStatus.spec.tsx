@@ -1,6 +1,7 @@
-import { useGetOne, useRedirect } from 'react-admin';
+import { AdminContext, testDataProvider, useGetOne, useRedirect } from 'react-admin';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { focusManager, QueryClient } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SystemStatusProvider } from '../../../context/SystemStatusContext';
@@ -131,92 +132,96 @@ describe('global system status', () => {
 });
 
 describe('system status polling', () => {
-    const refetch = vi.fn();
+    const getOne = vi.fn();
+    let queryClient: QueryClient;
 
-    type PollingOptions = {
-        refetchInterval: (query: { state: { error: unknown } }) => number | false,
-        refetchIntervalInBackground: boolean,
-    };
-
-    // The options the provider last handed to the query are what an instance of
-    // MrMap would poll with; the query itself is react-admin's.
-    const pollingOptions = () => vi.mocked(useGetOne).mock.calls.at(-1)?.[2] as unknown as PollingOptions;
-    const interval = (error: unknown = null) => pollingOptions().refetchInterval({ state: { error } });
-
-    /** Pretends the user left or returned, the way a browser tells the page about it. */
-    const setPageActive = (active: boolean, reason: 'visibilitychange' | 'focus' = 'visibilitychange') => {
-        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(active ? 'visible' : 'hidden');
-        vi.spyOn(document, 'hasFocus').mockReturnValue(active);
-        act(() => {
-            if (reason === 'visibilitychange') document.dispatchEvent(new Event('visibilitychange'));
-            else window.dispatchEvent(new Event(active ? 'focus' : 'blur'));
+    const renderProvider = async () => {
+        await act(async () => {
+            render(
+                <AdminContext dataProvider={testDataProvider({ getOne })} queryClient={queryClient}>
+                    <SystemStatusProvider>{null}</SystemStatusProvider>
+                </AdminContext>,
+            );
         });
     };
 
-    beforeEach(() => {
-        refetch.mockClear();
+    const setTabVisible = async (visible: boolean) => {
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(visible ? 'visible' : 'hidden');
+        await act(async () => window.dispatchEvent(new Event('visibilitychange')));
+    };
+
+    const advanceTime = async (milliseconds: number) => {
+        await act(async () => vi.advanceTimersByTimeAsync(milliseconds));
+    };
+
+    beforeEach(async () => {
+        const actual = await vi.importActual<typeof import('react-admin')>('react-admin');
+        vi.mocked(useGetOne).mockImplementation(actual.useGetOne);
+        vi.useFakeTimers();
         vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
-        vi.spyOn(document, 'hasFocus').mockReturnValue(true);
-        vi.mocked(useGetOne, { partial: true })
-            .mockReturnValue({ data: snapshot(), isPending: false, refetch });
+        focusManager.setFocused(undefined);
+        getOne.mockReset();
+        getOne.mockResolvedValue({ data: snapshot() });
+        queryClient = new QueryClient();
     });
-    afterEach(() => vi.restoreAllMocks());
-
-    it('polls while the page is visible and focused', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        expect(interval()).toBe(15000);
-        expect(pollingOptions().refetchIntervalInBackground).toBe(false);
-        expect(refetch).not.toHaveBeenCalled();
-    });
-
-    it('pauses while the tab is hidden', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        setPageActive(false);
-        expect(interval()).toBe(false);
-        expect(refetch).not.toHaveBeenCalled();
+    afterEach(() => {
+        cleanup();
+        queryClient.clear();
+        vi.restoreAllMocks();
+        focusManager.setFocused(undefined);
     });
 
-    it('pauses while the window is unfocused', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        setPageActive(false, 'focus');
-        expect(interval()).toBe(false);
+    it('polls every 15 seconds while the tab is visible', async () => {
+        await renderProvider();
+        expect(getOne).toHaveBeenCalledTimes(1);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(2);
     });
 
-    it('resumes and refreshes the status when the tab becomes visible again', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        setPageActive(false);
-        setPageActive(true);
-        expect(refetch).toHaveBeenCalledTimes(1);
-        expect(interval()).toBe(15000);
+    it('pauses while the tab is hidden', async () => {
+        await renderProvider();
+        await setTabVisible(false);
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
     });
 
-    it('resumes and refreshes the status when the window regains focus', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        setPageActive(false, 'focus');
-        setPageActive(true, 'focus');
-        expect(refetch).toHaveBeenCalledTimes(1);
-        expect(interval()).toBe(15000);
+    it('keeps polling a visible tab when the window loses focus', async () => {
+        await renderProvider();
+        vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+        fireEvent.blur(window);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(2);
     });
 
-    it('does not request anything while it stays active', () => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        setPageActive(true);
-        setPageActive(true);
-        expect(refetch).not.toHaveBeenCalled();
+    it('refreshes immediately and resumes polling when the tab becomes visible', async () => {
+        await renderProvider();
+        await setTabVisible(false);
+        await advanceTime(30000);
+        await setTabVisible(true);
+        expect(getOne).toHaveBeenCalledTimes(2);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(3);
     });
 
-    it.each([401, 403])('keeps polling stopped after HTTP %s also when the page is active', status => {
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        const error = Object.assign(new Error('Forbidden'), { response: { status } });
-        setPageActive(false);
-        setPageActive(true);
-        expect(interval(error)).toBe(false);
+    it('does not refetch when the visible window regains focus', async () => {
+        await renderProvider();
+        fireEvent.blur(window);
+        fireEvent.focus(window);
+        await advanceTime(0);
+        expect(getOne).toHaveBeenCalledTimes(1);
     });
 
-    it('does not poll a page which was already hidden when the panel was mounted', () => {
+    it.each([401, 403])('stops polling after HTTP %s', async status => {
+        getOne.mockRejectedValue(Object.assign(new Error('Forbidden'), { response: { status } }));
+        await renderProvider();
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not poll after the initial request when mounted in a hidden tab', async () => {
         vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
-        render(<SystemStatusProvider><SystemStatus /></SystemStatusProvider>);
-        expect(interval()).toBe(false);
-        expect(refetch).not.toHaveBeenCalled();
+        await renderProvider();
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
     });
 });

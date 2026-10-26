@@ -118,8 +118,12 @@ non-default values; its tooltip lists the selected values.
 Select Identify and click a location, or right-click the map, to fetch GetFeatureInfo
 results. The viewer shows results in an overlay inspector without moving or resizing
 the map, using a side panel on larger screens and a bottom sheet on smaller screens.
+Every queryable layer is asked with its own request, because a service may spend the
+FEATURE_COUNT of a combined query on its first layers and leave the rest of them empty;
+the layers of one service still share one map request.
 Protected requests use their assigned headers; unprotected requests are fetched directly.
-The inspector shows loading, empty and error states, with retry for failed requests.
+The inspector shows loading, empty and error states per layer, with retry for failed
+requests.
 JSON feature collections support feature navigation. HTML tables are extracted as text
 and table structure; remote scripts and other active markup are never executed.
 The raw response can be expanded and downloaded. Collapse the inspector to uncover

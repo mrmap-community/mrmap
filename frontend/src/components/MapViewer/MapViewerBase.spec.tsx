@@ -28,47 +28,65 @@ const documentWithBbox = (bbox: number[]) => ({
 });
 
 /**
- * A document with one activated WMS layer which may advertise scale limits; its GetMap and
+ * An activated WMS layer of one endpoint which may advertise scale limits; its GetMap and
  * GetFeatureInfo operations are activated independently, the way the layer tree does.
  */
-const documentWithLayer = (limits: Record<string, number> = {}) => ({
-  ...documentWithBbox([0, 0, 4, 8]),
-  features: [
-    {
-      type: "Feature",
-      id: "group",
-      properties: { title: "group", updated: "2026-10-21T00:00:00Z", folder: "/0" },
-    },
-    {
-      type: "Feature",
-      id: "layer",
-      properties: {
-        title: "layer",
-        updated: "2026-10-21T00:00:00Z",
-        folder: "/0/0",
-        active: true,
-        ...limits,
-        offerings: [
+const layerFeature = (
+  name: string,
+  folder: string,
+  limits: Record<string, number> = {},
+) => ({
+  type: "Feature",
+  id: name,
+  properties: {
+    title: name,
+    updated: "2026-10-21T00:00:00Z",
+    folder,
+    active: true,
+    ...limits,
+    offerings: [
+      {
+        code: "http://www.opengis.net/spec/owc/1.0/req/wms",
+        operations: [
           {
-            code: "http://www.opengis.net/spec/owc/1.0/req/wms",
-            operations: [
-              {
-                code: "GetMap",
-                method: "GET",
-                active: true,
-                href: "https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=layer",
-              },
-              {
-                code: "GetFeatureInfo",
-                method: "GET",
-                active: true,
-                href: "https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=layer&QUERY_LAYERS=layer",
-              },
-            ],
+            code: "GetMap",
+            method: "GET",
+            active: true,
+            href: `https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=${name}`,
+          },
+          {
+            code: "GetFeatureInfo",
+            method: "GET",
+            active: true,
+            href: `https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=${name}&QUERY_LAYERS=${name}`,
           },
         ],
       },
-    },
+    ],
+  },
+});
+
+const groupFeature = {
+  type: "Feature",
+  id: "group",
+  properties: { title: "group", updated: "2026-10-21T00:00:00Z", folder: "/0" },
+};
+
+/** a document with one activated WMS layer */
+const documentWithLayer = (limits: Record<string, number> = {}) => ({
+  ...documentWithBbox([0, 0, 4, 8]),
+  features: [groupFeature, layerFeature("layer", "/0/0", limits)],
+});
+
+/**
+ * A document with several activated layers of the same endpoint, the way an import hands them over:
+ * all of them are renderable and queryable at the very same URL.
+ */
+const documentWithLayers = (names: string[]) => ({
+  ...documentWithBbox([0, 0, 4, 8]),
+  features: [
+    groupFeature,
+    ...names.map((name, index) => layerFeature(name, `/0/${index}`)),
   ],
 });
 
@@ -139,7 +157,13 @@ const Viewer = ({ map }: { map: ReturnType<typeof createMap> }) => {
         })}
       </p>
       <p data-testid="getmap">{JSON.stringify(atomicGetMapUrls.map((batch) => batch.features.length))}</p>
-      <p data-testid="getfeatureinfo">{String(atomicGetFeatureInfoUrls.length)}</p>
+      <p data-testid="getfeatureinfo">
+        {JSON.stringify(
+          atomicGetFeatureInfoUrls.map((query) =>
+            query.url.searchParams.get("QUERY_LAYERS"),
+          ),
+        )}
+      </p>
       <p data-testid="mapactivation">
         {String(layer?.getWmsOperationByCode("GetMap")?.active ?? false)}
       </p>
@@ -158,6 +182,9 @@ const Viewer = ({ map }: { map: ReturnType<typeof createMap> }) => {
       </button>
       <button onClick={() => updateOwsContext(documentWithLayer())}>
         Load layer without a scale limit
+      </button>
+      <button onClick={() => updateOwsContext(documentWithLayers(["water", "roads", "labels"]))}>
+        Load layers of one service
       </button>
       <button
         onClick={() =>
@@ -351,6 +378,10 @@ const loadPlainLayer = () =>
   fireEvent.click(
     screen.getByRole("button", { name: "Load layer without a scale limit" }),
   );
+const loadLayersOfOneService = () =>
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load layers of one service" }),
+  );
 const mapBatches = () => screen.getByTestId("getmap").textContent;
 const featureInfoRequests = () =>
   screen.getByTestId("getfeatureinfo").textContent;
@@ -373,7 +404,7 @@ describe("layer scale limits", () => {
     // the user activated GetMap and GetFeatureInfo independently; the scale limit only
     // suppresses the rendering and never changes the activation (#606)
     expect(mapActivation()).toBe("true");
-    expect(featureInfoRequests()).toBe("1");
+    expect(featureInfoRequests()).toBe('["layer"]');
   });
 
   it("requests the layer once the view is within the advertised limits and again when it leaves them", () => {
@@ -396,6 +427,21 @@ describe("layer scale limits", () => {
     expect(mapBatches()).toBe("[1]");
     pan(map, [0, 0, 80, 40]);
     expect(mapBatches()).toBe("[1]");
+  });
+});
+
+describe("feature info queries", () => {
+  // the query of a clicked pixel names the layers to look at. WMS counts FEATURE_COUNT per layer,
+  // but servers spend it on the whole answer, so a request naming several layers reports the first
+  // of them and leaves the rest empty without an error - every layer needs its own request (#700)
+  it("asks every layer of one service on its own while the map request batches them", () => {
+    renderViewer();
+    loadLayersOfOneService();
+
+    // all layers of the endpoint stay rendered with one map request
+    expect(mapBatches()).toBe("[3]");
+    // and every layer is asked alone, in the order of the document
+    expect(featureInfoRequests()).toBe('["water","roads","labels"]');
   });
 });
 

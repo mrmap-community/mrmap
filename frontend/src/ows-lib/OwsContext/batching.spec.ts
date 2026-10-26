@@ -114,3 +114,89 @@ test('GetMap and GetFeatureInfo activation remain independent', () => {
         expect(batches[0].url.searchParams.get('LAYERS')).toBe(code === 'GetMap' ? 'map-only' : 'info-only');
     }
 });
+
+/** one feature per layer, offering both operations on the same endpoint like an import does */
+const contextWithBoth = (layers: string[]) => new OWSContext(undefined, [
+    new OWSResource({ title: 'group', updated: '', folder: '/0' }),
+    ...layers.map((layer, index) => new OWSResource({
+        title: layer,
+        updated: '',
+        folder: `/0/${index}`,
+        offerings: [{
+            code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+            operations: [operation('GetMap', layer), operation('GetFeatureInfo', layer)],
+        }],
+    }, index)),
+]);
+
+describe('GetFeatureInfo requests per queried layer', () => {
+    const active = (feature: OWSResource) => feature.getWmsOperationByCode('GetFeatureInfo')?.active === true;
+    const queriesOf = (context: OWSContext) => context.getFeatureInfoRequestsPerLayer(active);
+
+    test('asks every layer of a service on its own while the map keeps them batched', () => {
+        const context = contextWithBoth(['water', 'roads', 'labels']);
+        // the batching rules would combine these into one query, and FEATURE_COUNT of such a query
+        // is spent on the first layers by servers which do not count it per layer
+        expect(context.getOptimizedUrlsByCode('GetFeatureInfo', active)).toHaveLength(1);
+        expect(queriesOf(context).map(query => query.url.searchParams.get('QUERY_LAYERS')))
+            .toEqual(['water', 'roads', 'labels']);
+        // the map of the same layers stays one request
+        expect(context.getOptimizedUrlsByCode('GetMap',
+            feature => feature.getWmsOperationByCode('GetMap')?.active === true)
+            .map(batch => batch.features.map(feature => feature.id))).toEqual([[0, 1, 2]]);
+    });
+
+    test('queries only the layers whose feature info is activated', () => {
+        const context = contextWithBoth(['water', 'roads']);
+        context.features
+            .filter(feature => feature.properties.title === 'roads')
+            .forEach(feature => {
+                feature.getWmsOperationByCode('GetFeatureInfo')!.active = false;
+            });
+        expect(queriesOf(context).map(query => query.url.searchParams.get('QUERY_LAYERS')))
+            .toEqual(['water']);
+    });
+
+    test('keeps the layer of a query identifiable and leaves the descriptors untouched', () => {
+        const context = contextWithBoth(['water', 'roads']);
+        const queries = queriesOf(context);
+        expect(queries.map(query => query.features.map(feature => feature.id))).toEqual([[0], [1]]);
+        expect(queries.map(query => query.operations.length)).toEqual([1, 1]);
+        // every query is answered at the href of its own layer's descriptor, and reading them after
+        // the split shows that the descriptors themselves stayed as the import provided them
+        expect(queries.map(query => query.operations[0].href)).toEqual(['water', 'roads'].map(
+            layer => context.features
+                .find(feature => feature.properties.title === layer)
+                ?.getWmsOperationByCode('GetFeatureInfo')?.href));
+    });
+
+    test('narrows a query subset of several layers down, keeping its map layers and styles', () => {
+        const subset: Operation = {
+            code: 'GetFeatureInfo', method: 'GET', active: true,
+            href: 'https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=backdrop,water,roads&QUERY_LAYERS=water,roads&STYLES=,outline,fill',
+        };
+        const queries = queriesOf(new OWSContext(undefined, [new OWSResource({
+            title: 'layer', updated: '', folder: '/0',
+            offerings: [{ code: 'http://www.opengis.net/spec/owc/1.0/req/wms', operations: [subset] }],
+        }, 0)]));
+        expect(queries.map(query => query.url.searchParams.get('QUERY_LAYERS')))
+            .toEqual(['water', 'roads']);
+        // the answer is rendered in the context of the whole map, so its layers and the positions
+        // of their styles stay as the descriptor describes them
+        expect(queries.every(query => query.url.searchParams.get('LAYERS') === 'backdrop,water,roads')).toBe(true);
+        expect(queries.every(query => query.url.searchParams.get('STYLES') === ',outline,fill')).toBe(true);
+        expect(queries.every(query => query.features.length === 1)).toBe(true);
+    });
+
+    test('keeps a query without a query subset of several layers alone', () => {
+        const single: Operation = {
+            code: 'GetFeatureInfo', method: 'GET', active: true,
+            href: 'https://example.org/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=water',
+        };
+        const queries = queriesOf(new OWSContext(undefined, [new OWSResource({
+            title: 'layer', updated: '', folder: '/0',
+            offerings: [{ code: 'http://www.opengis.net/spec/owc/1.0/req/wms', operations: [single] }],
+        }, 0)]));
+        expect(queries.map(query => query.url.href)).toEqual([single.href]);
+    });
+});

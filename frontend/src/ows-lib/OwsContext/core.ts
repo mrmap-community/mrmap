@@ -671,6 +671,39 @@ export class OWSContext implements IOWSContext {
   }
 
   /**
+   * The GetFeatureInfo requests of the filtered features, one per queried layer. WMS counts
+   * FEATURE_COUNT per layer, but servers spend it on the whole answer, so a query of several layers
+   * reports only as many features as fit in total and leaves the later layers empty without an
+   * error. Every queried layer needs its own request to get its own features, the way the WFS
+   * feature types already keep their requests apart. The descriptor of a layer stays as it is: only
+   * a query subset which names several layers at once is narrowed down to one of them, so its map
+   * layers and positional styles remain intact. GetMap batching is deliberately untouched - all
+   * layers of one service still share one map request.
+   */
+  getFeatureInfoRequestsPerLayer(
+    featureFilter?: (feature: OWSResource) => boolean
+  ): OptimizedUrlsMap[] {
+    return this.getOptimizedUrlsByCode(
+      'GetFeatureInfo',
+      featureFilter,
+      // never combine the offerings of two layers into one query
+      () => false
+    ).flatMap(request => {
+      const key = [...request.url.searchParams.keys()]
+        .find(name => name.toUpperCase() === 'QUERY_LAYERS')
+      const layers = key === undefined
+        ? []
+        : request.url.searchParams.get(key)!.split(',').filter(layer => layer !== '')
+      if (layers.length <= 1) return [request]
+      return layers.map(layer => {
+        const url = new URL(request.url.href)
+        url.searchParams.set(key!, layer)
+        return { features: request.features, operations: request.operations, url }
+      })
+    })
+  }
+
+  /**
    * Build the GetFeature request descriptors of the active WFS features. Every feature type keeps
    * its own descriptor: unrelated types and endpoints are never combined into one shared request,
    * so the WMS batching of getOptimizedUrlsByCode does not apply here. A POST binding stays an

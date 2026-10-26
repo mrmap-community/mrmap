@@ -527,6 +527,12 @@ class HarvestingJob(ProcessingData):
             return True
         return False
 
+    def get_stored_page_count(self, request) -> int:
+        """how many records this job already stores for exactly this request; the requested url
+        carries maxRecords and startPosition, so it is the identity of a page"""
+        return TemporaryMdMetadataFile.objects.filter(
+            job=self, requested_url=request.url).count()
+
     def fetch_records(self, start_position, check_existing=True) -> int | None:
         client = self.service.client
         request = client.get_records_request(
@@ -536,6 +542,17 @@ class HarvestingJob(ProcessingData):
             xml_constraint=client.get_constraint(
                 record_types=self.get_record_types())
         )
+
+        # a page whose records are already stored is complete, so nothing is asked of the remote
+        # service for it again: every scheduled tick which fires while a harvest is running
+        # redelivers the whole fan-out and would otherwise download every page a second time
+        # (#688). The transactional check below stays in place, because the row count read under
+        # the job lock is what guards two workers storing the same page at the same time.
+        if check_existing:
+            existing_count = self.get_stored_page_count(request)
+            if existing_count:
+                return existing_count
+
         datestamp = timezone.now()
         response: Response = client.send_request(
             request=request,
@@ -561,8 +578,7 @@ class HarvestingJob(ProcessingData):
             if job.done_at is not None or job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
                 return 0
             if check_existing:
-                existing_count = TemporaryMdMetadataFile.objects.filter(
-                    job=self, requested_url=request.url).count()
+                existing_count = self.get_stored_page_count(request)
                 if existing_count:
                     return existing_count
             db_md_metadata_file_list = []

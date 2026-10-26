@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The identify query of the viewer asks every queryable layer with its own GetFeatureInfo request instead of combining the layers of one service into one query: a service may spend the FEATURE_COUNT of a combined request on its first layers and leave the later ones without an answer, which the inspector then showed as a conclusively empty layer; the layers of one service still share one map request (#700).
+- A harvesting job which is redelivered while it runs - by a schedule which fires again, by a retry or by a worker restart - no longer downloads a page whose records are already stored; the page is recognised by the request which asked for it and only missing pages are requested from the remote catalogue again (#688).
 
 
 ### Changed

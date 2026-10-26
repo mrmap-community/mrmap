@@ -31,12 +31,15 @@ const httpStatus = (error: unknown) => {
     return value?.response?.status ?? value?.status;
 };
 
+const POLLING_INTERVAL = 15000;
+
 export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     const { data, error, isPending } = useGetOne<SystemStatusRecord>(
         'SystemStatus', { id: 'current' },
         {
-            refetchInterval: query => [401, 403].includes(httpStatus(query.state.error) ?? 0) ? false : 15000,
-            refetchIntervalInBackground: true,
+            // TanStack Query pauses polling in hidden tabs and refreshes stale data on return.
+            refetchInterval: query => [401, 403].includes(httpStatus(query.state.error) ?? 0) ? false : POLLING_INTERVAL,
+            refetchIntervalInBackground: false,
             retry: false,
         },
     );
@@ -45,7 +48,6 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
         const timer = window.setInterval(() => setClock(Date.now()), 5000);
         return () => window.clearInterval(timer);
     }, []);
-
     const forbidden = [401, 403].includes(httpStatus(error) ?? 0);
     const observedAt = Date.parse(data?.observedAt ?? '');
     const stale = !!error || !data || data.stale || !Number.isFinite(observedAt) ||

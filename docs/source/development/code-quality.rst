@@ -116,6 +116,8 @@ To enable analysis, a repository administrator must:
    Create an analysis token with permission to analyze the project and store it as the
    repository secret ``SONAR_TOKEN``. Never commit the token. The workflow uses the EU
    SonarCloud service at ``https://sonarcloud.io``.
+   The README badge uses the historical project key ``mrmap-community_mrmap``; update
+   its image and dashboard URLs if the imported project's key differs.
 4. After merging the workflow, run **Quality Assurance** on ``master`` using
    ``workflow_dispatch`` to establish the initial analysis. Configure the project's new-code definition and quality gate in
    SonarCloud so new changes can be assessed against that baseline.

@@ -55,9 +55,11 @@ const en = lodashMerge(
       closeBottom: "Close bottom panel",
     },
     viewerControls: {
-      selectLayer: "Select a layer in the tree to edit its style and dimensions.",
+      selectLayer: "Select a layer in the tree to edit its opacity, style and dimensions.",
       edit: "Edit %{layer}",
       title: "Layer settings",
+      opacity: "Opacity",
+      opacityValue: "%{percent}%",
       pin: "Pin timeline",
       unpin: "Unpin timeline",
       timeline: "Pinned timeline",

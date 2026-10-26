@@ -92,12 +92,20 @@ request; deleting a credential retains its assignments and blocks those requests
 with a missing-credentials message until they are configured or removed.
 GetMap and GetFeatureInfo activation remain independent.
 
-Click a layer's name to open Layer settings in the bottom drawer. Its style, legend
+Click a layer's name to open Layer settings in the bottom drawer. Its opacity, style, legend
 and dimension controls stay outside the tree, keeping layer rows compact and visible.
 Selecting another layer updates the same panel. The context menu's Style and Dimensions
 actions open the same settings tab. On wider screens the bottom settings drawer sits
 beside the right-hand tree so the tree retains its full height. Visibility and query
 activation remain independent.
+
+Every layer the viewer can draw offers an opacity slider in this panel, blending it between
+invisible and fully drawn in five percent steps. The value belongs to the viewer session and not
+to the composed map: exporting, sharing or saving a document does not carry it, while panning,
+zooming and reloading the content keep it. A layer blended to another value than its neighbour is
+requested and drawn separately, so one layer never dims another: a raster layer gets its own map
+image, and a feature layer dims its outlines, fills and point symbols together. A layer which
+advertises neither styles nor dimensions still offers this control.
 
 Dimensions are initialized from the WMS capabilities. Lists and numeric ranges use the
 advertised values and resolution. A discrete time slider represents advertised time

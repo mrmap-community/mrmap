@@ -168,9 +168,12 @@ describe('layer tree context menu', () => {
     vi.stubGlobal('PointerEvent', MouseEvent);
     mapState.map = { getContainer: () => document.body, invalidateSize: vi.fn(), panTo: vi.fn() };
     renderTree(); expandGroup();
-    fireEvent.click(screen.getByRole('button', { name: 'viewerControls.edit' }));
+    // the panel opens for every renderable layer, so the row of the dragged one is asked for it
+    const firstRow = document.querySelector('[data-owscontext-folder="/0/0"]') as HTMLElement;
+    fireEvent.click(within(firstRow).getByRole('button', { name: 'viewerControls.edit' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    const slider = screen.getByRole('slider');
+    // the panel carries the opacity of the layer next to its timeline, so the axis is named
+    const slider = screen.getByRole('slider', { name: /^viewerDimensions.dimension/ });
     const track = slider.closest('.MuiSlider-root')!;
     vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ left:0,right:200,width:200,top:0,bottom:20,height:20,x:0,y:0,toJSON:()=>({}) });
     const before = positionOf('first').mapHref;
@@ -237,5 +240,10 @@ describe('layer tree context menu', () => {
 });
 
 vi.mock('../../MapViewer/MapViewerBase', () => ({
-  useMapViewerBase: () => ({ mapLoading: { failedFeatures: [], errors: [] }, map: mapState.map }),
+  useMapViewerBase: () => ({
+    mapLoading: { failedFeatures: [], errors: [] },
+    map: mapState.map,
+    opacityOf: () => 1,
+    setLayerOpacity: () => undefined,
+  }),
 }));

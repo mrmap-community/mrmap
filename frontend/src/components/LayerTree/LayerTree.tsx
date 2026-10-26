@@ -14,6 +14,7 @@ import { Button, ButtonBase, Paper } from '@mui/material'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
+import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
@@ -100,7 +101,10 @@ const TreeItemLabel = memo(
     const { mapLoading, scaleDenominator } = useMapViewerBase()
 
     const offering = node.getWmsOffering()
-    const hasControls = Boolean(offering?.styles?.some(style => style.name.trim()) || offering?.dimensions?.length)
+    // the shared panel also carries the opacity of a layer, so every resource the viewer can draw
+    // opens it: a layer which advertises neither styles nor dimensions has nothing else to edit
+    // and blending applies to it just the same (#750)
+    const hasControls = offering !== undefined || node.getWfsOffering() !== undefined
     const expandedControls = controlsId === node.id
 
     // an out of scale layer keeps its activation and is only not rendered, so the tree says so
@@ -277,6 +281,41 @@ const TreeItemLabel = memo(
   }
 );
 
+/**
+ * The blending of one layer as percent of full opacity: 0% draws nothing of the layer, 100% keeps
+ * the image transparency or the vector styling it comes with. The value belongs to the viewer
+ * session, so panning, zooming, refreshing the content or toggling the layer keep it (#750).
+ */
+const LayerOpacityControl = ({ folder }: { folder?: string }) => {
+  const { owsContext } = useOwsContextBase();
+  const { opacityOf, setLayerOpacity } = useMapViewerBase();
+  const translate = useTranslate();
+  const node = folder === undefined ? undefined : owsContext.findResourceByFolder(folder);
+  if (node === undefined || folder === undefined) return null;
+  const percent = Math.round(opacityOf([node]) * 100);
+  const valueText = (value: number) => translate('viewerControls.opacityValue', { percent: value });
+  return <Box sx={{ minWidth: 0, maxWidth: 320, gridColumn: '1 / -1' }}>
+    <Stack spacing={0.5}>
+      <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
+        <Typography variant="subtitle2">{translate('viewerControls.opacity')}</Typography>
+        <Typography variant="body2" color="text.secondary">{valueText(percent)}</Typography>
+      </Stack>
+      <Slider
+        aria-label={translate('viewerControls.opacity')}
+        value={percent}
+        step={5}
+        min={0}
+        max={100}
+        valueLabelDisplay="auto"
+        valueLabelFormat={valueText}
+        getAriaValueText={valueText}
+        marks={[{ value: 0 }, { value: 100 }]}
+        onChange={(_event, value) => setLayerOpacity(folder, Number(value) / 100)}
+      />
+    </Stack>
+  </Box>;
+};
+
 /** Shared controls live outside the tree so editing never changes its row heights. */
 export const LayerControlsPanel = () => {
   const { controlsId, setControlsId, pinnedId, setPinnedId } = useContextMenuBase();
@@ -297,6 +336,7 @@ export const LayerControlsPanel = () => {
       <Button size="small" onClick={() => setControlsId(undefined)}>{translate('ra.action.close')}</Button>
     </Stack>
     <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: hasStyles && hasDimensions ? 'minmax(220px, .6fr) minmax(0, 1.4fr)' : 'minmax(0, 1fr)' }, alignItems: 'start' }}>
+      <LayerOpacityControl key={`${node.id}-opacity`} folder={node.properties.folder} />
       {hasStyles && <Box sx={{ minWidth: 0, maxWidth: hasDimensions ? undefined : 420 }}><WmsStyleControls key={`${node.id}-style`} folder={node.properties.folder} inline /></Box>}
       {hasDimensions && <WmsDimensionControls key={`${node.id}-dimensions`} folder={node.properties.folder} inline horizontal />}
     </Box>

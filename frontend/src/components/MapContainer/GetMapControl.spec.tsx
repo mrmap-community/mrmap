@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   context: {} as import("../../ows-lib/OwsContext/types").OWSContext,
   maps: [] as OptimizedUrlsMap[],
   info: [] as OptimizedUrlsMap[],
+  opacity: 1,
   onContextMenu: undefined as undefined | ((event: unknown) => void),
 }));
 const map = {
@@ -53,11 +54,20 @@ vi.mock("../MapViewer/MapViewerBase", () => ({
     selectedCrs: { stringRepresentation: "EPSG:4326", isXyOrder: true },
     atomicGetMapUrls: state.maps,
     atomicGetFeatureInfoUrls: state.info,
+    opacityOf: () => state.opacity,
   }),
 }));
 vi.mock("./AuthImageOverlay", () => ({
-  AuthImageOverlay: ({ optimiuedUrl }: { optimiuedUrl: OptimizedUrlsMap }) => (
-    <span data-testid="image-url">{optimiuedUrl.url.href}</span>
+  AuthImageOverlay: ({
+    optimiuedUrl,
+    opacity,
+  }: {
+    optimiuedUrl: OptimizedUrlsMap;
+    opacity?: number;
+  }) => (
+    <span data-testid="image-url" data-opacity={opacity}>
+      {optimiuedUrl.url.href}
+    </span>
   ),
 }));
 const render = (ui: import("react").ReactNode) =>
@@ -76,6 +86,18 @@ beforeEach(() => {
   state.context = {} as typeof state.context;
   state.maps = [];
   state.info = [];
+  state.opacity = 1;
+});
+
+test("draws a map request at full blending until the viewer holds another for it", () => {
+  state.maps = [batch("LAYERS=a")];
+  const { rerender } = render(<WebMapServiceControl />);
+  expect(screen.getByTestId("image-url")).toHaveAttribute("data-opacity", "1");
+
+  // the blending changes while the map request stays the very same one
+  state.opacity = 0.25;
+  rerender(<WebMapServiceControl />);
+  expect(screen.getByTestId("image-url")).toHaveAttribute("data-opacity", "0.25");
 });
 
 test("the final map URL preserves configured positional styles and vendor parameters", () => {

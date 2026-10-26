@@ -7,14 +7,39 @@ import { AuthImageOverlay } from "./AuthImageOverlay";
 const query = vi.hoisted(() => ({
   run: undefined as
     undefined | ((context: { signal: AbortSignal }) => Promise<Blob>),
+  data: undefined as undefined | Blob,
 }));
+// every overlay the component draws, with the blending it was given and the calls made on it
+const overlays = vi.hoisted(() => [] as {
+  opacity?: number;
+  drawn: { setOpacity: ReturnType<typeof vi.fn> };
+}[]);
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryFn }: { queryFn: typeof query.run }) => {
     query.run = queryFn;
-    return { data: undefined, isFetching: true, error: undefined };
+    return {
+      data: query.data,
+      isFetching: query.data === undefined,
+      error: undefined,
+    };
   },
 }));
-vi.mock("react-leaflet", () => ({ ImageOverlay: () => null }));
+vi.mock("react-leaflet", () => ({
+  ImageOverlay: ({
+    opacity,
+    ref,
+  }: {
+    opacity?: number;
+    ref?: ((layer: unknown) => void) | { current: unknown } | null;
+  }) => {
+    // the overlay leaflet answers with through the ref, keeping the calls made on it
+    const drawn = { setOpacity: vi.fn() };
+    overlays.push({ opacity, drawn });
+    if (typeof ref === "function") ref(drawn);
+    else if (ref !== null && ref !== undefined) ref.current = drawn;
+    return null;
+  },
+}));
 vi.mock("../MapViewer/MapViewerBase", () => ({
   useMapViewerBase: () => ({
     reportMapLoading: vi.fn(),
@@ -77,6 +102,60 @@ describe("map image requests", () => {
       ).rejects.toThrow("LayerNotDefined: Missing layer");
     },
   );
+});
+
+describe("the blending of a drawn image", () => {
+  /** the image of a map request, drawn with the blending the viewer holds for its layers */
+  const imageWithBlending = (opacity: number | undefined) => (
+    <AuthImageOverlay
+      bounds={latLngBounds([0, 0], [1, 1])}
+      optimiuedUrl={{
+        url: new URL("https://example.test/wms"),
+        features: [],
+        operations: [],
+      }}
+      opacity={opacity}
+    />
+  );
+
+  /** lets the image of a layer arrive, so the overlay which draws it is mounted */
+  const startBlending = () => {
+    const BrowserURL = URL;
+    vi.stubGlobal(
+      "URL",
+      class extends BrowserURL {
+        static createObjectURL = vi.fn(() => "blob:map-image");
+        static revokeObjectURL = vi.fn();
+      },
+    );
+    query.data = new Blob(["\x89PNG"], { type: "image/png" });
+    overlays.length = 0;
+  };
+  afterEach(() => {
+    query.data = undefined;
+  });
+
+  it("draws the image with the blending of its layers and asks the overlay for it", () => {
+    startBlending();
+
+    render(imageWithBlending(0.25));
+
+    expect(overlays.at(-1)?.opacity).toBe(0.25);
+    // an overlay keeps the options it was created with, so the value goes to the overlay as well
+    expect(overlays.at(-1)?.drawn.setOpacity).toHaveBeenCalledWith(0.25);
+  });
+
+  it("blends the image already drawn when the viewer changes the layer", () => {
+    startBlending();
+    const { rerender } = render(imageWithBlending(1));
+
+    expect(overlays.at(-1)?.drawn.setOpacity).toHaveBeenCalledWith(1);
+
+    rerender(imageWithBlending(0.4));
+
+    expect(overlays.at(-1)?.opacity).toBe(0.4);
+    expect(overlays.at(-1)?.drawn.setOpacity).toHaveBeenCalledWith(0.4);
+  });
 });
 
 it("does not fetch a map when credentials are missing", async () => {

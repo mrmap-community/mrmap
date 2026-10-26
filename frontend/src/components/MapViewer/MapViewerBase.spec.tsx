@@ -446,3 +446,122 @@ describe("feature info queries", () => {
 });
 
 
+
+/** reads and changes the blending of every layer of the document */
+const OpacityViewer = ({
+  map,
+  value = 0.5,
+}: {
+  map: ReturnType<typeof createMap>;
+  value?: number;
+}) => {
+  const { setMap, opacityOf, setLayerOpacity, atomicGetMapUrls } = useMapViewerBase();
+  const { owsContext, updateOwsContext } = useOwsContextBase();
+  useEffect(() => {
+    setMap(map as unknown as LeafletMap);
+  }, [map, setMap]);
+  const layers = owsContext.features.filter(
+    (feature) => feature.getWmsOperationByCode("GetMap") !== undefined,
+  );
+  return (
+    <>
+      <p data-testid="opacity">
+        {JSON.stringify(
+          layers.map((layer) => [layer.properties.title, opacityOf([layer])]),
+        )}
+      </p>
+      <p data-testid="batches">
+        {JSON.stringify(
+          atomicGetMapUrls.map((batch) =>
+            batch.features.map((feature) => feature.properties.title),
+          ),
+        )}
+      </p>
+      <button onClick={() => updateOwsContext(documentWithLayers(["first", "second"]))}>
+        Load two layers
+      </button>
+      {layers.map((layer) => (
+        <button key={String(layer.id)} onClick={() => setLayerOpacity(layer.properties.folder ?? "", value)}>
+          dim {layer.properties.title}
+        </button>
+      ))}
+      {layers.map((layer) => (
+        <button key={`${String(layer.id)}-over`} onClick={() => setLayerOpacity(layer.properties.folder ?? "", 1.5)}>
+          over {layer.properties.title}
+        </button>
+      ))}
+      {layers.map((layer) => (
+        <button key={`${String(layer.id)}-under`} onClick={() => setLayerOpacity(layer.properties.folder ?? "", -1)}>
+          under {layer.properties.title}
+        </button>
+      ))}
+    </>
+  );
+};
+
+const renderOpacityViewer = (value?: number) => {
+  const map = createMap();
+  render(
+    <OwsContextBase>
+      <MapViewerBase>
+        <OpacityViewer map={map} value={value} />
+      </MapViewerBase>
+    </OwsContextBase>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Load two layers" }));
+  return map;
+};
+const layerOpacity = () => JSON.parse(screen.getByTestId("opacity").textContent ?? "[]");
+const mapRequestsOf = () => JSON.parse(screen.getByTestId("batches").textContent ?? "[]");
+const blendLayer = (title: string, action = "dim") =>
+  fireEvent.click(screen.getByRole("button", { name: `${action} ${title}` }));
+
+describe("opacity of a layer", () => {
+  it("draws every layer at full opacity until the user dims one of them", () => {
+    renderOpacityViewer();
+
+    expect(layerOpacity()).toEqual([["first", 1], ["second", 1]]);
+    // both layers share one map request, the way the batching always did
+    expect(mapRequestsOf()).toEqual([["first", "second"]]);
+
+    blendLayer("first");
+
+    // only the layer the user touched changed, its sibling keeps its full blending
+    expect(layerOpacity()).toEqual([["first", 0.5], ["second", 1]]);
+  });
+
+  it("asks a map of its own as soon as two layers differ in opacity", () => {
+    renderOpacityViewer();
+    expect(mapRequestsOf()).toEqual([["first", "second"]]);
+
+    blendLayer("first");
+    // one image cannot carry two opacities, so the layer is asked for a map of its own
+    expect(mapRequestsOf()).toEqual([["first"], ["second"]]);
+
+    // the very same blending joins them into one request again
+    blendLayer("second");
+    expect(mapRequestsOf()).toEqual([["first", "second"]]);
+  });
+
+  it("keeps the blending of a layer through panning and a reloaded document", () => {
+    const map = renderOpacityViewer();
+    blendLayer("first");
+
+    pan(map, [1, 2, 3, 4]);
+    expect(layerOpacity()).toEqual([["first", 0.5], ["second", 1]]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Load two layers" }));
+    expect(layerOpacity()).toEqual([["first", 0.5], ["second", 1]]);
+  });
+
+  it("never leaves the span between invisible and fully drawn", () => {
+    renderOpacityViewer();
+
+    blendLayer("first", "over");
+    expect(layerOpacity()).toEqual([["first", 1], ["second", 1]]);
+
+    blendLayer("second", "under");
+    expect(layerOpacity()).toEqual([["first", 1], ["second", 0]]);
+  });
+});
+

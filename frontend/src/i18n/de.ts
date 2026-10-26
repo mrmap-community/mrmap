@@ -52,9 +52,11 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     closeBottom: "Unteren Bereich schließen",
   },
   viewerControls: {
-    selectLayer: "Wählen Sie einen Layer im Baum, um Stil und Dimensionen zu bearbeiten.",
+    selectLayer: "Wählen Sie einen Layer im Baum, um Deckkraft, Stil und Dimensionen zu bearbeiten.",
     edit: "%{layer} bearbeiten",
     title: "Layer-Einstellungen",
+    opacity: "Deckkraft",
+    opacityValue: "%{percent}%",
     pin: "Zeitleiste anheften",
     unpin: "Zeitleiste lösen",
     timeline: "Angeheftete Zeitleiste",

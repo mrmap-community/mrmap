@@ -5,7 +5,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from MrMap.settings import BASE_DIR
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.enums.harvesting import LogKindEnum
+from registry.models.harvest import (HarvestingJob, HarvestingLog,
+                                     TemporaryMdMetadataFile)
 from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import CatalogueService
 from registry.ows_lib.client.core import OgcClient
@@ -138,6 +140,37 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
         self.assertEqual(send_request.call_count, 2)
         self.assertEqual(TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 20)
 
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request")
+    def test_a_refused_page_leaves_a_trace_of_the_records_it_did_not_deliver(self, send_request):
+        """a page which the catalogue refuses is not nothing: the records it should have carried
+        are missing from this snapshot, and only a run which says so can be answered as an
+        incomplete one (#690)"""
+        def refused(request, timeout):
+            response = MockResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content='<ExceptionReport><Exception exceptionCode="TooLargeBestRecords"'
+                        ' exceptionText="maxRecords too large"/></ExceptionReport>')
+            response.request = request
+            return response
+        send_request.side_effect = refused
+
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        harvesting_job.total_records = 100
+        harvesting_job.save()
+
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 0)
+        short_pages = HarvestingLog.objects.filter(
+            harvesting_job_id=1, kind=LogKindEnum.COUNT_MISSMATCH.value)
+        self.assertEqual(short_pages.count(), 1)
+        self.assertEqual(short_pages.first().description, "0<50")
+        logged = short_pages.first().extented_description.read().decode("UTF-8")
+        self.assertIn("Only 0 received from 50 possible records.", logged)
+        self.assertIn("startPosition=1", logged)
 
 
 class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):

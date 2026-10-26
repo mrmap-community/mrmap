@@ -512,6 +512,27 @@ class HarvestingJob(ProcessingData):
             extented_description=str(extented_description),
         )
 
+    def log_missing_records(self, request, start_position, received):
+        """Name the records a page of this run did not deliver.
+
+        A page which came back short and a page which the catalogue refused both leave a snapshot
+        behind which is shorter than the run planned. The log of it is what makes such a run visibly
+        incomplete: the harvest history keeps it out of the complete snapshots and the harvest alert
+        of the catalogue answers it (#690).
+        """
+        should_return_count = self.max_step_size if start_position + \
+            self.max_step_size < self.total_records else self.total_records - start_position
+
+        if received >= should_return_count:
+            return
+        self.log(
+            level=LogLevelEnum.WARNING.value,
+            kind=LogKindEnum.COUNT_MISSMATCH.value,
+            description=f"{received}<{should_return_count}",
+            extented_description=f"Only {received} received from {should_return_count} possible records.\n" +
+            f"URL: {request.url}"
+        )
+
     def _check_xml_is_parseable(self, xml: str) -> bool:
         try:
             XML(xml, XMLParser())
@@ -560,6 +581,10 @@ class HarvestingJob(ProcessingData):
 
         if self._check_xml_response(response):
             self._log_response_error(response=response)
+            # the records this page should have carried are not coming anymore, and without the
+            # trace of the missing count the run would read as a complete snapshot (#690)
+            self.log_missing_records(
+                request=request, start_position=start_position, received=0)
             return
 
         # XML einlesen
@@ -613,17 +638,8 @@ class HarvestingJob(ProcessingData):
                 batch_size=50
             )
 
-            should_return_count = self.max_step_size if start_position + \
-                self.max_step_size < self.total_records else self.total_records - start_position
-
-            if len(db_objs) < should_return_count:
-                self.log(
-                    level=LogLevelEnum.WARNING.value,
-                    kind=LogKindEnum.COUNT_MISSMATCH.value,
-                    description=f"{len(db_objs)}<{should_return_count}",
-                    extented_description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
-                    f"URL: {request.url}"
-                )
+            self.log_missing_records(
+                request=request, start_position=start_position, received=len(db_objs))
             return len(db_objs)
 
 

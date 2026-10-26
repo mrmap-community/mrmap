@@ -16,7 +16,8 @@ from django.test import (RequestFactory, SimpleTestCase, TestCase,
 from django.urls import reverse
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule
-from registry.enums.harvesting import HarvestingPhaseEnum as Phase
+from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
+                                       LogKindEnum, LogLevelEnum)
 from registry.enums.update import UpdateJobStatusEnum as JobState
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.monitoring import (GetCapabilitiesProbeResult,
@@ -116,7 +117,7 @@ class ServiceAlertsMixin:
             service=service, status=JobState(state), **kwargs)
 
     def harvesting_job(self, service=None, phase=Phase.COMPLETED,
-                       import_errors=0, hours_ago=1):
+                       import_errors=0, hours_ago=1, short_pages=0):
         """Create the last harvesting run of a catalogue"""
         happened = now() - timedelta(hours=hours_ago)
         job = HarvestingJob.objects.create(
@@ -128,6 +129,13 @@ class ServiceAlertsMixin:
                 job=job, has_import_error=True, import_error="no record",
                 md_metadata_file=SimpleUploadedFile(
                     f"record_{number}.xml", b"<record/>"))
+        for number in range(short_pages):
+            # the trace a page leaves which did not deliver the records it was asked
+            # for - see HarvestingJob.log_missing_records
+            job.log(
+                description=f"0<{number + 1}",
+                level=LogLevelEnum.WARNING.value,
+                kind=LogKindEnum.COUNT_MISSMATCH.value)
         return job
 
 
@@ -254,6 +262,25 @@ class ServiceAlertsQueryTest(ServiceAlertsMixin, TestCase):
         self.assertTrue(alerts.harvest_incomplete)
         self.assertFalse(alerts.harvest_aborted)
         self.assertTrue(alerts.has_alert)
+
+    def test_a_harvesting_whose_pages_stayed_short_needs_attention(self):
+        """A page which the catalogue refused or answered short leaves records missing, which is
+        as little a complete snapshot as a record which broke on import (#690)"""
+        self.harvesting_job(short_pages=1)
+        alerts = self.alerts(self.csw)
+        self.assertTrue(alerts.harvest_incomplete)
+        self.assertFalse(alerts.harvest_aborted)
+        self.assertTrue(alerts.has_alert)
+        self.assertIsNotNone(alerts.harvest_failed_at)
+
+    def test_the_short_harvesting_is_answered_as_the_deciding_job(self):
+        """The alert links to the run which decided about it, and only as long as it is the
+        newest one of the catalogue"""
+        short = self.harvesting_job(short_pages=1)
+        self.assertEqual(self.alerts(self.csw).harvest_job, short.pk)
+        # a harvesting which came back complete answers nothing behind the alert
+        self.harvesting_job(hours_ago=0)
+        self.assertIsNone(self.alerts(self.csw).harvest_job)
 
     def test_the_harvesting_which_left_a_state_behind_is_answered(self):
         """The harvesting of a catalogue is answered as the job which ran"""

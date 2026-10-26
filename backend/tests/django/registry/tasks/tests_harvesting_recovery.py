@@ -7,10 +7,13 @@ from celery.exceptions import Retry
 from django.core.files.base import ContentFile
 from django.db import OperationalError, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
-from registry.enums.harvesting import HarvestingPhaseEnum as Phase
+from django.utils.timezone import now
+from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
+                                       LogKindEnum, LogLevelEnum)
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.service import CatalogueService
 from registry.models.metadata import MetadataContact
+from registry.querys.harvest_history import complete_harvest
 from requests.exceptions import Timeout
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from registry.tasks.harvest import (
@@ -195,6 +198,67 @@ class HarvestingRecoveryTest(TestCase):
             job.save()
             self.assertEqual(create_harvesting_job.run(service_id=service.pk), first_id)
         self.assertEqual(HarvestingJob.objects.filter(service=service).count(), 1)
+
+    def test_a_task_which_gave_up_ends_the_job_as_aborted(self):
+        """a page which keeps failing never completes the chord it belongs to, so the callback
+        which would end the run never runs - the job must not sit unfinished forever (#690)"""
+        HarvestingJob.objects.filter(pk=self.job.pk).update(phase=Phase.DOWNLOAD_RECORDS)
+        call_fetch_records.push_request(retries=10)
+        self.addCleanup(call_fetch_records.pop_request)
+
+        with patch('celery.app.control.Control.revoke') as revoke:
+            call_fetch_records.on_failure(
+                Timeout('the catalogue is offline'), str(uuid4()), (),
+                {'harvesting_job_id': self.job.pk, 'start_position': 51}, None)
+
+        revoke.assert_called_once()
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.phase, Phase.ABORTED)
+        self.assertIsNotNone(self.job.done_at)
+        log = self.job.logs.first()
+        self.assertEqual(log.level, LogLevelEnum.ERROR.value)
+        self.assertEqual(log.kind, LogKindEnum.REMOTE_ERROR.value)
+        self.assertIn('start_position=51', log.description)
+        logged = log.extented_description.read().decode('UTF-8')
+        self.assertIn('after 10 retries', logged)
+        self.assertIn('Timeout: the catalogue is offline', logged)
+
+    def test_a_late_failure_does_not_rewrite_a_job_which_is_already_done(self):
+        """the callback which completed the job decided about it; a task of it which reports a
+        failure afterwards must neither abort the finished run nor log itself as its end"""
+        HarvestingJob.objects.filter(pk=self.job.pk).update(
+            phase=Phase.COMPLETED, done_at=now())
+
+        with patch('celery.app.control.Control.revoke') as revoke:
+            call_fetch_records.on_failure(
+                Timeout('offline'), str(uuid4()), (),
+                {'harvesting_job_id': self.job.pk}, None)
+
+        revoke.assert_not_called()
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.phase, Phase.COMPLETED)
+        self.assertEqual(self.job.logs.count(), 0)
+
+    def test_a_task_which_is_not_about_one_job_ends_no_job(self):
+        with patch('celery.app.control.Control.revoke') as revoke:
+            create_harvesting_job.on_failure(
+                Timeout('offline'), str(uuid4()), (), {}, None)
+
+        revoke.assert_not_called()
+
+    def test_a_late_chord_callback_does_not_complete_an_aborted_harvest(self):
+        """the abort which ends a run whose tasks gave up revokes the tasks of that run, so the
+        callback of its chord may still report in later - it must not turn the aborted run into a
+        snapshot of the catalogue"""
+        HarvestingJob.objects.filter(pk=self.job.pk).update(
+            phase=Phase.ABORTED, done_at=now())
+
+        with patch('registry.querys.harvest_history.complete_snapshots') as snapshots:
+            complete_harvest(self.job.pk)
+
+        snapshots.assert_not_called()
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.phase, Phase.ABORTED)
 
 
 class HarvestingPublishingRecoveryTest(TransactionTestCase):

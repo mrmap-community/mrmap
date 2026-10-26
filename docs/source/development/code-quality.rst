@@ -3,8 +3,8 @@
 Code quality
 ============
 
-Quality checks run locally through VS Code tasks and in GitHub Actions. No Sonar server or
-external coverage account is required. The authoritative configurations are
+Quality checks run locally through VS Code tasks and in GitHub Actions. Local checks do not
+require a SonarCloud account. The authoritative configurations are
 ``frontend/eslint.config.mjs``, ``frontend/tsconfig.json``, ``frontend/vite.config.mjs``,
 ``backend/setup.cfg`` and ``.github/workflows/quality-assurance.yml``.
 
@@ -86,6 +86,53 @@ not need to start the application. Findings appear in GitHub code scanning after
 runs. Code scanning must be available/enabled for the repository; avoid enabling GitHub's
 separate default setup alongside this advanced workflow.
 
+SonarCloud analysis
+-------------------
+
+SonarQube Cloud (formerly SonarCloud) complements the existing checks with code quality and
+security findings, duplication metrics, coverage and a quality gate. Its ``sonarcloud`` job
+in ``.github/workflows/quality-assurance.yml`` waits for ``backend-coverage`` and
+``frontend-tests``, then downloads their artifacts from the same workflow run. It does not
+rerun either test suite. ``sonar-project.properties`` defines the analysis scope and report
+locations. Tests are classified separately; generated migrations, fixtures, static assets,
+templates, declarations and coverage output are excluded from application analysis.
+
+Coverage reports contain paths relative to ``backend/`` and ``frontend/``. The analysis job
+adjusts only its downloaded copies so those paths resolve from the repository root. The
+original artifacts and existing coverage thresholds remain unchanged.
+
+To enable analysis, a repository administrator must:
+
+1. Sign in at `SonarQube Cloud <https://sonarcloud.io/>`_ with GitHub and import
+   ``mrmap-community/mrmap`` as a public project. Select the free **OSS plan** for the
+   open-source organization and grant the SonarQube Cloud GitHub app repository access.
+   See the `subscription plans documentation
+   <https://docs.sonarsource.com/sonarqube-cloud/administering-sonarcloud/managing-subscription/subscription-plans>`_.
+2. Set the project's main branch to ``master`` and select **GitHub Actions / CI-based
+   analysis**. Disable automatic analysis, which cannot import these coverage reports and
+   cannot run alongside CI-based analysis.
+3. In GitHub **Settings > Secrets and variables > Actions**, create repository variables
+   ``SONAR_ORGANIZATION`` and ``SONAR_PROJECT_KEY`` using the exact keys shown by SonarCloud.
+   Create an analysis token with permission to analyze the project and store it as the
+   repository secret ``SONAR_TOKEN``. Never commit the token. The workflow uses the EU
+   SonarCloud service at ``https://sonarcloud.io``.
+4. After merging the workflow, run **Quality Assurance** on ``master`` using
+   ``workflow_dispatch`` to establish the initial analysis. Configure the project's new-code definition and quality gate in
+   SonarCloud so new changes can be assessed against that baseline.
+5. Check that Python and TypeScript coverage appear in the dashboard and that an eligible
+   pull request receives SonarCloud feedback before making its checks required.
+
+Without both repository variables, the analysis job is skipped. Once enabled, a missing or
+invalid token fails analysis. Pull requests from forks and runs by Dependabot skip this job
+because they do not receive the analysis secret; their existing QA and CodeQL checks still
+run. The workflow uses ``pull_request`` and does not run fork code with privileged credentials.
+Renovate pull requests from branches in this repository can run analysis normally.
+
+The scanner waits for the SonarCloud quality gate and fails the job if it fails. Use a gate
+focused on new code to improve quality gradually; retain the existing CI coverage floors.
+For eligibility and available features, see `SonarQube for OSS
+<https://www.sonarsource.com/open-source-editions/>`_.
+
 Repository settings
 -------------------
 
@@ -94,6 +141,7 @@ quality jobs as required status checks in the branch ruleset after their first s
 Workflow files alone do not configure branch protection. CodeQL alert severities can also be
 enforced through repository rulesets.
 
-The reports can later be uploaded to Codecov for changed-line coverage and trends, or imported
-into SonarQube Cloud for a unified dashboard. Neither integration is needed for the current
-local and CI checks, and no external service credentials are configured here.
+After onboarding, the ``sonarcloud`` check can also be required for branches whose pull
+requests have access to the analysis token. Do not require a SonarCloud result for fork or
+Dependabot pull requests that cannot run analysis. GitHub cannot enforce the SonarCloud gate
+from this configuration alone; maintainers must configure the applicable branch rules.

@@ -4,6 +4,7 @@
 
 [![Quality assurance](https://github.com/mrmap-community/mrmap/actions/workflows/quality-assurance.yml/badge.svg?branch=master)](https://github.com/mrmap-community/mrmap/actions/workflows/quality-assurance.yml?query=branch%3Amaster)
 [![CodeQL](https://github.com/mrmap-community/mrmap/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/mrmap-community/mrmap/actions/workflows/codeql.yml?query=branch%3Amaster)
+[![SonarCloud quality gate](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_mrmap&metric=alert_status&branch=master)](https://sonarcloud.io/dashboard?id=mrmap-community_mrmap&branch=master)
 [![Documentation](https://readthedocs.org/projects/mrmap/badge/?version=master)](https://mrmap.readthedocs.io/en/master/)
 
 MrMap is an open source registry for geospatial data, metadata and OGC services,
@@ -17,7 +18,9 @@ supporting services.
 
 ## Code quality and coverage
 
-The badges above show the latest workflow status on `master`. Quality assurance
+The QA and CodeQL badges show the latest workflow status on `master`. The
+SonarCloud badge shows its quality-gate status for `master` and links to the
+project dashboard once SonarCloud is configured. Quality assurance
 runs lint, strict TypeScript checks, backend unit and acceptance tests, frontend
 tests, and coverage checks. CodeQL scans Python and JavaScript/TypeScript with
 the `security-extended` queries.

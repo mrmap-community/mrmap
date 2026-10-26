@@ -176,3 +176,57 @@ jobs:
           name: backend-coverage
           if-no-files-found: error
           path: backend/coverage/
+
+  sonarcloud:
+    name: sonarcloud
+    needs: [backend-coverage, frontend-tests]
+    # Fork PRs and Dependabot do not receive repository secrets. Variables opt in
+    # only after the public SonarCloud project and its analysis token are ready.
+    if: >-
+      vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: backend-coverage
+          path: backend/coverage
+      - uses: actions/download-artifact@v8
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+      - name: Make coverage paths relative to the repository root
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          report = Path('backend/coverage/coverage.xml')
+          tree = ET.parse(report)
+          for source in tree.findall('./sources/source'):
+              source.text = 'backend'
+          tree.write(report, encoding='utf-8', xml_declaration=True)
+
+          report = Path('frontend/coverage/lcov.info')
+          lines = report.read_text().splitlines(keepends=True)
+          report.write_text(''.join(
+              f'SF:frontend/{line[3:]}' if line.startswith('SF:src/') else line
+              for line in lines
+          ))
+          PYTHON
+      - name: Analyze code and check the SonarCloud quality gate
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >-
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true

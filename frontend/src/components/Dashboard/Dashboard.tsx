@@ -1,20 +1,10 @@
-import { type ReactNode } from 'react';
+import { type ReactNode } from "react";
 
-import { Stack } from '@mui/material';
+import { Box, Grid, Stack } from "@mui/material";
 
-import ResourceListCard from './Cards/ResourceListCard';
-import ServiceAttentionCard from './Cards/ServiceAttentionCard';
-import WorkQueueCard from './Cards/WorkQueueCard';
-
-const styles = {
-  flex: { display: 'flex' },
-  flexColumn: { display: 'flex', flexDirection: 'column' },
-  leftCol: { flex: 1, marginRight: '0.5em' },
-  rightCol: { flex: 1, marginLeft: '0.5em' },
-  singleCol: { marginTop: '1em', marginBottom: '1em' },
-};
-
-const Spacer = () => <span style={{ width: '1em' }} />;
+import ResourceListCard from "./Cards/ResourceListCard";
+import ServiceAttentionCard from "./Cards/ServiceAttentionCard";
+import WorkQueueCard from "./Cards/WorkQueueCard";
 
 /**
  * The dashboard of the deployment.
@@ -24,45 +14,51 @@ const Spacer = () => <span style={{ width: '1em' }} />;
  * now are answered above the counts of the registered resources, because an
  * administrator opens this screen to decide what to do next and not to read the
  * size of the registry. The inventory stays below and is the same as before.
+ *
+ * The inventory is answered in three rows of MUI grid cells: four cards on the
+ * wide screens of the registry, two by two on a tablet and one below the other
+ * on a phone, so a card is never cramped and never widens the dashboard.
  */
 const Dashboard = (): ReactNode => {
   return (
-    <div style={styles.singleCol}>
+    <Box sx={{ py: 2 }}>
       {/* the queues of work and the alerts of the services answer the work which
           waits - on a narrow screen they are asked one below the other */}
       <Stack spacing={2} sx={{ mb: 2 }}>
         <WorkQueueCard />
         <ServiceAttentionCard />
       </Stack>
-      <div style={styles.singleCol}>
-        <div style={styles.flex}>
-          <ResourceListCard resource={'WebMapService'} withList={false}/>
-          <Spacer />
-          <ResourceListCard resource={'Layer'} withList={false}/>
-          <Spacer/>
-          <ResourceListCard resource={'WebFeatureService'} withList={false}/>
-          <Spacer />
-          <ResourceListCard resource={'FeatureType'} withList={false}/>
-        </div>
-      </div>
-      <div style={styles.singleCol}>
-        <div style={styles.flex}>
-          <ResourceListCard resource={'CatalogueService'} withList={false} />
-          <Spacer />
-          <ResourceListCard resource={'DatasetMetadataRecord'} withList={false} />
-          <Spacer />
-          <ResourceListCard resource={'ServiceMetadataRecord'} withList={false} />
-        </div>
-      </div>
-      <div style={styles.singleCol}>
-        <div style={styles.flex}>
-          <ResourceListCard resource={'Organization'} />
-          <Spacer />
-          <ResourceListCard resource={'User'} />
-        </div>
-      </div>
-    </div>
-  )
-}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <ResourceListCard resource={"WebMapService"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <ResourceListCard resource={"Layer"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <ResourceListCard resource={"WebFeatureService"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <ResourceListCard resource={"FeatureType"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+          <ResourceListCard resource={"CatalogueService"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+          <ResourceListCard resource={"DatasetMetadataRecord"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+          <ResourceListCard resource={"ServiceMetadataRecord"} withList={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 6 }}>
+          <ResourceListCard resource={"Organization"} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 6 }}>
+          <ResourceListCard resource={"User"} />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
 
-export default Dashboard
+export default Dashboard;

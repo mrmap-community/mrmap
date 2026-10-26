@@ -77,4 +77,12 @@ describe.each(cases)("$resource list dialogs", ({ resource, List }) => {
     expect(await screen.findByRole("dialog")).toHaveTextContent("Edit");
     expect(screen.getByLabelText("Location")).toHaveTextContent(`/${resource}/service-1`);
   });
+
+  it("closes the create dialog with the labelled close control back to the list", async () => {
+    renderList(resource, List, `/${resource}/create`);
+    expect(await screen.findByRole("dialog")).toHaveTextContent(`Create ${resource}`);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Location")).toHaveTextContent(`/${resource}`);
+  });
 });

@@ -3,10 +3,6 @@ import { TextInputProps, useInput } from "react-admin";
 
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import Grid from "@mui/material/Grid";
 import InputLabel from "@mui/material/InputLabel";
@@ -15,6 +11,9 @@ import MenuItem from "@mui/material/MenuItem";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
+
+import ContextBasedDialog from "../Dialog/Dialog";
+import DialogHeader from "../Dialog/DialogHeader";
 
 
 const range = (start: number, end: number) =>
@@ -124,26 +123,14 @@ const CronInput = ({
         {...props}
       />
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Cron Expression</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid>{renderSelect("Minute", minute, setMinute, minuteOptions)}</Grid>
-            <Grid>{renderSelect("Hour", hour, setHour, hourOptions)}</Grid>
-            <Grid>{renderSelect("Day of Month", day, setDay, dayOptions)}</Grid>
-            <Grid>{renderSelect("Month", month, setMonth, monthOptions)}</Grid>
-            <Grid>{renderSelect("Weekday (0=Sun)", weekday, setWeekday, weekdayOptions)}</Grid>
-            <Grid>
-      <TextField
-        label="Preview / manual edit"
-        value={preview}
-        onChange={(e) => setPreview(e.target.value)}
+      <ContextBasedDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="md"
         fullWidth
-      />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
+        contentDividers={false}
+        title={<DialogHeader onClose={() => setOpen(false)}>Edit Cron Expression</DialogHeader>}
+        actions={<>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button
             onClick={() => {
@@ -163,8 +150,27 @@ const CronInput = ({
           >
             Apply
           </Button>
-        </DialogActions>
-      </Dialog>
+        </>}
+        actionsAlign="flex-end"
+      >
+        <>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid>{renderSelect("Minute", minute, setMinute, minuteOptions)}</Grid>
+            <Grid>{renderSelect("Hour", hour, setHour, hourOptions)}</Grid>
+            <Grid>{renderSelect("Day of Month", day, setDay, dayOptions)}</Grid>
+            <Grid>{renderSelect("Month", month, setMonth, monthOptions)}</Grid>
+            <Grid>{renderSelect("Weekday (0=Sun)", weekday, setWeekday, weekdayOptions)}</Grid>
+            <Grid>
+      <TextField
+        label="Preview / manual edit"
+        value={preview}
+        onChange={(e) => setPreview(e.target.value)}
+        fullWidth
+      />
+            </Grid>
+          </Grid>
+        </>
+      </ContextBasedDialog>
     </>
   );
 }

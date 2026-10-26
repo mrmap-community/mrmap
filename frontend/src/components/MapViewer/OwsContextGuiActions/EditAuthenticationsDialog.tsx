@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslate } from "react-admin";
 
 import {
   Alert,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   MenuItem,
   Stack,
   TextField,
@@ -19,6 +15,8 @@ import { resolveOperationAuthentication } from "../../../ows-lib/OwsContext/auth
 import { OWSContext } from "../../../ows-lib/OwsContext/core";
 import { isWfsOfferingCode, isWmsOfferingCode } from "../../../ows-lib/OwsContext/validation";
 import { useOwsContextBase } from "../../../react-ows-lib/ContextProvider/OwsContextBase";
+import ContextBasedDialog from "../../Dialog/Dialog";
+import DialogHeader from "../../Dialog/DialogHeader";
 
 export interface EditAuthenticationsDialogProps {
   open: boolean;
@@ -92,10 +90,32 @@ const EditAuthenticationsDialog = ({
       setError(true);
     }
   };
+  const dismiss = () => setOpen(false)
+
   return (
-    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-      <DialogTitle>{t("title")}</DialogTitle>
-      <DialogContent>
+    <ContextBasedDialog
+      open={open}
+      onClose={dismiss}
+      fullWidth
+      maxWidth="md"
+      contentDividers={false}
+      title={<DialogHeader onClose={dismiss}>{t("title")}</DialogHeader>}
+      actions={
+        <Fragment>
+          <Button onClick={dismiss}>{t("cancel")}</Button>
+          <Button
+            onClick={() => {
+              const result = updateOwsContext(draft);
+              if (!result?.hasErrors) setOpen(false);
+            }}
+          >
+            {t("save")}
+          </Button>
+        </Fragment>
+      }
+      actionsAlign="flex-end"
+    >
+      <Fragment>
         <Stack spacing={2}>
           <Alert severity="info">{t("session")}</Alert>
           {(draft.authenticationHeaders ?? []).map((auth) => (
@@ -240,19 +260,8 @@ const EditAuthenticationsDialog = ({
                 ),
             )}
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpen(false)}>{t("cancel")}</Button>
-        <Button
-          onClick={() => {
-            const result = updateOwsContext(draft);
-            if (!result?.hasErrors) setOpen(false);
-          }}
-        >
-          {t("save")}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Fragment>
+    </ContextBasedDialog>
   );
 };
 

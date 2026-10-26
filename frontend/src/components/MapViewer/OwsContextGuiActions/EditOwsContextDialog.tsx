@@ -1,19 +1,17 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { Fragment } from 'react';
 import { useTranslate } from 'react-admin';
 
 import { Editor } from '@monaco-editor/react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
 import { serializeOwsContext } from '../../../ows-lib/OwsContext/authentication';
 import { OwsContextIssue } from '../../../ows-lib/OwsContext/validation';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+import ContextBasedDialog from '../../Dialog/Dialog';
+import DialogHeader from '../../Dialog/DialogHeader';
 
 export interface EditOwsContextDialogProps {
     open: boolean
@@ -78,10 +76,22 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
     }
   }, [open])
 
+  const dismiss = () => setOpen(false)
+
   return (
-      <Dialog
+      <ContextBasedDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={dismiss}
+        contentDividers={false}
+        maxWidth="xl"
+        fullWidth
+        title={<DialogHeader onClose={dismiss}>Edit</DialogHeader>}
+        description="To edit the current OWS Context, please enter a valid OWS Context document."
+        actions={<Fragment>
+          <Button onClick={dismiss}>Cancel</Button>
+          <Button type="submit" color='primary'>Save</Button>
+        </Fragment>}
+        actionsAlign="flex-end"
         slotProps={{paper: {
           component: 'form',
           onSubmit: (e: React.FormEvent<HTMLDivElement>) => {
@@ -89,14 +99,8 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
             handleSave()
           }
         }}}
-        maxWidth="xl"
-        fullWidth
       >
-        <DialogTitle>Edit</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            To edit the current OWS Context, please enter a valid OWS Context document.
-          </DialogContentText>
+        <Fragment>
           <Alert severity="info">{translate('viewerAuth.redacted')}</Alert>
           {errors.length > 0 && (
             <Typography variant="body2" component="p" sx={{ mt: 1 }}>
@@ -119,12 +123,8 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
             value={text}
             onChange={(value) => setText(value || "")}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button type="submit" color='primary'>Save</Button>
-        </DialogActions>
-      </Dialog>
+        </Fragment>
+      </ContextBasedDialog>
   );
 }
 

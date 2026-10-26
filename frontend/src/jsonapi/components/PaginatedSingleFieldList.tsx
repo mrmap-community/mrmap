@@ -4,10 +4,6 @@ import { Pagination, SingleFieldList } from 'react-admin';
 import {
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Stack
 } from '@mui/material';
 import {
@@ -15,6 +11,9 @@ import {
   useResourceContext,
   type RaRecord
 } from 'ra-core';
+
+import ContextBasedDialog from '../../components/Dialog/Dialog';
+import DialogHeader from '../../components/Dialog/DialogHeader';
 
 interface PaginatedSingleFieldListProps<RecordType extends RaRecord = RaRecord> {
     visibleCount?: number;
@@ -66,14 +65,20 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = RaRecord>
             </Stack>
 
             {/* Modal to show all records */}
-            <Dialog
+            <ContextBasedDialog
                 open={openModal}
                 onClose={() => setOpenModal(false)}
                 maxWidth="sm"
                 fullWidth
+                contentDividers={false}
+                title={
+                    <DialogHeader onClose={() => setOpenModal(false)}>
+                        All related {resource} Records
+                    </DialogHeader>
+                }
+                actions={<Button onClick={() => setOpenModal(false)}>Close</Button>}
+                actionsAlign="flex-end"
             >
-                <DialogTitle>All related {resource} Records</DialogTitle>
-                <DialogContent>
                     <Box sx={{ pt: 2 }}>
                         <SingleFieldList
                             data={data}
@@ -85,11 +90,7 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = RaRecord>
                         </SingleFieldList>
                         <Pagination/>
                     </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenModal(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
+            </ContextBasedDialog>
         </Fragment>
     );
 };

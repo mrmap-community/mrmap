@@ -207,10 +207,34 @@ jobs:
           from pathlib import Path
           import xml.etree.ElementTree as ET
 
+          # The python coverage sensor resolves a relative <class filename> below exactly one
+          # base directory and discards the entry when more than one matches, see
+          # CoberturaParser.resolve of the sonar python plugin. coverage.xml announces its
+          # report directory twice, so the <sources> element is dropped and the file names
+          # carry the path from the repository root instead - the project base directory is
+          # the only remaining base directory then.
           report = Path('backend/coverage/coverage.xml')
           tree = ET.parse(report)
-          for source in tree.findall('./sources/source'):
-              source.text = 'backend'
+          root = tree.getroot()
+          sources = root.find('./sources')
+          if sources is not None:
+              root.remove(sources)
+          for class_element in root.iter('class'):
+              filename = class_element.get('filename')
+              if filename and not filename.startswith('backend/'):
+                  class_element.set('filename', f'backend/{filename}')
+          # A report the scanner cannot read measures 0 % coverage quietly, which looks
+          # exactly like new code without tests. Fail the job here instead, see #757.
+          unresolvable = sorted(
+              class_element.get('filename')
+              for class_element in root.iter('class')
+              if not Path(class_element.get('filename')).exists()
+          )
+          if unresolvable:
+              raise SystemExit(
+                  f'{len(unresolvable)} coverage entries do not exist in the checkout, '
+                  f'first of them: {unresolvable[0]}'
+              )
           tree.write(report, encoding='utf-8', xml_declaration=True)
 
           report = Path('frontend/coverage/lcov.info')

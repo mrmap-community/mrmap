@@ -14,7 +14,12 @@ vi.mock('react-leaflet', () => ({
 }));
 vi.mock('./MapViewerBase', () => ({
   MapViewerBase: ({ children }: PropsWithChildren) => children,
-  useMapViewerBase: () => ({ setMap: vi.fn(), mapLoading: { errors: [], failedFeatures: [] } }),
+  useMapViewerBase: () => ({
+    setMap: vi.fn(),
+    mapLoading: { errors: [], failedFeatures: [] },
+    opacityOf: () => 1,
+    setLayerOpacity: vi.fn(),
+  }),
 }));
 vi.mock('../MapContainer/GetMapControl', () => ({ default: () => null }));
 vi.mock('../MapContainer/GetFeatureControl', () => ({ default: () => null }));
@@ -43,7 +48,9 @@ describe('viewer layer settings drawer', () => {
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveTextContent('Radar A');
-    expect(within(panel).getByRole('slider')).toHaveValue('1');
+    expect(within(panel).getByRole('slider', { name: /^viewerDimensions.dimension/ })).toHaveValue('1');
+    // the blending of the layer is edited in the same panel, at full opacity by default (#750)
+    expect(within(panel).getByRole('slider', { name: 'viewerControls.opacity' })).toHaveValue('100');
     expect(within(tree).queryByRole('slider')).toBeNull();
     expect(within(tree).queryByRole('combobox')).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();

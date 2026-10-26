@@ -19,7 +19,10 @@ const state = vi.hoisted(() => ({
   geoJson: [] as {
     data: FeatureCollection;
     onEachFeature?: (feature: Feature, layer: unknown) => void;
+    style?: unknown;
+    drawn?: { setStyle: ReturnType<typeof vi.fn> };
   }[],
+  opacity: 1,
 }));
 
 const map = {
@@ -36,11 +39,19 @@ vi.mock("react-leaflet", () => ({
   GeoJSON: ({
     data,
     onEachFeature,
+    style,
+    ref,
   }: {
     data: FeatureCollection;
     onEachFeature?: (feature: Feature, layer: unknown) => void;
+    style?: unknown;
+    ref?: ((layer: unknown) => void) | { current: unknown } | null;
   }) => {
-    state.geoJson.push({ data, onEachFeature });
+    // the layer leaflet answers with through the ref, keeping the calls the control makes on it
+    const drawn = { setStyle: vi.fn() };
+    state.geoJson.push({ data, onEachFeature, style, drawn });
+    if (typeof ref === "function") ref(drawn);
+    else if (ref !== null && ref !== undefined) ref.current = drawn;
     return <span data-testid="geojson" />;
   },
 }));
@@ -58,6 +69,7 @@ vi.mock("../MapViewer/MapViewerBase", () => ({
     reportMapLoading: (...args: unknown[]) =>
       state.reports.push(args as [string, string, unknown, number | undefined]),
     removeMapLoading: (id: string) => state.removals.push(id),
+    opacityOf: () => state.opacity,
   }),
 }));
 
@@ -135,6 +147,7 @@ beforeEach(() => {
   state.reports = [];
   state.removals = [];
   state.geoJson = [];
+  state.opacity = 1;
 });
 
 describe("bounded viewport requests", () => {
@@ -355,6 +368,53 @@ describe("attributes of a loaded feature", () => {
     expect(document.querySelector("img[src='x']")).toBeNull();
     expect(screen.getByText(/"deep"/).textContent).toContain("1");
     expect(screen.getByText("null")).toBeDefined();
+  });
+});
+
+describe("the blending of a vector layer", () => {
+  it("draws a layer with the style it comes with, at full opacity", async () => {
+    state.context = context([leaf("a")]);
+    successful({ a: collection(1) });
+
+    renderControl();
+
+    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    expect(state.geoJson[0].style).toMatchObject({ opacity: 1, fillOpacity: 0.15 });
+  });
+
+  it("dims stroke and fill of a layer to the blending the viewer holds for it", async () => {
+    state.opacity = 0.5;
+    state.context = context([leaf("a")]);
+    successful({ a: collection(1) });
+
+    renderControl();
+
+    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    // the ratio of the style is kept: a dimmed layer dims its outline and its fill together
+    expect(state.geoJson[0].style).toMatchObject({ opacity: 0.5, fillOpacity: 0.075 });
+  });
+
+  it("reaches the already drawn layer when the viewer blends it differently", async () => {
+    state.context = context([leaf("a")]);
+    successful({ a: collection(1) });
+    // one query provider keeps the loaded features while the blending changes
+    const provider = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const control = () => (
+      <QueryClientProvider client={provider}>
+        <WebFeatureServiceControl />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(control());
+    await waitFor(() => expect(state.geoJson.length).toBe(1));
+
+    state.opacity = 0.5;
+    rerender(control());
+
+    await waitFor(() =>
+      expect(state.geoJson.at(-1)?.drawn?.setStyle).toHaveBeenCalledWith(
+        expect.objectContaining({ opacity: 0.5, fillOpacity: 0.075 }),
+      ),
+    );
   });
 });
 

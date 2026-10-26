@@ -269,6 +269,28 @@ describe('LayerTree', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'viewerControls.edit' })).not.toBeInTheDocument());
   });
 
+  it('blends a layer which advertises neither styles nor dimensions', async () => {
+    const feature = new OWSResource({
+      title: 'Plain layer', updated: '', folder: '/0', active: true,
+      offerings: [{
+        code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
+        operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a' }],
+      }],
+    });
+    render(<AdminContext><OwsContextBase initialFeatures={[feature]}><LayerTree /></OwsContextBase></AdminContext>);
+
+    // the panel is there for every layer the viewer can draw, even one with nothing else to edit
+    await openStyleControls();
+    const slider = screen.getByRole('slider', { name: 'viewerControls.opacity' });
+    expect(slider).toHaveValue('100');
+    expect(slider).toHaveAttribute('aria-valuetext', 'viewerControls.opacityValue');
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+    fireEvent.change(slider, { target: { value: '40' } });
+    // the viewer session holds the new blending of this layer alone
+    expect(opacityState['/0']).toBe(0.4);
+  });
+
   it('shows the selected style legend in the custom-style tooltip only on hover', async () => {
     const feature = new OWSResource({
       title: 'Styled layer', updated: '', folder: '/0',
@@ -565,9 +587,21 @@ describe('unsupported offerings', () => {
   });
 });
 
+// what a viewer session keeps per layer, just like the real provider does
+const opacityState: Record<string, number> = {};
 const viewerState: {
   mapLoading: { failedFeatures: unknown[], errors: unknown[] };
   scaleDenominator?: number;
-} = { mapLoading: { failedFeatures: [], errors: [] }, scaleDenominator: undefined };
+  opacityOf: (features: OWSResource[]) => number;
+  setLayerOpacity: (folder: string, opacity: number) => void;
+} = {
+  mapLoading: { failedFeatures: [], errors: [] },
+  scaleDenominator: undefined,
+  opacityOf: (features: OWSResource[]) =>
+    opacityState[features[0]?.properties.folder ?? ''] ?? 1,
+  setLayerOpacity: (folder: string, opacity: number) => {
+    opacityState[folder] = opacity;
+  },
+};
 
 vi.mock("../MapViewer/MapViewerBase", () => ({ useMapViewerBase: () => viewerState }));

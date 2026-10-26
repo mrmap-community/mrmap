@@ -137,7 +137,7 @@ const WebMapServiceControl = () => {
   const [bounds, setBounds] = useState(map?.getBounds());
   const [size, setSize] = useState(map?.getSize());
   const { owsContext } = useOwsContextBase();
-  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls } =
+  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls, opacityOf } =
     useMapViewerBase();
   const [position, setPosition] = useState<LatLng | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -229,6 +229,7 @@ const WebMapServiceControl = () => {
             optimiuedUrl={atomicGetMapUrl}
             auth={authentication.headers}
             authenticationError={authentication.error}
+            opacity={opacityOf(atomicGetMapUrl.features)}
           />
         ),
         getMapUrl: atomicGetMapUrl.url,

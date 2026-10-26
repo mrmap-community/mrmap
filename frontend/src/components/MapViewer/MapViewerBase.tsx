@@ -65,6 +65,16 @@ export interface MapViewerBaseType {
   mapLoading: MapLoadingState
   reportMapLoading: (id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => void
   removeMapLoading: (id: string) => void
+  /**
+   * The opacity a user gave the layers of this viewer session, keyed by the folder of the resource
+   * and bounded to 0..1. A layer without a value is fully opaque, which keeps the image transparency
+   * or the vector styling it comes with; the values are not part of the OWS context.
+   */
+  layerOpacity: Record<string, number>
+  /** the opacity the given resources render with, which is one value shared by a map request */
+  opacityOf: (features: OWSResource[]) => number
+  /** gives a layer its opacity, bounded to 0..1; a layer not asked for stays fully opaque */
+  setLayerOpacity: (folder: string, opacity: number) => void
 }
 
 export const context = createContext<MapViewerBaseType | undefined>(undefined)
@@ -190,18 +200,48 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     })
   }, [])
      
+  // the transparency a user gives a layer belongs to the viewer session and not to the document:
+  // an exported context keeps the layers as they were imported, while the viewer blends them the
+  // way the user asked for (#750)
+  const [layerOpacity, setLayerOpacityState] = useState<Record<string, number>>({})
+
+  const setLayerOpacity = useCallback((folder: string, opacity: number) => {
+    const bounded = Math.min(1, Math.max(0, opacity))
+    setLayerOpacityState(previous =>
+      previous[folder] === bounded ? previous : { ...previous, [folder]: bounded })
+  }, [])
+
+  // a map request answers the layers it names with one image, so the request carries one opacity
+  // and every layer of it shares that value
+  const opacityOf = useCallback((features: OWSResource[]) =>
+    layerOpacity[features[0]?.properties.folder ?? ''] ?? 1, [layerOpacity])
+
   // a layer which is active but out of scale stays active: only its rendering is temporarily
   // suppressed, and the feature info of a layer answers independently of the scale limits its
   // rendering obeys (#606)
   const atomicGetMapUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetMap",
-      (feature) => (
-        feature.getWmsOperationByCode("GetMap")?.active === true &&
-        isWithinScaleLimits(feature.properties, scaleDenominator)
-      )
-    )
-  }, [owsContext, scaleDenominator])
+    const blendingOf = (feature: OWSResource) =>
+      layerOpacity[feature.properties.folder ?? ''] ?? 1
+    const isRenderable = (feature: OWSResource) =>
+      feature.getWmsOperationByCode("GetMap")?.active === true &&
+      isWithinScaleLimits(feature.properties, scaleDenominator)
+    const documentOrder: Record<string, number> = {}
+    owsContext.features.forEach((feature, index) => {
+      documentOrder[feature.properties.folder ?? ''] = index
+    })
+    // one image blends every layer it draws the same way, so each blending asks for map requests
+    // of its own; the requests keep the order of the document, which is the order in which the map
+    // draws the layers one above the other (#750)
+    const blendings = Array.from(new Set(owsContext.features.filter(isRenderable).map(blendingOf)))
+    return blendings
+      .flatMap(blending => owsContext.getOptimizedUrlsByCode(
+        "GetMap",
+        feature => isRenderable(feature) && blendingOf(feature) === blending,
+      ))
+      .sort((first, second) =>
+        (documentOrder[first.features[0]?.properties.folder ?? ''] ?? 0) -
+        (documentOrder[second.features[0]?.properties.folder ?? ''] ?? 0))
+  }, [owsContext, scaleDenominator, layerOpacity])
 
   // every queryable layer is queried on its own while the layers of one service stay batched into
   // one map request - see getFeatureInfoRequestsPerLayer for the reason (#700)
@@ -303,7 +343,10 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       scaleDenominator,
       mapLoading,
       reportMapLoading,
-      removeMapLoading
+      removeMapLoading,
+      layerOpacity,
+      opacityOf,
+      setLayerOpacity
     }
   }, [
     map,
@@ -317,7 +360,10 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     scaleDenominator,
     mapLoading,
     reportMapLoading,
-    removeMapLoading
+    removeMapLoading,
+    layerOpacity,
+    opacityOf,
+    setLayerOpacity
   ])
 
   useEffect(() => {

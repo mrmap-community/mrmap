@@ -89,12 +89,14 @@ export const AuthImageOverlay = ({
   interactive = true,
   auth,
   authenticationError,
+  opacity = 1,
   ...rest
 }: AuthImageOverlayProps) => {
   const translate = useTranslate();
   const { reportMapLoading, removeMapLoading } = useMapViewerBase();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const startedAt = useRef(performance.now());
+  const overlay = useRef<L.ImageOverlay>(null);
 
   const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
   const url = optimiuedUrl.url.href;
@@ -177,6 +179,12 @@ export const AuthImageOverlay = ({
     };
   }, [data]);
 
+  // an overlay keeps the options it was created with, so the opacity a user blends a layer to is
+  // given to the overlay itself; the image of the layer stays loaded for it (#750)
+  useEffect(() => {
+    overlay.current?.setOpacity(opacity);
+  }, [opacity, imageUrl]);
+
   if (error) {
     return null;
   }
@@ -187,9 +195,11 @@ export const AuthImageOverlay = ({
 
   return (
     <ImageOverlay
+      ref={overlay}
       bounds={bounds}
       url={imageUrl}
       interactive={interactive}
+      opacity={opacity}
       {...rest}
     />
   );

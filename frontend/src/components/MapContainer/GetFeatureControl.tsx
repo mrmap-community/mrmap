@@ -1,4 +1,5 @@
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
+import type L from "leaflet";
 
 import { Fragment, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslate } from "react-admin";
@@ -36,12 +37,20 @@ const VIEWPORT_DEBOUNCE_MS = 300;
 // (overlayPane sits at 400) so that the drawn feature order is the panes, not the mount order
 const FEATURE_PANE = "wfsFeaturePane";
 
-const vectorStyle = {
+// the drawn vectors keep the ratio of their style: a layer blended down dims its stroke, its fill
+// and its point symbols together, while a layer at full opacity draws exactly as it did before
+const VECTOR_STYLE = {
   color: "#1976d2",
   weight: 2,
   fillColor: "#1976d2",
   fillOpacity: 0.15,
 };
+
+const vectorStyle = (opacity: number) => ({
+  ...VECTOR_STYLE,
+  opacity,
+  fillOpacity: VECTOR_STYLE.fillOpacity * opacity,
+});
 
 interface FeatureRequest {
   feature: OWSResource;
@@ -116,11 +125,13 @@ const FeatureOverlay = ({
   onStatus: (id: string, status: FeatureStatus | undefined) => void;
 }) => {
   const translate = useTranslate();
-  const { reportMapLoading, removeMapLoading } = useMapViewerBase();
+  const { reportMapLoading, removeMapLoading, opacityOf } = useMapViewerBase();
   const startedAt = useRef(performance.now());
   const { feature, url, headers, authenticationError } = request;
   const loadingId = `feature:${url.href}`;
   const title = feature.properties.title ?? url.searchParams.get("TYPENAME") ?? url.href;
+  const opacity = opacityOf([feature]);
+  const drawn = useRef<L.GeoJSON>(null);
 
   const query = useQuery<FeatureCollection>({
     queryKey: [
@@ -220,14 +231,21 @@ const FeatureOverlay = ({
     return () => onStatus(loadingId, undefined);
   }, [loadingId, onStatus]);
 
+  // a drawn layer keeps the style it was created with, so the opacity a user blends a layer to goes
+  // to the layer itself; its features stay loaded for it (#750)
+  useEffect(() => {
+    drawn.current?.setStyle(vectorStyle(opacity));
+  }, [opacity]);
+
   if (query.data === undefined) return null;
 
   return (
     <GeoJSON
+      ref={drawn}
       key={url.href}
       data={query.data}
       pane={FEATURE_PANE}
-      style={vectorStyle}
+      style={vectorStyle(opacity)}
       onEachFeature={(layerFeature: Feature, layer) => {
         const select = () => onSelect({ title, properties: layerFeature.properties ?? {} });
         layer.on("click", select);

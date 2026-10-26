@@ -44,6 +44,11 @@ export interface MapViewerBaseType {
   setSelectedCrs: Dispatch<SetStateAction<CRS>>
   featureCollection: string | undefined
   atomicGetMapUrls: OptimizedUrlsMap[]
+  /**
+   * The GetFeatureInfo requests of the queryable layers, one per queried layer: a service may spend
+   * the FEATURE_COUNT of a request naming several layers on its first layers and leave the rest
+   * empty, so every layer is asked on its own while the map stays batched.
+   */
   atomicGetFeatureInfoUrls: OptimizedUrlsMap[]
   /**
    * The resources the document asks to render but this viewer cannot: they are kept visible by
@@ -198,9 +203,10 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     )
   }, [owsContext, scaleDenominator])
 
+  // every queryable layer is queried on its own while the layers of one service stay batched into
+  // one map request - see getFeatureInfoRequestsPerLayer for the reason (#700)
   const atomicGetFeatureInfoUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetFeatureInfo",
+    return owsContext.getFeatureInfoRequestsPerLayer(
       (feature) => (
         feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
       )

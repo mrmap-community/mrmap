@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.
 - The history chart of a resource counts the changes per day of the last 30 days as stacked bars of the additions, the updates and the deletions, draws the inventory as a line above them and names the time, the unit and the resource it counts in a caption; a resource which answers no statistics, a request which is still asked and a request which failed are told apart from a resource without any change (#601).
 
+### Fixed
+- The identify query of the viewer asks every queryable layer with its own GetFeatureInfo request instead of combining the layers of one service into one query: a service may spend the FEATURE_COUNT of a combined request on its first layers and leave the later ones without an answer, which the inspector then showed as a conclusively empty layer; the layers of one service still share one map request (#700).
+
 
 ### Changed
 - moved axis_order_cache package to it's own repo

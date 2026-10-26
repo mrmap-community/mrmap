@@ -294,3 +294,106 @@ test("collapsing and reopening keeps results and map requests unchanged; clear a
   );
   expect(signal?.aborted).toBe(true);
 });
+
+// A WMS server may spend the FEATURE_COUNT of a request on the queried layers in the order of the
+// request instead of counting it per layer: a query naming several layers then answers the first of
+// them and leaves the others empty without an error. The viewer asks one layer per request, so every
+// layer of the map gets its own features (#700).
+/** the answer of an upstream service which counts features over the whole query */
+const countsFeaturesOverTheQuery = (url: string) => {
+  const params = new URL(url).searchParams;
+  const [firstLayer] = (params.get("QUERY_LAYERS") ?? "").split(",");
+  const count = Number(params.get("FEATURE_COUNT"));
+  return Promise.resolve({
+    ok: true,
+    text: async () =>
+      Array.from({ length: count }, () => `${firstLayer} feature`).join("\n"),
+    headers: new Headers({ "content-type": "text/plain" }),
+  });
+};
+
+test("answers every layer although the server spends the feature count over the query", async () => {
+  state.info = [
+    batch("QUERY_LAYERS=water&FEATURE_COUNT=1"),
+    batch("QUERY_LAYERS=roads&FEATURE_COUNT=1"),
+  ];
+  const fetched = vi.fn(countsFeaturesOverTheQuery);
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+
+  expect(await screen.findByText("water feature")).toBeInTheDocument();
+  expect(screen.getByText("roads feature")).toBeInTheDocument();
+  // one request per layer, each naming only the layer it asks for
+  expect(fetched).toHaveBeenCalledTimes(2);
+  expect(
+    fetched.mock.calls
+      .map(([url]) => new URL(url).searchParams.get("QUERY_LAYERS"))
+      .sort(),
+  ).toEqual(["roads", "water"]);
+});
+
+test("keeps the answer of one layer apart from the failure and retry of another", async () => {
+  state.info = [batch("QUERY_LAYERS=water"), batch("QUERY_LAYERS=roads")];
+  const fetched = vi.fn((url: string) =>
+    new URL(url).searchParams.get("QUERY_LAYERS") === "roads"
+      ? Promise.reject(new Error("network down"))
+      : Promise.resolve({
+          ok: true,
+          text: async () => "water feature",
+          headers: new Headers({ "content-type": "text/plain" }),
+        }),
+  );
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+
+  expect(await screen.findByText("water feature")).toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "viewerFeatureInfo.error",
+  );
+  // the failing layer offers its own retry and the answered layer keeps its result
+  expect(
+    screen.getByRole("button", { name: "ra.action.retry" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("water feature")).toBeInTheDocument();
+});
+
+test("aborts the query of the identify selection that a newer one replaces", async () => {
+  state.info = [batch("QUERY_LAYERS=water")];
+  const signals: AbortSignal[] = [];
+  const fetched = vi.fn((_url: string, options: RequestInit) => {
+    signals.push(options.signal as AbortSignal);
+    return new Promise<Response>(() => {});
+  });
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+  await waitFor(() => expect(fetched).toHaveBeenCalledTimes(1));
+
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(6, 6),
+      containerPoint: point(40, 50),
+    }),
+  );
+  await waitFor(() => expect(fetched).toHaveBeenCalledTimes(2));
+  // the obsolete query is cancelled, so its late answer cannot replace the new selection
+  await waitFor(() => expect(signals[0]?.aborted).toBe(true));
+  expect(new URL(fetched.mock.calls[1][0]).searchParams.get("I")).toBe("40");
+});

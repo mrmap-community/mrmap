@@ -9,13 +9,17 @@ once for every row of the answer, and the measured budget of a request.
 import json
 import re
 from collections import Counter
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.db import connections
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.viewsets import GenericViewSet
+
+from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 
 
 JSONAPI = 'application/vnd.api+json'
@@ -143,6 +147,25 @@ class QueryMeasurementMixin:
         """
         with self.assertNoLogs('MrMap.root', level='WARNING'):
             self.request(path, user=user, **params)
+
+
+class SchemaPermissionContextTest(SimpleTestCase):
+    def test_schema_view_skips_object_permission_prefetch(self):
+        class PermissionViewSet(ObjectPermissionCheckerViewSetMixin, GenericViewSet):
+            queryset = get_user_model().objects.all()
+
+        view = PermissionViewSet()
+        view.request = APIRequestFactory().get('/')
+        view.format_kwarg = None
+        view.swagger_fake_view = True
+
+        with patch('extras.viewsets.ObjectPermissionChecker') as checker, \
+                patch.object(view, 'filter_queryset') as filter_queryset:
+            context = view.get_serializer_context()
+
+        checker.assert_not_called()
+        filter_queryset.assert_not_called()
+        self.assertNotIn('perm_checker', context)
 
 
 SERVICES = ["test_users.json", "test_keywords.json", "test_crs.json",

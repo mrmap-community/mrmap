@@ -36,7 +36,10 @@ class ObjectPermissionCheckerViewSetMixin:
             # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()
 
-        if self.request:
+        """
+        Skip object-permission checker setup for drf-spectacular's fake schema views. Schema introspection only needs serializer metadata, so querying and prefetching object permissions for every discovered endpoint is unnecessary. This keeps normal request permission checks unchanged and adds a regression test for the schema path.
+        """
+        if self.request and not getattr(self, 'swagger_fake_view', False):
             perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:

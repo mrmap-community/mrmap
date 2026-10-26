@@ -13,8 +13,8 @@ import { Chip } from "@mui/material";
 
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
+import HistoryList from "../History/HistoryList";
 import { recordHistorySource } from "../History/historySources";
-import ServiceHistoryList from "../History/ServiceHistoryList";
 import { choiceLabel } from "./RecordFields";
 
 const CollectingState = ({ source }: { source: string; label?: string }) => {
@@ -68,7 +68,8 @@ const RecordHistory = ({ harvests = false }: { harvests?: boolean }) => {
   if (!record) return null;
   if (!harvests)
     return (
-      <ServiceHistoryList
+      <HistoryList
+        variant="timeline"
         key={`${resource}:${record.id}`}
         sources={sources}
         record={record}

@@ -6,11 +6,11 @@ import { Box } from '@mui/material'
 import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
 import { merge } from 'lodash'
 
-import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
 import EmptyList from '../../components/Lists/Empty'
 import EmptyListWithFilter from '../../components/Lists/EmptyWithFilter'
+import HistoryList from '../../components/Resource/Generic/History/HistoryList'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { RelatedResource } from '../../providers/dataProvider'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
@@ -223,11 +223,14 @@ const ListGuesserContent = ({
             overflowY: 'scroll'
           }}
         >
+          {/* the events of the feed belong to one record, so a new selection
+              asks for the events of the record it names and clears the details
+              of the record before it */}
           <HistoryList
+            key={selectedRecord?.id ?? "all"}
+            variant="compact"
             resource={`Historical${name ?? ''}`}
             related={name ?? ''}
-            record={selectedRecord}
-           
           />
         </AsideCard>: undefined
       }

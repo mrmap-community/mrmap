@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The system status of the app bar stops polling `/api/system/status/current` while the MrMap tab is hidden and refreshes the displayed status as soon as the user returns (#749).
+- The browsable REST API is a development facility only; a production deployment (`MRMAP_PRODUCTION=True`) registers no browsable renderer, so an HTML-only request is answered with the usual content negotiation rejection and requests without an `Accept` header receive the JSON:API representation (#751).
 - A metadata reference of an imported capabilities document is published as it was imported and is removed only if the database does not know its link anymore; a reference which holds no online resource is no longer published, because it is not valid xml (#674).
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.
 - The history chart of a resource counts the changes per day of the last 30 days as stacked bars of the additions, the updates and the deletions, draws the inventory as a line above them and names the time, the unit and the resource it counts in a caption; a resource which answers no statistics, a request which is still asked and a request which failed are told apart from a resource without any change (#601).

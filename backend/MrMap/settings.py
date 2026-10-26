@@ -609,6 +609,28 @@ SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 JSON_API_FORMAT_FIELD_NAMES = "camelize"
 JSON_API_FORMAT_RELATED_LINKS = "camelize"
 
+
+def default_renderer_classes(production: bool):
+    """Renderer classes of the REST API for one deployment mode.
+
+    The browsable API renders an HTML page for any API response and is a
+    development facility only. A production deployment must not answer it at
+    all, so the browsable renderer is registered solely when the deployment is
+    not production. This follows ``MRMAP_PRODUCTION`` and deliberately not
+    ``DJANGO_DEBUG``: debug can be enabled by accident, which does not turn a
+    deployment into a development one.
+
+    Without the browsable renderer an explicitly HTML-only request is answered
+    with the usual content negotiation rejection (406) instead of an API
+    browser page, and requests without an ``Accept`` header or with
+    ``Accept: */*`` receive the supported JSON:API representation.
+    """
+    renderers = ["extras.renderers.JSONRenderer"]
+    if not production:
+        renderers.insert(0, "extras.utils.BrowsableAPIRendererWithoutForms")
+    return renderers
+
+
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
@@ -624,10 +646,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ),
-    "DEFAULT_RENDERER_CLASSES": [
-        "extras.utils.BrowsableAPIRendererWithoutForms",
-        "extras.renderers.JSONRenderer",
-    ],
+    "DEFAULT_RENDERER_CLASSES": default_renderer_classes(MRMAP_PRODUCTION),
 
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
     "DEFAULT_SCHEMA_CLASS": "extras.schema.CustomOperationId",
@@ -664,9 +683,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 if not MRMAP_PRODUCTION:
-    # REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(
-    #     "extras.utils.BrowsableAPIRendererWithoutForms")
-
+    # The browsable API renderer is already part of the development renderer
+    # classes; see default_renderer_classes() above.
     INSTALLED_APPS.extend(
         [
             "behave_django",

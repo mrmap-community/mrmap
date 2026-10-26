@@ -98,7 +98,13 @@ locations. Tests are classified separately; generated migrations, fixtures, stat
 templates, declarations and coverage output are excluded from application analysis.
 
 Coverage reports contain paths relative to ``backend/`` and ``frontend/``. The analysis job
-adjusts only its downloaded copies so those paths resolve from the repository root. The
+adjusts only its downloaded copies so those paths resolve from the repository root: the lcov
+``SF:`` records gain the ``frontend/`` prefix, and in the cobertura report every
+``<class filename>`` attribute gains the ``backend/`` prefix while its ``<sources>`` element is
+dropped. The python coverage sensor keeps a file name that resolves below exactly one base
+directory and discards ambiguous ones, so announcing the same directory twice costs the whole
+python coverage without failing the job - see issue #757. The adjusted entries are checked
+against the checkout and the job fails when one of them does not exist. The
 original artifacts and existing coverage thresholds remain unchanged.
 
 To enable analysis, a repository administrator must:

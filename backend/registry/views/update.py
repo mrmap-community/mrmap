@@ -404,12 +404,6 @@ class CatalogueServiceUpdateSettingViewSet(
     """ Endpoints for resource `CatalogueServiceUpdateSetting`"""
 
 
-class NestedCatalogueServiceUpdateSettingViewSet(
-        CatalogueServiceUpdateSettingViewSetMixing,
-        NestedModelViewSet):
-    """ Nested list endpoint for resource `CatalogueServiceUpdateSetting` """
-
-
 class CatalogueServiceUpdateJobViewSetMixin:
     queryset = CatalogueServiceUpdateJob.objects.all()
     serializer_class = CatalogueServiceUpdateJobSerializer

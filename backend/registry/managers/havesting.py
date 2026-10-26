@@ -29,10 +29,6 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
         )
 
 
-class HarvestedMetadataRelationManager(models.Manager.from_queryset(HarvestedMetadataRelationQuerySet)):
-    pass
-
-
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
 
     def with_process_info(self):

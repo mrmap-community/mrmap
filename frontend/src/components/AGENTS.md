@@ -112,11 +112,11 @@ cheap and correct option; shrinking or copying the card to avoid the field is th
 | `Resource/Generic/RecordShow/` | `RecordShow`, `RecordHeader`, `RecordFields`, `RecordContacts`, `RecordRelations`, `RecordOverview`, `RecordSpatial`, `RecordHistory` | a label/value stack for record attributes |
 | `Resource/Generic/History/` | `HistoryList` (one entry, variants `table`, `compact`, `timeline`), its private presentations `HistoryChangelog`, `HistoryCompactFeed`, `HistorySourcesCard`, plus `HistoryListBase`, `HistoryTimeline`, `HistoryChart`, `historySources` | a timeline, changelog or event list |
 | `Dashboard/Cards/` | `ResourceListCard`, `CardWithIcon`, `ServiceAttentionCard`, `WorkQueueCard`, `ChangeLogList` | a second card which counts a resource, an alert or a queue of work |
-| `Resource/Generic/{List,Show,Update,Explorer}/` | `SimpleList`, `ShowResource`, the update setting screens and their field definitions, the coverage explorer | another wrapper around `ListGuesser`, another update settings form |
-| `MUI/` | `SimpleCard`, `SimpleTabs`, `CircularProgressWithLabel`, `GradientChartsContainer` | a `Card` with its own header, footer or padding |
+| `Resource/Generic/{List,Update,Explorer}/` | `SimpleList`, the update setting screens and their field definitions, the coverage explorer | another wrapper around `ListGuesser`, another update settings form |
+| `MUI/` | `SimpleCard`, `GradientChartsContainer` | a `Card` with its own header, footer or padding |
 | `Lists/` | `CustomListActions`, `Empty`, `EmptyWithFilter` | a list action bar or an empty state |
 | `Field/`, `Input/` | `TruncatedTextField`, `ProgressField`, `GeoJsonField`, `RelatedResourceField`, `MouseOverPopover`, `CronInput`, `TreeSelectInput`, `GeoJsonInput` | a one-off field or input renderer |
-| `Dialog/`, `Drawer/`, `Tab/` | `Dialog`, `DialogContextBase`, `CreateDialogButton`, `EditDialogButton`, `Drawer`, `ResizeableDrawer`, `Tabs`, `TabListContext` | MUI dialog, drawer or tab scaffolding |
+| `Dialog/`, `Drawer/`, `Tab/` | `Dialog`, `DialogContextBase`, `CreateDialogButton`, `Drawer`, `Tabs`, `TabListContext` | MUI dialog, drawer or tab scaffolding |
 | `jsonapi/components/` | guessers, `SchemaFormFields`, `SchemaAutocompleteInput`, `Reference*Field`, `Count`, `ListWithDialogs`, `PaginatedSingleFieldList`, `Realtime/*`, `SelectedRecordContext` | manual fetching, counts or a hardcoded copy of schema fields |
 
 Every entry keeps its `<Name>.spec.tsx` next to it, which documents its contract and its empty states —

@@ -59,6 +59,14 @@ def capabilities(protocol, version='2.0.0'):
     </{prefix}:Capabilities>'''.encode()
 
 
+GML_FEATURES = '''<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:ms="https://example.test/ms">
+    <wfs:member><ms:Feature gml:id="ms.1"><ms:the_geom><gml:Point>
+      <gml:pos>52.1 13.2</gml:pos></gml:Point></ms:the_geom>
+      <ms:name>Deutschland</ms:name></ms:Feature></wfs:member>
+    </wfs:FeatureCollection>'''.encode()
+
+
 def iso_record(identifier='live-id'):
     return f'''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
       <gmd:fileIdentifier><gco:CharacterString>{identifier}</gco:CharacterString></gmd:fileIdentifier>
@@ -221,11 +229,80 @@ class LivePreviewTests(TestCase):
             self.assertTrue(result.json()['limited'])
             self.assertIn('/30-1', self.send.call_args.args[0].url)
 
-    def test_gml_only_wfs_is_explicitly_unsupported(self):
-        self.wfs.xml_backup_file = SimpleUploadedFile('gml.xml', capabilities('WFS').replace(b'application/json', b'application/gml+xml'))
+    def gml_only_wfs(self, version='2.0.0'):
+        """Rebuilds the stored capabilities so that only GML 3.2 is offered for GetFeature."""
+        self.wfs.version = {'1.0.0': 1, '1.1.0': 11, '2.0.0': 200, '2.0.2': 202}[version]
+        self.wfs.xml_backup_file = SimpleUploadedFile('gml.xml', capabilities('WFS', version).replace(
+            b'application/json', b'application/gml+xml;version=3.2'))
         self.wfs.save()
-        self.assertEqual(self.request('wfs', selection='ms:Countries', bbox='0,0,4,8').json()['error'], 'format')
+
+    def test_a_gml_only_wfs_is_negotiated_and_converted(self):
+        self.gml_only_wfs()
+        self.send.return_value = response(GML_FEATURES, 'application/gml+xml;version=3.2')
+        result = self.request('wfs', selection='ms:Countries', bbox='0,0,4,8')
+        self.assertEqual(result.status_code, 200, result.content)
+        features = result.json()['features']
+        validate_features(features)
+        self.assertEqual(features['features'][0]['geometry'],
+                         {'type': 'Point', 'coordinates': [13.2, 52.1]})
+        self.assertEqual(features['features'][0]['properties'], {'name': 'Deutschland'})
+        params = parse_qs(urlsplit(self.send.call_args.args[0].url).query)
+        self.assertEqual(params['OUTPUTFORMAT'], ['application/gml+xml;version=3.2'])
+
+    def test_a_gml_response_that_cannot_be_normalized_keeps_its_state(self):
+        self.gml_only_wfs()
+        for body, expected in [
+                (GML_FEATURES.replace(b'<gml:pos>52.1 13.2</gml:pos>',
+                                      b'<gml:coordinates>13.2,52.1</gml:coordinates>'), 'format'),
+                (GML_FEATURES.replace(b'<gml:Point>', b'<gml:Point srsName="EPSG:25832">'), 'crs')]:
+            self.send.return_value = response(body, 'application/gml+xml;version=3.2')
+            result = self.request('wfs', selection='ms:Countries', bbox='0,0,4,8')
+            self.assertEqual(result.json().get('error'), expected,
+                             f'{body[:60]} answered {result.status_code} {result.content[:200]}')
+        # An answer without any member is a valid empty preview, exactly as for GeoJSON.
+        self.send.return_value = response(
+            b'<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"'
+            b' xmlns:gml="http://www.opengis.net/gml/3.2"/>', 'application/gml+xml;version=3.2')
+        result = self.request('wfs', selection='ms:Countries', bbox='0,0,4,8')
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertEqual(result.json()['features']['features'], [])
+
+    def test_gml_is_only_accepted_for_a_wfs_that_advertises_it(self):
+        # A WMS answers an image, never a feature collection, and a 1.x WFS is not negotiated.
+        self.send.return_value = response(GML_FEATURES, 'application/gml+xml;version=3.2')
+        self.assertEqual(self.request('wms', selection='node1.1', bbox='0,0,4,8').json()['error'],
+                         'format')
+        self.gml_only_wfs('1.0.0')
+        self.send.reset_mock()
+        self.assertEqual(self.request('wfs', selection='ms:Countries',
+                                      bbox='0,0,4,8').json()['error'], 'format')
         self.send.assert_not_called()
+
+    def test_a_gml_answer_is_spatially_checked_like_a_geojson_answer(self):
+        user = get_user_model().objects.create_user(username='gml-area')
+        group = Group.objects.create(name='gml-area')
+        user.groups.add(group)
+        assign_perm('view_webfeatureservice', user, self.wfs)
+        allowed = AllowedWebFeatureServiceOperation.objects.create(
+            secured_service=self.wfs, allowed_area=MultiPolygon(Polygon.from_bbox((13, 52, 14, 53)),
+                                                                srid=4326))
+        allowed.operations.add(30)
+        allowed.secured_feature_types.add(self.wfs.featuretypes.get(identifier='ms:Countries'))
+        allowed.allowed_groups.add(group)
+        self.client.force_authenticate(user)
+        self.gml_only_wfs()
+        self.send.return_value = response(GML_FEATURES, 'application/gml+xml;version=3.2')
+        # Axis-order helper is deterministic here; no external EPSG registry lookup.
+        with patch('registry.helper.preview.adjust_axis_order', side_effect=lambda geometry: geometry):
+            result = self.request('wfs', selection='ms:Countries', bbox='12,51,15,54')
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertEqual(result.json()['features']['features'][0]['geometry'],
+                         {'type': 'Point', 'coordinates': [13.2, 52.1]})
+        allowed.allowed_area = MultiPolygon(Polygon.from_bbox((0, 0, 1, 1)), srid=4326)
+        allowed.save()
+        with patch('registry.helper.preview.adjust_axis_order', side_effect=lambda geometry: geometry):
+            result = self.request('wfs', selection='ms:Countries', bbox='12,51,15,54')
+        self.assertEqual(result.status_code, 403)
 
     def test_per_type_output_formats_replace_the_operation_wide_advertisement(self):
         # The shared negotiation rule (same as the frontend capabilities

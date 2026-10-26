@@ -1,6 +1,7 @@
-import { useGetOne, useRedirect } from 'react-admin';
+import { AdminContext, testDataProvider, useGetOne, useRedirect } from 'react-admin';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { focusManager, QueryClient } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SystemStatusProvider } from '../../../context/SystemStatusContext';
@@ -127,5 +128,100 @@ describe('global system status', () => {
         vi.mocked(useGetOne, { partial: true }).mockReturnValue({ isPending: false, error: Object.assign(new Error('Forbidden'), { status }) });
         const { container } = renderIndicator();
         expect(container).toBeEmptyDOMElement();
+    });
+});
+
+describe('system status polling', () => {
+    const getOne = vi.fn();
+    let queryClient: QueryClient;
+
+    const renderProvider = async () => {
+        await act(async () => {
+            render(
+                <AdminContext dataProvider={testDataProvider({ getOne })} queryClient={queryClient}>
+                    <SystemStatusProvider>{null}</SystemStatusProvider>
+                </AdminContext>,
+            );
+        });
+    };
+
+    const setTabVisible = async (visible: boolean) => {
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(visible ? 'visible' : 'hidden');
+        await act(async () => window.dispatchEvent(new Event('visibilitychange')));
+    };
+
+    const advanceTime = async (milliseconds: number) => {
+        await act(async () => vi.advanceTimersByTimeAsync(milliseconds));
+    };
+
+    beforeEach(async () => {
+        const actual = await vi.importActual<typeof import('react-admin')>('react-admin');
+        vi.mocked(useGetOne).mockImplementation(actual.useGetOne);
+        vi.useFakeTimers();
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+        focusManager.setFocused(undefined);
+        getOne.mockReset();
+        getOne.mockResolvedValue({ data: snapshot() });
+        queryClient = new QueryClient();
+    });
+    afterEach(() => {
+        cleanup();
+        queryClient.clear();
+        vi.restoreAllMocks();
+        focusManager.setFocused(undefined);
+    });
+
+    it('polls every 15 seconds while the tab is visible', async () => {
+        await renderProvider();
+        expect(getOne).toHaveBeenCalledTimes(1);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('pauses while the tab is hidden', async () => {
+        await renderProvider();
+        await setTabVisible(false);
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps polling a visible tab when the window loses focus', async () => {
+        await renderProvider();
+        vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+        fireEvent.blur(window);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes immediately and resumes polling when the tab becomes visible', async () => {
+        await renderProvider();
+        await setTabVisible(false);
+        await advanceTime(30000);
+        await setTabVisible(true);
+        expect(getOne).toHaveBeenCalledTimes(2);
+        await advanceTime(15000);
+        expect(getOne).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not refetch when the visible window regains focus', async () => {
+        await renderProvider();
+        fireEvent.blur(window);
+        fireEvent.focus(window);
+        await advanceTime(0);
+        expect(getOne).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([401, 403])('stops polling after HTTP %s', async status => {
+        getOne.mockRejectedValue(Object.assign(new Error('Forbidden'), { response: { status } }));
+        await renderProvider();
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not poll after the initial request when mounted in a hidden tab', async () => {
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+        await renderProvider();
+        await advanceTime(30000);
+        expect(getOne).toHaveBeenCalledTimes(1);
     });
 });

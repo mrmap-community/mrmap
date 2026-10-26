@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The capabilities document of a stored WMS or WFS publishes the dataset coupling a curator maintains in MrMap: a curated relation of a layer or feature type adds a metadata reference which points to the iso record of the linked dataset, beside the references which were imported with the document (#674).
 
 ### Changed
+- The system status of the app bar stops polling `/api/system/status/current` while the MrMap tab is hidden and refreshes the displayed status as soon as the user returns (#749).
 - The browsable REST API is a development facility only; a production deployment (`MRMAP_PRODUCTION=True`) registers no browsable renderer, so an HTML-only request is answered with the usual content negotiation rejection and requests without an `Accept` header receive the JSON:API representation (#751).
 - A metadata reference of an imported capabilities document is published as it was imported and is removed only if the database does not know its link anymore; a reference which holds no online resource is no longer published, because it is not valid xml (#674).
 - building docs with readthedocs.org instead of using custom github action to publish with github pages.

@@ -36,7 +36,7 @@ class ObjectPermissionCheckerViewSetMixin:
             # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()
 
-        if self.request:
+        if self.request and not getattr(self, 'swagger_fake_view', False):
             perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:

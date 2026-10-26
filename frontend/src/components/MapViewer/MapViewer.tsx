@@ -42,7 +42,7 @@ const ViewerLayerControls = ({ children }: PropsWithChildren) => {
   const { openDrawer } = useDrawerContext();
   const { setTabList } = useTabListContext();
   const open = useCallback(() => {
-    openDrawer('bottomdrawer');
+    openDrawer('bottomdrawer', true);
     setTabList(previous => ({ ...previous, activeTab: '2' }));
   }, [openDrawer, setTabList]);
   return <ContextMenuBase onOpenControls={open}>{children}</ContextMenuBase>;

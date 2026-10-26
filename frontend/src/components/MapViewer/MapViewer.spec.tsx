@@ -40,6 +40,7 @@ describe('viewer layer settings drawer', () => {
     const tree = screen.getAllByRole('tree')[0].parentElement!;
     fireEvent.click(within(tree).getByText('Radar A'));
     await waitFor(() => expect(screen.getByRole('tab', { name: 'viewerControls.title' })).toHaveAttribute('aria-selected', 'true'));
+    expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveTextContent('Radar A');
     expect(within(panel).getByRole('slider')).toHaveValue('1');
@@ -49,12 +50,19 @@ describe('viewer layer settings drawer', () => {
     fireEvent.change(within(panel).getByRole('combobox'), { target: { value: 'outline' } });
     expect(within(panel).getByRole('combobox')).toHaveValue('outline');
     fireEvent.click(within(tree).getByText('Radar B'));
+    expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(panel).toHaveTextContent('Radar B');
     expect(within(panel).getByRole('combobox')).toHaveValue('');
     expect(within(tree).getByText('Radar A')).toBeVisible();
     expect(within(tree).getByText('Radar B')).toBeVisible();
     fireEvent.click(within(tree).getByText('Radar A'));
+    expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     expect(within(panel).getByRole('combobox')).toHaveValue('outline');
+    fireEvent.click(screen.getByRole('tab', { name: 'Map Settings' }));
+    fireEvent.click(within(tree).getByText('Radar A'));
+    expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'viewerControls.title' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Radar A');
   });
 });

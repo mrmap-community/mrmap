@@ -120,15 +120,18 @@ describe('placement and toggles', () => {
   })
 })
 
-describe('reciprocal sizing', () => {
-  it('shrinks the right drawer in height and the bottom drawer in width when both are open', () => {
+describe('drawer sizing', () => {
+  it('keeps the right drawer at full height and shrinks the bottom drawer in width when both are open', () => {
     const { container } = render(viewer())
     openRight()
+    const rightHeight = paperOf(container, 'Right').style.height
     openBottom()
     const right = paperOf(container, 'Right')
     const bottom = paperOf(container, 'Bottom')
     expect(right.style.width).toBe('20vw')
-    expect(right.style.height).toContain('30vh')
+    expect(right.style.height).toBe(rightHeight)
+    expect(right.style.top).toBe('0px')
+    expect(right.style.bottom).toBe('40px')
     expect(bottom.style.height).toBe('30vh')
     expect(bottom.style.width).toContain('20vw')
     expect(target().style.paddingRight).toBe('20vw')
@@ -182,7 +185,7 @@ describe('reciprocal sizing', () => {
     setStored('rightdrawer', { isOpen: true, height: '100%', width: '12vw' })
     setStored('bottomdrawer', { isOpen: true, height: '44vh', width: '100vw' })
     const { container } = render(viewer())
-    expect(paperOf(container, 'Right').style.height).toContain('44vh')
+    expect(paperOf(container, 'Right').style.height).not.toContain('44vh')
     expect(paperOf(container, 'Bottom').style.width).toContain('12vw')
     expect(target().style.paddingRight).toBe('12vw')
   })
@@ -192,11 +195,11 @@ describe('layout state', () => {
   it('re-measures the app bar and keeps the drawer in sync', () => {
     const { container } = render(viewer())
     openRight()
-    expect(paperOf(container, 'Right').style.paddingTop).toBe('0px')
+    expect(paperOf(container, 'Right').style.top).toBe('0px')
     uiState.appBarHeight = 64
     observers.instances[0].trigger()
-    expect(paperOf(container, 'Right').style.paddingTop).toBe('64px')
-    expect(paperOf(container, 'Right').style.height).toContain('64px')
+    expect(paperOf(container, 'Right').style.top).toBe('64px')
+    expect(paperOf(container, 'Right').style.height).toContain('104px')
     expect(target().style.paddingRight).toBe('20vw')
   })
 

@@ -8,9 +8,8 @@ import { Drawer as MuiDrawer, type DrawerProps as MuiDrawerProps, useTheme } fro
 import { useDrawerContext, type DrawerAnchor, type DrawerState } from './DrawerContext'
 
 export interface DrawerProps extends Omit<MuiDrawerProps, 'anchor' | 'open'> {
-  /** Which edge the drawer gathers at; it also decides what the drawer shrinks
-   *  for: a right drawer gives up height to open bottom drawers, a bottom
-   *  drawer gives up width to open right drawers. */
+  /** Which edge the drawer gathers at. Bottom drawers give up width to open
+   *  right drawers, which use the full height between app bar and footer. */
   anchor: DrawerAnchor
   /** Identifies this instance's persisted state under `mrmap.drawer.<key>`;
    *  two instances must not share one key. */
@@ -63,19 +62,18 @@ const Drawer = ({
 
   useEffect(() => () => withdraw(instanceKey), [withdraw, instanceKey])
 
-  // The extent every open orthogonal drawer takes away from this one, as a
-  // tail of `calc()` subtractions; both drawers derive it from the same
-  // registry, so neither constrains the other through state.
+  // Bottom drawers leave room for right drawers, including the bottom corner.
   const orthogonalExtent = Object.entries(drawers)
-    .filter(([key, other]) => key !== instanceKey && other.anchor !== anchor && other.isOpen)
-    .map(([, other]) => ` - ${anchor === 'right' ? other.height : other.width}`)
+    .filter(([key, other]) => key !== instanceKey && other.anchor === 'right' && other.isOpen)
+    .map(([, other]) => ` - ${other.width}`)
     .join('')
 
   const paperStyle: CSSProperties = anchor === 'right'
     ? {
       width: state.width,
-      paddingTop: appBarOffset,
-      height: `max(0px, calc(100% - ${appBarOffset}${orthogonalExtent}))`
+      top: appBarOffset,
+      bottom: '40px',
+      height: `max(0px, calc(100% - ${appBarOffset} - 40px))`
     }
     : {
       height: state.height,

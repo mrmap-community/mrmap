@@ -21,9 +21,15 @@ document subset is narrow on purpose and everything outside it is answered with 
   ``xlink:href`` into another document, is a complex application schema and is refused. Remote
   references are never read.
 
+Django's ``GEOSGeometry.from_gml()`` parses the geometry through GDAL/GEOS. This module
+retains only WFS feature extraction and the subset/axis-order checks required by the preview.
 Output geometry coordinates are longitude/latitude, like the GeoJSON the same contract carries.
 """
+import json
 import math
+
+from django.contrib.gis.gdal import GDALException
+from django.contrib.gis.geos import GEOSException, GEOSGeometry
 
 from lxml import etree
 
@@ -36,18 +42,34 @@ LATITUDE_FIRST = ("EPSG:4326", "URN:OGC:DEF:CRS:EPSG::4326", "HTTP://WWW.OPENGIS
 LONGITUDE_FIRST = ("CRS:84", "URN:OGC:DEF:CRS:OGC::CRS84", "URN:OGC:DEF:CRS:OGC:1.3:CRS84",
                    "HTTP://WWW.OPENGIS.NET/DEF/CRS/OGC/1.3/CRS84")
 POINT, LINE_STRING, LINEAR_RING, POLYGON, SURFACE = "Point", "LineString", "LinearRing", "Polygon", "Surface"
-# GML aggregate -> the member elements it holds, the geometry they wrap and the GeoJSON type.
+# GML aggregate -> its member elements and the geometry they wrap.
 AGGREGATES = {
-    "MultiPoint": (("pointMember", "pointProperty"), POINT, "MultiPoint"),
-    "MultiLineString": (("lineStringMember", "lineStringProperty"), LINE_STRING, "MultiLineString"),
-    "MultiCurve": (("curveMember",), LINE_STRING, "MultiLineString"),
-    "MultiSurface": (("surfaceMember",), SURFACE, "MultiPolygon"),
-    "MultiPolygon": (("polygonMember",), POLYGON, "MultiPolygon"),
+    "MultiPoint": (("pointMember", "pointProperty"), POINT),
+    "MultiLineString": (("lineStringMember", "lineStringProperty"), LINE_STRING),
+    "MultiCurve": (("curveMember",), LINE_STRING),
+    "MultiSurface": (("surfaceMember",), SURFACE),
+    "MultiPolygon": (("polygonMember",), POLYGON),
 }
 GEOMETRY_COLLECTION = "MultiGeometry"
 GEOMETRIES = {POINT, LINE_STRING, LINEAR_RING, POLYGON, SURFACE, GEOMETRY_COLLECTION} | set(AGGREGATES)
 # The nil statement of a property or a geometry: gml:nil in GML 3.2, xsi:nil in older encodings.
 NIL_ATTRIBUTES = (f"{{{GML}}}nil", f"{{{XSI}}}nil")
+
+
+# Only these local geometry elements reach GDAL. In particular no remote reference, entity,
+# deprecated coordinate encoding or curved geometry can be resolved or approximated by it.
+CHILDREN = {
+    POINT: {"pos", "posList"}, LINE_STRING: {"pos", "posList"}, LINEAR_RING: {"pos", "posList"},
+    POLYGON: {"exterior", "interior"}, SURFACE: {"patches"},
+    "patches": {"PolygonPatch"}, "PolygonPatch": {"exterior", "interior"},
+    "exterior": {LINEAR_RING}, "interior": {LINEAR_RING},
+    GEOMETRY_COLLECTION: {"geometryMember", "geometryAsFollows"} | GEOMETRIES,
+    "geometryMember": GEOMETRIES, "geometryAsFollows": GEOMETRIES,
+}
+for aggregate, (member_names, wrapped) in AGGREGATES.items():
+    CHILDREN[aggregate] = set(member_names)
+    for member_name in member_names:
+        CHILDREN[member_name] = {wrapped} if wrapped in (POINT, LINE_STRING) else {POLYGON, SURFACE}
 
 
 class GmlError(Exception):
@@ -98,32 +120,6 @@ def _dimension(element):
         raise GmlError("gmlSchema")
 
 
-def _positions(element, dimension, offset):
-    """Read the coordinates of one geometric primitive, longitude first."""
-    children = _elements(element)
-    if len(children) != 1 or _name(children[0]) not in ("pos", "posList"):
-        # gml:coordinates and gml:coord are the deprecated encodings, any other content is a
-        # nested schema; both are refused instead of being guessed.
-        raise GmlError("gmlSchema")
-    child = children[0]
-    values = child.text.split() if child.text else []
-    declared = dimension if dimension is not None else _dimension(child)
-    if declared is None and _name(child) == "pos":
-        # A single position states its own dimension by its value count.
-        declared = len(values)
-    if declared not in (None, 2):
-        raise GmlError("gmlDimension")
-    if len(values) % 2 != 0:
-        raise GmlError("malformed")
-    positions = []
-    for start in range(0, len(values), 2):
-        longitude, latitude = float(values[start + offset]), float(values[start + 1 - offset])
-        positions.append([longitude, latitude])
-    if not positions or not all(math.isfinite(value) for position in positions for value in position):
-        raise GmlError("malformed")
-    return positions
-
-
 def _is_gml_geometry(element):
     return _name(element) in GEOMETRIES and element.nsmap.get(element.prefix) == GML
 
@@ -136,106 +132,91 @@ def _is_geometry_property(property_element):
     return len(children) == 1 and _is_gml_geometry(children[0])
 
 
-def _rings(element, dimension, offset, name):
-    """Read the exterior and interior rings of a GML Polygon or of a Surface PolygonPatch."""
-    if name == SURFACE:
-        patches = [child for child in _elements(element) if _name(child) == "patches"]
-        if len(patches) != 1:
-            raise GmlError("gmlSchema")
-        polygons = [child for child in _elements(patches[0]) if _name(child) == "PolygonPatch"]
-        if len(polygons) != 1:
-            raise GmlError("gmlSchema")
-        element = polygons[0]
-    rings = _elements(element)
-    if not rings or _name(rings[0]) != "exterior" or any(
-            _name(ring) not in ("exterior", "interior") for ring in rings):
-        raise GmlError("gmlSchema")
-    coordinates = []
-    for ring in rings:
-        linear_rings = [child for child in _elements(ring) if _name(child) == LINEAR_RING]
-        if len(linear_rings) != 1:
-            raise GmlError("gmlSchema")
-        positions = _positions(linear_rings[0], dimension, offset)
-        if len(positions) < 4:
-            raise GmlError("gmlSchema")
-        if positions[0] != positions[-1]:
-            # GML states a ring closes itself; a server that omits the repeated position still
-            # means the closed ring, and the normalized collection requires it.
-            positions.append(list(positions[0]))
-        coordinates.append(positions)
-    return coordinates
+def _local_geometry(element, srs_name, requested, dimension=None):
+    """Validate the preview subset and copy it to a self-contained, longitude first GML tree.
 
-
-def _aggregate(element, name, srs_name, requested):
-    """Convert one GML aggregate into the GeoJSON multi geometry it maps to."""
-    member_names, wrapped, geojson_type = AGGREGATES[name]
-    expected = {POINT: POINT, LINE_STRING: LINE_STRING}.get(wrapped, POLYGON)
-    members = []
-    for member in _elements(element):
-        if _name(member) not in member_names:
-            raise GmlError("gmlSchema")
-        children = _elements(member)
-        if len(children) != 1:
-            raise GmlError("gmlSchema")
-        geometry = _geometry(children[0], srs_name, requested)
-        if geometry["type"] != expected:
-            raise GmlError("gmlSchema")
-        members.append(geometry)
-    if not members:
-        raise GmlError("gmlSchema")
-    if geojson_type in ("MultiPoint", "MultiLineString"):
-        return {"type": geojson_type, "coordinates": [member["coordinates"] for member in members]}
-    coordinates = []
-    for member in members:
-        # Every member polygon is one polygon of the multi polygon, with all of its rings.
-        coordinates.append(member["coordinates"])
-    return {"type": "MultiPolygon", "coordinates": coordinates}
-
-
-def _collection(element, srs_name, requested):
-    """Convert a GML MultiGeometry, whose members may hold any supported geometry."""
-    geometries = []
-    for child in _elements(element):
-        if _name(child) in ("geometryMember", "geometryAsFollows"):
-            members = _elements(child)
-            if len(members) != 1:
-                raise GmlError("gmlSchema")
-            geometries.append(_geometry(members[0], srs_name, requested))
-        elif _is_gml_geometry(child):
-            geometries.append(_geometry(child, srs_name, requested))
-        else:
-            raise GmlError("gmlSchema")
-    if not geometries:
-        raise GmlError("gmlSchema")
-    return {"type": "GeometryCollection", "geometries": geometries}
-
-
-def _geometry(element, srs_name, requested):
-    """Convert one GML 3.2 geometry element into a longitude first GeoJSON geometry."""
-    if not _is_gml_geometry(element):
+    GDAL reads coordinate tuples verbatim, regardless of srsName. It also accepts invalid numeric
+    text as zero and can approximate curves. Keep these contract checks here; geometry parsing,
+    polygon construction and aggregate conversion belong to GEOSGeometry.from_gml().
+    Only approved elements/text are copied, so GDAL never receives upstream references or DTDs.
+    """
+    name = _name(element)
+    if element.tag != f"{{{GML}}}{name}" or _is_nil(element):
         raise GmlError("gmlSchema")
     if element.get(f"{{{XLINK}}}href") is not None:
         raise GmlError("gmlRemote")
-    if _is_nil(element):
+    srs_name = element.get("srsName") or srs_name
+    offset = _offset(srs_name, requested)
+    declared = _dimension(element)
+    dimension = declared if declared is not None else dimension
+    if dimension not in (None, 2):
+        raise GmlError("gmlDimension")
+    children = _elements(element)
+    # GDAL expects the standard member wrappers rather than the legacy aliases we accept.
+    local_name = {"pointProperty": "pointMember", "lineStringProperty": "lineStringMember",
+                  "geometryAsFollows": "geometryMember"}.get(name, name)
+    local = etree.Element(f"{{{GML}}}{local_name}", nsmap={"gml": GML})
+    if name in ("pos", "posList"):
+        if children:
+            raise GmlError("gmlSchema")
+        values = element.text.split() if element.text else []
+        if name == "pos" and len(values) != 2:
+            raise GmlError("gmlDimension")
+        if not values or len(values) % 2:
+            raise GmlError("malformed")
+        try:
+            values = [float(value) for value in values]
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError
+        except ValueError as error:
+            raise GmlError("malformed") from error
+        if offset:
+            values = [value for pair in zip(values[1::2], values[::2]) for value in pair]
+        local.text = " ".join(map(str, values))
+        return local
+    allowed = CHILDREN.get(name, set())
+    if not children or any(_name(child) not in allowed for child in children):
         raise GmlError("gmlSchema")
-    name = _name(element)
-    offset = _offset(element.get("srsName") or srs_name, requested)
-    dimension = _dimension(element)
-    if name == POINT:
-        positions = _positions(element, dimension, offset)
-        if len(positions) != 1:
+    if (name in (POINT, LINE_STRING, LINEAR_RING, SURFACE, "patches", "exterior", "interior",
+                 "geometryAsFollows") or name.endswith(("Member", "Property"))):
+        if len(children) != 1:
             raise GmlError("gmlSchema")
-        return {"type": "Point", "coordinates": positions[0]}
-    if name in (LINE_STRING, LINEAR_RING):
-        positions = _positions(element, dimension, offset)
-        if len(positions) < 2:
+    if name in (POLYGON, "PolygonPatch") and (
+            _name(children[0]) != "exterior" or sum(_name(child) == "exterior" for child in children) != 1):
+        raise GmlError("gmlSchema")
+    local.extend(_local_geometry(child, srs_name, requested, dimension) for child in children)
+    if name == POINT and len(local[0].text.split()) != 2:
+        raise GmlError("gmlSchema")
+    if name == GEOMETRY_COLLECTION:
+        for child in list(local):
+            if _name(child) in GEOMETRIES:
+                wrapper = etree.Element(f"{{{GML}}}geometryMember")
+                local.replace(child, wrapper)
+                wrapper.append(child)
+    if name == LINEAR_RING:
+        # Preserve the preview's tolerance of a missing closing position before GEOS reads it.
+        positions = local[0].text.split()
+        if len(positions) < 8:
             raise GmlError("gmlSchema")
-        return {"type": "LineString", "coordinates": positions}
-    if name in (POLYGON, SURFACE):
-        return {"type": "Polygon", "coordinates": _rings(element, dimension, offset, name)}
-    if name in AGGREGATES:
-        return _aggregate(element, name, srs_name, requested)
-    return _collection(element, srs_name, requested)
+        if list(map(float, positions[:2])) != list(map(float, positions[-2:])):
+            local[0].text += " " + " ".join(positions[:2])
+    return local
+
+
+def _geometry(element, srs_name, requested):
+    """Delegate GML geometry parsing and GeoJSON construction to Django's GDAL/GEOS bridge."""
+    local = _local_geometry(element, srs_name, requested)
+    for ring in local.iter(f"{{{GML}}}LinearRing"):
+        if ring.getparent() is None or _name(ring.getparent()) not in ("exterior", "interior"):
+            # Rings outside polygon boundaries were exposed as lines by the response contract.
+            ring.tag = f"{{{GML}}}LineString"
+    try:
+        geometry = GEOSGeometry.from_gml(etree.tostring(local, encoding="unicode"))
+        if geometry.empty:
+            raise GmlError("gmlSchema")
+        return json.loads(geometry.json)
+    except (GDALException, GEOSException, ValueError) as error:
+        raise GmlError("gmlSchema") from error
 
 
 def _value(property_element):

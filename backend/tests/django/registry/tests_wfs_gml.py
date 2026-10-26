@@ -47,6 +47,17 @@ class GmlGeometryTests(SimpleTestCase):
         self.assert_geometry({"type": "Point", "coordinates": [13.2, 52.1]},
                              f'<gml:Point srsName="{CRS}"><gml:pos>52.1 13.2</gml:pos></gml:Point>')
 
+    def test_a_point_encoded_as_a_position_list_is_converted(self):
+        self.assert_geometry({"type": "Point", "coordinates": [13.2, 52.1]},
+                             '<gml:Point><gml:posList>52.1 13.2</gml:posList></gml:Point>')
+
+    def test_geometry_preparation_leaves_the_upstream_tree_unchanged(self):
+        root = parse_xml(collection(member(
+            '<gml:Point><gml:pos>52.1 13.2</gml:pos></gml:Point>')).encode())
+        original = etree.tostring(root)
+        gml.feature_collection(root, 250, "ms:geom")
+        self.assertEqual(etree.tostring(root), original)
+
     def test_line_string_is_converted_position_by_position(self):
         self.assert_geometry(
             {"type": "LineString", "coordinates": [[13.1, 52.1], [13.2, 52.2]]},
@@ -129,6 +140,25 @@ class GmlGeometryTests(SimpleTestCase):
                 {"type": "Point", "coordinates": [13.1, 52.1]},
                 {"type": "LineString", "coordinates": [[13.1, 52.1], [13.2, 52.2]]}]})
 
+    def test_legacy_member_wrappers_and_unwrapped_collection_members_are_preserved(self):
+        point = '<gml:Point><gml:pos>52.1 13.2</gml:pos></gml:Point>'
+        for wrapper in ("pointMember", "pointProperty"):
+            self.assert_geometry({"type": "MultiPoint", "coordinates": [[13.2, 52.1]]},
+                                 f'<gml:MultiPoint><gml:{wrapper}>{point}</gml:{wrapper}></gml:MultiPoint>')
+        for content in (point, f'<gml:geometryAsFollows>{point}</gml:geometryAsFollows>'):
+            self.assert_geometry({"type": "GeometryCollection", "geometries": [
+                {"type": "Point", "coordinates": [13.2, 52.1]}]},
+                f'<gml:MultiGeometry>{content}</gml:MultiGeometry>')
+        self.assert_geometry({"type": "MultiLineString", "coordinates": [[[13.1, 52.1], [13.2, 52.2]]]},
+                             '<gml:MultiLineString><gml:lineStringProperty><gml:LineString>'
+                             '<gml:posList>52.1 13.1 52.2 13.2</gml:posList></gml:LineString>'
+                             '</gml:lineStringProperty></gml:MultiLineString>')
+
+    def test_a_standalone_linear_ring_keeps_the_line_geometry_contract(self):
+        self.assert_geometry({"type": "LineString", "coordinates": [
+            [13.0, 52.0], [14.0, 52.0], [14.0, 53.0], [13.0, 52.0]]},
+            '<gml:LinearRing><gml:posList>52 13 52 14 53 14 52 13</gml:posList></gml:LinearRing>')
+
     def test_an_empty_aggregate_is_refused(self):
         with self.assertRaises(gml.GmlError) as raised:
             convert(collection(member("<gml:MultiPoint></gml:MultiPoint>")))
@@ -180,6 +210,14 @@ class GmlCrsTests(SimpleTestCase):
                     convert(collection(member(self.point(srs_name, "52.1", "13.2"))))
                 self.assertEqual(raised.exception.code, "crs")
 
+    def test_aggregate_members_inherit_the_crs_and_can_override_its_axis_order(self):
+        self.assert_coordinates(collection(member(
+            '<gml:MultiPoint srsName="CRS:84"><gml:pointMember><gml:Point>'
+            '<gml:pos>13.1 52.1</gml:pos></gml:Point></gml:pointMember>'
+            '<gml:pointMember><gml:Point srsName="EPSG:4326">'
+            '<gml:pos>52.2 13.2</gml:pos></gml:Point></gml:pointMember>'
+            '</gml:MultiPoint>')), [[13.1, 52.1], [13.2, 52.2]])
+
     def test_a_missing_srsname_falls_back_to_the_requested_crs(self):
         self.assert_coordinates(collection(
             member("<gml:Point><gml:pos>52.1 13.2</gml:pos></gml:Point>")), [13.2, 52.1])
@@ -209,6 +247,17 @@ class GmlDimensionTests(SimpleTestCase):
                 "<gml:Point><gml:pos>52.1 13.2 100</gml:pos></gml:Point>")))
         self.assertEqual(raised.exception.code, "gmlDimension")
 
+    def test_dimensions_on_aggregate_members_and_positions_are_checked(self):
+        for geometry in (
+                '<gml:MultiPoint srsDimension="3"><gml:pointMember><gml:Point>'
+                '<gml:pos>52.1 13.2 100</gml:pos></gml:Point></gml:pointMember></gml:MultiPoint>',
+                '<gml:Point srsDimension="2"><gml:pos srsDimension="3">'
+                '52.1 13.2 100</gml:pos></gml:Point>'):
+            with self.subTest(geometry=geometry):
+                with self.assertRaises(gml.GmlError) as raised:
+                    convert(collection(member(geometry)))
+                self.assertEqual(raised.exception.code, "gmlDimension")
+
     def test_a_pos_list_that_is_not_a_pair_sequence_is_refused(self):
         with self.assertRaises(gml.GmlError) as raised:
             convert(collection(member(
@@ -231,6 +280,33 @@ class GmlRefusalTests(SimpleTestCase):
         self.assert_refused(collection(member(
             '<gml:Point><gml:coord><gml:X>13.2</gml:X><gml:Y>52.1</gml:Y>'
             '</gml:coord></gml:Point>')), "gmlSchema")
+
+    def test_a_point_with_multiple_positions_is_refused(self):
+        self.assert_refused(collection(member(
+            '<gml:Point><gml:posList>52.1 13.1 52.2 13.2</gml:posList></gml:Point>')), "gmlSchema")
+
+    def test_invalid_numbers_are_refused_before_gdal_can_coerce_them_to_zero(self):
+        for value in ("bad", "13junk", "NaN", "INF", "1e999"):
+            with self.subTest(value=value):
+                self.assert_refused(collection(member(
+                    f'<gml:Point><gml:pos>{value} 13.2</gml:pos></gml:Point>')), "malformed")
+
+    def test_gdal_failures_keep_the_explicit_format_state(self):
+        for exception in (gml.GDALException, gml.GEOSException):
+            with self.subTest(exception=exception):
+                with mock.patch.object(gml.GEOSGeometry, "from_gml", side_effect=exception("invalid")):
+                    self.assert_refused(collection(member(
+                        '<gml:Point><gml:pos>52.1 13.2</gml:pos></gml:Point>')), "gmlSchema")
+
+    def test_nested_remote_references_are_refused(self):
+        self.assert_refused(collection(member(
+            '<gml:MultiPoint><gml:pointMember xlink:href="http://example.com/point"/>'
+            '</gml:MultiPoint>')), "gmlRemote")
+
+    def test_position_elements_must_belong_to_the_gml_namespace(self):
+        self.assert_refused(collection(member(
+            '<gml:Point><other:pos xmlns:other="http://example.com/other">'
+            '52.1 13.2</other:pos></gml:Point>')), "gmlSchema")
 
     def test_remote_references_are_never_read(self):
         self.assert_refused(collection(

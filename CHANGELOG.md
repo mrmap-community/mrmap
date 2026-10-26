@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The aside of a screen of services answers the selected service first: its states which need attention, the outcome of its last monitoring run and update job and a direct way to its screen (#597).
 - Work queue card on the dashboard which counts the alerts, the update reviews and the running and failed background work of everything the user may see, and links to the list of those very records (#601).
 - The capabilities document of a stored WMS or WFS publishes the dataset coupling a curator maintains in MrMap: a curated relation of a layer or feature type adds a metadata reference which points to the iso record of the linked dataset, beside the references which were imported with the document (#674).
+- The step size a harvesting run requests pages with is a size a run can carry and the catalogue keeps it: a run which names no size starts from the size of its catalogue, a run which finished leaves the size it worked with there, and a size which no run can carry is answered as invalid input instead of breaking the run or the request (#691).
 - Per layer opacity in the map viewer: the layer settings panel blends a layer between invisible and fully drawn in five percent steps, keeps the value for the viewer session, and asks for a map of its own as soon as two layers differ, so the blending of one layer never dims another; a feature layer dims its outlines, fills and point symbols together (#750).
 
 ### Changed

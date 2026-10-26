@@ -58,7 +58,11 @@ def create_harvesting_job(self, *args, **kwargs):
         delivery_id = self.request.id or str(uuid4())
         job = HarvestingJob.objects.filter(celery_task_ids__contains=[delivery_id]).first()
         if job is None:
-            job, _ = HarvestingJob.objects.get_or_create(service=service, done_at__isnull=True)
+            # a harvest which names no step size starts from the size this catalogue is known to
+            # answer - a schedule and the "harvest now" of the ui both come this way (#691)
+            job, _ = HarvestingJob.objects.get_or_create(
+                service=service, done_at__isnull=True,
+                defaults={"max_step_size": service.max_step_size})
             job.append_celery_task_ids([delivery_id])
         if job.done_at is None:
             transaction.on_commit(lambda: call_fetch_total_records.delay(harvesting_job_id=job.pk))

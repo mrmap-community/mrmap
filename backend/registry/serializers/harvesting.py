@@ -168,6 +168,19 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
             "phase",
         )
 
+    def validate(self, attrs):
+        """a harvest which names no step size starts from the size the catalogue answers (#691)
+
+        The catalogue is the memory of the size a remote service is known to answer, the job stays
+        the record of one run: an explicit size of the request still wins and is stored on the job as
+        it is today.
+        """
+        attrs = super().validate(attrs)
+        service = attrs.get("service")
+        if service is not None and "max_step_size" not in attrs:
+            attrs["max_step_size"] = service.max_step_size
+        return attrs
+
 
 class HarvestingLogSerializer(
     StringRepresentationSerializer,

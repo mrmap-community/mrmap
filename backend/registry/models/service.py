@@ -7,6 +7,7 @@ from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
 from django.contrib.postgres.indexes import GistIndex
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
@@ -39,6 +40,7 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
+from registry.settings import MAX_STEP_SIZE, MIN_STEP_SIZE
 from requests import Request, Session
 from simple_history.models import HistoricalRecords
 
@@ -353,12 +355,16 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
-    # TODO: the max step size should be checked by registrating the service, harvesting the service, updating the service.
     max_step_size = models.IntegerField(
         verbose_name=_("max step size"),
         help_text=_(
-            "the maximum step size this csw can handle by a single GetRecords request."),
+            "the step size the harvesting runs of this catalogue start with. A "
+            "run which finished keeps it up to date with the size its pages "
+            "answered with, so the catalogue remembers what it is known to "
+            "answer by a single GetRecords request."),
         default=50,
+        validators=[MinValueValidator(MIN_STEP_SIZE),
+                    MaxValueValidator(MAX_STEP_SIZE)],
     )
     change_log = HistoricalRecords(
         related_name="change_logs",

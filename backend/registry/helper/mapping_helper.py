@@ -31,16 +31,6 @@ def map_string(obj, target_value: str):
     return target_value
 
 
-def check_test_run_passed(json_obj: dict, response_params: dict):
-    success_identifier = response_params['status_identifier']
-    success = find(json_obj, success_identifier)
-    if success in response_params['success_values']:
-        return True
-    if success in response_params['error_values']:
-        return False
-    raise ValueError(f'Unexpected status identifier encountered: {success}')
-
-
 def find(obj, path: str):
     steps = path.split('.')
     for prop in steps:

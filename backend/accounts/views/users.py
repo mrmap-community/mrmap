@@ -1,6 +1,5 @@
 from accounts.models.users import User
 from accounts.serializers.users import UserCreateSerializer, UserSerializer
-from extras.viewsets import NestedModelViewSet
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
 from rest_framework_json_api.views import ModelViewSet
@@ -44,12 +43,5 @@ class UserViewSetMixin:
 class UserViewSet(
     UserViewSetMixin,
     ModelViewSet
-):
-    pass
-
-
-class NestedUserViewSet(
-    UserViewSetMixin,
-    NestedModelViewSet
 ):
     pass

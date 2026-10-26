@@ -38,13 +38,6 @@ class WebMapServiceAuthenticationViewSet(
     pass
 
 
-class NestedWebMapServiceAuthenticationViewSet(
-    WebMapServiceAuthenticationViewSetMixin,
-    NestedModelViewSet
-):
-    pass
-
-
 class WebMapServiceOperationViewSetMixin:
     queryset = WebMapServiceOperation.objects.with_label().annotate(id=F("value"))
     serializer_class = WebMapServiceOperationSerializer
@@ -57,13 +50,6 @@ class WebMapServiceOperationViewSetMixin:
 class WebMapServiceOperationViewSet(
     WebMapServiceOperationViewSetMixin,
     ReadOnlyModelViewSet
-):
-    pass
-
-
-class NestedWebMapServiceOperationViewSet(
-        WebMapServiceOperationViewSetMixin,
-        NestedModelViewSet
 ):
     pass
 
@@ -91,23 +77,9 @@ class WebFeatureServiceAuthenticationViewSet(
     pass
 
 
-class NestedFeatureServiceAuthenticationViewSet(
-        WebFeatureServiceAuthenticationViewSetMixin,
-        NestedModelViewSet
-):
-    pass
-
-
 class WebFeatureServiceOperationViewSet(
     WebFeatureServiceOperationViewSetMixin,
     ReadOnlyModelViewSet
-):
-    pass
-
-
-class NestedWebFeatureServiceOperationViewSet(
-    WebFeatureServiceOperationViewSetMixin,
-    NestedModelViewSet
 ):
     pass
 

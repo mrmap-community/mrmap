@@ -13,8 +13,8 @@ Paths in this file are relative to `frontend/src/jsonapi/`. Frontend-wide rules 
   when the backend exposes metadata the frontend needs; never re-read the raw document elsewhere.
 - `types/jsonapi.tsx` — types of the schema model and of JSON:API payloads.
 - `hooks/` — schema access as React hooks, e.g. `useResourceSchema`, `useFieldsForOperation`,
-  `useFieldForOperation`, `useSparseFieldsForOperation`, `useOperation`,
-  `useGetRelatedOperationSchemas`, `useFilterInputForOperation`, `useSchemaRecordRepresentation`,
+  `useSparseFieldsForOperation`, `useOperation`,
+  `useFilterInputForOperation`, `useSchemaRecordRepresentation`,
   `useJsonApiQuery`.
 - `components/` — schema-driven UI: guessers (`ListGuesser`, `CreateGuesser`, `EditGuesser`),
   `SchemaFormFields`, `SchemaAutocompleteInput`, reference fields and inputs, `ListWithDialogs`,

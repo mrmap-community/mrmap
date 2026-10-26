@@ -45,6 +45,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       licence: "Keine Lizenz",
     },
   },
+  drawer: {
+    openRight: "Seitenbereich öffnen",
+    closeRight: "Seitenbereich schließen",
+    openBottom: "Unteren Bereich öffnen",
+    closeBottom: "Unteren Bereich schließen",
+  },
   viewerControls: {
     selectLayer: "Wählen Sie einen Layer im Baum, um Stil und Dimensionen zu bearbeiten.",
     edit: "%{layer} bearbeiten",

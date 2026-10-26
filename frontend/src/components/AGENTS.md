@@ -116,7 +116,7 @@ cheap and correct option; shrinking or copying the card to avoid the field is th
 | `MUI/` | `SimpleCard`, `SimpleTabs`, `CircularProgressWithLabel`, `GradientChartsContainer` | a `Card` with its own header, footer or padding |
 | `Lists/` | `CustomListActions`, `Empty`, `EmptyWithFilter` | a list action bar or an empty state |
 | `Field/`, `Input/` | `TruncatedTextField`, `ProgressField`, `GeoJsonField`, `RelatedResourceField`, `MouseOverPopover`, `CronInput`, `TreeSelectInput`, `GeoJsonInput` | a one-off field or input renderer |
-| `Dialog/`, `Drawer/`, `Tab/` | `Dialog`, `DialogContextBase`, `CreateDialogButton`, `EditDialogButton`, `RightDrawer`, `ResizeableDrawer`, `BottomDrawer`, `Tabs`, `TabListContext` | MUI dialog, drawer or tab scaffolding |
+| `Dialog/`, `Drawer/`, `Tab/` | `Dialog`, `DialogContextBase`, `CreateDialogButton`, `EditDialogButton`, `Drawer`, `ResizeableDrawer`, `Tabs`, `TabListContext` | MUI dialog, drawer or tab scaffolding |
 | `jsonapi/components/` | guessers, `SchemaFormFields`, `SchemaAutocompleteInput`, `Reference*Field`, `Count`, `ListWithDialogs`, `PaginatedSingleFieldList`, `Realtime/*`, `SelectedRecordContext` | manual fetching, counts or a hardcoded copy of schema fields |
 
 Every entry keeps its `<Name>.spec.tsx` next to it, which documents its contract and its empty states —

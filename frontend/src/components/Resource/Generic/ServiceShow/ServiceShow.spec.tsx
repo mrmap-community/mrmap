@@ -223,7 +223,8 @@ describe("shared service show", () => {
     expect(
       screen.getByRole("tab", { name: "Harvesting", hidden: true }),
     ).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    // The closing modal keeps the page aria-hidden until its exit transition finishes.
+    fireEvent.click(await screen.findByRole("tab", { name: "Overview" }));
     expect(await screen.findByText("Overview Catalogue")).toBeInTheDocument();
   });
   it("saves metadata for the service ID and stays on its tab", async () => {

@@ -3,13 +3,12 @@ import { useTranslate, type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 import { useLocation } from 'react-router-dom'
 
-import { Box, Divider, Stack, useMediaQuery, useTheme } from '@mui/material'
+import { Box, Divider, Stack } from '@mui/material'
 import { CRS } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
-import BottomDrawer from '../Drawer/BottomDrawer'
-import { DrawerBase, useDrawerContext } from '../Drawer/DrawerContext'
-import RightDrawer from '../Drawer/RightDrawer'
+import Drawer from '../Drawer/Drawer'
+import { DrawerBase, type DrawerState, useDrawerContext } from '../Drawer/DrawerContext'
 import { ContextMenuBase } from '../LayerTree/ContextMenu/ContextMenuBase'
 import LayerTree, { LayerControlsPanel } from '../LayerTree/LayerTree'
 import WebFeatureServiceControl from '../MapContainer/GetFeatureControl'
@@ -26,6 +25,11 @@ const style = {
   height: '100%',
 }
 
+/** The map viewer's two drawers keep the store keys and defaults they had
+ *  before the consolidation, so persisted settings survive the update. */
+const RIGHT_DRAWER_DEFAULTS: DrawerState = { isOpen: false, height: 'calc(100vh - 50px)', width: '20vw' }
+const BOTTOM_DRAWER_DEFAULTS: DrawerState = { isOpen: false, height: '30vh', width: '100vw' }
+
 export type WMSLayerTreeProps = Partial<SimpleShowLayoutProps>;
 
 export interface Tile {
@@ -35,12 +39,12 @@ export interface Tile {
 }
 
 const ViewerLayerControls = ({ children }: PropsWithChildren) => {
-  const { setBottomDrawer } = useDrawerContext();
+  const { openDrawer } = useDrawerContext();
   const { setTabList } = useTabListContext();
   const open = useCallback(() => {
-    setBottomDrawer(previous => ({ ...previous, isOpen: true }));
+    openDrawer('bottomdrawer', true);
     setTabList(previous => ({ ...previous, activeTab: '2' }));
-  }, [setBottomDrawer, setTabList]);
+  }, [openDrawer, setTabList]);
   return <ContextMenuBase onOpenControls={open}>{children}</ContextMenuBase>;
 };
 
@@ -48,8 +52,6 @@ export const MapViewerCore = (): ReactNode => {
   const containerId = useId()
   const {map, setMap} = useMapViewerBase()
   const translate = useTranslate()
-  const theme = useTheme()
-  const wide = useMediaQuery(theme.breakpoints.up('md'))
 
   return (
       <DrawerBase>
@@ -74,9 +76,11 @@ export const MapViewerCore = (): ReactNode => {
               <ScaleControl position="topleft" />
             </MapContainer>
           </Box>
-          <RightDrawer
-            fullHeight={wide}
-            leftComponentId={containerId}
+          <Drawer
+            anchor="right"
+            instanceKey="rightdrawer"
+            defaults={RIGHT_DRAWER_DEFAULTS}
+            targetId={containerId}
             callback={() => map?.invalidateSize()}
           >
             <Stack
@@ -98,10 +102,12 @@ export const MapViewerCore = (): ReactNode => {
                 <StatusBar />
               </Box>
             </Stack>
-          </RightDrawer>
-          <BottomDrawer
-            alongsideRightDrawer={wide}
-            aboveComponentId={containerId}
+          </Drawer>
+          <Drawer
+            anchor="bottom"
+            instanceKey="bottomdrawer"
+            defaults={BOTTOM_DRAWER_DEFAULTS}
+            targetId={containerId}
             callback={() => map?.invalidateSize()}
           >
             <Box sx={{ '& .MuiTabPanel-root': { p: 1.5 } }}>
@@ -134,7 +140,7 @@ export const MapViewerCore = (): ReactNode => {
               }
             />
             </Box>
-          </BottomDrawer>
+          </Drawer>
           </ViewerLayerControls>
         </TabListBase>
       </DrawerBase>

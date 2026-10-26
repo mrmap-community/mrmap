@@ -345,17 +345,3 @@ class LayerPrefetch(Prefetch):
         )
 
         return qs
-
-
-class RequestBasedPrefetch(Prefetch):
-    def __init__(self,
-
-                 lookup,
-                 queryset,
-                 to_attr,
-                 request=None,
-
-
-                 ):
-
-        super().__init__(lookup, queryset, to_attr)

@@ -417,12 +417,3 @@ urlpatterns = router.urls + [
         name='statistical-harvested-metadata-relations'
     ),
 ]
-# + [
-#    path(
-#        # ^harvesting/harvesting-jobs/(?P<pk>[^/.]+)$
-#        # route=r'^bla/(?P<pk>[^/.]+)/relationships/(?P<related_field>[-/w]+)$',
-#        route='harvesting/harvesting-jobs/<pk>/relationships/<related_field>',
-#        view=HarvestingJobRelationshipView.as_view(),#
-#        name="harvesting-job-relationships"
-#    ),
-# ]

@@ -25,14 +25,6 @@ from requests import Request, Response
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 
-def get_title_abstract_default():
-    return list(["Title>", "Abstract>"])
-
-
-def get_error_exceptions_default():
-    return list(["ExceptionReport>", "ServiceException>"])
-
-
 class MonitoringSettingMixin:
     """Shared behaviour of the monitoring settings of a registered service.
 

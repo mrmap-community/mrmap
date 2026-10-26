@@ -8,20 +8,6 @@ class MissingQueryParam(Exception):
     pass
 
 
-class MissingRequestParam(MissingQueryParam):
-    """Raised when the "REQUEST" query param is missed"""
-
-    def __init__(self, msg="'REQUEST' query parameter was missed", *args, **kwargs):
-        super().__init__(msg, *args, **kwargs)
-
-
-class MissingVersionParam(MissingQueryParam):
-    """Raised when the "VERSION" query param is missed"""
-
-    def __init__(self, msg="'VERSION' query parameter was missed", *args, **kwargs):
-        super().__init__(msg, *args, **kwargs)
-
-
 class MissingServiceParam(MissingQueryParam):
     """Raised when the "SERVICE" query param is missed"""
 

@@ -1,5 +1,5 @@
 import { type ComponentType } from "react";
-import { useTranslate } from "react-admin";
+import { type SortPayload, useTranslate } from "react-admin";
 
 import ErrorIcon from "@mui/icons-material/Error";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
@@ -25,6 +25,8 @@ export interface WorkQueue {
   resource: string;
   /** the state of that resource the queue counts, all of it when unset */
   filter?: Record<string, unknown>;
+  /** an ordering supported by the resource's collection endpoint */
+  sort?: SortPayload;
   /** the icon which marks the queue, so a queue is read before its label is */
   icon: ComponentType<SvgIconProps>;
   /** the color of that icon, which is the color of the state of the queue */
@@ -46,6 +48,7 @@ export const workQueues = (): WorkQueue[] => [
   {
     key: "alerts",
     resource: "ServiceAlert",
+    sort: { field: "severity,-occurredAt", order: "ASC" },
     icon: WarningAmberIcon,
     color: "warning",
   },
@@ -53,6 +56,7 @@ export const workQueues = (): WorkQueue[] => [
     key: "updateReviews",
     resource: "ServiceAlert",
     filter: { category: "update_review_required" },
+    sort: { field: "severity,-occurredAt", order: "ASC" },
     icon: RateReviewIcon,
     color: "warning",
   },
@@ -122,6 +126,7 @@ const WorkQueueCard = () => {
               <Count
                 resource={queue.resource}
                 filter={queue.filter}
+                sort={queue.sort}
                 link
                 variant="h5"
                 refetchInterval={60000}

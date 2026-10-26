@@ -15,7 +15,7 @@ import { Alert, alpha, FormControl, MenuItem, Select } from "@mui/material";
 import SimpleCard from "../../../MUI/SimpleCard";
 import HistoryTimeline, { type TimelineRecord } from "./HistoryTimeline";
 
-export interface ServiceHistoryListProps {
+export interface HistorySourcesCardProps {
   sources: HistorySource[];
   record?: RaRecord;
 }
@@ -40,11 +40,12 @@ interface FeedResult {
   error?: unknown;
 }
 
-const ServiceHistoryList = ({ record, sources }: ServiceHistoryListProps) => {
+const HistorySourcesCard = ({ record, sources }: HistorySourcesCardProps) => {
   const [changeType, setChangeType] = useState("all");
   const [feeds, setFeeds] = useState<Record<string, FeedResult>>({});
   const translate = useTranslate();
-  const recordContext = useRecordContext(record);
+  // `record` scopes the card explicitly; without it the surrounding show screen's record context answers.
+  const recordContext = useRecordContext({ record });
   const onChange = useCallback((resource: string, result: FeedResult) => {
     setFeeds(previous => ({ ...previous, [resource]: result }));
   }, []);
@@ -115,4 +116,4 @@ const ServiceHistoryList = ({ record, sources }: ServiceHistoryListProps) => {
   );
 };
 
-export default ServiceHistoryList;
+export default HistorySourcesCard;

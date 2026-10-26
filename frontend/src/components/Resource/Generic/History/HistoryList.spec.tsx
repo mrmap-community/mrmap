@@ -6,9 +6,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import polyglotI18nProvider from 'ra-i18n-polyglot'
 import { describe, expect, it, vi } from 'vitest'
 
-import en from '../i18n/en'
-import { SelectedRecordContextProvider, useSelectedRecordContext } from '../jsonapi/components/SelectedRecordContext'
+import en from '../../../../i18n/en'
+import { SelectedRecordContextProvider, useSelectedRecordContext } from '../../../../jsonapi/components/SelectedRecordContext'
 import HistoryList from './HistoryList'
+import { historicalSource } from './historySources'
 
 const events = [
   { id: 'multi', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', historyUser: { username: 'alice' }, delta: [
@@ -32,7 +33,7 @@ const renderHistory = (getList = vi.fn().mockResolvedValue({ data: events, total
         <ResourceContextProvider value='WebMapService'>
           <SelectedRecordContextProvider>
             <Selection />
-            <HistoryList resource='HistoricalWebMapService' related='WebMapService' record={undefined} />
+            <HistoryList variant="compact" resource='HistoricalWebMapService' related='WebMapService' />
           </SelectedRecordContextProvider>
         </ResourceContextProvider>
       </AdminContext>
@@ -41,7 +42,7 @@ const renderHistory = (getList = vi.fn().mockResolvedValue({ data: events, total
   return { ...result, getList }
 }
 
-describe('HistoryList', () => {
+describe('HistoryList compact variant', () => {
   it('shows compact summaries and queries the latest ten delta events', async () => {
     const { container, getList } = renderHistory()
     expect(await screen.findByText(/Title and 2 other fields changed/)).toBeInTheDocument()
@@ -53,6 +54,7 @@ describe('HistoryList', () => {
       filter: { delta_size__gt: 0 },
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
+      meta: { jsonApiParams: { include: 'historyUser', 'fields[User]': 'username,string_representation' } },
     }))
   })
 
@@ -102,4 +104,80 @@ describe('HistoryList', () => {
     expect(await screen.findByText('Unable to load history.')).toBeInTheDocument()
   })
 })
+
+const layerEvents = [{ id: 1, historyType: 'updated', historyDate: '2026-09-18T11:46:40Z', historyRelation: { id: 'layer-id' }, delta: [{ field: 'title', old: 'Old title', new: 'New title' }] }]
+const serviceEvents = [{ id: 1, historyType: 'created', historyDate: '2026-08-14T13:24:02Z', historyRelation: { id: 'service-id' } }]
+
+const renderTimeline = (id: string, getList?: (resource: string) => Promise<{ data: unknown[], total: number }>) => render(
+  <MemoryRouter>
+    <AdminContext
+      i18nProvider={polyglotI18nProvider(() => en, 'en')}
+      queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      dataProvider={testDataProvider({ getList: (getList ?? ((resource: string) => Promise.resolve({
+        data: resource === 'HistoricalLayer' ? layerEvents : serviceEvents,
+        total: 1,
+      }))) as never })}
+    >
+      <HistoryList
+        variant="timeline"
+        record={{ id }}
+        sources={[
+          historicalSource('HistoricalWebMapService', 'WebMapService', 'Service changes', id, 'historyRelation'),
+          historicalSource('HistoricalLayer', 'Layer', 'Layer changes', id, 'service'),
+        ]}
+      />
+    </AdminContext>
+  </MemoryRouter>,
+)
+
+describe('HistoryList timeline variant', () => {
+  it('orders events newest first and clears selection when changing resource filters', async () => {
+    renderTimeline('service-id')
+    const eventButtons = await screen.findAllByRole('button', { name: /^(Layer|WebMapService) / })
+    expect(eventButtons[0]).toHaveAccessibleName(/^Layer/)
+    fireEvent.click(eventButtons[0])
+    expect(screen.getByText('New title')).toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Filter history by resource' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Service changes (1)' }))
+    await waitFor(() => {
+      expect(screen.queryByText('New title')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^Layer / })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^WebMapService / })).toBeInTheDocument()
+    })
+  })
+
+  it('clears the selected details when navigating to a different service', async () => {
+    const { rerender } = renderTimeline('service-id')
+    fireEvent.click(await screen.findByRole('button', { name: /^Layer / }))
+    expect(await screen.findByRole('region', { name: 'Selected event details' })).toBeInTheDocument()
+    rerender(
+      <MemoryRouter>
+        <AdminContext
+          i18nProvider={polyglotI18nProvider(() => en, 'en')}
+          queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+          dataProvider={testDataProvider({ getList: vi.fn().mockImplementation(resource => Promise.resolve({
+            data: resource === 'HistoricalLayer' ? layerEvents : serviceEvents,
+            total: 1,
+          })) })}
+        >
+          <HistoryList
+            variant="timeline"
+            record={{ id: 'another-service' }}
+            sources={[
+              historicalSource('HistoricalWebMapService', 'WebMapService', 'Service changes', 'another-service', 'historyRelation'),
+              historicalSource('HistoricalLayer', 'Layer', 'Layer changes', 'another-service', 'service'),
+            ]}
+          />
+        </AdminContext>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Selected event details' })).not.toBeInTheDocument())
+  })
+
+  it('shows fetch errors instead of claiming history is empty', async () => {
+    renderTimeline('service-id', vi.fn().mockRejectedValue(new Error('Offline')))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load history.')
+  })
+})
+
 

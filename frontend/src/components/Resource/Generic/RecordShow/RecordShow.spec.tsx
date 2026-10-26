@@ -57,7 +57,7 @@ vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
 vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
   default: () => <div>Edit form</div>,
 }));
-vi.mock("../History/ServiceHistoryList", () => ({
+vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
 }));
 vi.mock("../../../MapContainer/GeoJsonMap", () => ({

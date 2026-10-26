@@ -6,8 +6,8 @@ import { Stack } from "@mui/material";
 
 import { useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
-import HistoryList from "../../../HistoryList";
 import SimpleCard from "../../../MUI/SimpleCard";
+import HistoryList from "../History/HistoryList";
 import SelectedServiceDetailsCard from "../ServiceShow/SelectedServiceDetailsCard";
 
 /**
@@ -64,9 +64,9 @@ const ServiceListAside = ({ protocol }: { protocol: ServiceProtocol }) => {
               the service before it */}
           <HistoryList
             key={selectedRecord?.id ?? "all"}
+            variant="compact"
             resource={historyResource}
             related={resource}
-            record={undefined}
           />
         </SimpleCard>
       )}

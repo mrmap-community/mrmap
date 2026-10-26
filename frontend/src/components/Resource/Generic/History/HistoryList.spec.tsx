@@ -11,6 +11,9 @@ import { SelectedRecordContextProvider, useSelectedRecordContext } from '../../.
 import HistoryList from './HistoryList'
 import { historicalSource } from './historySources'
 
+// this screen renders full react-admin lists and dialogs and needs more than the default timeout
+vi.setConfig({ testTimeout: 20000 })
+
 const events = [
   { id: 'multi', title: 'Weather service', historyType: 'updated', historyDate: '2026-10-07T12:15:00Z', historyUser: { username: 'alice' }, delta: [
     { field: 'title', old: 'Old title', new: 'New title' },

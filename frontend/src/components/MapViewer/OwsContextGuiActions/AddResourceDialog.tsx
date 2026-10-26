@@ -1,16 +1,13 @@
-import { ReactNode } from 'react';
+import { Fragment, ReactNode } from 'react';
 import { useTranslate } from 'react-admin';
 
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+import ContextBasedDialog from '../../Dialog/Dialog';
+import DialogHeader from '../../Dialog/DialogHeader';
 
 
 export interface AddResourceDialogProps {
@@ -24,10 +21,20 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
   const translate = useTranslate()
   const t = (key: string) => translate(`addResource.${key}`)
 
+  const dismiss = () => setOpen(false)
+
   return (
-      <Dialog
+      <ContextBasedDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={dismiss}
+        contentDividers={false}
+        title={<DialogHeader onClose={dismiss}>{t('title')}</DialogHeader>}
+        description={t('description')}
+        actions={<Fragment>
+          <Button onClick={dismiss}>{translate('ra.action.cancel')}</Button>
+          <Button type="submit" color='primary'>{translate('ra.action.add')}</Button>
+        </Fragment>}
+        actionsAlign="flex-end"
         slotProps={{ paper: {
           component: 'form',
           onSubmit: (event: React.FormEvent<HTMLDivElement>) => {
@@ -59,11 +66,7 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
           },
         } }}
       >
-        <DialogTitle>{t('title')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {t('description')}
-          </DialogContentText>
+        <Fragment>
           <TextField
             autoFocus
             required
@@ -106,12 +109,8 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             fullWidth
             variant="standard"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={()=>setOpen(false)}>{translate('ra.action.cancel')}</Button>
-          <Button type="submit" color='primary'>{translate('ra.action.add')}</Button>
-        </DialogActions>
-      </Dialog>
+        </Fragment>
+      </ContextBasedDialog>
   );
 }
 

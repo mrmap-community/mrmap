@@ -10,9 +10,9 @@ import HistorySourcesCard from './HistorySourcesCard';
  * The presentations one caller can ask of the history of a resource:
  *
  * - `table` (default): the paginated and filterable changelog of a resource,
- *   which its `history` route answers and the dashboard embeds.
- * - `compact`: the latest events of a resource in the aside of a list, scoped
- *   to the record which the list selects, with the full values in a dialog.
+ *   which its `history` route answers.
+ * - `compact`: the latest events of a resource in dashboard cards or the aside
+ *   of a list, optionally scoped to its selected record, with full values in a dialog.
  * - `timeline`: the newest-first merge of one or more event sources, which a
  *   service or record show composes from `historySources`.
  */

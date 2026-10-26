@@ -104,7 +104,6 @@ const HistoryFeed = ({
   const jsonApiParams = useMemo(() => {
     const params: Record<string, string | number> = { include: 'historyUser' }
     params['fields[User]'] = 'username,string_representation'
-    params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
     if (selectedRecord?.id !== undefined) {
       params['filter[historyRelation]'] = selectedRecord.id
     }

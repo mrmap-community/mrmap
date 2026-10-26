@@ -54,6 +54,7 @@ describe('HistoryList compact variant', () => {
       filter: { delta_size__gt: 0 },
       pagination: { page: 1, perPage: 10 },
       sort: { field: 'historyDate', order: 'DESC' },
+      meta: { jsonApiParams: { include: 'historyUser', 'fields[User]': 'username,string_representation' } },
     }))
   })
 

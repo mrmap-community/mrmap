@@ -20,6 +20,12 @@
   },
   "packageRules": [
     {
+      "description": "Keep Django compatible with django-celery-beat 2.9.0",
+      "matchManagers": ["pip_requirements"],
+      "matchPackageNames": ["Django"],
+      "allowedVersions": "<6.1"
+    },
+    {
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "frontend non-major dependencies"

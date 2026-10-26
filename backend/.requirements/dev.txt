@@ -1,8 +1,8 @@
-coverage==7.6.12
+coverage==7.17.0
 behave-django==2.0.0
-flake8==7.1.2
+flake8==7.4.1
 watchdog[watchmedo]==6.0.0
-debugpy==1.8.17
+debugpy==1.8.22
 autopep8==2.3.2
 django-debug-toolbar==8.0.0
 xmldiff==3.0

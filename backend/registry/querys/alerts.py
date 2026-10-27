@@ -11,10 +11,10 @@ The states are answered as annotations of the services themselves, which keeps
 them filterable, sortable and countable like every other attribute of a service
 on existing service endpoints. The cross-service projection is answered by the
 union which `service_alert_rows()` builds from these annotations and which
-creates the view of the alerts in `registry/models/alerts.py`. Only the
-schedules behind the settings' `runOverdue` field stay calculated in python,
-because a crontab occurrence is not answered by the database - see
-`extras/scheduling.py`.
+creates the view of the alerts in `registry/models/alerts.py`. Only the states
+of the schedules stay calculated in python, because a crontab occurrence is not
+answered by the database - the schedule which missed its time and the schedule
+which is tighter than the run it schedules - see `extras/scheduling.py`.
 
 A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
@@ -25,6 +25,7 @@ from django.db.models import (BooleanField, Case, CharField, Exists,
                               ExpressionWrapper, F, IntegerField, OuterRef, Q,
                               Subquery, Value, When)
 from django.db.models.functions import Cast, Coalesce, Concat
+from django.utils.translation import gettext_lazy as _
 from registry.enums.harvesting import HarvestingPhaseEnum, LogKindEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.harvest import HarvestingJob
@@ -462,16 +463,19 @@ def collect_service_alerts(user):
 
     The alerts which the states of the services answer are projected by the
     view of the alerts - one query which unions the annotations that the
-    services themselves answer, see `registry/models/alerts.py`. The schedules
-    which did not keep their time are not answered by that view, because a
-    crontab is calculated in python and not by the database, so they are
+    services themselves answer, see `registry/models/alerts.py`. The states of
+    the schedules are not answered by that view, because a crontab is calculated
+    in python and not by the database: the schedule which did not keep its time
+    and the schedule which is tighter than the harvest it schedules are both
     projected from the settings here.
     """
-    from extras.scheduling import next_run_expected_at, run_overdue
+    from extras.scheduling import (next_run_expected_at, run_overdue,
+                                   schedule_is_tighter_than)
     from guardian.shortcuts import get_objects_for_user
     from registry.models import monitoring, update
     from registry.models.alerts import ServiceAlertView
     from registry.models.harvest import PeriodicHarvestingJob
+    from registry.querys.harvest_history import harvest_durations
 
     scope = Q()
     visible = {}
@@ -501,8 +505,12 @@ def collect_service_alerts(user):
             (getattr(monitoring, resource + 'MonitoringSetting'), 'monitoring_overdue'),
             (getattr(update, resource + 'UpdateSetting'), 'update_overdue'),
         ]
+        durations = {}
         if model is CatalogueService:
             settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
+            durations = harvest_durations(PeriodicHarvestingJob.objects.filter(
+                enabled=True, service__in=visible[model]).values_list(
+                    'service_id', flat=True))
         for setting_model, category in settings:
             for setting in setting_model.objects.filter(
                     enabled=True, service__in=visible[model]).select_related('crontab', 'service'):
@@ -511,17 +519,73 @@ def collect_service_alerts(user):
                         setting.service, category, 'warning',
                         next_run_expected_at(setting), setting_model.__name__,
                         source=setting.pk))
+                if setting_model is PeriodicHarvestingJob:
+                    # a schedule which fires more often than a harvest takes is
+                    # answered here and not by the view of the alerts, because
+                    # its estimate is measured over the runs of a catalogue and
+                    # a crontab is calculated in python - neither is answerable
+                    # by the database (#693)
+                    estimate = durations.get(setting.service_id) or {}
+                    if schedule_is_tighter_than(setting, estimate.get('average')):
+                        alerts.append(harvest_schedule_alert(setting, estimate))
     return alerts
 
 
-def service_alert(service, category, severity, occurred_at, target, source=None):
-    """One stable problem identity and its existing service workflow target."""
+def harvest_schedule_alert(setting, estimate):
+    """The alert of a harvesting schedule which fires more often than a harvest takes.
+
+    The warning names both numbers the state is decided by: the schedule as the
+    administrator wrote it and the duration the harvests of its catalogue really
+    took. It is a warning and never a rejected save, because the duration of a
+    harvest drifts with the remote catalogue and the schedule stays the decision
+    of the administrator (#693).
+
+    Args:
+        setting: the harvesting schedule which is tighter than the harvest
+        estimate: the row which measured the harvests of its catalogue
+
+    Returns:
+        dict: the alert of that schedule
+    """
+    from extras.fields import CrontabStringField
+    from extras.scheduling import format_duration
+    return service_alert(
+        setting.service, 'harvest_schedule_too_tight', 'warning',
+        estimate['last_done'], type(setting).__name__, source=setting.pk,
+        # the schedule is named by the same answer the api of a schedule gives
+        # for it, so that the warning and the screen of the schedule cannot
+        # name two different things
+        message=_(
+            'The schedule "%(schedule)s" harvests this catalogue more often '
+            'than a harvest of it takes: the harvests which finished measured '
+            '%(duration)s on average.') % {
+                'schedule': CrontabStringField().to_representation(
+                    setting.crontab),
+                'duration': format_duration(estimate['average'])})
+
+
+def service_alert(service, category, severity, occurred_at, target, source=None,
+                  message=None):
+    """One stable problem identity and its existing service workflow target.
+
+    Args:
+        service: the service the alert is about
+        category (str): the state which answers the alert
+        severity (str): the severity of the alert
+        occurred_at: the moment the state is decided by
+        target (str): the resource which owns the workflow of the alert
+        source: the record which decided the state, to keep the identity of the
+            alert of one record apart from the alert of another
+        message: what the alert has to tell beyond the name of its state, when
+            the state is more than the categories a service answers itself
+    """
     resource = type(service).__name__
     # CSW updates have no dedicated settings tab; its overview owns that action.
     tab = '' if target == 'CatalogueServiceUpdateSetting' else target
     return {
         'id': f'{category}:{resource}:{source or service.pk}',
-        'severity': severity, 'category': category, 'message': category,
+        'severity': severity, 'category': category,
+        'message': message or category,
         'service_type': resource, 'service': str(service.pk),
         'service_title': service.title, 'resource_type': resource,
         'resource_id': str(service.pk), 'occurred_at': occurred_at,

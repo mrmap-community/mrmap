@@ -11,7 +11,8 @@ from rest_framework_json_api.views import generics
 FILTERS = {
     'severity': ('error', 'warning'),
     'category': tuple(ALERT_CATEGORIES) + (
-        'monitoring_overdue', 'update_overdue', 'harvest_overdue'),
+        'monitoring_overdue', 'update_overdue', 'harvest_overdue',
+        'harvest_schedule_too_tight'),
     'serviceType': ('WebMapService', 'WebFeatureService', 'CatalogueService'),
     'service': None,
 }

@@ -178,7 +178,7 @@ const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfi
 const getTotal = (response: JsonApiDocument, total: string): number => {
   const _total = jsonpointer.get(response, total)
   if (typeof _total === 'string') {
-    return parseInt(_total, 10)
+    return Number.parseInt(_total, 10)
   }
   return _total
 }

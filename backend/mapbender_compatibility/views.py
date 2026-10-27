@@ -207,7 +207,7 @@ class MapBenderSearchApi(View):
         else:
             resources = self.local_search()
 
-        del_link_search_resources = "&".join([f"{key}={value}" if key != "searchResources" else f"{key}={value}" for key, value in request.GET.items()])  # nopep8
+        del_link_search_resources = "&".join([f"{key}={value}" for key, value in request.GET.items()])
 
         resources["md"]["genTime"] = (
             datetime.datetime.now() - self.start_time).total_seconds()

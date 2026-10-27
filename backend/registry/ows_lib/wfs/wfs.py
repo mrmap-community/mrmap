@@ -25,7 +25,7 @@ class WebFeatureServiceClient(OgcClient):
 
     @property
     def output_format_qp(self):
-        return "OUTPUTFORMAT" if self.service_version == "2.0.0" else "OUTPUTFORMAT"
+        return "OUTPUTFORMAT"
 
     @property
     def max_features_qp(self):

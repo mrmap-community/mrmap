@@ -21,6 +21,7 @@ from django.conf.urls import include
 from django.contrib import admin
 from django.urls import path, re_path
 from django.views.decorators.cache import cache_page
+from django.views.decorators.http import require_http_methods
 from django.views.static import serve
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
@@ -73,7 +74,10 @@ urlpatterns = [
 # @login_required
 
 
+@require_http_methods(["GET", "HEAD"])
 def protected_serve(request, path, document_root=None, show_indexes=False):
+    # Uploaded media is static content; any verb other than the two read verbs
+    # is answered 405 here instead of reaching the file server.
     return serve(request, path, document_root, show_indexes)
 
 

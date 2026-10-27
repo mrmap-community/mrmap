@@ -8,7 +8,7 @@ XPATH_MAP = {
             "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
             "inspire_vs": NAMESPACE_LOOKUP["inspire_vs"]
         },
-        "_schema": "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd",
+        "_schema": "https://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd",
         "_pre_save": [
             "registry.mappers.extensions.compute_layer_mptt",
             "registry.mappers.extensions.clean_up_operation_urls"

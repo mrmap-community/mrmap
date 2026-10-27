@@ -202,7 +202,7 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import pathlib,time; p=pathlib.Path('/tmp/mrmap-beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"]
+      test: ["CMD", "python", "-c", "import pathlib,time; p=pathlib.Path('/var/mrmap/run/beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"]
       interval: 10s
       timeout: 3s
       retries: 3

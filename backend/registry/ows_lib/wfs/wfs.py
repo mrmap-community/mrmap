@@ -107,8 +107,10 @@ class WebFeatureServiceClient(OgcClient):
             "REQUEST": "DescribeFeatureType",
             "SERVICE": self.service_type,
             self.type_name_qp: ",".join(type_names),
-            self.output_format_qp: ",".join(output_format)
         }
+        # With no advertised XML format, let the service use its protocol-defined default.
+        if output_format:
+            params[self.output_format_qp] = ",".join(output_format)
         url = update_queryparams(
             url=self.get_operation_url_by_name_and_method(
                 OGCOperationEnum.DESCRIBE_FEATURE_TYPE,

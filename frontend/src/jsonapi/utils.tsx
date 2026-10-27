@@ -179,8 +179,12 @@ export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[k
     const parameters = operation.parameters as ParameterObject[]
 
     parameters?.filter((parameter) => parameter.name.includes('fields[')).forEach((parameterObject)=>{
-      const pattern = /\[(.*?)\]/;
-      const resourceType = pattern.exec(parameterObject.name)?.[1]
+      const name = parameterObject.name;
+      const start = name.indexOf('[');
+      const end = start === -1 ? -1 : name.indexOf(']', start + 1);
+      const resourceType = end === -1
+        ? undefined
+        : name.slice(start + 1, end);
       const schema = parameterObject.schema as OpenAPIV3.ArraySchemaObject
       const sparseFieldParameterArraySchema = schema.items as OpenAPIV3.SchemaObject
       const fields = sparseFieldParameterArraySchema.enum ?? []

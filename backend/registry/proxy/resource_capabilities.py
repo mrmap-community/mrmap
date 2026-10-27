@@ -7,13 +7,15 @@ exactly one resource of a service (see registry/helper/resource_capabilities.py)
 
 The urls of these documents are the stable adresses of a registered resource:
 
-    /mrmap-proxy/wms/<uuid of the service>/layer/<uuid of the layer>
-    /mrmap-proxy/wfs/<uuid of the service>/featuretype/<uuid of the feature type>
+    /mrmap-proxy/wms/layer/<uuid of the layer>
+    /mrmap-proxy/wfs/featuretype/<uuid of the feature type>
 
-The path of the url names service and resource, therefore the query parameters of a
-capabilities request are answered from the path and the url needs none. A client
-which appends SERVICE, REQUEST and VERSION like any OGC client does gets the same
-document, after the appended version was checked against the service.
+The path of the url names the resource which shall be advertised; the service it
+is registered on is read out of the registry over the resource. Therefore the
+query parameters of a capabilities request are answered from the path and the url
+needs none. A client which appends SERVICE, REQUEST and VERSION like any OGC
+client does gets the same document, after the appended version was checked
+against the service.
 
 Nothing of these documents is stored. They are generated for every request out of
 the registry, so an update job which changed the service changes this document with
@@ -27,6 +29,7 @@ from registry.helper.resource_capabilities import (AMBIGUOUS_ELEMENT, MALFORMED,
                                                    NO_SUCH_ELEMENT,
                                                    NOT_SUPPORTED, CapabilitiesError,
                                                    service_element_capabilities)
+from registry.models.service import FeatureType, Layer
 from registry.ows_lib.response.exceptions import \
     NotImplementedError as MrMapNotImplementedError
 from registry.ows_lib.response.exceptions import \
@@ -46,15 +49,14 @@ class ServiceElementCapabilitiesMixin:
     urls the document is answered with.
 
     Attributes:
-        element_relation (str): the name of the relation of the service model which
-            holds the resources of the service, "layers" or "featuretypes".
+        element_model: the model of the resource the url of the proxy points to.
         element_pk_kwarg (str): the name of the path converter of the resource.
         element_name (str): how the resource is called in an exception report.
         element_not_defined (class): the OGC exception which answers a resource the
             service does not advertise.
     """
 
-    element_relation = None
+    element_model = None
     element_pk_kwarg = None
     element_name = "element"
     element_not_defined = OGCRuntimeError
@@ -63,30 +65,44 @@ class ServiceElementCapabilitiesMixin:
     def element(self):
         """The :class:`registry.models.service.ServiceElement` the url points to.
 
-        The resource is read over the relation of the service the proxy found, so a
-        resource of another service and a resource which does not exist at all are
-        answered in the same way.
+        The url names the resource, so the resource is read by its primary key and
+        a resource which is not registered at all is answered with an exception
+        report. Permissions are not asked here: they are enforced by the service
+        the resource belongs to, which the request has to pass before this
+        resource is narrowed down (see ``service`` below).
         """
         try:
-            return getattr(self.service, self.element_relation).get(
+            return self.element_model.objects.get(
                 pk=self.kwargs[self.element_pk_kwarg])
         except ObjectDoesNotExist:
             raise CapabilitiesError(
                 NO_SUCH_ELEMENT,
-                f"The service does not have a registered {self.element_name} with "
+                f"There is no registered {self.element_name} with "
                 f"the identifier '{self.kwargs[self.element_pk_kwarg]}'.",
                 status=404,
             )
+
+    @cached_property
+    def service(self):
+        """The service the resource of the url is registered on.
+
+        The proxy reads the service by the primary key in the path of its url and
+        prepares the security information of the service with it; the url of a
+        single resource names the resource instead, so the primary key of the
+        service is taken from the resource before the proxy reads the service.
+        """
+        self.kwargs["pk"] = str(self.element.service_id)
+        return super().service
 
     def initialize_request(self, request, *args, **kwargs):
         """Add the parameters of a capabilities request which the url path already names.
 
         SERVICE, REQUEST and VERSION identify a capabilities request in an OGC url,
         but they are not part of the url of a single resource: the path says which
-        service and which resource is asked for. They are added as far as the client
-        did not append them itself, so that the proxy is handed a capabilities
-        request, and the version of a client which does append one is still
-        negotiated the way the proxy negotiates versions.
+        resource is asked for and the service is read over it. They are added as
+        far as the client did not append them itself, so that the proxy is handed a
+        capabilities request, and the version of a client which does append one is
+        still negotiated the way the proxy negotiates versions.
 
         The parameters are added to the request of the framework before it is
         wrapped, because the proxy reads the OGC parameters out of the wrapped
@@ -146,7 +162,7 @@ class ServiceElementCapabilitiesMixin:
 class WebMapServiceLayerCapabilities(ServiceElementCapabilitiesMixin, WebMapServiceProxy):
     """The capabilities of a registered WMS, advertising only one of its layers."""
 
-    element_relation = "layers"
+    element_model = Layer
     element_pk_kwarg = "layer_pk"
     element_name = "layer"
     element_not_defined = LayerNotDefined
@@ -156,7 +172,7 @@ class WebFeatureServiceFeatureTypeCapabilities(ServiceElementCapabilitiesMixin,
                                                WebFeatureServiceProxy):
     """The capabilities of a registered WFS, advertising only one of its feature types."""
 
-    element_relation = "featuretypes"
+    element_model = FeatureType
     element_pk_kwarg = "featuretype_pk"
     element_name = "feature type"
     element_not_defined = InvalidParameterValueException

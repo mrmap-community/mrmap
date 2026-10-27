@@ -22,8 +22,9 @@ from tests.django.registry.tests_query_performance import SERVICES
 JSONAPI = "application/vnd.api+json"
 
 # A WMS document with a layer nested in a named layer and a layer beside it. The
-# ancestor carries the reference system which the nested layer inherits, so
-# narrowing must keep the ancestor but not advertise it.
+# named layer and the unnamed container above it carry the attributes which the
+# nested layer inherits, so narrowing must write them into the nested layer and
+# answer the document without the parents.
 WMS_130 = """<?xml version="1.0" encoding="UTF-8"?>
 <WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms">
   <Service><Name>WMS</Name><Title>A service</Title></Service>
@@ -35,8 +36,17 @@ WMS_130 = """<?xml version="1.0" encoding="UTF-8"?>
           xlink:href="https://wms.test/ows"/></Get></HTTP></DCPType>
       </GetCapabilities>
     </Request>
-    <Layer>
-      <EXTENT>0 -90 180 90</EXTENT>
+    <Layer queryable="0">
+      <EX_GeographicBoundingBox>
+        <westBoundLongitude>-90</westBoundLongitude>
+        <eastBoundLongitude>90</eastBoundLongitude>
+        <southBoundLatitude>-180</southBoundLatitude>
+        <northBoundLatitude>180</northBoundLatitude>
+      </EX_GeographicBoundingBox>
+      <KeywordList><Keyword>inherited</Keyword></KeywordList>
+      <CRS>EPSG:4326</CRS>
+      <CRS>EPSG:3857</CRS>
+      <MinScaleDenominator>100</MinScaleDenominator>
       <Layer queryable="1">
         <Name>root</Name>
         <Title>The ancestor</Title>
@@ -44,7 +54,8 @@ WMS_130 = """<?xml version="1.0" encoding="UTF-8"?>
         <Layer>
           <Name>nested</Name>
           <Title>The requested layer</Title>
-          <Style><Name>default</Name><Title>Default</Title></Style>
+          <CRS>EPSG:25832</CRS>
+          <KeywordList><Keyword>own</Keyword></KeywordList>
         </Layer>
       </Layer>
       <Layer><Name>sibling</Name><Title>Another layer</Title></Layer>
@@ -118,6 +129,13 @@ def count(document, name) -> int:
     ])
 
 
+def child_texts(parent, name) -> list:
+    """The text of every direct child element of the parent with the given name."""
+    return [
+        (child.text or "").strip() for child in parent if localname(child) == name
+    ]
+
+
 class SingleWmsResourceTest(SimpleTestCase):
     """The narrowing of a WMS capabilities document to one advertised layer."""
 
@@ -133,22 +151,38 @@ class SingleWmsResourceTest(SimpleTestCase):
                 self.assertEqual(named(narrowed, "Layer"), ["nested"])
                 self.assertNotIn("sibling", narrowed.decode("utf-8"))
 
-    def test_keeps_the_unnamed_ancestor_of_a_nested_layer(self):
+    def test_answers_a_nested_layer_alone_with_what_it_inherits(self):
         narrowed, root = self.narrow(WMS_130, "nested")
-        # the ancestor stays part of the document to be the source of the
-        # attributes the requested layer inherits from it: the container layer of
-        # the capability, the ancestor and the requested layer itself
-        self.assertEqual(count(narrowed, "Layer"), 3)
-        ancestor = [
-            layer for layer in root.iter()
-            if localname(layer) == "Layer"
-            and localname(layer.getparent()) == "Layer"
-        ][0]
-        self.assertEqual(
-            [localname(child) for child in ancestor],
-            ["Title", "CRS", "Layer"])
-        # and it is not advertisable as a layer of its own anymore
+        layers = [
+            element for element in root.iter() if localname(element) == "Layer"
+        ]
+        # the parents are containers of inherited values only: with the inherited
+        # values written into the requested layer, the document does not need
+        # them anymore and answers the requested layer alone
+        self.assertEqual(count(narrowed, "Layer"), 1)
+        self.assertEqual(len(layers), 1)
+        layer = layers[0]
+        self.assertEqual(localname(layer.getparent()), "Capability")
         self.assertEqual(named(narrowed, "Layer"), ["nested"])
+        # what the parents answered, the layer answers of its own now, while it
+        # keeps what it answered itself
+        self.assertEqual(
+            sorted(child_texts(layer, "CRS")),
+            ["EPSG:25832", "EPSG:3857", "EPSG:4326"])
+        self.assertEqual(
+            child_texts(layer, "Title"), ["The requested layer"])
+        self.assertEqual(
+            child_texts(layer, "MinScaleDenominator"), ["100"])
+        self.assertEqual(
+            [localname(child) for child in layer
+             if localname(child) == "EX_GeographicBoundingBox"],
+            ["EX_GeographicBoundingBox"])
+        self.assertEqual(
+            [keyword.text for keyword in layer.iter()
+             if localname(keyword) == "Keyword"],
+            ["own", "inherited"])
+        # the nearest parent which names the attribute answers it
+        self.assertEqual(layer.get("queryable"), "1")
 
     def test_keeps_the_service_and_the_operations_of_the_service(self):
         narrowed, root = self.narrow(WMS_130, "nested")
@@ -232,21 +266,15 @@ class SingleWfsResourceTest(SimpleTestCase):
 
 
 class CapabilitiesUrlTest(SimpleTestCase):
-    """The adresses of the documents name service and resource in their path."""
+    """The adresses of the documents name the resource in their path."""
 
-    def test_the_url_names_service_and_resource_without_parameters(self):
-        url = layer_capabilities_url(
-            "11111111-1111-1111-1111-111111111111",
-            "22222222-2222-2222-2222-222222222222")
+    def test_the_url_names_the_resource_without_parameters(self):
+        url = layer_capabilities_url("22222222-2222-2222-2222-222222222222")
         self.assertEqual(
-            url, "/mrmap-proxy/wms/11111111-1111-1111-1111-111111111111"
-                 "/layer/22222222-2222-2222-2222-222222222222")
-        url = feature_type_capabilities_url(
-            "11111111-1111-1111-1111-111111111111",
-            "22222222-2222-2222-2222-222222222222")
+            url, "/mrmap-proxy/wms/layer/22222222-2222-2222-2222-222222222222")
+        url = feature_type_capabilities_url("22222222-2222-2222-2222-222222222222")
         self.assertEqual(
-            url, "/mrmap-proxy/wfs/11111111-1111-1111-1111-111111111111"
-                 "/featuretype/22222222-2222-2222-2222-222222222222")
+            url, "/mrmap-proxy/wfs/featuretype/22222222-2222-2222-2222-222222222222")
 
 
 class ResourceCapabilitiesEndpointTest(TestCase):
@@ -282,42 +310,42 @@ class ResourceCapabilitiesEndpointTest(TestCase):
         self.client = APIClient()
         self.client.login(username="User1", password="User1")
         self.layer = self.element(Layer)
-        self.wms = self.with_backup(self.layer.service, "capabilities/wms/1.3.0.xml")
+        self.with_backup(self.layer.service, "capabilities/wms/1.3.0.xml")
         self.feature_type = self.element(FeatureType)
-        self.wfs = self.with_backup(
+        self.with_backup(
             self.feature_type.service, "capabilities/wfs/local_mapserver.2.0.0.xml")
         self.assertIsNotNone(self.layer)
         self.assertIsNotNone(self.feature_type)
 
     def test_answers_the_document_of_one_layer(self):
-        response = self.client.get(
-            f"/mrmap-proxy/wms/{self.wms.pk}/layer/{self.layer.pk}")
+        response = self.client.get(f"/mrmap-proxy/wms/layer/{self.layer.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/xml")
         self.assertEqual(response["Cache-Control"], "no-store")
         self.assertEqual(
             named(response.content, "Layer"), [self.layer.identifier])
+        # the parents of a nested layer are not part of the document
+        self.assertEqual(count(response.content, "Layer"), 1)
 
     def test_answers_the_document_of_one_feature_type(self):
-        url = (f"/mrmap-proxy/wfs/{self.wfs.pk}"
-               f"/featuretype/{self.feature_type.pk}")
-        response = self.client.get(url)
+        response = self.client.get(
+            f"/mrmap-proxy/wfs/featuretype/{self.feature_type.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             named(response.content, "FeatureType"),
             [self.feature_type.identifier])
+        self.assertEqual(count(response.content, "FeatureType"), 1)
 
     def test_answers_a_client_which_appends_the_parameters_itself(self):
         response = self.client.get(
-            f"/mrmap-proxy/wms/{self.wms.pk}/layer/{self.layer.pk}"
+            f"/mrmap-proxy/wms/layer/{self.layer.pk}"
             "?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             named(response.content, "Layer"), [self.layer.identifier])
 
     def test_answers_an_unknown_resource_with_an_exception_report(self):
-        response = self.client.get(
-            f"/mrmap-proxy/wms/{self.wms.pk}/layer/{uuid4()}")
+        response = self.client.get(f"/mrmap-proxy/wms/layer/{uuid4()}")
         self.assertEqual(response.status_code, 404)
         self.assertIn(b"ServiceExceptionReport", response.content)
 
@@ -331,13 +359,12 @@ class ResourceCapabilitiesEndpointTest(TestCase):
         attributes = self.attributes_of("layers", self.layer.pk)
         self.assertTrue(
             attributes["capabilitiesUrl"].endswith(
-                f"/mrmap-proxy/wms/{self.wms.pk}/layer/{self.layer.pk}"),
+                f"/mrmap-proxy/wms/layer/{self.layer.pk}"),
             msg=attributes["capabilitiesUrl"])
 
     def test_feature_type_answers_the_url_of_its_own_document(self):
         attributes = self.attributes_of("featuretypes", self.feature_type.pk)
         self.assertTrue(
             attributes["capabilitiesUrl"].endswith(
-                f"/mrmap-proxy/wfs/{self.wfs.pk}"
-                f"/featuretype/{self.feature_type.pk}"),
+                f"/mrmap-proxy/wfs/featuretype/{self.feature_type.pk}"),
             msg=attributes["capabilitiesUrl"])

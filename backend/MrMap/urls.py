@@ -56,12 +56,13 @@ urlpatterns = [
     path("mrmap-proxy/wfs/<uuid:pk>",
          WebFeatureServiceProxy.as_view(),
          name="wfs-operation"),
-    # capabilities of a single layer or feature type of a registered service, see
+    # capabilities of a single layer or feature type, the service of the resource
+    # is read out of the registry over the resource, see
     # registry/proxy/resource_capabilities.py
-    path("mrmap-proxy/wms/<uuid:pk>/layer/<uuid:layer_pk>",
+    path("mrmap-proxy/wms/layer/<uuid:layer_pk>",
          WebMapServiceLayerCapabilities.as_view(),
          name="wms-layer-capabilities"),
-    path("mrmap-proxy/wfs/<uuid:pk>/featuretype/<uuid:featuretype_pk>",
+    path("mrmap-proxy/wfs/featuretype/<uuid:featuretype_pk>",
          WebFeatureServiceFeatureTypeCapabilities.as_view(),
          name="wfs-featuretype-capabilities"),
     path("mrmap-proxy/ows/<int:pk>",

@@ -237,10 +237,10 @@ class LayerSerializer(
     def get_capabilities_url(self, instance) -> str:
         # The capabilities document of a single layer is generated for every request
         # out of the registry (registry/proxy/resource_capabilities.py) and is never
-        # stored, so the url of it is named by the service and the layer of this
-        # answer alone: neither the service nor its capabilities are read here.
+        # stored, so the url of it is named by the layer of this answer alone:
+        # neither the service nor its capabilities are read here.
         return layer_capabilities_url(
-            instance.service_id, instance.pk, request=self.context.get("request"))
+            instance.pk, request=self.context.get("request"))
 
 
 class ServiceAlertSerializerMixin(ModelSerializer):
@@ -722,10 +722,10 @@ class FeatureTypeSerializer(
     def get_capabilities_url(self, instance) -> str:
         # The capabilities document of a single featuretype is generated for every
         # request out of the registry (registry/proxy/resource_capabilities.py) and is
-        # never stored, so the url of it is named by the service and the featuretype of
-        # this answer alone: neither the service nor its capabilities are read here.
+        # never stored, so the url of it is named by the featuretype of this answer
+        # alone: neither the service nor its capabilities are read here.
         return feature_type_capabilities_url(
-            instance.service_id, instance.pk, request=self.context.get("request"))
+            instance.pk, request=self.context.get("request"))
 
     class Meta:
         model = FeatureType

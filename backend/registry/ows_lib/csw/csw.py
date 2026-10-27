@@ -58,7 +58,7 @@ class CatalogueServiceClient(OgcClient):
         self,
         type_names: str = "gmd:MD_Metadata",
         result_type: str = "hits",
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd outputSchema identifier sent as an OGC parameter value - not a network endpoint
         element_set_name: str = "full",
         xml_constraint: str = None,
         cql_constraint: str = None,
@@ -108,7 +108,7 @@ class CatalogueServiceClient(OgcClient):
     def get_record_by_id_request(
         self,
         id: str,
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd outputSchema identifier sent as an OGC parameter value - not a network endpoint
         element_set_name: str = "full",
     ) -> Request:
 

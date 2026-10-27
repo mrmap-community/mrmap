@@ -20,7 +20,7 @@ const CatalogueServiceClient = () => {
       url.searchParams.set('SERVICE', 'CSW')
       url.searchParams.set('typeNames', 'gmd:MD_Metadata')
       url.searchParams.set('resultType', 'results')
-      url.searchParams.set('outputSchema', 'http://www.isotc211.org/2005/gmd')
+      url.searchParams.set('outputSchema', 'http://www.isotc211.org/2005/gmd') // NOSONAR normative ISO 19139 gmd outputSchema identifier sent as a CSW parameter value - not a network endpoint
       url.searchParams.set('elementSetName', 'full')
       url.searchParams.set('constraintLanguage', 'FILTER')
       url.searchParams.set('CONSTRAINT_LANGUAGE_VERSION', '1.1.0')

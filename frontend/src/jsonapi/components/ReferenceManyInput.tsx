@@ -47,7 +47,7 @@ export const RemoveButton = () => {
 
   const [deleteOne, { isPending, isSuccess }] = useDelete();
 
-  const onClick = useCallback(async ()=>{
+  const onClick = useCallback(() => {
     const record = getValues()[source][index]
 
     if (record.id !== undefined) {

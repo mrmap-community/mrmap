@@ -11,6 +11,15 @@ SECURE_ABLE_OPERATIONS = SECURE_ABLE_WMS_OPERATIONS + SECURE_ABLE_WFS_OPERATIONS
 SECURE_ABLE_OPERATIONS_LOWER = [operation.label.lower()
                                 for operation in SECURE_ABLE_OPERATIONS]
 
+# The step sizes a harvesting run may ask a catalogue with. A GetRecords request
+# has to ask for at least one record, and the size a run works with is stored in
+# a smallint of the job (see registry.models.harvest.HarvestingJob), so 32767 is
+# the largest size a run can carry. A catalogue which names a size outside of
+# this range cannot be harvested at all and is answered with a validation error.
+MIN_STEP_SIZE = 1
+MAX_STEP_SIZE = 32767
+
+
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds

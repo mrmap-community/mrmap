@@ -39,6 +39,14 @@ def complete_harvest(job_id):
     job.save(skip_history_when_saving=False)
     if not job.service_id:
         return
+    # the size which completed this run is the size the next run of this catalogue starts with, so
+    # the catalogue keeps the memory of what its remote service answers (#691). Answered by an
+    # update of the row: a harvest which finished is no edit an administrator has to answer with a
+    # new version of the catalogue.
+    from registry.models.service import CatalogueService
+    CatalogueService.objects.filter(pk=job.service_id).exclude(
+        max_step_size=job.max_step_size).update(
+        max_step_size=job.max_step_size)
     snapshots = complete_snapshots(job.service_id)
     if not snapshots.filter(pk=job.pk).exists():
         return

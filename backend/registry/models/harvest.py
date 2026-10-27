@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
+from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import UniqueConstraint
 from django.db.models.fields.files import FieldFile
@@ -34,6 +35,7 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
+from registry.settings import MIN_STEP_SIZE
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
@@ -207,8 +209,11 @@ class HarvestingJob(ProcessingData):
     max_step_size = models.PositiveSmallIntegerField(
         verbose_name=_("max step size"),
         help_text=_(
-            "the maximum step size this csw can handle by a single GetRecords request."),
-        default=50)
+            "the step size this job asks the catalogue with by a single "
+            "GetRecords request. A job which is started without one takes the "
+            "step size the catalogue is known to answer."),
+        default=50,
+        validators=[MinValueValidator(MIN_STEP_SIZE)])
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
     total_records: int = models.PositiveIntegerField(

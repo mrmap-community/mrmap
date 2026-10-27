@@ -144,8 +144,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       malformed: "Das gespeicherte Dokument des Datensatzes ist kein gültiges XML.",
       no_records: "Das gespeicherte Dokument enthält keinen Metadatensatz."
     },
+    source: {
+      "own-distribution": "vom Datensatz angeboten",
+      "own-operation": "Operation des Datensatzes",
+      "coupled-service-record": "gekoppelter Service-Metadatensatz",
+      "metadata-reference-record": "referenzierter Metadatensatz"
+    },
     error: {
-      denied: "Sie dürfen diese Datensätze nicht nach ihren Diensten fragen.",
+      denied: "Sie dürfen diesen Datensatz nicht nach seinen Diensten fragen.",
       unavailable: "Die Dienste dieses Datensatzes können derzeit nicht beantwortet werden.",
       "not-advertised": "Der Datensatz bietet diesen Endpunkt nicht an.",
       "url-required": "Es ist kein Endpunkt ausgewählt."

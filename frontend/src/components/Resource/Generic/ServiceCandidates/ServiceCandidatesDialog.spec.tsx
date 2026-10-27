@@ -115,6 +115,13 @@ describe("the candidates of a metadata record", () => {
     expect(screen.getByText("serviceCandidates.preferred")).toBeInTheDocument();
     expect(screen.getByText("serviceCandidates.derived")).toBeInTheDocument();
     expect(screen.getByText("RBSN_RR")).toBeInTheDocument();
+    // protocol and origin are told per candidate, not only by their order
+    expect(
+      screen.getByText("serviceCandidates.source.own-distribution"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("serviceCandidates.source.coupled-service-record"),
+    ).toBeInTheDocument();
     // discovery promises that no endpoint was asked
     expect(screen.getAllByText("serviceCandidates.check")).toHaveLength(2);
   });
@@ -161,20 +168,62 @@ describe("the candidates of a metadata record", () => {
     );
   });
 
-  it("names a supported answer and keeps an unsupported one as a reason", () => {
+  it("keeps an unsupported feature type service as an explicit state", () => {
     state.resolution = resolution({
-      candidates: [candidate({ service: "WMS" })],
+      candidates: [
+        candidate({
+          url: WFS_URL,
+          original_url: WFS_URL,
+          service: "WFS",
+          advertised_version: "2.0.0",
+        }),
+      ],
     }) as RecordResolution;
     state.validation = {
       state: "unsupported",
-      detail: "unsupported-service",
+      detail: "exception-report:OperationNotSupported",
     } as CandidateValidation;
     renderDialog();
     check();
     expect(
       screen.getByText("serviceCandidates.state.unsupported"),
     ).toBeInTheDocument();
-    expect(screen.getByText("unsupported-service")).toBeInTheDocument();
+    expect(
+      screen.getByText("exception-report:OperationNotSupported"),
+    ).toBeInTheDocument();
+    // the version the record advertised stays readable next to the refusal
+    expect(screen.getByText("2.0.0")).toBeInTheDocument();
+  });
+
+  it("hands a feature type service which delivers over to the viewer", () => {
+    state.resolution = resolution({
+      candidates: [
+        candidate({
+          url: WFS_URL,
+          original_url: WFS_URL,
+          service: "WFS",
+          type_names: ["RBSN_RR"],
+        }),
+      ],
+    }) as RecordResolution;
+    state.validation = {
+      state: "resolved",
+      service_type: "WFS",
+      matched_names: ["RBSN_RR"],
+    } as CandidateValidation;
+    renderDialog();
+    check();
+    expect(
+      screen.getByText("serviceCandidates.state.resolved"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("maps.example.org/geoserver/ins/ows"));
+    fireEvent.click(
+      screen
+        .getByText("serviceCandidates.openInMap")
+        .closest("button") as HTMLButtonElement,
+    );
+    // the protocol is read from the delivered capabilities by the handoff
+    expect(state.openInViewer).toHaveBeenCalledWith(WFS_URL);
   });
 
   it("states what the record answers instead of an empty list", () => {

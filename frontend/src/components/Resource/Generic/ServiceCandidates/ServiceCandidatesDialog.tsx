@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ShowButton,
   useRecordContext,
@@ -162,6 +162,12 @@ const CandidateRow = ({
                 <Chip size="small" variant="outlined" label={t("derived")} />
               </Tooltip>
             )}
+            {/* protocol and origin, so several candidates read apart */}
+            <Chip
+              size="small"
+              variant="outlined"
+              label={t(`source.${candidate.source}`)}
+            />
             {/* the answer of the endpoint replaces the promise of discovery */}
             <Chip
               size="small"
@@ -244,19 +250,30 @@ export const ServiceCandidatesDialog = ({
   const id = recordId ?? (record?.id === undefined ? undefined : String(record.id));
   const [selected, setSelected] = useState<string>();
   const [checked, setChecked] = useState<string>();
+  /** Every endpoint which was asked keeps its answer, so comparing two
+   *  candidates does not throw the first answer away. */
+  const [answers, setAnswers] = useState<Record<string, CandidateValidation>>(
+    {},
+  );
 
   const resolution = useServiceCandidates(resource, id, open);
   const validation = useValidateServiceCandidate(resource, id, checked, open);
+  useEffect(() => {
+    if (checked === undefined || validation.data === undefined) return;
+    const url = checked;
+    const asked = validation.data;
+    setAnswers((previous) =>
+      previous[url] === asked ? previous : { ...previous, [url]: asked },
+    );
+  }, [checked, validation.data]);
 
   const dismiss = () => {
     setSelected(undefined);
     setChecked(undefined);
+    setAnswers({});
     onClose();
   };
-  const select = (url: string) => {
-    setSelected(url);
-    setChecked(undefined);
-  };
+  const select = (url: string) => setSelected(url);
   const check = (url: string) => {
     setSelected(url);
     setChecked(url);
@@ -332,7 +349,7 @@ export const ServiceCandidatesDialog = ({
                 selected={selected === candidate.url}
                 onSelect={select}
                 onCheck={check}
-                validation={checked === candidate.url ? validation.data : undefined}
+                validation={answers[candidate.url]}
                 isChecking={
                   checked === candidate.url && validation.isPending
                 }

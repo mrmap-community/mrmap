@@ -147,6 +147,12 @@ const en = lodashMerge(
         malformed: "The stored document of the record is no valid xml.",
         no_records: "The stored document holds no metadata record."
       },
+      source: {
+        "own-distribution": "advertised by the record",
+        "own-operation": "operation of the record",
+        "coupled-service-record": "coupled service record",
+        "metadata-reference-record": "referenced record"
+      },
       error: {
         denied: "You may not ask this record for its services.",
         unavailable: "The services of this record cannot be answered right now.",

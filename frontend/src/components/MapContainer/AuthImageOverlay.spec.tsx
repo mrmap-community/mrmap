@@ -9,32 +9,51 @@ const query = vi.hoisted(() => ({
     undefined | ((context: { signal: AbortSignal }) => Promise<Blob>),
   data: undefined as undefined | Blob,
 }));
-// every overlay the component draws, with the blending it was given and the calls made on it
+// every overlay the component draws, with what it was given and the calls made on it
 const overlays = vi.hoisted(() => [] as {
   opacity?: number;
+  url?: string;
+  eventHandlers?: { load?: () => void; error?: () => void };
   drawn: { setOpacity: ReturnType<typeof vi.fn> };
 }[]);
+// what the component reports about the picture it draws to the status of the map
+const loading = vi.hoisted(() => ({
+  report: vi.fn(),
+  remove: vi.fn(),
+}));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryFn }: { queryFn: typeof query.run }) => {
-    query.run = queryFn;
-    return {
-      data: query.data,
-      isFetching: query.data === undefined,
-      error: undefined,
-    };
+  useQuery: ({
+    queryFn,
+    enabled = true,
+  }: {
+    queryFn: typeof query.run;
+    enabled?: boolean;
+  }) => {
+    query.run = enabled ? queryFn : undefined;
+    return enabled
+      ? {
+          data: query.data,
+          isFetching: query.data === undefined,
+          error: undefined,
+        }
+      : { data: undefined, isFetching: false, error: undefined };
   },
 }));
 vi.mock("react-leaflet", () => ({
   ImageOverlay: ({
     opacity,
+    url,
+    eventHandlers,
     ref,
   }: {
     opacity?: number;
+    url?: string;
+    eventHandlers?: { load?: () => void; error?: () => void };
     ref?: ((layer: unknown) => void) | { current: unknown } | null;
   }) => {
     // the overlay leaflet answers with through the ref, keeping the calls made on it
     const drawn = { setOpacity: vi.fn() };
-    overlays.push({ opacity, drawn });
+    overlays.push({ opacity, url, eventHandlers, drawn });
     if (typeof ref === "function") ref(drawn);
     else if (ref !== null && ref !== undefined) ref.current = drawn;
     return null;
@@ -42,8 +61,8 @@ vi.mock("react-leaflet", () => ({
 }));
 vi.mock("../MapViewer/MapViewerBase", () => ({
   useMapViewerBase: () => ({
-    reportMapLoading: vi.fn(),
-    removeMapLoading: vi.fn(),
+    reportMapLoading: loading.report,
+    removeMapLoading: loading.remove,
   }),
 }));
 afterEach(() => vi.unstubAllGlobals());
@@ -162,4 +181,36 @@ it("does not fetch a map when credentials are missing", async () => {
   const fetch = prepare(makeBlob(["image"], { type: "image/png" }), "missing");
   await expect(query.run!({ signal: new AbortController().signal })).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+describe("the picture of a remote service which asks for nothing", () => {
+  const remote = "https://remote.test/wms?REQUEST=GetMap";
+  it("is drawn from its own url instead of being fetched across the origin", () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    overlays.length = 0;
+    render(
+      <AuthImageOverlay
+        bounds={latLngBounds([0, 0], [1, 1])}
+        optimiuedUrl={{ url: new URL(remote), features: [], operations: [] }}
+      />,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(overlays.at(-1)?.url).toBe(remote);
+    // what the browser reports about the picture is what the map states about itself
+    overlays.at(-1)?.eventHandlers?.load?.();
+    expect(loading.report).toHaveBeenCalledWith(
+      `image:${remote}`,
+      "ready",
+      undefined,
+      expect.any(Number),
+    );
+    overlays.at(-1)?.eventHandlers?.error?.();
+    expect(loading.report).toHaveBeenCalledWith(
+      `image:${remote}`,
+      "error",
+      { message: "viewerMap.imageFailed", features: [] },
+      expect.any(Number),
+    );
+  });
 });

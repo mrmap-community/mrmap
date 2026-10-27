@@ -26,8 +26,8 @@ import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
 import { updateOrAppendSearchParam } from "../../ows-lib/OwsContext/utils";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
-import { FeatureInfoResult } from "../Resource/Generic/ServiceShow/LivePreview/LivePreview";
 import { AuthImageOverlay } from "./AuthImageOverlay";
+import { FeatureInfoResult } from "./FeatureInfoResult";
 
 const VIEWPORT_DEBOUNCE_MS = 300;
 

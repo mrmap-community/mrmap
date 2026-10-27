@@ -11,7 +11,7 @@ import CustomListActions from "../../../Lists/CustomListActions";
 import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
 import ElementHistory from "../../Generic/ServiceShow/ElementHistory";
 import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
-import ElementPreview from "../../Generic/ServiceShow/ElementPreview";
+import ElementViewer from "../../Generic/ServiceShow/ElementViewer";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -22,6 +22,18 @@ import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
 import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
+
+/**
+ * The preview of one selected feature type: the viewer of its single resource document, mounted
+ * by the element it belongs to, because another element means another document and another map.
+ */
+const featureTypePreview = (featureType?: RaRecord) => (
+  <ElementViewer
+    key={String(featureType?.id)}
+    capabilitiesUrl={featureType?.capabilitiesUrl}
+    extent={featureType?.bboxLatLon}
+  />
+);
 
 function OperationUrls() {
   const record = useRecordContext();
@@ -102,14 +114,7 @@ function FeatureTypesTab() {
             />
           )}
           history={(featureType) => <ElementHistory resource="FeatureType" record={featureType} />}
-          preview={(featureType) => (
-            <ElementPreview
-              key={String(featureType?.id)}
-              protocol="WFS"
-              element={featureType}
-              service={record}
-            />
-          )}
+          preview={featureTypePreview}
         />
       </Grid>
     </Grid>

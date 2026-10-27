@@ -101,6 +101,17 @@ export const AuthImageOverlay = ({
   const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
   const url = optimiuedUrl.url.href;
 
+  // an endpoint of another origin which asks for no credentials at all is answered by the
+  // browser straight from its url: an image needs no cross-origin permission to be shown,
+  // while a fetched blob does - credentials keep their origin check through the fetched path.
+  // The price is that a service exception which the remote labels as an image is only known
+  // as a picture which did not load, because its body may not be read across the origin
+  const direct =
+    !authenticationError &&
+    !authOptions.headers &&
+    !authOptions.credentials &&
+    new URL(url).origin !== window.location.origin;
+
   const loadingId = `image:${url}`;
 
   const { data, isFetching, error } = useQuery({
@@ -111,6 +122,7 @@ export const AuthImageOverlay = ({
       authOptions.credentials,
       authenticationError,
     ],
+    enabled: !direct,
     gcTime: 0,
     retry: false,
     retryOnMount: false,
@@ -184,6 +196,38 @@ export const AuthImageOverlay = ({
   useEffect(() => {
     overlay.current?.setOpacity(opacity);
   }, [opacity, imageUrl]);
+
+  if (direct) {
+    return (
+      <ImageOverlay
+        ref={overlay}
+        bounds={bounds}
+        url={url}
+        interactive={interactive}
+        opacity={opacity}
+        eventHandlers={{
+          load: () =>
+            reportMapLoading(
+              loadingId,
+              "ready",
+              undefined,
+              performance.now() - startedAt.current,
+            ),
+          error: () =>
+            reportMapLoading(
+              loadingId,
+              "error",
+              {
+                message: translate("viewerMap.imageFailed"),
+                features: optimiuedUrl.features,
+              },
+              performance.now() - startedAt.current,
+            ),
+        }}
+        {...rest}
+      />
+    );
+  }
 
   if (error) {
     return null;

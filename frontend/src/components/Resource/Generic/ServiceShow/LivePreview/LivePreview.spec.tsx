@@ -1,534 +1,340 @@
-import type { PreviewResult } from "./usePreview";
-
-import { useEffect, type PropsWithChildren } from "react";
 import {
-  AdminContext,
-  RecordContextProvider,
-  testDataProvider,
-} from "react-admin";
-
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import LivePreview, { FeatureInfoResult } from "./LivePreview";
+import LivePreview from "./LivePreview";
 
 const state = vi.hoisted(() => ({
-  request: vi.fn(),
-  transfer: vi.fn(),
-  transferWfs: vi.fn(),
-  reset: vi.fn(),
-  mapProps: undefined as Record<string, unknown> | undefined,
-}));
-vi.mock("../../../../../context/HttpClientContext", () => ({
-  API_BASE_URL: "https://mrmap.test",
-  useHttpClientContext: () => ({
-    api: {
-      getOperation: () => ({}),
-      getAxiosConfigForOperation: (
-        operation: string,
-        [params, , options]: [
-          Record<string, unknown>,
-          unknown,
-          Record<string, unknown>,
-        ],
-      ) => ({
-        url: "https://mrmap.test/preview",
-        operation,
-        params,
-        ...options,
-      }),
-      client: { request: state.request },
-    },
-  }),
-}));
-vi.mock("../../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
-}));
-vi.mock("../../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
-  OwsContextBase: ({ children }: PropsWithChildren) => (
-    <div data-testid="isolated-context">{children}</div>
-  ),
-  useOwsContextBase: () => ({
-    addWMSByUrl: state.transfer,
-    addWFSByUrl: state.transferWfs,
-    resetContext: state.reset,
-  }),
-}));
-vi.mock("./PreviewMap", () => ({
-  default: (props: {
-    onViewport: (value: Record<string, unknown>) => void;
-    image?: string;
-    features?: object;
-    records?: object[];
-    identifyAvailable?: boolean;
-    onIdentify?: (x: number, y: number) => void;
-  }) => {
-    state.mapProps = props;
-    useEffect(() => {
-      props.onViewport({ bbox: "0,0,4,8", width: 600, height: 400 });
-    }, [props.onViewport]);
-    return (
-      <div data-testid="preview-map">
-        {props.image && "live imagery"}
-        {props.features && "live features"}
-        {props.records && "metadata coverage"}
-        {props.identifyAvailable && (
-          <button onClick={() => props.onIdentify?.(300, 200)}>Identify</button>
-        )}
-      </div>
-    );
+  record: { id: "service-1" } as Record<string, unknown>,
+  choices: {
+    data: undefined as Record<string, unknown>[] | undefined,
+    total: 0,
+    error: undefined as Error | undefined,
+    isPending: false,
   },
+  preview: {
+    data: undefined as Record<string, unknown> | undefined,
+    isFetching: false,
+    error: undefined as { code: string } | undefined,
+    supported: true,
+    refetch: vi.fn(),
+  },
+  addServiceByUrl: vi.fn(async () => undefined),
+  navigate: vi.fn(),
 }));
-const configuration = { extent: null, queryable: false };
-const result = (data: Partial<PreviewResult>) => ({
-  data: { source: "Registered service", ...data },
-});
-const prepare = (protocol: "WMS" | "WFS" | "CSW") => {
-  const provider = testDataProvider({
-    getList: vi.fn().mockResolvedValue({
-      data: [{ id: "layer", identifier: "roads", title: "Roads" }],
-      total: 1,
-    }),
-  });
-  return render(
-    <AdminContext
-      dataProvider={provider}
-      i18nProvider={{
-        translate: (key) => key,
-        changeLocale: async () => {},
-        getLocale: () => "en",
-      }}
-    >
-      <RecordContextProvider value={{ id: "service", title: "Service" }}>
-        <LivePreview protocol={protocol} />
-      </RecordContextProvider>
-    </AdminContext>,
+
+vi.mock("react-admin", async () => ({
+  ...(await vi.importActual<typeof import("react-admin")>("react-admin")),
+  useTranslate: () => (key: string, options?: Record<string, unknown>) =>
+    options?.count !== undefined ? `${key}:${String(options.count)}` : key,
+  useRecordContext: () => state.record,
+  useGetList: () => ({
+    data: state.choices.data,
+    total: state.choices.total,
+    error: state.choices.error,
+    isPending: state.choices.isPending,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => state.navigate,
+}));
+
+vi.mock("react-leaflet", () => ({
+  MapContainer: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="map">{children}</div>
+  ),
+  Rectangle: ({
+    eventHandlers,
+    bounds,
+  }: {
+    eventHandlers?: { click?: () => void };
+    bounds: { toString: () => string };
+  }) => (
+    <div
+      data-testid="rectangle"
+      data-bounds={bounds.toString()}
+      onClick={() => eventHandlers?.click?.()}
+    />
+  ),
+  useMap: () => ({ fitBounds: vi.fn() }),
+}));
+
+vi.mock("../../../../MapContainer/ResizeAbleMapContainer", () => ({
+  default: () => null,
+}));
+
+vi.mock("../ElementViewer", async () => ({
+  // the panel is not rendered here, but the helpers which hand an element to a
+  // viewer are the real ones, so what the preview asks with is what it asks
+  ...(await vi.importActual<typeof import("../ElementViewer")>(
+    "../ElementViewer",
+  )),
+  default: ({
+    capabilitiesUrl,
+    extent,
+  }: {
+    capabilitiesUrl?: unknown;
+    extent?: unknown;
+  }) => (
+    <div
+      data-testid="element-viewer"
+      data-url={String(capabilitiesUrl ?? "")}
+      data-extent={JSON.stringify(extent)}
+    />
+  ),
+}));
+
+vi.mock("./usePreview", async () => {
+  const { PreviewFailure } = await vi.importActual<typeof import("./usePreview")>(
+    "./usePreview",
   );
+  return {
+    PreviewFailure,
+    serviceResource: {
+      WMS: "WebMapService",
+      WFS: "WebFeatureService",
+      CSW: "CatalogueService",
+    },
+    usePreview: () => ({ ...state.preview, supported: state.preview.supported }),
+  };
+});
+
+vi.mock("../../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
+  OwsContextBase: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  useOwsContextBase: () => ({ addServiceByUrl: state.addServiceByUrl }),
+}));
+
+vi.mock("../../../../../context/HttpClientContext", () => ({
+  API_BASE_URL: "http://localhost:8000/api/",
+}));
+
+vi.mock("../../../../../providers/authProvider", () => ({
+  getAuthToken: () => ({ token: "secret" }),
+}));
+
+const polygon = {
+  type: "Polygon",
+  coordinates: [
+    [
+      [8.1, 49.0],
+      [8.5, 49.0],
+      [8.5, 49.4],
+      [8.1, 49.4],
+      [8.1, 49.0],
+    ],
+  ],
 };
+
+const layers = [
+  {
+    id: "layer-1",
+    identifier: "roads",
+    title: "Roads",
+    capabilitiesUrl: "http://localhost:8000/mrmap-proxy/wms/layer/layer-1",
+    bboxLatLon: polygon,
+  },
+  {
+    id: "layer-2",
+    identifier: "rivers",
+    title: "Rivers",
+    capabilitiesUrl: "http://localhost:8000/mrmap-proxy/wms/layer/layer-2",
+    bboxLatLon: polygon,
+  },
+  {
+    id: "layer-3",
+    identifier: "linked",
+    title: "Linked",
+    capabilitiesUrl: "http://localhost:8000/mrmap-proxy/wms/layer/layer-3",
+    bboxLatLon: polygon,
+  },
+];
+
+const open = () => {
+  fireEvent.click(screen.getByText("livePreview.title"));
+};
+
+const rendered = (protocol: "WMS" | "WFS" | "CSW") =>
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <LivePreview protocol={protocol} />
+    </QueryClientProvider>,
+  );
+
 beforeEach(() => {
-  vi.clearAllMocks();
-  state.mapProps = undefined;
+  state.record = { id: "service-1" };
+  state.choices.data = undefined;
+  state.choices.total = 0;
+  state.choices.error = undefined;
+  state.choices.isPending = false;
+  state.preview.data = undefined;
+  state.preview.isFetching = false;
+  state.preview.error = undefined;
+  state.preview.supported = true;
+  state.addServiceByUrl = vi.fn(async () => undefined);
+  state.navigate = vi.fn();
 });
-afterEach(() => vi.unstubAllGlobals());
-// Every scenario renders an accordion whose content waits for a debounced react-query
-// round trip, which exceeds the default five seconds once the whole suite shares the CPU.
-vi.setConfig({ testTimeout: 20000 });
-describe("live overview previews", () => {
-  it("fetches the generated identify url itself and presents a safe result link", async () => {
-    const BrowserURL = URL;
-    vi.stubGlobal(
-      "URL",
-      class extends BrowserURL {
-        static createObjectURL = vi.fn(() => "blob:safe-result");
-        static revokeObjectURL = vi.fn();
-      },
+
+describe("LivePreview", () => {
+  it("renders the chosen element with the viewer of its single document", async () => {
+    state.choices.data = layers;
+    state.choices.total = 2;
+    rendered("WMS");
+    open();
+    // the first named element is chosen by default and rendered by its own document
+    await waitFor(() =>
+      expect(screen.getByTestId("element-viewer")).toBeInTheDocument(),
     );
-    const identify = vi.fn(
-      async (_url: string, _init: RequestInit) =>
-        new Response("<script>remote</script>", {
-          headers: { "Content-Type": "text/plain" },
-        }),
+    expect(screen.getByTestId("element-viewer")).toHaveAttribute(
+      "data-url",
+      "http://localhost:8000/mrmap-proxy/wms/layer/layer-1",
     );
-    vi.stubGlobal("fetch", identify);
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              image: "data:image/png;base64:test",
-              configuration: { ...configuration, queryable: true },
-            }
-          : {
-              configuration: { ...configuration, queryable: true },
-              identify: {
-                url: "/mrmap-proxy/wms/service?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=roads&QUERY_LAYERS=roads&INFO_FORMAT=text%2Fplain",
-                infoFormat: "text/plain",
-              },
-            },
-      ),
-    );
-    const view = prepare("WMS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.click(
-      await screen.findByRole(
-        "button",
-        { name: "Identify" },
-        { timeout: 5000 },
-      ),
-    );
-    await screen.findByText("<script>remote</script>", {}, { timeout: 5000 });
-    fireEvent.click(screen.getByText("livePreview.rawResponse"));
-    expect(
-      screen.getByRole("link", { name: "livePreview.featureInfo" }),
-    ).toHaveAttribute("href", "blob:safe-result");
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "download",
-      "getfeatureinfo.txt",
-    );
-    // The preview endpoint only negotiates; the pixel request goes to the security proxy.
-    const [url, options] = identify.mock.calls[0];
-    const params = new URL(url).searchParams;
-    expect(new URL(url).pathname).toBe("/mrmap-proxy/wms/service");
-    expect(params.get("REQUEST")).toBe("GetFeatureInfo");
-    expect(params.get("BBOX")).toBe("0,0,8,4");
-    expect(params.get("WIDTH")).toBe("600");
-    expect(params.get("HEIGHT")).toBe("400");
-    expect(params.get("I")).toBe("300");
-    expect(params.get("J")).toBe("200");
-    expect(params.get("X")).toBe("300");
-    expect(params.get("Y")).toBe("200");
-    expect(options.headers).toEqual({
-      Accept: "text/plain",
-      Authorization: "Token mrmap-token",
-    });
-    expect(
-      state.request.mock.calls.every(
-        ([config]) =>
-          (config.params as Record<string, unknown>).identify === undefined,
-      ),
-    ).toBe(true);
-    view.unmount();
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:safe-result");
-  });
-  it("refuses an identify url of another origin without sending credentials", async () => {
-    const fetched = vi.fn();
-    vi.stubGlobal("fetch", fetched);
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              image: "data:image/png;base64:test",
-              configuration: { ...configuration, queryable: true },
-            }
-          : {
-              configuration: { ...configuration, queryable: true },
-              identify: {
-                url: "https://unrelated.test/mrmap-proxy/wms/service?VERSION=1.1.1",
-                infoFormat: "application/json",
-              },
-            },
-      ),
-    );
-    const view = prepare("WMS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.click(
-      await screen.findByRole(
-        "button",
-        { name: "Identify" },
-        { timeout: 5000 },
-      ),
-    );
-    await screen.findByText("livePreview.errors.denied", {}, { timeout: 5000 });
-    expect(fetched).not.toHaveBeenCalled();
-    view.unmount();
-  });
-  it("reads a json identify body into feature attributes instead of markup", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  properties: { name: "Main", street: "<b>x</b>" },
-                },
-              ],
-            }),
-            { headers: { "Content-Type": "application/json" } },
-          ),
-      ),
-    );
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              image: "data:image/png;base64:test",
-              configuration: { ...configuration, queryable: true },
-            }
-          : {
-              configuration: { ...configuration, queryable: true },
-              identify: {
-                url: "/mrmap-proxy/wms/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=roads",
-                infoFormat: "application/json",
-              },
-            },
-      ),
-    );
-    const view = prepare("WMS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.click(
-      await screen.findByRole(
-        "button",
-        { name: "Identify" },
-        { timeout: 5000 },
-      ),
-    );
-    expect(
-      await screen.findByText("street: <b>x</b>", {}, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("name: Main")).toBeInTheDocument();
-    expect(document.querySelector("b")).toBeNull();
-    expect(document.querySelector("script")).toBeNull();
-    view.unmount();
-  });
-  it("starts only on expansion, isolates state, and cancels when collapsed", async () => {
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              image: "data:image/png;base64,test",
-              fetchedAt: "2026-10-13T12:00:00Z",
-              configuration,
-            }
-          : { configuration, discovery: "stored" },
-      ),
-    );
-    prepare("WMS");
-    expect(state.request).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("preview-map")).toBeNull();
-    fireEvent.click(screen.getByText("livePreview.title"));
-    expect(screen.getByTestId("isolated-context")).toBeInTheDocument();
+    // another choice renders another element
     fireEvent.mouseDown(screen.getByLabelText("livePreview.layer"));
-    fireEvent.click(await screen.findByRole("option", { name: "Roads" }));
-    await screen.findByText("live imagery");
-    expect(state.reset).not.toHaveBeenCalled();
-    expect(state.transfer).not.toHaveBeenCalled();
-    expect(state.request).toHaveBeenLastCalledWith(
+    fireEvent.click(await screen.findByText("Rivers"));
+    await waitFor(() =>
+      expect(screen.getByTestId("element-viewer")).toHaveAttribute(
+        "data-url",
+        "http://localhost:8000/mrmap-proxy/wms/layer/layer-2",
+      ),
+    );
+  });
+
+  it("hands the chosen element to the full viewer through its own document", async () => {
+    state.choices.data = layers;
+    state.choices.total = 2;
+    rendered("WMS");
+    open();
+    fireEvent.click(await screen.findByText("ra.action.mapviewer"));
+    await waitFor(() => expect(state.addServiceByUrl).toHaveBeenCalled());
+    const [url, headers, hook] = state.addServiceByUrl.mock
+      .calls[0] as unknown as [string, Headers, unknown];
+    expect(url).toBe("http://localhost:8000/mrmap-proxy/wms/layer/layer-1");
+    expect(headers.get("Authorization")).toBe("Token secret");
+    expect(typeof hook).toBe("function");
+    expect(state.navigate).toHaveBeenCalledWith(
+      "/viewer",
       expect.objectContaining({
-        headers: {
-          Accept: "application/json",
-          Authorization: "Token mrmap-token",
+        state: { previewExtent: [8.1, 49, 8.5, 49.4] },
+      }),
+    );
+  });
+
+  it("states a linked selection outside the loaded page without rendering it", async () => {
+    state.choices.data = [layers[0]];
+    state.choices.total = 1;
+    state.preview.data = {
+      source: "https://csw.test/record",
+      fetchedAt: new Date(0).toISOString(),
+      records: [
+        {
+          identifier: "record-1",
+          title: "First",
+          extent: [8, 49, 9, 50],
+          previews: [
+            {
+              protocol: "WMS",
+              serviceId: "service-2",
+              selection: "hidden",
+              title: "Linked service",
+            },
+          ],
         },
-        params: expect.objectContaining({
-          selection: "roads",
-          bbox: "0,0,4,8",
-        }),
-      }),
-    );
-    fireEvent.click(screen.getByText("livePreview.title"));
-    await waitFor(() => expect(screen.queryByTestId("preview-map")).toBeNull());
-  });
-  it("shows actual bounded WFS features and visibility controls", async () => {
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              features: { type: "FeatureCollection", features: [] },
-              limited: true,
-              limit: 500,
-              fetchedAt: "2026-10-13T12:00:00Z",
-              configuration,
-            }
-          : { configuration },
-      ),
-    );
-    prepare("WFS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.mouseDown(screen.getByLabelText("livePreview.featureType"));
-    fireEvent.click(await screen.findByRole("option", { name: "Roads" }));
-    await screen.findByText("live features");
-    expect(screen.getByText("livePreview.limited")).toBeInTheDocument();
-    expect(screen.getByText("livePreview.emptyFeatures")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("livePreview.visible"));
-    expect(screen.queryByText("live features")).toBeNull();
-  });
-  it("hands a WFS selection to the viewer through the security proxy", async () => {
-    state.request.mockImplementation(async ({ params }) =>
-      result(
-        params.bbox
-          ? {
-              features: { type: "FeatureCollection", features: [] },
-              fetchedAt: "2026-10-13T12:00:00Z",
-              configuration,
-            }
-          : { configuration },
-      ),
-    );
-    prepare("WFS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.mouseDown(screen.getByLabelText("livePreview.featureType"));
-    fireEvent.click(await screen.findByRole("option", { name: "Roads" }));
-    await screen.findByText("live features");
-    fireEvent.click(screen.getByRole("button", { name: "ra.action.mapviewer" }));
-    await waitFor(() => expect(state.transferWfs).toHaveBeenCalledTimes(1));
-    expect(state.transfer).not.toHaveBeenCalled();
-    const [href, headers] = state.transferWfs.mock.calls[0] as [
-      string,
-      Headers | undefined,
-    ];
-    expect(new URL(href).pathname).toBe("/mrmap-proxy/wfs/service");
-    expect(new URL(href).searchParams.get("SERVICE")).toBe("WFS");
-    expect(new URL(href).searchParams.get("REQUEST")).toBe("GetCapabilities");
-    expect(headers?.get("Authorization")).toBe("Token mrmap-token");
-  });
-  it("shows a retryable failure without replacing stored overview content", async () => {
-    state.request.mockRejectedValue({
-      response: { status: 422, data: { error: "format" } },
-    });
-    prepare("WFS");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    fireEvent.mouseDown(screen.getByLabelText("livePreview.featureType"));
-    fireEvent.click(await screen.findByRole("option", { name: "Roads" }));
-    await screen.findByText("livePreview.errors.format");
+      ],
+      matched: 1,
+      start: 1,
+    };
+    rendered("CSW");
+    open();
+    fireEvent.click(await screen.findByText("livePreview.previewLinked"));
     expect(
-      screen.getByRole("button", { name: "ra.action.retry" }),
+      await screen.findByText("livePreview.selectOutsidePage"),
     ).toBeInTheDocument();
-    expect(screen.getByText("livePreview.storedDiscovery")).toBeInTheDocument();
+    expect(screen.queryByTestId("element-viewer")).not.toBeInTheDocument();
   });
-  it("queries fresh CSW pages, labels metadata coverage, and retains records without links/extents", async () => {
-    state.request.mockImplementation(async ({ params }) =>
-      result({
-        records: [
-          {
-            identifier: "record",
-            title: "Live record",
-            abstract: "<script>remote</script>",
-            extent: null,
-            previews: [],
-          },
-        ],
-        next: params.start === 1 ? 26 : 0,
-        matched: 26,
-        fetchedAt: "2026-10-13T12:00:00Z",
-      }),
-    );
-    prepare("CSW");
-    fireEvent.click(screen.getByText("livePreview.title"));
-    await screen.findByText("livePreview.noRegistered");
-    expect(screen.getByText("livePreview.noCoverage")).toBeInTheDocument();
-    expect(screen.getByText("<script>remote</script>")).toBeInTheDocument();
-    expect(document.querySelector("script")).toBeNull();
-    expect(screen.getByText("metadata coverage")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "ra.navigation.next" }));
-    await waitFor(() =>
-      expect(state.request).toHaveBeenLastCalledWith(
-        expect.objectContaining({ params: { id: "service", start: 26 } }),
-      ),
-    );
+
+  it("states an empty selection list and a failed one with retry", async () => {
+    state.choices.data = [];
+    state.choices.total = 0;
+    const { unmount } = rendered("WMS");
+    open();
     expect(
-      screen.getByRole("button", { name: "ra.navigation.previous" }),
-    ).toBeEnabled();
-  });
-  it("offers only verified registered CSW links", async () => {
-    state.request.mockResolvedValue(
-      result({
-        records: [
-          {
-            identifier: "record",
-            title: "Linked record",
-            extent: [0, 0, 4, 8],
-            previews: [
-              {
-                protocol: "WFS",
-                serviceId: "verified",
-                selection: "roads",
-                title: "Roads",
-              },
-            ],
-          },
-        ],
-        matched: 1,
-        next: 0,
-      }),
+      await screen.findByText("livePreview.emptySelections"),
+    ).toBeInTheDocument();
+    unmount();
+    state.choices.error = new Error("gone");
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <LivePreview protocol="WMS" />
+      </QueryClientProvider>,
     );
-    prepare("CSW");
-    fireEvent.click(screen.getByText("livePreview.title"));
+    open();
+    expect(
+      await screen.findByText("livePreview.errors.discovery"),
+    ).toBeInTheDocument();
+  });
+
+  it("pages through catalogue records and maps their coverages", async () => {
+    state.preview.data = {
+      source: "https://csw.test/record",
+      fetchedAt: new Date(0).toISOString(),
+      records: [
+        {
+          identifier: "record-1",
+          title: "First",
+          extent: [8, 49, 9, 50],
+          previews: [
+            {
+              protocol: "WMS",
+              serviceId: "service-2",
+              selection: "linked",
+              title: "Linked service",
+            },
+          ],
+        },
+      ],
+      matched: 40,
+      start: 1,
+      next: 21,
+    };
+    rendered("CSW");
+    open();
+    expect(await screen.findByTestId("map")).toBeInTheDocument();
+    expect(screen.getByTestId("rectangle")).toBeInTheDocument();
+    expect(screen.getByText("First")).toBeInTheDocument();
+    // the registered resource of a record opens its own live preview
+    state.choices.data = layers;
+    state.choices.total = 2;
     fireEvent.click(
-      await screen.findByRole("button", { name: "livePreview.previewLinked" }),
+      screen.getByText("livePreview.previewLinked"),
     );
     await waitFor(() =>
-      expect(state.request).toHaveBeenCalledWith(
-        expect.objectContaining({
-          operation: "preview_WebFeatureService",
-          params: expect.objectContaining({
-            id: "verified",
-            selection: "roads",
-          }),
-        }),
-      ),
+      expect(screen.getByTestId("element-viewer")).toBeInTheDocument(),
     );
   });
-  it("names an identify result that holds no features", () => {
-    render(
-      <AdminContext
-        dataProvider={testDataProvider()}
-        i18nProvider={{
-          translate: (key) => key,
-          changeLocale: async () => {},
-          getLocale: () => "en",
-        }}
-      >
-        <FeatureInfoResult
-          text='{"type":"FeatureCollection","features":[]}'
-          contentType="application/json"
-        />
-      </AdminContext>,
-    );
-    expect(screen.getByText("livePreview.noFeatures")).toBeInTheDocument();
-  });
-});
 
-describe("HTML feature info presentation", () => {
-  const showResult = (text: string, contentType = "text/html; charset=UTF-8") =>
-    render(
-      <AdminContext
-        i18nProvider={{
-          translate: (key) => key,
-          changeLocale: async () => {},
-          getLocale: () => "en",
-        }}
-      >
-        <FeatureInfoResult text={text} contentType={contentType} />
-      </AdminContext>,
-    );
-
-  it("recognizes the empty GeoServer HTML response and keeps its source collapsed", () => {
-    showResult(
-      "<html><head><title>Geoserver GetFeatureInfo output</title><style>table.featureInfo {border:1px solid}</style></head><body>\n</body></html>",
-    );
-    expect(screen.getByText("livePreview.noFeatures")).toBeVisible();
-    expect(screen.queryByText(/table.featureInfo/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "livePreview.rawResponse" }),
-    );
-    expect(screen.getByText(/table.featureInfo/)).toBeVisible();
-  });
-
-  it("rebuilds feature tables with headers, captions and decoded text while discarding active markup", () => {
-    const { container } =
-      showResult(`<html><head><style>body{display:none}</style></head><body>
-      <script>window.stolen = localStorage.token</script><iframe src="https://untrusted.test"></iframe>
-      <table onclick="alert(1)"><caption>Places</caption><tr><th>Name</th><th>Population</th></tr>
-      <tr><td><a href="javascript:alert(1)">Berlin &amp; Mitte</a></td><td>123</td></tr>
-      <tr><td>&lt;script&gt;literal&lt;/script&gt;</td><td><img src="missing" onerror="alert(1)">456</td></tr></table>
-      </body></html>`);
-    expect(screen.getByRole("table")).toHaveAccessibleName("Places");
+  it("warns when the catalogue preview operation is unsupported", async () => {
+    state.preview.supported = false;
+    rendered("CSW");
+    open();
     expect(
-      screen.getByRole("columnheader", { name: "Name" }),
+      await screen.findByText("livePreview.errors.operation"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("cell", { name: "Berlin & Mitte" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("cell", { name: "<script>literal</script>" }),
-    ).toBeInTheDocument();
-    expect(
-      container.querySelector("script, iframe, img, a, [onclick], [onerror]"),
-    ).toBeNull();
-    expect(screen.queryByText("livePreview.noFeatures")).toBeNull();
   });
 
-  it("retains readable non-table HTML content including XHTML", () => {
-    showResult(
-      '<html xmlns="http://www.w3.org/1999/xhtml"><body><h2>Service message</h2><p>No matching records &amp; no errors.</p></body></html>',
-      "application/xhtml+xml",
-    );
-    expect(screen.getByText(/Service message/)).toHaveTextContent(
-      "No matching records & no errors.",
-    );
-    expect(screen.queryByText("livePreview.noFeatures")).toBeNull();
+  it("reports a failed catalogue request with retry", async () => {
+    state.preview.error = { code: "denied" };
+    rendered("CSW");
+    open();
+    expect(
+      await screen.findByText("livePreview.errors.denied"),
+    ).toBeInTheDocument();
   });
 });

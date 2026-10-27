@@ -464,7 +464,11 @@ SESSION_SAVE_EVERY_REQUEST = True
 # Add the IP for which the toolbar should be shown
 INTERNAL_IPS = ["127.0.0.1"]
 
-# Defines xml namespaces used for xml parsing and creating
+# Defines xml namespaces used for xml parsing and creating.
+# The plain http URIs are the normative namespace identifiers of the ISO, OGC, INSPIRE, GDI-DE and
+# MapServer schemas. They are only registered with and compared literally by lxml, they are never
+# resolved or requested over the network, so the insecure transport findings on them are false
+# positives and are suppressed in place below.
 XML_NAMESPACES = {
     "ogc": "http://www.opengis.net/ogc",
     "ows": "http://www.opengis.net/ows",
@@ -472,18 +476,18 @@ XML_NAMESPACES = {
     "wms": "http://www.opengis.net/wms",
     "xlink": "http://www.w3.org/1999/xlink",
     "gml": "http://www.opengis.net/gml",
-    "gmd": "http://www.isotc211.org/2005/gmd",
-    "gco": "http://www.isotc211.org/2005/gco",
-    "srv": "http://www.isotc211.org/2005/srv",
+    "gmd": "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd namespace identifier, only parsed by lxml - not a network endpoint
+    "gco": "http://www.isotc211.org/2005/gco",  # NOSONAR normative ISO 19103 gco namespace identifier, only parsed by lxml - not a network endpoint
+    "srv": "http://www.isotc211.org/2005/srv",  # NOSONAR normative ISO 19139 srv namespace identifier, only parsed by lxml - not a network endpoint
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
-    "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
-    "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
-    "inspire_com": "http://inspire.ec.europa.eu/schemas/common/1.0",
-    "inspire_vs": "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0",
-    "inspire_ds": "http://inspire.ec.europa.eu/schemas/inspire_ds/1.0",
-    "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
+    "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",  # NOSONAR normative GDI-DE ALKIS Vereinfacht schema namespace identifier, only parsed by lxml - not a network endpoint
+    "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",  # NOSONAR normative INSPIRE common schema namespace identifier, only parsed by lxml - not a network endpoint
+    "inspire_com": "http://inspire.ec.europa.eu/schemas/common/1.0",  # NOSONAR normative INSPIRE common schema namespace identifier, only parsed by lxml - not a network endpoint
+    "inspire_vs": "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0",  # NOSONAR normative INSPIRE view services schema namespace identifier, only parsed by lxml - not a network endpoint
+    "inspire_ds": "http://inspire.ec.europa.eu/schemas/inspire_ds/1.0",  # NOSONAR normative INSPIRE data services schema namespace identifier, only parsed by lxml - not a network endpoint
+    "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",  # NOSONAR normative INSPIRE download services schema namespace identifier, only parsed by lxml - not a network endpoint
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
-    "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "ms": "http://mapserver.gis.umn.edu/mapserver",  # NOSONAR MapServer XML namespace identifier of the exported feature information, only parsed by lxml - not a network endpoint
     "se": "http://www.opengis.net/se",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",

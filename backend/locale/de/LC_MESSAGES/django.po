@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-27 15:55+0100\n"
+"POT-Creation-Date: 2026-10-27 17:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -444,7 +444,7 @@ msgstr "unbekannt"
 msgid "kind of error"
 msgstr "Art des Fehlers"
 
-#: registry/apps.py:84
+#: registry/apps.py:96
 msgid "Registry"
 msgstr "Registrierung"
 
@@ -1540,8 +1540,7 @@ msgstr "Service Metadaten"
 
 #: registry/models/metadata.py:1268
 msgid "the harvested service record which advertises this reference."
-msgstr ""
-"der geerntete Service-Metadatensatz, welcher diese Referenz angibt."
+msgstr "der geerntete Service-Metadatensatz, welcher diese Referenz angibt."
 
 #: registry/models/metadata.py:1270
 msgid "reference kind"
@@ -2207,6 +2206,17 @@ msgid ""
 msgstr ""
 "Ein neuer Featuretype kann nur einmal zugeordnet werden. Bitte passen Sie "
 "die Featuretype-Zuordnungen entsprechend an."
+
+#: registry/querys/alerts.py:559
+#, python-format
+msgid ""
+"The schedule \"%(schedule)s\" harvests this catalogue more often than a "
+"harvest of it takes: the harvests which finished measured %(duration)s on "
+"average."
+msgstr ""
+"Der Zeitplan \"%(schedule)s\" erntet diesen Katalog häufiger, als ein "
+"Erntevorgang dauert: die abgeschlossenen Erntevorgänge dauerten "
+"durchschnittlich %(duration)s."
 
 #: registry/serializers/harvesting.py:32 registry/serializers/update.py:407
 msgid "Catalogue Service"

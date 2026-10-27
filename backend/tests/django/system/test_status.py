@@ -1,3 +1,7 @@
+import importlib.util
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -124,6 +128,84 @@ class BeatHealthTests(SimpleTestCase):
             with self.assertRaises(RuntimeError):
                 HealthcheckScheduler.tick(HealthcheckScheduler.__new__(HealthcheckScheduler))
             heartbeat.touch.assert_not_called()
+
+
+class BeatHeartbeatLocationTests(SimpleTestCase):
+    """The heartbeat must live outside the shared /tmp (issue #782, SonarCloud S5443)."""
+
+    def fresh_scheduler(self):
+        """Re-import the module so it re-reads its environment at import time.
+
+        ``module_from_spec`` deliberately does not register the module under
+        ``sys.modules``, so the real module object used by the process is
+        never replaced.
+        """
+        spec = importlib.util.find_spec('system.scheduler')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_heartbeat_is_not_in_world_writable_tmp(self):
+        # Beat runs as mrmapuser, which owns /var/mrmap, so the default
+        # heartbeat path is a private location. The Docker healthcheck in
+        # docker-compose.yml must watch the same file.
+        scheduler = self.fresh_scheduler()
+        self.assertEqual(str(scheduler.HEARTBEAT), '/var/mrmap/run/beat-heartbeat')
+
+    def test_heartbeat_location_is_configurable(self):
+        with patch.dict(os.environ, {'MRMAP_BEAT_HEARTBEAT_DIR': '/var/lib/mrmap/state'}):
+            scheduler = self.fresh_scheduler()
+        self.assertEqual(str(scheduler.HEARTBEAT), '/var/lib/mrmap/state/beat-heartbeat')
+
+    def test_prepare_creates_owner_only_directory(self):
+        from system import scheduler
+        with TemporaryDirectory() as tmp:
+            heartbeat_dir = Path(tmp) / 'state' / 'run'
+            with patch.object(scheduler, 'HEARTBEAT_DIR', heartbeat_dir):
+                scheduler.prepare_heartbeat()
+            self.assertEqual(heartbeat_dir.stat().st_mode & 0o777, 0o700)
+
+    def test_prepare_drops_stale_heartbeat(self):
+        from system import scheduler
+        with TemporaryDirectory() as tmp:
+            heartbeat_dir = Path(tmp) / 'run'
+            heartbeat_dir.mkdir()
+            heartbeat = heartbeat_dir / 'beat-heartbeat'
+            heartbeat.touch()
+            with patch.object(scheduler, 'HEARTBEAT_DIR', heartbeat_dir), patch.object(scheduler, 'HEARTBEAT', heartbeat):
+                scheduler.prepare_heartbeat(lazy=False)
+            self.assertFalse(heartbeat.exists())
+
+    def test_prepare_drops_planted_symlink_without_following_it(self):
+        # A non-lazy start unlinks the heartbeat path. os.unlink removes the
+        # symlink itself and never its target, so a pre-created symlink cannot
+        # make Beat touch a foreign file.
+        from system import scheduler
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            heartbeat_dir = root / 'run'
+            heartbeat_dir.mkdir()
+            victim = root / 'victim'
+            victim.write_text('untouched')
+            heartbeat = heartbeat_dir / 'beat-heartbeat'
+            heartbeat.symlink_to(victim)
+            with patch.object(scheduler, 'HEARTBEAT_DIR', heartbeat_dir), patch.object(scheduler, 'HEARTBEAT', heartbeat):
+                scheduler.prepare_heartbeat(lazy=False)
+            self.assertFalse(heartbeat.exists())
+            self.assertEqual(victim.read_text(), 'untouched')
+
+    def test_lazy_prepare_keeps_an_existing_heartbeat(self):
+        # Beat started with lazy=True must not erase the heartbeat of a
+        # scheduler that is still running.
+        from system import scheduler
+        with TemporaryDirectory() as tmp:
+            heartbeat_dir = Path(tmp) / 'run'
+            heartbeat_dir.mkdir()
+            heartbeat = heartbeat_dir / 'beat-heartbeat'
+            heartbeat.touch()
+            with patch.object(scheduler, 'HEARTBEAT_DIR', heartbeat_dir), patch.object(scheduler, 'HEARTBEAT', heartbeat):
+                scheduler.prepare_heartbeat(lazy=True)
+            self.assertTrue(heartbeat.exists())
 
 
 class SystemInfoTests(SimpleTestCase):

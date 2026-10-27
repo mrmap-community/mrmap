@@ -1,8 +1,16 @@
+from pathlib import Path
+from unittest.mock import Mock, PropertyMock, patch
+from urllib.parse import parse_qs, urlsplit
+
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
 from MrMap.settings import BASE_DIR
-from registry.models.metadata import Keyword
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.models.metadata import Keyword, MimeType
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
+from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
+from requests import Response, Session
 from tests.django.contrib import XpathTestCase
 
 
@@ -196,3 +204,85 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
             "/csw:Capabilities/ows:ServiceIdentification/ows:Title/text()",
             "huhu")
         # TODO: check other metadata too (keywords, etc..)
+
+
+class DescribeFeatureTypeDocumentTest(TestCase):
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json', 'test_wfs.json']
+
+    def setUp(self):
+        self.feature_type = FeatureType.objects.select_related('service').get(identifier='node2')
+        self.operation = self.feature_type.service.operation_urls.create(
+            operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE, method=HttpMethodEnum.GET,
+            url='https://example.test/wfs')
+        self.session = Mock(spec=Session)
+        self.session.prepare_request.side_effect = Session().prepare_request
+        capabilities = Path(BASE_DIR, 'tests/django/test_data/capabilities/wfs/2.0.0.xml').read_bytes()
+        self.wfs_client = WebFeatureServiceClient(capabilities, session=self.session)
+        self.response = Response()
+        self.response.status_code = 200
+        self.response.headers['Content-Type'] = 'application/xml'
+        self.response._content = b'<schema xmlns="http://www.w3.org/2001/XMLSchema"/>'
+        self.session.send.return_value = self.response
+        client = patch.object(WebFeatureService, 'client', new_callable=PropertyMock,
+                              return_value=self.wfs_client)
+        client.start()
+        self.addCleanup(client.stop)
+
+    def set_formats(self, *values):
+        self.operation.mime_types.set([
+            MimeType.objects.get_or_create(mime_type=value)[0] for value in values])
+
+    def request_params(self):
+        request = self.session.send.call_args.kwargs['request']
+        return parse_qs(urlsplit(request.url).query, keep_blank_values=True)
+
+    def test_fetch_uses_one_advertised_xml_format_and_saves(self):
+        self.set_formats('application/json', 'application/gml+xml; version=3.2', 'text/xml')
+        with patch.object(self.feature_type, 'save', wraps=self.feature_type.save) as save:
+            result = self.feature_type.fetch_describe_feature_type_document()
+        self.assertEqual(result, self.response.content)
+        save.assert_called_once_with()
+        params = self.request_params()
+        self.assertEqual(params['REQUEST'], ['DescribeFeatureType'])
+        self.assertEqual(params['TYPENAMES'], [self.feature_type.identifier])
+        self.assertEqual(params['OUTPUTFORMAT'], ['application/gml+xml; version=3.2'])
+
+    def test_fetch_without_save_updates_only_the_instance(self):
+        previous = self.feature_type.describe_feature_type_document
+        for output_format in ('text/xml; subtype=gml/3.1.1', 'XMLSCHEMA'):
+            with self.subTest(output_format=output_format):
+                self.set_formats(output_format)
+                with patch.object(self.feature_type, 'save') as save:
+                    result = self.feature_type.fetch_describe_feature_type_document(save=False)
+                self.assertEqual(result, self.response.content)
+                self.assertEqual(self.feature_type.describe_feature_type_document, self.response.content)
+                save.assert_not_called()
+                self.assertEqual(self.request_params()['OUTPUTFORMAT'], [output_format])
+                stored = FeatureType.objects.get(pk=self.feature_type.pk)
+                self.assertEqual(stored.describe_feature_type_document, previous)
+
+    def test_missing_format_advertisement_uses_protocol_default(self):
+        self.feature_type.fetch_describe_feature_type_document(save=False)
+        self.assertNotIn('OUTPUTFORMAT', self.request_params())
+
+    def test_get_feature_and_post_only_formats_are_not_used(self):
+        xml_format = MimeType.objects.create(mime_type='text/xml')
+        self.feature_type.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_FEATURE).first().mime_types.add(xml_format)
+        self.feature_type.service.operation_urls.create(
+            operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE, method=HttpMethodEnum.POST,
+            url='https://example.test/post').mime_types.add(xml_format)
+        self.set_formats('application/json')
+        self.feature_type.fetch_describe_feature_type_document(save=False)
+        self.assertNotIn('OUTPUTFORMAT', self.request_params())
+
+    def test_unsuccessful_response_does_not_replace_or_save_document(self):
+        for status_code, content_type in ((500, 'application/xml'), (200, 'text/html')):
+            with self.subTest(status_code=status_code, content_type=content_type):
+                self.response.status_code = status_code
+                self.response.headers['Content-Type'] = content_type
+                self.feature_type.describe_feature_type_document = 'previous schema'
+                with patch.object(self.feature_type, 'save') as save:
+                    self.assertIsNone(self.feature_type.fetch_describe_feature_type_document())
+                save.assert_not_called()
+                self.assertEqual(self.feature_type.describe_feature_type_document, 'previous schema')

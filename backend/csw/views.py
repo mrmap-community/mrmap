@@ -352,8 +352,8 @@ class CswServiceView(View):
         elif result_type == "validate":
             # no errors while here. So the request was acknowledget as successfully
             xml = builder.build_acknowledgement(
-                time_stamp=self.start_time,
-                echoed_get_records_request=self.ogc_request.xml_request)
+                timestamp=self.start_time,
+                echoed_request=self.ogc_request.xml_request)
         else:
             gmd_records = [
                 etree.fromstring(record.xml_backup)

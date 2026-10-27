@@ -974,9 +974,15 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
+        formats = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
+            method=HttpMethodEnum.GET,
+        ).order_by("pk", "mime_types__pk").values_list("mime_types__mime_type", flat=True)
+        # This document is parsed as XML. GetFeature's formats do not describe the schema response.
+        output_format = next((value for value in formats if value and "xml" in value.lower()), None)
         response = self.service.client.send_request(
             request=self.service.client.describe_feature_type_request(
-                type_names=[self.identifier])
+                type_names=[self.identifier], output_format=[output_format] if output_format else [])
         )
 
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:

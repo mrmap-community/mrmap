@@ -848,8 +848,9 @@ class CatalogueServiceSerializer(
     harvest_incomplete = BooleanField(
         label=_("harvest incomplete"),
         help_text=_(
-            "true if the last harvesting job of the catalogue could not import "
-            "records into the registry"),
+            "true if the last harvesting job of the catalogue left records "
+            "behind - records it could not import into the registry or records "
+            "its pages did not deliver"),
         read_only=True)
     harvest_failed_at = DateTimeField(
         label=_("harvest failed at"),

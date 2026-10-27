@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 23:20+0100\n"
+"POT-Creation-Date: 2026-10-27 08:36+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -301,7 +301,7 @@ msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:58
-#: registry/models/harvest.py:145 registry/models/harvest.py:830
+#: registry/models/harvest.py:145 registry/models/harvest.py:850
 #: registry/models/monitoring.py:110 registry/models/monitoring.py:340
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -365,20 +365,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:846
+#: notify/models.py:159 registry/models/harvest.py:866
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:831
+#: notify/models.py:171 registry/models/harvest.py:851
 #: registry/models/monitoring.py:341
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:851
+#: notify/models.py:175 registry/models/harvest.py:871
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:852
+#: notify/models.py:176 registry/models/harvest.py:872
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -825,7 +825,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:135 registry/models/harvest.py:674
+#: registry/models/harvest.py:135 registry/models/harvest.py:694
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -896,35 +896,35 @@ msgstr "Ernteaufgaben"
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:645
+#: registry/models/harvest.py:665
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:650
+#: registry/models/harvest.py:670
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:652
+#: registry/models/harvest.py:672
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:656
+#: registry/models/harvest.py:676
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:660
+#: registry/models/harvest.py:680
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:663
+#: registry/models/harvest.py:683
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:664
+#: registry/models/harvest.py:684
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:675
+#: registry/models/harvest.py:695
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -934,22 +934,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:862 registry/models/metadata.py:595
+#: registry/models/harvest.py:882 registry/models/metadata.py:595
 #: registry/models/monitoring.py:90 registry/models/service.py:378
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
-#: registry/serializers/service.py:952 registry/serializers/update.py:101
+#: registry/serializers/service.py:953 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:863
+#: registry/models/harvest.py:883
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:890
+#: registry/models/harvest.py:910
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:891
+#: registry/models/harvest.py:911
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -2492,12 +2492,12 @@ msgstr ""
 "fehlgeschlagen ist"
 
 #: registry/serializers/service.py:458 registry/serializers/service.py:747
-#: registry/serializers/service.py:900
+#: registry/serializers/service.py:901
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
 #: registry/serializers/service.py:459 registry/serializers/service.py:748
-#: registry/serializers/service.py:901
+#: registry/serializers/service.py:902
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
@@ -2535,12 +2535,12 @@ msgstr ""
 "wiederherzustellen."
 
 #: registry/serializers/service.py:502 registry/serializers/service.py:756
-#: registry/serializers/service.py:915
+#: registry/serializers/service.py:916
 msgid "monitoring settings"
 msgstr "Monitoring-Einstellungen"
 
 #: registry/serializers/service.py:503 registry/serializers/service.py:757
-#: registry/serializers/service.py:916
+#: registry/serializers/service.py:917
 msgid "This are the configured monitoring settings."
 msgstr "Dies sind die konfigurierten Monitoring-Einstellungen."
 
@@ -2626,26 +2626,28 @@ msgstr "Harvesting unvollständig"
 
 #: registry/serializers/service.py:851
 msgid ""
-"true if the last harvesting job of the catalogue could not import records "
-"into the registry"
+"true if the last harvesting job of the catalogue left records behind - "
+"records it could not import into the registry or records its pages did not "
+"deliver"
 msgstr ""
-"true, wenn der letzte Harvesting-Lauf des Katalogs keine Metadaten in die "
-"Registry übernehmen konnte"
+"true, wenn der letzte Harvesting-Lauf des Katalogs Datensätze zurückließ - "
+"Datensätze, die er nicht in die Registry übernehmen konnte, oder Datensätze, "
+"die seine Seiten nicht geliefert haben"
 
-#: registry/serializers/service.py:855
+#: registry/serializers/service.py:856
 msgid "harvest failed at"
 msgstr "Harvesting fehlgeschlagen am"
 
-#: registry/serializers/service.py:857
+#: registry/serializers/service.py:858
 msgid "the point in time the last harvesting job of the catalogue was made"
 msgstr ""
 "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"
 
-#: registry/serializers/service.py:861
+#: registry/serializers/service.py:862
 msgid "harvest job"
 msgstr "Ernteaufgabe"
 
-#: registry/serializers/service.py:863
+#: registry/serializers/service.py:864
 msgid ""
 "the harvesting job of the catalogue which ended before it was done or which "
 "left records behind, answered as its identifier and nothing if the last "
@@ -2655,15 +2657,15 @@ msgstr ""
 "Datensätze zurückließ, beantwortet als ihre Kennung und nichts, wenn das "
 "letzte Harvesting des Katalogs nichts zu beachten hat"
 
-#: registry/serializers/service.py:907
+#: registry/serializers/service.py:908
 msgid "periodic harvesting jobs"
 msgstr "periodische Ernteaufgaben"
 
-#: registry/serializers/service.py:908
+#: registry/serializers/service.py:909
 msgid "this are the related harvesting job objects."
 msgstr "dies sind die zugehörigen Ernteaufgaben."
 
-#: registry/serializers/service.py:954
+#: registry/serializers/service.py:955
 msgid "the catalogue service, where this operation url is part of."
 msgstr "der Katalogdienst, zu dem diese Operations-URL gehört."
 
@@ -2831,6 +2833,13 @@ msgstr "System"
 #~ msgstr ""
 #~ "die maximale Schrittgröße, die dieser CSW mit einer einzelnen GetRecords-"
 #~ "Anfrage bearbeiten kann."
+
+#~ msgid ""
+#~ "true if the last harvesting job of the catalogue could not import records "
+#~ "into the registry"
+#~ msgstr ""
+#~ "true, wenn der letzte Harvesting-Lauf des Katalogs keine Metadaten in die "
+#~ "Registry übernehmen konnte"
 
 #~ msgid "count of currently pending threads"
 #~ msgstr "Dieser Account ist nicht aktiviert"

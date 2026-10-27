@@ -14,7 +14,8 @@ from kombu.exceptions import OperationalError as BrokerOperationalError
 from lxml import etree
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
-from registry.enums.harvesting import HarvestingPhaseEnum
+from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
+                                       LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
 from requests.exceptions import RequestException
 
@@ -28,6 +29,49 @@ class HarvestingTask(Task):
     retry_backoff = True
     retry_backoff_max = 300
     retry_kwargs = {"max_retries": 10}
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        """End a harvest whose tasks gave up instead of leaving it unfinished (#690).
+
+        A page which keeps failing never completes the chord it belongs to, so the callback of that
+        chord never runs and the job keeps waiting with `done_at = null` until some worker restart
+        re-publishes the whole harvest. Ending the job through the existing abort path is what the
+        alert of the catalogue, the harvest history and the notification of the background process
+        already answer, so nothing of that needs a second implementation here.
+        """
+        harvesting_job_id = (kwargs or {}).get("harvesting_job_id")
+        if harvesting_job_id is None:
+            # a task which is not about one job can not end one
+            return
+
+        from registry.models.harvest import HarvestingJob  # avoid circular import errors
+
+        try:
+            with transaction.atomic():
+                job = HarvestingJob.objects.select_for_update().filter(
+                    pk=harvesting_job_id).first()
+                if job is None or job.done_at is not None:
+                    # the callback which completed or aborted the job already decided about it; a
+                    # late failure of a task of it must not rewrite that
+                    return
+                start_position = (kwargs or {}).get("start_position")
+                job.log(
+                    description="task gave up" + (
+                        f" on page start_position={start_position}"
+                        if start_position is not None else ""),
+                    extented_description=(
+                        f"{self.name} failed after "
+                        f"{getattr(self.request, 'retries', 0)} retries\n"
+                        f"{type(exc).__name__}: {exc}"),
+                    level=LogLevelEnum.ERROR.value,
+                    kind=LogKindEnum.REMOTE_ERROR.value,
+                )
+                job.phase = HarvestingPhaseEnum.ABORT.value
+                job.save(skip_history_when_saving=False)
+        except Exception:
+            # a failing harvest must not be answered with a broken worker
+            logger.error(
+                f"could not abort harvesting job {harvesting_job_id}: {traceback.format_exc()}")
 
 
 @worker_ready.connect

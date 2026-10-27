@@ -25,7 +25,7 @@ from django.db.models import (BooleanField, Case, CharField, Exists,
                               ExpressionWrapper, F, IntegerField, OuterRef, Q,
                               Subquery, Value, When)
 from django.db.models.functions import Cast, Coalesce, Concat
-from registry.enums.harvesting import HarvestingPhaseEnum
+from registry.enums.harvesting import HarvestingPhaseEnum, LogKindEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.harvest import HarvestingJob
 from registry.models.monitoring import (CatalogueServiceMonitoringRun,
@@ -45,6 +45,9 @@ ERROR_STATUS = UpdateJobStatusEnum.ERROR.value
 
 #: the phase of a harvesting job which ended before it was done
 ABORTED_PHASE = HarvestingPhaseEnum.ABORTED.value
+
+#: the kind of a harvesting log which names records a page did not deliver
+SHORT_PAGE_KIND = LogKindEnum.COUNT_MISSMATCH.value
 
 #: the attributes which answer the attention of every kind of service. The
 #: attributes which end in `_run` and `_job` answer *which* run or job decided
@@ -199,17 +202,18 @@ def newest_run(run_model, failing: bool = False):
     return newest_row(runs, 'setting__service_id')
 
 
-def newest_job(job_model, **conditions):
+def newest_job(job_model, *conditions, **kwargs):
     """Jobs of the service an outer query names, newest first.
 
     Args:
         job_model: the model of the jobs of one kind of service
-        **conditions: the state the jobs have to be in, optional
+        *conditions: the states the jobs have to be in as Q objects, optional
+        **kwargs: the state the jobs have to be in, optional
 
     Returns:
         QuerySet: the jobs of the outer service, the newest one first
     """
-    return newest_row(job_model.objects.filter(**conditions), 'service_id')
+    return newest_row(job_model.objects.filter(*conditions, **kwargs), 'service_id')
 
 
 def moment(queryset, field: str = 'done_at'):
@@ -322,8 +326,9 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
 
     Only the records of a catalogue are pulled by a harvesting job, so these
     annotations exist for that kind of service only. A job which was aborted and
-    a job which could not import records are answered apart, because the first
-    is a run which broke while the second is a run which is not done with.
+    a job which is not done with are answered apart: the first is a run which
+    broke, the second is a run which left records behind - records it could not
+    import into the registry or records its pages never received.
 
     Args:
         queryset: the queryset of catalogues to annotate
@@ -334,11 +339,15 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
     """
     newest_harvest = newest_job(kind.harvesting_job)
     aborted_harvest = newest_job(kind.harvesting_job, phase=ABORTED_PHASE)
-    # the name of the query is the one of the reverse relation which stores a
-    # record which the job could not import into the registry
+    # the name of the first query is the one of the reverse relation which stores
+    # a record which the job could not import into the registry, the second one
+    # asks the logs of the job which records its pages did not deliver; a run
+    # which never got all its pages is as little a complete snapshot as a run
+    # whose records broke on import (#690)
     incomplete_harvest = newest_job(
         kind.harvesting_job,
-        temporary_md_metadata_file__has_import_error=True)
+        Q(temporary_md_metadata_file__has_import_error=True) |
+        Q(log__kind=SHORT_PAGE_KIND))
 
     queryset = queryset.annotate(
         alert_newest_harvest=Subquery(newest_harvest.values('pk')[:1]),

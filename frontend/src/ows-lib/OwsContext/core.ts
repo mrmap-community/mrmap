@@ -116,6 +116,12 @@ export class OWSResource implements IOWSResource {
 }
 
 
+const createDefaultContextProperties = (): OWSContextProperties => ({
+  lang: 'en',
+  title: 'mrmap ows context',
+  updated: new Date().toISOString(),
+});
+
 export class OWSContext implements IOWSContext {
   id: string;
   properties: OWSContextProperties;
@@ -131,11 +137,7 @@ export class OWSContext implements IOWSContext {
     id: string = `urn:uuid:${uuidv4()}`,
     features: (OWSResource | IOWSResource)[] = [],
     bbox: BBox = [-180, -90, 180, 90],
-    properties: OWSContextProperties = {
-      lang: 'en',
-      title: 'mrmap ows context',
-      updated: new Date().toISOString()
-    },
+    properties: OWSContextProperties = createDefaultContextProperties(),
   ) {
     this.folderToResource = new Map<string, OWSResource>();
     this.id = id;

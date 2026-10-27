@@ -240,7 +240,7 @@ export class OWSContext implements IOWSContext {
   getNextRootId(): number {
     let nextRootId = 0
     this.features.filter(feature => feature.properties.folder && feature.properties.folder.split('/').length === 2).forEach(rootNode => {
-      const rootFolder = parseInt(rootNode.properties.folder?.split('/')[1] ?? '-1')
+      const rootFolder = Number.parseInt(rootNode.properties.folder?.split('/')[1] ?? '-1')
       if (rootFolder === nextRootId) {
         nextRootId = rootFolder + 1
       }

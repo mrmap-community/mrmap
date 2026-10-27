@@ -8,6 +8,7 @@ import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
+import HarvestingScheduleWarnings from "./HarvestingScheduleWarnings";
 import MonitoringTab from "./MonitoringTab";
 import Overview from "./Overview";
 import Records from "./Records";
@@ -74,6 +75,7 @@ const tabs: ServiceTab[] = [
     content: (
       <ServiceRelatedTab
         resource="PeriodicHarvestingJob"
+        header={<HarvestingScheduleWarnings />}
         defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
         formFieldOverrides={[
           {

@@ -96,11 +96,11 @@ const tokenAuthProvider = (
     checkAuth: async () => {
       const storedToken = getAuthToken()
       if (!storedToken) {
-        return Promise.reject('not authenticated')
+        return Promise.reject(new Error('not authenticated'))
       }
       const expired = new Date(storedToken.expiry) < new Date()
       if (expired ){
-        return Promise.reject('your session has expired')
+        return Promise.reject(new Error(('your session has expired')))
       }
       return Promise.resolve()
     },
@@ -108,7 +108,7 @@ const tokenAuthProvider = (
       const status = error.status
       if (status === 401) {
         setAuthToken(undefined)
-        return Promise.reject('unauthorized')
+        return Promise.reject(new Error('unauthorized'))
       }
     },
     /* TODO: do not activate this for now... if this function exists and returns imediatlly,

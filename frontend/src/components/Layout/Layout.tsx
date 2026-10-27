@@ -52,6 +52,7 @@ const MyLayout = (
         sx={{
           height: '100vh',
           maxHeight: '100vh',
+          minWidth: 0,
           
           display: 'flex',
           flexDirection: 'column',

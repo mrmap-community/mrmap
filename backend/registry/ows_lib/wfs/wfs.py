@@ -60,7 +60,7 @@ class WebFeatureServiceClient(OgcClient):
             crs = node.xpath(
                 "./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or "
                 "local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
-            if not output_format or not any(value.strip().upper().endswith((":4326", "::4326", "/4326")) for value in crs):
+            if not output_format or not any(value.strip().upper().endswith((":4326", "::4326", "/4326")) for value in crs):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
                 continue
             try:
                 west, south, east, north = self._get_preview_bbox(node)

@@ -529,6 +529,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       monitoring_overdue: "Monitoring überfällig",
       update_overdue: "Aktualisierung überfällig",
       harvest_overdue: "Harvesting überfällig",
+      harvest_schedule_too_tight: "Harvesting-Zeitplan zu eng",
     },
   },
   serviceAttention: {

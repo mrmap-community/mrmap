@@ -1,6 +1,6 @@
 import { DateField, FunctionField, TextField, useTranslate } from "react-admin";
 
-import { Chip } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { useFilterInputForOperation } from "../../../jsonapi/hooks/useFilterInputForOperation";
@@ -44,9 +44,20 @@ const ListServiceAlert = () => {
           key="category"
           source="category"
           sortable={false}
-          render={(record) =>
-            translate(`serviceAlerts.categories.${record.category}`)
-          }
+          render={(record) => (
+            <Stack spacing={0.25}>
+              <span>
+                {translate(`serviceAlerts.categories.${record.category}`)}
+              </span>
+              {/* an alert whose state has more to tell than its name tells it,
+                  which is the message of the alert and not a translated key */}
+              {record.message !== record.category && (
+                <Typography variant="body2" color="text.secondary">
+                  {record.message}
+                </Typography>
+              )}
+            </Stack>
+          )}
         />,
         <TextField key="serviceType" source="serviceType" sortable={false} />,
         <TextField key="serviceTitle" source="serviceTitle" sortable={false} />,

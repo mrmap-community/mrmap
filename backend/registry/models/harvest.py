@@ -750,7 +750,7 @@ class HarvestingJob(ProcessingData):
 
         # Namespaces definieren
         ns = {
-            "gmd": "http://www.isotc211.org/2005/gmd"
+            "gmd": "http://www.isotc211.org/2005/gmd"  # NOSONAR normative ISO 19139 gmd namespace identifier, used as an lxml xpath prefix - not a network endpoint
         }
 
         # Alle MD_Metadata-Elemente finden

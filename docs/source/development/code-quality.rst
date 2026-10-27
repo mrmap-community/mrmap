@@ -141,6 +141,15 @@ focused on new code to improve quality gradually; retain the existing CI coverag
 For eligibility and available features, see `SonarQube for OSS
 <https://www.sonarsource.com/open-source-editions/>`_.
 
+Findings that are false positives for a reason visible in the source are suppressed in place with
+a ``NOSONAR`` comment that states that reason, for example the normative ``http`` namespace
+identifiers of the ISO, OGC, INSPIRE and GDI-DE schemas and the ``::4326`` suffix of the
+``urn:ogc:def:crs:EPSG::4326`` CRS identifier. The comment goes on the reported line, names the
+identifier or context it refers to and keeps the justification with the code instead of only in the
+SonarCloud issue history, where it is lost as soon as the file is analyzed again. Remove such a
+comment when the annotated code changes. Suppressions that hide a genuine finding are a quality
+gate failure, not a fix: resolve those in the report or change the code.
+
 Repository settings
 -------------------
 

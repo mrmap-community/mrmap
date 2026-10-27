@@ -35,7 +35,10 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
-from registry.settings import MIN_STEP_SIZE
+from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
+                               HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
+                               HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS,
+                               MIN_STEP_SIZE)
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
@@ -503,8 +506,68 @@ class HarvestingJob(ProcessingData):
                     kind=kind,
                 )
 
+        if self.total_records:
+            # the size the fan-out is planned with is what the catalogue answers, not a default
+            # nobody chose (#694); the probe shrinks max_step_size before this save, so the run
+            # is planned and remembered with the size the service is known to answer
+            self.probe_max_step_size()
+
         self.save()
         return self.total_records
+
+    def get_request_timeout(self, max_records: int) -> int:
+        """How long one GetRecords request for a page of this size may take (#694).
+
+        The time scales with the requested size: a catalogue which answers a big page slowly
+        must not be answered with a timeout, because that would read as a size which does not
+        work and shrink the harvest towards smaller pages for no reason.
+        """
+        return int(min(
+            HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
+            HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS
+            + max_records * HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS))
+
+    def probe_max_step_size(self) -> int:
+        """Ask the catalogue which page size it answers, before the fan-out is planned (#694).
+
+        One GetRecords request with resultType=hits asks about a size without asking for
+        records; a catalogue which cannot answer that many records per request refuses such a
+        request the same way it refuses the real ones. Halving down to MIN_STEP_SIZE finds the
+        biggest size the service answers, and that size is what handle_total_records_defined
+        plans the fan-out with - and what complete_harvest keeps on the catalogue as the size
+        this service is known to answer. The size the run starts from is never exceeded, the
+        probe only ever shrinks it. A server error is no answer about a size: it raises like
+        anywhere else on the request path and gets retried or ends the job as #690 defines.
+        """
+        client = self.service.client
+        planned = self.max_step_size
+        hint = client.advertised_max_records()
+        size = min(planned, hint) if hint else planned
+        while True:
+            response: Response = client.send_request(
+                request=client.get_records_request(
+                    result_type="hits",
+                    max_records=size,
+                    start_position=1,
+                    xml_constraint=client.get_constraint(
+                        record_types=self.get_record_types())),
+                timeout=self.get_request_timeout(size))
+            if not self._check_xml_response(response):
+                break
+            if size <= MIN_STEP_SIZE:
+                # even the smallest size is refused; the run stays at it and every page of it
+                # leaves the trace of missing records which #690 defines
+                break
+            halved = max(size // 2, MIN_STEP_SIZE)
+            self.log(
+                level=LogLevelEnum.WARNING.value,
+                description=f"catalogue refused GetRecords with maxRecords={size}, probing {halved}")
+            size = halved
+        if size != planned:
+            self.max_step_size = size
+            self.log(
+                description=f"catalogue answers GetRecords with maxRecords={size}; the harvest is planned with that size")
+        return self.max_step_size
 
     def _log_response_error(self, response):
         extented_description = {
@@ -563,7 +626,16 @@ class HarvestingJob(ProcessingData):
         return TemporaryMdMetadataFile.objects.filter(
             job=self, requested_url=request.url).count()
 
-    def fetch_records(self, start_position, check_existing=True) -> int | None:
+    def fetch_records(self, start_position, check_existing=True) -> int:
+        """Download the records of one planned page.
+
+        The page is asked for with the step size this job plans with. A catalogue which refuses
+        exactly that size is not answered with the loss of the whole page: the still missing part
+        of the page's range is asked again with a halved size, down to MIN_STEP_SIZE - bounded
+        and inside this one task, so the chord of the run stays flat (#694). A page which stays
+        without records even at the smallest size is answered the way #690 defines it: the log
+        names the records this run did not deliver.
+        """
         client = self.service.client
         request = client.get_records_request(
             max_records=self.max_step_size,
@@ -576,27 +648,104 @@ class HarvestingJob(ProcessingData):
         # a page whose records are already stored is complete, so nothing is asked of the remote
         # service for it again: every scheduled tick which fires while a harvest is running
         # redelivers the whole fan-out and would otherwise download every page a second time
-        # (#688). The transactional check below stays in place, because the row count read under
-        # the job lock is what guards two workers storing the same page at the same time.
+        # (#688). The transactional check inside _store_page stays in place, because the row
+        # count read under the job lock is what guards two workers storing the same page at the
+        # same time.
         if check_existing:
             existing_count = self.get_stored_page_count(request)
             if existing_count:
                 return existing_count
 
-        datestamp = timezone.now()
-        response: Response = client.send_request(
-            request=request,
-            timeout=60)
+        received = self._fetch_range(
+            client=client,
+            start_position=start_position,
+            size=self.max_step_size,
+            check_existing=check_existing)
 
-        if self._check_xml_response(response):
-            self._log_response_error(response=response)
-            # the records this page should have carried are not coming anymore, and without the
-            # trace of the missing count the run would read as a complete snapshot (#690)
-            self.log_missing_records(
-                request=request, start_position=start_position, received=0)
-            return
+        if received is None:
+            # the job was completed or aborted while this page was downloading
+            return 0
 
-        # XML einlesen
+        self.log_missing_records(
+            request=request, start_position=start_position, received=received)
+        return received
+
+    def _fetch_range(self, client, start_position, size, check_existing):
+        """Fetch the records of the range [start_position, start_position + size) and answer how
+        many arrived; None if the job closed while the range was downloading.
+
+        The whole range is asked for with `size` first, and a catalogue which answers that
+        request - even with fewer records than asked for - ends the page with one request like
+        before: fewer records than promised is the answer of the end of a catalogue as much as of
+        a silent cap, and only the trace of #690 tells the two apart, so re-asking smaller sizes
+        on every short page would multiply the requests to the remote service for a guess. Only
+        a request which comes back without any record - the usual answer to a maxRecords the
+        catalogue refuses - makes the missing part of the range ask again with a halved size.
+        Once the range is on a smaller size which answers, its rest is harvested at that size;
+        a page grows back to the planned size only with the next run, where the probe of #694
+        measures it against the catalogue again.
+        """
+        position = start_position
+        remaining = size
+        step_size = size
+        received = 0
+        while remaining > 0:
+            request = client.get_records_request(
+                max_records=step_size,
+                start_position=position,
+                result_type="results",
+                xml_constraint=client.get_constraint(
+                    record_types=self.get_record_types())
+            )
+            if check_existing:
+                stored = self.get_stored_page_count(request)
+                if stored:
+                    received += stored
+                    position += stored
+                    remaining -= stored
+                    if step_size == size:
+                        break
+                    continue
+            response: Response = client.send_request(
+                request=request,
+                timeout=self.get_request_timeout(step_size))
+            refused = self._check_xml_response(response)
+            stored = 0 if refused else self._store_page(
+                response, request, start_position=position)
+            if stored is None:
+                return None
+            if stored:
+                received += stored
+                position += stored
+                remaining -= stored
+                if step_size == size:
+                    # the catalogue answered the planned size; the page is done with its answer,
+                    # a possible shortage is the trace of #690
+                    break
+                continue
+            if received and self.total_records is not None and position > self.total_records:
+                # this range reaches beyond the records the catalogue counted for this run; what
+                # is missing is answered by log_missing_records, not by more requests
+                break
+            if step_size <= MIN_STEP_SIZE:
+                break
+            halved = max(step_size // 2, MIN_STEP_SIZE)
+            self.log(
+                level=LogLevelEnum.WARNING.value,
+                description=(
+                    f"GetRecords with maxRecords={step_size} at startPosition {position} "
+                    f"{'was refused' if refused else 'came back without records'}, "
+                    f"the missing part is asked with {halved}"))
+            step_size = halved
+        return received
+
+    def _store_page(self, response, request, start_position):
+        """Store the records of one answered GetRecords response.
+
+        Answers None when the job is not open for downloading anymore, and the number of stored
+        records otherwise - which is the count another worker stored when it won the race for
+        exactly this request under the job lock (#688).
+        """
         tree = etree.fromstring(response.content)
 
         # Namespaces definieren
@@ -606,15 +755,15 @@ class HarvestingJob(ProcessingData):
 
         # Alle MD_Metadata-Elemente finden
         md_elements = tree.xpath("//gmd:MD_Metadata", namespaces=ns)
+        datestamp = timezone.now()
 
         with transaction.atomic():
             job = HarvestingJob.objects.select_for_update().get(pk=self.pk)
             if job.done_at is not None or job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
-                return 0
-            if check_existing:
-                existing_count = self.get_stored_page_count(request)
-                if existing_count:
-                    return existing_count
+                return None
+            existing_count = self.get_stored_page_count(request)
+            if existing_count:
+                return existing_count
             db_md_metadata_file_list = []
             records_count = len(md_elements)
 
@@ -639,16 +788,12 @@ class HarvestingJob(ProcessingData):
                     content=ContentFile(content=xml_bytes),
                     save=False)
                 db_md_metadata_file_list.append(db_md_metadata_file)
-            db_objs = 0
 
             db_objs = TemporaryMdMetadataFile.objects.bulk_create(
                 objs=db_md_metadata_file_list,
                 ignore_conflicts=True,
                 batch_size=50
             )
-
-            self.log_missing_records(
-                request=request, start_position=start_position, received=len(db_objs))
             return len(db_objs)
 
 

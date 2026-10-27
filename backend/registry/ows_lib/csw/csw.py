@@ -1,5 +1,6 @@
 import re
 
+from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
@@ -23,6 +24,28 @@ class CatalogueServiceClient(OgcClient):
             return _match.group(0)
         else:
             return "type"
+
+    def advertised_max_records(self):
+        """The maxRecords limit which the GetRecords constraints of the capabilities name, if the
+        service names one.
+
+        This is a hint and never a guarantee: implementations spell the constraint differently, so
+        the name is matched case-insensitively with an optional namespace prefix, and harvesting
+        asks the service itself before it believes any number (#694).
+        """
+        prog = re.compile(r"^(\w+:)?maxrecords$", re.IGNORECASE)
+        for constraint in self._capabilities_etree.xpath(
+            ".//*[local-name()='OperationsMetadata']"
+            "/*[local-name()='Operation'][@name='GetRecords']"
+            "/*[local-name()='Constraint']"
+        ):
+            if not prog.match(constraint.get("name") or ""):
+                continue
+            for value in constraint:
+                if (etree.QName(value).localname == "Value"
+                        and value.text and value.text.strip().isdigit()):
+                    return int(value.text)
+        return None
 
     def get_constraint(self, record_types: list[str]):
         type_name = self.queryable_type_name()

@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
+from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import UniqueConstraint
 from django.db.models.fields.files import FieldFile
@@ -34,6 +35,7 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
+from registry.settings import MIN_STEP_SIZE
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
@@ -207,8 +209,11 @@ class HarvestingJob(ProcessingData):
     max_step_size = models.PositiveSmallIntegerField(
         verbose_name=_("max step size"),
         help_text=_(
-            "the maximum step size this csw can handle by a single GetRecords request."),
-        default=50)
+            "the step size this job asks the catalogue with by a single "
+            "GetRecords request. A job which is started without one takes the "
+            "step size the catalogue is known to answer."),
+        default=50,
+        validators=[MinValueValidator(MIN_STEP_SIZE)])
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
     total_records: int = models.PositiveIntegerField(
@@ -472,7 +477,9 @@ class HarvestingJob(ProcessingData):
                     xml_constraint=client.get_constraint(record_types=self.get_record_types())),
                 timeout=60)
 
-            if self._check_xml_response(first_response):
+            # the fallback is the response to judge: the first response was fine, it only named no
+            # records at all (#689)
+            if self._check_xml_response(second_response):
                 self._log_response_error(response=second_response)
                 self.total_records = 0
                 self.save()
@@ -543,7 +550,9 @@ class HarvestingJob(ProcessingData):
     def _check_xml_response(self, response):
         if not response.ok or not self._check_xml_is_parseable(response.content) or "<ExceptionReport" in response.text:
             self._log_response_error(response=response)
-            if response.status_code >= 500 <= 600:
+            # only the server error class is worth another request; a chained comparison like
+            # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
+            if 500 <= response.status_code < 600:
                 raise InternalServerError
             return True
         return False

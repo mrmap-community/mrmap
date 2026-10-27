@@ -260,6 +260,17 @@ class HarvestingRecoveryTest(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.phase, Phase.ABORTED)
 
+    def test_a_harvest_created_for_a_catalogue_starts_from_its_step_size(self):
+        """neither a schedule nor the "harvest now" of the ui name a step size - the catalogue is
+        the memory of the size its remote service answers, so a run starts from that (#691)"""
+        contact = MetadataContact.objects.create(name='Sized catalogue contact')
+        service = CatalogueService(version=202, metadata_contact=contact, service_contact=contact,
+                                   max_step_size=250)
+        CatalogueService.objects.bulk_create([service])
+        with patch('celery.canvas.Signature.apply_async'), patch.object(call_fetch_total_records, 'delay'):
+            job_id = create_harvesting_job.run(service_id=service.pk)
+        self.assertEqual(HarvestingJob.objects.get(pk=job_id).max_step_size, 250)
+
 
 class HarvestingPublishingRecoveryTest(TransactionTestCase):
     def test_broker_failure_after_commit_is_retryable_and_resumes_downloads(self):

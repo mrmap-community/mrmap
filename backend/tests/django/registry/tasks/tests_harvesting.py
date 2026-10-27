@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -6,12 +7,13 @@ from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from MrMap.settings import BASE_DIR
 from registry.enums.harvesting import LogKindEnum
+from registry.exceptions.harvesting import InternalServerError
 from registry.models.harvest import (HarvestingJob, HarvestingLog,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import CatalogueService
 from registry.ows_lib.client.core import OgcClient
-from registry.tasks.harvest import (call_fetch_records,
+from registry.tasks.harvest import (HarvestingTask, call_fetch_records,
                                     call_fetch_total_records,
                                     call_md_metadata_file_to_db)
 from rest_framework import status
@@ -29,6 +31,37 @@ def side_effect(request, timeout):
             status_code=status.HTTP_200_OK,
             content=Path(Path.joinpath(Path(__file__).parent.resolve(),
                                        '../../test_data/csw/hits.xml')))
+
+
+# a GetRecords answer which is well typed and simply names no records at all - the answer which
+# makes fetch_total_records fall back to the csw:Record type names
+ZERO_RECORDS = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2">'
+    '<csw:SearchResults numberOfRecordsMatched="0" numberOfRecordsReturned="0"'
+    ' elementSet="summary" nextRecord="0" />'
+    '</csw:GetRecordsResponse>'
+)
+
+
+def logging_response(request, content, status_code):
+    """a MockResponse which knows the request it answers; the harvesting logs read the url of the
+    response out of its request"""
+    response = MockResponse(content=content, status_code=status_code)
+    response.request = request
+    return response
+
+
+def side_effect_broken_fallback(fallback_status_code):
+    """a catalogue whose default query answers no records and whose csw:Record fallback answers with
+    the given status code"""
+    def answer(request, timeout):
+        if "csw%3ARecord" in request.url:
+            return logging_response(
+                request, "<html>the catalogue refuses the fallback</html>",
+                fallback_status_code)
+        return logging_response(request, ZERO_RECORDS, status.HTTP_200_OK)
+    return answer
 
 
 def setup_capabilitites_file():
@@ -77,6 +110,58 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
         call_fetch_total_records.delay(harvesting_job_id=1)
         harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
         self.assertEqual(harvesting_job.total_records, 447773)
+
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect_broken_fallback(status.HTTP_500_INTERNAL_SERVER_ERROR)
+    )
+    def test_failing_fallback_is_the_response_being_checked(self, mocked_send_request):
+        """the csw:Record fallback is the response which gets checked and not the first response,
+        which named no records on purpose: a server error of the fallback is the retryable error,
+        where the unfixed check went on and failed on the missing SearchResults node (#689)"""
+        with self.assertRaises(InternalServerError):
+            call_fetch_total_records.run(harvesting_job_id=1)
+
+        # both the default query and the fallback were answered
+        self.assertEqual(mocked_send_request.call_count, 2)
+        # and a harvesting worker retries exactly this error
+        self.assertIn(InternalServerError, HarvestingTask.autoretry_for)
+
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect_broken_fallback(status.HTTP_400_BAD_REQUEST)
+    )
+    def test_refused_fallback_is_logged_and_ends_without_records(self, mocked_send_request):
+        """a 4xx is an answer and not an outage: it ends the run with zero records, and it is the
+        fallback which is logged with its own url and status (#689)"""
+        self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+
+        fallback_url = mocked_send_request.call_args_list[-1].kwargs["request"].url
+        errors = HarvestingLog.objects.filter(
+            harvesting_job_id=1, description="Response Error")
+        self.assertTrue(errors.exists())
+        logged = errors.first().extented_description.read().decode("UTF-8")
+        self.assertIn(fallback_url, logged)
+        self.assertIn("'status_code': 400", logged)
+        self.assertEqual(errors.first().kind, LogKindEnum.REMOTE_ERROR.value)
+        self.assertEqual(HarvestingJob.objects.get(pk=1).total_records, 0)
+
+    def test_server_error_status_is_compared_as_a_range(self):
+        """'>= 500 <= 600' is a chained comparison which simply means '>= 500'; a status outside the
+        server error class is an answer to read, not a reason to retry (#689)"""
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        request = SimpleNamespace(url="https://example.org/csw?REQUEST=GetRecords")
+
+        for status_code in (400, 404, 700):
+            with self.subTest(status_code=status_code):
+                self.assertTrue(harvesting_job._check_xml_response(
+                    logging_response(request, "<html>refused</html>", status_code)))
+
+        with self.assertRaises(InternalServerError):
+            harvesting_job._check_xml_response(
+                logging_response(request, "<html>unavailable</html>", 503))
 
 
 class HarvestingGetRecordsTaskTest(TransactionTestCase):

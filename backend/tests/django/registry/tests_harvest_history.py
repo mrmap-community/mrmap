@@ -57,6 +57,22 @@ class HarvestHistoryTest(TestCase):
         complete_harvest(job.pk)
         self.assertEqual(list(self.removed(job).values_list('service_metadata_record_id', flat=True)), [self.metadata.pk])
 
+    def test_a_finished_harvest_keeps_its_step_size_on_the_catalogue(self):
+        """the catalogue is the memory of the size its remote service answers: the run which
+        finished leaves the size it worked with at the catalogue, so the next run starts from what
+        this service proved instead of from a default nobody chose (#691)"""
+        CatalogueService.objects.filter(pk=self.service.pk).update(max_step_size=50)
+        complete_harvest(self.job(max_step_size=300).pk)
+        self.service.refresh_from_db()
+        self.assertEqual(self.service.max_step_size, 300)
+
+    def test_a_harvest_which_did_not_finish_leaves_the_size_of_the_catalogue_alone(self):
+        """a run which broke tells nothing about the size the service answers with"""
+        CatalogueService.objects.filter(pk=self.service.pk).update(max_step_size=120)
+        complete_harvest(self.job(max_step_size=300, phase=Phase.ABORTED).pk)
+        self.service.refresh_from_db()
+        self.assertEqual(self.service.max_step_size, 120)
+
     def test_incomplete_partial_failed_and_aborted_jobs_do_not_record_removals(self):
         for overrides in [dict(total_records=1), dict(harvest_services=False), dict(harvest_datasets=False), dict(phase=Phase.ABORTED), dict(phase=Phase.ABORT)]:
             with self.subTest(overrides=overrides):

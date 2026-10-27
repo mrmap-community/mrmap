@@ -23,7 +23,7 @@ const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
   const [selectedColumnsIdxs] = useStore<string[]>(`${preferenceKey}.columns`, []);
 
   return useMemo(() => {
-    const supported = (sparseFields[name] ?? []).map(snakeCase);
+    const supported = (sparseFields[name] ?? []).map(element => snakeCase(element));
     const selected = availableColumns.filter(column =>
       column.source !== undefined && supported.includes(snakeCase(column.source)) &&
       (selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index) : !omit.includes(column.source)),
@@ -31,7 +31,7 @@ const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
     const query: JsonApiQueryParams = {};
     for (const fieldset of fieldsets) {
       query[`fields[${fieldset.type}]`] = fieldset.type === name
-        ? [...new Set([...fieldset.fields.map(snakeCase), ...selected])].join(',')
+        ? [...new Set([...fieldset.fields.map(element => snakeCase(element)), ...selected])].join(',')
         : fieldset.fields.join(',');
     }
     // Wait until columns are registered; an empty fieldset would suppress default fields.

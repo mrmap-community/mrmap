@@ -16,11 +16,11 @@ export const updateSystemTime = (systemTime: string | undefined) => {
     const newTimeMs = Date.parse(systemTime);
     const storedTimeMs = Date.parse(storedIsoString);
 
-    if (isNaN(newTimeMs)) {
+    if (Number.isNaN(newTimeMs)) {
       console.warn("Neuer ISO-Zeitstempel ist ungültig:", systemTime);
       return;
     }
-    if (isNaN(storedTimeMs)) {
+    if (Number.isNaN(storedTimeMs)) {
       // Falls gespeicherter String ungültig, überschreiben
       localStorage.setItem(SYSTEM_TIME_LOCAL_STORAGE_NAME, systemTime);
       systemTimeEvents.dispatchEvent(new Event("change")); // Trigger Event

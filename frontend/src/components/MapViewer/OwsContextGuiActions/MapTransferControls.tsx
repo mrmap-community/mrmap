@@ -47,13 +47,21 @@ export const serializeForTransfer = (context: OWSContext): string => {
 const toBase64Url = (text: string) => {
   const bytes = new TextEncoder().encode(text);
   let binary = '';
-  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  bytes.forEach(byte => { binary += String.fromCodePoint(byte); });
+  return btoa(binary)
+  .replaceAll('+', '-')
+  .replaceAll('/', '_')
+  .replace(/={1,2}$/, '');
 };
 
 const fromBase64Url = (encoded: string) => {
-  const binary = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
-  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  const binary = atob(
+    encoded.replaceAll('-', '+').replaceAll('_', '/')
+  );
+  const bytes = Uint8Array.from(
+    binary,
+    character => character.codePointAt(0) ?? 0,
+  );
   return new TextDecoder().decode(bytes);
 };
 

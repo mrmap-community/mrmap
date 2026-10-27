@@ -311,7 +311,7 @@ class CSWBuilder(XSDSkeletonBuilder):
         root = self.build_element(
             "Acknowledgement",
             attributes={
-                "timestamp": timestamp.isoformat(),
+                "timeStamp": timestamp.isoformat(),
             },
         )
 
@@ -323,12 +323,8 @@ class CSWBuilder(XSDSkeletonBuilder):
                 text=request_id,
             )
 
-        if echoed_request:
-            echo_el = self.add_foreign_child(
-                root,
-                NAMESPACE_LOOKUP["csw_2_0_2"],
-                "EchoedRequest",
-            )
+        if echoed_request is not None:
+            echo_el = root.find("{*}EchoedRequest")
             echo_el.append(echoed_request)
 
         return root

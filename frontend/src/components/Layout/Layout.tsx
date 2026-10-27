@@ -96,7 +96,7 @@ const MyLayout = (
             marginBottom: "1em",
           },
           '& .RaShow-main': {
-            width: `calc(${open ? '100vw' : '100vw'} - ${open ? '240px' : '50px'}  - 3em)`,
+            width: `calc('100vw' - ${open ? '240px' : '50px'}  - 3em)`,
             //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
             overfloxX: 'hidden',
             marginLeft: "1em",

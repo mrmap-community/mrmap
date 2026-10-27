@@ -61,4 +61,3 @@ class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
         # set the correct password
         user.set_password(self.validated_data['password'])
         return user
-        return user

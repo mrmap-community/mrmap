@@ -179,8 +179,12 @@ export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[k
     const parameters = operation.parameters as ParameterObject[]
 
     parameters?.filter((parameter) => parameter.name.includes('fields[')).forEach((parameterObject)=>{
-      const pattern = /\[(.*?)\]/;
-      const resourceType = pattern.exec(parameterObject.name)?.[1]
+      const name = parameterObject.name;
+      const start = name.indexOf('[');
+      const end = start === -1 ? -1 : name.indexOf(']', start + 1);
+      const resourceType = end === -1
+        ? undefined
+        : name.slice(start + 1, end);
       const schema = parameterObject.schema as OpenAPIV3.ArraySchemaObject
       const sparseFieldParameterArraySchema = schema.items as OpenAPIV3.SchemaObject
       const fields = sparseFieldParameterArraySchema.enum ?? []
@@ -581,11 +585,11 @@ export const parseDuration = (duration:string): number => {
   const matches = regex.exec(duration);
   if (matches) {
       // Extrahiere Tage, Stunden, Minuten, Sekunden und Mikrosekunden
-      const days = matches[1] ? parseInt(matches[1], 10) : 0; // Standardwert 0, wenn kein Tag vorhanden
-      const hours = matches[2] ? parseInt(matches[2], 10) : 0; // Standardwert 0, wenn keine Stunde angegeben
-      const minutes = matches[3] ? parseInt(matches[3], 10) : 0; // Standardwert 0, wenn keine Minuten angegeben
-      const seconds = parseInt(matches[4], 10); // Sekunden sind immer da, daher keine Option
-      const microseconds = parseInt(matches[5], 10); // Mikrosekunden sind immer da
+      const days = matches[1] ? Number.parseInt(matches[1], 10) : 0; // Standardwert 0, wenn kein Tag vorhanden
+      const hours = matches[2] ? Number.parseInt(matches[2], 10) : 0; // Standardwert 0, wenn keine Stunde angegeben
+      const minutes = matches[3] ? Number.parseInt(matches[3], 10) : 0; // Standardwert 0, wenn keine Minuten angegeben
+      const seconds = Number.parseInt(matches[4], 10); // Sekunden sind immer da, daher keine Option
+      const microseconds = Number.parseInt(matches[5], 10); // Mikrosekunden sind immer da
   
 
       // Berechne die Gesamtzeit in Sekunden

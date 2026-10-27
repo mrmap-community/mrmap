@@ -7,7 +7,7 @@ from accounts.models.users import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from epsg_cache.models import Origin, SpatialReference
 from epsg_cache.registry import Registry
 from lxml import etree
@@ -15,6 +15,7 @@ from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import WebMapService
+from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -270,3 +271,15 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertEqual(200, response.status_code)
         # TODO: check the response picture
+
+
+class WebMapServiceProxyFontTest(SimpleTestCase):
+    @patch('registry.proxy.wms_proxy.Path.exists', return_value=False)
+    def test_no_system_fonts_falls_back_to_a_sized_font_and_renders(self, exists):
+        proxy = WebMapServiceProxy()
+        font = proxy._get_default_ttf(16)
+        self.assertEqual(font.size, 16)
+        proxy.ogc_request = OGCRequest(method='GET', params={'WIDTH': '200'})
+        image = proxy._create_image_with_text(200, 40, 'Restricted layer')
+        self.assertEqual(image.size, (200, 40))
+        self.assertIsNotNone(image.getbbox())

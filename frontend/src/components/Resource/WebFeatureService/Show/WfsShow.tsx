@@ -11,6 +11,7 @@ import CustomListActions from "../../../Lists/CustomListActions";
 import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
 import ElementHistory from "../../Generic/ServiceShow/ElementHistory";
 import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
+import ElementPreview from "../../Generic/ServiceShow/ElementPreview";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -101,6 +102,13 @@ function FeatureTypesTab() {
             />
           )}
           history={(featureType) => <ElementHistory resource="FeatureType" record={featureType} />}
+          preview={(featureType) => (
+            <ElementPreview
+              key={String(featureType?.id)}
+              protocol="WFS"
+              record={featureType}
+            />
+          )}
         />
       </Grid>
     </Grid>

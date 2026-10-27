@@ -63,6 +63,10 @@ vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
 vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
 }));
+// the delivery candidates of the record answer their own screen
+vi.mock("../ServiceCandidates/ServiceCandidatesButton", () => ({
+  default: () => <button>Candidates</button>,
+}));
 vi.mock("../../../MapContainer/GeoJsonMap", () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
@@ -153,6 +157,8 @@ describe("record detail pages", () => {
       screen.queryByRole("button", { name: "ra.action.delete" }),
     ).not.toBeInTheDocument();
     expect(screen.getAllByText("Missing identifier").length).toBeGreaterThan(0);
+    // the detail page is one entry point to the services which can deliver it
+    expect(await screen.findByText("Candidates")).toBeInTheDocument();
   });
 
   it("opens service records on a directly linked spatial tab with honest empty states", async () => {

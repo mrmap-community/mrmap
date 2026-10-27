@@ -53,6 +53,10 @@ vi.mock("../../../jsonapi/components/ListGuesser", () => ({
   ),
 }));
 vi.mock("../../Lists/CustomListActions", () => ({ default: () => null }));
+// the delivery candidates of a result have a screen of their own
+vi.mock("../Generic/ServiceCandidates/ServiceCandidatesButton", () => ({
+  default: () => <button>Candidates</button>,
+}));
 vi.mock("../Generic/Explorer/MetadataIndicators", () => ({
   MetadataFacets: () => null,
   MetadataIndicators: () => null,
@@ -100,6 +104,8 @@ describe("service metadata explorer", () => {
     expect(
       screen.getByText("serviceMetadataExplorer.missingCoverage"),
     ).toBeInTheDocument();
+    // every result offers the services which can deliver it
+    expect(screen.getAllByText("Candidates")).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "Show" }),
     ).not.toBeInTheDocument();

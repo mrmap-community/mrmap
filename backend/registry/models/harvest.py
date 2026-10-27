@@ -472,7 +472,9 @@ class HarvestingJob(ProcessingData):
                     xml_constraint=client.get_constraint(record_types=self.get_record_types())),
                 timeout=60)
 
-            if self._check_xml_response(first_response):
+            # the fallback is the response to judge: the first response was fine, it only named no
+            # records at all (#689)
+            if self._check_xml_response(second_response):
                 self._log_response_error(response=second_response)
                 self.total_records = 0
                 self.save()
@@ -522,7 +524,9 @@ class HarvestingJob(ProcessingData):
     def _check_xml_response(self, response):
         if not response.ok or not self._check_xml_is_parseable(response.content) or "<ExceptionReport" in response.text:
             self._log_response_error(response=response)
-            if response.status_code >= 500 <= 600:
+            # only the server error class is worth another request; a chained comparison like
+            # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
+            if 500 <= response.status_code < 600:
                 raise InternalServerError
             return True
         return False

@@ -34,6 +34,16 @@ The header offers edit and delete actions when the backend grants those object p
 The "Written more than once" status reflects ``is_customized``; it does not prove that a user
 manually corrected the record. The source action opens the recorded origin URL, when available.
 
+The header also offers *Available services*, which answers which services can deliver what the
+record describes: the endpoints the record advertises itself, the endpoints of the harvested service
+records which name it and, listed apart from those, the resources which are registered already.
+Discovery reads stored data alone and asks no service. A candidate can be checked before it is used;
+that answer separates the layer and feature type hints the endpoint confirmed from the ones it did
+not, which stays a decision of the user instead of a guessed layer. Choosing a candidate adds it to
+the current map without registering it, and the layers which are already on the map stay. A remote
+endpoint is asked without credentials, only an endpoint of the MrMap origin is asked with the token
+of the session. The same action belongs to every result of the metadata explorer.
+
 Collect Metadata
 ################
 

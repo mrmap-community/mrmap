@@ -63,6 +63,10 @@ vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
 vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
 }));
+// the delivery candidates of the record answer their own screen
+vi.mock("../ServiceCandidates/ServiceCandidatesButton", () => ({
+  default: () => null,
+}));
 vi.mock("../../../MapContainer/GeoJsonMap", () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>

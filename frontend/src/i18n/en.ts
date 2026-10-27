@@ -115,6 +115,45 @@ const en = lodashMerge(
       username: "Username (optional)",
       password: "Password (optional)"
     },
+    serviceCandidates: {
+      button: "Available services",
+      title: "Services which can deliver this",
+      description: "These endpoints are advertised by the record itself, by the records of services which name it, or they are registered already. Nothing is written here: a choice is only added to the current map.",
+      loading: "Reading the advertised endpoints...",
+      openInMap: "Add to map",
+      check: "Check endpoint",
+      checking: "Asking the endpoint...",
+      none: "The record advertises no service which can deliver it.",
+      candidatesNoneRegistered: "No endpoint is advertised, but the resources below are registered.",
+      preferred: "preferred",
+      derived: "derived",
+      derivedHint: "The capabilities endpoint was derived from an operation the record advertises.",
+      unknownService: "Service",
+      confirmed: "The endpoint confirmed this hint of the record",
+      truncated: "The record advertises more than can be answered here.",
+      nonService: "The record advertises further links which are no service access.",
+      registeredTitle: "Registered already",
+      registeredHint: "These resources are verified by the registry; open one to add it with its stored access.",
+      state: {
+        unvalidated: "not asked",
+        resolved: "delivers",
+        ambiguous: "needs a choice",
+        unsupported: "not supported",
+        unavailable: "not reachable"
+      },
+      status: {
+        missing: "The record stores no document, so nothing is known about its endpoints.",
+        unreadable: "The stored document of the record cannot be opened.",
+        malformed: "The stored document of the record is no valid xml.",
+        no_records: "The stored document holds no metadata record."
+      },
+      error: {
+        denied: "You may not ask this record for its services.",
+        unavailable: "The services of this record cannot be answered right now.",
+        "not-advertised": "The record does not advertise this endpoint.",
+        "url-required": "No endpoint was selected."
+      }
+    },
     LayerTree: {
       raster: "Raster layers (GetMap)",
       vector: "Vector layers (WFS / GetFeatureInfo)",

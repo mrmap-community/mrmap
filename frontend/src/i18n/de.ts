@@ -112,6 +112,45 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     username: "Benutzername (optional)",
     password: "Passwort (optional)"
   },
+  serviceCandidates: {
+    button: "Verfügbare Dienste",
+    title: "Dienste, die dies ausliefern können",
+    description: "Diese Endpunkte bietet der Datensatz selbst an, es sind die Endpunkte der Dienste, deren Datensätze ihn nennen, oder bereits registrierte Ressourcen. Hier wird nichts geschrieben: Eine Auswahl wird nur der aktuellen Karte hinzugefügt.",
+    loading: "Die angebotenen Endpunkte werden gelesen...",
+    openInMap: "Zur Karte hinzufügen",
+    check: "Endpunkt prüfen",
+    checking: "Der Endpunkt wird gefragt...",
+    none: "Der Datensatz bietet keinen Dienst an, der ihn ausliefern kann.",
+    candidatesNoneRegistered: "Es ist kein Endpunkt angeboten, die folgenden Ressourcen sind jedoch registriert.",
+    preferred: "bevorzugt",
+    derived: "abgeleitet",
+    derivedHint: "Der Capabilities-Endpunkt wurde aus einer Operation abgeleitet, die der Datensatz anbietet.",
+    unknownService: "Dienst",
+    confirmed: "Der Endpunkt hat diesen Hinweis des Datensatzes bestätigt",
+    truncated: "Der Datensatz bietet mehr an, als hier beantwortet werden kann.",
+    nonService: "Der Datensatz bietet weitere Links an, die kein Dienstzugriff sind.",
+    registeredTitle: "Bereits registriert",
+    registeredHint: "Diese Ressourcen sind über die Registry geprüft; öffnen Sie eine, um sie mit dem gespeicherten Zugriff hinzuzufügen.",
+    state: {
+      unvalidated: "nicht gefragt",
+      resolved: "liefert",
+      ambiguous: "braucht eine Auswahl",
+      unsupported: "nicht unterstützt",
+      unavailable: "nicht erreichbar"
+    },
+    status: {
+      missing: "Der Datensatz speichert kein Dokument, daher ist über seine Endpunkte nichts bekannt.",
+      unreadable: "Das gespeicherte Dokument des Datensatzes kann nicht geöffnet werden.",
+      malformed: "Das gespeicherte Dokument des Datensatzes ist kein gültiges XML.",
+      no_records: "Das gespeicherte Dokument enthält keinen Metadatensatz."
+    },
+    error: {
+      denied: "Sie dürfen diese Datensätze nicht nach ihren Diensten fragen.",
+      unavailable: "Die Dienste dieses Datensatzes können derzeit nicht beantwortet werden.",
+      "not-advertised": "Der Datensatz bietet diesen Endpunkt nicht an.",
+      "url-required": "Es ist kein Endpunkt ausgewählt."
+    }
+  },
   LayerTree: {
       raster: "Rasterebenen (GetMap)",
       vector: "Vektorebenen (WFS / GetFeatureInfo)",

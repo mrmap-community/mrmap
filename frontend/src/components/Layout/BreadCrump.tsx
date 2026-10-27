@@ -23,13 +23,24 @@ const BreadCrump = () => {
 
   const crumbs = useMemo(() => {
     const baseCrumb = { label: 'Home', to: '/' };
-    const pathname = location.pathname.replace(/\/+$/, '') || '/';
 
-    if (pathname === '/') {
+    // use this while iteration instead of regex to
+    // Simplify this regular expression to reduce its runtime, 
+    // as it has super-linear performance due to backtracking.
+    const pathname = location.pathname;
+    let end = pathname.length;
+
+    while (end > 0 && pathname[end - 1] === '/') {
+        end--;
+    }
+
+    const normalizedPathname = pathname.slice(0, end) || '/';
+
+    if (normalizedPathname === '/') {
       return [baseCrumb];
     }
 
-    const segments = pathname.split('/').filter(Boolean);
+    const segments = normalizedPathname.split('/').filter(Boolean);
     let currentPath = '';
 
     const routeCrumbs = segments.reduce<Array<{ label: string; to: string }>>((acc, segment) => {

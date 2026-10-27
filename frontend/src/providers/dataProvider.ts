@@ -542,16 +542,17 @@ const dataProvider = ({
       )
       return await Promise.resolve({ data: null })
     },
-    attachRealtimeOnMessage: (realtimeBus: WebSocket | undefined)  => {
+    attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
       realtimeSocket = realtimeBus
       if (!realtimeBus) {
-        return
+        return await Promise.reject()
       }
       realtimeBus.onmessage = realtimeOnMessage
       // the server does not know the topics of a former or still connecting
       // socket, so announce all currently observed ones
-      new Set(subscriptions.map(subscription => subscription.topic))
+      const set = new Set(subscriptions.map(subscription => subscription.topic))
         .forEach(topic => sendSubscriptionFrame(topic, 'subscribe'))
+      return await Promise.resolve({data: set})
     },
     search: async (query: string, options?: SearchOptions): Promise<SearchResults>=> {
       const targets = options?.targets || []

@@ -143,6 +143,11 @@ reported finding where it was reported: fix the flagged code or resolve the find
 Do not push new code around a finding to work around it — new code is scanned as new code too, the
 finding stays open and the report ends up with more new issues than before.
 
+A genuine false positive is the exception: a normative OGC/ISO/INSPIRE identifier that only looks
+like an insecure URL or an IP address is suppressed with a `NOSONAR` comment carrying the reason on
+the reported line, as `docs/source/development/code-quality.rst` describes. Rewriting the
+identifier itself is not an option — it breaks document matching against upstream services.
+
 ## Git conventions
 
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or

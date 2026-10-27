@@ -572,6 +572,7 @@ const en = lodashMerge(
         monitoring_overdue: "Monitoring overdue",
         update_overdue: "Update overdue",
         harvest_overdue: "Harvesting overdue",
+        harvest_schedule_too_tight: "Harvesting schedule too tight",
       },
     },
     serviceAttention: {

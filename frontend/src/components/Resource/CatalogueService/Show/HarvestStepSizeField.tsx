@@ -42,8 +42,13 @@ const HarvestStepSizeField = ({
   const currentSize = record?.[STEP_SIZE];
   return (
     <Stack spacing={0.5}>
-      {createElement(field.component, { ...input, record })}
+      {createElement(field.component, { ...field.props, ...input, source, record })}
+      {
+        // TODO: the hint should be in the same optic as the field descriptions.
+        // Maybe it could be passed in to the field.component as prop
+      }
       {record?.id != null && (
+
         <HarvestThroughputHint
           serviceId={record.id}
           currentSize={typeof currentSize === "number" ? currentSize : undefined}

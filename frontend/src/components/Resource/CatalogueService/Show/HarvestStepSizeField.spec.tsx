@@ -1,12 +1,15 @@
 import type { ElementType } from "react";
+import { AdminContext, NumberInput, SimpleForm } from "react-admin";
 
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import SchemaFormFields from "../../../../jsonapi/components/SchemaFormFields";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import HarvestStepSizeField from "./HarvestStepSizeField";
 
-vi.mock("react-admin", () => ({
+vi.mock("react-admin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-admin")>()),
   useResourceContext: vi.fn(() => "CatalogueService"),
 }));
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
@@ -52,6 +55,30 @@ beforeEach(() => {
 });
 
 describe("the size a harvest starts with, with what the harvests measured", () => {
+  it("binds the schema input to the form's step size", () => {
+    fields([{ ...SIZE, component: NumberInput }]);
+    const record = { id: "csw-1", maxStepSize: 50 };
+    render(
+      <AdminContext>
+        <SimpleForm record={record} toolbar={false}>
+          <SchemaFormFields
+            operationId="partial_update_CatalogueService"
+            overrides={[
+              { component: HarvestStepSizeField, props: { source: "maxStepSize" } },
+            ]}
+            record={record}
+          />
+        </SimpleForm>
+      </AdminContext>,
+    );
+    const input = screen.getByRole("spinbutton", { name: "Max step size" });
+    expect(input).toHaveAttribute("name", "maxStepSize");
+    expect(input).toHaveValue(50);
+    expect(input).toHaveAttribute("min", "1");
+    expect(input).toHaveAttribute("max", "32767");
+    expect(screen.getByText(SIZE.props.helperText)).toBeInTheDocument();
+  });
+
   it("asks the fields of the resource which is edited", () => {
     fields([SIZE]);
     render(<HarvestStepSizeField source="maxStepSize" />);

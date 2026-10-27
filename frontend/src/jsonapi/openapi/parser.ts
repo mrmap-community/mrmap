@@ -31,7 +31,7 @@ export const buildChoices = (property: OpenAPIV3.SchemaObject): { id: number; na
     const match = choiceMeaning.match(/`(\d+)`\s*-\s*(.+)/);
 
     if (match) {
-      const id = parseInt(match[1], 10); // "0" -> 0
+      const id = Number.parseInt(match[1], 10); // "0" -> 0
       const name = match[2];         // "Fatal"
       return {id, name}
     }

@@ -10,7 +10,7 @@ const parseLayerMetrics = {
 }
 
 const toBounds = (values: (string | null | undefined)[]): [number, number, number, number] | undefined => {
-  const bounds = values.map(value => value === null || value === undefined ? NaN : Number(value))
+  const bounds = values.map(value => value === null || value === undefined ? Number.NaN : Number(value))
   if (bounds.some(value => !Number.isFinite(value))) {
     return undefined
   }

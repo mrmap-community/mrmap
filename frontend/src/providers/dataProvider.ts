@@ -178,7 +178,7 @@ const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfi
 const getTotal = (response: JsonApiDocument, total: string): number => {
   const _total = jsonpointer.get(response, total)
   if (typeof _total === 'string') {
-    return parseInt(_total, 10)
+    return Number.parseInt(_total, 10)
   }
   return _total
 }
@@ -459,7 +459,7 @@ const dataProvider = ({
         const jsonApiDocument = response.data as JsonApiDocument
         const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
         return { data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) }
-      }).catch(async error => {
+      }).catch(error => {
         if (error.response.status === 400) {
           handleBadRequest(error)
         }
@@ -542,7 +542,7 @@ const dataProvider = ({
       )
       return await Promise.resolve({ data: null })
     },
-    attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
+    attachRealtimeOnMessage: (realtimeBus: WebSocket | undefined)  => {
       realtimeSocket = realtimeBus
       if (!realtimeBus) {
         return

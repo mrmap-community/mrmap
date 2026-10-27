@@ -8,8 +8,9 @@ Created on: 28.07.20
 from registry.enums.metadata import CategoryOriginEnum
 
 CATEGORIES = {
+    # The embedded inspire theme URI is a normative identifier and stays http.
     CategoryOriginEnum.INSPIRE.value: "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
-    CategoryOriginEnum.ISO.value: "http://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
+    CategoryOriginEnum.ISO.value: "https://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
 }
 
 CATEGORIES_LANG = {
@@ -21,25 +22,25 @@ LICENCES = [
     {
         "name": "Creative Commons 3.0",
         "identifier": "cc-by-nc-nd-3.0",
-        "symbol_url": "http://i.creativecommons.org/l/by-nc-nd/3.0/de/88x31.png",
+        "symbol_url": "https://i.creativecommons.org/l/by-nc-nd/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung - Keine kommerzielle Nutzung - Keine Bearbeitungen 3.0 Deutschland",
-        "description_url": "http://creativecommons.org/licenses/by-nc-nd/3.0/de/",
+        "description_url": "https://creativecommons.org/licenses/by-nc-nd/3.0/de/",
         "is_open_data": False,
     },
     {
         "name": "Creative Commons 3.0",
         "identifier": "cc-nc-3.0",
-        "symbol_url": "http://i.creativecommons.org/l/by-nc/3.0/de/88x31.png",
+        "symbol_url": "https://i.creativecommons.org/l/by-nc/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung - Keine kommerzielle Nutzung 3.0 Deutschland",
-        "description_url": "http://creativecommons.org/licenses/by-nc/3.0/de/",
+        "description_url": "https://creativecommons.org/licenses/by-nc/3.0/de/",
         "is_open_data": False,
     },
     {
         "name": "Creative Commons 3.0",
         "identifier": "cc-by-3.0",
-        "symbol_url": "http://i.creativecommons.org/l/by/3.0/de/88x31.png",
+        "symbol_url": "https://i.creativecommons.org/l/by/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung 3.0 Deutschland",
-        "description_url": "http://creativecommons.org/licenses/by/3.0/de/",
+        "description_url": "https://creativecommons.org/licenses/by/3.0/de/",
         "is_open_data": True,
     },
     {
@@ -79,7 +80,7 @@ LICENCES = [
         "identifier": "odc-odbl-1.0",
         "symbol_url": None,
         "description": "Open Data Commons Open Database License (ODbL)",
-        "description_url": "http://opendatacommons.org/licenses/odbl/1.0/",
+        "description_url": "https://opendatacommons.org/licenses/odbl/1.0/",
         "is_open_data": True,
     },
 ]

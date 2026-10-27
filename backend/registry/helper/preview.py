@@ -39,7 +39,7 @@ FEATURE_LIMIT = 500
 PAGE_SIZE = 25
 RESPONSE_LIMIT = 8 * 1024 * 1024
 TIME_LIMIT = 15
-GMD = "http://www.isotc211.org/2005/gmd"
+GMD = "http://www.isotc211.org/2005/gmd"  # NOSONAR normative ISO 19139 gmd XML namespace identifier, matched literally by lxml, never requested over the network
 INFO_FEATURE_COUNT = 10
 # Identify results are rendered by the browser, so only self contained machine readable
 # formats are negotiated for them. An upstream `text/html` body would be answered by the
@@ -239,7 +239,7 @@ def selected_configuration(service, selection, client):
     if not output_format:
         raise PreviewError("format")
     crs = node.xpath("./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
-    if not any(item.strip().upper().endswith((":4326", "::4326", "/4326")) for item in crs):
+    if not any(item.strip().upper().endswith((":4326", "::4326", "/4326")) for item in crs):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
         raise PreviewError("crs")
     return element, output_format, False, None
 
@@ -467,7 +467,7 @@ def validate_features(collection, allowed=None):
     crs = collection.get("crs")
     if crs and (not isinstance(crs, dict) or not isinstance(crs.get("properties"), dict)):
         raise PreviewError("malformed")
-    if crs and not str(crs.get("properties", {}).get("name", "")).upper().endswith((":4326", "::4326", "/4326", ":CRS84")):
+    if crs and not str(crs.get("properties", {}).get("name", "")).upper().endswith((":4326", "::4326", "/4326", ":CRS84")):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
         raise PreviewError("crs")
     # GeoJSON positions are longitude/latitude regardless of request axis order.
     from django.contrib.gis.geos import GEOSGeometry

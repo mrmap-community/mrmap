@@ -159,6 +159,21 @@ describe("map viewer button", () => {
     );
   });
 
+  it("opens the capabilities document of exactly one resource which is given", () => {
+    state.query.data = service;
+    render(
+      <MapViewerButton capabilititesUrl="https://mrmap.example.test/mrmap-proxy/wms/service/layer/layer" />,
+    );
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(state.addWMSByUrl).toHaveBeenCalledOnce();
+    const url = new URL(state.addWMSByUrl.mock.calls[0][0]);
+    expect(url.pathname).toBe("/mrmap-proxy/wms/service/layer/layer");
+    expect(url.searchParams.get("SERVICE")).toBe("WMS");
+    expect(url.searchParams.get("REQUEST")).toBe("GetCapabilities");
+    expect(state.navigate).toHaveBeenCalledWith("/viewer");
+  });
+
   it("opens after the requested service supplies its capabilities URL", () => {
     state.record = { id: "service" };
     const view = render(<MapViewerButton />);

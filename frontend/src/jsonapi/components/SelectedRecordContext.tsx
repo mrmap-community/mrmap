@@ -8,8 +8,18 @@ export interface SelectedRecordContextValue {
 
 const SelectedRecordContext = createContext<SelectedRecordContextValue | undefined>(undefined)
 
-export const SelectedRecordContextProvider = ({ children }: PropsWithChildren) => {
-  const [selectedRecord, setSelectedRecord] = useState<RaRecord>()
+/**
+ * The record a screen currently focuses on.
+ *
+ * A list of records names the record its user clicked, which is what the
+ * provider holds. A screen which shows one record throughout - the inspection
+ * of one layer of a service - names it with `record` instead, so components
+ * which ask for the focused record, like the compact feed of the changelog,
+ * scope themselves to it without a click.
+ */
+export const SelectedRecordContextProvider = ({ children, record }: PropsWithChildren<{ record?: RaRecord }>) => {
+  const [selection, setSelectedRecord] = useState<RaRecord>()
+  const selectedRecord = record ?? selection
   const value = useMemo(() => ({ selectedRecord, setSelectedRecord }), [selectedRecord])
 
   return (

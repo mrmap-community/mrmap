@@ -10,6 +10,8 @@ from extras.serializers import (HistoryInformationSerializer,
                                 SystemInfoSerializerMixin)
 from extras.validators import validate_get_capablities_uri
 from lxml.etree import XMLSyntaxError
+from registry.helper.resource_capabilities import (
+    feature_type_capabilities_url, layer_capabilities_url)
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, ReferenceSystem, Style,
@@ -194,6 +196,12 @@ class LayerSerializer(
             "true is the layer is spatial secured by a allowed operation object."),
         read_only=True
     )
+    capabilities_url = SerializerMethodField(
+        label=_("capabilities url"),
+        help_text=_(
+            "the url of the capabilities document which advertises only this layer."),
+        read_only=True,
+    )
 
     included_serializers = {
         "service": "registry.serializers.service.WebMapServiceSerializer",
@@ -224,6 +232,15 @@ class LayerSerializer(
 
     def get_styles(self, instance):
         return self._convert_dict_to_object(getattr(instance, "styles_inherited", []), Style, defaults={"layer": Layer(pk=instance.pk)})
+
+    @extend_schema_field({"type": "string", "format": "uri"})
+    def get_capabilities_url(self, instance) -> str:
+        # The capabilities document of a single layer is generated for every request
+        # out of the registry (registry/proxy/resource_capabilities.py) and is never
+        # stored, so the url of it is named by the service and the layer of this
+        # answer alone: neither the service nor its capabilities are read here.
+        return layer_capabilities_url(
+            instance.service_id, instance.pk, request=self.context.get("request"))
 
 
 class ServiceAlertSerializerMixin(ModelSerializer):
@@ -694,6 +711,21 @@ class FeatureTypeSerializer(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
     )
+    capabilities_url = SerializerMethodField(
+        label=_("capabilities url"),
+        help_text=_(
+            "the url of the capabilities document which advertises only this featuretype."),
+        read_only=True,
+    )
+
+    @extend_schema_field({"type": "string", "format": "uri"})
+    def get_capabilities_url(self, instance) -> str:
+        # The capabilities document of a single featuretype is generated for every
+        # request out of the registry (registry/proxy/resource_capabilities.py) and is
+        # never stored, so the url of it is named by the service and the featuretype of
+        # this answer alone: neither the service nor its capabilities are read here.
+        return feature_type_capabilities_url(
+            instance.service_id, instance.pk, request=self.context.get("request"))
 
     class Meta:
         model = FeatureType

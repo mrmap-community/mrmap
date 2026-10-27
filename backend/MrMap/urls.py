@@ -25,6 +25,9 @@ from django.views.static import serve
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
 from mapbender_compatibility.views import MapBenderSearchApi
+from registry.proxy.resource_capabilities import \
+    (WebFeatureServiceFeatureTypeCapabilities,
+     WebMapServiceLayerCapabilities)
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
@@ -53,6 +56,14 @@ urlpatterns = [
     path("mrmap-proxy/wfs/<uuid:pk>",
          WebFeatureServiceProxy.as_view(),
          name="wfs-operation"),
+    # capabilities of a single layer or feature type of a registered service, see
+    # registry/proxy/resource_capabilities.py
+    path("mrmap-proxy/wms/<uuid:pk>/layer/<uuid:layer_pk>",
+         WebMapServiceLayerCapabilities.as_view(),
+         name="wms-layer-capabilities"),
+    path("mrmap-proxy/wfs/<uuid:pk>/featuretype/<uuid:featuretype_pk>",
+         WebFeatureServiceFeatureTypeCapabilities.as_view(),
+         name="wfs-featuretype-capabilities"),
     path("mrmap-proxy/ows/<int:pk>",
          OwsContextView.as_view(),
          name="ows-context-detail"),

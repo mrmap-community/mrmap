@@ -7,6 +7,7 @@ import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
 import ElementHistory from '../../../Generic/ServiceShow/ElementHistory';
 import ElementInspection from '../../../Generic/ServiceShow/ElementInspection';
+import ElementPreview from '../../../Generic/ServiceShow/ElementPreview';
 import MapViewerButton from '../../Button/MapViewerButton';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
@@ -70,6 +71,9 @@ export const WmsLayers = () => {
               />
           )}
           history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
+          preview={(layer) => (
+              <ElementPreview key={String(layer?.id)} protocol='WMS' element={layer} service={record}/>
+          )}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>

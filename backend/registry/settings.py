@@ -20,6 +20,15 @@ MIN_STEP_SIZE = 1
 MAX_STEP_SIZE = 32767
 
 
+# How long one GetRecords request may take. The time scales with the requested page size, so a
+# big page which is only slow is not mistaken for a refused one and shrunk away (#694). The
+# per-record share is what the flat 60 s of the historical step size of 50 meant, the base covers
+# connect and parse time, and the cap keeps a pathological size from occupying a worker forever.
+HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS = 10
+HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS = 1.2
+HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS = 900
+
+
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds

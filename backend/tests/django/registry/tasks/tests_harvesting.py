@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -6,13 +7,14 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from MrMap.settings import BASE_DIR
-from registry.enums.harvesting import LogKindEnum
+from registry.enums.harvesting import (LogKindEnum, LogLevelEnum)
 from registry.exceptions.harvesting import InternalServerError
 from registry.models.harvest import (HarvestingJob, HarvestingLog,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import CatalogueService
 from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.tasks.harvest import (HarvestingTask, call_fetch_records,
                                     call_fetch_total_records,
                                     call_md_metadata_file_to_db)
@@ -50,6 +52,55 @@ def logging_response(request, content, status_code):
     response = MockResponse(content=content, status_code=status_code)
     response.request = request
     return response
+
+
+TOTAL_RECORDS = 30
+MAX_RECORDS_PARAM = re.compile(r"maxRecords=(\d+)")
+START_POSITION_PARAM = re.compile(r"startPosition=(\d+)")
+
+REFUSED = ('<ExceptionReport><Exception exceptionCode="InvalidParameterValue"'
+           ' exceptionText="maxRecords too large"/></ExceptionReport>')
+
+
+def get_records_document(start_position, answered, total=TOTAL_RECORDS):
+    """a well typed GetRecordsResponse carrying `answered` gmd:MD_Metadata records"""
+    records = "".join(
+        f'<gmd:MD_Metadata gco:id="r{start_position + i}"/>' for i in range(answered))
+    return ('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"'
+            ' xmlns:gmd="http://www.isotc211.org/2005/gmd"'
+            ' xmlns:gco="http://www.isotc211.org/2005/gco">'
+            f'<csw:SearchResults numberOfRecordsMatched="{total}"'
+            f' numberOfRecordsReturned="{answered}" elementSet="full" nextRecord="0">'
+            f'{records}</csw:SearchResults></csw:GetRecordsResponse>')
+
+
+def csw_with_max_records_limit(limit, hits_always_ok=False):
+    """a catalogue which refuses every GetRecords request asking for more than `limit` records -
+    the usual answer to a too-large maxRecords - and which otherwise answers exactly what it is
+    asked for, never more records than the catalogue holds (#694)"""
+    def answer(request, timeout):
+        max_records = MAX_RECORDS_PARAM.search(request.url)
+        if max_records is None:
+            # the count query of fetch_total_records asks for no page at all
+            return logging_response(
+                request, get_records_document(1, 0), status.HTTP_200_OK)
+        wanted = int(max_records.group(1))
+        is_hits = "resultType=hits" in request.url
+        if wanted > limit and not (hits_always_ok and is_hits):
+            return logging_response(request, REFUSED, status.HTTP_400_BAD_REQUEST)
+        start = int(START_POSITION_PARAM.search(request.url).group(1))
+        if is_hits:
+            return logging_response(
+                request, get_records_document(start, 0), status.HTTP_200_OK)
+        answered = min(wanted, TOTAL_RECORDS - start + 1)
+        return logging_response(
+            request, get_records_document(start, answered), status.HTTP_200_OK)
+    return answer
+
+
+def csw_refusing_everything(request, timeout):
+    """a catalogue which answers every GetRecords with the same refusal"""
+    return logging_response(request, REFUSED, status.HTTP_400_BAD_REQUEST)
 
 
 def side_effect_broken_fallback(fallback_status_code):
@@ -293,3 +344,216 @@ class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
         self.assertFalse(harvesting_job.done_at, None)
         # dataset metadata object was created
         self.assertEqual(DatasetMetadataRecord.objects.count(), 1)
+
+
+class HarvestingStepSizeTest(TransactionTestCase):
+    """the page size a run works with is what the catalogue answers (#694)"""
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
+
+    def setUp(self):
+        setup_capabilitites_file()
+
+    @staticmethod
+    def requested_sizes(send_request):
+        """the maxRecords values of all requests which asked for a page"""
+        return [MAX_RECORDS_PARAM.search(call.kwargs["request"].url).group(1)
+                for call in send_request.call_args_list
+                if MAX_RECORDS_PARAM.search(call.kwargs["request"].url)]
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
+    @patch("celery.canvas.Signature.apply_async", return_value=None)
+    @patch("celery.canvas.Signature.apply", return_value=None)
+    @patch("celery.canvas.chord.apply_async", return_value=None)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_with_max_records_limit(10)
+    )
+    def test_step_size_is_probed_before_the_fan_out_is_planned(self, mocked_send_request, *mocked_canvas):
+        """a catalogue which refuses maxRecords above 10 is asked 50, 25 and 12 and answers 6 -
+        and the fan-out is planned with 6, so the refused size never reaches the real pages"""
+        call_fetch_total_records.run(harvesting_job_id=1)
+
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        self.assertEqual(harvesting_job.total_records, TOTAL_RECORDS)
+        self.assertEqual(harvesting_job.max_step_size, 6)
+        self.assertEqual(self.requested_sizes(mocked_send_request),
+                         ["50", "25", "12", "6"])
+
+        descriptions = list(HarvestingLog.objects.filter(
+            harvesting_job_id=1).values_list("description", flat=True))
+        self.assertIn(
+            "catalogue refused GetRecords with maxRecords=50, probing 25", descriptions)
+        self.assertIn(
+            "catalogue refused GetRecords with maxRecords=25, probing 12", descriptions)
+        self.assertIn(
+            "catalogue refused GetRecords with maxRecords=12, probing 6", descriptions)
+        self.assertIn(
+            "catalogue answers GetRecords with maxRecords=6;"
+            " the harvest is planned with that size", descriptions)
+        self.assertTrue(
+            any("step size 6" in description for description in descriptions),
+            "the fan-out log names the size the run plans with")
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
+    @patch("celery.canvas.Signature.apply_async", return_value=None)
+    @patch("celery.canvas.Signature.apply", return_value=None)
+    @patch("celery.canvas.chord.apply_async", return_value=None)
+    @patch.object(CatalogueServiceClient, "advertised_max_records", return_value=25)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_with_max_records_limit(25)
+    )
+    def test_capabilities_limit_starts_the_probe(self, mocked_send_request, mocked_hint, *mocked_canvas):
+        """a limit named by the capabilities is where the probing starts - but the service is
+        still the one which answers, the hint is only the first thing asked of it (#694)"""
+        call_fetch_total_records.run(harvesting_job_id=1)
+
+        self.assertEqual(self.requested_sizes(mocked_send_request), ["25"])
+        self.assertEqual(HarvestingJob.objects.get(pk=1).max_step_size, 25)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
+    @patch("celery.canvas.Signature.apply_async", return_value=None)
+    @patch("celery.canvas.Signature.apply", return_value=None)
+    @patch("celery.canvas.chord.apply_async", return_value=None)
+    @patch.object(CatalogueServiceClient, "advertised_max_records", return_value=1000)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_with_max_records_limit(1000)
+    )
+    def test_capabilities_limit_never_raises_the_planned_size(self, mocked_send_request, mocked_hint, *mocked_canvas):
+        """a limit above the size the run starts from is no reason to ask bigger: the probe
+        starts at the planned size"""
+        call_fetch_total_records.run(harvesting_job_id=1)
+
+        self.assertEqual(self.requested_sizes(mocked_send_request), ["50"])
+        self.assertEqual(HarvestingJob.objects.get(pk=1).max_step_size, 50)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
+    @patch("celery.canvas.Signature.apply_async", return_value=None)
+    @patch("celery.canvas.Signature.apply", return_value=None)
+    @patch("celery.canvas.chord.apply_async", return_value=None)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_with_max_records_limit(10)
+    )
+    def test_catalogue_with_limit_below_the_step_size_is_harvested_completely(
+            self, mocked_send_request, *mocked_canvas):
+        """the operator of a catalogue whose limit is 10 knows nothing of it: the run probes,
+        plans and fetches all its pages at 6 records and nothing stays missing (#694)"""
+        call_fetch_total_records.run(harvesting_job_id=1)
+
+        for start_position in (1, 7, 13, 19, 25):
+            call_fetch_records.run(
+                harvesting_job_id=1, start_position=start_position)
+
+        self.assertEqual(
+            TemporaryMdMetadataFile.objects.filter(job_id=1).count(), TOTAL_RECORDS)
+        self.assertFalse(HarvestingLog.objects.filter(
+            harvesting_job_id=1,
+            kind=LogKindEnum.COUNT_MISSMATCH.value).exists(),
+            "a run which fetched every page answers no trace of missing records")
+
+        annotated: HarvestingJob = HarvestingJob.objects.with_process_info().get(pk=1)
+        self.assertGreaterEqual(annotated.progress, 0)
+        self.assertLessEqual(annotated.progress, 100)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_with_max_records_limit(10, hits_always_ok=True)
+    )
+    def test_range_of_a_refused_page_is_fetched_at_halved_sizes(self, mocked_send_request):
+        """a catalogue which answers the size question but refuses the real pages above 10
+        records still sees its page complete: the missing part of the range is asked with 25,
+        12 and then 6 records, and its rest is harvested at the size which answered (#694)"""
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        harvesting_job.total_records = TOTAL_RECORDS
+        harvesting_job.save()
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(
+            TemporaryMdMetadataFile.objects.filter(job_id=1).count(), TOTAL_RECORDS)
+        self.assertEqual(
+            self.requested_sizes(mocked_send_request),
+            ["50", "25", "12", "6", "6", "6", "6", "6", "6"])
+
+        # the timeout scaled with the sizes asked for: 50, 25 and 12 records had 70, 40 and 24 s
+        self.assertEqual(
+            [call.kwargs["timeout"] for call in mocked_send_request.call_args_list][:3],
+            [70, 40, 24])
+
+        descriptions = list(HarvestingLog.objects.filter(
+            harvesting_job_id=1,
+            level=LogLevelEnum.WARNING.value).values_list("description", flat=True))
+        self.assertIn(
+            "GetRecords with maxRecords=50 at startPosition 1 was refused,"
+            " the missing part is asked with 25", descriptions)
+        self.assertIn(
+            "GetRecords with maxRecords=25 at startPosition 1 was refused,"
+            " the missing part is asked with 12", descriptions)
+        self.assertIn(
+            "GetRecords with maxRecords=12 at startPosition 1 was refused,"
+            " the missing part is asked with 6", descriptions)
+        self.assertFalse(HarvestingLog.objects.filter(
+            harvesting_job_id=1,
+            kind=LogKindEnum.COUNT_MISSMATCH.value).exists())
+
+        annotated: HarvestingJob = HarvestingJob.objects.with_process_info().get(pk=1)
+        self.assertGreaterEqual(annotated.progress, 0)
+        self.assertLessEqual(annotated.progress, 100)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=csw_refusing_everything
+    )
+    def test_a_range_refused_at_every_size_stops_at_the_floor_and_leaves_the_trace(
+            self, mocked_send_request):
+        """the halving is bounded: from the step size of 50 it asks 50, 25, 12, 6, 3 and 1,
+        and what stays missing is answered the way #690 defines it"""
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        harvesting_job.total_records = 100
+        harvesting_job.save()
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_sizes(mocked_send_request),
+                         ["50", "25", "12", "6", "3", "1"])
+        self.assertEqual(mocked_send_request.call_count, 6)
+        self.assertEqual(
+            TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 0)
+        traces = HarvestingLog.objects.filter(
+            harvesting_job_id=1, kind=LogKindEnum.COUNT_MISSMATCH.value)
+        self.assertEqual(traces.count(), 1)
+        self.assertEqual(traces.first().description, "0<50")
+
+    def test_request_timeout_scales_with_the_page_size(self):
+        """a page which is only slow must not read as a page which does not work (#694)"""
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        self.assertEqual(harvesting_job.get_request_timeout(50), 70)
+        self.assertEqual(harvesting_job.get_request_timeout(500), 610)
+        self.assertEqual(harvesting_job.get_request_timeout(32767), 900)

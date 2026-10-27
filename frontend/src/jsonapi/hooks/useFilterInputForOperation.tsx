@@ -19,7 +19,10 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
   const filterFieldParts = filterExtensions['x-jsonapi-field-parts'] as string[] | undefined;
 
   const filterSchema = schema.schema as OpenAPIV3.SchemaObject;
-  const name = schema.name.replace(/filter\[/g, '').replace(/\]/g, '').replace(/\./g, '_filter_lookup_')
+  const name = schema.name
+  .replaceAll('filter[', '')
+  .replaceAll(']', '')
+  .replaceAll('.', '_filter_lookup_');
   
   const label = `${filterFieldParts?.join('.') ?? name} ${filterLookupExpressionLabel || '(' + schema.description + ')'}`;
 

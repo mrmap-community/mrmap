@@ -54,7 +54,7 @@ class CswServiceView(View):
         # TODO: HAndle ELEMENTSETNAME parameter, handle resultType parameter
         # FIXME: if post method, this will not cover the check
 
-        elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":
+        elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
             return NotSupported(
                 # ogc_request=self.ogc_request,
                 service_type=self.ogc_request.service_type,
@@ -146,14 +146,14 @@ class CswServiceView(View):
             operation_parameters={
                 "GetRecords": {
                     "CONSTRAINTLANGUAGE": ["FILTER", "CQL_TEXT"],
-                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],  # NOSONAR normative ISO 19139 gmd outputSchema identifier advertised in the capabilities - not a network endpoint
                     "outputFormat": ["application/xml"],
                     "ElementSetName": ["full"],
                     "resultType": ["results", "hits", "validate"],
                     "typeNames": ["gmd:MD_Metadata"],
                 },
                 "GetRecordById": {
-                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],  # NOSONAR normative ISO 19139 gmd outputSchema identifier advertised in the capabilities - not a network endpoint
                     "outputFormat": ["application/xml"],
                     "ElementSetName": ["full"],
                     "typeNames": ["gmd:MD_Metadata"],

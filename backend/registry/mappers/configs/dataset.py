@@ -8,7 +8,7 @@ XPATH_MAP = {
             "gco": NAMESPACE_LOOKUP["gco"],
             "srv": NAMESPACE_LOOKUP["srv"],
         },
-        "_schema": "http://www.isotc211.org/2005/gmd",
+        "_schema": "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd identifier of the mapped metadata schema - not a network endpoint
         "_pre_save": [
         ],
         "dataset": {

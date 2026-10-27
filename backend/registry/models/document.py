@@ -106,8 +106,10 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         if self.camouflage:
             return self.xml_secured(request=request)
         else:
+            # get_updated_capabilitites answers the document as a tree, which
+            # etree.tostring serializes including its declaration
             return etree.tostring(
-                self.get_updated_capabilitites().getroottree().getroot(),
+                self.get_updated_capabilitites(),
                 pretty_print=True,
                 xml_declaration=True,
                 encoding="UTF-8"

@@ -442,6 +442,7 @@ const en = lodashMerge(
     historyList: {
       title: "Recent changes",
       selectedService: "Latest 10 changes to %{service}",
+      selectedElement: "Latest 10 changes to %{element}",
       allServices: "Latest 10 changes across all services",
       created: "Created",
       updated: "Updated",

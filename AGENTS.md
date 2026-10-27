@@ -136,6 +136,13 @@ After modifications:
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.
 
+### SonarCloud findings
+
+SonarCloud scans the new code of a change and answers the pull request with its findings. Solve a
+reported finding where it was reported: fix the flagged code or resolve the finding in the report.
+Do not push new code around a finding to work around it — new code is scanned as new code too, the
+finding stays open and the report ends up with more new issues than before.
+
 ## Git conventions
 
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or

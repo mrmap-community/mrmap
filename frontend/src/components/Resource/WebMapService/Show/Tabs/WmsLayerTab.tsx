@@ -5,6 +5,7 @@ import { Container, Grid, Stack } from '@mui/material';
 
 import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
+import ElementHistory from '../../../Generic/ServiceShow/ElementHistory';
 import ElementInspection from '../../../Generic/ServiceShow/ElementInspection';
 import MapViewerButton from '../../Button/MapViewerButton';
 import WmsTreeView from '../../TreeView/WmsTreeView';
@@ -60,7 +61,15 @@ export const WmsLayers = () => {
           id={selectedLayer ?? undefined}
           serviceResource='WebMapService'
           serviceId={record?.id}
-          previewAction={<MapViewerButton wmsRecord={record} size='small'/>}
+          previewAction={(layer) => (
+              <MapViewerButton
+                  key={String(layer?.id)}
+                  wmsRecord={record}
+                  capabilititesUrl={layer?.capabilitiesUrl}
+                  size='small'
+              />
+          )}
+          history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>
@@ -79,10 +88,10 @@ export const WmsLayers = () => {
     
   return (
     <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >
-        <Grid size={2}>
+        <Grid size={{ xs: 12, md: 3 }}>
             <WmsTreeView record={wmsRecord}/>          
         </Grid>
-        <Grid size={10}>
+        <Grid size={{ xs: 12, md: 9 }}>
             {rightContent}
         </Grid>
     </Grid>

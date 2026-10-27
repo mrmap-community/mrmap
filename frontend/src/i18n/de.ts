@@ -422,6 +422,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   historyList: {
     title: "Letzte Änderungen",
     selectedService: "Die letzten 10 Änderungen an %{service}",
+    selectedElement: "Die letzten 10 Änderungen an %{element}",
     allServices: "Die letzten 10 Änderungen aller Dienste",
     created: "Erstellt",
     updated: "Aktualisiert",

@@ -65,8 +65,13 @@ export interface ElementInspectionProps {
   id?: RaRecord["id"];
   serviceResource: "WebMapService" | "WebFeatureService";
   serviceId?: RaRecord["id"];
-  /** Preview destination of the owning service, e.g. the map viewer button. */
-  previewAction?: ReactNode;
+  /** Preview destination of the owning service, e.g. the map viewer button. A
+   *  service which points its viewer at exactly one resource of its capabilities
+   *  needs the element which is inspected to do so and is therefore handed the
+   *  answer of the element to build the destination out of it. */
+  previewAction?: ReactNode | ((record?: RaRecord) => ReactNode);
+  /** The recent changes of the element, e.g. the compact feed of the changelog. */
+  history?: (record?: RaRecord) => ReactNode;
 }
 
 /**
@@ -74,7 +79,10 @@ export interface ElementInspectionProps {
  * reference systems and time extents, the capabilities constraints exposed
  * for the element type, and destinations to related metadata, access rules
  * and the authorized editor. It states what the api answers; an absent value
- * is presented as not exposed, never as a passed check.
+ * is presented as not exposed, never as a passed check. The preview and the
+ * recent changes of the element are asked for by the service which owns it,
+ * because only it knows which resource of its capabilities the preview has to
+ * load; both are handed the inspected element to build their answer out of it.
  */
 const ElementInspection = ({
   resource,
@@ -82,6 +90,7 @@ const ElementInspection = ({
   serviceResource,
   serviceId,
   previewAction,
+  history,
 }: ElementInspectionProps) => {
   const translate = useTranslate();
   const message = (key: string) => translate(`layerInspection.${key}`);
@@ -135,6 +144,8 @@ const ElementInspection = ({
     ? "AllowedWebMapServiceOperation"
     : "AllowedWebFeatureServiceOperation";
   const describe = record.describeFeatureTypeDocument as string | undefined;
+  // the owning service builds its destination out of the element which is inspected
+  const preview = typeof previewAction === "function" ? previewAction(record) : previewAction;
 
   return (
     <ResourceContextProvider value={resource}>
@@ -144,7 +155,7 @@ const ElementInspection = ({
             {readableName(record)}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ ml: "auto" }}>
-            {previewAction}
+            {preview}
             {hasEdit && (
               // react-admin gates the editor itself; it is offered when permitted
               <Button size="small" component={Link} to={`/${resource}/${String(id)}/edit`}>
@@ -277,6 +288,7 @@ const ElementInspection = ({
             )}
           </Stack>
         </Section>
+        {history?.(record)}
       </Stack>
     </ResourceContextProvider>
   );

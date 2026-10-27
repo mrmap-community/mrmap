@@ -9,6 +9,7 @@ import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRe
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
 import CustomListActions from "../../../Lists/CustomListActions";
 import AccessRulesSummary from "../../Generic/ServiceShow/AccessRulesSummary";
+import ElementHistory from "../../Generic/ServiceShow/ElementHistory";
 import ElementInspection from "../../Generic/ServiceShow/ElementInspection";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
@@ -90,7 +91,16 @@ function FeatureTypesTab() {
           id={selected?.id}
           serviceResource="WebFeatureService"
           serviceId={record?.id}
-          previewAction={record ? <MapViewerButton key={record.id} protocol="WFS" wmsRecord={record} size="small" /> : undefined}
+          previewAction={(featureType) => (
+            <MapViewerButton
+              key={String(featureType?.id)}
+              protocol="WFS"
+              wmsRecord={record}
+              capabilititesUrl={featureType?.capabilitiesUrl}
+              size="small"
+            />
+          )}
+          history={(featureType) => <ElementHistory resource="FeatureType" record={featureType} />}
         />
       </Grid>
     </Grid>

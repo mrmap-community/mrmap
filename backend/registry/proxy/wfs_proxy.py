@@ -62,6 +62,13 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         # To use the information in common django/python way, we convert the given json object to dict/geos objects.
         security_info_per_feature_type = []
 
+        # The security manager annotates this attribute only for the requests it
+        # secures per feature type (registry/managers/security.py). A capabilities
+        # request is not one of them, so there is nothing to convert and the service
+        # is answered the way it was found.
+        if getattr(service, "security_info_per_feature_type", None) is None:
+            return service
+
         for security_info in service.security_info_per_feature_type:
             polygon_dict = security_info.get("allowed_area_union")
             geometry = GEOSGeometry(json.dumps(polygon_dict))

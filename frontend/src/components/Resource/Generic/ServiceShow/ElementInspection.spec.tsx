@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RecordContextProvider, useRecordContext } from "react-admin";
 import { MemoryRouter } from "react-router-dom";
 
 import { render, screen } from "@testing-library/react";
@@ -75,6 +76,12 @@ const featureType = {
   describeFeatureTypeDocument: "",
   isSecured: null,
   isSpatialSecured: null,
+};
+
+/** Tells which record an inspection gave to one of its actions. */
+const RecordName = ({ label }: { label: string }) => {
+  const record = useRecordContext();
+  return <span>{label} {String(record?.stringRepresentation)}</span>;
 };
 
 const showLayer = () =>
@@ -227,5 +234,44 @@ describe("element inspection", () => {
     state.error = new Error("gone");
     showLayer();
     expect(screen.getByText("layerInspection.loadError")).toBeInTheDocument();
+  });
+
+  it("gives the inspected record to the preview action which asks for it", () => {
+    state.record = layer;
+    render(
+      <MemoryRouter>
+        <ElementInspection
+          resource="Layer"
+          id="layer-1"
+          serviceResource="WebMapService"
+          previewAction={(record) => (
+            <RecordContextProvider value={record}>
+              <RecordName label="preview of" />
+            </RecordContextProvider>
+          )}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("preview of roads")).toBeInTheDocument();
+  });
+
+  it("shows the history of the inspected record", () => {
+    state.record = layer;
+    render(
+      <MemoryRouter>
+        <ElementInspection
+          resource="Layer"
+          id="layer-1"
+          serviceResource="WebMapService"
+          history={(record) => (
+            <RecordContextProvider value={record}>
+              <RecordName label="history of" />
+            </RecordContextProvider>
+          )}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("history of roads")).toBeInTheDocument();
+    expect(screen.queryByText("preview of roads")).not.toBeInTheDocument();
   });
 });

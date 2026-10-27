@@ -1,8 +1,17 @@
+from dataclasses import asdict
+
+from django.http import JsonResponse
+from drf_spectacular.utils import (OpenApiParameter, OpenApiTypes,
+                                   extend_schema, extend_schema_view)
+from rest_framework.decorators import action
+from rest_framework.renderers import JSONRenderer
 from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
+from registry.helper.metadata_resolution import (resolve_record,
+                                                 validate_capabilities_candidate)
 from registry.models.metadata import (DatasetMetadataRecord, IsoCategory,
                                       Keyword, Language, Licence,
                                       MetadataContact, MetadataRelation, MimeType,
@@ -22,6 +31,11 @@ from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
+
+
+#: The resolution answers what the caller is allowed to see, so a shared
+#: cache must not answer it for another user.
+_NO_STORE = {"Cache-Control": "no-store"}
 
 
 class MimeTypeSetMixin:
@@ -156,9 +170,87 @@ class NestedStyleViewSet(
     pass
 
 
+class MetadataResolutionViewSetMixin:
+    """ Which services can deliver one metadata record.
+
+        Both actions answer plain JSON instead of a JSON:API resource, because
+        the answer is computed from the stored document and the derived
+        coupling index and is not held by the registry - like the service
+        previews of :mod:`registry.views.service`, which they mirror including
+        ``filter_backends`` and the ``no-store`` header.
+
+        Discovery performs no request at all; the validation asks one
+        advertised endpoint with a bounded time and response size. Both
+        enforce the view permission of the record through ``get_object``, like
+        ``retrieve`` does, and never write to the registry: discovering a
+        service is not registering one.
+    """
+
+    @classmethod
+    def get_extra_actions(cls):
+        actions = super().get_extra_actions()
+        # Nested relationship viewsets inherit the metadata UI customizations,
+        # but the resolution addresses only the canonical metadata endpoint.
+        if issubclass(cls, NestedModelViewSet):
+            return [item for item in actions if item.__name__ not in {
+                "service_candidates", "validate_service_candidate"}]
+        return actions
+
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="The endpoints which the stored document advertises to "
+                    "access the described resource, each with its state, "
+                    "source and evidence, plus the registered resources a "
+                    "stored metadata relation already verified. Performs no "
+                    "upstream request; the answer stays unvalidated until "
+                    "validate-service-candidate is asked.",
+    )
+    @action(detail=True, methods=["get"], url_path="service-candidates",
+            renderer_classes=[JSONRenderer], filter_backends=[])
+    def service_candidates(self, request, *args, **kwargs):
+        resolution = resolve_record(self.get_object(), request.user)
+        return JsonResponse(asdict(resolution), headers=_NO_STORE)
+
+    @extend_schema(
+        parameters=[OpenApiParameter(
+            "url", OpenApiTypes.STR, required=True,
+            description="The candidate url as service-candidates answered it."
+        )],
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
+                   422: OpenApiTypes.OBJECT},
+        description="Ask one advertised capabilities endpoint, once, in an "
+                    "anonymous session with a bounded time and response size, "
+                    "and confirm the layer and feature type hints of the "
+                    "record against its answer. Only a url which this record "
+                    "advertised is ever asked; anything else is refused with "
+                    "422 without a request. Credentials of the caller are "
+                    "never forwarded.",
+    )
+    @action(detail=True, methods=["get"], url_path="validate-service-candidate",
+            renderer_classes=[JSONRenderer], filter_backends=[])
+    def validate_service_candidate(self, request, *args, **kwargs):
+        record = self.get_object()
+        url = request.query_params.get("url", "")
+        if not url:
+            return JsonResponse({"error": "url-required"}, status=400,
+                                headers=_NO_STORE)
+        resolution = resolve_record(record, request.user)
+        candidate = next((
+            candidate for candidate in resolution.candidates
+            if url in (candidate.url, candidate.original_url)), None)
+        if candidate is None:
+            # Only what the record itself advertised may be asked; this is
+            # what keeps the endpoint from becoming an open proxy.
+            return JsonResponse({"error": "not-advertised"}, status=422,
+                                headers=_NO_STORE)
+        result = validate_capabilities_candidate(candidate, url)
+        return JsonResponse({"url": url, **asdict(result)}, headers=_NO_STORE)
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
+    MetadataResolutionViewSetMixin,
 ):
     queryset = DatasetMetadataRecord.objects.select_related("licence")
     serializer_class = DatasetMetadataRecordSerializer
@@ -321,6 +413,12 @@ class DatasetMetadataViewSetMixin(
         return qs
 
 
+@extend_schema_view(
+    service_candidates=extend_schema(
+        operation_id="service_candidates_DatasetMetadataRecord"),
+    validate_service_candidate=extend_schema(
+        operation_id="validate_service_candidate_DatasetMetadataRecord"),
+)
 class DatasetMetadataViewSet(
         DatasetMetadataViewSetMixin,
         ModelViewSet
@@ -398,7 +496,8 @@ class NestedDatasetContactViewSet(
 
 class ServiceMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
-    PreloadNotIncludesMixin
+    PreloadNotIncludesMixin,
+    MetadataResolutionViewSetMixin
 ):
     queryset = ServiceMetadataRecord.objects.select_related("licence")
     serializer_class = ServiceMetadataRecordSerializer
@@ -479,6 +578,12 @@ class ServiceMetadataViewSetMixin(
         return qs
 
 
+@extend_schema_view(
+    service_candidates=extend_schema(
+        operation_id="service_candidates_ServiceMetadataRecord"),
+    validate_service_candidate=extend_schema(
+        operation_id="validate_service_candidate_ServiceMetadataRecord"),
+)
 class ServiceMetadataViewSet(
         ServiceMetadataViewSetMixin,
         ModelViewSet

@@ -18,13 +18,16 @@ from extras.managers import (ChoiceManager, DefaultHistoryManager,
 from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
                                 MetadataCharsetChoices, UpdateFrequencyChoices)
-from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
+from registry.enums.metadata import (DatasetFormatEnum,
+                                     MetadataCouplingKindEnum,
+                                     MetadataOriginEnum,
                                      MetadataRelationPublicationEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
+                                        MetadataCouplingReferenceManager,
                                         MetadataRelationManager,
                                         ServiceMetadataRecordManager,
                                         TimeExtentManager)
@@ -1227,3 +1230,72 @@ class ServiceMetadataRecord(MetadataRecord):
         constraints = [
 
         ] + MetadataRecord.Meta.constraints
+
+
+class MetadataCouplingReference(models.Model):
+    """ Derived index of the coupling references which a harvested service
+        metadata record advertises in its iso document.
+
+        A service record names the datasets it operates on with
+        ``srv:operatesOn/@uuidref``, ``srv:operatesOn/@xlink:href`` and the
+        identifiers and scoped names of its ``srv:SV_CoupledResource``
+        elements. This model keeps one row per advertised reference, so the
+        inverse question - which harvested service records refer to a given
+        dataset - is answered by an indexed query instead of parsing every
+        stored document.
+
+        The rows are derived data and no code besides
+        :meth:`registry.managers.metadata.MetadataCouplingReferenceManager.rebuild_for`
+        shall write them: they are regenerated from the record's stored
+        ``xml_backup_file`` whenever the service metadata record is saved,
+        they cascade with their source record and the management command
+        ``rebuild_metadata_coupling_references`` repeats the rebuild for all
+        or selected records from the existing stored xml, without a reharvest.
+
+        Note: this index is not :class:`MetadataRelation`. A reference here
+        only repeats what a harvested document claims about a remote coupling;
+        it never asserts that a registered MrMap service delivers the dataset.
+        Such an assertion stays a ``MetadataRelation``, created by the
+        capabilities import or by a curator, see
+        :class:`registry.querys.metadata.MetadataRelationQuerySet`.
+    """
+    service_metadata = models.ForeignKey(to="ServiceMetadataRecord",
+                                         on_delete=models.CASCADE,
+                                         related_name="coupling_references",
+                                         related_query_name="coupling_reference",
+                                         verbose_name=_("service metadata"),
+                                         help_text=_(
+                                             "the harvested service record which advertises this reference."))
+    reference_kind = models.PositiveSmallIntegerField(choices=MetadataCouplingKindEnum.choices,
+                                                      verbose_name=_("reference kind"),
+                                                      help_text=_(
+                                                          "the element which advertised the reference; values of "
+                                                          "different kinds live in different namespaces."))
+    value = models.CharField(max_length=4096,
+                             verbose_name=_("reference value"),
+                             help_text=_("the uuid or uri as the stored document names it."))
+    operation_name = models.CharField(max_length=1024,
+                                      blank=True,
+                                      default="",
+                                      verbose_name=_("operation name"),
+                                      help_text=_("the coupled operation when the record names one."))
+    source = models.CharField(max_length=1024,
+                              blank=True,
+                              default="",
+                              verbose_name=_("xml location"),
+                              help_text=_("location of the reference inside the stored document."))
+
+    objects = MetadataCouplingReferenceManager()
+
+    class Meta:
+        verbose_name = _("coupling reference")
+        verbose_name_plural = _("coupling references")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service_metadata", "reference_kind", "value", "operation_name"],
+                name="md_coupling_unique_per_record"),
+        ]
+        indexes = [
+            models.Index(fields=["reference_kind", "value"],
+                         name="md_coupling_kind_value_idx"),
+        ]

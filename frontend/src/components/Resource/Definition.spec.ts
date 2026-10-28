@@ -11,18 +11,17 @@ const listOptionsOf = (name: string): ListOptions | undefined =>
   (RESOURCES.find((resource) => resource.name === name)?.options as { list?: ListOptions } | undefined)?.list;
 
 /**
- * The screens which list the elements of a service show the live preview of the element their user
- * clicked beside their rows, and that preview asks the capabilities document the element names. The
- * url of the document is no column of these screens, so the list only answers it when its sparse
- * fieldset names it - without it the preview of the selection says that the element names no
- * document instead of drawing it.
+ * The screens which list the elements of a service offer the map viewer of the element their user
+ * clicked beside their rows, and that button opens the service which owns the element. The service is
+ * no column of these screens, so the list only answers it when its sparse fieldset names it - without
+ * it the button beside the selection has no service to open.
  */
-describe("the resource definitions of the screens which preview their selection", () => {
-  it.each(["Layer", "FeatureType"])("%s asks for the preview of its aside", (name) => {
+describe("the resource definitions of the screens which offer their selection in the map viewer", () => {
+  it.each(["Layer", "FeatureType"])("%s asks for the viewer button of its aside", (name) => {
     const list = listOptionsOf(name);
     expect(list?.aside).toBeDefined();
     const fieldset = list?.sparseFieldsets?.find((fields) => fields.type === name);
-    expect(fieldset?.fields).toContain("capabilities_url");
+    expect(fieldset?.fields).toContain("service");
   });
 
   it("names the columns of its rows in that fieldset too", () => {

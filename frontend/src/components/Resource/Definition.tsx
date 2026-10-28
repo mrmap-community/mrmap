@@ -28,7 +28,7 @@ import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
-import SelectedElementPreviewCard from './Generic/ServiceShow/SelectedElementPreviewCard';
+import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
@@ -55,21 +55,19 @@ import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServ
  * The attributes the screens which list the registered layers and feature types answer apart from
  * the columns their grid shows.
  *
- * `capabilities_url` is no column of these screens and nobody would switch one on: it is the url of
- * the capabilities document which advertises the clicked element alone, and the preview of the
- * selection beside the rows asks exactly that document. A list which does not name the attribute
- * answers rows its own preview cannot draw and says so. The columns a generic list keeps by default
- * are named beside it, because the request which answers a page goes out before the grid registered
- * its columns - the rows of a first visit would answer without their titles otherwise. The details
- * panel of the web map service list drives the fieldset of that list the same way, for the
- * `preview_url` of `ServiceDetailsCard`.
+ * `service` is no column of these screens and nobody would switch one on: it is the service the
+ * viewer button beside the rows opens, and a row which does not name its service has nothing to
+ * open. The columns a generic list keeps by default are named beside it, because the request which
+ * answers a page goes out before the grid registered its columns - the rows of a first visit would
+ * answer without their titles otherwise. The details panel of the web map service list drives the
+ * fieldset of that list the same way, for the `preview_url` of `ServiceDetailsCard`.
  */
 const ELEMENT_LIST_FIELDS = [
   "id",
   "title",
   "abstract",
   "string_representation",
-  "capabilities_url",
+  "service",
 ];
 
 const RESOURCES: Array<ResourceProps> = [
@@ -93,12 +91,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementPreviewCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementPreviewCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {

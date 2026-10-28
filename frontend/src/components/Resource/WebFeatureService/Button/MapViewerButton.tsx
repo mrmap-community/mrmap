@@ -14,6 +14,7 @@ import {
   ListItemButton,
 } from '@mui/material';
 
+import { dropUnassignedAuthentication } from '../../../../ows-lib/OwsContext/authentication';
 import { OWSContext } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
 import { getAuthToken } from '../../../../providers/authProvider';
@@ -23,6 +24,9 @@ import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/Ows
 export interface WfsMapViewerButtonProps extends ButtonProps {
   wfsRecord?: RaRecord
   capabilititesUrl?: string
+  /** The feature type the viewer shall show: it is the one type the map asks for, and the chooser
+   *  of the types stays out of the way, because its user already chose this one. */
+  element?: RaRecord
 }
 
 const sameOrigin = (href: string) => {
@@ -51,6 +55,7 @@ export const featureTypeAliases = (name: string): string[] =>
 const WfsMapViewerButton = ({
   wfsRecord,
   capabilititesUrl,
+  element,
   children,
   ...rest
 }: WfsMapViewerButtonProps): ReactNode => {
@@ -101,16 +106,32 @@ const WfsMapViewerButton = ({
     if (clicked && wfsRecordWithUrl === undefined)
       refetch()
     else if (clicked && wfsRecordWithUrl !== undefined && !selecting && !confirmed) {
-      setSelected(featureTypes.map(featureType => String(featureType.identifier)))
-      setSelecting(true)
+      // the element the caller named is chosen with its click in the list, so the map asks that one
+      // type and the chooser would only ask what is already answered. A type the service does not
+      // offer leaves the chooser in charge, because there would be nothing to ask for.
+      const named = element === undefined
+        ? undefined
+        : featureTypes.find(featureType => featureType.id === element.id)
+      if (named !== undefined) {
+        setSelected([String(named.identifier)])
+        setConfirmed(true)
+        resetContext()
+      } else {
+        setSelected(featureTypes.map(featureType => String(featureType.identifier)))
+        setSelecting(true)
+      }
       setClicked(false)
     }
-  }, [clicked, wfsRecordWithUrl, refetch, selecting, confirmed, featureTypes])
+  }, [clicked, wfsRecordWithUrl, refetch, selecting, confirmed, featureTypes, element, resetContext])
 
   // the types the user chose become the active types of the freshly appended tree; the database
   // records of the feature types travel with the operations like the WMS layers do, so the tree
   // can answer their metadata without another request
-  const beforeSetHook = useCallback((context: OWSContext) => {
+  const beforeSetHook = useCallback((context: OWSContext, treeId: number) => {
+    if (getCapabilitiesUrl !== undefined && sameOrigin(getCapabilitiesUrl))
+      // the registry served this document, so an operation it advertises on another origin is a
+      // public upstream one: the session of the requester is not its credential
+      dropUnassignedAuthentication(context, treeId, getCapabilitiesUrl)
     const selectedAliases = new Set(selected.flatMap(featureTypeAliases))
     context.features
       .filter(feature => feature.getWfsOffering() !== undefined)
@@ -140,7 +161,7 @@ const WfsMapViewerButton = ({
         operation.active = active
       })
     return context
-  }, [selected, featureTypes, wfsRecordWithUrl])
+  }, [selected, featureTypes, wfsRecordWithUrl, getCapabilitiesUrl])
 
   const confirm = useCallback(() => {
     setSelecting(false)

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { RaRecord, useGetMany, useNotify, useRecordContext } from 'react-admin';
+import { RaRecord, RecordContextProvider, useGetMany, useNotify, useRecordContext } from 'react-admin';
 
 import { Container, Grid, Stack } from '@mui/material';
 
@@ -7,8 +7,7 @@ import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
 import ElementHistory from '../../../Generic/ServiceShow/ElementHistory';
 import ElementInspection from '../../../Generic/ServiceShow/ElementInspection';
-import ElementLivePreview from '../../../Generic/ServiceShow/ElementLivePreview';
-import MapViewerButton from '../../Button/MapViewerButton';
+import WmsViewerButtons from '../../Button/ListActions';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
 
@@ -62,16 +61,18 @@ export const WmsLayers = () => {
           id={selectedLayer ?? undefined}
           serviceResource='WebMapService'
           serviceId={record?.id}
-          previewAction={(layer) => (
-              <MapViewerButton
-                  key={String(layer?.id)}
-                  wmsRecord={record}
-                  capabilititesUrl={layer?.capabilitiesUrl}
-                  size='small'
-              />
+          viewerActions={(layer) => (
+              // the buttons read their service from the record context, so the record they open is
+              // named here rather than taken from whatever screen renders this tab
+              <RecordContextProvider value={record}>
+                  <WmsViewerButtons
+                      key={String(layer?.id)}
+                      element={layer}
+                      size='small'
+                  />
+              </RecordContextProvider>
           )}
           history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
-          preview={() => <ElementLivePreview />}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>

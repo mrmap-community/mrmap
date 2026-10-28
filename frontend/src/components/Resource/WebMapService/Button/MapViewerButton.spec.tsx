@@ -208,4 +208,65 @@ describe("map viewer button", () => {
     expect(state.addWMSByUrl).toHaveBeenCalledOnce();
     expect(state.navigate).toHaveBeenCalledWith("/viewer");
   });
+
+  // the viewer activates a layer only through the tree, so a button which is asked for one element
+  // of the document has to tick it itself
+  it.each([
+    ["the layer it is asked to show", { id: "layer" }, "/1/roads"],
+    ["nothing of another element", { id: "another" }, undefined],
+  ])("activates %s", (_name, element, activated) => {
+    state.query.data = service;
+    const view = render(<MapViewerButton element={element} />);
+    fireEvent.click(screen.getByRole("button"));
+    view.rerender(<MapViewerButton element={element} />);
+
+    const operation = { href: "https://wms.example.test/ows?LAYERS=roads" };
+    const context = {
+      features: [
+        {
+          properties: { folder: "/1/roads" },
+          getWmsOperationByCode: () => operation,
+        },
+      ],
+      activateFeature: vi.fn(),
+    };
+    state.addWMSByUrl.mock.calls[0][2](context, 1);
+
+    expect(operation).toHaveProperty("x-mrmap-layer-id", "layer");
+    if (activated === undefined) expect(context.activateFeature).not.toHaveBeenCalled();
+    else expect(context.activateFeature).toHaveBeenCalledWith(activated, true);
+  });
+
+  it("asks a service upstream of the registry document without the session", () => {
+    state.token = "session-token";
+    state.query.data = service;
+    const proxyUrl = "https://mrmap.example.test/mrmap-proxy/wms/service";
+    render(<MapViewerButton capabilititesUrl={proxyUrl} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    const secured: Record<string, unknown> = { href: proxyUrl };
+    const upstream: Record<string, unknown> = {
+      href: "https://upstream.example/ows?LAYERS=roads",
+      "x-authentication-id": "missing:any",
+    };
+    const context = {
+      features: [
+        {
+          properties: { folder: "/1", offerings: [{ operations: [secured] }] },
+          getWmsOperationByCode: () => secured,
+        },
+        {
+          properties: { folder: "/1/roads", offerings: [{ operations: [upstream] }] },
+          getWmsOperationByCode: () => upstream,
+        },
+      ],
+    };
+    state.addWMSByUrl.mock.calls[0][2](context, 1);
+
+    // the document of the registry is asked with the session, its upstream service is not
+    expect(secured["x-authentication-id"]).toBe(
+      (context as unknown as { authenticationHeaders: { id: string }[] }).authenticationHeaders[0].id,
+    );
+    expect(upstream).not.toHaveProperty("x-authentication-id");
+  });
 });

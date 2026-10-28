@@ -1,7 +1,7 @@
-import type { ElementType } from "react";
+import type { ElementType, ReactNode } from "react";
 import { AdminContext, NumberInput, SimpleForm } from "react-admin";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SchemaFormFields from "../../../../jsonapi/components/SchemaFormFields";
@@ -29,9 +29,17 @@ vi.mock("./HarvestThroughputHint", () => ({
   ),
 }));
 
-/** the input the schema answers for the size of a harvest, marked to be readable */
+/**
+ * the input the schema answers for the size of a harvest, marked to be readable
+ *
+ * It renders what it is handed as `helperText`, because that is what an input
+ * answers below itself and where a screen adds the measurement to.
+ */
 const SizeInput = (props: Record<string, unknown>) => (
-  <span data-testid="input">{`${String(props.label)} ${String(props.max)}`}</span>
+  <span data-testid="input">
+    {`${String(props.label)} ${String(props.max)}`}
+    {props.helperText as ReactNode}
+  </span>
 );
 
 const SIZE = {
@@ -111,13 +119,38 @@ describe("the size a harvest starts with, with what the harvests measured", () =
         record={{ id: "csw-1", maxStepSize: 50 }}
       />,
     );
-    expect(screen.getByTestId("hint")).toHaveTextContent("csw-1 50");
+    const input = screen.getByTestId("input");
+    expect(within(input).getByTestId("hint")).toHaveTextContent("csw-1 50");
+  });
+
+  it("answers the measurement where the input describes itself", () => {
+    fields([{ ...SIZE, component: NumberInput }]);
+    const record = { id: "csw-1", maxStepSize: 50 };
+    render(
+      <AdminContext>
+        <SimpleForm record={record} toolbar={false}>
+          <HarvestStepSizeField {...SIZE.props} record={record} />
+        </SimpleForm>
+      </AdminContext>,
+    );
+    const measurement = screen.getByTestId("hint");
+    // the description of the size and its measurement are the one helper text of
+    // the input - the measurement reads as what the input says about itself
+    expect(measurement.parentElement).toBe(
+      screen.getByText(SIZE.props.helperText),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Max step size" })).toHaveAttribute(
+      "aria-describedby",
+      measurement.parentElement?.id,
+    );
   });
 
   it("names no measurement of a catalogue which is not there yet", () => {
     fields([SIZE]);
     render(<HarvestStepSizeField source="maxStepSize" label="Max step size" />);
-    expect(screen.getByTestId("input")).toBeInTheDocument();
+    const input = screen.getByTestId("input");
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveTextContent(SIZE.props.helperText);
     expect(screen.queryByTestId("hint")).not.toBeInTheDocument();
   });
 

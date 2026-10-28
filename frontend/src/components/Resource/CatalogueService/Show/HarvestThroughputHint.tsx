@@ -1,6 +1,6 @@
 import { type Identifier, type RaRecord, useGetList, useTranslate } from "react-admin";
 
-import { Stack, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 
 /**
  * The runs a throughput of a catalogue is measured by.
@@ -74,6 +74,11 @@ const sizesMeasured = (runs: RaRecord[]): SizeMeasurement[] => {
  * with, so this is the measurement of the catalogue and not a comparison with a
  * default (#692).
  *
+ * Every line is a span: this renders as the helper text of the size input, which
+ * is a paragraph, and inherits the caption of that helper text instead of naming a
+ * typography of its own - the measurement is to be read as what the input says
+ * about itself, not as a block beside it.
+ *
  * A catalogue whose runs never finished, or whose runs carry no durations,
  * answers no throughput - and this answers nothing instead of a recommendation
  * which was never measured.
@@ -99,15 +104,24 @@ const HarvestThroughputHint = ({
   const fastest = sizes[0];
   const measured = sizes.reduce((count, size) => count + size.runs, 0);
   return (
-    <Stack spacing={0.25}>
-      <Typography variant="caption" color="text.secondary">
+    <>
+      <Typography
+        component="span"
+        variant="inherit"
+        color="text.secondary"
+        sx={{ display: "block" }}
+      >
         {translate("harvestThroughput.basis", { count: measured })}
       </Typography>
       {sizes.map((size) => (
         <Typography
           key={size.size}
-          variant="caption"
-          sx={{ fontWeight: size.size === fastest.size ? 600 : 400 }}
+          component="span"
+          variant="inherit"
+          sx={{
+            display: "block",
+            fontWeight: size.size === fastest.size ? 600 : 400,
+          }}
         >
           {translate("harvestThroughput.perPage", {
             size: size.size,
@@ -115,7 +129,7 @@ const HarvestThroughputHint = ({
           })}
         </Typography>
       ))}
-      <Typography variant="caption">
+      <Typography component="span" variant="inherit" sx={{ display: "block" }}>
         {translate(
           currentSize === fastest.size
             ? "harvestThroughput.isFastest"
@@ -123,10 +137,15 @@ const HarvestThroughputHint = ({
           { size: fastest.size },
         )}
       </Typography>
-      <Typography variant="caption" color="text.secondary">
+      <Typography
+        component="span"
+        variant="inherit"
+        color="text.secondary"
+        sx={{ display: "block" }}
+      >
         {translate("harvestThroughput.measuredBy")}
       </Typography>
-    </Stack>
+    </>
   );
 };
 

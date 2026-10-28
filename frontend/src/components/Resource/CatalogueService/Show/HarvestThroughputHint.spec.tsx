@@ -100,4 +100,20 @@ describe("the throughput the harvests of a catalogue measured", () => {
     render(<HarvestThroughputHint serviceId="csw-1" />);
     expect(screen.getByText("basis count=1")).toBeInTheDocument();
   });
+
+  it("answers its lines as spans, so an input can carry them as its helper text", () => {
+    runs([{ id: "1", maxStepSize: 50, recordsPerMinute: 15 }]);
+    render(<HarvestThroughputHint serviceId="csw-1" />);
+    // a helper text is a paragraph: only spans may be its lines, and every one of
+    // them is a line of its own and inherits the caption of that helper text
+    [
+      "basis count=1",
+      "perPage size=50 throughput=15",
+      "recommendation size=50",
+      "measuredBy",
+    ].forEach((line) => {
+      expect(screen.getByText(line)).toHaveProperty("tagName", "SPAN");
+      expect(screen.getByText(line)).toHaveStyle({ display: "block" });
+    });
+  });
 });

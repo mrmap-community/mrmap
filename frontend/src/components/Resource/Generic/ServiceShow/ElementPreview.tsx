@@ -8,6 +8,7 @@ import { ImageOverlay, useMap } from "react-leaflet";
 import { Alert, Button, LinearProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 
+import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import FeatureGroupEditor from "../../../Input/FeatureGroupEditor";
 import GeoJsonMap from "../../../MapContainer/GeoJsonMap";
 import { getCoverageBounds } from "../Explorer/coverage";
@@ -56,6 +57,10 @@ export const ElementPreview = ({
   service?: RaRecord;
 }) => {
   const translate = useTranslate();
+  const fields = useFieldsForOperation({
+    operationId: `retrieve_${protocol === "WMS" ? "WebMapService" : "WebFeatureService"}`,
+    forInput: false,
+  });
 
   // an element which is inspected away from the screen of its service does not
   // carry the service, so it is read from the relation of the element alone then
@@ -77,7 +82,11 @@ export const ElementPreview = ({
   const secured = Boolean(
     resolvedService?.isSecured || resolvedService?.isSpatialSecured,
   );
-  const version = resolvedService?.version ? String(resolvedService.version) : undefined;
+  const versionChoices = fields.find((field) => field.props.source === "version")
+    ?.props.choices as { id: unknown; name: string }[] | undefined;
+  const version = versionChoices?.find(
+    (choice) => choice.id === resolvedService?.version,
+  )?.name;
 
   const bounds = useMemo(
     () => getCoverageBounds(element?.bboxLatLon ?? element?.bbox),

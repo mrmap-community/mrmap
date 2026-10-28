@@ -6,6 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ElementPreview from "./ElementPreview";
 
+vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
+  useFieldsForOperation: ({ operationId }: { operationId: string }) => [{
+    props: {
+      source: "version",
+      choices: operationId === "retrieve_WebMapService"
+        ? [{ id: 111, name: "1.1.1" }, { id: 130, name: "1.3.0" }]
+        : [{ id: 1, name: "1.0.0" }, { id: 11, name: "1.1.0" }, { id: 200, name: "2.0.0" }],
+    },
+  }],
+}));
+
 const state = vi.hoisted(() => ({
   getOne: {
     data: undefined as Record<string, unknown> | undefined,
@@ -84,7 +95,7 @@ const unsecuredService = {
   id: "service-1",
   isSecured: false,
   isSpatialSecured: false,
-  version: "1.3.0",
+  version: 130,
   operationUrls: [
     { method: 1, operation: 20, url: "https://remote/wms" },
     { method: 1, operation: 30, url: "https://remote/wfs" },
@@ -95,6 +106,8 @@ const securedService = {
   ...unsecuredService,
   isSecured: true,
 };
+
+const wfsService = { ...securedService, version: 200 };
 
 const featureType = {
   ...element,
@@ -142,6 +155,45 @@ afterEach(() => {
 });
 
 describe("ElementPreview", () => {
+  it.each([
+    [130, "1.3.0", "CRS", "49,8.1,49.4,8.5"],
+    [111, "1.1.1", "SRS", "8.1,49,8.5,49.4"],
+  ])("resolves WMS version %s from the schema for a remote layer", (version, label, crs, bbox) => {
+    rendered(
+      <ElementPreview protocol="WMS" element={element} service={{ ...unsecuredService, version }} />,
+    );
+    const url = new URL(screen.getByTestId("overlay").getAttribute("data-url")!);
+    expect(url.searchParams.get("VERSION")).toBe(label);
+    expect(url.searchParams.get(String(crs))).toBe("EPSG:4326");
+    expect(url.searchParams.get("BBOX")).toBe(bbox);
+    expect(url.searchParams.has(crs === "CRS" ? "SRS" : "CRS")).toBe(false);
+  });
+
+  it.each([
+    [1, "1.0.0", "TYPENAME", "MAXFEATURES", "8.1,49,8.5,49.4"],
+    [11, "1.1.0", "TYPENAME", "MAXFEATURES", "49,8.1,49.4,8.5,EPSG:4326"],
+    [200, "2.0.0", "TYPENAMES", "COUNT", "49,8.1,49.4,8.5,EPSG:4326"],
+  ])("resolves WFS version %s from the schema", async (version, label, typeNames, count, bbox) => {
+    fetchMock.mockResolvedValue(response({ body: JSON.stringify({ type: "FeatureCollection", features: [] }) }));
+    rendered(
+      <ElementPreview protocol="WFS" element={featureType} service={{ ...wfsService, version }} />,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("VERSION")).toBe(label);
+    expect(url.searchParams.get(String(typeNames))).toBe(element.identifier);
+    expect(url.searchParams.get(String(count))).toBe("500");
+    expect(url.searchParams.get("BBOX")).toBe(bbox);
+  });
+
+  it("does not request a version absent from the schema choices", () => {
+    rendered(
+      <ElementPreview protocol="WMS" element={element} service={{ ...securedService, version: 999 }} />,
+    );
+    expect(screen.getByText("livePreview.errors.operation")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("asks a secured service through the mrmap proxy with the MrMap token", async () => {
     fetchMock.mockResolvedValue(response({ blobType: "image/png" }));
     rendered(
@@ -153,6 +205,7 @@ describe("ElementPreview", () => {
     expect(requested).toContain("LAYERS=wg%3Atopographic");
     expect(requested).toContain("BBOX=49%2C8.1%2C49.4%2C8.5");
     expect(requested).toContain("CRS=EPSG%3A4326");
+    expect(new URL(requested).searchParams.get("VERSION")).toBe("1.3.0");
     expect(
       (fetchMock.mock.calls[0][1] as { headers?: Headers }).headers?.get("Authorization"),
     ).toBe("Token secret");
@@ -226,12 +279,12 @@ describe("ElementPreview", () => {
       }),
     );
     rendered(
-      <ElementPreview protocol="WFS" element={featureType} service={securedService} />,
+      <ElementPreview protocol="WFS" element={featureType} service={wfsService} />,
     );
     await waitFor(() => expect(screen.getByTestId("features")).toBeInTheDocument());
     const requested = String(fetchMock.mock.calls[0][0]);
     expect(requested).toContain("http://localhost:8000/mrmap-proxy/wfs/service-1");
-    expect(requested).toContain("TYPENAME=wg%3Atopographic");
+    expect(requested).toContain("TYPENAMES=wg%3Atopographic");
     expect(requested).toContain("OUTPUTFORMAT=application%2Fjson");
     expect(screen.getByTestId("features")).toHaveAttribute("data-editable", "false");
     expect(screen.getByTestId("features")).toHaveTextContent("1");
@@ -245,7 +298,7 @@ describe("ElementPreview", () => {
       }),
     );
     rendered(
-      <ElementPreview protocol="WFS" element={featureType} service={securedService} />,
+      <ElementPreview protocol="WFS" element={featureType} service={wfsService} />,
     );
     await waitFor(() =>
       expect(screen.getByText("livePreview.emptyFeatures")).toBeInTheDocument(),
@@ -265,7 +318,7 @@ describe("ElementPreview", () => {
         }),
       );
     rendered(
-      <ElementPreview protocol="WFS" element={featureType} service={securedService} />,
+      <ElementPreview protocol="WFS" element={featureType} service={wfsService} />,
     );
     await waitFor(() =>
       expect(screen.getByText("layerInspection.previewError")).toBeInTheDocument(),
@@ -278,7 +331,7 @@ describe("ElementPreview", () => {
   it("refuses an xml answer of a feature type as unreadable", async () => {
     fetchMock.mockResolvedValue(response({ body: "<ServiceExceptionReport/>" }));
     rendered(
-      <ElementPreview protocol="WFS" element={featureType} service={securedService} />,
+      <ElementPreview protocol="WFS" element={featureType} service={wfsService} />,
     );
     await waitFor(() =>
       expect(screen.getByText("layerInspection.previewError")).toBeInTheDocument(),

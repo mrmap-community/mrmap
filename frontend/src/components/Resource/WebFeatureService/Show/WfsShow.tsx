@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { UrlField, useRecordContext, useTranslate, type RaRecord } from "react-admin";
+import {
+  RecordContextProvider,
+  UrlField,
+  useRecordContext,
+  useTranslate,
+  type RaRecord,
+} from "react-admin";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -18,7 +24,7 @@ import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
 import { UpdateSettingTab } from "../../Generic/ServiceShow/UpdateSettingTab";
-import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
+import WfsViewerButtons from "../Button/ListActions";
 import MonitoringTab from "./Tabs/MonitoringTab";
 import OverviewTab from "./Tabs/OverviewTab";
 
@@ -91,14 +97,16 @@ function FeatureTypesTab() {
           id={selected?.id}
           serviceResource="WebFeatureService"
           serviceId={record?.id}
-          previewAction={(featureType) => (
-            <MapViewerButton
-              key={String(featureType?.id)}
-              protocol="WFS"
-              wmsRecord={record}
-              capabilititesUrl={featureType?.capabilitiesUrl}
-              size="small"
-            />
+          viewerActions={(featureType) => (
+            // the buttons read their service from the record context, so the record they open is
+            // named here rather than taken from whatever screen renders this tab
+            <RecordContextProvider value={record}>
+              <WfsViewerButtons
+                key={String(featureType?.id)}
+                element={featureType}
+                size="small"
+              />
+            </RecordContextProvider>
           )}
           history={(featureType) => <ElementHistory resource="FeatureType" record={featureType} />}
         />

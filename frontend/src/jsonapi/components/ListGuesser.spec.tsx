@@ -2,13 +2,16 @@ import type { PropsWithChildren } from 'react'
 import { AdminContext, testDataProvider, useListContext, type ListProps, type RaRecord } from 'react-admin'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 
 import ListGuesser from './ListGuesser'
 import { useSelectedRecordContext } from './SelectedRecordContext'
 
 const record = vi.hoisted(() => ({ id: 'selected', title: 'Selected record' }))
 const jsonApiQuery = vi.hoisted(() => ({ include: 'service' }))
+/** The resource definition and the api the screens below are rendered with. */
+const definition = vi.hoisted(() => ({ options: undefined as { list?: Record<string, unknown> } | undefined }))
+const client = vi.hoisted(() => ({ api: undefined as { getOperation: (id: string) => unknown } | undefined }))
 
 vi.mock('react-admin', async importOriginal => {
   const actual = await importOriginal<typeof import('react-admin')>()
@@ -31,18 +34,26 @@ vi.mock('react-admin', async importOriginal => {
     EditButton: () => null,
     ShowButton: () => null,
     WrapperField: () => null,
-    useResourceDefinition: (props?: { resource?: string }) => ({ name: props?.resource ?? 'Layer', hasShow: false }),
+    useResourceDefinition: (props?: { resource?: string }) => ({
+      name: props?.resource ?? 'Layer',
+      hasShow: false,
+      options: definition.options,
+    }),
     useSidebarState: () => [false],
     useStore: () => [[], vi.fn()],
   }
 })
 vi.mock('react-router-dom', () => ({ useParams: () => ({}) }))
-vi.mock('../../components/Resource/Generic/History/HistoryList', () => ({ default: () => null }))
-vi.mock('../../components/Layout/AsideCard', () => ({ default: () => null }))
+vi.mock('../../components/Resource/Generic/History/HistoryList', () => ({ default: () => <span>changelog</span> }))
+vi.mock('../../components/Layout/AsideCard', () => ({
+  default: ({ children }: PropsWithChildren) => <aside data-testid="changelog-aside">{children}</aside>,
+}))
 vi.mock('../../components/Lists/CustomListActions', () => ({ default: () => null }))
 vi.mock('../../components/Lists/Empty', () => ({ default: () => null }))
 vi.mock('../../components/Lists/EmptyWithFilter', () => ({ default: () => null }))
-vi.mock('../../context/HttpClientContext', () => ({ useHttpClientContext: () => ({}) }))
+vi.mock('../../context/HttpClientContext', () => ({
+  useHttpClientContext: () => ({ api: client.api }),
+}))
 vi.mock('../hooks/useFieldsForOperation', () => ({
   useFieldsForOperation: () => [{ component: () => <span>Generated title</span>, props: { source: 'title' } }],
 }))
@@ -55,6 +66,42 @@ const SelectedRecordAside = () => {
   const { selectedRecord } = useSelectedRecordContext()
   return <aside>{selectedRecord?.title ?? 'No selection'}</aside>
 }
+
+const PreviewAside = () => <span>preview of the selection</span>
+
+beforeEach(() => {
+  definition.options = undefined
+  client.api = undefined
+})
+
+describe('ListGuesser aside of the resource definition', () => {
+  it('shows the aside the resource definition names beside its records', () => {
+    definition.options = { list: { aside: PreviewAside } }
+
+    render(<ListGuesser />)
+
+    expect(screen.getByText('preview of the selection')).toBeInTheDocument()
+  })
+
+  it('keeps the changelog aside of a resource with a historical endpoint below it', () => {
+    definition.options = { list: { aside: PreviewAside } }
+    client.api = { getOperation: (operationId: string) => (operationId === 'list_HistoricalLayer' ? {} : undefined) }
+
+    render(<ListGuesser />)
+
+    expect(screen.getByText('preview of the selection')).toBeInTheDocument()
+    expect(screen.getByTestId('changelog-aside')).toHaveTextContent('changelog')
+  })
+
+  it('prefers the aside a screen asks for over the one the definition names', () => {
+    definition.options = { list: { aside: PreviewAside } }
+
+    render(<ListGuesser aside={<SelectedRecordAside />} />)
+
+    expect(screen.queryByText('preview of the selection')).toBeNull()
+    expect(screen.getByRole('complementary')).toHaveTextContent('No selection')
+  })
+})
 
 describe('ListGuesser selected record', () => {
   it('shares the clicked row with a custom aside and calls onRowClick', () => {

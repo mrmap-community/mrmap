@@ -150,6 +150,24 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "coupled-service-record": "gekoppelter Service-Metadatensatz",
       "metadata-reference-record": "referenzierter Metadatensatz"
     },
+    registration: {
+      action: "Dienst registrieren",
+      description: "Registriert diesen Endpunkt als Dienst dieser Registry. Das Formular ist das übliche Registrierungsformular dieses Dienstes: Erst durch sein Speichern wird etwas geschrieben, und die folgende Aufgabe meldet sich bei den anderen Aufgaben von MrMap.",
+      back: "Zurück zu den Endpunkten",
+      source: "Was hier registriert wird",
+      record: "Metadatensatz",
+      document: "Gespeichertes Dokument",
+      advertised: "Vom Datensatz angeboten als",
+      capabilities: "Capabilities-Endpunkt",
+      answered: "Der Endpunkt antwortet {service}.",
+      answeredVersion: "Der Endpunkt antwortet {service} in Version {version}.",
+      duplicate: "Ein registrierter Dienst liefert diesen Datensatz bereits",
+      duplicateHint: "Den Endpunkt erneut zu registrieren legt eine zweite Ressource an: Die Registry vergleicht Capabilities-Endpunkte nicht miteinander.",
+      unknownService: "Weder der Datensatz noch ein Endpunkt gibt an, um welchen Dienst es sich handelt.",
+      unsupportedService: "Für {token} hat die Registry keinen Diensttyp.",
+      refused: "Dieser Endpunkt kann nicht registriert werden, weil er abgelehnt oder nicht geantwortet hat.",
+      noRights: "Sie dürfen hier keine Dienste registrieren."
+    },
     error: {
       denied: "Sie dürfen diesen Datensatz nicht nach seinen Diensten fragen.",
       unavailable: "Die Dienste dieses Datensatzes können derzeit nicht beantwortet werden.",

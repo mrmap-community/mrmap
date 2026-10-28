@@ -55,13 +55,76 @@ export interface ServiceCandidate {
   derived?: boolean;
 }
 
+/** The three ogc services the registry has a creatable resource for. */
+export type CreatableService = "wms" | "wfs" | "csw";
+
 /** A registered resource which a stored relation already verified. */
 export interface RegisteredTarget {
-  resource_type: "wms" | "wfs" | "csw";
+  /**
+   * What was verified: one of the three services or one element of one. A
+   * dataset record is delivered through the layer or feature type which points
+   * back at it, so the element is what the registry names here.
+   */
+  resource_type: CreatableService | "layer" | "feature_type";
   id: number;
   name: string;
+  /** The service an element belongs to, answered for the two kinds. */
   service_id?: number | null;
 }
+
+/** The json:api resource of the three services the registry can create. */
+export const serviceResource: Record<CreatableService, string> = {
+  wms: "WebMapService",
+  wfs: "WebFeatureService",
+  csw: "CatalogueService",
+};
+
+/** The json:api resource a registered target of the answer leads to. */
+export const registeredTargetResource: Record<
+  RegisteredTarget["resource_type"],
+  string
+> = {
+  wms: "WebMapService",
+  wfs: "WebFeatureService",
+  csw: "CatalogueService",
+  layer: "Layer",
+  feature_type: "FeatureType",
+};
+
+/**
+ * The json:api resource an ogc service token belongs to.
+ *
+ * `registered_targets` answers the token lowercase, the `service` of a
+ * candidate and the `service_type` of a validation spell it uppercase, so both
+ * arrive here the same way. A token which is not one of the three - WCS, WMTS
+ * or one no resource knows - has no resource to register.
+ */
+export const resourceOfService = (token?: string | null) => {
+  const key = (token ?? "").toLowerCase();
+  return key === "wms" || key === "wfs" || key === "csw"
+    ? serviceResource[key]
+    : undefined;
+};
+
+/**
+ * The resource a verified target already is a registration of.
+ *
+ * A service answers itself; a layer and a feature type are delivered by the
+ * service they belong to, which their kind names. The review of a candidate
+ * names duplicates by it: registering the endpoint of the candidate adds a
+ * resource beside the one which already delivers the record, because the
+ * registry does not compare capabilities endpoints with each other.
+ */
+export const deliveringResourceOfTarget = (target: RegisteredTarget) => {
+  switch (target.resource_type) {
+    case "layer":
+      return serviceResource.wms;
+    case "feature_type":
+      return serviceResource.wfs;
+    default:
+      return resourceOfService(target.resource_type);
+  }
+};
 
 /** The discovery answer of one metadata record. */
 export interface RecordResolution {
@@ -92,6 +155,13 @@ export interface CandidateValidation {
   /** Hints of the record the endpoint could not confirm. */
   unresolved_hints?: string[];
   names_truncated?: boolean;
+  /**
+   * The asked endpoint as a qualified GetCapabilities request, answered only
+   * when the document named a service the registry can create. The create form
+   * of that resource is prefilled with it, because the create serializer of the
+   * registry asks for the service, request and version parameters.
+   */
+  registration_url?: string | null;
 }
 
 /** The reason an action gave, so the screen can name it instead of "error". */

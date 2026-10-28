@@ -153,6 +153,24 @@ const en = lodashMerge(
         "coupled-service-record": "coupled service record",
         "metadata-reference-record": "referenced record"
       },
+      registration: {
+        action: "Register service",
+        description: "Registers this endpoint as a service of this registry. The form is the ordinary registration form of that service: nothing is written before it is saved, and the task which follows reports itself with the other tasks of MrMap.",
+        back: "Back to the endpoints",
+        source: "What is registered here",
+        record: "Metadata record",
+        document: "Stored document",
+        advertised: "Advertised by the record as",
+        capabilities: "Capabilities endpoint",
+        answered: "The endpoint answers {service}.",
+        answeredVersion: "The endpoint answers {service} in version {version}.",
+        duplicate: "A registered service already delivers this record",
+        duplicateHint: "Registering the endpoint again creates a second resource: the registry does not compare capabilities endpoints with each other.",
+        unknownService: "Neither the record nor an endpoint says which service this is.",
+        unsupportedService: "The registry has no service type for {token}.",
+        refused: "This endpoint cannot be registered, because it refused or did not answer.",
+        noRights: "You are not allowed to register services here."
+      },
       error: {
         denied: "You may not ask this record for its services.",
         unavailable: "The services of this record cannot be answered right now.",

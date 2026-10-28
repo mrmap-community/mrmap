@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { API_BASE_URL } from '../../../../context/HttpClientContext';
 import { dropUnassignedAuthentication } from '../../../../ows-lib/OwsContext/authentication';
 import { Authentication } from '../../../../ows-lib/OwsContext/contrib';
-import { OWSContext } from '../../../../ows-lib/OwsContext/core';
+import { OWSContext, type OWSResource } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
 import { getAuthToken } from '../../../../providers/authProvider';
 import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/OwsContextBase';
@@ -105,6 +105,9 @@ const MapViewerButton = (
     
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
 
+    // the layer of the appended tree which is the element the caller named
+    let named: OWSResource | undefined
+
     addedFeatures.forEach(feature => {
       authHeader && feature.properties.offerings?.forEach(offering => {
         offering.operations?.forEach(operation => {
@@ -127,13 +130,23 @@ const MapViewerButton = (
           const kind = protocol === 'WFS' ? 'featuretype' : 'layer';
           operation[`x-mrmap-${kind}-id`] = dbLayer?.id
           operation[`x-mrmap-${kind}-properties`] = {...dbLayer}
-          // the element the caller named is what the viewer shall show: it is activated the way the
-          // tree of the viewer activates a layer which its user ticks
           if (element?.id !== undefined && dbLayer.id === element.id)
-            context.activateFeature(feature.properties.folder, true)
+            named = feature
         }
       }
     })
+
+    // the element the caller named is the layer the viewer shall show, and it is activated the way
+    // the tree activates a layer which its user ticks: the map draws and the tree ticks what the
+    // GetMap operation of a layer marks active, its properties alone are not what the viewer asks
+    if (named !== undefined) {
+      context.activateFeature(named.properties.folder, true)
+      context.getDescandantsOf(named, true).forEach(layer => {
+        const getMap = layer.getWmsOperationByCode('GetMap')
+        if (getMap !== undefined)
+          getMap.active = true
+      })
+    }
     return context
   }, [wmsRecordWithUrl, protocol, authHeader, getCapaibilitesUrl, element])
 

@@ -184,7 +184,7 @@ const ListGuesserContent = ({
           },
           props.queryOptions
         )
-      ),[id, jsonApiQuery, relatedResource])
+      ),[id, jsonApiQuery, onError, props.queryOptions, refetchInterval, relatedResource])
 
 
   useEffect(()=>{
@@ -212,7 +212,6 @@ const ListGuesserContent = ({
         />
       }
       empty={props.empty || <EmptyList />}
-      queryOptions={queryOptions}
       aside={
         hasHistoricalEndpoint ?
         <AsideCard
@@ -235,6 +234,7 @@ const ListGuesserContent = ({
         </AsideCard>: undefined
       }
       {...props}
+      queryOptions={queryOptions}
       filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
         ? { is_update_candidate: false, ...props.filter }
         : props.filter}

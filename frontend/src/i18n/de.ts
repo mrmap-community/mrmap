@@ -751,6 +751,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     previewUnavailable: "Vorschau nicht verfügbar",
     openMapViewer: "Kartenbetrachter öffnen",
     openSecuredMapViewer: "Gesicherten Kartenbetrachter öffnen",
+    mapViewerOfElement: "Öffnet den Kartenbetrachter des Diensts, dem dieses Element gehört, mit diesem Element aktiviert auf der Karte.",
     activate: "Dienst aktivieren",
     deactivate: "Dienst deaktivieren",
     activated: "Der Dienst ist aktiviert",

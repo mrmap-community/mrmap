@@ -2,7 +2,7 @@ import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, u
 import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
-import { Box } from '@mui/material'
+import { Box, Stack } from '@mui/material'
 import { alpha, useTheme, useThemeProps } from '@mui/material/styles'
 import { merge } from 'lodash'
 
@@ -156,6 +156,36 @@ const ListGuesserContent = ({
   
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
+  // the changelog of the records is the aside every screen of a resource with a historical endpoint
+  // shows, so an aside the resource definition names is shown above it instead of replacing it
+  const aside = useMemo(() => {
+    const history = hasHistoricalEndpoint ? (
+      <AsideCard
+        sx={{
+          margin: '1em',
+          //height: 'calc(100vh - 110px - 1em)', // 174px ==> 50 appbar, 52 pagination,  1 em top padding
+          width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})`,
+          overflowY: 'scroll'
+        }}
+      >
+        {/* the events of the feed belong to one record, so a new selection
+            asks for the events of the record it names and clears the details
+            of the record before it */}
+        <HistoryList
+          key={selectedRecord?.id ?? "all"}
+          variant="compact"
+          resource={`Historical${name ?? ''}`}
+          related={name ?? ''}
+        />
+      </AsideCard>
+    ) : undefined
+    const chosen = listOptions?.aside === undefined ? undefined : createElement(listOptions.aside)
+    if (chosen === undefined) return history
+    return history === undefined
+      ? chosen
+      : <Stack spacing={2} sx={{ margin: '1em', width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})` }}>{chosen}{history}</Stack>
+  }, [hasHistoricalEndpoint, listOptions?.aside, open, selectedRecord?.id, name])
+
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
   const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey
   const onError = useOnError(preferenceKey)
@@ -212,27 +242,7 @@ const ListGuesserContent = ({
         />
       }
       empty={props.empty || <EmptyList />}
-      aside={
-        hasHistoricalEndpoint ?
-        <AsideCard
-          sx={{
-            margin: '1em',
-            //height: 'calc(100vh - 110px - 1em)', // 174px ==> 50 appbar, 52 pagination,  1 em top padding
-            width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})`,
-            overflowY: 'scroll'
-          }}
-        >
-          {/* the events of the feed belong to one record, so a new selection
-              asks for the events of the record it names and clears the details
-              of the record before it */}
-          <HistoryList
-            key={selectedRecord?.id ?? "all"}
-            variant="compact"
-            resource={`Historical${name ?? ''}`}
-            related={name ?? ''}
-          />
-        </AsideCard>: undefined
-      }
+      aside={aside}
       {...props}
       queryOptions={queryOptions}
       filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)

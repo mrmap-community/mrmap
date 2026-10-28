@@ -758,6 +758,7 @@ const en = lodashMerge(
       previewUnavailable: "Preview unavailable",
       openMapViewer: "Open map viewer",
       openSecuredMapViewer: "Open secured map viewer",
+      mapViewerOfElement: "Opens the map viewer of the service which owns this element, with this element activated on the map.",
       activate: "Activate service",
       deactivate: "Deactivate service",
       activated: "The service is activated",

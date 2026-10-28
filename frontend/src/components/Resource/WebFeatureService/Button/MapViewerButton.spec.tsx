@@ -202,4 +202,37 @@ describe("wfs map viewer button", () => {
     expect(state.addWFSByUrl).toHaveBeenCalledOnce();
     expect(state.navigate).toHaveBeenCalledWith("/viewer");
   });
+
+  it("opens the one type it is asked to show without asking which ones", () => {
+    const view = render(<WfsMapViewerButton element={{ id: "ft2" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "ra.action.mapviewer" }));
+    state.query.data = service;
+    view.rerender(<WfsMapViewerButton element={{ id: "ft2" }} />);
+
+    // the chooser would only ask what the click in the list already answered
+    expect(screen.queryByText("Roads (roads)")).toBeNull();
+    expect(state.addWFSByUrl).toHaveBeenCalledOnce();
+    expect(state.navigate).toHaveBeenCalledWith("/viewer");
+
+    const features = wfsContext();
+    state.addWFSByUrl.mock.calls[0][2]({ features }, 1);
+    const roads = features.find((feature) =>
+      String(feature.operation.href).includes("roads"))!;
+    const rivers = features.find((feature) =>
+      String(feature.operation.href).includes("rivers"))!;
+    expect(roads.properties.active).toBe(false);
+    expect(rivers.properties.active).toBe(true);
+    expect(rivers.operation["x-mrmap-feature-type-id"]).toBe("ft2");
+  });
+
+  it("asks which types to show when the service does not offer the named one", () => {
+    const view = render(<WfsMapViewerButton element={{ id: "unknown" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "ra.action.mapviewer" }));
+    state.query.data = service;
+    view.rerender(<WfsMapViewerButton element={{ id: "unknown" }} />);
+
+    // nothing is known about the type the caller named, so the user is asked again
+    expect(screen.getByText("Roads (roads)")).toBeInTheDocument();
+    expect(state.addWFSByUrl).not.toHaveBeenCalled();
+  });
 });

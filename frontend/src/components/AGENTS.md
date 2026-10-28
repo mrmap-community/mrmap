@@ -26,6 +26,7 @@ resource-backed screen means adding an entry here, not wiring a route somewhere 
       defaultSelectedColumns: ["id", "title", "abstract"],
       sparseFieldsets: [{ type: "WebMapService", fields: ["isSecured"] }],
       additionalActions: WmsViewerButtons,
+      aside: SelectedElementViewerCard,      // shown above the changelog aside of the resource
     },
   },
 }
@@ -107,7 +108,7 @@ cheap and correct option; shrinking or copying the card to avoid the field is th
 
 | Folder | Holds | Do not write |
 | --- | --- | --- |
-| `Resource/Generic/ServiceShow/` | per-service cards and actions: `ServiceDetailsCard`, `SelectedServiceDetailsCard`, `ServiceOverview`, `ServicePreviewImage`, `ServiceAlertChips`, `ServiceOutcomes`, `ServiceUpdateJobsCard`, `ServiceHistoryCard`, `ServiceAttentionTab`, `ElementInspection`, `ElementHistory`, `ActivateServiceButton`, `RunServiceUpdateButton` | a card with one service's metadata, alerts, preview, update runs or history, or the inspection of one layer or feature type of a service |
+| `Resource/Generic/ServiceShow/` | per-service cards and actions: `ServiceDetailsCard`, `SelectedServiceDetailsCard`, `ServiceOverview`, `ServicePreviewImage`, `ServiceAlertChips`, `ServiceOutcomes`, `ServiceUpdateJobsCard`, `ServiceHistoryCard`, `ServiceAttentionTab`, `ElementInspection`, `ElementHistory`, `SelectedElementViewerCard` for the aside of a screen of elements, `LivePreview/` for the preview of a whole service, `ActivateServiceButton`, `RunServiceUpdateButton` | a card with one service's metadata, alerts, preview, update runs or history, the inspection of one layer or feature type of a service or the map viewer button of the element a screen of elements selected |
 | `Resource/Generic/ServiceList/` | the shared WMS/WFS/CSW list: `ServiceList`, `ServiceListExplorer`, `ServiceListAside`, `ServiceSummaryTiles`, `ServiceElementCount`, `alertFacets`, `serviceListProps`, `config` | a second service list layout, facet or summary tile |
 | `Resource/Generic/RecordShow/` | `RecordShow`, `RecordHeader`, `RecordFields`, `RecordContacts`, `RecordRelations`, `RecordOverview`, `RecordSpatial`, `RecordHistory` | a label/value stack for record attributes |
 | `Resource/Generic/History/` | `HistoryList` (one entry, variants `table`, `compact`, `timeline`), its private presentations `HistoryChangelog`, `HistoryCompactFeed`, `HistorySourcesCard`, plus `HistoryListBase`, `HistoryTimeline`, `HistoryChart`, `historySources` | a timeline, changelog or event list |

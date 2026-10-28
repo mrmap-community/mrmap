@@ -1,7 +1,7 @@
 import type { Feature } from "geojson";
 
 import type { ReactNode } from "react";
-import { Link, Loading, ResourceContextProvider, type RaRecord, useGetMany, useGetOne, useResourceDefinition, useTranslate } from "react-admin";
+import { Link, Loading, RecordContextProvider, ResourceContextProvider, type RaRecord, useGetMany, useGetOne, useResourceDefinition, useTranslate } from "react-admin";
 
 import { Alert, Button, Chip, Divider, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 
@@ -74,7 +74,9 @@ export interface ElementInspectionProps {
   history?: (record?: RaRecord) => ReactNode;
   /** A rendered preview section of the element, e.g. the map of the selected layer or
    *  feature type. Only the service which owns the element knows how its previews are
-   *  rendered, so it hands the panel the answer built out of the inspected element. */
+   *  rendered, so it hands the panel the answer built out of the inspected element. The
+   *  answer is rendered with the inspected element as its record context, so a preview
+   *  which reads its element from the context needs no argument of its own. */
   preview?: (record?: RaRecord) => ReactNode;
 }
 
@@ -178,7 +180,9 @@ const ElementInspection = ({
         )}
         {preview && (
           <Section title={message("preview")}>
-            {preview(record)}
+            {/* the preview reads the element it shows from the record context, the way every other
+                shared component of a screen does */}
+            <RecordContextProvider value={record}>{preview(record)}</RecordContextProvider>
           </Section>
         )}
         <Divider />

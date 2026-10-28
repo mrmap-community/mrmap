@@ -944,6 +944,18 @@ class TemporaryMdMetadataFile(models.Model):
                                     )
                             result.append(
                                 (created_instance, update, not created))
+                            if self.job:
+                                for warning in mappers[0].warnings:
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=warning[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{warning}\n"
+                                            "The remaining metadata was imported."
+                                        ),
+                                    )
                             self.delete()
                     return result
             except OperationalError:

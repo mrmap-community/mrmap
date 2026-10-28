@@ -29,6 +29,8 @@ const MapPreview = ({ height = 380 }: { height?: number | string }): ReactNode =
         ref={setMap}
         center={[51.505, -0.09]}
         zoom={2}
+        // Fit the advertised extent without rounding out past a layer's maximum scale.
+        zoomSnap={0}
         crs={CRS.EPSG4326}
         maxZoom={20}
         minZoom={0}

@@ -5,6 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { latLngBounds } from "leaflet";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { API_BASE_URL } from "../../../../context/HttpClientContext";
 import { OWSResource } from "../../../../ows-lib/OwsContext/core";
 import { WMS_OFFERING_CODE } from "../../../../ows-lib/OwsContext/validation";
 import wfsMinimal from "../../../../ows-lib/XMLParser/tests/wfs_minimal_2_0_0.xml?raw";
@@ -44,6 +45,7 @@ const asked = vi.hoisted(() => ({
   fitted: [] as number[][],
   answer: (): string => wmsCapabilities,
   status: 200,
+  renderRequests: false,
   block: undefined as Promise<void> | undefined,
 }));
 
@@ -70,6 +72,9 @@ const fakeMap = {
 vi.mock("react-leaflet", async () => {
   const { useEffect } = await vi.importActual<typeof import("react")>("react");
   return {
+    ImageOverlay: () => <div data-testid="image" />,
+    Marker: () => null,
+    Tooltip: () => null,
     ScaleControl: () => null,
     useMap: () => fakeMap,
     useMapEvents: () => undefined,
@@ -87,12 +92,14 @@ vi.mock("react-leaflet", async () => {
 
 // the control which asks the document for a map names the resources the document activated
 vi.mock("../../../MapContainer/GetMapControl", async () => {
+  const { default: GetMapControl } = await vi.importActual<typeof import("../../../MapContainer/GetMapControl")>("../../../MapContainer/GetMapControl");
   const provider = await vi.importActual<
     typeof import("../../../../react-ows-lib/ContextProvider/OwsContextBase")
   >("../../../../react-ows-lib/ContextProvider/OwsContextBase");
   return {
     default: () => {
       const { activeFeatures } = provider.useOwsContextBase();
+      if (asked.renderRequests) return <GetMapControl />;
       return (
         <div data-testid="active">
           {activeFeatures.map((feature) => feature.properties.title).join(",")}
@@ -164,17 +171,23 @@ beforeEach(() => {
   asked.fitted = [];
   asked.answer = () => wmsCapabilities;
   asked.status = 200;
+  asked.renderRequests = false;
   asked.block = undefined;
   authState.token = "s3cret";
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: Request | string) => {
-      const request = typeof input === "string" ? new Request(input) : input;
+    vi.fn(async (input: Request | string, init?: RequestInit) => {
+      const request = new Request(input, init);
       asked.requests.push({
         url: request.url,
         authorization: request.headers.get("authorization"),
       });
       if (asked.block !== undefined) await asked.block;
+      if (new URL(request.url).searchParams.get("REQUEST") === "GetMap") {
+        return new Response(new Uint8Array([137, 80, 78, 71]), {
+          headers: { "content-type": "image/png" },
+        });
+      }
       return new Response(asked.answer(), {
         status: asked.status,
         headers: { "content-type": "application/xml" },
@@ -184,6 +197,25 @@ beforeEach(() => {
 });
 
 describe("the live preview of the inspected element", () => {
+  it.each(["public upstream", "local proxy"])("requests an active %s layer with authentication scoped to its origin", async (destination) => {
+    asked.renderRequests = true;
+    const capabilitiesUrl = new URL("/mrmap-proxy/wms/layer/6b1", API_BASE_URL).href;
+    const endpoint = destination === "public upstream" ? "https://upstream.test/wms" : capabilitiesUrl;
+    asked.answer = () => wmsCapabilities.replaceAll(
+      "https://mrmap.test/mrmap-proxy/wms/layer/6b1", endpoint,
+    );
+    renderPreview({ element: { ...layer, capabilitiesUrl } });
+
+    await waitFor(() => expect(asked.requests.some((request) =>
+      new URL(request.url).searchParams.get("REQUEST") === "GetMap",
+    )).toBe(true));
+    expect(asked.requests[0].authorization).toBe("Token s3cret");
+    const image = asked.requests.find((request) => new URL(request.url).searchParams.get("REQUEST") === "GetMap")!;
+    expect(new URL(image.url).origin).toBe(new URL(endpoint).origin);
+    expect(new URL(image.url).searchParams.get("LAYERS")).toBe("rivers");
+    expect(image.authorization).toBe(destination === "public upstream" ? null : "Token s3cret");
+  });
+
   it("asks the capabilities document the element names, for the session it is shown in", async () => {
     renderPreview({ element: layer });
 

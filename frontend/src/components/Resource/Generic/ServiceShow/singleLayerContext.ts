@@ -81,7 +81,7 @@ export const advertisedExtent = (context: OWSContext): number[] | undefined =>
  * the element advertises, which is what the map of the preview is zoomed to.
  */
 export const activateElement =
-  (extent?: number[]) =>
+  (extent?: number[], capabilitiesHref?: string) =>
   (context: OWSContext, treeId: number): OWSContext => {
     const resources = context.features.filter(
       (feature) => ofTree(feature, treeId) && isResource(feature),
@@ -91,6 +91,18 @@ export const activateElement =
       feature.properties.offerings?.forEach((offering) =>
         offering.operations?.forEach((operation) => {
           operation.active = true;
+          // The registry's document needs the MrMap session, but an unsecured service
+          // advertises public upstream operations. Request those anonymously; keep
+          // the session assignment on operations served by the local proxy.
+          const authenticationId = operation["x-authentication-id"];
+          if (
+            capabilitiesHref !== undefined &&
+            new URL(capabilitiesHref).origin === new URL(API_BASE_URL).origin &&
+            new URL(operation.href).origin !== new URL(capabilitiesHref).origin &&
+            typeof authenticationId === "string" && authenticationId.startsWith("missing:")
+          ) {
+            delete operation["x-authentication-id"];
+          }
         }),
       );
     });

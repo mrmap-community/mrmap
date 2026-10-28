@@ -45,7 +45,7 @@ const SingleElementPreview = ({ height }: { height: number | string }): ReactNod
     if (href === undefined) return;
     // the provider keeps the header for the origin of this document alone and gives it to the
     // operations of the document itself; the hook below only decides which of them are asked
-    addServiceByUrl(href, sessionHeader(), activateElement(stored));
+    addServiceByUrl(href, sessionHeader(), activateElement(stored, href));
   }, [href, stored, addServiceByUrl, attempt]);
 
   if (url === undefined) {

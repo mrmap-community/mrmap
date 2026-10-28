@@ -2,8 +2,10 @@ import type { PropsWithChildren } from "react";
 import { act } from "react";
 
 import { render, screen } from "@testing-library/react";
+import { Browser, latLngBounds, map as leafletMap, type MapOptions } from "leaflet";
 import { describe, expect, it, vi } from "vitest";
 
+import { isWithinScaleLimits, scaleDenominatorForMap } from "../../ows-lib/OwsContext/scales";
 import { OwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import MapPreview from "./MapPreview";
 import { MapViewerBase, useMapViewerBase } from "./MapViewerBase";
@@ -58,6 +60,30 @@ const renderPreview = (props: PropsWithChildren<{ height?: number | string }> = 
   );
 
 describe("the map of the viewer without its screens", () => {
+  it("fits the DOP20 extent within its scale limit in a 380px preview", () => {
+    renderPreview();
+    const container = document.createElement("div");
+    Object.defineProperties(container, {
+      clientWidth: { value: 800 },
+      clientHeight: { value: 380 },
+    });
+    document.body.appendChild(container);
+    // Leaflet enables fractional zoom in browsers with CSS transform support.
+    const supports3d = Object.getOwnPropertyDescriptor(Browser, "any3d")!;
+    Object.defineProperty(Browser, "any3d", { value: true });
+    const map = leafletMap(container, captured.props as MapOptions);
+    try {
+      map.fitBounds(latLngBounds([48.897996, 6.037773], [51.000893, 8.617703]), { animate: false });
+      expect(isWithinScaleLimits(
+        { maxscaledenominator: 3_000_000 }, scaleDenominatorForMap(map),
+      )).toBe(true);
+    } finally {
+      map.remove();
+      container.remove();
+      Object.defineProperty(Browser, "any3d", supports3d);
+    }
+  });
+
   it("renders one map with the controls which ask the document for its view", () => {
     renderPreview();
 

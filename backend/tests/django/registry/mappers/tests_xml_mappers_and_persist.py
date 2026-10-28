@@ -1,9 +1,12 @@
 from collections import defaultdict
+from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from django.test import TestCase
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
+from registry.mappers.parsers.iso import logger as iso_logger
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.metadata import MetadataContact
 from registry.models.service import (CatalogueService, FeatureType,
@@ -370,6 +373,43 @@ class XmlMapperTest(TestCase):
             '../../test_data/iso_metadata/service.xml'))
         self._call_iso_mapper_and_persistence_handler()
         self._test_md_success(expected=EXPECTED_SERVICE_DATA)
+
+    def _test_iso_reversed_time_extent(self, keep_valid_extent):
+        for filename in ('dataset.xml', 'service.xml'):
+            with self.subTest(filename=filename):
+                xml = Path(__file__).parent / '../../test_data/iso_metadata' / filename
+                mapper = MDMetadataXmlMapper.from_xml(xml)[0]
+                namespaces = mapper.mapping['_namespaces']
+                extent = mapper.xml_root.find('.//gmd:EX_TemporalExtent/gmd:extent', namespaces)
+                period = extent.find('gml:TimePeriod', namespaces)
+                begin = period.find('gml:beginPosition', namespaces)
+                end = period.find('gml:endPosition', namespaces)
+                end.attrib.clear()
+                begin.text = '2016-02-01'
+                end.text = '2014-12-31'
+                if keep_valid_extent:
+                    valid_extent = deepcopy(extent)
+                    valid_period = valid_extent.find('gml:TimePeriod', namespaces)
+                    valid_period.find('gml:beginPosition', namespaces).text = '2014-12-31'
+                    extent.getparent().append(valid_extent)
+
+                with self.assertLogs(iso_logger, level='WARNING') as logs:
+                    record = mapper.xml_to_django()[0]
+                self.assertTrue(any('Skipping TimeExtent with begin after end' in message for message in logs.output))
+                PersistenceHandler(mapper).persist_all()
+                record.refresh_from_db()
+                self.assertTrue(record.title)
+                extents = list(record.time_extents.all())
+                self.assertEqual(len(extents), int(keep_valid_extent))
+                if keep_valid_extent:
+                    self.assertEqual(extents[0].begin, datetime(2014, 12, 31, tzinfo=UTC))
+                    self.assertEqual(extents[0].end, datetime(2014, 12, 31, tzinfo=UTC))
+
+    def test_iso_import_skips_reversed_time_extent(self):
+        self._test_iso_reversed_time_extent(keep_valid_extent=False)
+
+    def test_iso_import_keeps_valid_extent_alongside_reversed_extent(self):
+        self._test_iso_reversed_time_extent(keep_valid_extent=True)
 
 
 class ServiceOwnershipRegressionTest(TestCase):

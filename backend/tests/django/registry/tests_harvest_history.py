@@ -7,6 +7,7 @@ from registry.models.metadata import MetadataContact, DatasetMetadataRecord, Ser
 from registry.models.service import CatalogueService, WebFeatureService
 from registry.querys.harvest_history import complete_harvest
 from registry.views.harvesting import HarvestedMetadataRelationViewSet
+from registry.views.service import CatalogueServiceViewSet
 from registry.views.historical import FeatureTypeHistoricalViewSet
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
@@ -39,6 +40,38 @@ class HarvestHistoryTest(TestCase):
 
     def removed(self, job):
         return HarvestedMetadataRelation.objects.filter(harvesting_job=job, collecting_state=State.REMOVED)
+
+    def test_catalogue_counts_linked_records_once_across_harvests(self):
+        self.dataset.harvested_through.add(self.service)
+        self.metadata.harvested_through.add(self.service)
+        job = self.job()
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.UPDATED),
+        ])
+        view = CatalogueServiceViewSet()
+        for fields in ([], ['harvestedTotalCount'], ['harvestedDatasetCount'], ['harvestedServiceCount']):
+            with self.subTest(fields=fields):
+                view.sparse_fields = {'CatalogueService': fields}
+                record = view.with_harvesting_stats(CatalogueService.objects.filter(pk=self.service.pk)).get()
+                if not fields or 'harvestedTotalCount' in fields:
+                    self.assertEqual(record.harvested_total_count, 2)
+                if not fields or 'harvestedTotalCount' in fields or 'harvestedDatasetCount' in fields:
+                    self.assertEqual(record.harvested_dataset_count, 1)
+                if not fields or 'harvestedTotalCount' in fields or 'harvestedServiceCount' in fields:
+                    self.assertEqual(record.harvested_service_count, 1)
+
+    def test_catalogue_counts_follow_record_links_and_return_zero_without_links(self):
+        self.dataset.harvested_through.add(self.service)
+        self.metadata.harvested_through.add(self.service)
+        self.dataset.harvested_through.remove(self.service)
+        self.metadata.harvested_through.remove(self.service)
+        view = CatalogueServiceViewSet()
+        view.sparse_fields = {'CatalogueService': ['harvestedTotalCount']}
+        record = view.with_harvesting_stats(CatalogueService.objects.filter(pk=self.service.pk)).get()
+        self.assertEqual(record.harvested_dataset_count, 0)
+        self.assertEqual(record.harvested_service_count, 0)
+        self.assertEqual(record.harvested_total_count, 0)
 
     def test_empty_full_harvest_records_both_removals_and_is_idempotent(self):
         job = self.job()

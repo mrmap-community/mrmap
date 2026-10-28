@@ -14,6 +14,9 @@ vi.mock("react-admin", () => ({
   useResourceContext: () => state.resource,
   useRecordContext: (props?: { record?: { id?: string } }) =>
     props?.record ?? state.record,
+  // the schema representation of the record is what the dialog shows as source
+  useGetRecordRepresentation: () => (record?: { id?: string }) =>
+    `representation of ${record?.id}`,
 }));
 
 vi.mock("../../../../jsonapi/hooks/useOperation", () => ({
@@ -22,8 +25,17 @@ vi.mock("../../../../jsonapi/hooks/useOperation", () => ({
 }));
 
 vi.mock("./ServiceCandidatesDialog", () => ({
-  default: ({ recordId }: { recordId: string }) => (
-    <div>Dialog of {recordId}</div>
+  default: ({
+    recordId,
+    recordTitle,
+  }: {
+    recordId: string;
+    recordTitle?: string;
+  }) => (
+    <div>
+      <span>Dialog of {recordId}</span>
+      <span>about {recordTitle}</span>
+    </div>
   ),
 }));
 
@@ -63,6 +75,11 @@ describe("the candidates action of a record", () => {
     render(<ServiceCandidatesButton />);
     fireEvent.click(screen.getByText("serviceCandidates.button"));
     expect(screen.getByText("Dialog of record-1")).toBeInTheDocument();
+    // the dialog can name the record it resolved, which the registration of a
+    // candidate shows as its source
+    expect(
+      screen.getByText("about representation of record-1"),
+    ).toBeInTheDocument();
   });
 
   it("asks the record a list row hands over instead of its own", () => {

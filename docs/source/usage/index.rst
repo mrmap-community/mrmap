@@ -44,6 +44,19 @@ the current map without registering it, and the layers which are already on the 
 endpoint is asked without credentials, only an endpoint of the MrMap origin is asked with the token
 of the session. The same action belongs to every result of the metadata explorer.
 
+A candidate whose endpoint delivers can be registered from the same dialog. *Register service* opens
+the ordinary registration form of the service that endpoint announced, prefilled with its
+capabilities endpoint, and names beside it the record and stored document it came from together with
+the url as the record advertised it: a record may offer the same endpoint as a plain path, while the
+registration form asks an url for its service, request and version parameters, so the completed url
+is the one the delivered document answered and not a guess of the record. The form registers nothing
+until it is saved; the task which follows reports itself with the other background work of Mr. Map.
+A registration which already delivers the record is named there with a link to it, because a second
+registration of one endpoint creates a second resource. Registering asks the permission of the
+service, never the permission of the record: reading the candidates of a record grants nothing over
+the services it advertises, and an endpoint which refused or which is no service this registry
+knows is answered with that reason instead of a form.
+
 Collect Metadata
 ################
 

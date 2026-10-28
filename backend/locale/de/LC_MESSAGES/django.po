@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-27 15:43+0100\n"
+"POT-Creation-Date: 2026-10-27 17:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2158,7 +2158,28 @@ msgstr "Katalogdienst"
 msgid "the catalogue service for that this configuration is."
 msgstr "der Katalogdienst, für den diese Konfiguration ist."
 
-#: registry/serializers/harvesting.py:155
+#: registry/serializers/harvesting.py:122
+msgid "records per minute"
+msgstr "Datensätze pro Minute"
+
+#: registry/serializers/harvesting.py:124
+msgid ""
+"how many records this run stored per minute of measured work, at the step "
+"size it asked the catalogue with. Only a run which finished answers one, "
+"because only it measured a harvest as a whole. Measured work is the summed "
+"download and database time of the records of the run, which spreads the time "
+"of a response over its records: the number compares step sizes with each "
+"other, it is no promise about a single run."
+msgstr ""
+"wie viele Datensätze dieser Lauf pro Minute gemessener Arbeit gespeichert "
+"hat, bei der Schrittgröße, mit der er den Katalog gefragt hat. Nur ein "
+"abgeschlossener Lauf beantwortet eine, denn nur er hat einen ganzen "
+"Erntevorgang gemessen. Gemessene Arbeit ist die summierte Herunterlade- und "
+"Datenbankzeit der Datensätze dieses Laufs, welche die Zeit einer Antwort auf "
+"deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen "
+"miteinander, sie ist kein Versprechen über einen einzelnen Lauf."
+
+#: registry/serializers/harvesting.py:165
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 

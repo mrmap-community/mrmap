@@ -4,6 +4,7 @@ from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from requests import Request
 
 
@@ -71,6 +72,11 @@ class CatalogueServiceClient(OgcClient):
             "REQUEST": "GetRecords",
             "SERVICE": "CSW",
             "typeNames": type_names,
+            # KVP requests must bind the QName prefixes used by typeNames.
+            "NAMESPACE": (
+                f"xmlns(gmd={NAMESPACE_LOOKUP['gmd']}),"
+                f"xmlns(csw={NAMESPACE_LOOKUP['csw_2_0_2']})"
+            ),
             "resultType": result_type,
             "outputSchema": output_schema,
             "elementSetName": element_set_name,

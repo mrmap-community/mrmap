@@ -8,6 +8,7 @@ from django.core.files.base import ContentFile
 from django.db import OperationalError, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils.timezone import now
+from lxml import etree
 from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
                                        LogKindEnum, LogLevelEnum)
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
@@ -36,6 +37,52 @@ class HarvestingRecoveryTest(TestCase):
         self.record = TemporaryMdMetadataFile(job=self.job)
         self.record.md_metadata_file.save('record.xml', ContentFile(b'<record/>'), save=False)
         TemporaryMdMetadataFile.objects.bulk_create([self.record])
+
+    def test_skipped_temporal_extent_is_reported_in_harvesting_log(self):
+        for filename in ('dataset.xml', 'service.xml'):
+            with self.subTest(filename=filename):
+                xml = Path(__file__).parent / '../../test_data/iso_metadata' / filename
+                root = etree.parse(str(xml))
+                period = root.xpath('//*[local-name()="TimePeriod"]')[0]
+                period.find('{*}beginPosition').text = '2016-02-01'
+                end = period.find('{*}endPosition')
+                end.attrib.clear()
+                end.text = '2014-12-31'
+                identifier = root.xpath('//*[local-name()="fileIdentifier"]/*/text()')[0]
+                record = TemporaryMdMetadataFile(job=self.job)
+                record.md_metadata_file.save(filename, ContentFile(etree.tostring(root)), save=False)
+                TemporaryMdMetadataFile.objects.bulk_create([record])
+                record_id = record.pk
+
+                with self.captureOnCommitCallbacks(execute=True):
+                    results = record.md_metadata_file_to_db()
+
+                imported = results[0][0]
+                self.assertEqual(imported.file_identifier, identifier)
+                self.assertFalse(imported.time_extents.exists())
+                self.assertFalse(TemporaryMdMetadataFile.objects.filter(pk=record_id).exists())
+                log = self.job.logs.latest('pk')
+                self.assertEqual(log.level, LogLevelEnum.WARNING)
+                self.assertEqual(log.description,
+                                 'Skipped temporal extent because begin 2016-02-01 is after end 2014-12-31.')
+                with log.extented_description.open('rb') as details_file:
+                    details = details_file.read().decode()
+                self.assertIn(identifier, details)
+                self.assertIn(filename, details)
+                self.assertIn(log.description, details)
+                self.assertIn('The remaining metadata was imported.', details)
+        self.assertEqual(self.job.logs.count(), 2)
+
+    def test_valid_temporal_extent_does_not_create_harvesting_warning(self):
+        xml = Path(__file__).parent / '../../test_data/iso_metadata/service.xml'
+        self.record.md_metadata_file.save('service.xml', ContentFile(xml.read_bytes()), save=False)
+        TemporaryMdMetadataFile.objects.bulk_update([self.record], ['md_metadata_file'])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            results = self.record.md_metadata_file_to_db()
+
+        self.assertTrue(results[0][0].time_extents.exists())
+        self.assertFalse(self.job.logs.exists())
 
     def test_crashed_import_rolls_back_and_preserves_source_file(self):
         path = Path(self.record.md_metadata_file.path)

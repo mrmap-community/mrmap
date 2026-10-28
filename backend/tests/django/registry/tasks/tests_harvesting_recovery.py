@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from celery.exceptions import Retry
 from django.core.files.base import ContentFile
-from django.db import OperationalError, transaction
+from django.db import OperationalError, connection, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils.timezone import now
 from lxml import etree
@@ -15,7 +15,7 @@ from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.service import CatalogueService
 from registry.models.metadata import MetadataContact
 from registry.querys.harvest_history import complete_harvest
-from requests.exceptions import Timeout
+from requests.exceptions import ChunkedEncodingError, Timeout
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from registry.tasks.harvest import (
     call_chord_md_metadata_file_to_db, call_fetch_records,
@@ -249,14 +249,16 @@ class HarvestingRecoveryTest(TestCase):
     def test_a_task_which_gave_up_ends_the_job_as_aborted(self):
         """a page which keeps failing never completes the chord it belongs to, so the callback
         which would end the run never runs - the job must not sit unfinished forever (#690)"""
-        HarvestingJob.objects.filter(pk=self.job.pk).update(phase=Phase.DOWNLOAD_RECORDS)
+        HarvestingJob.objects.filter(pk=self.job.pk).update(
+            phase=Phase.DOWNLOAD_RECORDS, celery_task_ids=[uuid4()])
         call_fetch_records.push_request(retries=10)
         self.addCleanup(call_fetch_records.pop_request)
 
-        with patch('celery.app.control.Control.revoke') as revoke:
+        with patch('celery.app.control.Control.revoke') as revoke, self.captureOnCommitCallbacks(execute=True):
             call_fetch_records.on_failure(
                 Timeout('the catalogue is offline'), str(uuid4()), (),
                 {'harvesting_job_id': self.job.pk, 'start_position': 51}, None)
+            revoke.assert_not_called()
 
         revoke.assert_called_once()
         self.job.refresh_from_db()
@@ -320,6 +322,72 @@ class HarvestingRecoveryTest(TestCase):
 
 
 class HarvestingPublishingRecoveryTest(TransactionTestCase):
+    def setUp(self):
+        media = TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        settings = override_settings(MEDIA_ROOT=media.name)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
+    def test_exhausted_discovery_commits_failure_before_revoking_siblings(self):
+        task_id, sibling_id = uuid4(), uuid4()
+        job = HarvestingJob(celery_task_ids=[task_id, sibling_id])
+        HarvestingJob.objects.bulk_create([job])
+        observed = []
+
+        def check_committed_abort(*args, **kwargs):
+            job.refresh_from_db()
+            log = job.logs.get()
+            with log.extented_description.open('rb') as details:
+                observed.append((connection.in_atomic_block, job.phase, job.done_at,
+                                 log.description, details.read()))
+
+        with patch.object(HarvestingJob, 'fetch_total_records', side_effect=ChunkedEncodingError('incomplete body')):
+            with patch('celery.app.control.Control.revoke', side_effect=check_committed_abort) as revoke:
+                result = call_fetch_total_records.apply(
+                    kwargs={'harvesting_job_id': job.pk}, task_id=str(task_id), retries=10, throw=False)
+
+        self.assertEqual(result.state, 'FAILURE')
+        revoke.assert_called_once_with([str(sibling_id)], terminate=True)
+        self.assertEqual(len(observed), 1)
+        in_transaction, phase, done_at, description, details = observed[0]
+        self.assertFalse(in_transaction)
+        self.assertEqual(phase, Phase.ABORTED)
+        self.assertIsNotNone(done_at)
+        self.assertEqual(description, 'task gave up')
+        self.assertIn(b'ChunkedEncodingError: incomplete body', details)
+
+    def test_manual_abort_is_saved_before_tasks_are_terminated(self):
+        task_id = uuid4()
+        job = HarvestingJob(celery_task_ids=[task_id])
+        HarvestingJob.objects.bulk_create([job])
+
+        def check_committed_abort(*args, **kwargs):
+            self.assertFalse(connection.in_atomic_block)
+            stored = HarvestingJob.objects.get(pk=job.pk)
+            self.assertEqual(stored.phase, Phase.ABORTED)
+            self.assertIsNotNone(stored.done_at)
+
+        with patch('celery.app.control.Control.revoke', side_effect=check_committed_abort) as revoke:
+            job.phase = Phase.ABORT
+            job.save()
+        revoke.assert_called_once_with([str(task_id)], terminate=True)
+
+    def test_rolled_back_abort_does_not_terminate_tasks(self):
+        job = HarvestingJob(celery_task_ids=[uuid4()])
+        HarvestingJob.objects.bulk_create([job])
+        with patch('celery.app.control.Control.revoke') as revoke:
+            with self.assertRaisesMessage(RuntimeError, 'rollback'):
+                with transaction.atomic():
+                    job.phase = Phase.ABORT
+                    job.save()
+                    revoke.assert_not_called()
+                    raise RuntimeError('rollback')
+        revoke.assert_not_called()
+        job.refresh_from_db()
+        self.assertEqual(job.phase, Phase.PENDING)
+        self.assertIsNone(job.done_at)
+
     def test_broker_failure_after_commit_is_retryable_and_resumes_downloads(self):
         job = HarvestingJob(total_records=1, phase=Phase.PENDING)
         HarvestingJob.objects.bulk_create([job])

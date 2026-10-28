@@ -344,4 +344,24 @@ describe("the frame the map keeps while time advances", () => {
 
     expect(viewer.setDisplayedTime).toHaveBeenLastCalledWith("/0/0", undefined);
   });
+
+  it("names the server default as the observation a time-less image answers for", () => {
+    trackObjectUrls();
+    query.state = { data: frame("default"), isFetching: false, error: undefined };
+    render(
+      <AuthImageOverlay
+        bounds={latLngBounds([0, 0], [1, 1])}
+        optimiuedUrl={{
+          url: new URL("https://example.test/wms?LAYERS=radar"),
+          features: [
+            { properties: { folder: "/0/0" } },
+          ] as unknown as OWSResource[],
+          operations: [],
+        }}
+      />,
+    );
+
+    // an image without a time parameter answers the server default, not "nothing is drawn"
+    expect(viewer.setDisplayedTime).toHaveBeenCalledWith("/0/0", "");
+  });
 });

@@ -34,13 +34,14 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   // playback advances through the advertised times of this very axis; a selected frame which the
   // map has not drawn yet holds the animation on pace, and a frame the service refused is stepped
   // over rather than waited for — the old image stays visible and the status bar carries the
-  // error (#705)
+  // error (#705). A drawn server-default image reports the empty string, so even a playback that
+  // starts from the default holds until the first observation is drawn
   const playing = animation !== undefined && folder !== undefined && animation.folder === folder;
   const fps = animation?.fps ?? 2;
   const loop = animation?.loop ?? false;
   const displayedTime = folder !== undefined ? displayedTimes[folder] : undefined;
   const failed = folder !== undefined && (mapLoading?.failedFeatures ?? []).some(feature => feature.properties.folder === folder);
-  const pending = displayedTime !== undefined && selection !== '' && displayedTime !== selection && !failed;
+  const pending = displayedTime !== undefined && selection !== displayedTime && !failed;
   // where playback continues from: the selected position, or the advertised default, or -1 so
   // that playback from the server default begins with the first advertised observation
   const from = selectedIndex >= 0 ? selectedIndex : defaultIndex;
@@ -56,7 +57,7 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
     const timer = setInterval(() => {
       const live = liveRef.current;
       const current = appliedRef.current ?? live.selection;
-      if (live.displayedTime !== undefined && current !== '' && live.displayedTime !== current && !live.failed) return;
+      if (live.displayedTime !== undefined && current !== live.displayedTime && !live.failed) return;
       const position = axis.indexOf(current);
       const next = (position >= 0 ? position : live.from) + 1;
       if (next < axis.count) { appliedRef.current = axis.valueAt(next); live.apply(axis.valueAt(next)); }
@@ -76,13 +77,9 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   useEffect(() => () => leaveRef.current(), []);
   const togglePlay = () => {
     if (playing) { setAnimation(undefined); return; }
-    if (failed && axis) {
-      // playback stopped at a frame the service refused: starting again steps over it
-      const next = from + 1;
-      const value = axis.valueAt(next < axis.count ? next : 0);
-      appliedRef.current = value;
-      apply(value);
-    }
+    // pressing play starts the animation from its beginning: the first advertised observation is
+    // applied right away and the interval continues from the time it applied itself
+    if (axis) { appliedRef.current = axis.valueAt(0); apply(axis.valueAt(0)); }
     setAnimation({ folder: folder ?? '', fps, loop });
   };
   return <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: horizontal ? 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))' : 'minmax(0, 1fr)', gap: horizontal ? 2 : 1, alignItems: 'start' }}>
@@ -111,7 +108,7 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
         </TextField>
         <Typography variant="caption" sx={{ alignSelf: 'center' }}>{translate('viewerDimensions.position', { current: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(index + 1), total: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(axis.count) })}</Typography>
       </Stack>
-      {pending && <Typography variant="caption" color="text.secondary">{translate('viewerDimensions.displaying', { time: format(displayedTime!, true) })}</Typography>}
+      {pending && <Typography variant="caption" color="text.secondary">{translate('viewerDimensions.displaying', { time: displayedTime === '' ? translate('viewerDimensions.serverDefault') : format(displayedTime!, true) })}</Typography>}
     </>}
     </Stack>
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>

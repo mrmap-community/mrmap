@@ -285,15 +285,14 @@ describe('time animation', () => {
 
   it('advances through the advertised times and waits for each frame to be drawn', () => {
     const panel = openPanel();
-    // an earlier observation is on the map when playback starts
-    act(() => mapState.update!({ displayedTimes: { '/0/0': '2025-03-31T00:00:00.000Z' } }));
+    // the server default image is on the map when playback starts
+    act(() => mapState.update!({ displayedTimes: { '/0/0': '' } }));
     vi.useFakeTimers();
     fireEvent.click(play(panel));
-    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
 
-    // the first tick selects the first advertised observation
-    act(() => vi.advanceTimersByTime(250));
+    // starting playback jumps to the first advertised observation
     expect(timeOf('first')).toBe('2025-04-01T00:00:00.000Z');
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
 
     // its frame has not reached the map: playback holds on pace instead of queuing requests
     act(() => vi.advanceTimersByTime(1500));
@@ -310,8 +309,10 @@ describe('time animation', () => {
     const panel = openPanel(frameFeatures());
     vi.useFakeTimers();
     fireEvent.click(play(panel));
+    // pressing play starts the animation from its beginning
+    expect(timeOf('frames')).toBe('2026-01-01');
     fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
-    act(() => vi.advanceTimersByTime(750));
+    act(() => vi.advanceTimersByTime(500));
     expect(timeOf('frames')).toBe('2026-01-03');
 
     // end of range: playback stopped there and the button offers to start again
@@ -319,10 +320,13 @@ describe('time animation', () => {
     expect(timeOf('frames')).toBe('2026-01-03');
     expect(play(panel)).toBeInTheDocument();
 
-    // with looping the same playback wraps around to the first observation
+    // pressing play again starts the animation from its beginning once more
     fireEvent.click(play(panel));
+    expect(timeOf('frames')).toBe('2026-01-01');
+
+    // with looping, playback reaching the end wraps around to the first observation
     fireEvent.click(within(panel).getByRole('button', { name: 'viewerDimensions.loop' }));
-    act(() => vi.advanceTimersByTime(500));
+    act(() => vi.advanceTimersByTime(1500));
     expect(timeOf('frames')).toBe('2026-01-01');
     vi.useRealTimers();
   }, TEST_TIMEOUT);
@@ -331,19 +335,21 @@ describe('time animation', () => {
     const panel = openPanel(frameFeatures());
     vi.useFakeTimers();
     fireEvent.click(play(panel));
-    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
-    act(() => vi.advanceTimersByTime(250));
     expect(timeOf('frames')).toBe('2026-01-01');
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
 
-    // the service refused that frame: the animation does not hold on it, it moves onward
+    // the service refused that first frame: the animation does not hold on it, it moves onward
     act(() => mapState.update!({ failedFeatures: [{ properties: { folder: '/0/0' } }] }));
     act(() => vi.advanceTimersByTime(250));
     expect(timeOf('frames')).toBe('2026-01-02');
 
-    // pausing at a refused frame and starting again steps over it right away
+    // pausing at a refused frame and starting again begins from the first observation and steps
+    // over the refused frames on its way
     fireEvent.click(pause(panel));
     fireEvent.click(play(panel));
-    expect(timeOf('frames')).toBe('2026-01-03');
+    expect(timeOf('frames')).toBe('2026-01-01');
+    act(() => vi.advanceTimersByTime(500));
+    expect(timeOf('frames')).toBe('2026-01-02');
     vi.useRealTimers();
   }, TEST_TIMEOUT);
 

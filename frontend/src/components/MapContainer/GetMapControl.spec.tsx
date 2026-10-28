@@ -565,3 +565,39 @@ test("identify asks the frame the map shows while a newer time is still on its w
     roads: "2026-01-01T00:05:00Z",
   });
 });
+
+test("identify of a drawn server-default image asks the default although a time is selected", async () => {
+  // the layer was advanced to an observation...
+  state.info = [
+    {
+      url: new URL(
+        "https://example.org/wms?VERSION=1.3.0&LAYERS=water&QUERY_LAYERS=water&TIME=2026-01-01T00%3A05%3A00Z",
+      ),
+      features: [
+        { properties: { folder: "/0/0" } },
+      ] as unknown as OptimizedUrlsMap["features"],
+      operations: [
+        { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
+      ],
+    },
+  ];
+  // ...while the map still draws the server-default image, which carries no time
+  state.displayedTimes["/0/0"] = "";
+  const fetched = vi.fn().mockResolvedValue({
+    ok: true,
+    text: async () => "feature",
+    headers: new Headers({ "content-type": "text/plain" }),
+  });
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+  await waitFor(() => expect(fetched).toHaveBeenCalledTimes(1));
+
+  // features answer for the drawn default: the request carries no time at all
+  expect(new URL(fetched.mock.calls[0][0]).searchParams.get("TIME")).toBeNull();
+});

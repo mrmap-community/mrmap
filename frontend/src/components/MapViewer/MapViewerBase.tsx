@@ -77,9 +77,9 @@ export interface MapViewerBaseType {
   setLayerOpacity: (folder: string, opacity: number) => void
   /**
    * The timestamp the image drawn on the map answers for, keyed by the folder of a time-enabled
-   * layer. While a newly selected frame is still on its way, the map keeps showing the previous
-   * one; this answers which observation the user actually sees, and layers without an entry draw
-   * nothing or an image which carries no time.
+   * layer: the empty string for a server-default image which carries no time, and no entry for a
+   * layer whose overlay draws nothing. While a newly selected frame is still on its way, the map
+   * keeps showing the previous one; this answers which observation the user actually sees.
    */
   displayedTimes: Record<string, string>
   /** reports which timestamp the image of a layer shows; undefined takes the answer back */

@@ -233,10 +233,12 @@ export const AuthImageOverlay = ({
   }, [loadingId, removeMapLoading]);
 
   // the drawn frame answers a specific observation: tell the controls and identify which one it
-  // is, for as long as this overlay draws it and for no longer (#705)
+  // is, for as long as this overlay draws it and for no longer; the server default image carries
+  // no time parameter, so it reports the empty string rather than nothing, which is the answer
+  // for "no image drawn" (#705)
   useEffect(() => {
     if (folder === undefined) return;
-    setDisplayedTime(folder, displayed?.time);
+    setDisplayedTime(folder, displayed === undefined ? undefined : displayed.time ?? "");
     return () => setDisplayedTime(folder, undefined);
   }, [folder, displayed, setDisplayedTime]);
 

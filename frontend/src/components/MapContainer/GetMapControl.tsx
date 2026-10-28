@@ -23,7 +23,7 @@ import proj4 from "proj4";
 
 import { resolveOperationAuthentication } from "../../ows-lib/OwsContext/authentication";
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
-import { isTimeParameter } from "../../ows-lib/OwsContext/dimensions";
+import { isTimeParameter, setTimeParameter } from "../../ows-lib/OwsContext/dimensions";
 import { updateOrAppendSearchParam } from "../../ows-lib/OwsContext/utils";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
@@ -367,16 +367,14 @@ const WebMapServiceControl = () => {
         }
 
         // ask the frame the map is drawing: while a newly selected time is still on its way,
-        // features answer for the observation the user sees, not for one that has not arrived;
-        // a layer whose overlay already draws the requested time is asked for that very time
+        // features answer for the observation the user sees, not for one that has not arrived; a
+        // drawn server-default image reports the empty string, which asks identify of the default
         const displayedTime =
           displayedTimes[
             atomicGetFeatureInfoUrl.features[0]?.properties.folder ?? ""
           ];
         if (displayedTime !== undefined) {
-          const timeName = [...params.keys()].find(isTimeParameter);
-          if (timeName !== undefined) params.set(timeName, displayedTime);
-          else params.set("TIME", displayedTime);
+          setTimeParameter(params, displayedTime);
         }
       });
       return getFeatureInfoUrls;

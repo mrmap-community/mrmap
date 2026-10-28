@@ -119,8 +119,8 @@ Changing a time does not blank the map: the frame already drawn stays visible un
 the new selection has been fetched, decoded and is ready to swap in, and the control names the
 observation the map shows while the next one is on its way. Identify asks that shown frame, so
 answers match what the user sees, and a frame the service refuses leaves the previous image
-visible while the status bar carries the error. Play starts an animation through the advertised
-times at two frames per second, in the settings panel as well as in the pinned timeline; the
+visible while the status bar carries the error. Play starts an animation from the first advertised
+time at two frames per second, in the settings panel as well as in the pinned timeline; the
 speed control offers half up to four frames per second and looping returns to the first time at
 the end of the range instead of stopping. Playback waits for each frame to reach the map before
 advancing and steps over frames the service refuses instead of holding on them; previous/next,

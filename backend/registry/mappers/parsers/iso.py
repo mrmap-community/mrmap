@@ -95,6 +95,11 @@ def parse_timeextent(mapper, time_extent_element):
             dt_start = timezone.make_aware(dt_start, timezone=UTC)
         if timezone.is_naive(dt_end):
             dt_end = timezone.make_aware(dt_end, timezone=UTC)
+        if dt_start > dt_end:
+            mapper.warnings.append(
+                f"Skipped temporal extent because begin {begin_position} is after end {end_position}."
+            )
+            return None
         if dt_start and dt_end:
             return TimeExtent(
                 begin=dt_start,

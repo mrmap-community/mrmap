@@ -2,7 +2,7 @@ import json
 import sys
 from uuid import uuid4
 
-from celery import chord
+from celery import chord, current_task
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
@@ -91,10 +91,13 @@ class ProcessingData(models.Model):
         # Warning:
         # The revoked headers mapping is not persistent across restarts,
         # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
-        app.control.revoke(
-            [str(_id) for _id in self.celery_task_ids],
-            terminate=True
-        )
+        current_task_id = current_task.request.id if current_task else None
+        task_ids = [str(_id) for _id in self.celery_task_ids
+                    if str(_id) != current_task_id]
+        if task_ids:
+            # A failing task can abort its own harvest. Store the terminal state and
+            # log before terminating siblings, and let the current task finish.
+            transaction.on_commit(lambda: app.control.revoke(task_ids, terminate=True))
         # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
         # but there will be a memory limit which is 50000 by default.
         # But Harvesting jobs can have a way far more tasks that are currently in the queue.
@@ -403,10 +406,9 @@ class HarvestingJob(ProcessingData):
             self.phase = HarvestingPhaseEnum.COMPLETED.value
             return super(HarvestingJob, self).save(*args, **kwargs)
         elif self.phase == HarvestingPhaseEnum.ABORT.value:
-            self.abort()
-            self.phase = HarvestingPhaseEnum.ABORTED.value
-            self.done_at = now()
-            return super(HarvestingJob, self).save(*args, **kwargs)
+            with transaction.atomic():
+                self.abort()
+                return super(HarvestingJob, self).save(*args, **kwargs)
 
         # see docs of django-simple-history
         # https://django-simple-history.readthedocs.io/en/latest/querying_history.html#save-without-creating-historical-records
@@ -944,6 +946,18 @@ class TemporaryMdMetadataFile(models.Model):
                                     )
                             result.append(
                                 (created_instance, update, not created))
+                            if self.job:
+                                for warning in mappers[0].warnings:
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=warning[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{warning}\n"
+                                            "The remaining metadata was imported."
+                                        ),
+                                    )
                             self.delete()
                     return result
             except OperationalError:

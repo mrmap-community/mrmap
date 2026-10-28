@@ -28,6 +28,7 @@ import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
+import SelectedElementPreviewCard from './Generic/ServiceShow/SelectedElementPreviewCard';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
@@ -71,12 +72,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementPreviewCard }}},
   
   
   {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementPreviewCard }}},
   
   
   {

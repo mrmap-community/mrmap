@@ -8,10 +8,12 @@ import { OWSContext, OWSResource } from './core';
 import {
     getDimensionParameter,
     getTimeDimensionAxis,
+    getTimeParameter,
     getWmsDimensionSelection,
     getWmsDimensionOverrides,
     isAllowedDimensionValue,
     parseAdvertisedValues,
+    setTimeParameter,
     setWmsDimension,
 } from './dimensions';
 import { wmsToOWSResources } from './utils';
@@ -218,5 +220,40 @@ describe('time slider axis', () => {
         const fractional = getTimeDimensionAxis({name:'time',values:'2024-01-01/2024-01-03/P0.5D'})!;
         expect(fractional.count).toBe(5);
         expect(fractional.valueAt(1)).toBe('2024-01-01T12:00:00.000Z');
+    });
+});
+
+describe('the time parameter of a request', () => {
+    test('reads the time a URL asks for, whatever case its parameter was written in', () => {
+        expect(getTimeParameter(new URL('https://example.org/wms?TIME=2026-01-01'))).toBe('2026-01-01');
+        expect(getTimeParameter(new URL('https://example.org/wms?time=2026-01-01&t=1'))).toBe('2026-01-01');
+        expect(getTimeParameter(new URL('https://example.org/wms?DIM_time=2026-01-01'))).toBe('2026-01-01');
+        expect(getTimeParameter(new URL('https://example.org/wms?LAYERS=a'))).toBeUndefined();
+    });
+
+    test('replaces any written time parameter with one canonical TIME value', () => {
+        const params = new URLSearchParams('LAYERS=a&DIM_TIME=old&time=older');
+        setTimeParameter(params, '2026-01-02');
+        expect(params.toString()).toBe('LAYERS=a&TIME=2026-01-02');
+    });
+
+    test('clears the time parameter so the request asks the server default again', () => {
+        const params = new URLSearchParams('LAYERS=a&TIME=old');
+        setTimeParameter(params, '');
+        expect(params.toString()).toBe('LAYERS=a');
+    });
+
+    test('writes over a DIM_TIME offering of the service through setWmsDimension', () => {
+        const withDimTime: Offering = {
+            code: WMS_OFFERING_CODE,
+            dimensions: [{ name: 'time', units: 'ISO8601', values: '2026-01-01,2026-01-02' }],
+            operations: [
+                { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&DIM_TIME=2026-01-01', active: true },
+            ],
+        };
+        setWmsDimension(withDimTime, 'time', '2026-01-02');
+        expect(withDimTime.operations![0].href).toBe('https://example.org/wms?LAYERS=a&TIME=2026-01-02');
+        setWmsDimension(withDimTime, 'time', '');
+        expect(withDimTime.operations![0].href).toBe('https://example.org/wms?LAYERS=a');
     });
 });

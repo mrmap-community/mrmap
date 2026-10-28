@@ -23,6 +23,7 @@ import proj4 from "proj4";
 
 import { resolveOperationAuthentication } from "../../ows-lib/OwsContext/authentication";
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { isTimeParameter } from "../../ows-lib/OwsContext/dimensions";
 import { updateOrAppendSearchParam } from "../../ows-lib/OwsContext/utils";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
@@ -36,6 +37,29 @@ export interface Tile {
   getMapUrl?: URL;
   getFeatureinfoUrl?: URL;
 }
+
+/**
+ * Identifies a map request up to its time: a new selected time keeps the very same overlay, so
+ * that the image it draws can stay visible until the frame of the new time is ready; every other
+ * change to the request or its authentication gives the overlay a new key and with it a fresh
+ * frame, because the map cannot show the old image for it (#705).
+ */
+const overlayKeyOf = (
+  url: URL,
+  authentication: { headers?: Headers; error?: string },
+): string => {
+  const request = new URL(url.href);
+  [...request.searchParams.keys()]
+    .filter(isTimeParameter)
+    .forEach((name) => request.searchParams.delete(name));
+  const credentials = authentication.error
+    ?? (authentication.headers
+      ? Array.from(authentication.headers)
+          .map(([name, value]) => `${name}=${value}`)
+          .join("&")
+      : "");
+  return `${request.href}|${credentials}`;
+};
 
 const FeatureInfoRequest = ({ request }: { request: OptimizedUrlsMap }) => {
   const { owsContext } = useOwsContextBase();
@@ -137,7 +161,7 @@ const WebMapServiceControl = () => {
   const [bounds, setBounds] = useState(map?.getBounds());
   const [size, setSize] = useState(map?.getSize());
   const { owsContext } = useOwsContextBase();
-  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls, opacityOf } =
+  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls, opacityOf, displayedTimes = {} } =
     useMapViewerBase();
   const [position, setPosition] = useState<LatLng | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -223,7 +247,7 @@ const WebMapServiceControl = () => {
       _tiles.push({
         leafletTile: (
           <AuthImageOverlay
-            key={atomicGetMapUrl.url.href}
+            key={overlayKeyOf(atomicGetMapUrl.url, authentication)}
             bounds={bounds}
             interactive={true}
             optimiuedUrl={atomicGetMapUrl}
@@ -341,6 +365,19 @@ const WebMapServiceControl = () => {
             selectedCrs.stringRepresentation,
           );
         }
+
+        // ask the frame the map is drawing: while a newly selected time is still on its way,
+        // features answer for the observation the user sees, not for one that has not arrived;
+        // a layer whose overlay already draws the requested time is asked for that very time
+        const displayedTime =
+          displayedTimes[
+            atomicGetFeatureInfoUrl.features[0]?.properties.folder ?? ""
+          ];
+        if (displayedTime !== undefined) {
+          const timeName = [...params.keys()].find(isTimeParameter);
+          if (timeName !== undefined) params.set(timeName, displayedTime);
+          else params.set("TIME", displayedTime);
+        }
       });
       return getFeatureInfoUrls;
     }
@@ -350,6 +387,7 @@ const WebMapServiceControl = () => {
     atomicGetFeatureInfoUrls,
     identifyViewport,
     selectedCrs,
+    displayedTimes,
   ]);
 
   useEffect(() => {

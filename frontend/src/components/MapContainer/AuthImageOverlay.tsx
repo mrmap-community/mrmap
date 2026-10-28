@@ -7,6 +7,7 @@ import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { getTimeParameter } from "../../ows-lib/OwsContext/dimensions";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
 
 export interface AuthOptions {
@@ -20,6 +21,17 @@ export interface AuthImageOverlayProps extends Partial<ImageOverlayProps> {
   interactive?: boolean;
   authenticationError?: string;
   auth?: AuthOptions | (() => AuthOptions) | Headers;
+}
+
+/**
+ * An image drawn on the map: the object URL it was given, the request whose answer it is and the
+ * time that answer was fetched for. The frame stays displayed until a successor has been fetched
+ * and decoded, so it keeps answering which observation the map shows (#705).
+ */
+interface DisplayedFrame {
+  href: string;
+  objectUrl: string;
+  time?: string;
 }
 
 /**
@@ -93,13 +105,13 @@ export const AuthImageOverlay = ({
   ...rest
 }: AuthImageOverlayProps) => {
   const translate = useTranslate();
-  const { reportMapLoading, removeMapLoading } = useMapViewerBase();
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const startedAt = useRef(performance.now());
+  const { reportMapLoading, removeMapLoading, setDisplayedTime } = useMapViewerBase();
   const overlay = useRef<L.ImageOverlay>(null);
 
   const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
   const url = optimiuedUrl.url.href;
+  const time = getTimeParameter(optimiuedUrl.url);
+  const folder = optimiuedUrl.features[0]?.properties.folder;
 
   const loadingId = `image:${url}`;
 
@@ -146,8 +158,58 @@ export const AuthImageOverlay = ({
     },
   });
 
+  // the image which is drawn, kept while a new time frame is requested: swapping only once the
+  // successor has been fetched and decoded answers a selection without the blank interval a
+  // remount produces, and a slow or failed frame simply leaves the previous observation visible
+  const [displayed, setDisplayed] = useState<DisplayedFrame>();
+  const displayedRef = useRef<DisplayedFrame | undefined>(undefined);
+  const [undecodable, setUndecodable] = useState<string>();
+  const startedAt = useRef({ href: url, at: performance.now() });
+  if (startedAt.current.href !== url) {
+    startedAt.current = { href: url, at: performance.now() };
+  }
+
   useEffect(() => {
-    const timing = performance.now() - startedAt.current;
+    if (!data) return;
+    let cancelled = false;
+    const objectUrl = URL.createObjectURL(data);
+    const display = () => {
+      if (cancelled) {
+        // a newer selection or an unmount invalidated this frame while it was prepared
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      setUndecodable(undefined);
+      const frame = { href: url, objectUrl, time };
+      // the replaced frame leaves the map, so its object URL is released with it
+      if (displayedRef.current && displayedRef.current.objectUrl !== objectUrl) {
+        URL.revokeObjectURL(displayedRef.current.objectUrl);
+      }
+      displayedRef.current = frame;
+      setDisplayed(frame);
+    };
+    const image = new Image();
+    image.src = objectUrl;
+    // let the browser decode the image before the overlay takes it, so that the swap cannot blank
+    // while decoding; browsers without Image.decode draw the fetched image directly
+    const decoding = (image as HTMLImageElement & { decode?: () => Promise<void> }).decode?.();
+    if (decoding === undefined) {
+      display();
+      return () => {
+        cancelled = true;
+      };
+    }
+    decoding.then(display, () => {
+      URL.revokeObjectURL(objectUrl);
+      if (!cancelled) setUndecodable("undecodable");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data, url, time]);
+
+  useEffect(() => {
+    const timing = performance.now() - startedAt.current.at;
     if (isFetching) {
       reportMapLoading(loadingId, "loading");
     } else if (error) {
@@ -156,40 +218,42 @@ export const AuthImageOverlay = ({
         features: optimiuedUrl.features,
       };
       reportMapLoading(loadingId, "error", mapError, timing);
+    } else if (undecodable) {
+      reportMapLoading(loadingId, "error", {
+        message: translate("viewerMap.undecodable"),
+        features: optimiuedUrl.features,
+      }, timing);
     } else if (data) {
       reportMapLoading(loadingId, "ready", undefined, timing);
     }
-  }, [data, error, isFetching, loadingId, reportMapLoading]);
+  }, [data, error, undecodable, isFetching, loadingId, optimiuedUrl.features, reportMapLoading, translate]);
 
   useEffect(() => {
     return () => removeMapLoading(loadingId);
   }, [loadingId, removeMapLoading]);
 
+  // the drawn frame answers a specific observation: tell the controls and identify which one it
+  // is, for as long as this overlay draws it and for no longer (#705)
   useEffect(() => {
-    if (!data) {
-      setImageUrl(null);
-      return;
-    }
-
-    const nextImageUrl = URL.createObjectURL(data);
-    setImageUrl(nextImageUrl);
-
-    return () => {
-      URL.revokeObjectURL(nextImageUrl);
-    };
-  }, [data]);
+    if (folder === undefined) return;
+    setDisplayedTime(folder, displayed?.time);
+    return () => setDisplayedTime(folder, undefined);
+  }, [folder, displayed, setDisplayedTime]);
 
   // an overlay keeps the options it was created with, so the opacity a user blends a layer to is
   // given to the overlay itself; the image of the layer stays loaded for it (#750)
   useEffect(() => {
     overlay.current?.setOpacity(opacity);
-  }, [opacity, imageUrl]);
+  }, [opacity, displayed]);
 
-  if (error) {
-    return null;
-  }
+  // what is drawn is only released when the overlay itself leaves the map
+  useEffect(() => () => {
+    if (displayedRef.current) {
+      URL.revokeObjectURL(displayedRef.current.objectUrl);
+    }
+  }, []);
 
-  if (isFetching || !imageUrl) {
+  if (!displayed) {
     return null;
   }
 
@@ -197,7 +261,7 @@ export const AuthImageOverlay = ({
     <ImageOverlay
       ref={overlay}
       bounds={bounds}
-      url={imageUrl}
+      url={displayed.objectUrl}
       interactive={interactive}
       opacity={opacity}
       {...rest}

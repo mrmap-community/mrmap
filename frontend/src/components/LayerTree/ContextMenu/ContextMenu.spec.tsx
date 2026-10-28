@@ -2,16 +2,32 @@ import type { OfferingDimension } from '../../../ows-lib/OwsContext/types';
 
 import { AdminContext } from 'react-admin';
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OWSResource } from '../../../ows-lib/OwsContext/core';
 import { OwsContextBase, useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import LayerTree from '../LayerTree';
 
-const mapState = vi.hoisted(() => ({ map: undefined as undefined | { getContainer: () => HTMLElement; invalidateSize: ReturnType<typeof vi.fn>; panTo: ReturnType<typeof vi.fn> } }));
-beforeEach(() => { mapState.map = undefined; });
-afterEach(() => vi.unstubAllGlobals());
+// the viewer context as a small subscription store: tests update it the way the real MapViewerBase
+// would, and every consumer of the hook re-renders with it
+const mapState = vi.hoisted(() => ({
+  map: undefined as undefined | { getContainer: () => HTMLElement; invalidateSize: ReturnType<typeof vi.fn>; panTo: ReturnType<typeof vi.fn> },
+  displayedTimes: {} as Record<string, string>,
+  animation: undefined as undefined | { folder: string; fps: number; loop: boolean },
+  failedFeatures: [] as { properties: { folder?: string } }[],
+  update: undefined as undefined | ((patch: Record<string, unknown>) => void),
+}));
+beforeEach(() => {
+  mapState.map = undefined;
+  mapState.displayedTimes = {};
+  mapState.animation = undefined;
+  mapState.failedFeatures = [];
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 const wmsOperations = (active: boolean, dimensions?: OfferingDimension[]) => [{
   code: 'http://www.opengis.net/spec/owc/1.0/req/wms',
@@ -49,9 +65,9 @@ const ContextProbe = () => {
   );
 };
 
-const renderTree = () => render(
+const renderTree = (features = testFeatures()) => render(
   <AdminContext>
-    <OwsContextBase initialFeatures={testFeatures()}>
+    <OwsContextBase initialFeatures={features}>
       <LayerTree />
       <ContextProbe />
     </OwsContextBase>
@@ -223,7 +239,7 @@ describe('layer tree context menu', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'viewerDimensions.title' }, { timeout: 4000 }));
 
     // the list dimension offers the advertised values, the range dimension asks for a validated number
-    const select = await screen.findByRole('combobox');
+    const select = await screen.findByRole('combobox', { name: /viewerDimensions\.dimension/ });
     expect(select).toHaveValue('10');
     fireEvent.change(select, { target: { value: '20' } });
     expect(positionOf('first').mapHref).toContain('ELEVATION=20');
@@ -239,11 +255,142 @@ describe('layer tree context menu', () => {
   }, TEST_TIMEOUT);
 });
 
-vi.mock('../../MapViewer/MapViewerBase', () => ({
-  useMapViewerBase: () => ({
-    mapLoading: { failedFeatures: [], errors: [] },
-    map: mapState.map,
-    opacityOf: () => 1,
-    setLayerOpacity: () => undefined,
-  }),
-}));
+// Playback keeps the map whole: it follows the advertised times, waits for the frame of a selected
+// time to reach the map before advancing, steps over frames the service refuses, and stops at the
+// end of the range unless looping was asked for (#705).
+describe('time animation', () => {
+  /** a layer whose advertised time is a short list, so the end of the range stays near */
+  const frameFeatures = () => [
+    new OWSResource({ title: 'group', updated: '', folder: '/0' }, 'group'),
+    new OWSResource({ title: 'frames', updated: '', folder: '/0/0', active: true, offerings: wmsOperations(true, [
+      { name: 'time', units: 'ISO8601', values: '2026-01-01,2026-01-02,2026-01-03' },
+    ]) }, 'frames'),
+  ];
+
+  /** opens the control panel of the first layer and returns its region */
+  let tree: ReturnType<typeof renderTree>;
+  const openPanel = (features = testFeatures()) => {
+    tree = renderTree(features);
+    expandGroup();
+    const row = document.querySelector('[data-owscontext-folder="/0/0"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'viewerControls.edit' }));
+    return screen.getByRole('region', { name: 'viewerControls.edit' });
+  };
+  const timeOf = (title: string) =>
+    new URL(positionOf(title).mapHref).searchParams.get('TIME');
+  const play = (panel: HTMLElement) =>
+    within(panel).getByRole('button', { name: 'viewerDimensions.play' });
+  const pause = (panel: HTMLElement) =>
+    within(panel).getByRole('button', { name: 'viewerDimensions.pause' });
+
+  it('advances through the advertised times and waits for each frame to be drawn', () => {
+    const panel = openPanel();
+    // an earlier observation is on the map when playback starts
+    act(() => mapState.update!({ displayedTimes: { '/0/0': '2025-03-31T00:00:00.000Z' } }));
+    vi.useFakeTimers();
+    fireEvent.click(play(panel));
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
+
+    // the first tick selects the first advertised observation
+    act(() => vi.advanceTimersByTime(250));
+    expect(timeOf('first')).toBe('2025-04-01T00:00:00.000Z');
+
+    // its frame has not reached the map: playback holds on pace instead of queuing requests
+    act(() => vi.advanceTimersByTime(1500));
+    expect(timeOf('first')).toBe('2025-04-01T00:00:00.000Z');
+
+    // once the map draws it, playback continues with the next advertised instant
+    act(() => mapState.update!({ displayedTimes: { '/0/0': '2025-04-01T00:00:00.000Z' } }));
+    act(() => vi.advanceTimersByTime(250));
+    expect(timeOf('first')).toBe('2025-04-02T00:00:00.000Z');
+    vi.useRealTimers();
+  }, TEST_TIMEOUT);
+
+  it('stops at the end of the advertised range and returns to its start when looping', () => {
+    const panel = openPanel(frameFeatures());
+    vi.useFakeTimers();
+    fireEvent.click(play(panel));
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
+    act(() => vi.advanceTimersByTime(750));
+    expect(timeOf('frames')).toBe('2026-01-03');
+
+    // end of range: playback stopped there and the button offers to start again
+    act(() => vi.advanceTimersByTime(1000));
+    expect(timeOf('frames')).toBe('2026-01-03');
+    expect(play(panel)).toBeInTheDocument();
+
+    // with looping the same playback wraps around to the first observation
+    fireEvent.click(play(panel));
+    fireEvent.click(within(panel).getByRole('button', { name: 'viewerDimensions.loop' }));
+    act(() => vi.advanceTimersByTime(500));
+    expect(timeOf('frames')).toBe('2026-01-01');
+    vi.useRealTimers();
+  }, TEST_TIMEOUT);
+
+  it('steps over a frame the service refuses instead of waiting for it forever', () => {
+    const panel = openPanel(frameFeatures());
+    vi.useFakeTimers();
+    fireEvent.click(play(panel));
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerDimensions.speed' }), { target: { value: '4' } });
+    act(() => vi.advanceTimersByTime(250));
+    expect(timeOf('frames')).toBe('2026-01-01');
+
+    // the service refused that frame: the animation does not hold on it, it moves onward
+    act(() => mapState.update!({ failedFeatures: [{ properties: { folder: '/0/0' } }] }));
+    act(() => vi.advanceTimersByTime(250));
+    expect(timeOf('frames')).toBe('2026-01-02');
+
+    // pausing at a refused frame and starting again steps over it right away
+    fireEvent.click(pause(panel));
+    fireEvent.click(play(panel));
+    expect(timeOf('frames')).toBe('2026-01-03');
+    vi.useRealTimers();
+  }, TEST_TIMEOUT);
+
+  it('ends the animation together with the control which played it', () => {
+    const panel = openPanel(frameFeatures());
+    vi.useFakeTimers();
+    fireEvent.click(play(panel));
+    act(() => vi.advanceTimersByTime(500));
+    expect(mapState.animation).toBeDefined();
+
+    // closing the panel takes the control away, and the animation ends with it
+    tree.unmount();
+    expect(mapState.animation).toBeUndefined();
+    vi.useRealTimers();
+  }, TEST_TIMEOUT);
+});
+
+vi.mock('../../MapViewer/MapViewerBase', async () => {
+  const { useSyncExternalStore } = await import('react');
+  const listeners = new Set<() => void>();
+  let revision = 0;
+  const subscribe = (notify: () => void) => {
+    listeners.add(notify);
+    return () => { listeners.delete(notify); };
+  };
+  mapState.update = (patch) => {
+    Object.assign(mapState, patch);
+    revision += 1;
+    listeners.forEach((notify) => notify());
+  };
+  return {
+    useMapViewerBase: () => {
+      useSyncExternalStore(subscribe, () => revision);
+      return {
+        mapLoading: { status: 'idle', loaded: 0, total: 0, errors: [], timings: {}, failedFeatures: mapState.failedFeatures },
+        map: mapState.map,
+        opacityOf: () => 1,
+        setLayerOpacity: () => undefined,
+        displayedTimes: mapState.displayedTimes,
+        setDisplayedTime: (folder: string, time: string | undefined) => mapState.update!({
+          displayedTimes: time === undefined
+            ? Object.fromEntries(Object.entries(mapState.displayedTimes).filter(([key]) => key !== folder))
+            : { ...mapState.displayedTimes, [folder]: time },
+        }),
+        animation: mapState.animation,
+        setAnimation: (animation: typeof mapState.animation) => mapState.update!({ animation }),
+      };
+    },
+  };
+});

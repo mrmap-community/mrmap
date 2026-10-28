@@ -1,14 +1,32 @@
 import re
+from copy import copy
 
 from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
-from requests import Request
+from requests import Request, Response
+from requests.exceptions import ChunkedEncodingError, ContentDecodingError
+from requests.structures import CaseInsensitiveDict
 
 
 class CatalogueServiceClient(OgcClient):
+
+    def send_request(self, request: Request, timeout: int = 10, *args, **kwargs) -> Response:
+        try:
+            return super().send_request(request=request, timeout=timeout, *args, **kwargs)
+        except (ChunkedEncodingError, ContentDecodingError):
+            headers = CaseInsensitiveDict(self.session.headers)
+            headers.update(request.headers or {})
+            if request.method.upper() != "GET" or headers.get("Accept-Encoding", "").lower() == "identity":
+                raise
+            # Some catalogues advertise the uncompressed length for a gzip body.
+            # Retry once without compression; never accept the incomplete body.
+            retry_request = copy(request)
+            retry_request.headers = CaseInsensitiveDict(request.headers or {})
+            retry_request.headers["Accept-Encoding"] = "identity"
+            return super().send_request(request=retry_request, timeout=timeout, *args, **kwargs)
 
     @property
     def get_records_constraints(self):

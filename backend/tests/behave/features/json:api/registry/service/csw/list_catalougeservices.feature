@@ -12,6 +12,15 @@ Feature: CatalogueService List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "4"
 
+    Scenario: Published counts describe records linked to the catalogue
+        Given I set a queryparam "filter[id]" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+        Given I set a queryparam "fields[CatalogueService]" with value "harvestedDatasetCount,harvestedServiceCount,harvestedTotalCount"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.harvestedDatasetCount" with value "2"
+        Then I expect that response json has an attribute "data.[0].attributes.harvestedServiceCount" with value "0"
+        Then I expect that response json has an attribute "data.[0].attributes.harvestedTotalCount" with value "2"
+
     Scenario Outline: Can <action>
         Given I set a queryparam "<param>" with value "<value>"
         When I send the request with GET method

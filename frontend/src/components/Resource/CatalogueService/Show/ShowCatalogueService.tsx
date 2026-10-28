@@ -8,6 +8,8 @@ import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 import ServiceShow, {
   type ServiceTab,
 } from "../../Generic/ServiceShow/ServiceShow";
+import HarvestingScheduleWarnings from "./HarvestingScheduleWarnings";
+import HarvestStepSizeField from "./HarvestStepSizeField";
 import MonitoringTab from "./MonitoringTab";
 import Overview from "./Overview";
 import Records from "./Records";
@@ -30,7 +32,16 @@ const tabs: ServiceTab[] = [
     label: "serviceShow.metadata",
     resource: "CatalogueService",
     operation: "partial_update_CatalogueService",
-    content: <ServiceMetadataTab />,
+    content: (
+      <ServiceMetadataTab
+        updateFieldDefinitions={[
+          {
+            component: HarvestStepSizeField,
+            props: { source: "maxStepSize" },
+          },
+        ]}
+      />
+    ),
   },
   {
     path: "CatalogueServiceOperationUrl/*",
@@ -74,6 +85,7 @@ const tabs: ServiceTab[] = [
     content: (
       <ServiceRelatedTab
         resource="PeriodicHarvestingJob"
+        header={<HarvestingScheduleWarnings />}
         defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
         formFieldOverrides={[
           {

@@ -402,6 +402,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
   },
+  harvestThroughput: {
+    basis: "Gemessen an den %{count} abgeschlossenen Datenübernahmen dieses Katalogs:",
+    perPage: "%{size} Datensätze pro Seite: %{throughput} Datensätze pro Minute",
+    recommendation: "Die schnellste gemessene Größe ist %{size}.",
+    isFastest: "%{size} ist die schnellste gemessene Größe und die Größe, mit der dieser Katalog übernommen wird.",
+    measuredBy: "Gemessen an der Lade- und Schreibzeit der Datensätze eines Laufs, die auf dessen Datensätze verteilt wird: zwischen Größen vergleichbar, keine Aussage über einen einzelnen Lauf.",
+  },
   backgroundActivity: {
     title: "Hintergrundaktivität",
     recent: "Die 10 neuesten Prozesse",
@@ -544,6 +551,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       monitoring_overdue: "Monitoring überfällig",
       update_overdue: "Aktualisierung überfällig",
       harvest_overdue: "Harvesting überfällig",
+      harvest_schedule_too_tight: "Harvesting-Zeitplan zu eng",
     },
   },
   serviceAttention: {

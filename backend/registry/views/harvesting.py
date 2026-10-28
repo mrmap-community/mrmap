@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from camel_converter import to_snake
 from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
+from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import DurationField, FloatField
 from django.db.models.functions import Ceil, Coalesce, Round
 from django.db.models.sql.constants import LOUTER
@@ -11,6 +12,7 @@ from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin, SparseFieldMixin)
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
+from registry.expressions.durations import DurationSeconds
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
@@ -106,7 +108,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         "create": CreateHarvestingJobSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id", 'date_created']
+    # the runs which finished are ordered by their end: the harvesting never sets the creation of
+    # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
+    # catalogue is measured by the runs which ended last (#692)
+    ordering_fields = ["id", 'date_created', 'done_at']
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -255,6 +260,26 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         if self.check_sparse_fields_contains("duplicatedServiceMetadataCount"):
             qs = qs.annotate(
                 duplicated_service_metadata_count=Coalesce(sums.col.duplicated_service_metadata_count, 0))
+        if self.check_sparse_fields_contains("recordsPerMinute"):
+            qs = qs.annotate(
+                harvested_records=Coalesce(sums.col.harvested_records, 0),
+                measured_seconds=Coalesce(sums.col.measured_seconds, 0.0),
+            ).annotate(
+                # Only a run which completed measured a harvest as a whole: the sums of a run which
+                # stopped half way, or broke, name the work it happened to do, not what a harvest of
+                # the catalogue takes. And a run whose records carry no durations measured nothing,
+                # so it answers nothing - an invented number must not be mistaken for a measured one
+                # (#692).
+                records_per_minute=Case(
+                    When(
+                        phase=HarvestingPhaseEnum.COMPLETED,
+                        done_at__isnull=False,
+                        measured_seconds__gt=0,
+                        then=ExpressionWrapper(
+                            F("harvested_records") * 60.0 / F("measured_seconds"),
+                            output_field=FloatField())),
+                    default=None,
+                    output_field=FloatField()))
 
         return qs
 
@@ -269,6 +294,21 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         if self.check_sparse_fields_contains("mdMetadataFileToDbDuration"):
             cte_annotation.update({
                 "md_metadata_file_to_db_duration": Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
+            })
+        if self.check_sparse_fields_contains("recordsPerMinute"):
+            # the throughput of a run are the records it stored against the time their
+            # download and their way into the database measured. Both are summed right here
+            # already, so the number costs no second aggregation of the harvested records (#692).
+            # The records which a completed snapshot only bookkeeps as removed are not among the
+            # ones a run fetched and carry no duration either.
+            cte_annotation.update({
+                "harvested_records": Count(
+                    'id',
+                    filter=~Q(collecting_state=CollectingStatenEnum.REMOVED.value)),
+                "measured_seconds": DurationSeconds(
+                    Coalesce(Sum('download_duration'), timedelta(seconds=0), output_field=DurationField())
+                    + Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
+                ),
             })
         sums = None
         if dataset_cte_annotation or service_cte_annotation or cte_annotation:

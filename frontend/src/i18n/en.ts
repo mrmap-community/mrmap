@@ -405,6 +405,13 @@ const en = lodashMerge(
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
     },
+    harvestThroughput: {
+      basis: "Measured by the %{count} harvests of this catalogue which finished:",
+      perPage: "%{size} records per page: %{throughput} records per minute",
+      recommendation: "The fastest size which was measured is %{size}.",
+      isFastest: "%{size} is the fastest measured size and the size this catalogue is harvested with.",
+      measuredBy: "Measured by the download and database time of the records of a run, which spreads the time of a response over its records: comparable between sizes, no promise about a single run.",
+    },
     backgroundActivity: {
       title: "Background activity",
       recent: "10 most recent processes",
@@ -534,6 +541,7 @@ const en = lodashMerge(
         monitoring_overdue: "Monitoring overdue",
         update_overdue: "Update overdue",
         harvest_overdue: "Harvesting overdue",
+        harvest_schedule_too_tight: "Harvesting schedule too tight",
       },
     },
     serviceAttention: {

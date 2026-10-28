@@ -4,6 +4,7 @@ from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from requests import Request
 
 
@@ -58,7 +59,7 @@ class CatalogueServiceClient(OgcClient):
         self,
         type_names: str = "gmd:MD_Metadata",
         result_type: str = "hits",
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd outputSchema identifier sent as an OGC parameter value - not a network endpoint
         element_set_name: str = "full",
         xml_constraint: str = None,
         cql_constraint: str = None,
@@ -71,6 +72,11 @@ class CatalogueServiceClient(OgcClient):
             "REQUEST": "GetRecords",
             "SERVICE": "CSW",
             "typeNames": type_names,
+            # KVP requests must bind the QName prefixes used by typeNames.
+            "NAMESPACE": (
+                f"xmlns(gmd={NAMESPACE_LOOKUP['gmd']}),"
+                f"xmlns(csw={NAMESPACE_LOOKUP['csw_2_0_2']})"
+            ),
             "resultType": result_type,
             "outputSchema": output_schema,
             "elementSetName": element_set_name,
@@ -108,7 +114,7 @@ class CatalogueServiceClient(OgcClient):
     def get_record_by_id_request(
         self,
         id: str,
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd outputSchema identifier sent as an OGC parameter value - not a network endpoint
         element_set_name: str = "full",
     ) -> Request:
 

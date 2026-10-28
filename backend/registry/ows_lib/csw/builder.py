@@ -127,7 +127,7 @@ class CSWBuilder(XSDSkeletonBuilder):
         records_returned,
         version="2.0.2",
         next_record=None,
-        record_schema="http://www.isotc211.org/2005/gmd",
+        record_schema="http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd recordSchema identifier written into the CSW response - not a network endpoint
         element_set="full",
         result_set_id=None,
         expires=None,

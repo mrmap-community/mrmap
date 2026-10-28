@@ -1,5 +1,26 @@
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
+
+from django.conf import settings
 from django.test import SimpleTestCase
 from registry.ows_lib.csw.csw import CatalogueServiceClient
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
+
+
+class CatalogueServiceClientGetRecordsTest(SimpleTestCase):
+    def test_get_records_binds_iso_and_csw_type_name_prefixes(self):
+        capabilities = Path(
+            settings.BASE_DIR, "tests/django/test_data/capabilities/csw/2.0.2.xml").read_bytes()
+        client = CatalogueServiceClient(capabilities)
+        for type_name in ("gmd:MD_Metadata", "csw:Record"):
+            with self.subTest(type_name=type_name):
+                request = client.get_records_request(type_names=type_name)
+                params = parse_qs(urlsplit(request.url).query)
+                self.assertEqual(params["typeNames"], [type_name])
+                self.assertEqual(set(params["NAMESPACE"][0].split(",")), {
+                    f"xmlns(gmd={NAMESPACE_LOOKUP['gmd']})",
+                    f"xmlns(csw={NAMESPACE_LOOKUP['csw_2_0_2']})",
+                })
 
 
 class CatalogueServiceClientAdvertisedMaxRecordsTest(SimpleTestCase):

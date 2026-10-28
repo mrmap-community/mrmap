@@ -396,6 +396,17 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
             '/api/registry/harvesting/harvesting-jobs',
             **{'include': 'service'})
 
+    def test_harvesting_job_throughput_does_not_grow_with_rows(self):
+        """the throughput of a run is summed by the aggregation of its durations
+
+        The records of a run are aggregated once for the durations of the run
+        already, so the records per minute which #692 answers out of them add no
+        second aggregation of the harvested records.
+        """
+        self.assertQueriesIndependentOfRows(
+            '/api/registry/harvesting/harvesting-jobs',
+            **{'fields[HarvestingJob]': 'id,max_step_size,records_per_minute'})
+
 
 class MetadataQueryPerformance(QueryMeasurementMixin, TestCase):
     """A metadata record serializes a dozen relations at once."""

@@ -1,5 +1,5 @@
-import type { PropsWithChildren, ReactElement } from 'react'
-import { AdminContext, testDataProvider, useListContext, type RaRecord } from 'react-admin'
+import type { PropsWithChildren } from 'react'
+import { AdminContext, testDataProvider, useListContext, type ListProps, type RaRecord } from 'react-admin'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -8,28 +8,34 @@ import ListGuesser from './ListGuesser'
 import { useSelectedRecordContext } from './SelectedRecordContext'
 
 const record = vi.hoisted(() => ({ id: 'selected', title: 'Selected record' }))
+const jsonApiQuery = vi.hoisted(() => ({ include: 'service' }))
 
-vi.mock('react-admin', async importOriginal => ({
-  ...await importOriginal<typeof import('react-admin')>(),
-  List: ({ children, aside }: PropsWithChildren<{ aside?: ReactElement }>) => <>{children}{aside}</>,
-  DatagridConfigurable: ({ rowClick, rowSx, children, preferenceKey }: PropsWithChildren<{
-    rowClick: (id: string, resource: string, record: RaRecord) => unknown
-    rowSx: (record: RaRecord) => { backgroundColor?: unknown }
-    preferenceKey: string
-  }>) => (
-    <>
-      <div data-testid="grid-columns" data-preference-key={preferenceKey}>{children}</div>
-      <button data-highlighted={Boolean(rowSx(record).backgroundColor)} onClick={() => rowClick(record.id, 'Layer', record)}>Select row</button>
-      <button data-highlighted={Boolean(rowSx({ id: 'other' }).backgroundColor)} onClick={() => rowClick('other', 'Layer', { id: 'other', title: 'Other record' })}>Select other row</button>
-    </>
-  ),
-  EditButton: () => null,
-  ShowButton: () => null,
-  WrapperField: () => null,
-  useResourceDefinition: () => ({ name: 'Layer', hasShow: false }),
-  useSidebarState: () => [false],
-  useStore: () => [[], vi.fn()],
-}))
+vi.mock('react-admin', async importOriginal => {
+  const actual = await importOriginal<typeof import('react-admin')>()
+  return {
+    ...actual,
+    List: (props: ListProps) => props.disableAuthentication
+      ? <actual.List {...props} />
+      : <>{props.children}{props.aside}</>,
+    DatagridConfigurable: ({ rowClick, rowSx, children, preferenceKey }: PropsWithChildren<{
+      rowClick: (id: string, resource: string, record: RaRecord) => unknown
+      rowSx: (record: RaRecord) => { backgroundColor?: unknown }
+      preferenceKey: string
+    }>) => (
+      <>
+        <div data-testid="grid-columns" data-preference-key={preferenceKey}>{children}</div>
+        <button data-highlighted={Boolean(rowSx(record).backgroundColor)} onClick={() => rowClick(record.id, 'Layer', record)}>Select row</button>
+        <button data-highlighted={Boolean(rowSx({ id: 'other' }).backgroundColor)} onClick={() => rowClick('other', 'Layer', { id: 'other', title: 'Other record' })}>Select other row</button>
+      </>
+    ),
+    EditButton: () => null,
+    ShowButton: () => null,
+    WrapperField: () => null,
+    useResourceDefinition: (props?: { resource?: string }) => ({ name: props?.resource ?? 'Layer', hasShow: false }),
+    useSidebarState: () => [false],
+    useStore: () => [[], vi.fn()],
+  }
+})
 vi.mock('react-router-dom', () => ({ useParams: () => ({}) }))
 vi.mock('../../components/Resource/Generic/History/HistoryList', () => ({ default: () => null }))
 vi.mock('../../components/Layout/AsideCard', () => ({ default: () => null }))
@@ -41,10 +47,9 @@ vi.mock('../hooks/useFieldsForOperation', () => ({
   useFieldsForOperation: () => [{ component: () => <span>Generated title</span>, props: { source: 'title' } }],
 }))
 vi.mock('../hooks/useFilterInputForOperation', () => ({ useFilterInputForOperation: () => [] }))
-vi.mock('../hooks/useJsonApiQuery', () => ({ default: () => ({}) }))
+vi.mock('../hooks/useJsonApiQuery', () => ({ default: () => jsonApiQuery }))
 vi.mock('../hooks/useOnError', () => ({ default: () => undefined }))
 vi.mock('../hooks/useResourceSchema', () => ({ default: () => ({ operation: {} }) }))
-vi.mock('./Realtime/RealtimeList', () => ({ default: () => null }))
 
 const SelectedRecordAside = () => {
   const { selectedRecord } = useSelectedRecordContext()
@@ -109,6 +114,56 @@ const ListHeader = () => {
     </header>
   )
 }
+
+describe('ListGuesser related queries', () => {
+  it.each([
+    { realtime: false, withHeader: false },
+    { realtime: true, withHeader: false },
+    { realtime: false, withHeader: true },
+    { realtime: true, withHeader: true },
+  ])('preserves parent scope with custom query options (%j)', async ({ realtime, withHeader }) => {
+    const getList = vi.fn().mockResolvedValue({ data: [record], total: 1 })
+    const relatedResource = { resource: 'CatalogueService', id: 'catalogue-1' }
+    const dataProvider = testDataProvider({
+      getList,
+      subscribe: vi.fn().mockResolvedValue(undefined),
+      unsubscribe: vi.fn().mockResolvedValue(undefined),
+    })
+    const view = (fields: string) => (
+      <AdminContext dataProvider={dataProvider}>
+        <ListGuesser
+          resource="HarvestingJob"
+          relatedResource={relatedResource}
+          realtime={realtime}
+          header={withHeader ? <ListHeader /> : undefined}
+          listContent={<div>Harvesting runs</div>}
+          actions={false}
+          pagination={false}
+          disableSyncWithLocation
+          disableAuthentication
+          queryOptions={{ meta: { jsonApiParams: { 'fields[HarvestingJob]': fields } } }}
+        />
+      </AdminContext>
+    )
+    const { rerender } = render(view('id,phase'))
+
+    await waitFor(() => expect(getList).toHaveBeenCalledWith('HarvestingJob', expect.objectContaining({
+      meta: {
+        relatedResource,
+        jsonApiParams: { include: 'service', 'fields[HarvestingJob]': 'id,phase' },
+      },
+    })))
+
+    rerender(view('id,phase,progress'))
+
+    await waitFor(() => expect(getList).toHaveBeenLastCalledWith('HarvestingJob', expect.objectContaining({
+      meta: {
+        relatedResource,
+        jsonApiParams: { include: 'service', 'fields[HarvestingJob]': 'id,phase,progress' },
+      },
+    })))
+  })
+})
 
 describe('ListGuesser header', () => {
   it.each([false, true])('shares list state and filters with the header (realtime=%s)', async realtime => {

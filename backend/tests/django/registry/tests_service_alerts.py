@@ -7,7 +7,7 @@ attributes of a service, they are asked for like any other attribute: with the
 fields of a request, a filter of it or its sort.
 """
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -117,12 +117,23 @@ class ServiceAlertsMixin:
             service=service, status=JobState(state), **kwargs)
 
     def harvesting_job(self, service=None, phase=Phase.COMPLETED,
-                       import_errors=0, hours_ago=1, short_pages=0):
-        """Create the last harvesting run of a catalogue"""
+                       import_errors=0, hours_ago=1, short_pages=0,
+                       took=timedelta(0)):
+        """Create the last harvesting run of a catalogue
+
+        Args:
+            service: the catalogue the run belongs to
+            phase: the phase the run is in
+            import_errors: how many records of the run could not be imported
+            hours_ago: how long ago the run ended
+            short_pages: how many pages of the run stayed short
+            took: how long the run took, which is the duration a schedule of the
+                catalogue is compared to (#693)
+        """
         happened = now() - timedelta(hours=hours_ago)
         job = HarvestingJob.objects.create(
             service=service or self.csw,
-            date_created=happened, done_at=happened,
+            date_created=happened - took, done_at=happened,
             total_records=max(import_errors, 1), phase=Phase(phase))
         for number in range(import_errors):
             TemporaryMdMetadataFile.objects.create(
@@ -722,6 +733,111 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
         PeriodicHarvestingJob.objects.filter(pk=setting.pk).update(enabled=False)
         self.assertEqual(self.response()['data'], [])
 
+    def harvesting_schedule(self, minutes='*'):
+        """Create a schedule which harvests the catalogue as often as given
+
+        Args:
+            minutes: the minute part of the crontab, which decides how often the
+                catalogue is harvested
+
+        Returns:
+            PeriodicHarvestingJob: the schedule, with its harvesting already
+                finished - because only a harvest which happened answers how long
+                a harvest takes
+        """
+        from registry.models.harvest import PeriodicHarvestingJob
+        crontab = CrontabSchedule.objects.create(
+            minute=minutes, hour='*', day_of_week='*', day_of_month='*',
+            month_of_year='*', timezone='UTC')
+        setting = PeriodicHarvestingJob.objects.create(
+            service=self.csw, crontab=crontab)
+        return setting
+
+    def tight_schedules(self):
+        """The schedules which are tighter than the harvests of their catalogue
+
+        Returns:
+            list: the rows of the cross service alert of that kind
+        """
+        response = self.response(**{'filter[category]': 'harvest_schedule_too_tight'})
+        self.assertEqual(response['meta']['pagination']['count'],
+                         len(response['data']))
+        return response['data']
+
+    def test_a_harvesting_schedule_tighter_than_the_harvest_warns(self):
+        """a schedule which fires more often than a harvest takes is answered (#693)
+
+        The warning names both numbers it is decided by, so an administrator sees
+        which schedule to loosen and how long the harvest really takes.
+        """
+        from registry.models.harvest import PeriodicHarvestingJob
+        setting = self.harvesting_schedule()
+        job = self.harvesting_job(took=timedelta(minutes=40))
+
+        alerts = self.tight_schedules()
+        self.assertEqual(len(alerts), 1)
+        alert = alerts[0]
+        self.assertEqual(alert['id'],
+                         f'harvest_schedule_too_tight:CatalogueService:{setting.pk}')
+        self.assertEqual(alert['attributes']['severity'], 'warning')
+        self.assertEqual(alert['attributes']['service'], CSW_ONE)
+        # the schedule as the api of the schedule answers it, and the measured
+        # duration without words, so that the message is not mixed by language
+        self.assertIn('* * * * *', alert['attributes']['message'])
+        self.assertIn('0:40:00', alert['attributes']['message'])
+        # the moment of the harvest which was measured, and the schedules
+        self.assertEqual(
+            datetime.fromisoformat(alert['attributes']['occurredAt']),
+            job.done_at)
+        self.assertIn('/show/PeriodicHarvestingJob', alert['attributes']['targetPath'])
+
+        # the warning is about one schedule, so it disappears with it
+        PeriodicHarvestingJob.objects.filter(pk=setting.pk).delete()
+        self.assertEqual(self.tight_schedules(), [])
+
+    def test_a_schedule_the_harvest_meets_answers_nothing(self):
+        """a catalogue harvested once an hour does not ask for attention"""
+        self.harvesting_schedule(minutes='0')
+        self.harvesting_job(took=timedelta(minutes=40))
+        self.assertEqual(self.tight_schedules(), [])
+
+    def test_a_harvest_which_never_finished_answers_no_estimate(self):
+        """an invented duration must not be mistaken for a measured one"""
+        self.harvesting_schedule()
+        self.harvesting_job(phase=Phase.ABORTED, took=timedelta(minutes=40))
+        self.assertEqual(self.tight_schedules(), [])
+
+    def test_a_disabled_harvesting_schedule_answers_nothing(self):
+        """a schedule which does not fire cannot be too tight"""
+        from registry.models.harvest import PeriodicHarvestingJob
+        setting = self.harvesting_schedule()
+        self.harvesting_job(took=timedelta(minutes=40))
+        PeriodicHarvestingJob.objects.filter(pk=setting.pk).update(enabled=False)
+        self.assertEqual(self.tight_schedules(), [])
+
+    def test_a_harvesting_schedule_which_is_too_tight_is_still_saved(self):
+        """a too tight schedule is a warning and never a rejected save (#693)
+
+        How long a harvest takes drifts with the remote catalogue, so the schedule
+        stays the decision of the administrator.
+        """
+        setting = self.harvesting_schedule(minutes='0')
+        self.harvesting_job(took=timedelta(minutes=40))
+        self.assertEqual(self.tight_schedules(), [])
+
+        response = self.client.patch(
+            reverse('registry:periodicharvestingjob-detail',
+                    kwargs={'pk': setting.pk}),
+            json.dumps({
+                'data': {'id': str(setting.pk), 'type': 'PeriodicHarvestingJob',
+                         'attributes': {'scheduling': '* * * * *'}}}),
+            content_type=JSONAPI)
+        self.assertEqual(response.status_code, 200, response.content)
+        # the saved schedule is the tighter one and is warned about from now on
+        self.assertEqual(
+            [row['id'] for row in self.tight_schedules()],
+            [f'harvest_schedule_too_tight:CatalogueService:{setting.pk}'])
+
     def test_overdue_updates_are_collected_for_every_protocol(self):
         from registry.models.service import WebFeatureService
         from registry.models.update import (
@@ -766,7 +882,6 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
 
 class ServiceAlertOrderingTest(SimpleTestCase):
     def test_overdue_schedule_and_run_timestamps_compare_as_instants(self):
-        from datetime import datetime
         from registry.views.alerts import ServiceAlertListView
         from rest_framework.request import Request
         view = ServiceAlertListView()

@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from django.test import TestCase
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
-from registry.mappers.parsers.iso import logger as iso_logger
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.metadata import MetadataContact
 from registry.models.service import (CatalogueService, FeatureType,
@@ -393,9 +392,10 @@ class XmlMapperTest(TestCase):
                     valid_period.find('gml:beginPosition', namespaces).text = '2014-12-31'
                     extent.getparent().append(valid_extent)
 
-                with self.assertLogs(iso_logger, level='WARNING') as logs:
-                    record = mapper.xml_to_django()[0]
-                self.assertTrue(any('Skipping TimeExtent with begin after end' in message for message in logs.output))
+                record = mapper.xml_to_django()[0]
+                self.assertEqual(mapper.warnings, [
+                    'Skipped temporal extent because begin 2016-02-01 is after end 2014-12-31.',
+                ])
                 PersistenceHandler(mapper).persist_all()
                 record.refresh_from_db()
                 self.assertTrue(record.title)

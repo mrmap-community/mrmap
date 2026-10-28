@@ -24,7 +24,8 @@ class XmlMapper:
         self,
         xml: Union[str, Path, bytes, IO, etree._Element],
         mapping: dict,
-        uuid=None
+        uuid=None,
+        warnings=None,
     ):
         """
         Initialize XmlMapper.
@@ -38,6 +39,8 @@ class XmlMapper:
             mapping (dict): mapping configuration dictionary.
         """
         self.mapping = mapping
+        # Nested mappers share diagnostics so the importer can report them to its user.
+        self.warnings = warnings if warnings is not None else []
         if uuid is None:
             uuid = uuid4()
         self.uuid = uuid
@@ -130,7 +133,8 @@ class XmlMapper:
                 xml=element,
                 mapping=xpath_or_spec | {
                     "_namespaces": self.mapping.get("_namespaces", {})},
-                uuid=self.uuid
+                uuid=self.uuid,
+                warnings=self.warnings,
             )
             parsed = parser.traverse_spec(
                 xpath_or_spec,

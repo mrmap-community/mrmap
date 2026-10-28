@@ -7,9 +7,21 @@ import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
 import { useQueryParam } from '../../../../utils';
 import ElementHistory from '../../../Generic/ServiceShow/ElementHistory';
 import ElementInspection from '../../../Generic/ServiceShow/ElementInspection';
+import ElementViewer from '../../../Generic/ServiceShow/ElementViewer';
 import MapViewerButton from '../../Button/MapViewerButton';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
+/**
+ * The preview of one selected layer: the viewer of its single resource document, mounted by the
+ * element it belongs to, because another element means another document and another map.
+ */
+const layerPreview = (layer?: RaRecord) => (
+    <ElementViewer
+        key={String(layer?.id)}
+        capabilitiesUrl={layer?.capabilitiesUrl}
+        extent={layer?.bboxLatLon}
+    />
+);
 
 export const WmsLayers = () => {
 
@@ -70,6 +82,7 @@ export const WmsLayers = () => {
               />
           )}
           history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
+          preview={layerPreview}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>

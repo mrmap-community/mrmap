@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type L from "leaflet";
+
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   type RaRecord,
   useGetList,
   useRecordContext,
   useTranslate,
 } from "react-admin";
+import { MapContainer, Rectangle, useMap } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
 
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -13,42 +16,35 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Box,
   Button,
-  Checkbox,
-  FormControlLabel,
   LinearProgress,
-  Link,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
-import { v4 as uuidv4 } from "uuid";
+import { CRS } from "leaflet";
 
-import { API_BASE_URL } from "../../../../../context/HttpClientContext";
-import { getAuthToken } from "../../../../../providers/authProvider";
-import {
-  OwsContextBase,
-  useOwsContextBase,
-} from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
-import { validExtent } from "../../../../MapViewer/utils";
-import PreviewMap, { type Viewport } from "./PreviewMap";
+import { useOwsContextBase } from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
+import AutoResizeMapContainer from "../../../../MapContainer/ResizeAbleMapContainer";
+import { extentBounds, validExtent } from "../../../../MapViewer/utils";
+import { getCoverageBounds } from "../../Explorer/coverage";
+import ElementViewer, {
+  capabilitiesHeaders,
+  renderSingleResource,
+} from "../ElementViewer";
 import {
   PreviewFailure,
   serviceResource,
-  useIdentify,
   usePreview,
-  type Protocol,
+  type LiveRecord,
   type PreviewLink,
   type PreviewResult,
+  type Protocol,
 } from "./usePreview";
 
-/** Loading and error state of a preview or identify request, whatever it answers with. */
+/** Loading and error state of a preview request, whatever it answers with. */
 const PreviewStatus = ({
   query,
 }: {
@@ -96,277 +92,73 @@ const PreviewSource = ({ result }: { result?: PreviewResult }) => {
   );
 };
 
-const parseIdentify = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-};
-
-const entries = (value: unknown) =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? Object.entries(value as Record<string, unknown>)
-    : [];
-
-const identifyFeatures = (value: unknown) => {
-  const features = (value as { features?: unknown })?.features;
-  return Array.isArray(features) ? features : undefined;
-};
-
-/** Extract only text and table structure; upstream nodes never enter the live DOM. */
-const readIdentifyHtml = (text: string) => {
-  const document = new DOMParser().parseFromString(text, "text/html");
-  document
-    .querySelectorAll(
-      "script, style, template, noscript, iframe, object, embed, svg, math, form",
-    )
-    .forEach((node) => node.remove());
-  const tables = Array.from(document.querySelectorAll("table"), (table) => ({
-    caption: table.caption?.textContent?.trim(),
-    rows: Array.from(table.rows, (row) =>
-      Array.from(row.cells, (cell) => ({
-        text: cell.textContent?.trim() ?? "",
-        header: cell.tagName === "TH",
-      })),
-    ).filter((row) => row.some((cell) => cell.text)),
-  })).filter((table) => table.rows.length > 0);
-  document.querySelectorAll("table").forEach((node) => node.remove());
-  document.body
-    .querySelectorAll("br, p, div, li, h1, h2, h3, h4, h5, h6")
-    .forEach((node) => node.append("\n"));
-  return { tables, text: document.body.textContent?.trim() ?? "" };
-};
-
-/** Presents service data as React text and tables, with the original available on demand. */
-export const FeatureInfoResult = ({
-  text,
-  contentType,
-  paginate = false,
-}: {
-  text: string;
-  contentType: string;
-  paginate?: boolean;
-}) => {
-  const translate = useTranslate();
-  const [featureIndex, setFeatureIndex] = useState(0);
-  useEffect(() => setFeatureIndex(0), [text]);
-  const [url, setUrl] = useState<string>();
+/** Fitted when the map mounts and whenever the records it shows change. */
+const FitRecords = ({ bounds }: { bounds: L.LatLngBounds }) => {
+  const map = useMap();
   useEffect(() => {
-    const next = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [text]);
-  const mediaType = contentType.split(";")[0].trim().toLowerCase();
-  const html = useMemo(
-    () =>
-      mediaType === "text/html" || mediaType === "application/xhtml+xml"
-        ? readIdentifyHtml(text)
-        : undefined,
-    [mediaType, text],
+    map.fitBounds(bounds);
+  }, [map, bounds]);
+  return null;
+};
+
+/**
+ * The map of the catalogue records: one rectangle per record's coverage, the selected one
+ * highlighted, click selects. Catalogue records describe services elsewhere, so nothing of
+ * them is asked from a service - only the stored coverages are shown.
+ */
+const RecordsMap = ({
+  records,
+  selected,
+  onSelect,
+}: {
+  records: LiveRecord[];
+  selected: number;
+  onSelect: (index: number) => void;
+}) => {
+  const placed = records.flatMap((record, index) =>
+    validExtent(record.extent) ? [{ index, extent: record.extent }] : [],
   );
-  const parsed =
-    mediaType === "application/json" || mediaType === "application/geo+json"
-      ? parseIdentify(text)
-      : undefined;
-  const features = parsed === undefined ? undefined : identifyFeatures(parsed);
+  const bounds = placed.reduce<L.LatLngBounds | undefined>(
+    (union, { extent }) => {
+      const bounds = extentBounds(extent);
+      return union ? union.extend(bounds) : bounds;
+    },
+    undefined,
+  );
   return (
-    <Stack spacing={1} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-      {html ? (
-        <>
-          {!html.tables.length && !html.text && (
-            <Typography variant="body2" color="text.secondary">
-              {translate("livePreview.noFeatures")}
-            </Typography>
-          )}
-          {html.text && (
-            <Typography
-              variant="body2"
-              sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-            >
-              {html.text}
-            </Typography>
-          )}
-          {html.tables.map((table, index) => (
-            <TableContainer key={index} sx={{ maxHeight: 300 }}>
-              <Table
-                size="small"
-                sx={{
-                  "& td, & th": {
-                    verticalAlign: "top",
-                    minWidth: 100,
-                    maxWidth: 280,
-                    overflowWrap: "anywhere",
-                  },
-                }}
-              >
-                {table.caption && (
-                  <caption style={{ captionSide: "top" }}>
-                    {table.caption}
-                  </caption>
-                )}
-                <TableBody>
-                  {table.rows.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {row.map((cell, cellIndex) => (
-                        <TableCell
-                          key={cellIndex}
-                          component={cell.header ? "th" : "td"}
-                          sx={
-                            cell.header
-                              ? { fontWeight: "bold", bgcolor: "action.hover" }
-                              : undefined
-                          }
-                        >
-                          {cell.text}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ))}
-        </>
-      ) : features ? (
-        features.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {translate("livePreview.noFeatures")}
-          </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {paginate && (
-              <Stack direction="row" sx={{ alignItems: "center" }} spacing={1}>
-                <Typography variant="caption" sx={{ flex: 1 }}>
-                  {translate("viewerFeatureInfo.featurePage", {
-                    current: Math.min(featureIndex + 1, features.length),
-                    total: features.length,
-                  })}
-                </Typography>
-                <Button
-                  size="small"
-                  disabled={featureIndex === 0}
-                  onClick={() => setFeatureIndex((index) => index - 1)}
-                  aria-label={translate("ra.navigation.previous")}
-                >
-                  ‹
-                </Button>
-                <Button
-                  size="small"
-                  disabled={featureIndex >= features.length - 1}
-                  onClick={() => setFeatureIndex((index) => index + 1)}
-                  aria-label={translate("ra.navigation.next")}
-                >
-                  ›
-                </Button>
-              </Stack>
-            )}
-            {(paginate
-              ? features.slice(featureIndex, featureIndex + 1)
-              : features
-            ).map((feature, index) => (
-              <Stack
-                key={index}
-                sx={{
-                  border: paginate ? 0 : 1,
-                  borderColor: "divider",
-                  p: paginate ? 0 : 1,
-                }}
-              >
-                {(entries((feature as { properties?: unknown })?.properties)
-                  .length
-                  ? entries((feature as { properties?: unknown }).properties)
-                  : entries(feature)
-                ).map(([key, value]) => (
-                  <Typography
-                    key={key}
-                    component="div"
-                    variant="body2"
-                    sx={
-                      paginate
-                        ? {
-                            display: "grid",
-                            gridTemplateColumns:
-                              "minmax(90px, .8fr) minmax(0, 1.2fr)",
-                            gap: 1,
-                            py: 1,
-                            borderTop: 1,
-                            borderColor: "divider",
-                            overflowWrap: "anywhere",
-                          }
-                        : undefined
-                    }
-                  >
-                    {paginate ? (
-                      <>
-                        <span>{key}</span>
-                        <span>
-                          {typeof value === "object"
-                            ? JSON.stringify(value)
-                            : String(value ?? "")}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        {key}:{" "}
-                        {typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value ?? "")}
-                      </>
-                    )}
-                  </Typography>
-                ))}
-              </Stack>
-            ))}
-          </Stack>
-        )
-      ) : (
-        <Typography
-          component="pre"
-          sx={{ whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}
-        >
-          {parsed === undefined ? text : JSON.stringify(parsed, null, 2)}
-        </Typography>
-      )}
-      <Accordion
-        slotProps={{ transition: { unmountOnExit: true } }}
-        disableGutters
-        elevation={0}
-        sx={{
-          "&:before": { display: "none" },
-          borderTop: 1,
-          borderColor: "divider",
-        }}
+    <Box sx={{ height: 380, position: "relative", width: "100%" }}>
+      <MapContainer
+        crs={CRS.EPSG4326}
+        center={[30, 0]}
+        zoom={2}
+        scrollWheelZoom
+        style={{ height: "100%", width: "100%" }}
       >
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="body2">
-            {translate("livePreview.rawResponse")}
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          {url && (
-            <Link href={url} download="getfeatureinfo.txt">
-              {translate("livePreview.featureInfo")}
-            </Link>
-          )}
-          <Typography
-            component="pre"
-            sx={{
-              fontFamily: "monospace",
-              fontSize: "0.75rem",
-              whiteSpace: "pre",
-              maxHeight: 200,
-              overflow: "auto",
+        <AutoResizeMapContainer />
+        {bounds && <FitRecords bounds={bounds} />}
+        {placed.map(({ extent, index }) => (
+          <Rectangle
+            key={`${records[index].identifier}-${index}`}
+            bounds={extentBounds(extent)}
+            pathOptions={{
+              color: index === selected ? "#c14400" : "#1976d2",
+              weight: index === selected ? 4 : 1,
             }}
-          >
-            {text}
-          </Typography>
-        </AccordionDetails>
-      </Accordion>
-    </Stack>
+            eventHandlers={{ click: () => onSelect(index) }}
+          />
+        ))}
+      </MapContainer>
+    </Box>
   );
 };
 
+/**
+ * The live preview of one element of a service: the element is chosen from the registry and
+ * rendered by the viewer of the single resource - the same component the inspection of the
+ * element works with, so what one shows the other shows. The map asks the service itself,
+ * per viewport, over the proxy or at the remote origin the way the document of the element
+ * names it.
+ */
 const DataPreview = ({
   protocol,
   serviceId,
@@ -376,15 +168,12 @@ const DataPreview = ({
   protocol: "WMS" | "WFS";
   serviceId: string;
   initialSelection?: string;
-  onViewer?: (selection: string, viewport: Viewport) => void;
+  onViewer?: (element: RaRecord) => void;
 }) => {
   const translate = useTranslate();
   const [selection, setSelection] = useState(initialSelection ?? "");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [visible, setVisible] = useState(true);
-  const [viewport, setViewport] = useState<Viewport>();
-  const [identify, setIdentify] = useState<{ x: number; y: number }>();
   const choices = useGetList<RaRecord>(
     protocol === "WMS" ? "Layer" : "FeatureType",
     {
@@ -396,51 +185,17 @@ const DataPreview = ({
       },
     },
   );
-  const discovery = usePreview(
-    protocol,
-    serviceId,
-    { selection },
-    Boolean(selection),
-  );
-  const query = usePreview(
-    protocol,
-    serviceId,
-    { selection, ...viewport },
-    Boolean(
-      selection && visible && viewport && discovery.data && !discovery.error,
-    ),
-  );
-  const info = useIdentify(
-    discovery.data?.identify,
-    viewport,
-    visible ? identify : undefined,
-  );
-  const updateViewport = useCallback((next: Viewport) => {
-    setViewport((previous) =>
-      previous?.bbox === next.bbox &&
-      previous?.width === next.width &&
-      previous?.height === next.height
-        ? previous
-        : next,
-    );
-    setIdentify(undefined);
-  }, []);
   const namedChoices =
     choices.data?.filter((record) => record.identifier) ?? [];
   useEffect(() => {
     if (!selection && namedChoices[0])
       setSelection(String(namedChoices[0].identifier));
   }, [choices.data]);
+  const chosen = namedChoices.find(
+    (record) => String(record.identifier) === selection,
+  );
   return (
     <Stack spacing={2}>
-      {!discovery.supported && (
-        <Alert severity="warning">
-          {translate("livePreview.errors.operation")}
-        </Alert>
-      )}
-      <Typography variant="body2">
-        {translate("livePreview.storedDiscovery")}
-      </Typography>
       {choices.error && (
         <Alert
           severity="error"
@@ -481,10 +236,7 @@ const DataPreview = ({
               : "livePreview.featureType",
           )}
           value={selection}
-          onChange={(event) => {
-            setSelection(event.target.value);
-            setIdentify(undefined);
-          }}
+          onChange={(event) => setSelection(event.target.value)}
         >
           <MenuItem value="">{translate("livePreview.select")}</MenuItem>
           {selection &&
@@ -510,77 +262,23 @@ const DataPreview = ({
           {translate("ra.navigation.next")}
         </Button>
       </Stack>
-      <Stack direction="row" spacing={1}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={visible}
-              onChange={(event) => {
-                setVisible(event.target.checked);
-                setIdentify(undefined);
-              }}
-            />
-          }
-          label={translate("livePreview.visible")}
-        />
-        <Button
-          disabled={!selection || query.isFetching}
-          onClick={() => {
-            discovery.refetch();
-            if (visible && viewport) query.refetch();
-          }}
-        >
-          {translate("ra.action.refresh")}
-        </Button>
-        {onViewer && (
-          <Button
-            disabled={!selection || !viewport || Boolean(discovery.error)}
-            onClick={() => viewport && onViewer(selection, viewport)}
-          >
+      {onViewer && (
+        <Stack direction="row" spacing={1} sx={{ alignSelf: "flex-start" }}>
+          <Button disabled={!chosen} onClick={() => chosen && onViewer(chosen)}>
             {translate("ra.action.mapviewer")}
           </Button>
-        )}
-      </Stack>
-      <PreviewStatus query={discovery} />
-      <PreviewStatus query={query} />
-      <PreviewSource result={query.data} />
-      {query.data?.limited && (
-        <Alert severity="info">
-          {translate("livePreview.limited", { count: query.data.limit })}
-        </Alert>
+        </Stack>
       )}
-      {query.data?.features?.features.length === 0 && (
-        <Alert severity="info">{translate("livePreview.emptyFeatures")}</Alert>
+      {selection && !chosen && (
+        <Typography variant="body2">
+          {translate("livePreview.selectOutsidePage", { selection })}
+        </Typography>
       )}
-      {protocol === "WMS" &&
-        discovery.data &&
-        !discovery.data.configuration?.queryable && (
-          <Typography variant="body2">
-            {translate("livePreview.noIdentify")}
-          </Typography>
-        )}
-      <PreviewMap
-        viewport={viewport}
-        onViewport={updateViewport}
-        extent={discovery.data?.configuration?.extent}
-        image={visible ? query.data?.image : undefined}
-        features={visible ? query.data?.features : undefined}
-        identifyAvailable={Boolean(
-          visible && discovery.data?.configuration?.queryable,
-        )}
-        onIdentify={
-          visible && discovery.data?.configuration?.queryable
-            ? (x, y) => setIdentify({ x, y })
-            : undefined
-        }
-      />
-      <PreviewStatus query={info} />
-      {visible && info.data?.info !== undefined && (
-        <FeatureInfoResult
-          text={info.data.info}
-          contentType={
-            info.data.contentType ?? discovery.data?.identify?.infoFormat ?? ""
-          }
+      {chosen && (
+        <ElementViewer
+          key={String(chosen.id)}
+          capabilitiesUrl={chosen.capabilitiesUrl}
+          extent={chosen.bboxLatLon}
         />
       )}
     </Stack>
@@ -676,16 +374,21 @@ const CataloguePreview = ({ serviceId }: { serviceId: string }) => {
           ))}
         </Stack>
       )}
-      <PreviewMap
-        onViewport={() => {}}
-        records={records}
-        selectedRecord={selected}
-        onSelectRecord={(index) => {
-          setSelected(index);
-          setLinked(undefined);
-        }}
-        extent={record?.extent}
-      />
+      {records.length > 0 && (
+        <Stack spacing={0.5}>
+          <RecordsMap
+            records={records}
+            selected={selected}
+            onSelect={(index) => {
+              setSelected(index);
+              setLinked(undefined);
+            }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            {translate("livePreview.coverage")}
+          </Typography>
+        </Stack>
+      )}
       {linked && (
         <DataPreview
           key={`${linked.serviceId}-${linked.selection}`}
@@ -705,91 +408,37 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
   const [expanded, setExpanded] = useState(false);
   const globalContext = useOwsContextBase();
   const navigate = useNavigate();
-  // the viewer is handed the service through the security proxy: a registered service keeps its
-  // stored credentials and its spatial security on the server side, because the camouflaged
-  // operations of the delivered capabilities point back to this origin and the viewer will ask
-  // the proxy, which bounds the requests, instead of the upstream service
+  // the element is handed to the full viewer through its own capabilities document: the
+  // document already names the urls its operations are answered at - the proxy for a
+  // secured service, which keeps the stored credentials and the spatial security on the
+  // server side, the remote service for a service without rules - so the viewer keeps on
+  // asking exactly where the live preview asked
   const transfer = useCallback(
-    async (selection: string, viewport: Viewport) => {
-      const wms = protocol === "WMS";
-      const url = new URL(
-        `/mrmap-proxy/${wms ? "wms" : "wfs"}/${record?.id}`,
-        API_BASE_URL,
+    async (element: RaRecord) => {
+      const documentUrl = String(element.capabilitiesUrl ?? "");
+      if (!documentUrl) {
+        return;
+      }
+      await globalContext.addServiceByUrl(
+        documentUrl,
+        capabilitiesHeaders(new URL(documentUrl)),
+        (context) => renderSingleResource(context, documentUrl),
       );
-      url.search = wms
-        ? "SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0"
-        : "SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0";
-      const token = getAuthToken()?.token;
-      const authenticationId = uuidv4();
-      const appendService = wms
-        ? globalContext.addWMSByUrl
-        : globalContext.addWFSByUrl;
-      await appendService(
-        url.href,
-        token ? new Headers({ Authorization: `Token ${token}` }) : undefined,
-        (context, treeId) => {
-          const authenticationHeaders = Array.isArray(
-            context.authenticationHeaders,
-          )
-            ? context.authenticationHeaders
-            : [];
-          if (token)
-            context.authenticationHeaders = [
-              ...authenticationHeaders,
-              {
-                id: authenticationId,
-                type: "header",
-                name: "Authorization",
-                value: `Token ${token}`,
-                origin: url.origin,
-              },
-            ];
-          context.features
-            .filter((feature) =>
-              feature.properties.folder?.startsWith(`/${treeId}`),
-            )
-            .forEach((feature) => {
-              const operation = wms
-                ? feature.getWmsOperationByCode("GetMap")
-                : feature.getWfsOperationByCode("GetFeature");
-              if (operation) {
-                const request = new URL(operation.href);
-                const requested = [...request.searchParams.entries()].find(
-                  ([key]) =>
-                    key.toLowerCase() === (wms ? "layers" : "typename"),
-                )?.[1];
-                const active = requested === selection;
-                operation.active = active;
-                feature.properties.active = active;
-                feature.properties.offerings?.forEach((offering) =>
-                  offering.operations?.forEach((item) => {
-                    item.active = active;
-                    if (token && new URL(item.href).origin === url.origin)
-                      item["x-authentication-id"] = authenticationId;
-                  }),
-                );
-              }
-            });
-          context.bbox = viewport.bbox.split(",").map(Number) as [
-            number,
-            number,
-            number,
-            number,
-          ];
-          return context;
-        },
-      );
+      const bounds = getCoverageBounds(element.bboxLatLon);
       navigate("/viewer", {
-        state: { previewExtent: viewport.bbox.split(",").map(Number) },
+        state: {
+          previewExtent: bounds
+            ? [
+                bounds.getWest(),
+                bounds.getSouth(),
+                bounds.getEast(),
+                bounds.getNorth(),
+              ]
+            : undefined,
+        },
       });
     },
-    [
-      protocol,
-      record?.id,
-      globalContext.addWMSByUrl,
-      globalContext.addWFSByUrl,
-      navigate,
-    ],
+    [globalContext.addServiceByUrl, navigate],
   );
   if (!record) return null;
   return (
@@ -806,19 +455,16 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
         <Typography variant="h6">{translate("livePreview.title")}</Typography>
       </AccordionSummary>
       <AccordionDetails id={`${id}-content`}>
-        {expanded && (
-          <OwsContextBase key={`${protocol}:${record.id}`}>
-            {protocol === "CSW" ? (
-              <CataloguePreview serviceId={String(record.id)} />
-            ) : (
-              <DataPreview
-                protocol={protocol}
-                serviceId={String(record.id)}
-                onViewer={transfer}
-              />
-            )}
-          </OwsContextBase>
-        )}
+        {expanded &&
+          (protocol === "CSW" ? (
+            <CataloguePreview serviceId={String(record.id)} />
+          ) : (
+            <DataPreview
+              protocol={protocol}
+              serviceId={String(record.id)}
+              onViewer={(element) => void transfer(element)}
+            />
+          ))}
       </AccordionDetails>
     </Accordion>
   );

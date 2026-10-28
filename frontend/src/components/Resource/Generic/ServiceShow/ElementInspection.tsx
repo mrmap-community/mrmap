@@ -72,6 +72,10 @@ export interface ElementInspectionProps {
   previewAction?: ReactNode | ((record?: RaRecord) => ReactNode);
   /** The recent changes of the element, e.g. the compact feed of the changelog. */
   history?: (record?: RaRecord) => ReactNode;
+  /** A rendered preview section of the element, e.g. the map of the selected layer or
+   *  feature type. Only the service which owns the element knows how its previews are
+   *  rendered, so it hands the panel the answer built out of the inspected element. */
+  preview?: (record?: RaRecord) => ReactNode;
 }
 
 /**
@@ -91,6 +95,7 @@ const ElementInspection = ({
   serviceId,
   previewAction,
   history,
+  preview,
 }: ElementInspectionProps) => {
   const translate = useTranslate();
   const message = (key: string) => translate(`layerInspection.${key}`);
@@ -145,7 +150,7 @@ const ElementInspection = ({
     : "AllowedWebFeatureServiceOperation";
   const describe = record.describeFeatureTypeDocument as string | undefined;
   // the owning service builds its destination out of the element which is inspected
-  const preview = typeof previewAction === "function" ? previewAction(record) : previewAction;
+  const previewButton = typeof previewAction === "function" ? previewAction(record) : previewAction;
 
   return (
     <ResourceContextProvider value={resource}>
@@ -155,7 +160,7 @@ const ElementInspection = ({
             {readableName(record)}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ ml: "auto" }}>
-            {preview}
+            {previewButton}
             {hasEdit && (
               // react-admin gates the editor itself; it is offered when permitted
               <Button size="small" component={Link} to={`/${resource}/${String(id)}/edit`}>
@@ -170,6 +175,11 @@ const ElementInspection = ({
           <Typography variant="body2" color="text.secondary">
             {message("noAbstract")}
           </Typography>
+        )}
+        {preview && (
+          <Section title={message("preview")}>
+            {preview(record)}
+          </Section>
         )}
         <Divider />
         <Section title={message("coverage")}>

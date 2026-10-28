@@ -37,8 +37,9 @@ vi.mock("react-leaflet", () => ({
   Popup: ({ children }: PropsWithChildren) => <>{children}</>,
   Tooltip: () => null,
 }));
-vi.mock("../Resource/Generic/ServiceShow/LivePreview/LivePreview", () => ({
+vi.mock("./FeatureInfoResult", () => ({
   FeatureInfoResult: ({ text }: { text: string }) => <pre>{text}</pre>,
+  default: () => null,
 }));
 vi.mock("react-admin", () => ({
   useTranslate: () => (key: string) => key,

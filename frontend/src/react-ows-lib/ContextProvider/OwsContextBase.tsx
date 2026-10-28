@@ -49,18 +49,23 @@ export interface OwsContextBaseType {
   currentRequest: Request | undefined
   resetContext: () => void
   addWMSByRecord: (record: RaRecord) => void
-  addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  /**
+   * Imports WMS capabilities into the context. The promise the call answers with is done when the
+   * document has been read into the context, which is also when its loading state settles; the
+   * loading states of the context report everything which happens while it runs.
+   */
+  addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => Promise<void>
   /**
    * Imports WFS capabilities into the context. Like addWMSByUrl it appends a new tree and keeps the
    * existing service trees and the area of interest of the document intact.
    */
-  addWFSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  addWFSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => Promise<void>
   /**
    * Appends the capabilities of the url whatever protocol the document announces: the text is
    * read before it is parsed, so no foreign document is ever parsed with the wrong parser. A
    * document that names no protocol fails visibly instead of guessing.
    */
-  addServiceByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  addServiceByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => Promise<void>
   addWFSByRecord: (record: RaRecord) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: OWSResource[]

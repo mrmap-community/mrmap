@@ -51,6 +51,27 @@ import { WmsShow } from './WebMapService/Show/WmsShow';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
 
+/**
+ * The attributes the screens which list the registered layers and feature types answer apart from
+ * the columns their grid shows.
+ *
+ * `capabilities_url` is no column of these screens and nobody would switch one on: it is the url of
+ * the capabilities document which advertises the clicked element alone, and the preview of the
+ * selection beside the rows asks exactly that document. A list which does not name the attribute
+ * answers rows its own preview cannot draw and says so. The columns a generic list keeps by default
+ * are named beside it, because the request which answers a page goes out before the grid registered
+ * its columns - the rows of a first visit would answer without their titles otherwise. The details
+ * panel of the web map service list drives the fieldset of that list the same way, for the
+ * `preview_url` of `ServiceDetailsCard`.
+ */
+const ELEMENT_LIST_FIELDS = [
+  "id",
+  "title",
+  "abstract",
+  "string_representation",
+  "capabilities_url",
+];
+
 const RESOURCES: Array<ResourceProps> = [
   { name: "ServiceAlert", list: ListServiceAlert, options: { label: "serviceAlerts.title", menu: { group: "System", order: 5 } } },
   {
@@ -72,12 +93,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementPreviewCard }}},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementPreviewCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementPreviewCard }}},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementPreviewCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {

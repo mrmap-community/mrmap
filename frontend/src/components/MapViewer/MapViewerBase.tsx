@@ -75,6 +75,29 @@ export interface MapViewerBaseType {
   opacityOf: (features: OWSResource[]) => number
   /** gives a layer its opacity, bounded to 0..1; a layer not asked for stays fully opaque */
   setLayerOpacity: (folder: string, opacity: number) => void
+  /**
+   * The timestamp the image drawn on the map answers for, keyed by the folder of a time-enabled
+   * layer: the empty string for a server-default image which carries no time, and no entry for a
+   * layer whose overlay draws nothing. While a newly selected frame is still on its way, the map
+   * keeps showing the previous one; this answers which observation the user actually sees.
+   */
+  displayedTimes: Record<string, string>
+  /** reports which timestamp the image of a layer shows; undefined takes the answer back */
+  setDisplayedTime: (folder: string, time: string | undefined) => void
+  /**
+   * The timeline animation of the viewer session: the layer whose advertised times playback
+   * advances through, with its frames per second and whether it loops at the end of the range.
+   * One animation plays at a time, and only one selected or pinned layer is animated (#705).
+   */
+  animation: TimelineAnimation | undefined
+  /** starts animating the given layer, or stops the animation when it is given undefined */
+  setAnimation: (animation: TimelineAnimation | undefined) => void
+}
+
+export interface TimelineAnimation {
+  folder: string
+  fps: number
+  loop: boolean
 }
 
 export const context = createContext<MapViewerBaseType | undefined>(undefined)
@@ -199,7 +222,26 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       return next
     })
   }, [])
-     
+
+  // while a newly selected time frame is still arriving, the map keeps showing the previous
+  // image; controls and identify ask this record which observation the user actually sees (#705)
+  const [displayedTimes, setDisplayedTimes] = useState<Record<string, string>>({})
+
+  const setDisplayedTime = useCallback((folder: string, time?: string) => {
+    setDisplayedTimes((previous) => {
+      if (time === undefined) {
+        if (!(folder in previous)) return previous
+        const next = { ...previous }
+        delete next[folder]
+        return next
+      }
+      return previous[folder] === time ? previous : { ...previous, [folder]: time }
+    })
+  }, [])
+
+  // playback belongs to one selected or pinned time-enabled layer at a time; the control which
+  // offers it reads this state, so its buttons stay honest wherever it is opened (#705)
+  const [animation, setAnimation] = useState<TimelineAnimation>()
   // the transparency a user gives a layer belongs to the viewer session and not to the document:
   // an exported context keeps the layers as they were imported, while the viewer blends them the
   // way the user asked for (#750)
@@ -346,7 +388,11 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       removeMapLoading,
       layerOpacity,
       opacityOf,
-      setLayerOpacity
+      setLayerOpacity,
+      displayedTimes,
+      setDisplayedTime,
+      animation,
+      setAnimation
     }
   }, [
     map,
@@ -363,7 +409,11 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     removeMapLoading,
     layerOpacity,
     opacityOf,
-    setLayerOpacity
+    setLayerOpacity,
+    displayedTimes,
+    setDisplayedTime,
+    animation,
+    setAnimation
   ])
 
   useEffect(() => {

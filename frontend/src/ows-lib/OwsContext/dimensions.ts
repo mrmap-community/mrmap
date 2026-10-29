@@ -74,14 +74,30 @@ export const isAllowedDimensionValue = (dimension: OfferingDimension, value: str
     return Math.abs(position - Math.round(position)) < 1e-9;
 };
 
+/** Whether a request parameter name carries the WMS time dimension, in any written case and with or without the DIM_ prefix. */
+export const isTimeParameter = (name: string): boolean =>
+    /^(?:dim_)?time$/i.test(name);
+
+/** The time a request URL asks for, whatever case its parameter was written in; undefined when it asks the server default. */
+export const getTimeParameter = (url: URL): string | undefined =>
+    [...url.searchParams.entries()].find(([name]) => isTimeParameter(name))?.[1];
+
+/** Replace the time parameter of a request however it was written; an empty value hands it back to the server default. */
+export const setTimeParameter = (params: URLSearchParams, value: string): void => {
+    [...params.keys()].filter(isTimeParameter).forEach(name => params.delete(name));
+    if (value !== '') params.set('TIME', value);
+};
+
 /** The value the requests of this offering currently carry: the last selection or the advertised default. */
 export const getWmsDimensionSelection = (offering: Offering, dimension: OfferingDimension): string => {
     const parameter = getDimensionParameter(dimension.name);
     const operation = offering.operations?.find(item => item.code === 'GetMap')
         ?? offering.operations?.find(item => item.code === 'GetFeatureInfo');
     if (operation === undefined) return '';
-    const current = [...new URL(operation.href).searchParams.entries()]
-        .find(([key]) => key.toUpperCase() === parameter || (parameter === 'TIME' && key.toUpperCase() === 'DIM_TIME'))?.[1];
+    const url = new URL(operation.href);
+    const current = parameter === 'TIME'
+        ? getTimeParameter(url)
+        : [...url.searchParams.entries()].find(([key]) => key.toUpperCase() === parameter)?.[1];
     return current ?? dimension.default ?? '';
 };
 
@@ -98,10 +114,13 @@ export const setWmsDimension = (offering: Offering, name: string, value: string)
         ?.filter(operation => ['GetMap', 'GetFeatureInfo'].includes(operation.code))
         .forEach(operation => {
             const url = new URL(operation.href);
-            [...url.searchParams.keys()]
-                .filter(key => key.toUpperCase() === parameter || (parameter === 'TIME' && key.toUpperCase() === 'DIM_TIME'))
-                .forEach(key => url.searchParams.delete(key));
-            if (value !== '') url.searchParams.set(parameter, value);
+            if (parameter === 'TIME') setTimeParameter(url.searchParams, value);
+            else {
+                [...url.searchParams.keys()]
+                    .filter(key => key.toUpperCase() === parameter)
+                    .forEach(key => url.searchParams.delete(key));
+                if (value !== '') url.searchParams.set(parameter, value);
+            }
             operation.href = url.href;
         });
 };

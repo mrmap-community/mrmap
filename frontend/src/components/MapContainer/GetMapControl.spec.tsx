@@ -20,12 +20,17 @@ const state = vi.hoisted(() => ({
   info: [] as OptimizedUrlsMap[],
   opacity: 1,
   onContextMenu: undefined as undefined | ((event: unknown) => void),
+  bounds: undefined as undefined | import("leaflet").LatLngBounds,
+  displayedTimes: {} as Record<string, string>,
+  viewportHandlers: [] as (() => void)[],
 }));
 const map = {
   getContainer: () => document.body,
-  getBounds: () => latLngBounds([0, 0], [10, 10]),
+  getBounds: () => state.bounds ?? latLngBounds([0, 0], [10, 10]),
   getSize: () => point(256, 256),
-  on: vi.fn(),
+  on: vi.fn((_events: string, handler: () => void) => {
+    state.viewportHandlers.push(handler);
+  }),
   off: vi.fn(),
 };
 vi.mock("react-leaflet", () => ({
@@ -55,6 +60,7 @@ vi.mock("../MapViewer/MapViewerBase", () => ({
     atomicGetMapUrls: state.maps,
     atomicGetFeatureInfoUrls: state.info,
     opacityOf: () => state.opacity,
+    displayedTimes: state.displayedTimes,
   }),
 }));
 vi.mock("./AuthImageOverlay", () => ({
@@ -74,7 +80,10 @@ const render = (ui: import("react").ReactNode) =>
   testingRender(
     <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
   );
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 const batch = (params: string): OptimizedUrlsMap => ({
   url: new URL(`https://example.org/wms?VERSION=1.3.0&${params}`),
   features: [],
@@ -87,6 +96,9 @@ beforeEach(() => {
   state.maps = [];
   state.info = [];
   state.opacity = 1;
+  state.bounds = undefined;
+  state.displayedTimes = {};
+  state.viewportHandlers.length = 0;
 });
 
 test("draws a map request at full blending until the viewer holds another for it", () => {
@@ -418,4 +430,174 @@ test("aborts the query of the identify selection that a newer one replaces", asy
   // the obsolete query is cancelled, so its late answer cannot replace the new selection
   await waitFor(() => expect(signals[0]?.aborted).toBe(true));
   expect(new URL(fetched.mock.calls[1][0]).searchParams.get("I")).toBe("40");
+});
+
+// A new time on the same layer must not blank the map: the overlay stays mounted so it can keep
+// the frame it draws until the new time has an answer; everything else which changes the request
+// answers with a fresh overlay whose image the map cannot show (#705).
+test("a new selected time keeps the very same image overlay", () => {
+  state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A00%3A00Z")];
+  const { rerender } = render(<WebMapServiceControl />);
+  const before = screen.getByTestId("image-url");
+
+  state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A05%3A00Z")];
+  rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WebMapServiceControl />
+    </QueryClientProvider>,
+  );
+
+  // react updated the element in place, so its overlay can keep drawing the arrived frame,
+  // while the request itself goes out with the newly selected time
+  expect(screen.getByTestId("image-url")).toBe(before);
+  expect(before.textContent).toContain("TIME=2026-01-01T00%3A05%3A00Z");
+});
+
+test("a changed viewport answers with a fresh overlay instead of a stretched frame", () => {
+  vi.useFakeTimers();
+  state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A00%3A00Z")];
+  render(<WebMapServiceControl />);
+  const before = screen.getByTestId("image-url");
+
+  state.bounds = latLngBounds([5, 5], [15, 15]);
+  act(() => state.viewportHandlers.forEach((handler) => handler()));
+  act(() => vi.advanceTimersByTime(300));
+
+  const after = screen.getByTestId("image-url");
+  expect(after).not.toBe(before);
+  expect(new URL(after.textContent!).searchParams.get("BBOX")).toBe(
+    "5,5,15,15",
+  );
+});
+
+test("a change in authentication answers with a fresh overlay whose time stays stable", () => {
+  state.maps = [batch("LAYERS=a")];
+  const { rerender } = render(<WebMapServiceControl />);
+  const before = screen.getByTestId("image-url");
+
+  state.context = {
+    authenticationHeaders: [
+      {
+        id: "map",
+        type: "header",
+        origin: "https://example.org",
+        name: "Authorization",
+        value: "Basic secret",
+      },
+    ],
+  } as typeof state.context;
+  state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A00%3A00Z")];
+  state.maps[0].operations[0]["x-authentication-id"] = "map";
+  rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WebMapServiceControl />
+    </QueryClientProvider>,
+  );
+  // frames are never reused across authentication contexts
+  const authenticated = screen.getByTestId("image-url");
+  expect(authenticated).not.toBe(before);
+
+  // within the new authentication the same exemption for the selected time holds
+  state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A05%3A00Z")];
+  state.maps[0].operations[0]["x-authentication-id"] = "map";
+  rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WebMapServiceControl />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByTestId("image-url")).toBe(authenticated);
+});
+
+test("identify asks the frame the map shows while a newer time is still on its way", async () => {
+  // both layers were advanced to the newer observation...
+  const selected = "2026-01-01T00:05:00Z";
+  state.info = [
+    {
+      url: new URL(
+        `https://example.org/wms?VERSION=1.3.0&LAYERS=water&QUERY_LAYERS=water&TIME=${encodeURIComponent(selected)}`,
+      ),
+      features: [
+        { properties: { folder: "/0/0" } },
+      ] as unknown as OptimizedUrlsMap["features"],
+      operations: [
+        { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
+      ],
+    },
+    {
+      url: new URL(
+        `https://example.org/wms?VERSION=1.3.0&LAYERS=roads&QUERY_LAYERS=roads&TIME=${encodeURIComponent(selected)}`,
+      ),
+      features: [
+        { properties: { folder: "/0/1" } },
+      ] as unknown as OptimizedUrlsMap["features"],
+      operations: [
+        { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
+      ],
+    },
+  ];
+  // ...while the map of the water layer still draws the earlier observation
+  state.displayedTimes["/0/0"] = "2026-01-01T00:00:00Z";
+  const fetched = vi.fn().mockResolvedValue({
+    ok: true,
+    text: async () => "feature",
+    headers: new Headers({ "content-type": "text/plain" }),
+  });
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+  await waitFor(() => expect(fetched).toHaveBeenCalledTimes(2));
+
+  const times = Object.fromEntries(
+    fetched.mock.calls.map(([url]) => {
+      const params = new URL(url).searchParams;
+      return [params.get("QUERY_LAYERS"), params.get("TIME")];
+    }),
+  );
+  // features answer for the observation on the map; a layer whose image already shows the
+  // selected time keeps being asked for that time
+  expect(times).toEqual({
+    water: "2026-01-01T00:00:00Z",
+    roads: "2026-01-01T00:05:00Z",
+  });
+});
+
+test("identify of a drawn server-default image asks the default although a time is selected", async () => {
+  // the layer was advanced to an observation...
+  state.info = [
+    {
+      url: new URL(
+        "https://example.org/wms?VERSION=1.3.0&LAYERS=water&QUERY_LAYERS=water&TIME=2026-01-01T00%3A05%3A00Z",
+      ),
+      features: [
+        { properties: { folder: "/0/0" } },
+      ] as unknown as OptimizedUrlsMap["features"],
+      operations: [
+        { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
+      ],
+    },
+  ];
+  // ...while the map still draws the server-default image, which carries no time
+  state.displayedTimes["/0/0"] = "";
+  const fetched = vi.fn().mockResolvedValue({
+    ok: true,
+    text: async () => "feature",
+    headers: new Headers({ "content-type": "text/plain" }),
+  });
+  vi.stubGlobal("fetch", fetched);
+  render(<WebMapServiceControl />);
+  act(() =>
+    state.onContextMenu?.({
+      latlng: latLng(5, 5),
+      containerPoint: point(20, 30),
+    }),
+  );
+  await waitFor(() => expect(fetched).toHaveBeenCalledTimes(1));
+
+  // features answer for the drawn default: the request carries no time at all
+  expect(new URL(fetched.mock.calls[0][0]).searchParams.get("TIME")).toBeNull();
 });

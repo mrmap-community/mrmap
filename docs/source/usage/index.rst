@@ -115,6 +115,18 @@ buttons move one advertised step. The exact date/time field applies when you lea
 Continuous time ranges retain the exact date field without an invented slider step.
 Choose Server default to reset a time selection.
 
+Changing a time does not blank the map: the frame already drawn stays visible until the frame of
+the new selection has been fetched, decoded and is ready to swap in, and the control names the
+observation the map shows while the next one is on its way. Identify asks that shown frame, so
+answers match what the user sees, and a frame the service refuses leaves the previous image
+visible while the status bar carries the error. Play starts an animation from the first advertised
+time at two frames per second, in the settings panel as well as in the pinned timeline; the
+speed control offers half up to four frames per second and looping returns to the first time at
+the end of the range instead of stopping. Playback waits for each frame to reach the map before
+advancing and steps over frames the service refuses instead of holding on them; previous/next,
+the exact date field and Server default remain usable during playback; closing the control which
+plays, removing the layer or unpinning the timeline ends the animation.
+
 Use Pin timeline to keep a compact time slider over the map while the layer panel is
 closed. Pinning does not pan or resize the map. The timeline follows its layer when
 layers are reordered and disappears if that layer is removed. Unpin timeline hides it.

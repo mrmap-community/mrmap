@@ -565,3 +565,52 @@ describe("opacity of a layer", () => {
   });
 });
 
+
+describe("the frames the map shows", () => {
+  /** reports and asks for the drawn frames the way overlays and controls do */
+  const FrameProbe = () => {
+    const { displayedTimes, setDisplayedTime } = useMapViewerBase();
+    return (
+      <>
+        <p data-testid="displayed">{JSON.stringify(displayedTimes)}</p>
+        <button onClick={() => setDisplayedTime("/0/0", "2026-01-01T00:00:00Z")}>
+          Draw an observation
+        </button>
+        <button onClick={() => setDisplayedTime("/0/0", "2026-01-02T00:00:00Z")}>
+          Draw the next one
+        </button>
+        <button onClick={() => setDisplayedTime("/0/0", undefined)}>
+          Take the frame back
+        </button>
+      </>
+    );
+  };
+  const drawn = () =>
+    JSON.parse(screen.getByTestId("displayed").textContent ?? "{}");
+
+  it("answers which observation a layer draws and forgets it when the frame leaves", () => {
+    render(
+      <OwsContextBase>
+        <MapViewerBase>
+          <FrameProbe />
+        </MapViewerBase>
+      </OwsContextBase>,
+    );
+    expect(drawn()).toEqual({});
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Draw an observation" }),
+    );
+    expect(drawn()).toEqual({ "/0/0": "2026-01-01T00:00:00Z" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Draw the next one" }));
+    expect(drawn()).toEqual({ "/0/0": "2026-01-02T00:00:00Z" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Take the frame back" }));
+    expect(drawn()).toEqual({});
+
+    // taking back what was never drawn changes nothing
+    fireEvent.click(screen.getByRole("button", { name: "Take the frame back" }));
+    expect(drawn()).toEqual({});
+  });
+});

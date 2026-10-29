@@ -1,22 +1,24 @@
 import type { OfferingDimension } from '../../../ows-lib/OwsContext/types';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslate } from 'react-admin';
 
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
-import { Box, Button, Slider, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, IconButton, Slider, Stack, TextField, Typography } from '@mui/material';
 import moment from 'moment';
 
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { getTimeDimensionAxis, getWmsDimensionSelection, isAllowedDimensionValue, parseAdvertisedValues, setWmsDimension } from '../../../ows-lib/OwsContext/dimensions';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+import { useMapViewerBase } from '../../MapViewer/MapViewerBase';
 import { useContextMenuBase } from './ContextMenuBase';
 import ContextMenuItem from './ContextMenuItem';
 
-export const WmsTimeControl = ({ dimension, selection, apply, compact = false, horizontal = false }: {
-  dimension: OfferingDimension; selection: string; apply: (value: string) => void; compact?: boolean; horizontal?: boolean;
+export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = false, horizontal = false }: {
+  dimension: OfferingDimension; selection: string; apply: (value: string) => void; folder?: string; compact?: boolean; horizontal?: boolean;
 }) => {
   const translate = useTranslate();
+  const { displayedTimes = {}, mapLoading, animation, setAnimation } = useMapViewerBase();
   const axis = useMemo(() => getTimeDimensionAxis(dimension), [dimension.name, dimension.units, dimension.values]);
   const [draft, setDraft] = useState<number>();
   const [invalid, setInvalid] = useState(false);
@@ -28,6 +30,58 @@ export const WmsTimeControl = ({ dimension, selection, apply, compact = false, h
   const format = (value: string, short = false) => moment.utc(value, moment.ISO_8601, true).isValid() ? moment.utc(value).format(short ? 'DD MMM YYYY HH:mm' : 'DD MMM YYYY · HH:mm [UTC]') : value;
   const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${dimension.units ? ` (${dimension.units})` : ''} · UTC`;
   const commit = (position: number) => { if (axis) { setDraft(undefined); apply(axis.valueAt(position)); } };
+
+  // playback advances through the advertised times of this very axis; a selected frame which the
+  // map has not drawn yet holds the animation on pace, and a frame the service refused is stepped
+  // over rather than waited for — the old image stays visible and the status bar carries the
+  // error (#705). A drawn server-default image reports the empty string, so even a playback that
+  // starts from the default holds until the first observation is drawn
+  const playing = animation !== undefined && folder !== undefined && animation.folder === folder;
+  const fps = animation?.fps ?? 2;
+  const loop = animation?.loop ?? false;
+  const displayedTime = folder !== undefined ? displayedTimes[folder] : undefined;
+  const failed = folder !== undefined && (mapLoading?.failedFeatures ?? []).some(feature => feature.properties.folder === folder);
+  const pending = displayedTime !== undefined && selection !== displayedTime && !failed;
+  // where playback continues from: the selected position, or the advertised default, or -1 so
+  // that playback from the server default begins with the first advertised observation
+  const from = selectedIndex >= 0 ? selectedIndex : defaultIndex;
+  // a fast interval can fire several times before the render which carries the applied time
+  // arrives: the tick judges the pending frame by the time it applied itself, read from refs,
+  // so no frame is advanced from a stale selection and none is queued behind a slow render
+  const appliedRef = useRef<string | undefined>(undefined);
+  const liveRef = useRef({ selection, displayedTime, failed, loop, from, axis, apply });
+  liveRef.current = { selection, displayedTime, failed, loop, from, axis, apply };
+  useEffect(() => { appliedRef.current = undefined; }, [selection]);
+  useEffect(() => {
+    if (!playing || !axis || axis.count < 2) return;
+    const timer = setInterval(() => {
+      const live = liveRef.current;
+      const current = appliedRef.current ?? live.selection;
+      if (live.displayedTime !== undefined && current !== live.displayedTime && !live.failed) return;
+      const position = axis.indexOf(current);
+      const next = (position >= 0 ? position : live.from) + 1;
+      if (next < axis.count) { appliedRef.current = axis.valueAt(next); live.apply(axis.valueAt(next)); }
+      else if (live.loop) { appliedRef.current = axis.valueAt(0); live.apply(axis.valueAt(0)); }
+      else {
+        // end of the advertised range: playback stops there, and pressing play again starts it
+        // from the first observation
+        setAnimation(undefined);
+      }
+    }, 1000 / fps);
+    return () => clearInterval(timer);
+  }, [playing, fps, axis, setAnimation]);
+  // the animation belongs to the mounted control: closing the panel or removing the layer ends
+  // it, so no playback stays flagged in the session for a control which is gone
+  const leaveRef = useRef<() => void>(() => undefined);
+  leaveRef.current = () => { if (playing) setAnimation(undefined); };
+  useEffect(() => () => leaveRef.current(), []);
+  const togglePlay = () => {
+    if (playing) { setAnimation(undefined); return; }
+    // pressing play starts the animation from its beginning: the first advertised observation is
+    // applied right away and the interval continues from the time it applied itself
+    if (axis) { appliedRef.current = axis.valueAt(0); apply(axis.valueAt(0)); }
+    setAnimation({ folder: folder ?? '', fps, loop });
+  };
   return <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: horizontal ? 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))' : 'minmax(0, 1fr)', gap: horizontal ? 2 : 1, alignItems: 'start' }}>
     <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0, width: '100%' }}>
     <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{format(preview) || translate('viewerDimensions.serverDefault')}</Typography>
@@ -43,11 +97,18 @@ export const WmsTimeControl = ({ dimension, selection, apply, compact = false, h
         <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, fontSize: 10 }}>{format(axis.valueAt(0), true)}</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, textAlign: 'right', fontSize: 10 }}>{format(axis.valueAt(axis.count - 1), true)}</Typography>
       </Stack>
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <IconButton size="small" sx={{ minWidth: 28 }} aria-label={translate(playing ? 'viewerDimensions.pause' : 'viewerDimensions.play')} onClick={togglePlay} disabled={axis.count < 2}>{playing ? '❚❚' : '▶'}</IconButton>
         <Button size="small" sx={{ minWidth: 28 }} aria-label={translate('ra.navigation.previous')} disabled={index === 0} onClick={() => commit(index - 1)}>‹</Button>
         <Button size="small" sx={{ minWidth: 28 }} aria-label={translate('ra.navigation.next')} disabled={index >= axis.count - 1} onClick={() => commit(index + 1)}>›</Button>
+        <IconButton size="small" sx={{ minWidth: 28 }} aria-label={translate('viewerDimensions.loop')} aria-pressed={loop} disabled={!playing} onClick={() => setAnimation({ folder: folder ?? '', fps, loop: !loop })}>{'\u21BA'}</IconButton>
+        <TextField select size="small" value={fps} disabled={!playing} onChange={event => setAnimation({ folder: folder ?? '', fps: Number(event.target.value), loop })}
+          sx={{ width: 88 }} slotProps={{ select: { native: true, 'aria-label': translate('viewerDimensions.speed') } }}>
+          {[0.5, 1, 2, 4].map(rate => <option key={rate} value={rate}>{translate('viewerDimensions.speedValue', { fps: rate })}</option>)}
+        </TextField>
         <Typography variant="caption" sx={{ alignSelf: 'center' }}>{translate('viewerDimensions.position', { current: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(index + 1), total: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(axis.count) })}</Typography>
       </Stack>
+      {pending && <Typography variant="caption" color="text.secondary">{translate('viewerDimensions.displaying', { time: displayedTime === '' ? translate('viewerDimensions.serverDefault') : format(displayedTime!, true) })}</Typography>}
     </>}
     </Stack>
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
@@ -99,7 +160,7 @@ export const WmsDimensionControls = ({ folder, inline = false, timeOnly = false,
       const selection = getWmsDimensionSelection(offering!, dimension)
       const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${dimension.units ? ` (${dimension.units})` : ''}`
       if (advertised.kind === 'time-range' || getTimeDimensionAxis(dimension)) {
-        return <WmsTimeControl key={dimension.name} dimension={dimension} selection={selection} apply={value => apply(dimension.name, value)} compact={compact} horizontal={horizontal} />
+        return <WmsTimeControl key={dimension.name} dimension={dimension} selection={selection} apply={value => apply(dimension.name, value)} folder={folder} compact={compact} horizontal={horizontal} />
       }
       if (advertised.kind === 'range') {
         const hint = `${advertised.start} … ${advertised.stop}${advertised.step !== undefined ? ` · ${advertised.step}` : ''}`

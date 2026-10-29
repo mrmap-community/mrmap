@@ -4,6 +4,10 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    cronInput: {
+      openEditor: "Click to edit the cron schedule.",
+      minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",
@@ -402,6 +406,14 @@ const en = lodashMerge(
     },
     harvestingSchedules: {
       run: "Harvest now",
+      existing: "View running harvest",
+      configure: "Configure harvesting schedules",
+      bulkCreate: "Add harvesting schedule to selected CSWs",
+      unavailable: "The internal MrMap catalogue cannot be harvested or assigned harvesting schedules.",
+      bulkLoadError: "Unable to check the selected catalogues. Schedule creation is unavailable.",
+      bulkDescription: "Add a new schedule to %{smart_count} selected catalogue, including catalogues that already have schedules. |||| Add a new schedule to each of %{smart_count} selected catalogues, including catalogues that already have schedules.",
+      bulkResult: "Created %{created} schedules; %{failed} failed.",
+      bulkFailed: "Unable to create schedules for: %{ids}. Retry to process only these catalogues.",
       queued: "Harvesting queued.",
       failed: "Unable to start harvesting. A harvest may already be running.",
       count: "%{smart_count} schedule |||| %{smart_count} schedules",

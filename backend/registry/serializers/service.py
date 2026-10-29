@@ -865,6 +865,7 @@ class CatalogueServiceSerializer(
         HistoryInformationSerializer,
         SystemInfoSerializerMixin,
         ModelSerializer):
+    is_harvestable = BooleanField(read_only=True)
     url = HyperlinkedIdentityField(
         view_name="registry:csw-detail",
     )

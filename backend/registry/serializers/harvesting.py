@@ -19,6 +19,12 @@ from rest_framework_json_api.serializers import (CharField, ChoiceField, Duratio
 from system.fields import CrontabStringField
 
 
+def validate_harvestable_service(service):
+    if service is not None and not service.is_harvestable:
+        raise ValidationError(_("The internal MrMap catalogue cannot be harvested."))
+    return service
+
+
 class PeriodicHarvestingJobSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -40,6 +46,9 @@ class PeriodicHarvestingJobSerializer(
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
                   'time_until_next_run', 'enabled')
+
+    def validate_service(self, value):
+        return validate_harvestable_service(value)
 
 
 class HarvestedMetadataRelationSerializer(
@@ -155,6 +164,7 @@ class HarvestingJobSerializer(
         )
 
     def validate_service(self, value):
+        validate_harvestable_service(value)
         # cause model.full_clean ist not called and therefore no ValidationError is raised by the UniqueConstraint from model side.
         # Instead without this extra validation, the endpoint will lead into IntegrityError --> 5xx internal server error
         if HarvestingJob.objects.filter(

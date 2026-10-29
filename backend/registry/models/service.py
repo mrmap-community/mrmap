@@ -40,7 +40,7 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from registry.settings import MAX_STEP_SIZE, MIN_STEP_SIZE
+from registry.settings import MAX_STEP_SIZE, MIN_STEP_SIZE, MRMAP_CSW_PK
 from requests import Request, Session
 from simple_history.models import HistoricalRecords
 
@@ -355,6 +355,10 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
+    @property
+    def is_harvestable(self):
+        return str(self.pk) != MRMAP_CSW_PK
+
     max_step_size = models.IntegerField(
         verbose_name=_("max step size"),
         help_text=_(

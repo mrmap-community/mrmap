@@ -1,6 +1,10 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  cronInput: {
+    openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
+    minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
+  },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
     description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
@@ -382,6 +386,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   },
   harvestingSchedules: {
       run: "Jetzt Daten übernehmen",
+      existing: "Laufende Datenübernahme anzeigen",
+      configure: "Zeitpläne für Datenübernahme konfigurieren",
+      bulkCreate: "Zeitplan für ausgewählte CSWs hinzufügen",
+      unavailable: "Für den internen MrMap-Katalog sind weder Datenübernahmen noch entsprechende Zeitpläne zulässig.",
+      bulkLoadError: "Die ausgewählten Kataloge konnten nicht geprüft werden. Zeitpläne können momentan nicht erstellt werden.",
+      bulkDescription: "Einen neuen Zeitplan für %{smart_count} ausgewählten Katalog hinzufügen, auch wenn bereits Zeitpläne vorhanden sind. |||| Je einen neuen Zeitplan für %{smart_count} ausgewählte Kataloge hinzufügen, auch wenn bereits Zeitpläne vorhanden sind.",
+      bulkResult: "%{created} Zeitpläne erstellt; %{failed} fehlgeschlagen.",
+      bulkFailed: "Zeitpläne konnten für folgende Kataloge nicht erstellt werden: %{ids}. Ein erneuter Versuch verarbeitet nur diese Kataloge.",
       queued: "Datenübernahme eingeplant.",
       failed: "Datenübernahme konnte nicht gestartet werden. Möglicherweise läuft bereits eine Datenübernahme.",
     count: "%{smart_count} Zeitplan |||| %{smart_count} Zeitpläne",

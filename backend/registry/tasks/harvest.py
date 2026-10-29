@@ -98,6 +98,8 @@ def create_harvesting_job(self, *args, **kwargs):
 
     with transaction.atomic():
         service = CatalogueService.objects.select_for_update().get(pk=kwargs.get("service_id"))
+        if not service.is_harvestable:
+            return None
         # Keep the creation delivery's identity even after the harvest finishes.
         delivery_id = self.request.id or str(uuid4())
         job = HarvestingJob.objects.filter(celery_task_ids__contains=[delivery_id]).first()

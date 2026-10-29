@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { TextInputProps, useInput } from "react-admin";
+import { useId, useState } from "react";
+import { TextInputProps, useInput, useTranslate } from "react-admin";
 
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
 import Grid from "@mui/material/Grid";
 import InputLabel from "@mui/material/InputLabel";
 import ListItemText from "@mui/material/ListItemText";
@@ -15,7 +16,6 @@ import TextField from "@mui/material/TextField";
 import ContextBasedDialog from "../Dialog/Dialog";
 import DialogHeader from "../Dialog/DialogHeader";
 
-
 const range = (start: number, end: number) =>
   Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
@@ -25,101 +25,98 @@ const dayOptions = range(1, 31).map(String);
 const monthOptions = range(1, 12).map(String);
 const weekdayOptions = range(0, 6).map(String);
 
-function joinPart(values: string[]) {
+const joinPart = (values: string[]) => {
   if (values.length === 0) return "*";
   if (values.includes("*")) return "*";
-  return values.sort((a, b) => Number(a) - Number(b)).join(",");
-}
-
+  return [...values].sort((a, b) => Number(a) - Number(b)).join(",");
+};
 
 const CronInput = ({
   source,
+  defaultValue = "0 * * * *",
   ...props
-}: TextInputProps) =>  {
+}: TextInputProps) => {
+  const {
+    field: { value, onChange },
+  } = useInput({
+    ...props,
+    source,
+    defaultValue,
+  });
 
-  const { field: {value, onChange, }} = useInput(
-    { 
-      source,
-      defaultValue: "* * * * *",
-    }
-  );
-  
   const [open, setOpen] = useState(false);
-  const [minute, setMinute] = useState<string[]>(["*"]);
-  const [hour, setHour] = useState<string[]>(["*"]);
-  const [day, setDay] = useState<string[]>(["*"]);
-  const [month, setMonth] = useState<string[]>(["*"]);
-  const [weekday, setWeekday] = useState<string[]>(["*"]);
-  const [preview, setPreview] = useState<string>(value);
-  const lastSyncedValue = useRef<string>(value);
+  const [preview, setPreview] = useState<string>(String(value ?? defaultValue));
+  const id = useId();
+  const translate = useTranslate();
+  const parts = preview.trim().split(/\s+/);
 
-  const parse = (cron: string) => {
-    const parts = cron.trim().split(/\s+/);
-    const [m = "*", h = "*", d = "*", mo = "*", w = "*"] = parts;
-    return { m, h, d, mo, w };
-  };
+  const handleSelect =
+    (index: number) =>
+    (event: import("@mui/material").SelectChangeEvent<string[]>) => {
+      const selected =
+        typeof event.target.value === "string"
+          ? event.target.value.split(",")
+          : event.target.value;
+      const previous = (parts[index] || "*").split(",");
+      // A concrete choice replaces '*'; choosing '*' replaces concrete choices.
+      const choices =
+        previous.includes("*") && selected.length > 1
+          ? selected.filter((choice) => choice !== "*")
+          : selected;
+      const next = [...parts];
+      while (next.length < 5) next.push("*");
+      next[index] = joinPart(choices);
+      setPreview(next.join(" "));
+    };
 
-  // Initialize state from value when it changes externally
-  useEffect(() => {
-    if (value !== lastSyncedValue.current) {
-      const p = parse(value);
-      setMinute(p.m === "*" ? ["*"] : p.m.split(","));
-      setHour(p.h === "*" ? ["*"] : p.h.split(","));
-      setDay(p.d === "*" ? ["*"] : p.d.split(","));
-      setMonth(p.mo === "*" ? ["*"] : p.mo.split(","));
-      setWeekday(p.w === "*" ? ["*"] : p.w.split(","));
-      setPreview(value);
-      lastSyncedValue.current = value;
-    }
-  }, [value]);
-
-  const build = () => `${joinPart(minute)} ${joinPart(hour)} ${joinPart(day)} ${joinPart(month)} ${joinPart(weekday)}`;
-
-  useEffect(() => {
-    // sync preview when parts change (only for internal updates)
-    const cron = build();
-    setPreview(cron);
-  }, [minute.join(), hour.join(), day.join(), month.join(), weekday.join()]);
-
-  const handleSelect = (setter: (v: string[]) => void) => (event: import("@mui/material").SelectChangeEvent<string[]>) => {
-    const value = event.target.value as string[];
-    // if * selected take only *
-    if (value.includes("*")) setter(["*"]);
-    else setter(value.filter((v) => v !== "*"));
-  };
-
-  const renderSelect = (labelText: string, valueState: string[], setter: (v: string[]) => void, options: string[]) => (
-    <FormControl fullWidth>
-      <InputLabel>{labelText}</InputLabel>
-      <Select
-        multiple
-        value={valueState}
-        onChange={handleSelect(setter)}
-        input={<OutlinedInput label={labelText} />}
-        renderValue={(selected) => (selected.includes("*") ? "*" : (selected as string[]).join(", "))}
-      >
-        <MenuItem value="*">
-          <Checkbox checked={valueState.includes("*")} />
-          <ListItemText primary="* (every)" />
-        </MenuItem>
-        {options.map((opt) => (
-          <MenuItem key={opt} value={opt}>
-            <Checkbox checked={valueState.includes(opt)} />
-            <ListItemText primary={opt} />
+  const renderSelect = (
+    labelText: string,
+    index: number,
+    options: string[],
+  ) => {
+    const valueState = (parts[index] || "*").split(",");
+    const labelId = `${id}-${index}-label`;
+    return (
+      <FormControl fullWidth>
+        <InputLabel id={labelId}>{labelText}</InputLabel>
+        <Select
+          labelId={labelId}
+          multiple
+          value={valueState}
+          onChange={handleSelect(index)}
+          input={<OutlinedInput label={labelText} />}
+          renderValue={(selected) =>
+            selected.includes("*") ? "*" : (selected as string[]).join(", ")
+          }
+        >
+          <MenuItem value="*">
+            <Checkbox checked={valueState.includes("*")} />
+            <ListItemText primary="* (every)" />
           </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
+          {options.map((opt) => (
+            <MenuItem key={opt} value={opt}>
+              <Checkbox checked={valueState.includes(opt)} />
+              <ListItemText primary={opt} />
+            </MenuItem>
+          ))}
+        </Select>
+        {index === 0 && (
+          <FormHelperText>{translate("cronInput.minuteHint")}</FormHelperText>
+        )}
+      </FormControl>
+    );
+  };
 
   return (
     <>
       <TextField
         value={value}
-        //onChange={(e) => setText(e.target.value)}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setPreview(String(value ?? defaultValue));
+          setOpen(true);
+        }}
         fullWidth
-        helperText="Click to open cron editor or type a cron expression"
+        helperText={translate("cronInput.openEditor")}
         {...props}
       />
 
@@ -129,51 +126,48 @@ const CronInput = ({
         maxWidth="md"
         fullWidth
         contentDividers={false}
-        title={<DialogHeader onClose={() => setOpen(false)}>Edit Cron Expression</DialogHeader>}
-        actions={<>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            onClick={() => {
-              // validate and apply the preview text
-              const p = parse(preview);
-              setMinute(p.m === "*" ? ["*"] : p.m.split(","));
-              setHour(p.h === "*" ? ["*"] : p.h.split(","));
-              setDay(p.d === "*" ? ["*"] : p.d.split(","));
-              setMonth(p.mo === "*" ? ["*"] : p.mo.split(","));
-              setWeekday(p.w === "*" ? ["*"] : p.w.split(","));
-              // update the form field
-              onChange?.(preview);
-              lastSyncedValue.current = preview;
-              setOpen(false);
-            }}
-            variant="contained"
-          >
-            Apply
-          </Button>
-        </>}
+        title={
+          <DialogHeader onClose={() => setOpen(false)}>
+            Edit Cron Expression
+          </DialogHeader>
+        }
+        actions={
+          <>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                // update the form field
+                onChange?.(preview);
+                setOpen(false);
+              }}
+              variant="contained"
+            >
+              Apply
+            </Button>
+          </>
+        }
         actionsAlign="flex-end"
       >
         <>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid>{renderSelect("Minute", minute, setMinute, minuteOptions)}</Grid>
-            <Grid>{renderSelect("Hour", hour, setHour, hourOptions)}</Grid>
-            <Grid>{renderSelect("Day of Month", day, setDay, dayOptions)}</Grid>
-            <Grid>{renderSelect("Month", month, setMonth, monthOptions)}</Grid>
-            <Grid>{renderSelect("Weekday (0=Sun)", weekday, setWeekday, weekdayOptions)}</Grid>
+            <Grid>{renderSelect("Minute", 0, minuteOptions)}</Grid>
+            <Grid>{renderSelect("Hour", 1, hourOptions)}</Grid>
+            <Grid>{renderSelect("Day of Month", 2, dayOptions)}</Grid>
+            <Grid>{renderSelect("Month", 3, monthOptions)}</Grid>
+            <Grid>{renderSelect("Weekday (0=Sun)", 4, weekdayOptions)}</Grid>
             <Grid>
-      <TextField
-        label="Preview / manual edit"
-        value={preview}
-        onChange={(e) => setPreview(e.target.value)}
-        fullWidth
-      />
+              <TextField
+                label="Preview / manual edit"
+                value={preview}
+                onChange={(e) => setPreview(e.target.value)}
+                fullWidth
+              />
             </Grid>
           </Grid>
         </>
       </ContextBasedDialog>
     </>
   );
-}
-
+};
 
 export default CronInput;

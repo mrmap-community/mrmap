@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('notify', '0005_alter_backgroundprocess_process_type'),
-        ('registry', '0018_alter_catalogueservice_max_step_size_and_more'),
+        ('registry', '0019_prevent_internal_csw_harvesting'),
     ]
 
     operations = [

@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from behave import given, step, then
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.db import connection
 from django.http import SimpleCookie
 from django.test.utils import CaptureQueriesContext
@@ -10,6 +11,14 @@ from knox.models import AuthToken
 from lxml import etree
 from lxml.etree import fromstring
 from rest_framework.authtoken.models import Token
+
+
+@given('{username} has the model permission "{permission}"')
+def grant_model_permission(context, username, permission):
+    app_label, codename = permission.split('.', 1)
+    user = get_user_model().objects.get(username=username)
+    user.user_permissions.add(Permission.objects.get(
+        content_type__app_label=app_label, codename=codename))
 
 
 @step('I am logged in as {username} with password {password}')

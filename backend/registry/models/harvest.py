@@ -40,7 +40,7 @@ from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS,
-                               MIN_STEP_SIZE)
+                               MIN_STEP_SIZE, MRMAP_CSW_PK)
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
@@ -279,6 +279,10 @@ class HarvestingJob(ProcessingData):
         get_latest_by = ProcessingData.Meta.get_latest_by
         indexes = ProcessingData.Meta.indexes
         constraints = ProcessingData.Meta.constraints + [
+            models.CheckConstraint(
+                condition=Q(service__isnull=True) | ~Q(service=MRMAP_CSW_PK),
+                name="harvesting_job_excludes_internal_csw",
+            ),
             UniqueConstraint(
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
@@ -1154,3 +1158,9 @@ class PeriodicHarvestingJob(PeriodicTask):
     class Meta:
         verbose_name = _('Periodic Harvesting Job')
         verbose_name_plural = _('Periodic Harvesting Jobs')
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(service=MRMAP_CSW_PK),
+                name="periodic_harvesting_excludes_internal_csw",
+            ),
+        ]

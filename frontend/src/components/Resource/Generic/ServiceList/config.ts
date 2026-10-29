@@ -1,6 +1,7 @@
 import type { ServiceProtocol } from "../ServiceShow/ServiceDetailsCard";
 
 import type { ComponentType } from "react";
+import type { DatagridProps } from "react-admin";
 
 /** the kinds of services the screen of registered services answers */
 export type ServiceListResource =
@@ -33,4 +34,7 @@ export interface ServiceListConfig {
   /** the action which the rows of the resource answer apart from the standard
    *  actions; it is rendered inside the record context of the row */
   RowAction?: ComponentType;
+  /** Optional actions for the datagrid's selected services. */
+  BulkActions?: ComponentType;
+  isRowSelectable?: DatagridProps["isRowSelectable"];
 }

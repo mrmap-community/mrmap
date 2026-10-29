@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HarvestingSchedulesCardBase } from "./HarvestingSchedulesCard";
 
+const state = vi.hoisted(() => ({ isHarvestable: true }));
 vi.mock("./RunHarvestingButton", () => ({
   default: () => <span>Harvest now</span>,
 }));
@@ -17,7 +18,7 @@ vi.mock("react-admin", () => ({
   Loading: () => <span>Loading</span>,
   SimpleList: () => null,
   useListContext: vi.fn(),
-  useRecordContext: () => ({ id: "csw-1" }),
+  useRecordContext: () => ({ id: "csw-1", isHarvestable: state.isHarvestable }),
   useTranslate: () => (key: string) => key,
 }));
 vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
@@ -27,6 +28,7 @@ vi.mock("../../../../jsonapi/hooks/useOperation", () => ({
   default: () => ({}),
 }));
 beforeEach(() => {
+  state.isHarvestable = true;
   vi.mocked(useListContext, { partial: true }).mockReturnValue({
     data: [],
     isPending: false,
@@ -42,6 +44,13 @@ const renderCard = () =>
   );
 
 describe("harvesting schedules overview", () => {
+  it("hides harvesting and scheduling actions for the internal catalogue", () => {
+    state.isHarvestable = false;
+    renderCard();
+    expect(screen.queryByText("Harvest now")).not.toBeInTheDocument();
+    expect(screen.queryByText("harvestingSchedules.create")).not.toBeInTheDocument();
+    expect(screen.queryByText("serviceShow.configure")).not.toBeInTheDocument();
+  });
   it("offers creation and management for the current catalogue when no schedule exists", () => {
     renderCard();
     expect(screen.getByText("harvestingSchedules.empty")).toBeInTheDocument();

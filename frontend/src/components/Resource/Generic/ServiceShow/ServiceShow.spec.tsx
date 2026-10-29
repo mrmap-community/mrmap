@@ -100,6 +100,12 @@ const definitions = {
     hasCreate: true,
     options: {},
   },
+  PeriodicHarvestingJob: {
+    name: "PeriodicHarvestingJob",
+    hasList: true,
+    hasCreate: true,
+    options: {},
+  },
   DatasetMetadataRecord: {
     name: "DatasetMetadataRecord",
     hasList: true,
@@ -255,13 +261,13 @@ describe("shared service show", () => {
       expect.objectContaining({ meta: { jsonApiParams: {} } }),
     );
   });
-  it("creates related configuration with the current parent relationship", async () => {
-    setup("/CatalogueService/csw-3/show/HarvestingJob/create", [
+  it.each(["HarvestingJob", "PeriodicHarvestingJob"])("creates %s with the current parent relationship", async resource => {
+    setup(`/CatalogueService/csw-3/show/${resource}/create`, [
       { path: "", label: "Overview", content: <RecordTitle /> },
       {
-        path: "HarvestingJob/*",
+        path: `${resource}/*`,
         label: "Harvesting",
-        content: <ServiceRelatedTab resource="HarvestingJob" />,
+        content: <ServiceRelatedTab resource={resource} />,
       },
     ]);
     fireEvent.change(await screen.findByRole("textbox", { name: "Title" }), {
@@ -270,7 +276,7 @@ describe("shared service show", () => {
     fireEvent.click(screen.getByRole("button", { name: "ra.action.save" }));
     await waitFor(() =>
       expect(create).toHaveBeenCalledWith(
-        "HarvestingJob",
+        resource,
         expect.objectContaining({
           data: expect.objectContaining({
             service: expect.objectContaining({ id: "csw-3" }),

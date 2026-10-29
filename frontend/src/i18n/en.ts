@@ -402,6 +402,8 @@ const en = lodashMerge(
     },
     harvestingSchedules: {
       run: "Harvest now",
+      existing: "View running harvest",
+      configure: "Configure harvesting schedules",
       queued: "Harvesting queued.",
       failed: "Unable to start harvesting. A harvest may already be running.",
       count: "%{smart_count} schedule |||| %{smart_count} schedules",

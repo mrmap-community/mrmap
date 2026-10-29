@@ -382,6 +382,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   },
   harvestingSchedules: {
       run: "Jetzt Daten übernehmen",
+      existing: "Laufende Datenübernahme anzeigen",
+      configure: "Zeitpläne für Datenübernahme konfigurieren",
       queued: "Datenübernahme eingeplant.",
       failed: "Datenübernahme konnte nicht gestartet werden. Möglicherweise läuft bereits eine Datenübernahme.",
     count: "%{smart_count} Zeitplan |||| %{smart_count} Zeitpläne",

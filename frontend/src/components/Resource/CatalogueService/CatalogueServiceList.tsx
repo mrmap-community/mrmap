@@ -1,17 +1,21 @@
 import { type ReactNode } from "react";
 import {
-  CreateButton,
+  Button,
   Identifier,
   ListProps,
   ShowButton,
+  useGetIdentity,
   useRecordContext,
+  useResourceDefinition,
 } from "react-admin";
+import { Link } from "react-router-dom";
 
 import { PlayArrow } from "@mui/icons-material";
-import AgricultureIcon from "@mui/icons-material/Agriculture";
+import UpdateIcon from "@mui/icons-material/Update";
 
 import { type ServiceListConfig } from "../Generic/ServiceList/config";
 import ServiceList from "../Generic/ServiceList/ServiceList";
+import RunHarvestingButton from "./Show/RunHarvestingButton";
 
 export interface ShowRunningHarvestingJobButtonProps {
   id: Identifier;
@@ -24,7 +28,7 @@ const ShowRunningHarvestingJobButton = ({
     <ShowButton
       resource="HarvestingJob"
       record={{ id: id }}
-      label="running job"
+      label="harvestingSchedules.existing"
       icon={<PlayArrow />}
     />
   );
@@ -37,23 +41,30 @@ export const HarvestButton = (): ReactNode => {
     return (
       <ShowRunningHarvestingJobButton id={record.runningHarvestingJob.id} />
     );
-  } else {
-    return (
-      <CreateButton
-        resource="HarvestingJob"
-        icon={<AgricultureIcon />}
-        label={"Harvest"}
-        state={{
-          record: {
-            service: record,
-            harvestDatasets: true,
-            harvestServices: true,
-            stepSize: 500,
-          },
-        }}
-      />
-    );
   }
+  return <RunHarvestingButton serviceId={record?.id} variant="text" />;
+};
+
+const CatalogueServiceActions = (): ReactNode => {
+  const record = useRecordContext();
+  const { hasCreate } = useResourceDefinition({ resource: "PeriodicHarvestingJob" });
+  const { data: identity } = useGetIdentity();
+  const hasSchedules = (record?.periodicHarvestingJobs?.length ?? 0) > 0;
+  const path = `/CatalogueService/${record?.id}/show/PeriodicHarvestingJob`;
+
+  return (
+    <>
+      <HarvestButton />
+      {record && hasCreate && identity?.id && (
+        <Button
+          component={Link}
+          to={hasSchedules ? path : `${path}/create`}
+          label={hasSchedules ? "harvestingSchedules.configure" : "harvestingSchedules.create"}
+          startIcon={<UpdateIcon />}
+        />
+      )}
+    </>
+  );
 };
 
 /**
@@ -90,6 +101,7 @@ export const CATALOGUE_SERVICE_LIST_FIELDS = [
   "harvest_failed_at",
   "element_count",
   "running_harvesting_job",
+  "periodic_harvesting_jobs",
 ];
 
 /** what the list of registered catalogues asks apart from the other kinds */
@@ -100,7 +112,7 @@ export const CATALOGUE_SERVICE_LIST_CONFIG: ServiceListConfig = {
   fields: CATALOGUE_SERVICE_LIST_FIELDS,
   // a catalogue answers the harvesting of a row in its actions, which the
   // screen of services renders inside the record context of the row
-  RowAction: HarvestButton,
+  RowAction: CatalogueServiceActions,
 };
 
 /**

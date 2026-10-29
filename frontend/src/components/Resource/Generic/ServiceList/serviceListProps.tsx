@@ -139,6 +139,7 @@ export const serviceListProps = (
   ],
   perPage: SERVICE_LIST_PER_PAGE,
   sort: SERVICE_LIST_SORT,
+  additionalActions: config.RowAction ? <config.RowAction /> : undefined,
   
   queryOptions: {
     meta: {

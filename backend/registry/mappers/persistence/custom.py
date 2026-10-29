@@ -36,6 +36,11 @@ def get_or_create_metadatarecord(instances, handler):
         if not created and instance.date_stamp > db_obj.date_stamp:
             # run update on fields
             for key, value in defaults.items():
+                if key == db_obj._meta.pk.name:
+                    # the primary key of the parsed but unsaved instance is a
+                    # fresh uuid which no row carries: copying it would move
+                    # the fetched row away instead of updating it (#811)
+                    continue
                 setattr(db_obj, key, value)
             db_obj.last_modified_by = current_user
             db_obj.save()

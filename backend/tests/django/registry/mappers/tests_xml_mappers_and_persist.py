@@ -1,13 +1,14 @@
 from collections import defaultdict
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
 from django.test import TestCase
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.metadata import MetadataContact
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      MetadataContact)
 from registry.models.service import (CatalogueService, FeatureType,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
@@ -520,3 +521,40 @@ class ServiceOwnershipRegressionTest(TestCase):
             self.CAPABILITIES / 'csw/2.0.2.xml', 'AAA second service', rename_children=True)
 
         self._assert_owned_operation_urls(first, second)
+
+
+class MetadataRecordRepublishRegressionTest(TestCase):
+    """Tests the persistence of a record which the catalogue republished.
+
+    A record which is harvested again with a newer date stamp is updated in
+    place by get_or_create_metadatarecord. That update copied every field of
+    the parsed but unsaved instance onto the fetched row - including the
+    freshly generated primary key of the instance - and turned the update into
+    an insert which collided with the record itself (#811).
+    """
+
+    XML = Path(Path.joinpath(
+        Path(__file__).parent.resolve(),
+        '../../test_data/iso_metadata/dataset.xml'))
+
+    def _persist_dataset(self):
+        mapper = MDMetadataXmlMapper.from_xml(self.XML)[0]
+        mapper.xml_to_django()
+        handler = PersistenceHandler(mapper)
+        handler.persist_all()
+
+    def test_a_republished_record_is_updated_in_place(self):
+        self._persist_dataset()
+        record = DatasetMetadataRecord.objects.get()
+        republished = record.date_stamp
+
+        # the catalogue republishes the record: what the next harvest parses
+        # carries a newer date stamp than the row which is stored
+        DatasetMetadataRecord.objects.filter(pk=record.pk).update(
+            date_stamp=republished - timedelta(days=1))
+
+        self._persist_dataset()
+
+        self.assertEqual(1, DatasetMetadataRecord.objects.count())
+        record.refresh_from_db()
+        self.assertEqual(republished, record.date_stamp)

@@ -5,9 +5,11 @@ from pathlib import Path
 from uuid import uuid4
 
 from django.test import TestCase
+from lxml import etree
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.metadata import MetadataContact
+from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
+                                      ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
@@ -372,6 +374,74 @@ class XmlMapperTest(TestCase):
             '../../test_data/iso_metadata/service.xml'))
         self._call_iso_mapper_and_persistence_handler()
         self._test_md_success(expected=EXPECTED_SERVICE_DATA)
+
+    def __iso_service_without_point_of_contact(self, with_metadata_contact):
+        """The service fixture names its responsible party in the service
+        identification. Many catalogues name it in gmd:contact only and leave
+        the point of contact away, which answers the same record without it.
+
+        The gmd:contact of the fixture is an empty placeholder element.
+        """
+        xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/iso_metadata/service.xml'))
+        namespaces = {'gmd': 'http://www.isotc211.org/2005/gmd'}
+        root = etree.fromstring(xml.read_bytes())
+        point_of_contact = root.find(
+            ".//gmd:identificationInfo//gmd:pointOfContact", namespaces)
+        if with_metadata_contact:
+            responsible_party = point_of_contact.find(
+                "gmd:CI_ResponsibleParty", namespaces)
+            # serializing the element keeps the namespaces it is declared with
+            root.find(".//gmd:MD_Metadata/gmd:contact", namespaces).append(
+                etree.fromstring(etree.tostring(responsible_party)))
+        point_of_contact.getparent().remove(point_of_contact)
+        return root
+
+    def test_iso_service_without_point_of_contact_uses_gmd_contact(self):
+        """A service record which names its responsible party in gmd:contact
+        only is imported with that contact instead of being dropped."""
+        self.xml = self.__iso_service_without_point_of_contact(
+            with_metadata_contact=True)
+        self._call_iso_mapper_and_persistence_handler()
+        record = ServiceMetadataRecord.objects.get(
+            file_identifier='ee065040-1015-44c7-839e-e8e349c74bbd')
+        self.assertEqual(
+            record.metadata_contact.name, 'Bayerisches Landesamt für Umwelt')
+
+    def test_iso_service_without_any_responsible_party(self):
+        """A record without any responsible party can not be stored, because a
+        metadata contact is required. It is answered by an error which names
+        the record and the field, not by an exception of the ORM."""
+        self.xml = self.__iso_service_without_point_of_contact(
+            with_metadata_contact=False)
+        with self.assertRaises(ValueError) as context:
+            self._call_iso_mapper_and_persistence_handler()
+        error = str(context.exception)
+        self.assertIn("ServiceMetadataRecord", error)
+        self.assertIn("ee065040-1015-44c7-839e-e8e349c74bbd", error)
+        self.assertIn("has no 'metadata_contact'", error)
+        self.assertFalse(
+            ServiceMetadataRecord.objects.filter(
+                file_identifier='ee065040-1015-44c7-839e-e8e349c74bbd').exists())
+
+    def test_iso_dataset_without_metadata_contact_uses_point_of_contact(self):
+        """A dataset record which has no gmd:contact is imported with the party
+        which provides the data instead of being dropped."""
+        xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/iso_metadata/dataset.xml'))
+        namespaces = {'gmd': 'http://www.isotc211.org/2005/gmd'}
+        root = etree.fromstring(xml.read_bytes())
+        metadata_contact = root.find(
+            ".//gmd:MD_Metadata/gmd:contact", namespaces)
+        metadata_contact.getparent().remove(metadata_contact)
+        self.xml = root
+        self._call_iso_mapper_and_persistence_handler()
+        record = DatasetMetadataRecord.objects.get(
+            file_identifier='de.dwd.geoserver.fach.RBSN_FF')
+        self.assertEqual(record.dataset_contact.name, 'Deutscher Wetterdienst')
+        self.assertEqual(record.metadata_contact, record.dataset_contact)
 
     def _test_iso_reversed_time_extent(self, keep_valid_extent):
         for filename in ('dataset.xml', 'service.xml'):

@@ -4,6 +4,10 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    cronInput: {
+      openEditor: "Click to edit the cron schedule.",
+      minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",

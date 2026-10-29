@@ -1,7 +1,7 @@
 ##############################################################
 # Base build Image for Frontend
 ##############################################################
-FROM node:26-alpine3.24 AS frontend-compile-image
+FROM node:26.12.1-alpine3.24 AS frontend-compile-image
 
 ARG VITE_API_BASE_URL
 ARG VITE_API_PORT

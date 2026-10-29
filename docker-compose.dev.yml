@@ -27,7 +27,7 @@ services:
 
 
   mapserver:
-    image: camptocamp/mapserver:7.6
+    image: camptocamp/mapserver:8.4-gdal3.10
     hostname: "mrmap-mapserver"
     volumes:
       - type: bind
@@ -213,7 +213,7 @@ services:
   # ... run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
   # ... run --rm frontend-tests npm run type-check
   frontend-tests:
-    image: node:22-alpine
+    image: node:22.23.4-alpine3.24
     hostname: "mrmap-frontend-tests"
     container_name: "mrmap-frontend-tests"
     working_dir: /opt/mrmap/frontend

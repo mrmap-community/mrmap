@@ -63,6 +63,9 @@ XPATH_MAP = {
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                    # service records of many catalogues name the responsible party
+                    # only in gmd:contact, which is the metadata contact as well
+                    "_fallback_xpaths": ("./gmd:contact/gmd:CI_ResponsibleParty",),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {

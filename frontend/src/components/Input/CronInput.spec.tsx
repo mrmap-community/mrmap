@@ -48,7 +48,10 @@ const selectOptions = async (label: string, ...options: string[]) => {
   const listbox = await screen.findByRole("listbox");
   for (const option of options)
     fireEvent.click(
-      within(listbox).getByRole("option", { name: option, exact: true }),
+      // numeric options are substrings of each other, so match the full name
+      within(listbox).getByRole("option", {
+        name: (accessibleName) => accessibleName === option,
+      }),
     );
   fireEvent.keyDown(listbox, { key: "Escape" });
   await waitFor(() =>

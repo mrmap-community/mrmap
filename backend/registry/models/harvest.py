@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from celery import chord, current_task
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
@@ -20,6 +21,7 @@ from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
@@ -254,6 +256,15 @@ class HarvestingJob(ProcessingData):
         default=LogLevelEnum.INFO,
         blank=True
     )
+    background_process = models.ForeignKey(
+        to="notify.BackgroundProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="harvesting_job_processes",
+        related_query_name="harvesting_job_process",
+        verbose_name=_('background process'),
+        help_text=_('the background process which reports this job'))
     change_log = HistoricalRecords(
         related_name="change_logs",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -382,6 +393,13 @@ class HarvestingJob(ProcessingData):
 
             self.append_celery_task_ids(task_ids + [callback_id])
 
+            # the harvest runs from now on: the process of the job tells the
+            # overview of the background activity what the job is doing
+            self.report_process(
+                ProcessStatusEnum.RUNNING,
+                phase=str(HarvestingPhaseEnum.DOWNLOAD_RECORDS.label),
+                total_steps=round_trips + self.total_records + 1)
+
             # publishing tasks on commit was successfully
             transaction.on_commit(
                 lambda: chord(
@@ -401,18 +419,86 @@ class HarvestingJob(ProcessingData):
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
 
+    def build_process(self):
+        """Build the process which reports this job in the background activity.
+
+        A harvest is long running work which is done by workers without a
+        request to attach a process to, so the job creates its process while it
+        is created and the tasks of the job keep it up to date until the job
+        decided about itself.
+
+        Returns:
+            BackgroundProcess: a process naming the catalogue which is harvested
+        """
+        # imported here, because the process only reports this job and is not a
+        # part of its result
+        from notify.models import BackgroundProcess
+
+        service = self.service if getattr(self, 'service_id', None) else None
+        title = getattr(service, 'title', None)
+        return BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.HARVESTING.value,
+            description=f"Harvesting of the catalogue {title}"[:512] if title
+            else str(self._meta.verbose_name),
+            related_resource_type=ContentType.objects.get_for_model(service)
+            if service else None,
+            related_id=service.pk if service else None)
+
+    def report_process(self, status, phase=None, total_steps=None):
+        """Mirror the state of this job in the process which reports it.
+
+        Args:
+            status (ProcessStatusEnum): the status to report
+            phase (str): current phase of the harvest, optional
+            total_steps (int): amount of steps the harvest is made of, optional
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        return BackgroundProcess.objects.report(
+            self.background_process_id, status, phase=phase,
+            total_steps=total_steps)
+
+    def fail_process(self, error):
+        """Report that a task of this job gave up.
+
+        A page which keeps failing never completes the harvest, so without this
+        report the harvest would stay as running in the overview of the
+        background activity although it ended.
+        """
+        from notify.models import BackgroundProcess
+
+        BackgroundProcess.objects.log(
+            self.background_process_id, f"An error occurred: {error}")
+        return self.report_process(
+            ProcessStatusEnum.FAILED,
+            phase=f"An error occurred: {str(error)[:400]}")
+
     def save(self, skip_history_when_saving=True, *args, **kwargs):
+        if self._state.adding and self.background_process_id is None:
+            self.background_process = self.build_process()
         if self._state.adding and self.service:
             return self.handle_adding(*args, **kwargs)
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
             self.done_at = now()
             self.phase = HarvestingPhaseEnum.COMPLETED.value
-            return super(HarvestingJob, self).save(*args, **kwargs)
+            saved = super(HarvestingJob, self).save(*args, **kwargs)
+            self.report_process(
+                ProcessStatusEnum.COMPLETED,
+                phase=str(HarvestingPhaseEnum.COMPLETED.label))
+            return saved
         elif self.phase == HarvestingPhaseEnum.ABORT.value:
             with transaction.atomic():
                 self.abort()
-                return super(HarvestingJob, self).save(*args, **kwargs)
+                saved = super(HarvestingJob, self).save(*args, **kwargs)
+                self.report_process(
+                    ProcessStatusEnum.ABORTED,
+                    phase=str(HarvestingPhaseEnum.ABORTED.label))
+                return saved
 
         # see docs of django-simple-history
         # https://django-simple-history.readthedocs.io/en/latest/querying_history.html#save-without-creating-historical-records

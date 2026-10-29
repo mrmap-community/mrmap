@@ -14,6 +14,7 @@ from kombu.exceptions import OperationalError as BrokerOperationalError
 from lxml import etree
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
+from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
@@ -67,6 +68,7 @@ class HarvestingTask(Task):
                     kind=LogKindEnum.REMOTE_ERROR.value,
                 )
                 job.phase = HarvestingPhaseEnum.ABORT.value
+                job.fail_process(f"{type(exc).__name__}: {exc}")
                 job.save(skip_history_when_saving=False)
         except Exception:
             # a failing harvest must not be answered with a broken worker
@@ -213,6 +215,10 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
             ).set(task_id=str(callback_id))
             harvesting_job.append_celery_task_ids(task_ids + [callback_id])
             harvesting_job.save(skip_history_when_saving=False)
+            harvesting_job.report_process(
+                ProcessStatusEnum.RUNNING,
+                phase=str(HarvestingPhaseEnum.RECORDS_TO_DB.label),
+                total_steps=len(to_db_tasks) + 1)
             transaction.on_commit(lambda: chord(to_db_tasks, callback).apply_async(max_retries=300, interval=1))
         else:
             complete_harvest(harvesting_job_id)

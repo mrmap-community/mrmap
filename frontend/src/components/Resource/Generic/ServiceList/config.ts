@@ -33,4 +33,6 @@ export interface ServiceListConfig {
   /** the action which the rows of the resource answer apart from the standard
    *  actions; it is rendered inside the record context of the row */
   RowAction?: ComponentType;
+  /** Optional actions for the datagrid's selected services. */
+  BulkActions?: ComponentType;
 }

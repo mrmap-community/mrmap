@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import en from "../../../../i18n/en";
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
+import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
 import { useSelectedRecordContext } from "../../../../jsonapi/components/SelectedRecordContext";
 import { CATALOGUE_SERVICE_LIST_CONFIG } from "../../CatalogueService/CatalogueServiceList";
 import { serviceListProps } from "./serviceListProps";
@@ -27,7 +28,9 @@ vi.mock("react-admin", async importOriginal => ({
 vi.mock("../../../../context/HttpClientContext", () => ({ useHttpClientContext: () => ({}) }));
 vi.mock("../../../../jsonapi/hooks/useResourceSchema", () => ({ default: () => ({ operation: {} }) }));
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
-  useFieldsForOperation: () => [{ component: TextField, props: { source: "stringRepresentation" } }],
+  useFieldsForOperation: ({ operationId }: { operationId: string }) => operationId === "create_PeriodicHarvestingJob"
+    ? [{ component: SchemaAutocompleteInput, props: { source: "service", reference: "CatalogueService" } }]
+    : [{ component: TextField, props: { source: "stringRepresentation" } }],
 }));
 vi.mock("../../../../jsonapi/hooks/useFilterInputForOperation", () => ({ useFilterInputForOperation: () => [] }));
 vi.mock("../../../../jsonapi/hooks/useJsonApiQuery", () => ({ default: () => ({}) }));
@@ -109,6 +112,8 @@ describe("service columns in ListGuesser", () => {
       data: { service: { id: "new" } },
     })));
     expect(screen.getByRole("complementary")).toHaveTextContent("No selection");
+    fireEvent.click(within(newRow).getByRole("checkbox"));
+    expect(await screen.findByRole("button", { name: "Add harvesting schedule to selected CSWs" })).toBeInTheDocument();
   });
 
   it.each(["anonymous", "unavailable"])("hides schedule creation when %s", reason => {

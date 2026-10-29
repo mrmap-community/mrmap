@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-27 17:11+0100\n"
+"POT-Creation-Date: 2026-10-29 13:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -300,32 +300,32 @@ msgstr "Status"
 msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
-#: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:61
-#: registry/models/harvest.py:148 registry/models/harvest.py:995
+#: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:63
+#: registry/models/harvest.py:153 registry/models/harvest.py:1095
 #: registry/models/monitoring.py:110 registry/models/monitoring.py:340
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
-#: notify/models.py:36 registry/models/harvest.py:62
+#: notify/models.py:36 registry/models/harvest.py:64
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
-#: notify/models.py:40 registry/models/harvest.py:66
+#: notify/models.py:40 registry/models/harvest.py:68
 #: registry/models/monitoring.py:345
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
-#: notify/models.py:41 registry/models/harvest.py:67
+#: notify/models.py:41 registry/models/harvest.py:69
 msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
-#: notify/models.py:46 registry/models/harvest.py:51
-#: registry/models/harvest.py:243
+#: notify/models.py:46 registry/models/harvest.py:53
+#: registry/models/harvest.py:248
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:47 registry/models/harvest.py:52
-#: registry/models/harvest.py:244
+#: notify/models.py:47 registry/models/harvest.py:54
+#: registry/models/harvest.py:249
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
@@ -365,20 +365,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1011
+#: notify/models.py:159 registry/models/harvest.py:1111
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:996
+#: notify/models.py:171 registry/models/harvest.py:1096
 #: registry/models/monitoring.py:341
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1016
+#: notify/models.py:175 registry/models/harvest.py:1116
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1017
+#: notify/models.py:176 registry/models/harvest.py:1117
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -777,7 +777,7 @@ msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 
-#: registry/models/conformity.py:141 registry/models/harvest.py:208
+#: registry/models/conformity.py:141 registry/models/harvest.py:213
 #: registry/models/security.py:450 registry/models/security.py:461
 #: registry/models/service.py:653 registry/models/service.py:906
 #: registry/models/update.py:120 registry/models/update.py:163
@@ -825,11 +825,11 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:138 registry/models/harvest.py:839
+#: registry/models/harvest.py:143 registry/models/harvest.py:927
 msgid "download duration"
 msgstr "Download-Dauer"
 
-#: registry/models/harvest.py:139
+#: registry/models/harvest.py:144
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -841,11 +841,11 @@ msgstr ""
 "Anfragedauer 50 * self.download_duration. Um die Download-Dauer über einen "
 "gesamten Ernteauftrag zu erhalten, wird diese Spalte aggregiert."
 
-#: registry/models/harvest.py:145
+#: registry/models/harvest.py:150
 msgid "processing duration"
 msgstr "Verarbeitungsdauer"
 
-#: registry/models/harvest.py:146
+#: registry/models/harvest.py:151
 msgid ""
 "This is the duration it tooked to handle the processing of creating or "
 "updating this record."
@@ -853,19 +853,19 @@ msgstr ""
 "Dies ist die Dauer, die die Verarbeitung zur Erstellung oder Aktualisierung "
 "dieses Datensatzes benötigt hat."
 
-#: registry/models/harvest.py:150
+#: registry/models/harvest.py:155
 msgid "Datetime field when the relation was created"
 msgstr "Der Zeitpunkt der Erstellung der Relation"
 
-#: registry/models/harvest.py:209
+#: registry/models/harvest.py:214
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/harvest.py:213 registry/models/service.py:359
+#: registry/models/harvest.py:218 registry/models/service.py:359
 msgid "max step size"
 msgstr "maximale Schrittgröße"
 
-#: registry/models/harvest.py:215
+#: registry/models/harvest.py:220
 msgid ""
 "the step size this job asks the catalogue with by a single GetRecords "
 "request. A job which is started without one takes the step size the "
@@ -875,56 +875,65 @@ msgstr ""
 "GetRecords-Anfrage fragt. Ein Lauf, der ohne eigene Schrittgröße startet, "
 "übernimmt die Schrittgröße, die der Katalog nachweislich beantwortet."
 
-#: registry/models/harvest.py:226
+#: registry/models/harvest.py:231
 msgid "total records"
 msgstr "Postleitzahl"
 
-#: registry/models/harvest.py:227
+#: registry/models/harvest.py:232
 msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
-#: registry/models/harvest.py:262
+#: registry/models/harvest.py:266 registry/models/monitoring.py:139
+#: registry/models/update.py:232
+msgid "background process"
+msgstr "Hintergrundprozess"
+
+#: registry/models/harvest.py:267 registry/models/update.py:233
+msgid "the background process which reports this job"
+msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
+
+#: registry/models/harvest.py:276
 msgid "Harvesting Job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:263
+#: registry/models/harvest.py:277
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:273 registry/models/update.py:262
+#: registry/models/harvest.py:287 registry/models/update.py:262
 #: registry/serializers/update.py:123 registry/serializers/update.py:143
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:810
+#: registry/models/harvest.py:898
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:815
+#: registry/models/harvest.py:903
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:817
+#: registry/models/harvest.py:905
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:821
+#: registry/models/harvest.py:909
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:825
+#: registry/models/harvest.py:913
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:828
+#: registry/models/harvest.py:916
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:829
+#: registry/models/harvest.py:917
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:840
+#: registry/models/harvest.py:928
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -934,22 +943,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1027 registry/models/metadata.py:595
+#: registry/models/harvest.py:1127 registry/models/metadata.py:595
 #: registry/models/monitoring.py:90 registry/models/service.py:378
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
 #: registry/serializers/service.py:985 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1028
+#: registry/models/harvest.py:1128
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1055
+#: registry/models/harvest.py:1155
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1056
+#: registry/models/harvest.py:1156
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -1535,10 +1544,6 @@ msgstr "Beendet am"
 msgid "Datetime field when the run was done in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Laufs in UTC"
 
-#: registry/models/monitoring.py:139 registry/models/update.py:232
-msgid "background process"
-msgstr "Hintergrundprozess"
-
 #: registry/models/monitoring.py:140
 msgid "the background process which reports this run"
 msgstr "der Hintergrundprozess, der diesen Lauf meldet"
@@ -2045,10 +2050,6 @@ msgstr "Aktualisierungskonfiguration Web Catalogue Service"
 msgid "Web Catalogue Service Update Configs"
 msgstr "Aktualisierungskonfigurationen Web Catalogue Service"
 
-#: registry/models/update.py:233
-msgid "the background process which reports this job"
-msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
-
 #: registry/models/update.py:465
 msgid "the wms this job is running for"
 msgstr "der WMS, für den diese Aufgabe läuft"
@@ -2176,10 +2177,10 @@ msgstr ""
 "abgeschlossener Lauf beantwortet eine, denn nur er hat einen ganzen "
 "Erntevorgang gemessen. Gemessene Arbeit ist die summierte Herunterlade- und "
 "Datenbankzeit der Datensätze dieses Laufs, welche die Zeit einer Antwort auf "
-"deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen "
-"miteinander, sie ist kein Versprechen über einen einzelnen Lauf."
+"deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen miteinander, "
+"sie ist kein Versprechen über einen einzelnen Lauf."
 
-#: registry/serializers/harvesting.py:165
+#: registry/serializers/harvesting.py:168
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 

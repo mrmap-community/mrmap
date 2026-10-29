@@ -122,7 +122,9 @@ class TemporaryMdMetadataFileManager(models.Manager):
             description=f"Harvesting of {len(objs)} metadata files")
         hj = HarvestingJob.objects.create(
             total_records=len(objs),
-        )
+            # the process built above reports exactly the work of this job, so
+            # the job keeps it instead of building a second one
+            background_process=bp)
         for obj in objs:
             obj.job = hj
 

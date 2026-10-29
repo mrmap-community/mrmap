@@ -303,10 +303,20 @@ class XmlMapper:
 
     def _get_elements(self, spec, namespaces):
         base_xpath = spec.get("_base_xpath", ".")
-        return (
-            self.current_element.xpath(base_xpath, namespaces=namespaces)
-            if base_xpath else [self.current_element]
-        )
+        if not base_xpath:
+            return [self.current_element]
+        elements = self.current_element.xpath(base_xpath, namespaces=namespaces)
+        if not elements:
+            # Documents of the wild place the information of a field in an other
+            # element than the one the field is mainly mapped from. The fallbacks
+            # are tried in order and only used while parsing; the reverse mapping
+            # only knows _base_xpath, so it always writes to the main element.
+            for fallback_xpath in spec.get("_fallback_xpaths", ()):
+                elements = self.current_element.xpath(
+                    fallback_xpath, namespaces=namespaces)
+                if elements:
+                    break
+        return elements
 
     def _get_model_class(self, spec):
         model_label = spec.get("_model")

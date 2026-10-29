@@ -1,6 +1,34 @@
 from django.core.files.base import ContentFile
+from django.db.models import ForeignKey
 from django.db.models.fields.generated import GeneratedField
 from simple_history.models import HistoricalRecords
+
+
+def _defaults_of_instance(instance):
+    """The field values of a parsed instance, to create or update the db record
+    with.
+
+    A foreign key is read by its key column. The relation descriptor of an
+    instance which was only parsed means a query for the related record and
+    raises RelatedObjectDoesNotExist if the mapper did not set the key at all,
+    which hides the field that is really missing.
+    """
+    defaults = {}
+    for field in instance.__class__._meta.concrete_fields:
+        if field.name == "file_identifier" or isinstance(field, GeneratedField):
+            continue
+        is_foreign_key = isinstance(field, ForeignKey)
+        attribute = field.attname if is_foreign_key else field.name
+        value = getattr(instance, attribute)
+        if is_foreign_key and value is None:
+            # the mapper may have set a related instance which is not stored yet
+            attribute = field.name
+            value = getattr(instance, attribute, None)
+        if value is None and is_foreign_key and not field.null:
+            raise ValueError(
+                f"{instance.__class__.__name__} '{instance.file_identifier}' has no '{field.name}'. The source document does not contain the element this field is mapped from.")
+        defaults[attribute] = value
+    return defaults
 
 
 def get_or_create_metadatarecord(instances, handler):
@@ -11,9 +39,8 @@ def get_or_create_metadatarecord(instances, handler):
     db_objs = []
     for instance in instances:
         handler.mapper
-        defaults = {
-            field.name: getattr(instance, field.name) for field in instance.__class__._meta.concrete_fields if field.name != "file_identifier" and not isinstance(field, GeneratedField)
-        }
+        defaults = _defaults_of_instance(instance)
+
         match (instance.__class__.__name__):
             case "DatasetMetadataRecord":
                 key = "dataset"

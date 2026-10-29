@@ -72,6 +72,9 @@ XPATH_MAP = {
                 "dataset_contact": {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                    # dataset records of many catalogues name the responsible party
+                    # only in gmd:contact
+                    "_fallback_xpaths": ("./gmd:contact/gmd:CI_ResponsibleParty",),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
@@ -88,6 +91,9 @@ XPATH_MAP = {
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                    # records without a metadata contact often still name the
+                    # party which provides the data
+                    "_fallback_xpaths": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {

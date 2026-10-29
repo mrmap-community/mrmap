@@ -122,6 +122,7 @@ export const serviceListProps = (
   ],
   dataGridProps: {
     bulkActionButtons: config.BulkActions ? <config.BulkActions /> : false,
+    isRowSelectable: config.isRowSelectable,
     sx: {
       '& .RaDatagrid-tableWrapper': { maxWidth: "100%", overflowX: "auto" },
       '& .RaDatagrid-table': { minWidth: 1000 },

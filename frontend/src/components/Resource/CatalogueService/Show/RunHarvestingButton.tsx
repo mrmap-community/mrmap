@@ -5,6 +5,7 @@ import {
   useCreate,
   useGetIdentity,
   useNotify,
+  useRecordContext,
   useRefresh,
   useResourceDefinition,
 } from "react-admin";
@@ -19,11 +20,12 @@ const RunHarvestingButton = ({
   variant?: ButtonProps["variant"];
 }) => {
   const { hasCreate } = useResourceDefinition({ resource: "HarvestingJob" });
+  const record = useRecordContext();
   const { data: identity } = useGetIdentity();
   const [create, { isPending }] = useCreate();
   const notify = useNotify();
   const refresh = useRefresh();
-  if (!hasCreate || !identity?.id || serviceId == null) return null;
+  if (!hasCreate || !identity?.id || serviceId == null || record?.isHarvestable === false) return null;
   return (
     <Button
       label="harvestingSchedules.run"

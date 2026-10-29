@@ -1,5 +1,9 @@
+import type { PropsWithChildren } from "react";
+import { useRecordContext, useTranslate } from "react-admin";
+
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { Alert } from "@mui/material";
 
 import CronInput from "../../../Input/CronInput";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
@@ -13,6 +17,14 @@ import HarvestStepSizeField from "./HarvestStepSizeField";
 import MonitoringTab from "./MonitoringTab";
 import Overview from "./Overview";
 import Records from "./Records";
+
+const HarvestingTab = ({ children }: PropsWithChildren) => {
+  const service = useRecordContext();
+  const translate = useTranslate();
+  return service?.isHarvestable === false
+    ? <Alert severity="info">{translate("harvestingSchedules.unavailable")}</Alert>
+    : children;
+};
 
 const tabs: ServiceTab[] = [
   {
@@ -63,18 +75,20 @@ const tabs: ServiceTab[] = [
     resource: "HarvestingJob",
     operation: "list_related_HarvestingJob_of_CatalogueService",
     content: (
-      <ServiceRelatedTab
-        resource="HarvestingJob"
-        realtime
-        refetchInterval={20000}
-        defaultSelectedColumns={[
-          "id",
-          "phase",
-          "progress",
-          "createdAt",
-          "doneAt",
-        ]}
-      />
+      <HarvestingTab>
+        <ServiceRelatedTab
+          resource="HarvestingJob"
+          realtime
+          refetchInterval={20000}
+          defaultSelectedColumns={[
+            "id",
+            "phase",
+            "progress",
+            "createdAt",
+            "doneAt",
+          ]}
+        />
+      </HarvestingTab>
     ),
   },
   {
@@ -83,17 +97,19 @@ const tabs: ServiceTab[] = [
     resource: "PeriodicHarvestingJob",
     operation: "list_related_PeriodicHarvestingJob_of_CatalogueService",
     content: (
-      <ServiceRelatedTab
-        resource="PeriodicHarvestingJob"
-        header={<HarvestingScheduleWarnings />}
-        defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
-        formFieldOverrides={[
-          {
-            component: CronInput,
-            props: { source: "scheduling" },
-          },
-        ]}
-      />
+      <HarvestingTab>
+        <ServiceRelatedTab
+          resource="PeriodicHarvestingJob"
+          header={<HarvestingScheduleWarnings />}
+          defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
+          formFieldOverrides={[
+            {
+              component: CronInput,
+              props: { source: "scheduling" },
+            },
+          ]}
+        />
+      </HarvestingTab>
     ),
   },
   {

@@ -385,6 +385,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       existing: "Laufende Datenübernahme anzeigen",
       configure: "Zeitpläne für Datenübernahme konfigurieren",
       bulkCreate: "Zeitplan für ausgewählte CSWs hinzufügen",
+      unavailable: "Für den internen MrMap-Katalog sind weder Datenübernahmen noch entsprechende Zeitpläne zulässig.",
+      bulkLoadError: "Die ausgewählten Kataloge konnten nicht geprüft werden. Zeitpläne können momentan nicht erstellt werden.",
       bulkDescription: "Einen neuen Zeitplan für %{smart_count} ausgewählten Katalog hinzufügen, auch wenn bereits Zeitpläne vorhanden sind. |||| Je einen neuen Zeitplan für %{smart_count} ausgewählte Kataloge hinzufügen, auch wenn bereits Zeitpläne vorhanden sind.",
       bulkResult: "%{created} Zeitpläne erstellt; %{failed} fehlgeschlagen.",
       bulkFailed: "Zeitpläne konnten für folgende Kataloge nicht erstellt werden: %{ids}. Ein erneuter Versuch verarbeitet nur diese Kataloge.",

@@ -62,6 +62,7 @@ describe("CatalogueServiceList", () => {
         "harvest_incomplete",
         "harvest_failed_at",
         "running_harvesting_job",
+        "is_harvestable",
         "periodic_harvesting_jobs",
       ]),
     );

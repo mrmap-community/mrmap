@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   unselect: vi.fn(),
   notify: vi.fn(),
   refresh: vi.fn(),
+  getMany: vi.fn(),
 }));
 vi.mock("react-admin", async importOriginal => ({
   ...await importOriginal<typeof import("react-admin")>(),
@@ -40,7 +41,7 @@ const renderButton = (create = vi.fn().mockResolvedValue({ data: { id: "schedule
     <AdminContext
       store={memoryStore()}
       i18nProvider={polyglotI18nProvider(() => en, "en")}
-      dataProvider={testDataProvider({ create })}
+      dataProvider={testDataProvider({ create, getMany: state.getMany })}
     >
       <ResourceDefinitionContextProvider definitions={{
         PeriodicHarvestingJob: { name: "PeriodicHarvestingJob", hasCreate },
@@ -51,15 +52,21 @@ const renderButton = (create = vi.fn().mockResolvedValue({ data: { id: "schedule
   );
   return create;
 };
-const openDialog = async () => {
+const openDialog = async (waitUntilReady = true) => {
   fireEvent.click(screen.getByRole("button", { name: label }));
-  return await screen.findByRole("dialog", { name: label });
+  const dialog = await screen.findByRole("dialog", { name: label });
+  if (waitUntilReady) await waitFor(() => expect(within(dialog).getByRole("button", { name: label })).not.toBeDisabled());
+  return dialog;
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   state.selectedIds = ["csw-1", "csw-off-page"];
   state.identity = { id: "user-1" };
+  state.getMany.mockReset();
+  state.getMany.mockImplementation(async (_resource: string, { ids }: { ids: string[] }) => ({
+    data: ids.map(id => ({ id, isHarvestable: true })),
+  }));
   vi.mocked(useFieldsForOperation).mockReturnValue([
     { component: SchemaAutocompleteInput, props: { source: "catalogue", reference: "CatalogueService", label: "Catalogue", validate: [required()] } },
     { component: TextInput, props: { source: "scheduling", label: "Schedule", validate: [required()] } },
@@ -107,6 +114,7 @@ describe("bulk harvesting schedules", () => {
     expect(state.notify).toHaveBeenCalledWith("harvestingSchedules.bulkResult", {
       type: "warning", messageArgs: { created: 1, failed: 1 },
     });
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: label })).not.toBeDisabled());
     fireEvent.click(within(dialog).getByRole("button", { name: label }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(create).toHaveBeenCalledTimes(3);
@@ -150,5 +158,39 @@ describe("bulk harvesting schedules", () => {
     state.selectedIds = [];
     renderButton();
     expect(screen.getByRole("button", { name: label })).toBeDisabled();
+  });
+
+  it("excludes the internal catalogue even when its ID remains selected from another page", async () => {
+    state.getMany.mockResolvedValue({ data: [
+      { id: "csw-1", isHarvestable: true },
+      { id: "csw-off-page", isHarvestable: false },
+    ] });
+    const create = renderButton();
+    const dialog = await openDialog();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("internal MrMap catalogue");
+    fireEvent.click(within(dialog).getByRole("button", { name: label }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0][1].data.catalogue).toEqual({ id: "csw-1" });
+    expect(state.unselect).toHaveBeenCalledWith(["csw-1", "csw-off-page"]);
+  });
+
+  it("does not submit when only the internal catalogue is selected", async () => {
+    state.selectedIds = ["internal"];
+    state.getMany.mockResolvedValue({ data: [{ id: "internal", isHarvestable: false }] });
+    const create = renderButton();
+    const dialog = await openDialog(false);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("internal MrMap catalogue");
+    expect(within(dialog).getByRole("button", { name: label })).toBeDisabled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("does not submit when the selected catalogue capabilities cannot be loaded", async () => {
+    state.getMany.mockRejectedValue(new Error("Forbidden"));
+    const create = renderButton();
+    const dialog = await openDialog(false);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Unable to check the selected catalogues");
+    expect(within(dialog).getByRole("button", { name: label })).toBeDisabled();
+    expect(create).not.toHaveBeenCalled();
   });
 });

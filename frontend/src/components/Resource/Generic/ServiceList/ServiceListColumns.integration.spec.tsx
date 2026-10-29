@@ -67,10 +67,11 @@ describe("service columns in ListGuesser", () => {
         store={memoryStore()}
         dataProvider={testDataProvider({
           getList: vi.fn().mockResolvedValue({ data: [
-            { id: "new", title: "New catalogue", periodicHarvestingJobs: [] },
-            { id: "scheduled", title: "Scheduled catalogue", periodicHarvestingJobs: [{ id: "schedule-1" }] },
-            { id: "running", title: "Running catalogue", periodicHarvestingJobs: [], runningHarvestingJob: { id: "active-harvest" } },
-          ], total: 3 }),
+            { id: "new", title: "New catalogue", isHarvestable: true, periodicHarvestingJobs: [] },
+            { id: "scheduled", title: "Scheduled catalogue", isHarvestable: true, periodicHarvestingJobs: [{ id: "schedule-1" }] },
+            { id: "running", title: "Running catalogue", isHarvestable: true, periodicHarvestingJobs: [], runningHarvestingJob: { id: "active-harvest" } },
+            { id: "internal", title: "Internal catalogue", isHarvestable: false },
+          ], total: 4 }),
           getManyReference: vi.fn().mockResolvedValue({ data: [], total: 0 }),
           create,
         })}
@@ -96,6 +97,10 @@ describe("service columns in ListGuesser", () => {
     const newRow = (await screen.findByText("New catalogue")).closest("tr")!;
     const scheduledRow = screen.getByText("Scheduled catalogue").closest("tr")!;
     const runningRow = screen.getByText("Running catalogue").closest("tr")!;
+    const internalRow = screen.getByText("Internal catalogue").closest("tr")!;
+    expect(within(internalRow).getByRole("checkbox")).toBeDisabled();
+    expect(within(internalRow).queryByRole("button", { name: "Harvest now" })).not.toBeInTheDocument();
+    expect(within(internalRow).queryByRole("link", { name: "Create harvesting schedule" })).not.toBeInTheDocument();
     expect(within(newRow).getByRole("link", { name: "Create harvesting schedule" })).toHaveAttribute(
       "href", "#/CatalogueService/new/show/PeriodicHarvestingJob/create",
     );

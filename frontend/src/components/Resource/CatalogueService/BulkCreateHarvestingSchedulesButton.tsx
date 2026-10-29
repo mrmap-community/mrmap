@@ -6,6 +6,7 @@ import {
   SimpleForm,
   useCreate,
   useGetIdentity,
+  useGetMany,
   useListContext,
   useNotify,
   useRefresh,
@@ -45,14 +46,22 @@ const BulkCreateHarvestingSchedulesButton = () => {
   const [serviceIds, setServiceIds] = useState<Identifier[]>([]);
   const [failures, setFailures] = useState<Identifier[]>([]);
   const [saving, setSaving] = useState(false);
+  const services = useGetMany(
+    "CatalogueService",
+    { ids: serviceIds, meta: { jsonApiParams: { "fields[CatalogueService]": "id,is_harvestable" } } },
+    { enabled: open && serviceIds.length > 0, refetchOnMount: "always", retry: false },
+  );
+  const ready = !services.isPending && !services.error && services.data?.length === serviceIds.length;
+  const harvestableIds = services.data?.filter(service => service.isHarvestable === true).map(service => service.id) ?? [];
+  const excludedIds = serviceIds.filter(id => !harvestableIds.includes(id));
 
   const close = () => { if (!saving) setOpen(false); };
   const submit = async (values: Record<string, unknown>) => {
-    if (!source || saving) return;
+    if (!source || saving || !ready || !harvestableIds.length) return;
     setSaving(true);
     const succeeded: Identifier[] = [];
     const failed: Identifier[] = [];
-    for (const id of serviceIds) {
+    for (const id of harvestableIds) {
       try {
         await create(
           "PeriodicHarvestingJob",
@@ -65,7 +74,7 @@ const BulkCreateHarvestingSchedulesButton = () => {
       }
     }
     setSaving(false);
-    unselect(succeeded);
+    unselect([...succeeded, ...excludedIds]);
     refresh();
     notify("harvestingSchedules.bulkResult", {
       type: failed.length ? "warning" : "success",
@@ -104,13 +113,16 @@ const BulkCreateHarvestingSchedulesButton = () => {
                   type="submit"
                   form={formId}
                   variant="contained"
-                  disabled={saving}
+                  disabled={saving || !ready || !harvestableIds.length}
                   startIcon={<UpdateIcon />}
                 />
               </>}
             >
               <Stack spacing={2}>
-                <Typography>{translate("harvestingSchedules.bulkDescription", { smart_count: serviceIds.length })}</Typography>
+                <Typography>{translate("harvestingSchedules.bulkDescription", { smart_count: harvestableIds.length })}</Typography>
+                {services.isPending && <LinearProgress />}
+                {!services.isPending && !ready && <Alert severity="error">{translate("harvestingSchedules.bulkLoadError")}</Alert>}
+                {ready && excludedIds.length > 0 && <Alert severity="info">{translate("harvestingSchedules.unavailable")}</Alert>}
                 {!!failures.length && (
                   <Alert severity="error">{translate("harvestingSchedules.bulkFailed", { ids: failures.join(", ") })}</Alert>
                 )}

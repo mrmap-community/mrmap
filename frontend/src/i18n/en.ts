@@ -405,6 +405,8 @@ const en = lodashMerge(
       existing: "View running harvest",
       configure: "Configure harvesting schedules",
       bulkCreate: "Add harvesting schedule to selected CSWs",
+      unavailable: "The internal MrMap catalogue cannot be harvested or assigned harvesting schedules.",
+      bulkLoadError: "Unable to check the selected catalogues. Schedule creation is unavailable.",
       bulkDescription: "Add a new schedule to %{smart_count} selected catalogue, including catalogues that already have schedules. |||| Add a new schedule to each of %{smart_count} selected catalogues, including catalogues that already have schedules.",
       bulkResult: "Created %{created} schedules; %{failed} failed.",
       bulkFailed: "Unable to create schedules for: %{ids}. Retry to process only these catalogues.",

@@ -37,6 +37,7 @@ const ShowRunningHarvestingJobButton = ({
 
 export const HarvestButton = (): ReactNode => {
   const record = useRecordContext();
+  if (record?.isHarvestable === false) return null;
 
   if (record?.runningHarvestingJob != null) {
     return (
@@ -56,7 +57,7 @@ const CatalogueServiceActions = (): ReactNode => {
   return (
     <>
       <HarvestButton />
-      {record && hasCreate && identity?.id && (
+      {record && record.isHarvestable !== false && hasCreate && identity?.id && (
         <Button
           component={Link}
           to={hasSchedules ? path : `${path}/create`}
@@ -102,6 +103,7 @@ export const CATALOGUE_SERVICE_LIST_FIELDS = [
   "harvest_failed_at",
   "element_count",
   "running_harvesting_job",
+  "is_harvestable",
   "periodic_harvesting_jobs",
 ];
 
@@ -115,6 +117,7 @@ export const CATALOGUE_SERVICE_LIST_CONFIG: ServiceListConfig = {
   // screen of services renders inside the record context of the row
   RowAction: CatalogueServiceActions,
   BulkActions: BulkCreateHarvestingSchedulesButton,
+  isRowSelectable: record => record.isHarvestable === true,
 };
 
 /**

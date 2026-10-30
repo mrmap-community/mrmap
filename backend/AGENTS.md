@@ -88,6 +88,18 @@ Run Docker commands from the repository root. Test services are defined in
 `docker-compose.dev.yml`; combine it with `docker-compose.yml`, as the existing
 IDE tasks do. Commands require the project's configured environment files and Docker.
 
+Follow the Docker ownership and cleanup rules in `../AGENTS.md`. When dependencies are already
+running and ready, add `--no-deps` to the `run --rm` examples below. All Django and Behave runs sharing
+PostgreSQL must acquire the same host-wide lock, including runs from other worktrees. Prefix those
+commands with `flock -n /tmp/mrmap-backend-tests.lock`, for example:
+
+```bash
+flock -n /tmp/mrmap-backend-tests.lock docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps django-tests python manage.py test tests.django.registry.tests_update_candidates --noinput
+```
+
+If the lock is busy, do other independent work and retry before completing verification; do not
+bypass it or stop another job. Leave the lock file in place so every job locks the same file.
+
 Full Django suite (uses the service's coverage command):
 
 ```bash

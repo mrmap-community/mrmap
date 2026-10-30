@@ -140,12 +140,16 @@ without checking it. If `node`/`npm` are not installed on the host, use the `fro
 from the repository root; it keeps its dependencies in a named volume, so only the first run pays
 for `npm ci` (~20 s):
 
+Follow the Docker ownership and cleanup rules in `../AGENTS.md`. Use `--no-deps` for frontend checks;
+they do not need backend services. Retain the shared `frontend-node-modules` cache. Avoid running
+`npm ci` or changing dependencies in a shared volume while another job is using it.
+
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm frontend-tests
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps frontend-tests
 docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-  run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
+  run --rm --no-deps frontend-tests npx vitest --run src/components/Resource/HarvestingJob
 docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-  run --rm frontend-tests npm run type-check
+  run --rm --no-deps frontend-tests npm run type-check
 ```
 
 ```bash

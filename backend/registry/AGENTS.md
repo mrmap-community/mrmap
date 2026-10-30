@@ -36,6 +36,11 @@ Paths in this file are relative to `backend/registry/`. Backend-wide rules and c
 - Bulk persistence mode is also configuration: `"_create_mode": "bulk_with_history"` is handled in
   `mappers/persistence/handler.py` with `simple_history.utils.bulk_create_with_history`, so history
   is preserved for bulk writes.
+- The `"get_or_create"` mode writes the lookup tables shared by all imports (Keyword, ReferenceSystem,
+  MetadataContact, TimeExtent, ...) with one `bulk_create` ordered by the unique key and
+  `ignore_conflicts=True`. A new lookup table belongs on that mode: inserting its rows one by one, in
+  the order a metadata document carries them, deadlocks concurrent harvest workers on the unique
+  index of the rows they share (#817).
 - Bulk history updates use `simple_history.utils.bulk_update_with_history`
   (see `models/update.py`).
 - Shared manager behaviour lives in `backend/extras/managers.py`, e.g. `with_history()` which

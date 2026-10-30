@@ -146,8 +146,38 @@ const timeRangeInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' 
         .add(milliseconds * index, 'milliseconds').valueOf();
 };
 
+/** The discrete observations a time dimension advertises, as positions a viewer can step through. */
+export type TimeDimensionAxis = {
+    count: number
+    valueAt: (index: number) => string
+    indexOf: (value: string) => number
+}
+
+/**
+ * The positions approached next from `index`, nearest first: up to `ahead` onwards — back to the first
+ * observation at the end of the range when `loop` returns there — and up to `behind` backwards, which
+ * scrubbing reaches for while an animation only ever walks onwards. A position outside a range which
+ * does not loop is left out, so nothing is named that the service does not advertise (#705).
+ */
+export const getUpcomingTimeAxisPositions = (axis: TimeDimensionAxis, index: number, upcoming: {
+    ahead: number
+    behind?: number
+    loop?: boolean
+}): number[] => {
+    const { ahead, behind = 0, loop = false } = upcoming;
+    if (index < 0 || index >= axis.count) return [];
+    const positions: number[] = [];
+    for (let distance = 1; distance <= Math.max(ahead, behind); distance++) {
+        const onwards = index + distance;
+        if (distance <= ahead && (onwards < axis.count || loop))
+            positions.push(onwards < axis.count ? onwards : onwards % axis.count);
+        if (distance <= behind && index - distance >= 0) positions.push(index - distance);
+    }
+    return [...new Set(positions)].filter(position => position !== index && position < axis.count);
+};
+
 /** A slider position names an available timestamp, even for calendar or irregular steps. */
-export const getTimeDimensionAxis = (dimension: OfferingDimension) => {
+export const getTimeDimensionAxis = (dimension: OfferingDimension): TimeDimensionAxis | undefined => {
     if (!/^(?:dim_)?time$/i.test(dimension.name) && dimension.units !== 'ISO8601') return undefined;
     const advertised = parseAdvertisedValues(dimension.values);
     let count: number;

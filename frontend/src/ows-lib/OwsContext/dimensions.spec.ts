@@ -9,6 +9,7 @@ import {
     getDimensionParameter,
     getTimeDimensionAxis,
     getTimeParameter,
+    getUpcomingTimeAxisPositions,
     getWmsDimensionSelection,
     getWmsDimensionOverrides,
     isAllowedDimensionValue,
@@ -220,6 +221,43 @@ describe('time slider axis', () => {
         const fractional = getTimeDimensionAxis({name:'time',values:'2024-01-01/2024-01-03/P0.5D'})!;
         expect(fractional.count).toBe(5);
         expect(fractional.valueAt(1)).toBe('2024-01-01T12:00:00.000Z');
+    });
+});
+
+describe('the frames which follow a position on the time axis', () => {
+    /** four advertised observations, addressed by their position */
+    const axis = (count: number) => ({
+        count,
+        valueAt: (index: number) => `2026-01-0${index + 1}T00:00:00Z`,
+        indexOf: (value: string) => Number(value.slice(9, 10)) - 1,
+    });
+
+    test('names the neighbours of a position nearest first, ahead and behind it', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 1, { ahead: 3, behind: 1 }))
+            .toEqual([2, 0, 3]);
+    });
+
+    test('walks onwards only, which is the direction an animation takes', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 0, { ahead: 3 }))
+            .toEqual([1, 2, 3]);
+    });
+
+    test('stops at the end of a range which does not loop', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 2, { ahead: 3 }))
+            .toEqual([3]);
+        expect(getUpcomingTimeAxisPositions(axis(4), 3, { ahead: 3 }))
+            .toEqual([]);
+    });
+
+    test('returns to the first observation where an animation loops', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 2, { ahead: 3, loop: true }))
+            .toEqual([3, 0, 1]);
+    });
+
+    test('names nothing for a position the axis does not carry nor for a single observation', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), -1, { ahead: 3, behind: 1 })).toEqual([]);
+        expect(getUpcomingTimeAxisPositions(axis(4), 4, { ahead: 3, behind: 1 })).toEqual([]);
+        expect(getUpcomingTimeAxisPositions(axis(1), 0, { ahead: 3, behind: 1, loop: true })).toEqual([]);
     });
 });
 

@@ -133,12 +133,22 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
 
 export const WmsDimensionControls = ({ folder, inline = false, timeOnly = false, compact = false, horizontal = false }: { folder?: string; inline?: boolean; timeOnly?: boolean; compact?: boolean; horizontal?: boolean }) => {
   const { owsContext, setOwsContext } = useOwsContextBase()
+  const { claimTimeline } = useMapViewerBase()
   const translate = useTranslate()
   const [invalid, setInvalid] = useState<Record<string, boolean>>({})
   const node = owsContext.findResourceByFolder(folder)
   const offering = node?.getWmsOffering()
   const dimensions = (offering?.dimensions ?? []).filter(dimension => !timeOnly || /^(?:dim_)?time$/i.test(dimension.name) || dimension.units === 'ISO8601')
   const layerTitle = node ? [...owsContext.getAncestorsOf(node), node].map(item => item.properties.title).join(' / ') : undefined
+
+  // while a layer's dimensions are open, its times are the ones the viewer reaches for, and the map
+  // buffers the frames around its selections ahead of them; a pinned timeline claims the same layer, so
+  // the claim belongs to every control which shows it and is given back when the last one closes (#705)
+  useEffect(() => {
+    if (folder === undefined) return
+    claimTimeline(folder, true)
+    return () => claimTimeline(folder, false)
+  }, [claimTimeline, folder])
 
   const apply = (name: string, value: string) => {
     const next = OWSContext.fromPlainObject(owsContext)

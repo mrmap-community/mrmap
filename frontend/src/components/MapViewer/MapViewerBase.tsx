@@ -85,6 +85,15 @@ export interface MapViewerBaseType {
   /** reports which timestamp the image of a layer shows; undefined takes the answer back */
   setDisplayedTime: (folder: string, time: string | undefined) => void
   /**
+   * The timelines open in this viewer session, counted by the folder of their layer: the settings panel of
+   * a layer and its pinned timeline both work through its times. Only the frames of those layers are
+   * buffered — a viewer works with one layer at a time, and images fetched ahead for the layers nobody is
+   * working with would cost bandwidth and memory on every pan of the map (#705).
+   */
+  timelines: Record<string, number>
+  /** a mounted timeline claims the frames of its layer; giving the claim back releases them */
+  claimTimeline: (folder: string, claimed: boolean) => void
+  /**
    * The timeline animation of the viewer session: the layer whose advertised times playback
    * advances through, with its frames per second and whether it loops at the end of the range.
    * One animation plays at a time, and only one selected or pinned layer is animated (#705).
@@ -242,6 +251,21 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
   // playback belongs to one selected or pinned time-enabled layer at a time; the control which
   // offers it reads this state, so its buttons stay honest wherever it is opened (#705)
   const [animation, setAnimation] = useState<TimelineAnimation>()
+  // which layers a viewer works the times of, i.e. whose timeline is open; several controls can show the
+  // timeline of one layer, so the claims are counted and the frames are given back by the last of them
+  const [timelines, setTimelines] = useState<Record<string, number>>({})
+
+  const claimTimeline = useCallback((folder: string, claimed: boolean) => {
+    setTimelines((previous) => {
+      const claims = (previous[folder] ?? 0) + (claimed ? 1 : -1)
+      if (claims > 0) return { ...previous, [folder]: claims }
+      if (!(folder in previous)) return previous
+      const next = { ...previous }
+      delete next[folder]
+      return next
+    })
+  }, [])
+
   // the transparency a user gives a layer belongs to the viewer session and not to the document:
   // an exported context keeps the layers as they were imported, while the viewer blends them the
   // way the user asked for (#750)
@@ -391,6 +415,8 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       setLayerOpacity,
       displayedTimes,
       setDisplayedTime,
+      timelines,
+      claimTimeline,
       animation,
       setAnimation
     }
@@ -412,6 +438,8 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     setLayerOpacity,
     displayedTimes,
     setDisplayedTime,
+    timelines,
+    claimTimeline,
     animation,
     setAnimation
   ])

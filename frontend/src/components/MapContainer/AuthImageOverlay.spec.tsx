@@ -37,6 +37,10 @@ vi.mock("@tanstack/react-query", () => ({
     return query.state;
   },
 }));
+// the buffering of the neighbouring frames is the subject of its own spec; here the overlay is only
+// asked to hand its request over to it
+const buffer = vi.hoisted(() => vi.fn());
+vi.mock("./useTimeFrameBuffer", () => ({ useTimeFrameBuffer: buffer }));
 vi.mock("react-leaflet", () => ({
   ImageOverlay: ({
     opacity,
@@ -114,6 +118,18 @@ describe("map image requests", () => {
       ).rejects.toThrow("LayerNotDefined: Missing layer");
     },
   );
+  it("hands its request and its authentication to the buffering of its frames", () => {
+    prepare(makeBlob(["\x89PNG"], { type: "image/png" }));
+
+    // the frames near this selection are fetched through the very key of this request
+    expect(buffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.any(URL),
+        features: [],
+        authOptions: { headers: { Authorization: "test" } },
+      }),
+    );
+  });
 });
 
 describe("the blending of a drawn image", () => {

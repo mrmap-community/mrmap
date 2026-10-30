@@ -7,7 +7,8 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from lxml import etree
 from registry.mappers.utils import (find_spec_for_instance, get_key_fields,
-                                    get_unique_fields, make_instance_key)
+                                    get_unique_fields, make_instance_key,
+                                    sort_key_for_instance)
 from registry.models.document import DocumentModelMixin
 from simple_history.utils import bulk_create_with_history
 
@@ -35,53 +36,59 @@ class PersistenceHandler:
         return getattr(mod, func_name)
 
     # ------------------------
-    # Deduplicate & Bulk + Reload
+    # Get or create on the shared lookup tables
     # ------------------------
 
-    def _persist_get_or_create_bulk(self, instances):
+    def _persist_get_or_create(self, instances):
+        """Persists all instances of one model, keyed by their unique key.
+
+        This mode writes the shared lookup tables: Keyword, ReferenceSystem,
+        MetadataContact, TimeExtent, ... Harvest workers import their metadata
+        files concurrently and every one of them creates the rows its document
+        carries. Looking each row up and inserting it on its own, in the order
+        the document happens to carry them, makes two transactions wait for each
+        other's entry in the same unique index in opposite order. Postgres ends
+        that cycle by rolling back the whole import transaction of one of them
+        (#817), which the retry on OperationalError of the harvesting task only
+        hides.
+
+        Therefore: deduplicate the parsed instances, insert them with one
+        statement in key order - transactions which all ask for their rows in
+        the same order can not wait for each other in a circle - and with
+        ON CONFLICT DO NOTHING, because a row a concurrent transaction created
+        since we last looked is the normal outcome and not an error. The stored
+        ids come back with the final key map.
+        """
         if not instances:
             return {}
         model_cls = instances[0].__class__
-        # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
         key_fields = get_key_fields(model_cls)
+        if key_fields == ('id',):
+            # without a unique field there is nothing to deduplicate, to order
+            # by or to insert conflict free
+            return self._persist_get_or_create_one_by_one(instances, key_fields)
 
-        # 2️⃣ Deduplicate nach key_fields
-        seen_keys = set()
-        deduped_instances = []
+        deduped_instances = {}
         for inst in instances:
-            key = make_instance_key(inst, key_fields)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_instances.append(inst)
+            self._fill_unique_defaults(inst, key_fields)
+            deduped_instances.setdefault(
+                make_instance_key(inst, key_fields), inst)
 
-        # 3️⃣ Prüfe, welche Objekte bereits in DB existieren
-        filters = models.Q()
-        for key in seen_keys:
-            filters |= models.Q(**dict(zip(key_fields, key)))
-        existing_objs = list(model_cls.objects.filter(filters))
-        existing_keys = {
-            make_instance_key(e, key_fields): e
-            for e in existing_objs
-        }
+        to_create = sorted(
+            deduped_instances.values(),
+            key=lambda inst: sort_key_for_instance(inst, key_fields))
+        model_cls.objects.bulk_create(
+            objs=to_create, ignore_conflicts=True)
 
-        # 4️⃣ Objekte, die noch erstellt werden müssen
-        to_create = [
-            inst for inst in deduped_instances
-            if make_instance_key(inst, key_fields) not in existing_keys
-        ]
-        if to_create:
-            objs = model_cls.objects.bulk_create(objs=to_create)
+        return self.build_final_key_map(list(deduped_instances.values()), key_fields)
 
-            # ⚠️ Warning logging if counts differ
-            if len(to_create) != len(objs):
-                logger.warning(
-                    f"not all objects created {len(objs)} != {len(to_create)}")
+    def _persist_get_or_create_one_by_one(self, instances, key_fields):
+        """Looks every instance up and creates it if it was not found.
 
-        return self.build_final_key_map(deduped_instances)
-
-    def _persist_get_or_create(self, instances):
+        The fallback for a model without a unique field, which the bulk insert
+        of _persist_get_or_create can not deduplicate, order or conflict on.
+        """
         model_cls = instances[0].__class__
-        key_fields = get_key_fields(model_cls)
         db_instances = []
         for inst in instances:
             obj, created = model_cls.objects.get_or_create(
@@ -90,7 +97,23 @@ class PersistenceHandler:
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
             )
             db_instances.append(obj)
-        return db_instances
+        return self.build_final_key_map(db_instances, key_fields)
+
+    @staticmethod
+    def _fill_unique_defaults(instance, key_fields):
+        """Uses the field default for a unique field the parser left out.
+
+        The columns of the unique constraints of the lookup tables are never
+        null and carry a default, so the row which is identified by them stores
+        the default and not NULL. `UniqueConstraintDefaultValueManager` applies
+        this rule to the lookup of a single row already; deduplicating the
+        parsed instances and inserting them in bulk needs the same value on the
+        instance to ask for the same row.
+        """
+        for name in key_fields:
+            field = instance._meta.get_field(name)
+            if getattr(instance, name) is None and not field.null:
+                setattr(instance, name, field.get_default())
 
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
@@ -342,7 +365,6 @@ class PersistenceHandler:
                 {model_cls: instances})
 
             create_mode = getattr(model_cls, "_create_mode", "save")
-            # create_func = self._persist_get_or_create_bulk
             kwargs = {}
             if "." in create_mode:
                 create_func = self._load_function(create_mode)
@@ -350,9 +372,7 @@ class PersistenceHandler:
                 final_key_map = create_func(instances, **kwargs)
                 self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "get_or_create":
-                objs = self._persist_get_or_create(
-                    instances, **kwargs)
-                final_key_map = self.build_final_key_map(objs)
+                final_key_map = self._persist_get_or_create(instances)
                 self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "bulk":
                 objs = model_cls.objects.bulk_create(instances)

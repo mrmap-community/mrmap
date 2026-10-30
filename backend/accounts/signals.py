@@ -1,3 +1,6 @@
+from logging import Logger
+
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.db.models.signals import post_save
 from django.db.transaction import atomic
@@ -6,6 +9,8 @@ from guardian.shortcuts import assign_perm
 
 from accounts.models.groups import Organization
 from accounts.utils import get_secured_models
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 @receiver(post_save, sender=Organization)
@@ -43,23 +48,69 @@ def handle_organization_creation(instance, created, **kwargs):
                             obj=secured_model_admins)
 
 
-def handle_secured_model_creation(instance, created, **kwargs):
-    if created:
-        with atomic():
-            instance_admins = Group.objects.get(
-                name=f'{instance.owner.name} {instance._meta.model_name} Admins')
-            global_add_perm = Permission.objects.get(
-                codename=f'add_{instance._meta.model_name}', content_type__app_label=instance._meta.app_label, content_type__model=instance._meta.model_name)
-            instance_admins.permissions.add(global_add_perm)
-            assign_perm(perm=f'{instance._meta.app_label}.view_{instance._meta.model_name}',
-                        user_or_group=instance_admins,
-                        obj=instance)
-            assign_perm(perm=f'{instance._meta.app_label}.change_{instance._meta.model_name}',
-                        user_or_group=instance_admins,
-                        obj=instance)
-            assign_perm(perm=f'{instance._meta.app_label}.delete_{instance._meta.model_name}',
-                        user_or_group=instance_admins,
-                        obj=instance)
+def owning_organization(instance):
+    """
+    The organization a newly created resource shall be granted to.
+
+    Nothing knows that today: no resource model stores an owner, ownership is
+    the subject of the role work (#727). Whatever learns it later answers it
+    here; an instance which does not know its owner is a normal case and not an
+    error.
+
+    Args:
+        instance: the newly created resource
+
+    Returns:
+        Organization or None: the organization to grant the resource to
+    """
+    owner = getattr(instance, 'owner', None)
+    if isinstance(owner, Organization):
+        return owner
+    return None
+
+
+def handle_secured_model_creation(instance, created, raw=False, **kwargs):
+    """
+    Grant the administering group of the owning organization a new resource.
+
+    A resource which has no known owner is granted to nobody and says so once
+    in the log. A receiver which raised here would break the registration it is
+    supposed to protect, because an exception of a post_save receiver reaches
+    the caller of save().
+    """
+    # a fixture loads services as they are, there is nothing to grant for them
+    if not created or raw:
+        return
+
+    model_name = instance._meta.model_name
+    organization = owning_organization(instance)
+    if organization is None:
+        logger.warning(
+            f"Can't grant object permissions on the new {model_name} "
+            f"{instance.pk}: no owner is known for it.")
+        return
+
+    admins_group_name = f'{organization.name} {model_name} Admins'
+    instance_admins = Group.objects.filter(name=admins_group_name).first()
+    if instance_admins is None:
+        logger.warning(
+            f"Can't grant object permissions on the new {model_name} "
+            f"{instance.pk}: {organization} has no group '{admins_group_name}'.")
+        return
+
+    with atomic():
+        global_add_perm = Permission.objects.get(
+            codename=f'add_{model_name}', content_type__app_label=instance._meta.app_label, content_type__model=model_name)
+        instance_admins.permissions.add(global_add_perm)
+        assign_perm(perm=f'{instance._meta.app_label}.view_{model_name}',
+                    user_or_group=instance_admins,
+                    obj=instance)
+        assign_perm(perm=f'{instance._meta.app_label}.change_{model_name}',
+                    user_or_group=instance_admins,
+                    obj=instance)
+        assign_perm(perm=f'{instance._meta.app_label}.delete_{model_name}',
+                    user_or_group=instance_admins,
+                    obj=instance)
 
 
 for model in get_secured_models():

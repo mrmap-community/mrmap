@@ -11,6 +11,9 @@ class AccountsConfig(AppConfig):
     verbose_name = _('Accounts')
 
     def ready(self):
+        # connects the permission bootstrap of this app to post_save, the
+        # module has to be imported for any of its receivers to run
+        import accounts.signals  # noqa
         post_migrate.connect(create_default_user_and_org, sender=self)
 
 

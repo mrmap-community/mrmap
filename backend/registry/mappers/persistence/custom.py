@@ -31,11 +31,31 @@ def _defaults_of_instance(instance):
     return defaults
 
 
+def _request_user():
+    """The user to record the change of a metadata record with, when a request
+    carries one.
+    """
+    request = getattr(HistoricalRecords.context, "request", None)
+    return getattr(request, "user", None)
+
+
+def _update_record(db_obj, defaults, current_user):
+    """Copy the parsed field values onto the row which was fetched for them.
+
+    The primary key is skipped: the key of the parsed but unsaved instance is
+    a fresh uuid which no row carries, so copying it would move the fetched
+    row away instead of updating it (#811).
+    """
+    pk_name = db_obj._meta.pk.name
+    for key, value in defaults.items():
+        if key != pk_name:
+            setattr(db_obj, key, value)
+    db_obj.last_modified_by = current_user
+    db_obj.save()
+
+
 def get_or_create_metadatarecord(instances, handler):
-    if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
-        current_user = HistoricalRecords.context.request.user
-    else:
-        current_user = None
+    current_user = _request_user()
     db_objs = []
     for instance in instances:
         handler.mapper
@@ -62,10 +82,7 @@ def get_or_create_metadatarecord(instances, handler):
 
         if not created and instance.date_stamp > db_obj.date_stamp:
             # run update on fields
-            for key, value in defaults.items():
-                setattr(db_obj, key, value)
-            db_obj.last_modified_by = current_user
-            db_obj.save()
+            _update_record(db_obj, defaults, current_user)
             update = True
 
         db_obj._custom_state = created, update

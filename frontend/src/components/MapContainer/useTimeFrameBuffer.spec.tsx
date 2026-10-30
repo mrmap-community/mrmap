@@ -48,24 +48,34 @@ const AUTH = { headers: { Authorization: "first" } };
 const features = [{ properties: { folder: "/0/0" } }] as unknown as OWSResource[];
 
 let client: QueryClient;
-let calls: { time: string | null; headers?: Record<string, string>; signal: AbortSignal }[];
+let calls: {
+  href: string;
+  time: string | null;
+  headers?: Record<string, string>;
+  signal: AbortSignal;
+}[];
 
 /** the key a frame is kept under, built exactly as the overlay and the buffering build it */
 const keyOf = (time: string, auth = AUTH) => remoteImageKey(frame(time), auth);
 const requested = () => calls.map(call => call.time);
 const askedFor = (time: string) => calls.filter(call => call.time === time).length;
+/** the exact url a frame was asked for — only the identical url answers it from the buffer */
+const askedUnder = (href: string) => calls.filter(call => call.href === href).length;
 /** every image the browser was asked for, besides the frame the overlay itself waits for */
 const bufferedAround = (selection: string) =>
   [...new Set(requested().filter(time => time !== selection))];
 
 /**
  * Answers every map request with an image; frames named by `refuse` are refused by the service and frames
- * named by `hold` never answer, which is how a request on its way is observed.
+ * named by `hold` never answer, which is how a request on its way is observed. The time is read under the
+ * well known parameter as well as under the DIM_DATE name one spec selects its observations with.
  */
 const stubNetwork = ({ refuse = [], hold = [] }: { refuse?: string[]; hold?: string[] } = {}) => {
-  vi.stubGlobal("fetch", vi.fn(async (href: string | URL, init?: RequestInit) => {
-    const time = new URL(String(href)).searchParams.get("TIME");
+  vi.stubGlobal("fetch", vi.fn(async (requestedHref: string | URL, init?: RequestInit) => {
+    const params = new URL(String(requestedHref)).searchParams;
+    const time = params.get("TIME") ?? params.get("DIM_DATE");
     calls.push({
+      href: String(requestedHref),
       time,
       headers: init?.headers as Record<string, string> | undefined,
       signal: (init?.signal ?? new AbortController().signal) as AbortSignal,
@@ -81,17 +91,22 @@ const stubNetwork = ({ refuse = [], hold = [] }: { refuse?: string[]; hold?: str
 };
 
 /** what an overlay of a time-enabled layer asks of the buffer: its own frame and the neighbouring ones */
-const timeLayer = ({ time, auth = AUTH }: { time?: string; auth?: AuthOptions }) => {
-  const url = new URL(time === undefined ? BASE : frame(time));
+const timeLayer = ({
+  time,
+  auth = AUTH,
+  url: ownUrl = time === undefined ? BASE : frame(time),
+}: { time?: string; auth?: AuthOptions; url?: string }) => {
+  const url = new URL(ownUrl);
   useTimeFrameBuffer({ url, features, authOptions: auth });
   return useQuery(remoteImageQuery(url.href, auth, key => key));
 };
-const render = (initial: { time?: string; auth?: AuthOptions }) => renderHook(timeLayer, {
-  initialProps: initial,
-  wrapper: ({ children }: PropsWithChildren) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  ),
-});
+const render = (initial: { time?: string; auth?: AuthOptions; url?: string }) =>
+  renderHook(timeLayer, {
+    initialProps: initial,
+    wrapper: ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
 
 beforeEach(() => {
   client = new QueryClient();
@@ -134,7 +149,8 @@ describe("the frames buffered around a selection", () => {
   });
 
   it("walks onwards only while the layer plays, returning to the first observation where it loops", async () => {
-    state.animation = { folder: "/0/0", fps: 4, loop: true };
+    // a slow rate keeps the runway at its base width, so only the direct futures are buffered
+    state.animation = { folder: "/0/0", fps: 0.5, loop: true };
     stubNetwork();
 
     render({ time: TIMES[4] });
@@ -143,6 +159,54 @@ describe("the frames buffered around a selection", () => {
     expect(bufferedAround(TIMES[4]).sort()).toEqual([TIMES[0], TIMES[1], TIMES[5]].sort());
     // the frame behind the selection is no future of an animation
     expect(askedFor(TIMES[3])).toBe(0);
+  });
+
+  it("keeps the runway of a playing animation filled while a slow frame is on its way", async () => {
+    // playback asks for seconds worth of frames ahead of the one being drawn, so that a fast rate
+    // steps through the buffer instead of waiting for a fresh request at every step
+    state.animation = { folder: "/0/0", fps: 4, loop: false };
+    // one frame never answers, so only the deeper window reaches the end of the range from here
+    stubNetwork({ hold: [TIMES[1]] });
+
+    render({ time: TIMES[0] });
+
+    await waitFor(() => expect(askedFor(TIMES[5])).toBe(1));
+  });
+
+  it("fetches a buffered frame under the very url the overlay will draw it with", async () => {
+    // the live requests of a map carry the time between the operation's own parameters and the
+    // viewport parameters the map appended: a frame fetched with its time moved to the end of the
+    // query is another key for the very same image and answers nothing (#823 live, maps.dwd.de)
+    const middleFrame = (time: string) =>
+      `${BASE}&TRANSPARENT=true&TIME=${encodeURIComponent(time)}&WIDTH=600&STYLES=`;
+    stubNetwork();
+    const { rerender, result } = render({ url: middleFrame(TIMES[1]) });
+    await waitFor(() => expect(askedUnder(middleFrame(TIMES[4]))).toBe(1));
+
+    // the selection reaches a buffered frame: the very url is what both the buffer and the overlay asked
+    rerender({ url: middleFrame(TIMES[2]) });
+
+    await waitFor(() => expect(result.current.data).toBeInstanceOf(Blob));
+    expect(askedUnder(middleFrame(TIMES[2]))).toBe(1);
+    expect(askedUnder(`${BASE}&TRANSPARENT=true&WIDTH=600&STYLES=&TIME=${encodeURIComponent(TIMES[2])}`)).toBe(0);
+  });
+
+  it("buffers the frames of a time dimension the service names other than time", async () => {
+    const dateFrame = (time: string) => `${BASE}&DIM_DATE=${encodeURIComponent(time)}`;
+    state.dimensions = [{
+      name: "DATE", units: "ISO8601", values: TIMES.join(","), default: TIMES[0],
+    }];
+    stubNetwork();
+    const { rerender, result } = render({ url: dateFrame(TIMES[1]) });
+    await waitFor(() => expect(askedUnder(dateFrame(TIMES[4]))).toBe(1));
+    expect([...new Set(calls.map(call => call.href))].sort())
+      .toEqual([TIMES[0], TIMES[1], TIMES[2], TIMES[3], TIMES[4]].map(dateFrame).sort());
+
+    // the selection reaches a buffered DIM_DATE frame without a second request under its own url
+    rerender({ url: dateFrame(TIMES[2]) });
+
+    await waitFor(() => expect(result.current.data).toBeInstanceOf(Blob));
+    expect(askedUnder(dateFrame(TIMES[2]))).toBe(1);
   });
 
   it("buffers nothing beyond the end of a range which does not loop", async () => {
@@ -246,8 +310,9 @@ describe("the frames buffered around a selection", () => {
 
     render({ time: TIMES[0] });
 
+    // at two steps per second a four-second runway covers the rest of the short advertised range
     await waitFor(() => expect(askedFor(TIMES[2])).toBe(1));
-    expect(bufferedAround(TIMES[0]).sort()).toEqual([TIMES[1], TIMES[2], TIMES[3]].sort());
+    expect(bufferedAround(TIMES[0]).sort()).toEqual([TIMES[1], TIMES[2], TIMES[3], TIMES[4], TIMES[5]].sort());
   });
 
   it("buffers nothing for the image of the server default", async () => {

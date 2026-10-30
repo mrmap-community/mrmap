@@ -7,7 +7,7 @@ import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
-import { getTimeParameter } from "../../ows-lib/OwsContext/dimensions";
+import { getOfferingTimeValue } from "../../ows-lib/OwsContext/dimensions";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
 import {
   AuthOptions,
@@ -50,7 +50,9 @@ export const AuthImageOverlay = ({
 
   const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
   const url = optimiuedUrl.url.href;
-  const time = getTimeParameter(optimiuedUrl.url);
+  // the observation this image answers for, read under the parameter the layer's time dimension was
+  // selected with — the well known TIME or a DIM_<name> the timeline of the layer writes
+  const time = getOfferingTimeValue(optimiuedUrl.url, optimiuedUrl.features[0]?.getWmsOffering());
   const folder = optimiuedUrl.features[0]?.properties.folder;
 
   const loadingId = `image:${url}`;

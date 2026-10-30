@@ -78,15 +78,89 @@ export const isAllowedDimensionValue = (dimension: OfferingDimension, value: str
 export const isTimeParameter = (name: string): boolean =>
     /^(?:dim_)?time$/i.test(name);
 
+/** Whether the service advertises this dimension as its time: the well known name or ISO 8601 units. */
+export const isTimeDimension = (dimension: OfferingDimension): boolean =>
+    /^(?:dim_)?time$/i.test(dimension.name) || dimension.units === 'ISO8601';
+
 /** The time a request URL asks for, whatever case its parameter was written in; undefined when it asks the server default. */
 export const getTimeParameter = (url: URL): string | undefined =>
     [...url.searchParams.entries()].find(([name]) => isTimeParameter(name))?.[1];
 
-/** Replace the time parameter of a request however it was written; an empty value hands it back to the server default. */
+/**
+ * Replace the time parameter of a request however it was written; an empty value hands it back to the
+ * server default. A written TIME is replaced in the position it already has, because a time which moves
+ * through the query is another url for the very same image — the buffering of the neighbouring frames
+ * only answers the overlay when both sides ask under one identical key. Only a foreign spelling (a
+ * lowercase time or a DIM_TIME) becomes the canonical TIME, which moves it once before the identity of
+ * the request settles (#823).
+ */
 export const setTimeParameter = (params: URLSearchParams, value: string): void => {
-    [...params.keys()].filter(isTimeParameter).forEach(name => params.delete(name));
-    if (value !== '') params.set('TIME', value);
+    const [first, ...duplicates] = [...params.keys()].filter(isTimeParameter);
+    duplicates.forEach(name => params.delete(name));
+    if (first !== undefined && first !== 'TIME') params.delete(first);
+    if (value === '') {
+        params.delete('TIME');
+        return;
+    }
+    if (first === 'TIME') params.set(first, value);
+    else params.append('TIME', value);
 };
+
+/** The name one dimension's request parameter carries in this URL, whatever case it was written in. */
+const findDimensionParameter = (params: URLSearchParams, name: string): string | undefined => {
+    const parameter = getDimensionParameter(name).toUpperCase();
+    return [...params.keys()].find(key => key.toUpperCase() === parameter);
+};
+
+/** The value a request carries for one dimension; undefined when it asks the server default. */
+export const readDimensionValue = (params: URLSearchParams, name: string): string | undefined => {
+    const key = findDimensionParameter(params, name);
+    return key === undefined ? undefined : params.get(key) ?? undefined;
+};
+
+/**
+ * Replace one dimension's value in the position its parameter already has, so the request keeps its
+ * identity for the buffering; an empty value removes the parameter and hands the dimension back to the
+ * server default. A spelling which differs from the canonical parameter is renamed in that very
+ * position — URLSearchParams could only rename by moving to the end, which is another identity —
+ * and further spellings the service left behind are dropped.
+ */
+export const writeDimensionValue = (params: URLSearchParams, name: string, value: string): void => {
+    const parameter = getDimensionParameter(name);
+    const entries = [...params.entries()];
+    let replaced = false;
+    [...params.keys()].forEach(key => params.delete(key));
+    for (const [key, entry] of entries) {
+        if (key.toUpperCase() !== parameter.toUpperCase()) {
+            params.append(key, entry);
+            continue;
+        }
+        if (!replaced && value !== '') params.append(parameter, value);
+        replaced = true;
+    }
+    if (!replaced && value !== '') params.append(parameter, value);
+};
+
+/** The time a request asks for under one dimension — the well known TIME also answers its legacy spellings. */
+export const getTimeValueOfDimension = (params: URLSearchParams, name: string): string | undefined =>
+    /^(?:dim_)?time$/i.test(name)
+        ? [...params.entries()].find(([key]) => isTimeParameter(key))?.[1]
+        : readDimensionValue(params, name);
+
+/**
+ * Replace the time a request carries for one dimension. The well known TIME goes through
+ * setTimeParameter, which also unifies the legacy spellings; a DIM_<name> dimension is written in
+ * place under its own parameter.
+ */
+export const writeTimeForDimension = (params: URLSearchParams, name: string, value: string): void => {
+    if (/^(?:dim_)?time$/i.test(name)) setTimeParameter(params, value);
+    else writeDimensionValue(params, name, value);
+};
+
+/** The time the URL asks for under the offering's time dimension: the well known TIME or a DIM_<name>. */
+export const getOfferingTimeValue = (url: URL, offering?: Offering): string | undefined =>
+    getTimeValueOfDimension(url.searchParams,
+        (offering?.dimensions ?? []).find(isTimeDimension)?.name ?? 'time');
 
 /** The value the requests of this offering currently carry: the last selection or the advertised default. */
 export const getWmsDimensionSelection = (offering: Offering, dimension: OfferingDimension): string => {
@@ -115,12 +189,7 @@ export const setWmsDimension = (offering: Offering, name: string, value: string)
         .forEach(operation => {
             const url = new URL(operation.href);
             if (parameter === 'TIME') setTimeParameter(url.searchParams, value);
-            else {
-                [...url.searchParams.keys()]
-                    .filter(key => key.toUpperCase() === parameter)
-                    .forEach(key => url.searchParams.delete(key));
-                if (value !== '') url.searchParams.set(parameter, value);
-            }
+            else writeDimensionValue(url.searchParams, name, value);
             operation.href = url.href;
         });
 };
@@ -216,3 +285,14 @@ export const getTimeDimensionAxis = (dimension: OfferingDimension) => {
     };
     return { count, valueAt, indexOf };
 };
+
+/**
+ * The offering's dimension whose advertised values form the axis a viewer steps through, with that
+ * axis — the buffering needs both: the axis to name the upcoming observations and the dimension to
+ * write them into the request under the very parameter the timeline selected them with.
+ */
+export const getSteppedTimeDimension = (offering?: Offering) =>
+    (offering?.dimensions ?? []).flatMap(dimension => {
+        const axis = getTimeDimensionAxis(dimension);
+        return axis === undefined ? [] : [{ dimension, axis }];
+    })[0];

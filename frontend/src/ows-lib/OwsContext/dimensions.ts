@@ -177,7 +177,7 @@ export const getUpcomingTimeAxisPositions = (axis: TimeDimensionAxis, index: num
 };
 
 /** A slider position names an available timestamp, even for calendar or irregular steps. */
-export const getTimeDimensionAxis = (dimension: OfferingDimension): TimeDimensionAxis | undefined => {
+export const getTimeDimensionAxis = (dimension: OfferingDimension) => {
     if (!/^(?:dim_)?time$/i.test(dimension.name) && dimension.units !== 'ISO8601') return undefined;
     const advertised = parseAdvertisedValues(dimension.values);
     let count: number;

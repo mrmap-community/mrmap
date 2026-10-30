@@ -453,6 +453,40 @@ test("a new selected time keeps the very same image overlay", () => {
   expect(before.textContent).toContain("TIME=2026-01-01T00%3A05%3A00Z");
 });
 
+test("a new selection through a DIM_<name> time dimension keeps the very same image overlay", () => {
+  const withDate = (time: string): OptimizedUrlsMap => ({
+    url: new URL(
+      `https://example.org/wms?VERSION=1.3.0&LAYERS=a&TRANSPARENT=true&DIM_DATE=${encodeURIComponent(time)}&WIDTH=256`,
+    ),
+    features: [
+      {
+        properties: { folder: "/0/0" },
+        getWmsOffering: () => ({
+          dimensions: [{ name: "DATE", units: "ISO8601", values: "2026-01-01,2026-01-02" }],
+        }),
+      },
+    ] as unknown as OptimizedUrlsMap["features"],
+    operations: [
+      { code: "GetMap", method: "GET", href: "https://example.org/wms" },
+    ],
+  });
+  state.maps = [withDate("2026-01-01")];
+  const { rerender } = render(<WebMapServiceControl />);
+  const before = screen.getByTestId("image-url");
+
+  state.maps = [withDate("2026-01-02")];
+  rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WebMapServiceControl />
+    </QueryClientProvider>,
+  );
+
+  // the timeline of such a layer selects through DIM_DATE: the changing value must not remount
+  // the overlay, which is what lets it keep drawing until the new frame has arrived (#705)
+  expect(screen.getByTestId("image-url")).toBe(before);
+  expect(before.textContent).toContain("DIM_DATE=2026-01-02");
+});
+
 test("a changed viewport answers with a fresh overlay instead of a stretched frame", () => {
   vi.useFakeTimers();
   state.maps = [batch("LAYERS=a&TIME=2026-01-01T00%3A00%3A00Z")];
@@ -517,7 +551,7 @@ test("identify asks the frame the map shows while a newer time is still on its w
         `https://example.org/wms?VERSION=1.3.0&LAYERS=water&QUERY_LAYERS=water&TIME=${encodeURIComponent(selected)}`,
       ),
       features: [
-        { properties: { folder: "/0/0" } },
+        { properties: { folder: "/0/0" }, getWmsOffering: () => undefined },
       ] as unknown as OptimizedUrlsMap["features"],
       operations: [
         { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
@@ -528,7 +562,7 @@ test("identify asks the frame the map shows while a newer time is still on its w
         `https://example.org/wms?VERSION=1.3.0&LAYERS=roads&QUERY_LAYERS=roads&TIME=${encodeURIComponent(selected)}`,
       ),
       features: [
-        { properties: { folder: "/0/1" } },
+        { properties: { folder: "/0/1" }, getWmsOffering: () => undefined },
       ] as unknown as OptimizedUrlsMap["features"],
       operations: [
         { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },
@@ -574,7 +608,7 @@ test("identify of a drawn server-default image asks the default although a time 
         "https://example.org/wms?VERSION=1.3.0&LAYERS=water&QUERY_LAYERS=water&TIME=2026-01-01T00%3A05%3A00Z",
       ),
       features: [
-        { properties: { folder: "/0/0" } },
+        { properties: { folder: "/0/0" }, getWmsOffering: () => undefined },
       ] as unknown as OptimizedUrlsMap["features"],
       operations: [
         { code: "GetFeatureInfo", method: "GET", href: "https://example.org/wms" },

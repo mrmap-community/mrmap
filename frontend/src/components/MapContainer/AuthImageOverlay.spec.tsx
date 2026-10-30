@@ -37,6 +37,10 @@ vi.mock("@tanstack/react-query", () => ({
     return query.state;
   },
 }));
+// the buffering of the neighbouring frames is the subject of its own spec; here the overlay is only
+// asked to hand its request over to it
+const buffer = vi.hoisted(() => vi.fn());
+vi.mock("./useTimeFrameBuffer", () => ({ useTimeFrameBuffer: buffer }));
 vi.mock("react-leaflet", () => ({
   ImageOverlay: ({
     opacity,
@@ -114,6 +118,18 @@ describe("map image requests", () => {
       ).rejects.toThrow("LayerNotDefined: Missing layer");
     },
   );
+  it("hands its request and its authentication to the buffering of its frames", () => {
+    prepare(makeBlob(["\x89PNG"], { type: "image/png" }));
+
+    // the frames near this selection are fetched through the very key of this request
+    expect(buffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.any(URL),
+        features: [],
+        authOptions: { headers: { Authorization: "test" } },
+      }),
+    );
+  });
 });
 
 describe("the blending of a drawn image", () => {
@@ -187,7 +203,7 @@ describe("the frame the map keeps while time advances", () => {
       `https://example.test/wms?LAYERS=radar&TIME=${encodeURIComponent(time)}`,
     ),
     features: [
-      { properties: { folder: "/0/0" } },
+      { properties: { folder: "/0/0" }, getWmsOffering: () => undefined },
     ] as unknown as OWSResource[],
     operations: [],
   });
@@ -354,7 +370,7 @@ describe("the frame the map keeps while time advances", () => {
         optimiuedUrl={{
           url: new URL("https://example.test/wms?LAYERS=radar"),
           features: [
-            { properties: { folder: "/0/0" } },
+            { properties: { folder: "/0/0" }, getWmsOffering: () => undefined },
           ] as unknown as OWSResource[],
           operations: [],
         }}
@@ -363,5 +379,36 @@ describe("the frame the map keeps while time advances", () => {
 
     // an image without a time parameter answers the server default, not "nothing is drawn"
     expect(viewer.setDisplayedTime).toHaveBeenCalledWith("/0/0", "");
+  });
+
+  it("answers which observation an image drawn for a DIM_<name> selection shows", () => {
+    trackObjectUrls();
+    query.state = { data: frame("dated"), isFetching: false, error: undefined };
+    render(
+      <AuthImageOverlay
+        bounds={latLngBounds([0, 0], [1, 1])}
+        optimiuedUrl={{
+          url: new URL(
+            "https://example.test/wms?LAYERS=radar&DIM_DATE=2026-01-01T00%3A00%3A00Z",
+          ),
+          features: [
+            {
+              properties: { folder: "/0/0" },
+              getWmsOffering: () => ({
+                dimensions: [{ name: "DATE", units: "ISO8601", values: "2026-01-01" }],
+              }),
+            },
+          ] as unknown as OWSResource[],
+          operations: [],
+        }}
+      />,
+    );
+
+    // the timeline of such a layer selects through DIM_DATE — the playback gating holds on the
+    // frame it sees reported here, so it has to be read under the very parameter the layer was asked with
+    expect(viewer.setDisplayedTime).toHaveBeenCalledWith(
+      "/0/0",
+      "2026-01-01T00:00:00Z",
+    );
   });
 });

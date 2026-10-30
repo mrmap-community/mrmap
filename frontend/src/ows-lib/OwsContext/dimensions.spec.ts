@@ -7,14 +7,22 @@ import dimensionsCapabilities from '../XMLParser/tests/capabilities_dimensions_1
 import { OWSContext, OWSResource } from './core';
 import {
     getDimensionParameter,
+    getOfferingTimeValue,
+    getSteppedTimeDimension,
     getTimeDimensionAxis,
     getTimeParameter,
+    getTimeValueOfDimension,
+    getUpcomingTimeAxisPositions,
     getWmsDimensionSelection,
     getWmsDimensionOverrides,
     isAllowedDimensionValue,
+    isTimeDimension,
     parseAdvertisedValues,
+    readDimensionValue,
     setTimeParameter,
     setWmsDimension,
+    writeDimensionValue,
+    writeTimeForDimension,
 } from './dimensions';
 import { wmsToOWSResources } from './utils';
 import { validateOwsContext, WMS_OFFERING_CODE } from './validation';
@@ -223,6 +231,43 @@ describe('time slider axis', () => {
     });
 });
 
+describe('the frames which follow a position on the time axis', () => {
+    /** four advertised observations, addressed by their position */
+    const axis = (count: number) => ({
+        count,
+        valueAt: (index: number) => `2026-01-0${index + 1}T00:00:00Z`,
+        indexOf: (value: string) => Number(value.slice(9, 10)) - 1,
+    });
+
+    test('names the neighbours of a position nearest first, ahead and behind it', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 1, { ahead: 3, behind: 1 }))
+            .toEqual([2, 0, 3]);
+    });
+
+    test('walks onwards only, which is the direction an animation takes', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 0, { ahead: 3 }))
+            .toEqual([1, 2, 3]);
+    });
+
+    test('stops at the end of a range which does not loop', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 2, { ahead: 3 }))
+            .toEqual([3]);
+        expect(getUpcomingTimeAxisPositions(axis(4), 3, { ahead: 3 }))
+            .toEqual([]);
+    });
+
+    test('returns to the first observation where an animation loops', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), 2, { ahead: 3, loop: true }))
+            .toEqual([3, 0, 1]);
+    });
+
+    test('names nothing for a position the axis does not carry nor for a single observation', () => {
+        expect(getUpcomingTimeAxisPositions(axis(4), -1, { ahead: 3, behind: 1 })).toEqual([]);
+        expect(getUpcomingTimeAxisPositions(axis(4), 4, { ahead: 3, behind: 1 })).toEqual([]);
+        expect(getUpcomingTimeAxisPositions(axis(1), 0, { ahead: 3, behind: 1, loop: true })).toEqual([]);
+    });
+});
+
 describe('the time parameter of a request', () => {
     test('reads the time a URL asks for, whatever case its parameter was written in', () => {
         expect(getTimeParameter(new URL('https://example.org/wms?TIME=2026-01-01'))).toBe('2026-01-01');
@@ -255,5 +300,102 @@ describe('the time parameter of a request', () => {
         expect(withDimTime.operations![0].href).toBe('https://example.org/wms?LAYERS=a&TIME=2026-01-02');
         setWmsDimension(withDimTime, 'time', '');
         expect(withDimTime.operations![0].href).toBe('https://example.org/wms?LAYERS=a');
+    });
+
+    test('replaces a written TIME in its position, so the request keeps its identity (#823)', () => {
+        // the live GetMap requests carry the time between the operation parameters and the viewport
+        // the map appended: a frame fetched with the time moved to the end answers nothing — it is
+        // another url and therefore another cache key for the very same image
+        const params = new URLSearchParams(
+            'SERVICE=WMS&LAYERS=a&TRANSPARENT=true&TIME=2026-10-29T06:00:00.000Z&BBOX=1,2,3,4&WIDTH=800&STYLES=',
+        );
+        setTimeParameter(params, '2026-10-29T09:00:00.000Z');
+        expect(params.toString()).toBe(
+            'SERVICE=WMS&LAYERS=a&TRANSPARENT=true&TIME=2026-10-29T09%3A00%3A00.000Z&BBOX=1%2C2%2C3%2C4&WIDTH=800&STYLES=',
+        );
+    });
+
+    test('clears a written TIME in place so the request asks the server default again', () => {
+        const params = new URLSearchParams('LAYERS=a&TIME=2026-01-01&BBOX=1,2,3,4');
+        setTimeParameter(params, '');
+        expect(params.toString()).toBe('LAYERS=a&BBOX=1%2C2%2C3%2C4');
+    });
+});
+
+describe('the time dimension a service names other than time', () => {
+    const date: OfferingDimension = {
+        name: 'DATE', units: 'ISO8601', values: '2026-01-01,2026-01-02', default: '2026-01-01',
+    };
+
+    test('recognizes a dimension as time by its name or its units', () => {
+        expect(isTimeDimension({ name: 'time', values: 'x' })).toBe(true);
+        expect(isTimeDimension({ name: 'DIM_TIME', values: 'x' })).toBe(true);
+        expect(isTimeDimension(date)).toBe(true);
+        expect(isTimeDimension(elevation)).toBe(false);
+    });
+
+    test('reads and writes a dimension under its DIM_<name> parameter, in any written case', () => {
+        const params = new URLSearchParams('LAYERS=a&dim_date=2026-01-01&WIDTH=800');
+        expect(readDimensionValue(params, 'DATE')).toBe('2026-01-01');
+        expect(getTimeValueOfDimension(params, 'DATE')).toBe('2026-01-01');
+        writeDimensionValue(params, 'DATE', '2026-01-02');
+        expect(params.toString()).toBe('LAYERS=a&DIM_DATE=2026-01-02&WIDTH=800');
+        writeTimeForDimension(params, 'DATE', '');
+        expect(params.toString()).toBe('LAYERS=a&WIDTH=800');
+        expect(readDimensionValue(params, 'DATE')).toBeUndefined();
+    });
+
+    test('writes the well known time under a legacy DIM_TIME spelling through the time writers', () => {
+        const params = new URLSearchParams('LAYERS=a&DIM_TIME=2026-01-01&BBOX=1,2,3,4');
+        expect(getTimeValueOfDimension(params, 'time')).toBe('2026-01-01');
+        writeTimeForDimension(params, 'time', '2026-01-02');
+        expect(params.toString()).toBe('LAYERS=a&BBOX=1%2C2%2C3%2C4&TIME=2026-01-02');
+    });
+
+    test('reads the time an offering was selected with, DIM_<name> or TIME', () => {
+        const withDate: Offering = {
+            code: WMS_OFFERING_CODE,
+            dimensions: [elevation, date],
+            operations: [
+                { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&DIM_DATE=2026-01-02', active: true },
+            ],
+        };
+        expect(getOfferingTimeValue(new URL(withDate.operations![0].href), withDate)).toBe('2026-01-02');
+        const withTime: Offering = {
+            code: WMS_OFFERING_CODE,
+            dimensions: [{ name: 'time', units: 'ISO8601', values: '2026-01-01,2026-01-02' }],
+            operations: [
+                { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&TIME=2026-01-02', active: true },
+            ],
+        };
+        expect(getOfferingTimeValue(new URL(withTime.operations![0].href), withTime)).toBe('2026-01-02');
+        // a layer without any time dimension answers through the well known parameter alone
+        expect(getOfferingTimeValue(new URL('https://example.org/wms?LAYERS=a'), undefined)).toBeUndefined();
+    });
+
+    test('names the dimension whose values form the stepped axis, together with that axis', () => {
+        const continuous: OfferingDimension = { name: 'DATETIME', units: 'ISO8601', values: '2026-01-01/2026-01-03' };
+        const steppedOffering: Offering = {
+            code: WMS_OFFERING_CODE,
+            dimensions: [elevation, continuous, date],
+            operations: [{ code: 'GetMap', method: 'GET', href: 'https://example.org/wms', active: true }],
+        };
+        // a continuous range has no steps to step through — the stepped DATE is the one to buffer
+        const stepped = getSteppedTimeDimension(steppedOffering);
+        expect(stepped?.dimension.name).toBe('DATE');
+        expect(stepped?.axis.count).toBe(2);
+        expect(getSteppedTimeDimension({ code: WMS_OFFERING_CODE, dimensions: [elevation] })).toBeUndefined();
+    });
+
+    test('selects a DIM_<name> observation without moving it through the query', () => {
+        const withDate: Offering = {
+            code: WMS_OFFERING_CODE,
+            dimensions: [date],
+            operations: [
+                { code: 'GetMap', method: 'GET', href: 'https://example.org/wms?LAYERS=a&DIM_DATE=2026-01-01&WIDTH=800', active: true },
+            ],
+        };
+        setWmsDimension(withDate, 'DATE', '2026-01-02');
+        expect(withDate.operations![0].href).toBe('https://example.org/wms?LAYERS=a&DIM_DATE=2026-01-02&WIDTH=800');
     });
 });

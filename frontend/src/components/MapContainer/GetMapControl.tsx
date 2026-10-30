@@ -22,8 +22,13 @@ import { DomEvent, point, type LatLng } from "leaflet";
 import proj4 from "proj4";
 
 import { resolveOperationAuthentication } from "../../ows-lib/OwsContext/authentication";
-import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
-import { isTimeParameter, setTimeParameter } from "../../ows-lib/OwsContext/dimensions";
+import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
+import {
+  isTimeDimension,
+  isTimeParameter,
+  writeDimensionValue,
+  writeTimeForDimension,
+} from "../../ows-lib/OwsContext/dimensions";
 import { updateOrAppendSearchParam } from "../../ows-lib/OwsContext/utils";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
@@ -47,11 +52,22 @@ export interface Tile {
 const overlayKeyOf = (
   url: URL,
   authentication: { headers?: Headers; error?: string },
+  features: OWSResource[],
 ): string => {
   const request = new URL(url.href);
+  // every time the request carries is taken out — the well known TIME as well as a DIM_<name> the
+  // timeline of a layer selects its observations with: a new frame must keep the overlay which is
+  // drawing, wherever its time sits in the query and whatever the dimension is named (#705)
   [...request.searchParams.keys()]
     .filter(isTimeParameter)
     .forEach((name) => request.searchParams.delete(name));
+  features.forEach((feature) =>
+    (feature.getWmsOffering()?.dimensions ?? [])
+      .filter(isTimeDimension)
+      .forEach((dimension) =>
+        writeDimensionValue(request.searchParams, dimension.name, ""),
+      ),
+  );
   const credentials = authentication.error
     ?? (authentication.headers
       ? Array.from(authentication.headers)
@@ -247,7 +263,11 @@ const WebMapServiceControl = () => {
       _tiles.push({
         leafletTile: (
           <AuthImageOverlay
-            key={overlayKeyOf(atomicGetMapUrl.url, authentication)}
+            key={overlayKeyOf(
+              atomicGetMapUrl.url,
+              authentication,
+              atomicGetMapUrl.features,
+            )}
             bounds={bounds}
             interactive={true}
             optimiuedUrl={atomicGetMapUrl}
@@ -374,7 +394,12 @@ const WebMapServiceControl = () => {
             atomicGetFeatureInfoUrl.features[0]?.properties.folder ?? ""
           ];
         if (displayedTime !== undefined) {
-          setTimeParameter(params, displayedTime);
+          // write it back under the parameter the layer's time dimension was selected with; the
+          // well known TIME also covers the legacy DIM_TIME spelling
+          const dimension = atomicGetFeatureInfoUrl.features[0]
+            ?.getWmsOffering()
+            ?.dimensions?.find(isTimeDimension);
+          writeTimeForDimension(params, dimension?.name ?? "time", displayedTime);
         }
       });
       return getFeatureInfoUrls;

@@ -12,15 +12,20 @@ vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: PropsWithChildren) => <div data-testid="map">{children}</div>,
   ScaleControl: () => null,
 }));
-vi.mock('./MapViewerBase', () => ({
-  MapViewerBase: ({ children }: PropsWithChildren) => children,
-  useMapViewerBase: () => ({
-    setMap: vi.fn(),
-    mapLoading: { errors: [], failedFeatures: [] },
-    opacityOf: () => 1,
-    setLayerOpacity: vi.fn(),
-  }),
-}));
+vi.mock('./MapViewerBase', () => {
+  // the claim is stable across renders, the way the viewer hands it over
+  const claimTimeline = vi.fn();
+  return {
+    MapViewerBase: ({ children }: PropsWithChildren) => children,
+    useMapViewerBase: () => ({
+      setMap: vi.fn(),
+      mapLoading: { errors: [], failedFeatures: [] },
+      opacityOf: () => 1,
+      setLayerOpacity: vi.fn(),
+      claimTimeline,
+    }),
+  };
+});
 vi.mock('../MapContainer/GetMapControl', () => ({ default: () => null }));
 vi.mock('../MapContainer/GetFeatureControl', () => ({ default: () => null }));
 vi.mock('./OwsContextGuiActions/OwsContextGuiActions', () => ({ OwsContextActionButtons: () => null }));

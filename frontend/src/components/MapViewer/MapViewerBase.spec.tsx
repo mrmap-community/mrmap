@@ -614,3 +614,52 @@ describe("the frames the map shows", () => {
     expect(drawn()).toEqual({});
   });
 });
+
+describe("the timelines open in a viewer session", () => {
+  /** works a timeline for as long as it is on the map, the way a control of a layer does */
+  const TimelineClaim = ({ folder }: { folder: string }) => {
+    const { claimTimeline } = useMapViewerBase();
+    useEffect(() => {
+      claimTimeline(folder, true);
+      return () => claimTimeline(folder, false);
+    }, [claimTimeline, folder]);
+    return null;
+  };
+  const TimelinesProbe = () => {
+    const { timelines } = useMapViewerBase();
+    return <p data-testid="timelines">{JSON.stringify(timelines)}</p>;
+  };
+  const Session = ({ folders }: { folders: string[] }) => (
+    <OwsContextBase>
+      <MapViewerBase>
+        <TimelinesProbe />
+        {folders.map((folder, index) => (
+          <TimelineClaim key={`${folder}/${index}`} folder={folder} />
+        ))}
+      </MapViewerBase>
+    </OwsContextBase>
+  );
+  const openTimelines = () =>
+    JSON.parse(screen.getByTestId("timelines").textContent ?? "{}");
+
+  it("keeps a timeline open until the last control working with it leaves the map", () => {
+    const { rerender } = render(<Session folders={["wms_a"]} />);
+    expect(openTimelines()).toEqual({ wms_a: 1 });
+
+    // the settings panel and a pinned timeline of one layer are two controls of one timeline
+    rerender(<Session folders={["wms_a", "wms_a"]} />);
+    expect(openTimelines()).toEqual({ wms_a: 2 });
+
+    rerender(<Session folders={["wms_a"]} />);
+    expect(openTimelines()).toEqual({ wms_a: 1 });
+
+    rerender(<Session folders={[]} />);
+    expect(openTimelines()).toEqual({});
+  });
+
+  it("keeps the timeline of every layer whose control is on the map", () => {
+    render(<Session folders={["wms_a", "wms_b"]} />);
+
+    expect(openTimelines()).toEqual({ wms_a: 1, wms_b: 1 });
+  });
+});

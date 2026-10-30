@@ -119,12 +119,19 @@ export const useTimeFrameBuffer = ({
       // buffer answers an image nobody draws anymore
       if (!frames.current.has(identity)) queryClient.removeQueries({ queryKey: key });
     };
-    void (async () => {
-      for (let offset = 0; offset < upcoming.length; offset += PARALLEL) {
-        if (released.current || generation.current !== running) return;
-        await Promise.allSettled(upcoming.slice(offset, offset + PARALLEL).map(buffer));
-      }
-    })();
+    // the frames are fetched by two workers which take the next one as soon as one of them is done, so the
+    // bound holds without a slow frame holding up the ones behind it; a worker stops as soon as its
+    // selection is not the current one anymore
+    const queue = [...upcoming];
+    const worker = async (): Promise<void> => {
+      const frame = queue.shift();
+      if (frame === undefined || released.current || generation.current !== running) return;
+      await buffer(frame);
+      return worker();
+    };
+    void Promise.allSettled(
+      Array.from({ length: Math.min(PARALLEL, queue.length) }, worker),
+    );
   }, [authenticationError, authOptions, href, queryClient, translate, upcoming]);
 
   // what was buffered for one request is asked for no more once its overlay leaves the map, which is also

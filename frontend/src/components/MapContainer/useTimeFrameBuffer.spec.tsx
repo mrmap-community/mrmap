@@ -195,6 +195,17 @@ describe("the frames buffered around a selection", () => {
     expect(askedFor(TIMES[3])).toBe(0);
   });
 
+  it("uses the slot a finished frame leaves free while another is still on its way", async () => {
+    // one frame never answers, so only a free worker can bring the last one onto the map
+    stubNetwork({ hold: [TIMES[1]] });
+
+    render({ time: TIMES[0] });
+
+    await waitFor(() => expect(askedFor(TIMES[3])).toBe(1));
+    expect([...new Set(requested())].sort())
+      .toEqual([TIMES[0], TIMES[1], TIMES[2], TIMES[3]].sort());
+  });
+
   it("buffers nothing for times the service does not advertise", async () => {
     stubNetwork();
     state.dimensions = [{

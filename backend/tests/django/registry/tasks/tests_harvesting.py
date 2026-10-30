@@ -115,6 +115,31 @@ def side_effect_broken_fallback(fallback_status_code):
     return answer
 
 
+# the answer of a catalogue which refuses the constraint carrying GetRecords (#815): a plain http
+# answer, a parseable document and an exception report whose prefix the substring test missed
+OWS_EXCEPTION_REPORT = (
+    '<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows" version="1.2.0">'
+    '<ows:Exception exceptionCode="NoApplicableCode">'
+    '<ows:ExceptionText>An unexpected error occured: Error in XML document</ows:ExceptionText>'
+    '</ows:Exception></ows:ExceptionReport>')
+
+# a response document which is well typed but simply carries no SearchResults node
+NO_SEARCH_RESULTS = ('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"'
+                     ' numberOfRecordsReturned="0" nextRecord="0" />')
+
+
+def side_effect_namespaced_exception_report(request, timeout):
+    """a catalogue which answers every GetRecords with a namespaced exception report and a status
+    which reads as an answer (#815)"""
+    return logging_response(request, OWS_EXCEPTION_REPORT, status.HTTP_200_OK)
+
+
+def side_effect_without_search_results(request, timeout):
+    """a catalogue which answers every GetRecords with a response document which names no
+    SearchResults node"""
+    return logging_response(request, NO_SEARCH_RESULTS, status.HTTP_200_OK)
+
+
 def setup_capabilitites_file():
     csw_2: CatalogueService = CatalogueService.objects.get(
         pk="3df586c6-b89b-4ce5-980a-12dc3ca23df2")
@@ -213,6 +238,75 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
         with self.assertRaises(InternalServerError):
             harvesting_job._check_xml_response(
                 logging_response(request, "<html>unavailable</html>", 503))
+
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect_namespaced_exception_report
+    )
+    def test_namespaced_exception_report_is_the_response_being_logged(self, mocked_send_request):
+        """an exception report refuses the request whichever prefix the service gives its element,
+        and it is the Response Error of #689 which ends the run: the substring test only knew the
+        unprefixed report, went on to read the count out of this one and aborted the whole harvest
+        with the AttributeError of the missing SearchResults node (#815)"""
+        self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+
+        # the refusal is an answer, so nothing is asked a second time
+        self.assertEqual(mocked_send_request.call_count, 1)
+        url = mocked_send_request.call_args_list[-1].kwargs["request"].url
+        errors = HarvestingLog.objects.filter(
+            harvesting_job_id=1, description="Response Error")
+        self.assertTrue(errors.exists())
+        logged = errors.first().extented_description.read().decode("UTF-8")
+        self.assertIn(url, logged)
+        self.assertIn("ows:ExceptionReport", logged)
+        self.assertEqual(errors.first().kind, LogKindEnum.REMOTE_ERROR.value)
+        self.assertEqual(HarvestingJob.objects.get(pk=1).total_records, 0)
+
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect_without_search_results
+    )
+    def test_answer_without_search_results_ends_the_run_without_records(self, mocked_send_request):
+        """a document which names no SearchResults names no records: the run goes on to the fallback
+        of #689 and ends with the log of a count which stays 0 instead of raising on the missing
+        node (#815)"""
+        self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+
+        # the count is missing in the default query's answer, so the csw:Record fallback is asked
+        self.assertEqual(mocked_send_request.call_count, 2)
+        self.assertTrue(HarvestingLog.objects.filter(
+            harvesting_job_id=1, description="GetTotalRecords failed",
+            level=LogLevelEnum.ERROR.value).exists())
+        self.assertEqual(HarvestingJob.objects.get(pk=1).total_records, 0)
+
+    def test_exception_report_is_found_whatever_its_prefix(self):
+        """the report of a refusing service is namespace qualified and the prefix is its own choice,
+        so the local name is what identifies it - and the requested document is no report (#815)"""
+        harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
+        request = SimpleNamespace(url="https://example.org/csw?REQUEST=GetRecords")
+
+        for report in (
+                OWS_EXCEPTION_REPORT,
+                '<ExceptionReport xmlns="http://www.opengis.net/ows" version="1.2.0"/>',
+                REFUSED,
+                '<ServiceExceptionReport><ServiceException code="NoSuchParameter">'
+                'unknown parameter</ServiceException></ServiceExceptionReport>'):
+            with self.subTest(report=report):
+                self.assertTrue(harvesting_job._check_xml_response(
+                    logging_response(request, report, status.HTTP_200_OK)))
+
+        self.assertFalse(harvesting_job._check_xml_response(
+            logging_response(request, get_records_document(1, 1), status.HTTP_200_OK)))
+
+    def test_missing_search_results_node_names_no_records(self):
+        """the count of a document without SearchResults is no records and not an AttributeError,
+        which is what no answer of the remote service should turn into (#815)"""
+        response = logging_response(
+            SimpleNamespace(url="https://example.org/csw?REQUEST=GetRecords"),
+            NO_SEARCH_RESULTS, status.HTTP_200_OK)
+        self.assertEqual(HarvestingJob().get_total_records(response), 0)
 
 
 class HarvestingGetRecordsTaskTest(TransactionTestCase):

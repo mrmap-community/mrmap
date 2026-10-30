@@ -345,7 +345,11 @@ CACHES = {
 # Celery settings
 ################################################################
 CELERY_BROKER_URL = BROKER_URL
-CELERY_RESULT_BACKEND = "django-cache"
+CELERY_RESULT_BACKEND = "extras.celery:RetryingCacheBackend"
+# Chord members must store results. Retry transient cache failures here, after
+# the task body has completed, rather than failing or rerunning the harvest.
+CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
+CELERY_RESULT_BACKEND_MAX_RETRIES = 10
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

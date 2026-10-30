@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["npm", "pip_requirements"],
+  "enabledManagers": ["npm", "pip_requirements", "dockerfile", "docker-compose", "github-actions"],
   "dependencyDashboard": true,
   "prCreation": "immediate",
   "automerge": false,
@@ -40,6 +40,37 @@
       "matchManagers": ["pip_requirements"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "backend non-major dependencies"
+    },
+    {
+      "description": "Group container image non-major updates into one PR",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "container images non-major dependencies"
+    },
+    {
+      "description": "Group non-major action updates, which mostly means the digest-pinned SonarCloud scan",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions non-major dependencies"
+    },
+    {
+      "description": "Keep the CI Python in actions/setup-python on the 3.12 line that python:3.12.14-alpine3.24 ships",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["uses-with"],
+      "matchPackageNames": ["python"],
+      "allowedVersions": "<3.13"
+    },
+    {
+      "description": "OpenObserve is pre-1.0, so every minor can break ingestion; keep it out of the group PR",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["openobserve/openobserve"],
+      "groupName": "openobserve"
+    },
+    {
+      "description": "The docs image is built by neither compose nor CI, bump it by hand",
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["docker/docs/**"],
+      "enabled": false
     }
   ]
 }

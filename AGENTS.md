@@ -68,6 +68,43 @@ satisfies most of it.
   to the host checkout.
 - Installing MrMap itself is out of scope for agent work; see `docs/source/installation/`.
 
+### Docker ownership and cleanup for parallel agents
+
+- Before starting containers, inspect `docker compose ls` and `docker ps -a` with Compose project
+  labels. Record the project name and any containers that already exist. Reuse compatible shared
+  dependencies instead of creating another stack for each test command. Keep the same project name
+  throughout a job; do not change `.env` to select it.
+- Use `docker compose ... run --rm` for checks, rather than `up` for test services. `--rm` removes
+  the one-off container when it exits; dependencies, project networks and named volumes can remain.
+  Use `--no-deps` when the required dependencies are already running and ready, and for
+  `frontend-tests`, which has no service dependencies. Start only missing services needed by the
+  selected check.
+- Treat the developer's existing Compose project and any dependencies reused by multiple jobs as
+  shared. Never run `down`, `--remove-orphans`, or volume removal against that project. Record exact
+  names or IDs of temporary containers this job creates and remove those on completion; leave shared
+  services and the frontend dependency cache available to other jobs.
+- If a job needs an isolated stack, choose a unique project name such as
+  `mrmap-agent-<issue>-<unique-run-id>` and pass `--project-name` on every Compose command. Verify that
+  the name is unused before creating resources, and record the Compose files and ownership for
+  cleanup. A different project name alone is insufficient: the development configuration publishes
+  fixed host ports (including 5555, 5556 and 8090) and defines fixed `container_name` values. Resolve
+  those conflicts in a temporary override before starting the required services; use a separate
+  checkout for concurrent source changes.
+- Before creating temporary resources, register shell cleanup with `trap` for normal exit, failure
+  and interruption (`EXIT`, `INT`, `TERM`), or use the runner's equivalent `finally` mechanism. Keep
+  cleanup active for the full lifetime of background checks and preserve their exit status. For a
+  verified job-owned disposable project, clean up using the same project name and Compose files:
+  `docker compose --project-name "$MRMAP_AGENT_PROJECT" -f docker-compose.yml -f docker-compose.dev.yml down --volumes --remove-orphans`
+  (include any temporary override used at startup). This volume removal is only for that disposable
+  project's data; retain shared volumes and reusable images/build caches.
+- After checks and before handing the task back, verify that this job's temporary containers and,
+  for an isolated project, its networks and volumes are gone. Clean up on failed checks too. Report
+  any leftovers with their exact names and the reason they remain. After an interrupted session,
+  recover ownership from the job's recorded project/container names before removing anything; a
+  stopped container or matching name prefix alone does not establish ownership. Never use global
+  `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of other
+  jobs' resources as task cleanup.
+
 ## Development guidelines
 
 ### General
@@ -185,8 +222,9 @@ documents:
 - `flake8` runs in ~1 s from the host virtualenv (`backend/../.venv/bin/flake8`); everything else
   needs Docker, because `backend/MrMap/settings.py` calls `gdal_info()` and GDAL/GEOS are not
   installed on a plain host.
-- Backend Docker test runs must not overlap: they all create the same `test_mrmap` database and
-  destroy each other mid-run.
+- Backend Docker test runs sharing PostgreSQL must not overlap: they create the same `test_mrmap`
+  database and destroy each other mid-run. Use the host-wide lock in `backend/AGENTS.md`, including
+  across worktrees and Compose test services.
 - Frontend lint, strict type checking and tests with coverage are required CI checks. Historical red
   baselines were removed by the code-quality cleanup; see `frontend/AGENTS.md`.
 - Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from

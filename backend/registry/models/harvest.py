@@ -19,7 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
-from lxml.etree import XML, XMLParser
+from lxml.etree import XMLParser
 from MrMap.celery import app
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
@@ -45,6 +45,13 @@ from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
 from simple_history.utils import update_change_reason
+
+# A service which refuses a request answers with an exception report, and the prefix of its element
+# is the remote's own choice: a namespaced <ows:ExceptionReport> says the same as the unprefixed
+# <ExceptionReport> and as a WMS style <ServiceExceptionReport>. Only the local name identifies the
+# answer, and a substring of the document cannot know it (#815).
+EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
+                          " or local-name()='ServiceExceptionReport']")
 
 
 class ProcessingData(models.Model):
@@ -546,6 +553,11 @@ class HarvestingJob(ProcessingData):
             ".//csw:SearchResults",
             namespaces=ns
         )
+        if search_results is None:
+            # a response document which is well typed but names no SearchResults names no records;
+            # the AttributeError of the missing node was an MrMap crash which aborted the whole run
+            # instead of leaving it to the fallback and the log of a count which stays 0 (#815)
+            return 0
         total_records = int(search_results.get("numberOfRecordsMatched", 0))
         return total_records
 
@@ -695,22 +707,26 @@ class HarvestingJob(ProcessingData):
             f"URL: {request.url}"
         )
 
-    def _check_xml_is_parseable(self, xml: str) -> bool:
+    def _parse_answer(self, content):
+        """the document a remote service answered with, or None when it is no XML at all; entities
+        and the network are off, because this document is not ours"""
         try:
-            XML(xml, XMLParser())
+            return etree.fromstring(content, XMLParser(resolve_entities=False, no_network=True))
         except Exception:
-            return False
-        return True
+            return None
 
     def _check_xml_response(self, response):
-        if not response.ok or not self._check_xml_is_parseable(response.content) or "<ExceptionReport" in response.text:
-            self._log_response_error(response=response)
-            # only the server error class is worth another request; a chained comparison like
-            # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
-            if 500 <= response.status_code < 600:
-                raise InternalServerError
-            return True
-        return False
+        """whether the answer is no document to work with: no XML at all, or an exception report of
+        whichever namespace prefix the service chose instead of the requested document (#815)"""
+        document = None if not response.ok else self._parse_answer(response.content)
+        if document is not None and not document.xpath(EXCEPTION_REPORT_XPATH):
+            return False
+        self._log_response_error(response=response)
+        # only the server error class is worth another request; a chained comparison like
+        # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
+        if 500 <= response.status_code < 600:
+            raise InternalServerError
+        return True
 
     def get_stored_page_count(self, request) -> int:
         """how many records this job already stores for exactly this request; the requested url

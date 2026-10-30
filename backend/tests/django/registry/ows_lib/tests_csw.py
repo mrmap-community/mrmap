@@ -111,7 +111,14 @@ class CatalogueServiceCompressionTest(SimpleTestCase):
                 del headers['accept-encoding']
 
     def test_fallback_errors_still_reach_harvest_validation(self):
-        for body, status_code in ((b'<broken', 200), (b'<ExceptionReport/>', 200), (b'<error/>', 400)):
+        for body, status_code in (
+                (b'<broken', 200),
+                (b'<ExceptionReport/>', 200),
+                # the report of a catalogue which refuses our query is namespace qualified (#815)
+                (b'<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows">'
+                 b'<ows:Exception exceptionCode="NoApplicableCode"/>'
+                 b'</ows:ExceptionReport>', 200),
+                (b'<error/>', 400)):
             with self.subTest(body=body, status=status_code):
                 self.fallback_body, self.fallback_status = body, status_code
                 response = self.client.send_request(self.request, timeout=2)

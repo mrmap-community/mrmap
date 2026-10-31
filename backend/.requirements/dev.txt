@@ -1,6 +1,6 @@
 coverage==7.17.0
 behave-django==2.0.0
-flake8==7.4.1
+flake8==7.5.0
 watchdog[watchmedo]==6.0.0
 debugpy==1.8.22
 autopep8==2.3.2

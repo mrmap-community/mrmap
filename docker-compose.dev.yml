@@ -213,7 +213,7 @@ services:
   # ... run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
   # ... run --rm frontend-tests npm run type-check
   frontend-tests:
-    image: node:22-alpine
+    image: node:26-alpine
     hostname: "mrmap-frontend-tests"
     container_name: "mrmap-frontend-tests"
     working_dir: /opt/mrmap/frontend

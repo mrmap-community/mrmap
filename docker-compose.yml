@@ -241,7 +241,7 @@ services:
       - host.docker.internal:host-gateway
 
   openobserve:
-    image: openobserve/openobserve:v0.92.2
+    image: openobserve/openobserve:v1.1.2
     restart: unless-stopped
     hostname: "openobserve"
     environment:

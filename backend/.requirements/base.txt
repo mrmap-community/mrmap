@@ -1,5 +1,5 @@
 # django-celery-beat 2.9.0 requires Django<6.1.
-Django==6.0.8
+Django==6.0.9
 # adds runserver_plus
 django-extensions==4.1
 # adds history models
@@ -48,7 +48,7 @@ django-celery-beat==2.9.0
 # adds database results for celery tasks
 django-celery-results==2.6.0
 # adds websockets
-websockets==17.3
+websockets==17.4
 channels==4.3.2
 channels[daphne]==4.3.2
 # adds redis cache backend implementation for channels package

@@ -48,7 +48,7 @@ services:
       start_period: 2s
 
   docker-api:
-    image: haproxy:3.2-alpine
+    image: haproxy:3.4-alpine
     user: "0:0"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -256,7 +256,7 @@ services:
       - mrmap-internal
 
   pgadmin:
-    image: dpage/pgadmin4:9.17
+    image: dpage/pgadmin4:9.19
     restart: unless-stopped
     hostname: "pgadmin"
     environment:
@@ -271,7 +271,7 @@ services:
     networks:
       - mrmap-internal    
   flower:
-    image: mher/flower:2.0
+    image: mher/flower:2.2
     command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
     networks:
       - mrmap-internal

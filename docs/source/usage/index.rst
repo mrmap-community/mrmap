@@ -127,6 +127,16 @@ advancing and steps over frames the service refuses instead of holding on them; 
 the exact date field and Server default remain usable during playback; closing the control which
 plays, removing the layer or unpinning the timeline ends the animation.
 
+The frames which follow a selection are fetched ahead of it: while the timeline of a layer is
+open, the viewer asks in the background for the next few advertised observations and keeps them
+for the viewer session, so scrubbing or playing into a buffered part of the range draws a frame
+at once instead of waiting for the service. Only advertised times are fetched ahead, never a time
+between them, at most two buffered frames are on their way at once, and the frames a selection
+moved away from are taken back rather than held, which also cancels a request still travelling.
+A layer whose timeline nobody opened is left alone, the image of the server default is never
+fetched ahead, and a buffered frame belongs to the authentication which fetched it, so it never
+answers a layer served with different credentials.
+
 Use Pin timeline to keep a compact time slider over the map while the layer panel is
 closed. Pinning does not pan or resize the map. The timeline follows its layer when
 layers are reordered and disappears if that layer is removed. Unpin timeline hides it.

@@ -7,13 +7,14 @@ import { ImageOverlay, ImageOverlayProps } from "react-leaflet";
 import { useQuery } from "@tanstack/react-query";
 
 import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
-import { getTimeParameter } from "../../ows-lib/OwsContext/dimensions";
+import { getOfferingTimeValue } from "../../ows-lib/OwsContext/dimensions";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
-
-export interface AuthOptions {
-  headers?: Record<string, string>;
-  credentials?: RequestCredentials;
-}
+import {
+  AuthOptions,
+  getAuthOptions,
+  remoteImageQuery,
+} from "./remoteImage";
+import { useTimeFrameBuffer } from "./useTimeFrameBuffer";
 
 export interface AuthImageOverlayProps extends Partial<ImageOverlayProps> {
   bounds: L.LatLngBounds;
@@ -34,67 +35,6 @@ interface DisplayedFrame {
   time?: string;
 }
 
-/**
- * Converts Headers object to Record<string, string>
- */
-const headersToObject = (headers?: Headers): Record<string, string> => {
-  if (!headers) return {};
-  const obj: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    obj[key] = value;
-  });
-  return obj;
-};
-
-/**
- * Gets authentication options. Supports:
- * 1. Explicit auth object
- * 2. Auth function that returns auth options
- * 3. Headers object that gets converted to auth options
- */
-const getAuthOptions = (
-  auth?: AuthOptions | (() => AuthOptions) | Headers,
-): AuthOptions => {
-  // If auth is a function, call it
-  if (typeof auth === "function") {
-    return auth();
-  }
-
-  // If auth is a Headers object, convert it
-  if (auth instanceof Headers) {
-    return {
-      headers: headersToObject(auth),
-    };
-  }
-
-  // If auth is an object, return it
-  if (auth) {
-    return auth;
-  }
-  return {};
-};
-
-const getServiceExceptionMessage = (xml: string): string | undefined => {
-  if (!xml.trimStart().startsWith("<")) return undefined;
-
-  try {
-    const document = new DOMParser().parseFromString(xml, "application/xml");
-    const exception = Array.from(document.getElementsByTagName("*")).find(
-      (element) => element.localName === "ServiceException",
-    );
-
-    if (!exception) return undefined;
-
-    const code = exception.getAttribute("code");
-    const message = exception.textContent?.trim();
-
-    if (code && message) return `${code}: ${message}`;
-    return message || code || "OGC service exception";
-  } catch {
-    return undefined;
-  }
-};
-
 export const AuthImageOverlay = ({
   bounds,
   optimiuedUrl,
@@ -110,52 +50,27 @@ export const AuthImageOverlay = ({
 
   const authOptions = useMemo(() => getAuthOptions(auth), [auth]);
   const url = optimiuedUrl.url.href;
-  const time = getTimeParameter(optimiuedUrl.url);
+  // the observation this image answers for, read under the parameter the layer's time dimension was
+  // selected with — the well known TIME or a DIM_<name> the timeline of the layer writes
+  const time = getOfferingTimeValue(optimiuedUrl.url, optimiuedUrl.features[0]?.getWmsOffering());
   const folder = optimiuedUrl.features[0]?.properties.folder;
 
   const loadingId = `image:${url}`;
 
-  const { data, isFetching, error } = useQuery({
-    queryKey: [
-      "remoteImage",
-      url,
-      authOptions.headers,
-      authOptions.credentials,
-      authenticationError,
-    ],
-    gcTime: 0,
-    retry: false,
-    retryOnMount: false,
-    queryFn: async ({ signal }) => {
-      if (authenticationError) throw new Error(translate(`viewerAuth.${authenticationError}`));
-      const response = await fetch(url, {
-        redirect: authOptions.headers ? 'error' : 'follow',
-        ...(authOptions.headers && { credentials: 'omit' }),
-        signal,
-        ...(authOptions.headers && { headers: authOptions.headers }),
-        ...(authOptions.credentials && {
-          credentials: authOptions.credentials,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+  // the image of the selected time, asked for through the same definition the buffering of its
+  // neighbouring frames uses: a frame which is already in the buffer answers the selection without a
+  // second request (#705)
+  const { data, isFetching, error } = useQuery(
+    remoteImageQuery(url, authOptions, translate, authenticationError),
+  );
 
-      const blob = await response.blob();
-      // WMS servers can label XML errors as images. Sniff a bounded prefix even
-      // for image content types, and decode the full body only when it may be XML.
-      const prefix = (await blob.slice(0, 512).text()).trimStart();
-      const mayBeXml =
-        blob.type.includes("xml") || prefix.startsWith("<") || prefix === "";
-      const serviceExceptionMessage = mayBeXml
-        ? getServiceExceptionMessage(await blob.text())
-        : undefined;
-      if (serviceExceptionMessage) {
-        throw new Error(serviceExceptionMessage);
-      }
-
-      return blob;
-    },
+  // the frames around this selection are fetched ahead into the same cache, so that scrubbing and
+  // playback reach the next observation without waiting for it (#705)
+  useTimeFrameBuffer({
+    url: optimiuedUrl.url,
+    features: optimiuedUrl.features,
+    authOptions,
+    authenticationError,
   });
 
   // the image which is drawn, kept while a new time frame is requested: swapping only once the

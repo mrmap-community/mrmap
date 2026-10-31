@@ -15,6 +15,7 @@ const mapState = vi.hoisted(() => ({
   map: undefined as undefined | { getContainer: () => HTMLElement; invalidateSize: ReturnType<typeof vi.fn>; panTo: ReturnType<typeof vi.fn> },
   displayedTimes: {} as Record<string, string>,
   animation: undefined as undefined | { folder: string; fps: number; loop: boolean },
+  timelines: {} as Record<string, number>,
   failedFeatures: [] as { properties: { folder?: string } }[],
   update: undefined as undefined | ((patch: Record<string, unknown>) => void),
 }));
@@ -22,6 +23,7 @@ beforeEach(() => {
   mapState.map = undefined;
   mapState.displayedTimes = {};
   mapState.animation = undefined;
+  mapState.timelines = {};
   mapState.failedFeatures = [];
 });
 afterEach(() => {
@@ -365,6 +367,15 @@ describe('time animation', () => {
     expect(mapState.animation).toBeUndefined();
     vi.useRealTimers();
   }, TEST_TIMEOUT);
+
+  it('keeps the timeline of a layer open for as long as its control is on the map', () => {
+    openPanel(frameFeatures());
+    // the frames around the times of an open timeline are the ones the map buffers ahead
+    expect(mapState.timelines).toEqual({ '/0/0': 1 });
+
+    tree.unmount();
+    expect(mapState.timelines).toEqual({});
+  }, TEST_TIMEOUT);
 });
 
 vi.mock('../../MapViewer/MapViewerBase', async () => {
@@ -379,6 +390,16 @@ vi.mock('../../MapViewer/MapViewerBase', async () => {
     Object.assign(mapState, patch);
     revision += 1;
     listeners.forEach((notify) => notify());
+  };
+  // a control works its timeline for as long as it is mounted and keeps the same claim, the
+  // way the viewer hands a stable one over
+  const claimTimeline = (folder: string, claimed: boolean) => {
+    const claims = (mapState.timelines[folder] ?? 0) + (claimed ? 1 : -1);
+    mapState.update!({
+      timelines: claims > 0
+        ? { ...mapState.timelines, [folder]: claims }
+        : Object.fromEntries(Object.entries(mapState.timelines).filter(([key]) => key !== folder)),
+    });
   };
   return {
     useMapViewerBase: () => {
@@ -396,6 +417,8 @@ vi.mock('../../MapViewer/MapViewerBase', async () => {
         }),
         animation: mapState.animation,
         setAnimation: (animation: typeof mapState.animation) => mapState.update!({ animation }),
+        timelines: mapState.timelines,
+        claimTimeline,
       };
     },
   };

@@ -27,7 +27,7 @@ services:
 
 
   mapserver:
-    image: camptocamp/mapserver:7.6
+    image: camptocamp/mapserver:8.6
     hostname: "mrmap-mapserver"
     volumes:
       - type: bind

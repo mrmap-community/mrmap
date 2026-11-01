@@ -11,6 +11,8 @@ from django.db import connection
 from django.test import TestCase
 
 from registry.mappers.persistence.custom import _defaults_of_instance
+from registry.models.materialized_views import (SearchableDatasetMetadataRecord,
+                                                SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, MetadataContact,
                                       ServiceMetadataRecord)
 
@@ -171,3 +173,19 @@ class MappedDefaultsTest(TestCase):
         defaults = _defaults_of_instance(instance)
         self.assertNotIn('keywords_list', defaults)
         self.assertIn('title', defaults)
+
+
+class SearchableViewProjectionTest(TestCase):
+    """The searchable projections of a record do not answer the maintained column.
+
+    A materialized view is created from the statement of its queryset, and that
+    statement is the column list of the record. A view which selects a column of the
+    record depends on that column: the record could not drop it anymore without
+    dropping the view first, which is what the down revision of the column does. The
+    array would also be stored in the view a second time.
+    """
+
+    def test_the_statement_of_a_searchable_view_does_not_select_the_column(self):
+        for view in (SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord):
+            with self.subTest(view=view.__name__):
+                self.assertNotIn('keywords_list', view.get_sql())

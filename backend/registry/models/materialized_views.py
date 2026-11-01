@@ -225,7 +225,13 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, DynamicMaterializedView
 
     @classmethod
     def get_queryset(cls):
-        return super(SearchableMetadataRecordAbstract, cls).get_queryset().annotate(
+        # The statement of this view is the column list of the record it projects
+        # (see queryset_view_sql), so a column of the record which the view does not
+        # answer has to stay deferred. Selecting it would store it in the view a
+        # second time and, worse, make the view depend on it: the record could not
+        # drop that column anymore without dropping this view first.
+        return super(SearchableMetadataRecordAbstract, cls).get_queryset().defer(
+            "keywords_list").annotate(
             keyword_list=ArrayAgg(
                 "keywords__keyword",
                 distinct=True,

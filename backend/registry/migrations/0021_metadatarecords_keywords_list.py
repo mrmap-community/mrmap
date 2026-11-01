@@ -140,16 +140,16 @@ CREATE TRIGGER registry_keyword_sync_to_metadatarecords
     EXECUTE FUNCTION registry_sync_keyword_rename_to_metadatarecords();
 """
 
-BACKFILL = ["""
+BACKFILL = "".join("""
 UPDATE {record} AS record
    SET keywords_list = {aggregate};
 """.format(
     record=record,
     aggregate=AGGREGATE.format(relation=relation, foreign_key=foreign_key))
-    for record, relation, foreign_key in MAINTAINED_RECORD_TYPES]
+    for record, relation, foreign_key in MAINTAINED_RECORD_TYPES)
 
 CREATE_SQL = "".join(
-    [SYNC_FUNCTION, RENAME_FUNCTION] + SYNC_TRIGGERS + [RENAME_TRIGGER] + BACKFILL)
+    [SYNC_FUNCTION, RENAME_FUNCTION] + SYNC_TRIGGERS + [RENAME_TRIGGER, BACKFILL])
 
 DROP_SQL = "".join([
     "DROP TRIGGER IF EXISTS registry_keyword_sync_to_metadatarecords ON registry_keyword;\n",

@@ -22,12 +22,17 @@ work of #727 may change it knowingly:
 * a service created through the ORM gets **nothing**: no resource model stores
   an owner, so nothing knows which organization a new service belongs to. The
   receiver says so once in the log instead of reading an ``owner`` attribute
-  which no model has.
+  which no model has,
+* the models the bootstrap grants on are answered from guardian tables of their
+  own, which is what keeps a grant of an integer primary key out of the table a
+  lookup for a service reads.
 
-The last test of the first class describes the grant the bootstrap was written
-for. It can only set ownership in memory because ownership is stored nowhere;
-#733 stores it and #734 replaces the grant with the role based one.
+The last test of ``ServiceCreationTestCase`` is the grant this bootstrap was
+written for. It can only set ownership in memory because ownership is stored
+nowhere; #733 stores it and #734 replaces the grant with the role based one.
 """
+import importlib
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
@@ -44,6 +49,19 @@ from registry.models.service import CatalogueService, WebMapService
 
 #: the log channel of the application, see ``settings.ROOT_LOGGER``
 LOGGER = "MrMap.root"
+
+#: the dedicated guardian tables and the package which has to export them, so
+#: that guardian finds them instead of answering their grants generically
+DEDICATED_TABLES = {
+    "accounts.models": (
+        "OrganizationUserObjectPermission", "OrganizationGroupObjectPermission",
+        "GroupUserObjectPermission", "GroupGroupObjectPermission"),
+    "registry.models": (
+        "WebMapServiceUserObjectPermission",
+        "WebMapServiceGroupObjectPermission",
+        "WebFeatureServiceUserObjectPermission",
+        "WebFeatureServiceGroupObjectPermission"),
+}
 
 #: a service of ``test_wms.json``, only used to copy the fields a service needs
 TEMPLATE_WMS = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
@@ -208,6 +226,31 @@ class SharedObjectPermissionTableTestCase(TestCase):
             klass=CatalogueService,
             accept_global_perms=False)
         self.assertEqual(list(visible), [])
+
+    def test_the_models_of_the_dedicated_tables_belong_to_their_app(self):
+        """The import which registers the tables belongs to the app, not to a test
+
+        Guardian answers an object permission from a dedicated table only for a
+        model it has in its registry, and the only code importing
+        ``accounts.models.guardian`` and ``registry.models.guardian`` at runtime
+        is the ``models`` package of the app - the way ``apps.py`` imports
+        ``accounts.signals``.
+
+        So this asserts the export of the package instead of a behaviour, which is
+        the one thing no other test of this module can assert: the test modules
+        import the two guardian modules themselves and register their models for
+        the whole run, whether or not the app does it. With the export of the app
+        removed, every test above stays green while every deployment answers the
+        grants of an organization from the shared table again.
+        """
+        for package, tables in DEDICATED_TABLES.items():
+            models = importlib.import_module(package)
+            for table in tables:
+                self.assertTrue(
+                    hasattr(models, table),
+                    f"{package} does not export {table}, so an application which "
+                    f"imports only the package never registers that table and "
+                    f"guardian answers its grants from the shared one")
 
 
 class ServiceCreationTestCase(TestCase):

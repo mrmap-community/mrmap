@@ -22,7 +22,7 @@ the record. The keywords reach the vector through the array which the database
 maintains for them (:mod:`registry.migrations.0021_metadatarecords_keywords_list`), so
 that a record which was just written is searchable without anything rebuilt.
 """
-from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.search import SearchQuery, SearchVectorField
 from django.db.models.expressions import F, Func
 from django.db.models.fields import TextField
 
@@ -119,3 +119,19 @@ class MetadataRecordSearchVector(ConcatVectors):
                 CoalesceEmpty(F(name)) for name in self.TEXT_FIELDS))),
             ToTsVector(KeywordsAsText(F(self.KEYWORDS_FIELD))),
         )
+
+
+def client_search_query(text: str) -> SearchQuery:
+    """The search text of a client as the tsquery a record is matched with.
+
+    A client searches words, it does not write a tsquery: ``plainto_tsquery`` is what
+    :class:`~django.contrib.postgres.search.SearchQuery` answers by default and what
+    keeps a search word a word, so a ``&``, a ``:`` or a ``%`` which found its way into
+    a search field cannot break the statement.
+
+    The configuration is named explicitly, which is the whole point of this function:
+    without it postgres takes the one of the connection, and a record whose vector was
+    built with :data:`TEXT_CONFIGURATION_NAME` is not found by a query which stems its
+    words by another one.
+    """
+    return SearchQuery(str(text or ""), config=TEXT_CONFIGURATION_NAME)

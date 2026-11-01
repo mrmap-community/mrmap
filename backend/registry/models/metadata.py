@@ -1036,14 +1036,18 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     # Aggregating the keywords relation is not expressible in a column expression,
     # so this array is what allows a searchable representation of a record to be a
     # column of the record itself instead of a projection which has to be rebuilt.
+    # A write which brings a different array is answered by the relation instead
+    # (registry/migrations/0024_keep_the_keywords_list_of_a_record_on_every_write.py).
     keywords_list = ArrayField(
         base_field=models.CharField(max_length=300),
         default=list,
         editable=False,
     )
 
-    # columns which the database owns: a mapper or a save must never send a value
-    # for them, because the writing side does not know what the trigger maintains
+    # columns which the database owns: a mapper must never send a value for them,
+    # because the parsed instance only carries the default of the field -- the
+    # database refuses such a value for the array itself, but a write which names a
+    # maintained column is wrong even where no trigger watches it
     db_maintained_fields = ("keywords_list",)
 
     # the searchable representation of the record, computed by the database for every

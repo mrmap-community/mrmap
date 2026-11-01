@@ -20,12 +20,8 @@ logger = logging.getLogger(__name__)
     base=SingletonTask,
 )
 def refresh_materialized_views(self, *args, **kwargs):
-    from registry.models.materialized_views import (
-        MaterializedHarvestingStatsPerDay, SearchableDatasetMetadataRecord,
-        SearchableServiceMetadataRecord)
-
-    SearchableDatasetMetadataRecord.refresh()
-    SearchableServiceMetadataRecord.refresh()
+    from registry.models.materialized_views import \
+        MaterializedHarvestingStatsPerDay
 
     MaterializedHarvestingStatsPerDay.refresh()
 

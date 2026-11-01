@@ -305,8 +305,9 @@ class SearchVectorReadCostTest(TestCase):
     def test_the_manager_still_answers_the_vector(self):
         """Deferring is a decision of the read path, not of the model.
 
-        The managers of a record also answer the searchable projections of it, and a
-        deferred field would be taken out of their statement with it.
+        The CSW and the MapBender search select a record through the default manager of
+        it and match their search against the vector of it (#855); a manager which
+        deferred the column would take it out of their statement with it.
         """
         for model in RECORDS:
             with self.subTest(model=model.__name__):
@@ -314,31 +315,28 @@ class SearchVectorReadCostTest(TestCase):
                 self.assertFalse(is_deferred and 'search_vector' in deferred)
 
 
-class SearchVectorMigrationTest(TransactionTestCase):
-    """Going back over the migration of the column.
+class SearchableViewsMigrationTest(TransactionTestCase):
+    """Going back over the migration which dropped the searchable projections.
 
-    The searchable projections of a record answer the column, which means they depend on
-    it: to drop it they have to go first, which the down revision of the migration
-    answers. Both come back on the way forward - a projection is not part of the
-    migration state, so it is the post migrate hook of the deployment
-    (system.apps.sync_pg_views_if_missing) which creates it again, and that is why this
-    goes through the migrate command and not through a migration executor.
+    The projections of a record are what a search was answered from before a record
+    answered its keywords and its vector as columns of its own; the CSW and the MapBender
+    search answer the record tables themselves since #855. A projection is not part of
+    the migration state -- django-pgviews creates it from the model, see
+    ``system.apps.sync_pg_views_if_missing`` -- and the models which answered it are gone
+    from the code, so the hook which creates missing projections cannot help on the way
+    back either: the migration carries the statement of both itself, and that statement is
+    what this test asks for.
+
+    Rolling further back, below the migration which gave a record its vector, drops both
+    projections again -- 0022 answers that -- and nothing creates them anymore, because
+    the column they answer is gone with it. That is what a rollback below that revision
+    means.
     """
 
-    MIGRATE_BACK_TO = '0021_metadatarecords_keywords_list'
+    MIGRATE_BACK_TO = '0022_datasetmetadatarecord_search_vector_and_more'
 
     VIEWS = ('registry_searchabledatasetmetadatarecord',
              'registry_searchableservicemetadatarecord')
-
-    TABLES = (DatasetMetadataRecord._meta.db_table, ServiceMetadataRecord._meta.db_table)
-
-    def column_exists(self, table):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                'SELECT 1 FROM information_schema.columns WHERE table_name = %s'
-                " AND column_name = 'search_vector'",
-                [table])
-            return bool(cursor.fetchone())
 
     def view_exists(self, view):
         with connection.cursor() as cursor:
@@ -351,24 +349,66 @@ class SearchVectorMigrationTest(TransactionTestCase):
         call_command('migrate', *args, verbosity=0, interactive=False)
 
     def setUp(self):
+        # the way back is only worth something if the projection it creates is the one
+        # the code of that revision can read a record out of, so a record is here while
+        # the migration answers it
+        self.contact = MetadataContact.objects.create(name='Migration contact')
+        self.dataset = DatasetMetadataRecord.objects.create(
+            metadata_contact=self.contact, dataset_contact=self.contact,
+            title='Wasserversorgung Migration')
+        self.service = ServiceMetadataRecord.objects.create(
+            metadata_contact=self.contact, title='Bodenrichtwerte Migration')
         self.addCleanup(self.migrate)
-        for table in self.TABLES:
-            self.assertTrue(self.column_exists(table), f'{table} starts without a vector')
+        for view in self.VIEWS:
+            self.assertFalse(self.view_exists(view), f'{view} survived the migration')
         self.migrate('registry', self.MIGRATE_BACK_TO)
 
-    def test_the_column_of_both_records_is_dropped(self):
-        for table in self.TABLES:
-            with self.subTest(table=table):
-                self.assertFalse(self.column_exists(table), f'{table} still has a vector')
+    def vector_of(self, record):
+        """The vector the record itself answers, which the projection has to answer too."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT "search_vector" FROM ' + record._meta.db_table
+                + ' WHERE "id" = %s', [record.pk])
+            return cursor.fetchone()[0]
 
-    def test_the_searchable_projections_are_dropped_with_the_column(self):
+    def hits(self, view, word):
+        """The records of a projection a search for a word matches.
+
+        A rolled back deployment searches the projection, so the words of a record have
+        to be searchable in it; the word is not compared as text because a tsvector
+        holds the stemmed word, which is the whole point of searching a vector.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT count(*) FROM ' + view
+                + ' WHERE "search_vector" @@ plainto_tsquery(%s, %s)',
+                [TEXT_CONFIGURATION_NAME, word])
+            return cursor.fetchone()[0]
+
+    def test_the_projection_comes_back_and_answers_the_record_it_projects(self):
+        """The statement of the way back is a projection of a record, with its data."""
+        for view, record, level in (
+                (self.VIEWS[0], self.dataset, 'dataset'),
+                (self.VIEWS[1], self.service, 'service')):
+            with self.subTest(view=view):
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SELECT "title", "search_vector", "keywords_list",'
+                        ' "hierarchy_level" FROM ' + view + ' WHERE "id" = %s',
+                        [record.pk])
+                    row = cursor.fetchone()
+                self.assertIsNotNone(row, f'{record.pk} is not in {view}')
+                title, vector, keywords, hierarchy_level = row
+                self.assertEqual(title, record.title)
+                self.assertEqual(self.vector_of(record), vector,
+                                 f'{view} does not answer the vector of the record')
+                self.assertEqual(1, self.hits(view, record.title.split()[0]),
+                                 f'{view} does not answer a search for its title')
+                self.assertEqual([], keywords)
+                self.assertEqual(level, hierarchy_level)
+
+    def test_the_projection_is_gone_again_on_the_way_forward(self):
+        self.migrate()
         for view in self.VIEWS:
             with self.subTest(view=view):
-                self.assertFalse(self.view_exists(view), f'{view} survived the column')
-
-    def test_the_column_and_the_projections_come_back_on_the_way_forward(self):
-        self.migrate()
-        for table in self.TABLES:
-            self.assertTrue(self.column_exists(table), f'{table} has no vector again')
-        for view in self.VIEWS:
-            self.assertTrue(self.view_exists(view), f'{view} was not created again')
+                self.assertFalse(self.view_exists(view), f'{view} came back for good')

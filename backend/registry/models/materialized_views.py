@@ -1,16 +1,10 @@
-from django.contrib.gis.db.models import MultiPolygonField
-from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.indexes import \
-    GinIndex  # add the Postgres recommended GIN index
-from django.contrib.postgres.search import SearchVectorField
-from django.db import connection, models
-from django.db.models.expressions import Value
+from django.db import connection
 from django.db.models.fields import DateField, IntegerField, UUIDField
 from django.db.models.indexes import Index
 from django.db.models.query import QuerySet
 from django_pgviews import view as pg
 from registry.models.harvest import HarvestedMetadataRelation
-from registry.models.metadata import (AbstractMetadata, DatasetMetadataRecord,
+from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -194,90 +188,3 @@ class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
     @classmethod
     def get_queryset(cls):
         return cls.base_model.objects.stats_per_day()
-
-
-class SearchableMetadataRecordAbstract(AbstractMetadata, DynamicMaterializedView):
-
-    title: str = models.CharField(max_length=1000,
-                                  default="")
-    abstract = models.TextField(default="")
-    file_identifier = models.CharField(max_length=1000)
-    code = models.CharField(max_length=4096,
-                            default="")
-    code_space = models.CharField(max_length=4096,
-                                  default="")
-    resource_identifier = models.CharField(max_length=4096,
-                                           default="")
-
-    # the keywords and the searchable representation of the record: both are columns of
-    # the record now, which is why this view answers them by projecting the record
-    # instead of aggregating the keywords relation and building the vector here. A
-    # queryset cannot annotate a name which the model it queries has as a field, so
-    # computing either of them here would not even be possible anymore.
-    keywords_list = ArrayField(
-        base_field=models.CharField(max_length=300),
-        default=list,
-        editable=False,
-    )
-    bounding_geometry = MultiPolygonField(null=True,
-                                          blank=True, )
-
-    search_vector = SearchVectorField()
-
-    base_model = None
-
-    class Meta:
-        abstract = True
-        managed = False
-        indexes = [
-            models.Index(fields=["title",]),
-            # models.Index(fields=["abstract",]),
-            models.Index(fields=["file_identifier"]),
-            models.Index(fields=["resource_identifier"]),
-            GinIndex(fields=["search_vector"]),
-        ]
-
-
-class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
-    hierarchy_level = models.CharField(max_length=100, default="")
-    base_model = DatasetMetadataRecord
-
-    @classmethod
-    def get_queryset(cls):
-        return super(SearchableDatasetMetadataRecord, cls).get_queryset().annotate(
-            hierarchy_level=Value("dataset")
-        )
-        # TODO: operates on filter
-
-    class Meta:
-        managed = False
-        indexes = SearchableMetadataRecordAbstract._meta.indexes
-
-# TODO: bad harvesting performance if views are refreshed on every save
-# @receiver(m2m_changed, sender=DatasetMetadataRecord.keywords.through)
-# @receiver([post_save, post_delete], sender=DatasetMetadataRecord)
-# def update_dataset_view(*args, **kwargs):
-#     transaction.on_commit(lambda: SearchableDatasetMetadataRecord.refresh())
-
-
-class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
-    hierarchy_level = models.CharField(max_length=100, default="")
-    base_model = ServiceMetadataRecord
-
-    @classmethod
-    def get_queryset(cls):
-        return super(SearchableServiceMetadataRecord, cls).get_queryset().annotate(
-            hierarchy_level=Value("service")
-        )
-
-    class Meta:
-        managed = False
-        indexes = SearchableMetadataRecordAbstract._meta.indexes
-
-# TODO: bad harvesting performance if views are refreshed on every save
-# @receiver(m2m_changed, sender=ServiceMetadataRecord.keywords.through)
-# @receiver([post_save, post_delete], sender=ServiceMetadataRecord)
-# def update_service_view(*args, **kwargs):
-#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())
-#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())
-#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())

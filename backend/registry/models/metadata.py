@@ -5,7 +5,8 @@ from uuid import uuid4
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.indexes import BTreeIndex
+from django.contrib.postgres.indexes import BTreeIndex, GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.expressions import CombinedExpression
@@ -24,6 +25,7 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
 from registry.exceptions.service import NoContent
+from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
                                         MetadataRelationManager,
@@ -1044,6 +1046,17 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     # for them, because the writing side does not know what the trigger maintains
     db_maintained_fields = ("keywords_list",)
 
+    # the searchable representation of the record, computed by the database for every
+    # row: a record is findable the moment it is written, without a projection which
+    # has to be rebuilt and without a window in which it is not (the expression and
+    # the reason it is written out instead of using SearchVector live in
+    # registry/expressions/search.py)
+    search_vector = GeneratedField(
+        expression=MetadataRecordSearchVector(),
+        output_field=SearchVectorField(),
+        db_persist=True
+    )
+
     class Meta:
         abstract = True
 
@@ -1176,7 +1189,7 @@ class DatasetMetadataRecord(MetadataRecord):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields=("keywords_list",),
+        excluded_fields=("keywords_list", "search_vector",),
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
@@ -1190,6 +1203,9 @@ class DatasetMetadataRecord(MetadataRecord):
         ] + MetadataRecord.Meta.constraints
         indexes = [
             models.Index(fields=["code", "code_space"]),
+            # a record is found by its vector through a tsquery, which is a containment
+            # over the vector and not a comparison of its text: only a GIN index answers it
+            GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
 
 
@@ -1232,13 +1248,15 @@ class ServiceMetadataRecord(MetadataRecord):
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields=("keywords_list",),
+        excluded_fields=("keywords_list", "search_vector",),
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     history = DefaultHistoryManager()
 
     class Meta:
         indexes = [
+            # see DatasetMetadataRecord.Meta.indexes
+            GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
         constraints = [
 

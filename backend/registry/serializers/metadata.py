@@ -259,7 +259,10 @@ class DatasetMetadataRecordSerializer(
 
     class Meta:
         model = DatasetMetadataRecord
-        fields = "__all__"
+        # every field of the record but the vector: that is the index a search hits,
+        # not a value an answer reads, and answered raw it is the text postgres
+        # tokenized into, which no client can do anything with
+        exclude = ("search_vector",)
 
 
 class ServiceMetadataRecordSerializer(
@@ -316,4 +319,5 @@ class ServiceMetadataRecordSerializer(
 
     class Meta:
         model = ServiceMetadataRecord
-        fields = "__all__"
+        # see DatasetMetadataRecordSerializer.Meta
+        exclude = ("search_vector",)

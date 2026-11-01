@@ -176,16 +176,35 @@ class MappedDefaultsTest(TestCase):
 
 
 class SearchableViewProjectionTest(TestCase):
-    """The searchable projections of a record do not answer the maintained column.
+    """The searchable projections answer the record's own searchable columns.
 
     A materialized view is created from the statement of its queryset, and that
-    statement is the column list of the record. A view which selects a column of the
-    record depends on that column: the record could not drop it anymore without
-    dropping the view first, which is what the down revision of the column does. The
-    array would also be stored in the view a second time.
+    statement is the column list of the record. Since a record answers the keywords
+    array and the search vector itself, the view answers them by projection: it stores
+    what the record holds and computes nothing while it is refreshed.
     """
 
-    def test_the_statement_of_a_searchable_view_does_not_select_the_column(self):
-        for view in (SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord):
+    VIEWS = (SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
+
+    def sql_of(self, view):
+        """The statement the view is created from, in lower case.
+
+        ``get_sql`` answers a tuple of the statement and its parameters; only the
+        statement names the columns of the record.
+        """
+        return view.get_sql().query.lower()
+
+    def test_the_statement_of_a_searchable_view_answers_the_record_columns(self):
+        for view in self.VIEWS:
             with self.subTest(view=view.__name__):
-                self.assertNotIn('keywords_list', view.get_sql())
+                sql = self.sql_of(view)
+                self.assertIn('"keywords_list"', sql)
+                self.assertIn('"search_vector"', sql)
+
+    def test_the_statement_of_a_searchable_view_computes_nothing(self):
+        """Refreshing the view must not tokenize the records a second time."""
+        for view in self.VIEWS:
+            with self.subTest(view=view.__name__):
+                sql = self.sql_of(view)
+                self.assertNotIn("array_agg", sql)
+                self.assertNotIn("to_tsvector", sql)

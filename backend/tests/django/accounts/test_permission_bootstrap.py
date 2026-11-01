@@ -8,8 +8,10 @@ newly registered service.
 
 Both receivers connect themselves to ``post_save`` at the bottom of that
 module, so the module has to be imported for any of it to run at all. That it
-never was imported is what #728 is about; nothing noticed, because every
-fixture loads its services with ``loaddata`` which does not emit ``post_save``.
+never was imported is what #728 is about. Nothing noticed, because a service
+which a test or a deployment loads from a fixture is saved by the deserializer
+with ``raw=True`` - ``loaddata`` does emit ``post_save``, it only says that the
+object is a loaded one - and both receivers answer that with doing nothing.
 
 What the bootstrap really does, and what these tests pin down so that the role
 work of #727 may change it knowingly:
@@ -22,19 +24,23 @@ work of #727 may change it knowingly:
   receiver says so once in the log instead of reading an ``owner`` attribute
   which no model has.
 
-The last test describes the grant the bootstrap was written for. It can only
-set ownership in memory because ownership is stored nowhere; #733 stores it and
-#734 replaces the grant with the role based one.
+The last test of the first class describes the grant the bootstrap was written
+for. It can only set ownership in memory because ownership is stored nowhere;
+#733 stores it and #734 replaces the grant with the role based one.
 """
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
+from django.core.management import call_command
 from django.test import TestCase
 from guardian.models import GroupObjectPermission
+from guardian.shortcuts import assign_perm, get_objects_for_user
+from guardian.utils import get_group_obj_perms_model
 
 from accounts.models.groups import Organization
 from accounts.utils import get_secured_models
 from registry.models.metadata import MetadataContact
-from registry.models.service import WebMapService
+from registry.models.service import CatalogueService, WebMapService
 
 #: the log channel of the application, see ``settings.ROOT_LOGGER``
 LOGGER = "MrMap.root"
@@ -44,19 +50,32 @@ TEMPLATE_WMS = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
 
 ORGANIZATION_NAME = "Permission Bootstrap"
 
+#: the fixture which loads an organization, see the comment in that file
+FIXTURE_FILE = "test_organizations"
+
+#: the name of the organization which that fixture loads
+FIXTURE_ORGANIZATION = "Fixture Organization"
+
 
 def object_grants(obj):
     """Every object permission a group holds on the given object.
+
+    Guardian answers the object permissions of a model which has a table of its
+    own only from that table (``accounts/models/guardian.py`` says why), so the
+    model to ask is the one guardian resolves for the object.
 
     Args:
         obj: the object the grants are asked for
 
     Returns:
-        queryset: the ``GroupObjectPermission`` rows naming the given object
+        queryset: the object permission rows naming the given object
     """
-    return GroupObjectPermission.objects.filter(
-        object_pk=str(obj.pk),
-        content_type=ContentType.objects.get_for_model(obj))
+    model = get_group_obj_perms_model(obj)
+    if model.objects.is_generic():
+        return model.objects.filter(
+            object_pk=str(obj.pk),
+            content_type=ContentType.objects.get_for_model(obj))
+    return model.objects.filter(content_object=obj)
 
 
 class OrganizationCreationTestCase(TestCase):
@@ -107,6 +126,88 @@ class OrganizationCreationTestCase(TestCase):
             set(object_grants(organization).filter(
                 group=members).values_list("permission__codename", flat=True)),
             {"view_organization", "can_publish_for_organization"})
+
+    def test_an_organization_of_a_fixture_creates_no_groups(self):
+        """A loaded organization brings its own groups along
+
+        ``loaddata`` saves what it deserialized and does emit ``post_save``, with
+        ``raw=True``. A receiver which ran anyway would create the groups of every
+        organization of a dump a second time, because a dump of a deployment
+        contains the groups which were created for it.
+        """
+        call_command('loaddata', FIXTURE_FILE, verbosity=0)
+
+        self.assertTrue(
+            Organization.objects.filter(name=FIXTURE_ORGANIZATION).exists(),
+            "the fixture did not load an organization at all")
+        created_by_the_bootstrap = [
+            f"{FIXTURE_ORGANIZATION} Administrators",
+            f"{FIXTURE_ORGANIZATION} Members"] + [
+            f"{FIXTURE_ORGANIZATION} {model._meta.model_name} Admins"
+            for model in get_secured_models()]
+        self.assertFalse(
+            Group.objects.filter(name__in=created_by_the_bootstrap).exists(),
+            "the bootstrap created groups for a loaded organization: "
+            f"{list(Group.objects.filter(
+                name__in=created_by_the_bootstrap
+            ).values_list('name', flat=True))}")
+
+
+class SharedObjectPermissionTableTestCase(TestCase):
+    """Why the models the bootstrap grants on need a table of their own.
+
+    Guardian stores the object permissions of *every* model in one table and
+    names the object by ``content_type`` and the text of its primary key. A
+    lookup for a model whose primary key is a uuid compares that text column by
+    casting it to a uuid, and whether PostgreSQL evaluates the cast only for the
+    rows of the looked up model or for the rows of every other model in the
+    table is a decision of the query plan: with the wiring of #728 and without
+    the tables of ``accounts/models/guardian.py``, the alerts endpoint answered
+    ``invalid input syntax for type uuid: "1"`` for the organization
+    ``post_migrate`` creates.
+
+    An organization is named by an integer, the services by a uuid, so a grant of
+    an organization may not stay in the table the services are answered from.
+    """
+
+    fixtures = ["test_users.json"]
+
+    def test_no_grant_of_the_bootstrap_lives_in_the_shared_table(self):
+        """An organization and its groups are answered from their own tables"""
+        organization = Organization.objects.create(name=ORGANIZATION_NAME)
+
+        shared = GroupObjectPermission.objects.filter(
+            content_type__in=[
+                ContentType.objects.get_for_model(organization),
+                ContentType.objects.get_for_model(Group)])
+        self.assertFalse(
+            shared.exists(),
+            "guardian's shared table holds an object permission of an "
+            "organization or a group, which a lookup of a model with a uuid "
+            "primary key may then have to cast")
+
+    def test_a_model_without_a_table_of_its_own_answers_a_uuid_key(self):
+        """The lookup of a uuid model without a table of its own still answers
+
+        A model without a table of its own is answered from the shared table and
+        takes whatever the plan does with the cast of its text column, so this is
+        the read which ``/api/registry/service-alerts`` asked when the bootstrap
+        was connected and the dedicated tables were not. The organization is
+        granted to a group of the looking user on purpose: guardian narrows the
+        shared table by the groups of that user, so a row of a group the user is
+        not in would never be part of the comparison.
+        """
+        organization = Organization.objects.create(name=ORGANIZATION_NAME)
+        assign_perm(perm='registry.view_organization',
+                    user_or_group=Group.objects.get(name="Group2"),
+                    obj=organization)
+
+        visible = get_objects_for_user(
+            get_user_model().objects.get(username="User2"),
+            'registry.view_catalogueservice',
+            klass=CatalogueService,
+            accept_global_perms=False)
+        self.assertEqual(list(visible), [])
 
 
 class ServiceCreationTestCase(TestCase):

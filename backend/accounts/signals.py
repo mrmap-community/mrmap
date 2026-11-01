@@ -14,38 +14,51 @@ logger: Logger = settings.ROOT_LOGGER
 
 
 @receiver(post_save, sender=Organization)
-def handle_organization_creation(instance, created, **kwargs):
-    if created:
-        with atomic():
-            organization = instance  # only for better reading
+def handle_organization_creation(instance, created, raw=False, **kwargs):
+    """
+    Create the groups which administer a newly created organization.
 
-            # create organization administrator and member group
-            orga_admins = Group.objects.create(
-                name=f"{organization.name} Administrators")
-            assign_perm(perm='registry.view_organization',
-                        user_or_group=orga_admins, obj=organization)
-            assign_perm(perm='registry.change_organization',
-                        user_or_group=orga_admins, obj=organization)
+    Args:
+        instance: the created organization
+        created: whether the organization was created and not changed
+        raw: whether the organization was loaded by a fixture
+    """
+    # a fixture loads an organization as it is: the groups of an organization of
+    # a deployment are part of its dump, running this receiver during loaddata
+    # would create them a second time for every organization of the fixture
+    if not created or raw:
+        return
 
-            orga_members = Group.objects.create(
-                name=f"{organization.name} Members")
-            assign_perm(perm='registry.view_organization',
-                        user_or_group=orga_members, obj=organization)
-            assign_perm(perm='registry.can_publish_for_organization',
-                        user_or_group=orga_members, obj=organization)
+    with atomic():
+        organization = instance  # only for better reading
 
-            # create groups for any configured secured model
-            for secured_model in get_secured_models():
-                # FIXME: name max_length is 150 chars. Maybe this could be not enough
-                secured_model_admins = Group.objects.create(
-                    name=f"{organization.name} {secured_model._meta.model_name} Admins")
+        # create organization administrator and member group
+        orga_admins = Group.objects.create(
+            name=f"{organization.name} Administrators")
+        assign_perm(perm='registry.view_organization',
+                    user_or_group=orga_admins, obj=organization)
+        assign_perm(perm='registry.change_organization',
+                    user_or_group=orga_admins, obj=organization)
 
-                assign_perm(perm='registry.view_group',
-                            user_or_group=orga_admins,
-                            obj=secured_model_admins)
-                assign_perm(perm='registry.change_group',
-                            user_or_group=orga_admins,
-                            obj=secured_model_admins)
+        orga_members = Group.objects.create(
+            name=f"{organization.name} Members")
+        assign_perm(perm='registry.view_organization',
+                    user_or_group=orga_members, obj=organization)
+        assign_perm(perm='registry.can_publish_for_organization',
+                    user_or_group=orga_members, obj=organization)
+
+        # create groups for any configured secured model
+        for secured_model in get_secured_models():
+            # FIXME: name max_length is 150 chars. Maybe this could be not enough
+            secured_model_admins = Group.objects.create(
+                name=f"{organization.name} {secured_model._meta.model_name} Admins")
+
+            assign_perm(perm='registry.view_group',
+                        user_or_group=orga_admins,
+                        obj=secured_model_admins)
+            assign_perm(perm='registry.change_group',
+                        user_or_group=orga_admins,
+                        obj=secured_model_admins)
 
 
 def owning_organization(instance):

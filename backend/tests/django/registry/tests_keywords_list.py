@@ -7,12 +7,11 @@ shaped differently than the keywords relation it stands in for.
 
 from importlib import import_module
 
+from django.core import serializers
 from django.db import connection
 from django.test import TestCase
 
 from registry.mappers.persistence.custom import _defaults_of_instance
-from registry.models.materialized_views import (SearchableDatasetMetadataRecord,
-                                                SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, MetadataContact,
                                       ServiceMetadataRecord)
 
@@ -175,17 +174,74 @@ class MappedDefaultsTest(TestCase):
         self.assertIn('title', defaults)
 
 
-class SearchableViewProjectionTest(TestCase):
-    """The searchable projections of a record do not answer the maintained column.
+class WrittenKeywordsListTest(TestCase):
+    """A write which never read the array does not answer for its content.
 
-    A materialized view is created from the statement of its queryset, and that
-    statement is the column list of the record. A view which selects a column of the
-    record depends on that column: the record could not drop it anymore without
-    dropping the view first, which is what the down revision of the column does. The
-    array would also be stored in the view a second time.
+    The array has a default, so an instance which was built instead of loaded -- a
+    fixture, a partial document -- carries an empty one, and a full ``UPDATE`` of it
+    overwrites what the trigger maintains. The consequence is not a wrong column but a
+    record which is no longer findable by its own keywords, because the vector of
+    0022 is tokenized out of the array.
+
+    ``loaddata`` is the writer which cannot be guarded from python: it saves what it
+    deserialized through ``Model.save_base(raw=True)``, bypassing ``save()``, and a
+    fixture never names a column it does not know about. So the guard is a
+    ``BEFORE UPDATE`` trigger (0024) and this asks it through the same deserializer.
     """
 
-    def test_the_statement_of_a_searchable_view_does_not_select_the_column(self):
-        for view in (SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord):
-            with self.subTest(view=view.__name__):
-                self.assertNotIn('keywords_list', view.get_sql())
+    @classmethod
+    def setUpTestData(cls):
+        cls.contact = MetadataContact.objects.create(name='Keywords contact')
+        cls.dataset = DatasetMetadataRecord.objects.create(
+            metadata_contact=cls.contact, dataset_contact=cls.contact,
+            file_identifier='holds a keyword', title='Dataset')
+        cls.keyword = Keyword.objects.create(keyword='alpha')
+        cls.dataset.keywords.add(cls.keyword)
+
+    #: the fields a fixture of a record has to name for its row to be writable
+    FIELDS = ('title', 'file_identifier', 'metadata_contact', 'dataset_contact')
+
+    def keywords_of(self, record):
+        return list(record.__class__.objects.values_list(
+            'keywords_list', flat=True).get(pk=record.pk))
+
+    def vector_of(self, record):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT "search_vector" FROM ' + record._meta.db_table
+                + ' WHERE "id" = %s', [record.pk])
+            return cursor.fetchone()[0]
+
+    def save_as_fixture(self, record, fields=FIELDS):
+        """What ``loaddata`` writes for a fixture naming some fields of a row.
+
+        Serialize and deserialize instead of a fixture file: the deserialized instance
+        is the object whose save loses the array, and naming it here keeps the fields
+        which lose it out of a test fixture.
+        """
+        document = serializers.serialize('json', [record], fields=fields)
+        next(serializers.deserialize('json', document)).save()
+
+    def test_a_write_of_an_instance_which_never_read_the_array_keeps_it(self):
+        before = self.keywords_of(self.dataset)
+
+        self.save_as_fixture(self.dataset)
+
+        self.assertEqual(before, self.keywords_of(self.dataset))
+
+    def test_a_write_of_an_instance_which_never_read_the_array_keeps_the_vector(self):
+        """The keyword is still a word the record is found by."""
+        vector = self.vector_of(self.dataset)
+
+        self.save_as_fixture(self.dataset)
+
+        self.assertEqual(vector, self.vector_of(self.dataset))
+
+    def test_a_write_which_names_the_array_is_answered_by_the_relation(self):
+        """The column belongs to the database, so no writer owns its value."""
+        record = DatasetMetadataRecord.objects.get(pk=self.dataset.pk)
+        record.keywords_list = ['written by hand']
+
+        record.save()
+
+        self.assertEqual(self.keywords_of(self.dataset), ['alpha'])

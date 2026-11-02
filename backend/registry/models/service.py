@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.decorators import warn_on_queries
 from extras.managers import DefaultHistoryManager
 from extras.models import (AdditionalTimeFieldsHistoricalModel,
-                           HistoricalRecordMixin)
+                           DeltaSizeHistoricalModel, HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
 from lxml import etree
 from mptt2.models import Node
@@ -237,7 +237,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
 
     objects = WebMapServiceQuerySet.as_manager()
@@ -329,7 +329,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
 
     objects = WebFeatureServiceQuerySet.as_manager()
@@ -373,7 +373,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = CatalogueServiceManager()
     history = DefaultHistoryManager()
@@ -710,7 +710,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
 
     objects = LayerManager()
@@ -945,7 +945,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     change_log = ServiceHistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = DefaultHistoryManager()
     history = DefaultHistoryManager()

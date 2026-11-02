@@ -21,7 +21,11 @@ class HistorySerializerMixin(
 
     class Meta:
         abstract = True
-        exclude = ('history_id', )
+        # delta_size is the count the per-day statistics aggregate (see the
+        # registry migration 0025); what this api answers about an audit row is
+        # delta below, the changed fields with their old and new values, so the
+        # count is not asked for and stays out of the resource
+        exclude = ('history_id', 'delta_size')
 
     def get_history_type(self, obj):
         if obj.history_type == '+':

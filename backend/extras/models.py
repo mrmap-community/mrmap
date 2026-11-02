@@ -79,6 +79,38 @@ class AdditionalTimeFieldsHistoricalModel(Model):
         abstract = True
 
 
+class DeltaSizeHistoricalModel(Model):
+    """Abstract model for history models which answer their own diff size.
+
+    ``delta_size`` is how many of the tracked fields the row differs in from the
+    row it precedes, written by the database when the row is inserted (see
+    ``registry`` migration ``0025``). It is what the per-day statistics need to
+    tell an update which changed something from a save which changed nothing --
+    until now they answered it by comparing every row with its predecessor per
+    request, which is why they could only be answered from a rebuild.
+
+    Kept apart from ``AdditionalTimeFieldsHistoricalModel`` on purpose, although
+    every model which uses this one also uses that one: the time fields are
+    inherited by ``HarvestedMetadataRelation`` itself, which is not a history
+    model but a resource of the api, and a column only the history needs must
+    not appear in that resource.
+
+    ``NULL`` means the row has no predecessor, which is not the same as ``0``:
+    an audit row of a record which was created before history existed is not an
+    update, it is the first thing known about that record.
+    """
+    delta_size = PositiveSmallIntegerField(
+        null=True,
+        editable=False,
+        verbose_name=_("delta size"),
+        help_text=_("how many tracked fields this record differs in from the "
+                    "record which precedes it, empty without a predecessor"),
+    )
+
+    class Meta:
+        abstract = True
+
+
 class ChoiceModel(Model):
     """Abstract Modell für Choice-based Entities such as Language, Charset, etc."""
     value = PositiveSmallIntegerField(

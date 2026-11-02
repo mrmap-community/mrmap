@@ -17,7 +17,8 @@ from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
 from extras.managers import (ChoiceManager, DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
-from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
+from extras.models import (AdditionalTimeFieldsHistoricalModel, ChoiceModel,
+                           DeltaSizeHistoricalModel)
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
                                 MetadataCharsetChoices, UpdateFrequencyChoices)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
@@ -1194,7 +1195,7 @@ class DatasetMetadataRecord(MetadataRecord):
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields=("keywords_list", "search_vector",),
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
 
     objects = DatasetMetadataRecordManager()
@@ -1253,7 +1254,7 @@ class ServiceMetadataRecord(MetadataRecord):
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields=("keywords_list", "search_vector",),
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     history = DefaultHistoryManager()
 

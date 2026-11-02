@@ -75,6 +75,7 @@ class HistoricalFiltersTest(TestCase):
             )
         view.request = Request(APIRequestFactory().get("/", params or {}))
         view.action = "list"
+        view.kwargs = {}
         return view
 
     def filtered(self, params):
@@ -290,6 +291,7 @@ class LayerChangeTypeFiltersTest(TestCase):
             "page[size]": "1",
         }))
         view.action = "list"
+        view.kwargs = {}
         return view
 
     def test_categories_are_disjoint_and_use_one_query(self):

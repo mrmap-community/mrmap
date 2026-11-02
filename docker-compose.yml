@@ -273,7 +273,7 @@ services:
 
   # Log UI with login/RBAC in front of victoria-logs (which stays network-internal)
   grafana:
-    image: grafana/grafana:13.2.5
+    image: grafana/grafana:13.3.0
     restart: unless-stopped
     hostname: "grafana"
     environment:

@@ -27,8 +27,11 @@ services:
 
 
   mapserver:
-    image: camptocamp/mapserver:7.6
+    image: camptocamp/mapserver:8.6
     hostname: "mrmap-mapserver"
+    environment:
+      # Keep the CGI endpoint used by the proxy fixtures; v8 defaults to "/".
+      MAPSERVER_BASE_PATH: /cgi-bin/mapserv
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles

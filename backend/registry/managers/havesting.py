@@ -9,6 +9,7 @@ from extras.managers import DefaultHistoryManager
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from notify.tasks import finish_background_process
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
+from registry.querys.havesting import HarvestingJobQuerySet
 
 
 class HarvestedMetadataRelationQuerySet(models.QuerySet):
@@ -31,6 +32,16 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
 
 
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
+
+    def get_queryset(self):
+        """The queryset of the aggregate, which can carry a count it has read.
+
+        ``registry/querys/havesting.py``: the statistics of a page of jobs are
+        bounded by a CTE over the whole table of the harvested metadata relations,
+        and the paginator of the overview asks that annotated queryset for the
+        number of rows of the answer (#885).
+        """
+        return HarvestingJobQuerySet(self.model, using=self._db)
 
     def with_temporary_file_counts(self, qs=None, **counts):
         """Count only the files of each selected job, including after pagination.

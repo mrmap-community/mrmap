@@ -61,12 +61,6 @@
       "allowedVersions": "<3.13"
     },
     {
-      "description": "OpenObserve is pre-1.0, so every minor can break ingestion; keep it out of the group PR",
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["openobserve/openobserve"],
-      "groupName": "openobserve"
-    },
-    {
       "description": "The docs image is built by neither compose nor CI, bump it by hand",
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["docker/docs/**"],

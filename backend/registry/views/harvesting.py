@@ -555,6 +555,7 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
+        "harvesting_job": ["harvesting_job"],
         "dataset_metadata_record": [
             Prefetch(
                 "dataset_metadata_record",

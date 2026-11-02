@@ -78,8 +78,8 @@ create .env file under your mrmap path with the following variables. Please setu
     DJANGO_ADMIN_USER=mrmap
     DJANGO_ADMIN_PASSWORD=supersecurepassword
     DJANGO_SECRET_KEY=mrmap-dev-secret-key-change-me-in-production
-    OPENOBSERVE_USER=admin@example.com
-    OPENOBSERVE_PASSWORD=supersecurepassword
+    GRAFANA_ADMIN_USER=admin
+    GRAFANA_ADMIN_PASSWORD=supersecurepassword
     PGADMIN_USER=admin@example.com
     PGADMIN_PASSWORD=supersecurepassword
 
@@ -122,3 +122,29 @@ Missing containers or healthchecks report unknown; exited containers report
 down; unhealthy or partially failed replicas report degraded. Docker API failure
 reports unknown. Detection latency follows healthcheck intervals and retries;
 a reported healthy container does not prove task execution succeeded.
+
+
+Central log aggregation
+=======================
+
+MrMap emits RFC 5424 syslog records (slow requests include a structured-data
+pointer to the per-request JSON dump under the media root). VictoriaLogs is
+the central log store: it receives that stream through its native syslog
+receiver, parses the structured-data parameters (``metaSDID@Details.json``
+etc.) into queryable fields and keeps 14 days of logs (``-retentionPeriod``).
+VictoriaLogs publishes no HTTP port; only its loopback UDP port
+(``127.0.0.1:5514/udp``) is exposed so that Docker's own ``syslog`` log-driver
+can ship container stdout/stderr into it — add the same ``logging:`` block as
+``postgis`` to any service, e.g. to get Postgres ``LOG: duration:`` statements
+into the same store.
+
+Grafana is the single authenticated web entry point, published under
+``/grafana/``. It ships with the VictoriaLogs datasource and a "MrMap slow
+requests" dashboard pre-provisioned from ``docker/grafana/``; login with
+``GRAFANA_ADMIN_USER`` / ``GRAFANA_ADMIN_PASSWORD``.
+
+* ``MRMAP_SYSLOG_HOST`` / ``MRMAP_SYSLOG_PORT`` point the backend syslog
+  handler at any RFC 5424 receiver; the default is ``victoria-logs:5514``,
+  the compose service.
+* To enable Postgres slow statement logging, run (hot, no restart):
+  ``ALTER SYSTEM SET log_min_duration_statement = '400ms'; SELECT pg_reload_conf();``

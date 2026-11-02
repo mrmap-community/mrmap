@@ -1,0 +1,96 @@
+{
+  "uid": "mrmap-slow-requests",
+  "title": "MrMap slow requests",
+  "tags": ["mrmap"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Slow requests per minute",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "editorMode": "code",
+          "queryType": "stats",
+          "expr": "Slow Request Detected | stats by (_time:1m) count() as slow"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Slow requests per service",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "editorMode": "code",
+          "queryType": "stats",
+          "expr": "Slow Request Detected | stats by (hostname) count() as slow | sort by (slow desc)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Syslog volume by level",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "editorMode": "code",
+          "queryType": "stats",
+          "expr": "* | stats by (level) count() as lines | sort by (lines desc)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Postgres slow statements (DB-side durations)",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
+      "options": { "showTime": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "editorMode": "code",
+          "queryType": "raw",
+          "expr": "app_name:mrmap-postgis-1 duration"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Slow request lines (media pointer = metaSDID@Details.json)",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+      "options": { "showTime": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "editorMode": "code",
+          "queryType": "raw",
+          "expr": "Slow Request Detected"
+        }
+      ]
+    }
+  ]
+}

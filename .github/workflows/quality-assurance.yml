@@ -29,8 +29,8 @@ env:
   DJANGO_ADMIN_USER: mrmap
   DJANGO_ADMIN_PASSWORD: mrmap
   DJANGO_SECRET_KEY: mrmap-ci-secret-key-for-disposable-test-containers
-  OPENOBSERVE_USER: admin@example.com
-  OPENOBSERVE_PASSWORD: mrmap-ci-password
+  GRAFANA_ADMIN_USER: admin
+  GRAFANA_ADMIN_PASSWORD: mrmap-ci-password
   PGADMIN_USER: admin@example.com
   PGADMIN_PASSWORD: mrmap-ci-password
 

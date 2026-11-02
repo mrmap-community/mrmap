@@ -66,6 +66,13 @@ class RemoveRefreshTaskMigrationTest(TransactionTestCase):
         self.assertIn(other_task, PeriodicTask.objects.all())
 
     def test_nothing_refreshes_the_statistics_anymore(self):
-        """The module the periodic task named is gone with the task itself."""
-        with self.assertRaises(ImportError):
-            import system.tasks  # noqa: F401
+        """The task the periodic task named is gone from the module it lived in.
+
+        The module answers again, because the sweep of the slow request dumps of
+        #888 is filed in it, so what has to stay away is the task itself: a
+        deployment which still carries a stale row of the schedule must not find a
+        body to run over it.
+        """
+        import system.tasks
+
+        self.assertFalse(hasattr(system.tasks, 'refresh_materialized_views'))

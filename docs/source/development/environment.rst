@@ -107,3 +107,21 @@ Used to configure the url of the mapservice instance.
 *************************************
 
 Used to configure the map file for security proxy. This file needed to be installed on the used mapserver which is configured by ``MAPSERVER_URL``.
+
+
+``MRMAP_SLOW_REQUEST_THRESHOLD_MS``
+***********************************
+
+Used to configure the duration of a request in milliseconds which is worth a ``Slow Request Detected`` record and the JSON dump of its details. The default is 400.
+
+
+``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS``
+******************************************
+
+Used to configure how many days the per request JSON dumps below the media root are kept before the periodic sweep of ``system.tasks`` deletes them. The default is 14, which is how long the central log store keeps the syslog line that points at them; 0 keeps them until the cap below is reached.
+
+
+``MRMAP_SLOW_REQUEST_DUMP_MAX_FILES``
+*************************************
+
+Used to configure how many of those dumps may lie around at most; the oldest beyond that number are taken back by the same sweep. 0 answers no limit, which leaves the age bound alone.

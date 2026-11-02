@@ -39,6 +39,11 @@ comparison ``with_prev_record_id()`` uses, so two rows of one record written by
 one statement -- which is what a bulk harvest does -- are still in front of each
 other. A ``BEFORE INSERT`` trigger sees the rows an inserting statement has
 already placed, which is what makes the bulk path answer the same as a save.
+And because the value is derived from the tracked fields, the trigger is a
+``BEFORE INSERT OR UPDATE OF`` those fields: a writer which rewrites a row
+without knowing the column -- ``loaddata`` is the one that matters, see
+``diff_size_trigger`` -- gets it computed again instead of writing a value no
+predecessor answers.
 
 The backfill is one pass per table which answers each row from its predecessor
 in the same statement the trigger answers from, so the two cannot disagree, and
@@ -156,13 +161,32 @@ $function$;
 """
 
 
-def diff_size_trigger(table):
+def diff_size_trigger(table, columns):
+    """The trigger which writes the diff size of a row of one audit table.
+
+    ``UPDATE OF`` the compared fields, and not every update of the row: the
+    value is derived from those fields and from nothing else, so a statement
+    which writes another column of the row leaves the answer it already has
+    alone, while a statement which writes the data the answer is computed out
+    of has it computed again.
+
+    That half is not decoration. ``loaddata`` ends in ``save_base(raw=True)``
+    without ``update_fields``, which writes every column of the row from the
+    instance the fixture built -- so a column the fixture does not name is
+    written as its default. A second load of the same fixture, which is what
+    every behave feature asking for ``test_wms.json`` does (thirty of them do)
+    and what restoring a dump of a deployment does, used to reset the column of
+    every audit row it touched. ``delta_size`` is named next to the compared
+    fields so that a write of the answer alone is answered by the database too:
+    the column is not a writer's to set.
+    """
     return """
 CREATE TRIGGER {trigger}
-    BEFORE INSERT ON {table}
+    BEFORE INSERT OR UPDATE OF {columns} ON {table}
     FOR EACH ROW
     EXECUTE FUNCTION {function}();
 """.format(trigger=trigger_name(table), table=table,
+           columns=", ".join(tuple(columns) + ("delta_size",)),
            function=function_name(table))
 
 
@@ -208,7 +232,7 @@ CREATE_SQL = "".join(
         filter=PREDECESSOR_FILTER.format(previous="written", row="NEW"),
         order=PREDECESSOR_ORDER.format(previous="written"),
         comparison=comparison("previous", "NEW", columns),
-    ) + diff_size_trigger(table)
+    ) + diff_size_trigger(table, columns)
     for table, columns in HISTORY_TABLES.items()
 )
 

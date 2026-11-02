@@ -8,14 +8,16 @@ is why the aggregation could only ever be answered from a materialized view.
 Since #856 the number is written when the row is written, and the aggregation is
 a single pass over the table.
 
-Two things are worth keeping an eye on once a value moves into the database, and
-one class each is here for them. The number has to mean the same thing for every
-write path the project has, or a harvest would count differently from a save;
-the assertions therefore go through `with_delta_size()` and `stats_per_day()`
-rather than through whatever computes the value, because both keep their meaning
-across the switch -- `tests_historical_filters.py` covers the same value against
-`diff_against()` of the library. And the comparison, which is literal sql now,
-has to keep covering every field a resource is tracked in: a field it misses
+Three things are worth keeping an eye on once a value moves into the database,
+and one class each is here for them. The number has to mean the same thing for
+every write path the project has, or a harvest would count differently from a
+save; the assertions therefore go through `with_delta_size()` and
+`stats_per_day()` rather than through whatever computes the value, because both
+keep their meaning across the switch -- `tests_historical_filters.py` covers the
+same value against `diff_against()` of the library. It has to be answered again
+by a writer which rewrites a row without knowing the column, because such a
+writer exists and it writes whole rows. And the comparison, which is literal sql
+now, has to keep covering every field a resource is tracked in: a field it misses
 answers statistics which are quietly wrong.
 """
 
@@ -24,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from uuid import uuid4
 
+from django.core.management import call_command
 from django.db import connection
 from django.db.models import F
 from django.test import TestCase
@@ -188,6 +191,55 @@ class HistoryDeltaSizeTest(TestCase):
             (DAY1.date(), 1, 0, 0),
             (DAY1.date() + timedelta(days=2), 0, 1, 0),
         ])
+
+
+class DiffSizeOfARewrittenRowTest(TestCase):
+    """A row which is written again is answered by its predecessor again.
+
+    ``loaddata`` ends in ``save_base(raw=True)`` without ``update_fields``, which
+    writes every column of a row it found in the database from the instance the
+    fixture built -- so a column the fixture does not name is written as its
+    default. The behave suite loads the fixtures of a feature for every feature
+    which asks for them, and thirty of them ask for ``test_wms.json``, so the two
+    audit rows of its web map service were written by the first of them and
+    rewritten by the twenty-nine after it. While the trigger only saw inserts,
+    that rewrite reset the column of every row it touched, which is what
+    ``filter[delta_size__gt]`` and the per-day statistics answer from (#874). The
+    same write path is a restore of a dump on a deployment.
+
+    Both rows are addressed by the ``history_id`` which the fixture declares for
+    them, not by the service they belong to: other classes of this suite write
+    audit rows of that very service, and a full-suite run answers them here.
+    """
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
+
+    #: the two audit rows of the service which ``test_wms.json`` declares
+    CREATED = "639cb553-8c30-4e72-a38d-10351ce81cf1"
+    CHANGED = "40d6bddd-6e8b-4487-b3ed-ee2a4ac5dee2"
+
+    def diff_sizes(self):
+        """What the database answers as the diff size of those two rows."""
+        return list(
+            WebMapService.change_log.model.objects
+            .filter(history_id__in=[self.CREATED, self.CHANGED])
+            .order_by("history_date")
+            .values_list("delta_size", flat=True))
+
+    def test_reloading_the_fixture_keeps_the_diff_size(self):
+        self.assertEqual(self.diff_sizes(), [None, 2])
+        call_command("loaddata", "test_wms.json", verbosity=0)
+        self.assertEqual(self.diff_sizes(), [None, 2])
+
+    def test_a_change_of_a_tracked_field_changes_the_diff_size(self):
+        """The other half: the value follows the data it is computed out of."""
+        audit = WebMapService.change_log.model
+        changed = audit.objects.get(history_id=self.CHANGED)
+        # its predecessor's title, so only the abstract is left as a difference
+        changed.title = audit.objects.get(history_id=self.CREATED).title
+        changed.save()
+        changed.refresh_from_db()
+        self.assertEqual(changed.delta_size, 1)
 
 
 class HistoryDiffCoversEveryTrackedFieldTest(TestCase):

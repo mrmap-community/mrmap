@@ -139,6 +139,7 @@ class HarvestHistoryTest(TestCase):
         complete_harvest(job.pk)
         view = HarvestedMetadataRelationViewSet()
         view.action = 'list'
+        view.kwargs = {}
         view.request = Request(APIRequestFactory().get('/', {
             'filter[harvestingJob.service]': str(self.service.pk),
             'filter[collectingState.in]': '4', 'sort': '-historyDate',
@@ -153,6 +154,7 @@ class HarvestHistoryTest(TestCase):
         WebFeatureService.objects.bulk_create([service])
         view = FeatureTypeHistoricalViewSet()
         view.action = 'list'
+        view.kwargs = {}
         view.request = Request(APIRequestFactory().get('/', {'filter[service]': str(service.pk)}))
         query = view.filter_queryset(view.get_queryset())
         self.assertIn(str(service.pk).replace('-', ''), str(query.query).replace('-', ''))

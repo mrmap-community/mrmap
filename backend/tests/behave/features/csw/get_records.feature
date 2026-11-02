@@ -1,7 +1,26 @@
-# Skipped on purpose: every GetRecords request answers with a 500, so none of the responses below
-# can be verified. registry/ows_lib/csw/builder.py:208 raises "TypeError: can only join an
-# iterable" while building the query for a request that arrives as GET query parameters.
-@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @skip
+# Not skipped anymore (#855). These scenarios were skipped since #837 because every
+# GetRecords answered a 500: the query of a request which arrives as GET query parameters
+# was built with the typeNames the client named, and `typeNames` is an optional parameter
+# -- `" ".join(None)` raised "TypeError: can only join an iterable" before a response was
+# ever built. An `AnyText` filter could not have answered either: it looked up a pattern
+# over the tsvector of the searchable projection of the records, which postgres refuses
+# with "function lower(tsvector) does not exist".
+#
+# Both are answered by the records themselves now (see csw/queryables.py): a filter is a
+# tsquery over the vector column of a record, a wildcarded pattern is asked of the texts
+# that vector is tokenized out of, and the data of a response is the document of a record.
+#
+# Three scenarios below stay @skip: they assert the exception report of a refused request
+# and that report is the OWS layer problem of #866 -- the endpoint answers an empty
+# <ows:ServiceExceptionReport/> and one of the three refusal paths raises a TypeError
+# before it can answer anything.
+#
+# The fixture of this feature answers two dataset metadata records and no service metadata
+# record: "Niederschlag an RBSN Stationen" (de.dwd.geoserver.fach.RBSN_RR, keyword
+# Niederschlag) and "Relative Feuchte an RBSN Stationen" (de.dwd.geoserver.fach.RBSN_RH,
+# keyword Luftfeuchtigkeit). Both cover the same box over Germany and both documents are
+# stored by tests/behave/environment.py.
+@fixtures:test_keywords.json @fixtures:test_csw.json @fixtures:test_datasetmetadata.json
 Feature: MrMap CatalogueService Endpoint
     As an API client,
     I want to retreive metadata records,
@@ -38,6 +57,9 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect the response status is 200
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "1"
 
+    # @skip: csw/views.py builds InvalidQuery without the two arguments OGCServiceException
+    # requires, so the refusal of a field which is not a queryable answers a 500 (#866).
+    @skip
     Scenario: GetRecords results response with wrong filter field
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -50,6 +72,12 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "InvalidQuery"
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "Constraint"
 
+    # @skip: both refusals below are answered with an empty
+    # <ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows"/>, because the
+    # report skeleton of ("csw", "Exception", "2.0.2") carries no ServiceException
+    # (#866). The scenario of the missing SERVICE and REQUEST parameters is the third
+    # case of that issue and belongs to get_capabilities.feature.
+    @skip
     Scenario: GetRecords results response with unsupported typeNames
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -61,6 +89,7 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "typeNames"
 
+    @skip
     Scenario: GetRecords results response with unsupported outputSchema
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -80,7 +109,7 @@ Feature: MrMap CatalogueService Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that there is a xpath ".//*[local-name()='Acknowledgement']"
-        Then I expect that there is a xpath ".//*[local-name()='csw:EchoedRequest/csw:GetRecords']"
+        Then I expect that there is a xpath ".//*[local-name()='EchoedRequest']/*[local-name()='GetRecords']/@resultType" with value "validate"
 
     Scenario: GetRecordById results response
         Given I set a queryparam "REQUEST" with value "GetRecords"
@@ -89,3 +118,98 @@ Feature: MrMap CatalogueService Endpoint
         Given I set a queryparam "Id" with value "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4"
         When I send the request with GET method
         Then I expect the response status is 200
+
+    # AnyText is the searchable representation of a record: a word of its title, its
+    # abstract, its identifiers or one of its keywords. A wildcarded AnyText cannot be a
+    # lookup over that representation -- postgres compares a vector with a tsquery and has
+    # no lower(tsvector) -- so the pattern is asked of the texts the vector is built from.
+    Scenario Outline: Can search the records of the catalogue by <queryable>
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "hits"
+        Given I set a queryparam "CONSTRAINTLANGUAGE" with value "CQL_TEXT"
+        Given I set a queryparam "Constraint" with value "<constraint>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "<matched>"
+
+        Examples: The queryables of the catalogue
+            | queryable                              | constraint                                                            | matched |
+            | a word of the title of a record        | AnyText = 'niederschlag'                                              | 1       |
+            | a word of the abstract of both records | AnyText = 'synoptic'                                                  | 2       |
+            | a word of a keyword of a record        | AnyText = 'luftfeuchtigkeit'                                          | 1       |
+            | a pattern over the texts of a record   | AnyText LIKE '%Feuchte%'                                              | 1       |
+            | a pattern over both titles             | AnyText LIKE '%RBSN%'                                                 | 2       |
+            | a keyword of a record                  | subject = 'Niederschlag'                                              | 1       |
+            | a part of a keyword of a record        | subject LIKE '%uchtig%'                                               | 1       |
+            | the kind of a record                   | type = 'dataset'                                                      | 2       |
+            | a kind no record has                   | type = 'service'                                                      | 0       |
+            | the kind and a word narrow each other  | AnyText = 'niederschlag' AND type = 'service'                         | 0       |
+            | the identifier of a record             | identifier = 'de.dwd.geoserver.fach.RBSN_RH'                          | 1       |
+            | the resource identifier of a record    | ResourceIdentifier = 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RR' | 1       |
+
+    # The box of both records covers Germany (5.87 47.27 to 15.04 55.06), so the two
+    # scenarios name the box and a box which is nowhere near it.
+    Scenario: GetRecords answers the records inside a bounding box
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "hits"
+        Given I set a queryparam "CONSTRAINTLANGUAGE" with value "CQL_TEXT"
+        Given I set a queryparam "Constraint" with value "BBOX(coverage, 5.0, 46.0, 16.0, 56.0)"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
+
+    Scenario: GetRecords answers nothing for a bounding box beside the records
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "hits"
+        Given I set a queryparam "CONSTRAINTLANGUAGE" with value "CQL_TEXT"
+        Given I set a queryparam "Constraint" with value "BBOX(coverage, -10.0, 30.0, -5.0, 35.0)"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "0"
+
+    # The response answers the two record tables as one result set, which is ordered by the
+    # primary key of a record: the Feuchte record (9e57ada9-...) before the Niederschlag
+    # record (d8b50d33-...). One row asks for one page of that order and names the record it
+    # answers, so a page which is not stable -- a merged order which the two sources do not
+    # share -- fails on its own row. The last row asks for the first page once more and has
+    # to hear about the record it heard about before.
+    Scenario Outline: GetRecords answers <page> of its results
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        Given I set a queryparam "startPosition" with value "<startPosition>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsReturned" with value "1"
+        Then I expect that there is a xpath ".//*[local-name()='fileIdentifier']/*[local-name()='CharacterString']/text()" with value "<fileIdentifier>"
+
+        Examples: The pages of the two records
+            | page              | startPosition | fileIdentifier               |
+            | the first page    | 1             | de.dwd.geoserver.fach.RBSN_RH |
+            | the second page   | 2             | de.dwd.geoserver.fach.RBSN_RR |
+            | the first page a second time | 1    | de.dwd.geoserver.fach.RBSN_RH |
+
+    # A page which begins behind the last record is still a page of the same result set: it
+    # names the size of that set and answers no record of it. Paging is answered by both
+    # sources at once, so this is where a slice which was taken without an order would show
+    # a record it should not answer.
+    Scenario: GetRecords answers no record for a page behind its results
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        Given I set a queryparam "startPosition" with value "3"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsReturned" with value "0"

@@ -1,9 +1,13 @@
-# Skipped on purpose: /csw answers a missing SERVICE or REQUEST parameter with a 500 instead of
-# the OGC exception report below. csw/views.py:54 and csw/views.py:56 instantiate the exception
-# without the service_type and service_version arguments that OGCServiceException requires.
-# Unskip together with that fix; the exception report body is built from owsExceptionReport.xsd
-# and is empty for ("csw", "Exception", "2.0.2"), so the xml comparison needs attention too.
-@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @skip
+# Skipped on purpose, and the reason is #866, not the searchable views #855 removes: both
+# scenarios of this feature assert the exception report of a refused request, and the endpoint
+# does not answer one. csw/views.py builds MissingRequestParameterException and
+# MissingServiceParameterException without the service_type and service_version arguments that
+# OGCServiceException requires, so a request without REQUEST or SERVICE answers a 500; with that
+# fixed, the report skeleton of ("csw", "Exception", "2.0.2") is an empty
+# <ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows"/>, so the xml comparison
+# below has no payload to compare. Unskip together with those two fixes. The GetRecords requests
+# which are refused for the same reason carry their @skip in get_records.feature.
+@fixtures:test_keywords.json @fixtures:test_csw.json @fixtures:test_datasetmetadata.json @skip
 Feature: CSW Endpoint
     As an API client,
     I want to retreive the capabilities document,

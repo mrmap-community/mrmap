@@ -2,7 +2,8 @@ import datetime
 from typing import Any
 from urllib import parse
 
-from django.contrib.postgres.search import SearchQuery
+from csw.queryables import dataset_records, service_records
+from django.db.models.query_utils import Q
 from django.forms import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.http.request import HttpRequest as HttpRequest
@@ -10,9 +11,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml import etree
+from registry.expressions.search import client_search_query
 from registry.mappers.factory import MDMetadataXmlMapper
-from registry.models.materialized_views import (
-    SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.service import CatalogueService as DBCatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
@@ -141,47 +141,47 @@ class MapBenderSearchApi(View):
 
         heap_count = start_position + max_records
 
-        dataset_metadata_records = SearchableDatasetMetadataRecord.objects.all()
-        service_metadata_records = SearchableServiceMetadataRecord.objects.all()
-        any_text_filters = self.get_search_text_filter()
-        search_query = None
-        if any_text_filters:
-            for any_text in any_text_filters:
-                if not search_query:
-                    search_query = SearchQuery(any_text)
-                else:
-                    search_query |= SearchQuery(any_text)
-        else:
-            search_query = SearchQuery("")
-
         search_resources = self.request.GET.get("searchResources", "dataset")
         if search_resources == "dataset":
-            dataset_metadata_records_result = dataset_metadata_records.filter(
-                search_vector=search_query).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
-            total_records = dataset_metadata_records_result.count()
-            result = dataset_metadata_records_result[start_position: heap_count]
+            records = dataset_records()
         elif search_resources == "service":
-            service_metadata_records_result = service_metadata_records.filter(
-                search_vector=search_query).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
-            total_records = service_metadata_records_result.count()
-            result = service_metadata_records_result[start_position: heap_count]
+            records = service_records()
         else:
             # TODO: implement other hierachylevels also
             # return empty result for all other hierachylevels
-            result = []
+            records = None
+
+        result = []
+        total_records = 0
+        if records is not None:
+            # the search words of the client are words of the vector of a record, and a
+            # record is found by a word of its title, its abstract or one of its
+            # keywords. Without a search word the client browses, which is not a search
+            # that matches nothing
+            search_words = Q()
+            for any_text in self.get_search_text_filter():
+                if any_text.strip():
+                    search_words |= Q(
+                        search_vector=client_search_query(any_text))
+            if search_words:
+                records = records.filter(search_words)
+
+            total_records = records.count()
+            result = records.select_related(
+                "metadata_contact")[start_position: heap_count]
+
         srv = []
         for record in result:
             # TODO: #527
-            gmd_metadata = record.xml_backup
             srv.append({
                 "id": record.pk,
-                "date": gmd_metadata.date_stamp,
+                "date": record.date_stamp,
                 "datasetId": "TODO",
                 "previewUrl": "TODO",
-                "respOrg": gmd_metadata.child,
-                "bbox": gmd_metadata.bounding_geometry.bbox,
-                "title": gmd_metadata.title,
-                "abstract": gmd_metadata.abstract,
+                "respOrg": record.metadata_contact.name if record.metadata_contact else None,
+                "bbox": ",".join([str(coord) for coord in record.bounding_geometry.extent]) if record.bounding_geometry else None,  # nopep8
+                "title": record.title,
+                "abstract": record.abstract,
                 "mdLink": "TODO",
                 "htmlLink": "TODO",
             })

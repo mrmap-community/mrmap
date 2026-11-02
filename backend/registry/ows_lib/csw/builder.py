@@ -91,16 +91,29 @@ class CSWBuilder(XSDSkeletonBuilder):
         type_names=("csw:Record",),
         result_type="hits",
         element_set="summary",
+        max_records=None,
+        start_position=None,
         sort_by=None,
         constraint=None,
         constraint_language=None,
     ):
+        # a GetRecords which arrives as GET query parameters names typeNames only
+        # optionally, and its caller passes exactly what the request answered: without
+        # the parameter the default of this signature is never reached, so the default
+        # of the specification is answered here rather than by an absent argument
+        type_names = type_names or ("csw:Record",)
         root = self.build_element(
             "GetRecords",
             attributes={
                 "service": "CSW",
                 "version": "2.0.2",
                 "resultType": result_type,
+                # the page a client asks for belongs to the request element itself, both
+                # for a request which arrives as XML and for one which arrives as query
+                # parameters; a client which names neither is paged by the defaults of
+                # the endpoint, which is why an absent value stays absent here
+                "maxRecords": max_records,
+                "startPosition": start_position,
             },
         )
         query = self._build_query(root, type_names)

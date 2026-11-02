@@ -85,16 +85,18 @@ class HistoricalFiltersTest(TestCase):
     def test_sql_size_matches_serializer_delta(self):
         qs = (self.view().get_queryset()
               .select_related(None).prefetch_related(None))
-        qs = with_delta_size(qs).annotate(delta_size=F("_delta_size"))
+        # under a name of its own: delta_size is the column the database
+        # maintains, which is what the annotation answers here
+        qs = with_delta_size(qs).annotate(sql_size=F("_delta_size"))
         serializer = HistorySerializerMixin()
         for record in qs:
             record.prev_prefetched_record = record.prev_record
             delta = serializer.get_delta(record)
             self.assertEqual(
-                record.delta_size, None if delta is None else len(delta),
+                record.sql_size, None if delta is None else len(delta),
             )
         self.assertEqual(
-            dict(qs.values_list("history_id", "delta_size")),
+            dict(qs.values_list("history_id", "sql_size")),
             {**dict(zip([r.pk for r in self.records], [None, 0, 3, 2, 1])),
              self.other.pk: None},
         )
@@ -251,7 +253,10 @@ class HistoricalFiltersTest(TestCase):
                 ]:
                     view = self.view(params, view_class)
                     qs = view.filter_queryset(view.get_queryset())
-                    self.assertIn("IS DISTINCT FROM", str(qs.query))
+                    # the comparison itself is not in this statement any more:
+                    # the filter reads the diff size the database wrote when the
+                    # audit row arrived (registry migration 0025)
+                    self.assertIn('"delta_size"', str(qs.query))
         layer_view = self.view({"filter[service]": str(self.object_id)},
                                LayerHistoricalViewSet)
         qs = layer_view.filter_queryset(layer_view.get_queryset())

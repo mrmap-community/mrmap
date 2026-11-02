@@ -101,12 +101,13 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (48) | 46 | 0 | 0 | 2 |
-| scenarios | 302 | 0 | 0 | 10 |
+| features (60) | 59 | 0 | 0 | 1 |
+| scenarios | 387 | 0 | 0 | 5 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
-`definition_of_done.rst` is answered by the four counts. The 10 skipped scenarios are the two `/csw`
-features at the end of this file.
+`definition_of_done.rst` is answered by the four counts. The skipped scenarios are all `/csw`: the
+two of `features/csw/get_capabilities.feature` and three of `features/csw/get_records.feature`, for
+the reason at the end of this file.
 
 Two conventions keep it green, and the harness enforces both so that no scenario has to repeat them:
 
@@ -128,26 +129,34 @@ a `406` disappear — it is the only thing that catches a view that stopped serv
 response body, and for an HTML response the hint instead of the whole page — so a red run explains
 itself without drowning the log.
 
-### Why the CSW features stay skipped
+### Why one `/csw` feature is still skipped
 
-`features/csw/get_capabilities.feature` and `features/csw/get_records.feature` are `@skip` because
-the `/csw` endpoint answers every request that reaches them with a 500:
+`features/csw/get_records.feature` runs. It was `@skip` since #837 because every `GetRecords`
+answered a 500: the query built from GET query parameters joined the `typeNames` of the request,
+which is an optional parameter (`TypeError: can only join an iterable`), and an `AnyText` filter
+looked up a pattern over the tsvector of a searchable projection, which postgres refuses with
+`function lower(tsvector) does not exist`. Both are answered by the metadata records themselves
+since #855 — see the header of that file and `csw/queryables.py`.
 
-- A missing `SERVICE` or `REQUEST` parameter hits `csw/views.py:54` / `csw/views.py:56`, which build
-  `MissingRequestParameterException` / `MissingServiceParameterException` without the
-  `service_type` and `service_version` arguments `OGCServiceException` requires →
-  `TypeError: OGCServiceException.__init__() missing 2 required positional arguments`. The proxy
-  (`registry/proxy/mixins.py:57`) shows the calling convention that is expected here. Even with that
-  fixed, the report body is built from `owsExceptionReport.xsd`, which yields an empty
-  `<ows:ServiceExceptionReport/>` for `("csw", "Exception", "2.0.2")` instead of the OGC report the
-  scenarios expect.
-- Every `GetRecords` request — with or without filter — fails in
-  `registry/ows_lib/csw/builder.py:208` with `TypeError: can only join an iterable` while the query
-  is built from GET query parameters.
+Five scenarios are still `@skip` and all five assert the exception report of a refused request,
+which is #866:
 
-Both are production fixes in the OWS layer, not scenario fixes; the reason is also written above the
-`@skip` tag in each file. Unskip them together with those fixes and expect the XML comparison of
-`get_capabilities.feature` to need attention.
+- the two of `features/csw/get_capabilities.feature` (the whole feature, for a missing `SERVICE`
+  and a missing `REQUEST` parameter), and
+- three of `features/csw/get_records.feature`: a `Constraint` naming a field which is not a
+  queryable, an unsupported `typeNames` and an unsupported `outputSchema`.
+
+`csw/views.py` builds `MissingRequestParameterException`, `MissingServiceParameterException` and
+`InvalidQuery` without the `service_type` and `service_version` arguments `OGCServiceException`
+requires (`registry/proxy/mixins.py` shows the calling convention which is expected here), so the
+three scenarios which ask for a missing parameter or for a field which is not a queryable answer a
+500. The two `NotSupported` ones do reach a response, but the report skeleton of
+`("csw", "Exception", "2.0.2")` in `owsExceptionReport.xsd` carries no `ServiceException`, so the
+endpoint answers an empty
+`<ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows"/>` with nothing to tell a refused
+`typeNames` from a refused `outputSchema`. The reason is written above the `@skip` tags as well;
+unskip them together with that fix and expect the XML comparison of `get_capabilities.feature` to
+need attention.
 
 ## Writing or changing a scenario
 
@@ -351,6 +360,15 @@ reads like the existing ones is what keeps the scenarios reviewable.
   which otherwise abort the feature with
   `DeserializationError: Keyword matching query does not exist`. The tags are loaded in the order
   they are written on the feature.
+- The other way a fixture depends on another is a plain primary key, and that one is invisible until
+  it is loaded first: `test_datasetmetadata.json` used to name `MetadataContact` 1, a row only
+  `test_wms.json` and `test_wfs.json` declared, so every feature or test class listing it had to load
+  one of those before it. The two `/csw` features are alphabetically first and were the first to
+  abort with `IntegrityError: ... violates foreign key constraint
+  "registr_datasetmeta_dataset_contact_id..."` once they were un-skipped (`loaddata` defers its
+  constraint checks to the end of the run, so the violation names the fixture, not the feature). It
+  names the contact it declares itself now. When a fixture names a pk, grep that table's rows in the
+  other fixtures before assuming the file is self-contained.
 - These fixtures are shared with the Django unit tests: check `grep -rl <fixture-name> ../../django`
   before editing one.
 
@@ -380,8 +398,9 @@ any scenario. Nothing covers the WFS and CSW update jobs and settings, `layer-ma
 `featuretype-mappings`, the `*-proxy-settings` and `*-authentication` records, the monitoring probes,
 probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-metadata`,
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
-and `historical-featuretypes`. `/csw` has no executed scenario at all, see "Why the CSW features stay
-skipped" above.
+and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
+since #855, but `GetCapabilities`, `GetRecordById` beyond one scenario, and every refused request
+are not covered — see "Why one `/csw` feature is still skipped" above.
 
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort

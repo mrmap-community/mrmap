@@ -2,6 +2,8 @@ import datetime
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
+from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
+                            service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
@@ -13,8 +15,6 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml import etree
-from registry.models.materialized_views import (
-    SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
@@ -70,33 +70,10 @@ class CswServiceView(View):
                 message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
 
     def get_field_map(self):
-        # this dict mapps the ogc specificated filterable attributes to our database schema(s)
-        field_mapping = {
-            "title": "title",
-            "Title": "title",
-            "dc:title": "title",
-            "abstract": "abstract",
-            "Abstract": "abstract",
-            "dc:abstract": "abstract",
-            "description": "abstract",
-            "subject": "keywords_list",  # TODO: keywords right?
-            # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
-            "coverage": "bounding_geometry",
-            "ows:BoundingBox": "bounding_geometry",
-            "date": "date_stamp",
-            "dc:modified": "date_stamp",
-            "modified": "date_stamp",
-            "Modified": "date_stamp",
-            "type": "hierarchy_level",
-            "dc:type": "hierarchy_level",
-            "Type": "hierarchy_level",
-            "ResourceIdentifier": "resource_identifier",
-            "identifier": "file_identifier",
-            "Identifier": "file_identifier",
-            "AnyText": "search_vector"
-            # TODO: operates on filter
-        }
-        return field_mapping
+        # the queryables of this endpoint and the field of a metadata record each of
+        # them is answered from; see csw/queryables.py for the three of them which a
+        # record does not answer as a column
+        return FIELD_MAP
 
     def get_filter_constraint(self):
         field_mapping = self.get_field_map()
@@ -279,18 +256,15 @@ class CswServiceView(View):
 
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
-        dataset_metadata_records = SearchableDatasetMetadataRecord.objects.all()
-
-        service_metadata_records = SearchableServiceMetadataRecord.objects.all()
+        constraint = search_filter(q)
 
         try:
-            # FIXME: replace wildcards from anytext lookups
-            # Filter by AnyText with like operator and wildcards does not use a correct ts_vector query.
-
-            dataset_metadata_records_result = dataset_metadata_records.filter(
-                q).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
-            service_metadata_records_result = service_metadata_records.filter(
-                q).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
+            # a GetRecords answers the stored document of a record and nothing else of
+            # it, so nothing else of it is read
+            dataset_metadata_records_result = dataset_records().filter(
+                constraint).only("pk", "xml_backup_file")
+            service_metadata_records_result = service_records().filter(
+                constraint).only("pk", "xml_backup_file")
         except FieldError as e:
             requested_field = str(e).split(":")[0].split("'")[1]
             available_fields = field_mapping.keys()
@@ -320,14 +294,20 @@ class CswServiceView(View):
 
         heap_count = start_position + max_records
 
-        result_list = sorted(
-            chain(dataset_metadata_records_result[start_position: heap_count],
-                  service_metadata_records_result[start_position: heap_count]),
-            # TODO: order by correct querparameter
+        # Both sources are ordered by their primary key, which means that a record which
+        # is among the first `heap_count` records of the merged result is among the
+        # first `heap_count` records of *its own* source too: every record standing in
+        # front of it in the merged order stands in front of it in its own source as
+        # well. So taking that many records from both and merging them by pk answers the
+        # requested page, for the price of two limited queries.
+        # TODO: order by correct querparameter
+        merged_records = sorted(
+            chain(dataset_metadata_records_result[:heap_count],
+                  service_metadata_records_result[:heap_count]),
             key=lambda instance: instance.pk
         )
 
-        result = result_list[start_position: heap_count]
+        result = merged_records[start_position: heap_count]
 
         next_record = heap_count + 1
         next_record = next_record if next_record < total_records else total_records

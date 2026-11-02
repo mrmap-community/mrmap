@@ -12,10 +12,17 @@ def _defaults_of_instance(instance):
     instance which was only parsed means a query for the related record and
     raises RelatedObjectDoesNotExist if the mapper did not set the key at all,
     which hides the field that is really missing.
+
+    A column the database maintains is left out entirely: the parsed instance only
+    carries the default of the field, so sending it would reset what the database
+    keeps in sync.
     """
+    maintained = getattr(instance.__class__, "db_maintained_fields", ())
     defaults = {}
     for field in instance.__class__._meta.concrete_fields:
         if field.name == "file_identifier" or isinstance(field, GeneratedField):
+            continue
+        if field.name in maintained:
             continue
         is_foreign_key = isinstance(field, ForeignKey)
         attribute = field.attname if is_foreign_key else field.name

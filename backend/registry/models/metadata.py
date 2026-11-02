@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
 from django.db.models import F, Q
@@ -1028,6 +1029,21 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         db_persist=True
     )
 
+    # the keywords of the record as one denormalized array, kept in sync by the
+    # database (see registry/migrations/0021_metadatarecords_keywords_list.py).
+    # Aggregating the keywords relation is not expressible in a column expression,
+    # so this array is what allows a searchable representation of a record to be a
+    # column of the record itself instead of a projection which has to be rebuilt.
+    keywords_list = ArrayField(
+        base_field=models.CharField(max_length=300),
+        default=list,
+        editable=False,
+    )
+
+    # columns which the database owns: a mapper or a save must never send a value
+    # for them, because the writing side does not know what the trigger maintains
+    db_maintained_fields = ("keywords_list",)
+
     class Meta:
         abstract = True
 
@@ -1160,7 +1176,7 @@ class DatasetMetadataRecord(MetadataRecord):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector",
+        excluded_fields=("keywords_list",),
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
@@ -1216,7 +1232,7 @@ class ServiceMetadataRecord(MetadataRecord):
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector",
+        excluded_fields=("keywords_list",),
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     history = DefaultHistoryManager()

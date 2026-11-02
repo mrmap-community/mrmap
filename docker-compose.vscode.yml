@@ -82,8 +82,6 @@ services:
       NO_PROXY: "127.0.0.1,localhost,mrmap-mapserver"
       no_proxy: "127.0.0.1,localhost,mrmap-mapserver"
 
-  openobserve:
-    environment:
-      ZO_BASE_URI: ""
+  grafana:
     ports:
-      - "0.0.0.0:5080:5080"
+      - "0.0.0.0:3000:3000"

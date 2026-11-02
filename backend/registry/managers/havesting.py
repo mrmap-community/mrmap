@@ -1,7 +1,8 @@
 from celery import chord
 from django.db import models, transaction
-from django.db.models import Case, Count, F, FloatField, Q, Value, When
-from django.db.models.functions import Ceil, Round
+from django.db.models import (Case, Count, F, FloatField, OuterRef, Q, Subquery,
+                              Value, When)
+from django.db.models.functions import Ceil, Coalesce, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
@@ -31,6 +32,25 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
 
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
 
+    def with_temporary_file_counts(self, qs=None, **counts):
+        """Count only the files of each selected job, including after pagination.
+
+        Interrupted jobs retain their files for recovery. Aggregating all jobs
+        before joining their counts makes even a small page read that backlog.
+        Correlated subqueries use the existing job index and stay lazy so later
+        filters and limits also bound the work (#870).
+        """
+        from registry.models.harvest import TemporaryMdMetadataFile
+
+        if qs is None:
+            qs = self.get_queryset()
+        files = TemporaryMdMetadataFile.objects.filter(
+            job_id=OuterRef("pk")).order_by().values("job_id").annotate(**counts)
+        return qs.annotate(**{
+            name: Coalesce(Subquery(files.values(name)), 0)
+            for name in counts
+        })
+
     def with_process_info(self):
         """Adds the progress information of a harvesting job to the queryset.
 
@@ -48,16 +68,13 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         imported: while records are downloaded their count grows, while they
         are written to the database it shrinks.
         """
-        qs = self.get_queryset()
-
-        qs = qs.annotate(
+        qs = self.with_temporary_file_counts(
             unhandled_records_count=Count(
-                "temporary_md_metadata_file",
-                filter=Q(temporary_md_metadata_file__has_import_error=False)),
+                "id", filter=Q(has_import_error=False)),
             import_error_count=Count(
-                "temporary_md_metadata_file",
-                filter=Q(temporary_md_metadata_file__has_import_error=True)),
-            records_count=Count("temporary_md_metadata_file"),
+                "id", filter=Q(has_import_error=True)),
+            records_count=Count("id"),
+        ).annotate(
             download_tasks_count=Ceil(
                 F("total_records") / F("max_step_size"))
         ).annotate(

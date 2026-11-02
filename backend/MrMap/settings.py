@@ -593,21 +593,25 @@ LOGGING = {
         # },
     },
 }
+# point the syslog handler at any RFC 5424 capable receiver; the default is the
+# victoria-logs service of the compose stack
+SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", "victoria-logs")
+SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", "5514"))
 try:
     """if syslog server is not reachable the application will not startup otherwise"""
-    socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
+    socket.getaddrinfo(SYSLOG_HOST, SYSLOG_PORT, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
             "formatter": "rfc5424",
             "facility": "user",
-            "address": ("openobserve", 5514),
+            "address": (SYSLOG_HOST, SYSLOG_PORT),
         },
     })
     LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
-    print("sylog logging handler configured.")
+    print("syslog logging handler configured.")
 except socket.gaierror:
     print("syslog server is not reachable. skipping syslog handler setup.")
 

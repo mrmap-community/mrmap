@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from camel_converter import to_snake
 from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import DurationField, FloatField
@@ -334,20 +333,20 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         unhandled_records_count_needed = self.check_sparse_fields_contains(
             "unhandledRecordsCount")
         progress_needed = self.check_sparse_fields_contains("progress")
-        total_steps_needed = self.check_sparse_fields_contains(
-            "totalSteps") or progress_needed
         done_steps_needed = self.check_sparse_fields_contains(
             "doneSteps") or progress_needed
+        total_steps_needed = self.check_sparse_fields_contains(
+            "totalSteps") or done_steps_needed
         download_tasks_count_needed = total_steps_needed or done_steps_needed
 
-        cte_kwargs = {}
+        counts = {}
         qs_annotation_kwargs = {}
         if import_error_count_needed:
-            cte_kwargs.update({
+            counts.update({
                 "import_error_count": Count("id", filter=Q(has_import_error=True))
             })
         if unhandled_records_count_needed:
-            cte_kwargs.update({
+            counts.update({
                 "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
             })
         if download_tasks_count_needed:
@@ -360,7 +359,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                 "total_steps": F("download_tasks_count") + F("total_records") + 1
             })
         if done_steps_needed:
-            cte_kwargs.update({
+            counts.update({
                 "records_count": Count("id")
             })
 
@@ -412,38 +411,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                 )
             })
 
-        qs = self.construct_cte(
-            qs, cte_kwargs, TemporaryMdMetadataFile, "job_id", qs_annotation_kwargs)
-
-        return qs
-
-    def construct_cte(self, qs, cte_kwargs, model, join_key, qs_annotation_kwargs={}, join_type=LOUTER):
-        if cte_kwargs:
-            cte = CTE(
-                queryset=model.objects.values(
-                    'job_id').annotate(**cte_kwargs),
-                name=f"{to_snake(model.__name__)}_cte"
-            )
-            qs = with_cte(
-                cte,
-                select=cte.join(model_or_queryset=qs,
-                                id=getattr(cte.col, join_key),
-                                _join_type=join_type)
-            )
-            qs = self.annotate_qs_by_cte_fields(qs, cte_kwargs, cte)
+        if counts:
+            qs = HarvestingJob.objects.with_temporary_file_counts(qs, **counts)
         if qs_annotation_kwargs:
             qs = qs.annotate(**qs_annotation_kwargs)
-        return qs
-
-    def annotate_qs_by_cte_fields(self, qs, cte_kwargs, cte):
-        qs_kwargs = {}
-        for key, value in cte_kwargs.items():
-            qs_kwargs.update({
-                # Coalesce with int value will not always be right here;
-                # TODO: Check if the value is Count (int) for example, if not (string) then use empty string for example
-                key: Coalesce(getattr(cte.col, key), 0)
-            })
-        qs = qs.annotate(**qs_kwargs)
         return qs
 
     def get_queryset(self, *args, **kwargs):
@@ -555,6 +526,7 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
+        "harvesting_job": ["harvesting_job"],
         "dataset_metadata_record": [
             Prefetch(
                 "dataset_metadata_record",

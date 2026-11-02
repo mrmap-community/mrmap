@@ -18,7 +18,7 @@ class LogSlowRequestsMiddleware:
         return int((timezone.now() - start).total_seconds() * 1000)
 
     def __call__(self, request):
-        self.start = timezone.now()
+        request_start = timezone.now()
         collected_queries = []
 
         def query_logger_execute_wrapper(execute, sql, params, many, context):
@@ -26,27 +26,26 @@ class LogSlowRequestsMiddleware:
             try:
                 return execute(sql, params, many, context)
             finally:
-                interpolated_sql = interpolate_sql(sql, params)
-                # Ersetze alle Zeilenumbrüche und Tabs durch Leerzeichen
-                clean_sql = interpolated_sql.replace(
-                    '\n', ' ').replace('\t', ' ')
-                # Optional: Mehrere Leerzeichen auf eins reduzieren
-                clean_sql = ' '.join(clean_sql.split())
+                duration_ms = self.get_duration_ms(start_time)
+                # Keep collection cheap; interpolate only for slow requests.
+                if isinstance(params, (list, dict)):
+                    params = params.copy()
                 collected_queries.append(
                     {
-                        "sql": clean_sql,
-                        "duration_ms": self.get_duration_ms(start_time)
+                        "sql": sql,
+                        "params": params,
+                        "duration_ms": duration_ms
                     }
                 )
 
         with connection.execute_wrapper(query_logger_execute_wrapper):
             response = self.get_response(request)
 
-        self._response(request, response, collected_queries)
+        self._response(request, response, collected_queries,
+                       self.get_duration_ms(request_start))
         return response
 
-    def _response(self, request, response=None, queries=None, exception=None):
-        request_duration_ms = self.get_duration_ms(self.start)
+    def _response(self, request, response, queries, request_duration_ms):
         if request_duration_ms <= self.threshold_ms:
             return
 
@@ -67,9 +66,11 @@ class LogSlowRequestsMiddleware:
             }
             query_meta = structured_data.setdefault("metaSDID@queries", {})
             for idx, q in enumerate(queries, start=1):
+                sql = interpolate_sql(q["sql"], q["params"])
+                clean_sql = sql.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ')
                 query_meta.update(
                     {
-                        f"{idx}_sql": q["sql"],
+                        f"{idx}_sql": clean_sql,
                         f"{idx}_duration_ms": q["duration_ms"]
                     }
                 )

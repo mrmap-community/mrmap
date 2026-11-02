@@ -74,7 +74,13 @@ class WebMapServiceProxyTest(XpathTestCase):
             content_type="application/gml+xml; version=3.2"
         )
 
+        self.assertEqual(200, response.status_code, response.content)
         response_xml = etree.fromstring(response.content)
+        self.assertEqual(
+            response_xml.tag,
+            "{http://www.opengis.net/wfs/2.0}FeatureCollection",
+            response.content,
+        )
         try:
 
             gml = self._get_by_xpath(
@@ -102,7 +108,6 @@ class WebMapServiceProxyTest(XpathTestCase):
         allowed_area: GEOSGeometry = AllowedWebFeatureServiceOperation.objects.get(
             pk="1235").allowed_area
 
-        self.assertEqual(200, response.status_code)
         self.assertXpathValue(
             response_xml, "/wfs:FeatureCollection/@numberMatched", "4")
         self.assertXpathValue(

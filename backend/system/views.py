@@ -2,10 +2,14 @@ import datetime
 import platform
 
 from django import __version__ as DJANGO_VERSION
+from django.conf import settings
 from django.db import ProgrammingError, connection
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap import VERSION
-from rest_framework.permissions import IsAdminUser
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_json_api.views import ModelViewSet, generics
 from system.serializers import (CrontabScheduleSerializer,
                                 PeriodicTaskSerializer, SystemSerializer,
@@ -133,3 +137,71 @@ class SystemStatusView(generics.RetrieveAPIView):
 
     def get_object(self):
         return get_status_snapshot()
+
+
+class FrontendErrorView(APIView):
+    """ Accepts browser side error reports from the frontend
+
+        The frontend ships a small beacon script which POSTs uncaught
+        exceptions, unhandled promise rejections, resource load failures and
+        failing same origin API calls to this endpoint. Reports are logged
+        through the root logger (RFC 5424 syslog) so they end up in the
+        central log stack; the verbose parts (stack traces) live in the
+        per record JSON dump, as with every other structured log record.
+
+        Deliberately unauthenticated: errors of anonymous visitors matter
+        too and a beacon must never depend on session or token state. The
+        payload is untrusted input: every field is truncated and nothing is
+        ever rendered back.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    # a beacon sends plain JSON, not a JSON:API document
+    parser_classes = [JSONParser]
+
+    MAX_FIELD_SIZES = {
+        "source": 40,
+        "message": 1000,
+        "stack": 4000,
+        "url": 500,
+        "page": 500,
+        "status": 8,
+        "user_agent": 300,
+    }
+
+    def post(self, request):
+        data = request.data if isinstance(request.data, dict) else {}
+
+        def field(name):
+            value = data.get(name)
+            if value is None:
+                return None
+            if not isinstance(value, str):
+                value = str(value)
+            return value[:self.MAX_FIELD_SIZES[name]]
+
+        message = field("message") or "unspecified frontend error"
+        frontend_data = {
+            key: value
+            for key, value in (
+                ("source", field("source") or "error"),
+                ("msg", message),
+                ("stack", field("stack")),
+                ("url", field("url")),
+                ("page", field("page")),
+                ("status", field("status")),
+                ("user_agent", field("user_agent")),
+            )
+            if value is not None
+        }
+        settings.ROOT_LOGGER.warning(
+            msg=f"Frontend Error: {message[:200]}",
+            extra={
+                "disable_python_meta": True,
+                "structured_data": {
+                    "metaSDID@Frontend": frontend_data
+                },
+            },
+        )
+        return Response(status=204)

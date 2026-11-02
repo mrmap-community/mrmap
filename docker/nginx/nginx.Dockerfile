@@ -43,5 +43,10 @@ FROM nginx:1.31.8-alpine-slim AS production-image
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/
 
+# report browser side errors into the central log stack; the script is plain
+# JS injected before the app bundle so it also catches bundle load failures
+COPY docker/nginx/error-beacon.js /var/www/mrmap/frontend/error-beacon.js
+RUN sed -i 's|<script type="module"|<script src="./error-beacon.js"></script><script type="module"|' /var/www/mrmap/frontend/index.html
+
 EXPOSE 80/tcp
 EXPOSE 443/tcp

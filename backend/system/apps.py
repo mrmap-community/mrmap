@@ -6,20 +6,6 @@ from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
 
 
-def create_default_system_tasks(sender, **kwargs):
-    from django_celery_beat.models import CrontabSchedule, PeriodicTask
-
-    schedule, _ = CrontabSchedule.objects.get_or_create(
-        minute="0,10,15,20,25,30,35,40,45,50,55",
-    )
-
-    PeriodicTask.objects.get_or_create(
-        name="refresh materialized views",
-        task="system.tasks.refresh_materialized_views",
-        defaults={"crontab": schedule, }
-    )
-
-
 def sync_pg_views_if_missing(sender, **kwargs):
     import logging
 
@@ -90,5 +76,4 @@ class SystemConfig(AppConfig):
 
     def ready(self):
         # Connect signal handlers
-        post_migrate.connect(create_default_system_tasks, sender=self)
         post_migrate.connect(sync_pg_views_if_missing, sender=self)

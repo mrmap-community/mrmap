@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The fallback query of a harvesting run which asked the catalogue with the `csw:Record` type names is now the answer which gets checked, logged and retried; it was the first answer which was judged, so a broken fallback ended the run on a missing node instead of producing its log entry and its retry - and only status codes of the server error class are retried, where the comparison meant "500 or above" (#689).
 - A catalogue which refuses our query with a namespace prefixed exception report - `<ows:ExceptionReport>` instead of `<ExceptionReport>` - is refused for the harvesting run too: the report is recognised by what it is and not by a substring of the document, so it is answered as the remote error of the harvesting log instead of being read for a record count which ends the whole harvest on a crash; a response document which simply carries no `SearchResults` names no records and takes the run to its log of a missing count (#815).
 
+### Removed
+- The nine materialized views which held the changes of a resource per day, and with them the periodic task which rebuilt them eleven times an hour: the endpoints under `/api/registry/statistical/` answer the aggregation over the audit records of the resource themselves, so a change is counted with the request which asks for it instead of with the next rebuild, and a deployment which scheduled that rebuild loses the task and the schedule it used with the migration (#857).
 
 ### Changed
 - moved axis_order_cache package to it's own repo

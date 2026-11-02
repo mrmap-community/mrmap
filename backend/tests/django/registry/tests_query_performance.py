@@ -23,6 +23,10 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.viewsets import GenericViewSet
 
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
+from registry.enums.harvesting import CollectingStatenEnum as State
+from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
+from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
+                                      ServiceMetadataRecord)
 
 
 JSONAPI = 'application/vnd.api+json'
@@ -531,6 +535,76 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertQueriesIndependentOfRows(
             '/api/registry/harvesting/harvesting-jobs',
             **{'fields[HarvestingJob]': 'id,max_step_size,records_per_minute'})
+
+
+class HarvestedMetadataQueryPerformance(QueryMeasurementMixin, TestCase):
+    """Harvest history loads relationships once for the whole page (#869)."""
+
+    fixtures = HarvestingQueryPerformance.fixtures
+    path = '/api/registry/harvesting/harvested-metadata-records'
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        contact = MetadataContact.objects.first()
+        dataset = DatasetMetadataRecord(
+            title='Harvested dataset', metadata_contact=contact,
+            dataset_contact=contact)
+        metadata = ServiceMetadataRecord(
+            title='Harvested service', metadata_contact=contact)
+        DatasetMetadataRecord.objects.bulk_create([dataset])
+        ServiceMetadataRecord.objects.bulk_create([metadata])
+        cls.job = HarvestingJob.objects.order_by('pk').first()
+        cls.relations = [
+            HarvestedMetadataRelation(
+                harvesting_job=job, collecting_state=state, **{field: record})
+            for job in HarvestingJob.objects.order_by('pk')
+            for state in (State.NEW, State.UPDATED, State.REMOVED)
+            for field, record in (
+                ('dataset_metadata_record', dataset),
+                ('service_metadata_record', metadata))
+        ]
+        HarvestedMetadataRelation.objects.bulk_create(cls.relations)
+
+    def test_list_queries_do_not_grow_with_rows(self):
+        for params in ({}, {
+            'sort': '-historyDate',
+            'filter[harvesting_job__service]': str(self.job.service_id),
+            'filter[collecting_state__in]': '1,2,4',
+        }):
+            with self.subTest(params=params):
+                self.assertQueriesIndependentOfRows(
+                    self.path, **params, **{'page[size]': 100})
+
+    def test_nested_list_queries_do_not_grow_with_rows(self):
+        self.assertQueriesIndependentOfRows(
+            f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+            '/harvested-metadata-records')
+
+    def test_list_preserves_relationships_and_loads_them_once(self):
+        status, body, queries = self.request(
+            self.path, user='user', **{'page[size]': 100})
+        self.assertEqual(status, 200)
+        expected = {str(row.pk): row for row in self.relations}
+        self.assertEqual(set(self.ids_of(body)), set(expected))
+        for row in body['data']:
+            relation = expected[row['id']]
+            self.assertEqual(
+                row['attributes']['collectingState'], relation.collecting_state)
+            for name, resource_type, pk in (
+                ('harvestingJob', 'HarvestingJob', relation.harvesting_job_id),
+                ('datasetMetadataRecord', 'DatasetMetadataRecord',
+                 relation.dataset_metadata_record_id),
+                ('serviceMetadataRecord', 'ServiceMetadataRecord',
+                 relation.service_metadata_record_id),
+            ):
+                self.assertEqual(
+                    row['relationships'][name]['data'],
+                    {'type': resource_type, 'id': str(pk)} if pk else None)
+        counts = table_counter(queries)
+        for table in ('registry_harvestingjob', 'registry_datasetmetadatarecord',
+                      'registry_servicemetadatarecord'):
+            self.assertEqual(counts[table], 1, msg=counts)
 
 
 class MetadataQueryPerformance(QueryMeasurementMixin, TestCase):

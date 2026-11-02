@@ -111,8 +111,16 @@ class ProtectedServeVerbTests(SimpleTestCase):
             self.assertEqual(response.status_code, 404, spelling)
 
     def test_a_write_verb_on_a_dump_answers_like_on_an_unknown_file(self):
-        """The dump is refused before the verbs are told apart, so no 405 tells
-        the caller that the file exists."""
-        response = self.client.post(
-            f'/media/{SLOW_REQUEST_DUMP_SUBDIR}/{self.dump_name}')
-        self.assertEqual(response.status_code, 404)
+        """The dump is refused with the answer every other media path gives.
+
+        The two read verbs answer a dump and an unknown file alike with 404, the
+        write verbs with the 405 the media route tells all its paths. An answer
+        which differed for the dumps is what would tell a caller that the path of a
+        dump is guarded, so the refusal accepts the verbs a media file is asked with
+        and nothing else (#888).
+        """
+        for verb in ('get', 'head', 'post', 'put', 'patch', 'delete'):
+            dump = getattr(self.client, verb)(
+                f'/media/{SLOW_REQUEST_DUMP_SUBDIR}/{self.dump_name}')
+            unknown = getattr(self.client, verb)('/media/does/not/exist.png')
+            self.assertEqual(dump.status_code, unknown.status_code, verb)

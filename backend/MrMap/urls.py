@@ -90,6 +90,7 @@ urlpatterns = [
 # @login_required
 
 
+@require_http_methods(["GET", "HEAD"])
 def media_dump_not_found(request, *args, **kwargs):
     """Answers the path of a slow request dump like an unknown media file.
 
@@ -99,6 +100,11 @@ def media_dump_not_found(request, *args, **kwargs):
     does not serve it and an attacker is not told that the file exists (#888). A
     deployment reads its dumps on the filesystem, for as long as the sweep of
     ``system.tasks`` keeps them.
+
+    The two read verbs are the verbs a media file is asked with, and they are the
+    verbs ``protected_serve`` accepts: a dump answers what an unknown file answers,
+    the other verbs the 405 every other media path answers. A refusal which changed
+    the answer by verb would be what tells a caller that the path is guarded.
 
     Used by the url rule which answers the path of a dump and by
     ``protected_serve``, which answers every other spelling of that path.

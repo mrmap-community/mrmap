@@ -16,6 +16,9 @@ from django.db import connections
 from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
+from django.utils.timezone import now
+from registry.enums.harvesting import HarvestingPhaseEnum as Phase
+from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.viewsets import GenericViewSet
 
@@ -386,6 +389,128 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
                 "test_csw.json"]
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.job = HarvestingJob.objects.order_by('pk').first()
+        HarvestingJob.objects.filter(pk=cls.job.pk).update(
+            total_records=4, max_step_size=1, phase=Phase.RECORDS_TO_DB)
+        # Recovery files of an older job of this same catalogue must also stay
+        # outside the work done for a single page, not just other catalogues.
+        backlog = HarvestingJob(service_id=cls.job.service_id,
+                                phase=Phase.ABORTED, done_at=now())
+        HarvestingJob.objects.bulk_create([backlog])
+        TemporaryMdMetadataFile.objects.bulk_create([
+            TemporaryMdMetadataFile(job=backlog) for _ in range(2048)
+        ] + [
+            TemporaryMdMetadataFile(job=cls.job, has_import_error=False),
+            TemporaryMdMetadataFile(job=cls.job, has_import_error=True),
+            TemporaryMdMetadataFile(job=None),
+        ])
+        with connections['default'].cursor() as cursor:
+            cursor.execute('ANALYZE registry_temporarymdmetadatafile')
+
+    def assertTemporaryFileScansAreBounded(self, sql):
+        """Query counts alone cannot detect one query aggregating the backlog."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
+            plan = cursor.fetchone()[0][0]['Plan']
+        pending = [plan]
+        scans = []
+        while pending:
+            node = pending.pop()
+            pending.extend(node.get('Plans', []))
+            if node.get('Relation Name') == 'registry_temporarymdmetadatafile':
+                scans.append(node)
+                condition = node.get('Index Cond', node.get('Recheck Cond', ''))
+                self.assertIn('job_id', condition, node)
+                self.assertLessEqual(node['Actual Rows'], 2, node)
+                self.assertLessEqual(node['Actual Loops'], 1, node)
+        self.assertTrue(scans, plan)
+
+    def test_process_info_counts_only_the_selected_job(self):
+        with CaptureQueriesContext(connections['default']) as queries:
+            job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+        self.assertEqual(job.unhandled_records_count, 1)
+        self.assertEqual(job.import_error_count, 1)
+        self.assertEqual(job.records_count, 2)
+        self.assertEqual(job.total_steps, 9)
+        self.assertEqual(job.done_steps, 7)
+        self.assertEqual(job.progress, 77.78)
+        self.assertEqual(len(queries), 1)
+        self.assertTemporaryFileScansAreBounded(queries[0]['sql'])
+
+    def test_paginated_progress_does_not_aggregate_recovery_files(self):
+        for path, filters in [
+            ('/api/registry/harvesting/harvesting-jobs',
+             {'filter[service.id]': str(self.job.service_id)}),
+            (f'/api/registry/csw/{self.job.service_id}/harvesting-jobs', {}),
+        ]:
+            with self.subTest(path=path):
+                status, body, queries = self.request(path, **filters, **{
+                    'page[size]': 1, 'sort': 'id',
+                    'fields[HarvestingJob]':
+                        'id,progress,totalSteps,doneSteps,unhandledRecordsCount,importErrorCount',
+                })
+                self.assertEqual(status, 200, body)
+                self.assertEqual(self.ids_of(body), [str(self.job.pk)])
+                self.assertEqual(body['data'][0]['attributes'], {
+                    'progress': 77.78, 'totalSteps': 9, 'doneSteps': 7,
+                    'unhandledRecordsCount': 1, 'importErrorCount': 1,
+                })
+                file_queries = [q['sql'] for q in queries
+                                if 'registry_temporarymdmetadatafile' in q['sql']]
+                self.assertEqual(len(file_queries), 1)
+                self.assertTemporaryFileScansAreBounded(file_queries[0])
+
+    def test_sparse_progress_fields_and_manager_agree_in_each_phase(self):
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        fields = ['totalSteps', 'doneSteps', 'progress',
+                  'unhandledRecordsCount', 'importErrorCount']
+        for phase, done_steps, progress in [
+            (Phase.PENDING, 0, 0.0),
+            (Phase.GET_TOTAL_RECORDS_COUNT, 0, 0.0),
+            (Phase.DOWNLOAD_RECORDS, 3, 33.33),
+            (Phase.RECORDS_TO_DB, 7, 77.78),
+            (Phase.COMPLETED, 9, 100.0),
+            (Phase.ABORTED, 9, 100.0),
+        ]:
+            HarvestingJob.objects.filter(pk=self.job.pk).update(
+                phase=phase, done_at=now() if phase >= Phase.COMPLETED else None)
+            expected = dict(zip(fields, [9, done_steps, progress, 1, 1]))
+            job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+            self.assertEqual(job.done_steps, done_steps)
+            self.assertEqual(job.progress, progress)
+            for field in fields:
+                with self.subTest(phase=phase, field=field):
+                    status, body, queries = self.request(
+                        path, **{'fields[HarvestingJob]': field})
+                    self.assertEqual(status, 200, body)
+                    self.assertEqual(body['data']['attributes'], {field: expected[field]})
+                    if field == 'totalSteps':
+                        self.assertFalse(any('registry_temporarymdmetadatafile' in q['sql']
+                                             for q in queries))
+
+    def test_job_without_files_answers_zero_counts(self):
+        TemporaryMdMetadataFile.objects.filter(job=self.job).delete()
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        for total_records, phase, progress in [
+            (None, Phase.PENDING, 0.0), (0, Phase.COMPLETED, 100.0),
+        ]:
+            with self.subTest(total_records=total_records):
+                HarvestingJob.objects.filter(pk=self.job.pk).update(
+                    total_records=total_records, phase=phase)
+                job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+                self.assertEqual(job.records_count, 0)
+                self.assertEqual(job.unhandled_records_count, 0)
+                self.assertEqual(job.import_error_count, 0)
+                self.assertEqual(job.progress, progress)
+                status, body, _queries = self.request(path, **{
+                    'fields[HarvestingJob]': 'progress,unhandledRecordsCount,importErrorCount'})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body['data']['attributes'], {
+                    'progress': progress, 'unhandledRecordsCount': 0, 'importErrorCount': 0})
 
     def test_harvesting_job_list_does_not_grow_with_rows(self):
         self.assertQueriesIndependentOfRows(

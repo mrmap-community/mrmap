@@ -87,3 +87,59 @@ Feature: DatasetMetadataRecord Service Candidates Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "state" with value "unavailable"
         Then I expect that response json has an attribute "detail" with value "exception-report:OperationNotSupported"
+        Then the answer names no url to register
+
+    Scenario: A delivering endpoint answers the url the registration asks for
+        # the create serializer demands SERVICE, REQUEST and VERSION; the asked
+        # url is handed over as a qualified request of what the document said,
+        # which is what the registration form of the record is prefilled with
+        Given I use the endpoint http://localhost:8000/api/registry/dataset-metadata/d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4/validate-service-candidate
+        Given the endpoint "https://maps.dwd.de/geoserver/dwd/RBSN_RR/ows?service=wfs&version=2.0.0&request=GetCapabilities" answers these capabilities:
+            """
+            <WFS_Capabilities version="2.0.0" xmlns="http://www.opengis.net/wfs/2.0">
+              <ServiceIdentification><ServiceType>WFS</ServiceType></ServiceIdentification>
+              <FeatureTypeList>
+                <FeatureType><Name>RBSN_RR</Name></FeatureType>
+              </FeatureTypeList>
+            </WFS_Capabilities>
+            """
+        Given I set a queryparam "url" with value "https://maps.dwd.de/geoserver/dwd/RBSN_RR/ows?service=wfs&version=2.0.0&request=GetCapabilities"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "registration_url" with value "https://maps.dwd.de/geoserver/dwd/RBSN_RR/ows?service=WFS&version=2.0.0&request=GetCapabilities"
+
+    Scenario: Reading the candidates grants no right to register a service
+        Given a user which may read records but may not register services
+        Given I am logged in as Reader1 with password Reader1
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "candidates.[0].url" with value "https://maps.dwd.de/geoserver/dwd/RBSN_RR/ows?service=wms&version=1.3.0&request=GetCapabilities"
+        Given I use the endpoint http://localhost:8000/api/registry/wms
+        # the resolution answers plain json, the registry answers json:api, so
+        # the media type of the registration is named by the request which is
+        # one, not by the background of the record
+        Given I set the header "HTTP_ACCEPT" with value "application/vnd.api+json"
+        Given I set the content type of the request to application/vnd.api+json
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "WebMapService",
+                    "attributes": {
+                        "get_capabilities_url": "https://maps.dwd.de/geoserver/dwd/RBSN_RR/ows?service=WMS&version=1.3.0&request=GetCapabilities",
+                        "collect_metadata_records": "true"
+                    },
+                    "relationships": {
+                        "owner": {
+                            "data": {
+                                "id": "1",
+                                "type": "Organization"
+                            }
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "permission_denied"

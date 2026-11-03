@@ -17,6 +17,7 @@ from guardian.shortcuts import assign_perm
 from requests import Session
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from extras.validators import validate_get_capablities_uri
 from registry.helper import metadata_resolution
 from registry.helper.metadata_resolution import (CandidateSource,
                                                  CandidateState,
@@ -411,6 +412,53 @@ class CapabilitiesValidationTests(SimpleTestCase):
         self.assertEqual(
             (result.state, result.detail),
             (CandidateState.UNSUPPORTED, "not-fetchable"))
+
+    def test_a_delivering_endpoint_answers_a_url_the_registry_accepts(self):
+        # the create serializer demands SERVICE, REQUEST and VERSION; an
+        # advertised bare path cannot answer them, the document can
+        result, _ = self.validate(
+            self.candidate(url=HH_CAPABILITIES, original_url=HH_CAPABILITIES),
+            HH_CAPABILITIES,
+            content=wms_capabilities())
+        self.assertEqual(
+            result.registration_url,
+            "https://geodienste.hamburg.de/"
+            "DE_HH_WMS_INSPIRE_A1_7_Verkehrsnetze"
+            "?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0")
+        # the handoff is what the existing registration validates against
+        validate_get_capablities_uri(result.registration_url)
+
+    def test_the_qualified_url_keeps_the_segments_of_the_advertised_one(self):
+        url = ("https://maps.dwd.de/geoserver/ins/ows"
+               "?service=wfs&version=1.0.0&request=GetCapabilities&apiKey=1")
+        result, _ = self.validate(
+            self.candidate(url=url, original_url=url), url,
+            content=wfs_capabilities())
+        # the names and the place the record wrote stay, the values are the
+        # ones the delivered document answered
+        self.assertEqual(
+            result.registration_url,
+            "https://maps.dwd.de/geoserver/ins/ows"
+            "?service=WFS&version=2.0.0&request=GetCapabilities&apiKey=1")
+        validate_get_capablities_uri(result.registration_url)
+
+    def test_a_candidate_which_needs_a_decision_can_still_be_registered(self):
+        # the endpoint delivers, only a hint of the record stays open - which
+        # the form shows, but which is no reason to refuse the service itself
+        result, _ = self.validate(
+            self.candidate(layers=("own-layer",)),
+            content=wms_capabilities(names=("another-layer",)))
+        self.assertEqual(result.state, CandidateState.AMBIGUOUS)
+        self.assertEqual(
+            result.registration_url,
+            "https://maps.dwd.de/geoserver/dwd/RBSN_FF/ows"
+            "?service=WMS&version=1.3.0&request=GetCapabilities")
+
+    def test_an_endpoint_which_refuses_answers_no_registration_url(self):
+        result, _ = self.validate(content=wms_capabilities(version="1.1.0"))
+        self.assertEqual(
+            (result.state, result.service_type, result.registration_url),
+            (CandidateState.UNSUPPORTED, "WMS", None))
 
 
 class ServiceCandidateEndpointTests(QueryMeasurementMixin, TestCase):

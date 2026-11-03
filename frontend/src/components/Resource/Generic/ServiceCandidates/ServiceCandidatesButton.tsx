@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   type RaRecord,
+  useGetRecordRepresentation,
   useRecordContext,
   useResourceContext,
   useTranslate,
@@ -37,8 +38,10 @@ export const ServiceCandidatesButton = ({
   // like MapViewerButton: the row may pass its record, otherwise the context
   // of the screen answers it
   const contextRecord = useRecordContext({ record: recordProp });
+  const record = recordProp ?? contextRecord;
   const resource = resourceProp ?? resourceFromContext;
-  const id = (recordProp ?? contextRecord)?.id;
+  const representation = useGetRecordRepresentation(resource);
+  const id = record?.id;
   const supported = Boolean(useOperation(`service_candidates_${resource}`));
 
   if (!supported || id === undefined || id === null || id === "") return null;
@@ -61,6 +64,7 @@ export const ServiceCandidatesButton = ({
           onClose={() => setOpen(false)}
           resource={resource}
           recordId={String(id)}
+          recordTitle={record ? representation(record) : undefined}
         />
       )}
     </>

@@ -1,4 +1,7 @@
-import type { CandidateValidation, RecordResolution } from "./useServiceCandidates";
+import type {
+  CandidateValidation,
+  RecordResolution,
+} from "./useServiceCandidates";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +39,41 @@ vi.mock("./useServiceCandidates", () => ({
     state.checked = url;
     return { data: state.validation, isPending: false };
   },
+  registeredTargetResource: {
+    wms: "WebMapService",
+    wfs: "WebFeatureService",
+    csw: "CatalogueService",
+    layer: "Layer",
+    feature_type: "FeatureType",
+  },
+}));
+
+// the registration step answers its own spec; here only the switching of the
+// dialog is of interest
+vi.mock("./CandidateRegistration", () => ({
+  CandidateRegistrationButton: ({
+    candidate,
+    answer,
+    onRegister,
+  }: {
+    candidate?: { url: string };
+    answer?: unknown;
+    onRegister: (target: unknown) => void;
+  }) =>
+    !candidate ? null : (
+      <button
+        onClick={() =>
+          onRegister({ resource: "WebMapService", candidate, answer })
+        }
+      >
+        {`Register ${candidate.url}`}
+      </button>
+    ),
+  CandidateRegistrationForm: ({
+    target,
+  }: {
+    target: { candidate: { url: string }; resource: string };
+  }) => <div>{`Form of ${target.resource} for ${target.candidate.url}`}</div>,
 }));
 
 vi.mock("./useOpenCandidateInViewer", () => ({
@@ -47,14 +85,15 @@ const WMS_URL =
 const WFS_URL =
   "https://maps.example.org/geoserver/ins/ows?service=wfs&version=2.0.0&request=GetCapabilities";
 
-const candidate = (overrides: Record<string, unknown>) => ({
-  url: WMS_URL,
-  original_url: WMS_URL,
-  kind: "capabilities",
-  source: "own-distribution",
-  state: "unvalidated",
-  ...overrides,
-}) as never;
+const candidate = (overrides: Record<string, unknown>) =>
+  ({
+    url: WMS_URL,
+    original_url: WMS_URL,
+    kind: "capabilities",
+    source: "own-distribution",
+    state: "unvalidated",
+    ...overrides,
+  }) as never;
 
 const resolution = (overrides: Record<string, unknown>) =>
   ({
@@ -142,7 +181,9 @@ describe("the candidates of a metadata record", () => {
 
   it("separates the hints the endpoint confirmed from the ones it did not", () => {
     state.resolution = resolution({
-      candidates: [candidate({ service: "WFS", type_names: ["RBSN_RR", "RBSN_FF"] })],
+      candidates: [
+        candidate({ service: "WFS", type_names: ["RBSN_RR", "RBSN_FF"] }),
+      ],
     }) as RecordResolution;
     state.validation = {
       state: "ambiguous",
@@ -163,9 +204,9 @@ describe("the candidates of a metadata record", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("unresolved-hints")).toBeInTheDocument();
     // an ambiguous hint stays a decision of the user, so nothing is added
-    expect(screen.getByText("serviceCandidates.openInMap").closest("button")).toHaveTextContent(
-      "serviceCandidates.openInMap",
-    );
+    expect(
+      screen.getByText("serviceCandidates.openInMap").closest("button"),
+    ).toHaveTextContent("serviceCandidates.openInMap");
   });
 
   it("keeps an unsupported feature type service as an explicit state", () => {
@@ -243,7 +284,9 @@ describe("the candidates of a metadata record", () => {
 
   it("keeps registered resources apart from the advertised endpoints", () => {
     state.resolution = resolution({
-      registered_targets: [{ resource_type: "wms", id: 12, name: "Niederschlag" }],
+      registered_targets: [
+        { resource_type: "wms", id: 12, name: "Niederschlag" },
+      ],
     }) as RecordResolution;
     renderDialog();
     expect(
@@ -258,6 +301,24 @@ describe("the candidates of a metadata record", () => {
     expect(
       screen.queryByText("serviceCandidates.check"),
     ).not.toBeInTheDocument();
+  });
+
+  it("links a registered element to its own screen", () => {
+    // a dataset record is delivered through the layer which points back at it,
+    // so the layer is what the registry verified and what to open
+    state.resolution = resolution({
+      registered_targets: [
+        {
+          resource_type: "layer",
+          id: 44,
+          name: "Verkehrsnetze",
+          service_id: 12,
+        },
+      ],
+    }) as RecordResolution;
+    renderDialog();
+    expect(screen.getByText("Verkehrsnetze")).toBeInTheDocument();
+    expect(screen.getByText("ra.action.show")).toHaveAttribute("href", "#Layer");
   });
 
   it("adds the selected endpoint to the map instead of registering it", () => {
@@ -280,6 +341,65 @@ describe("the candidates of a metadata record", () => {
   it("tells a refused record by the reason the api answered", () => {
     state.failure = { code: "denied" };
     renderDialog();
-    expect(screen.getByText("serviceCandidates.error.denied")).toBeInTheDocument();
+    expect(
+      screen.getByText("serviceCandidates.error.denied"),
+    ).toBeInTheDocument();
+  });
+
+  it("registers nothing while the endpoints are only listed", () => {
+    state.resolution = resolution({
+      candidates: [candidate({ service: "WMS" })],
+    }) as RecordResolution;
+    renderDialog();
+    // the action belongs to a selection, and a selection is only a selection
+    expect(screen.queryByText(/^Register /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Form of/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("maps.example.org/geoserver/ins"));
+    expect(screen.getByText(`Register ${WMS_URL}`)).toBeInTheDocument();
+    expect(screen.queryByText(/^Form of/)).not.toBeInTheDocument();
+    expect(state.openInViewer).not.toHaveBeenCalled();
+  });
+
+  it("opens the registration of the selected endpoint only", () => {
+    state.resolution = resolution({
+      candidates: [
+        candidate({ service: "WMS" }),
+        candidate({ url: WFS_URL, original_url: WFS_URL, service: "WFS" }),
+      ],
+    }) as RecordResolution;
+    renderDialog();
+    fireEvent.click(screen.getByText("maps.example.org/geoserver/ins/ows"));
+    fireEvent.click(screen.getByText(`Register ${WFS_URL}`));
+    expect(
+      screen.getByText(`Form of WebMapService for ${WFS_URL}`),
+    ).toBeInTheDocument();
+    // a form is confirmed by its own save button, not by the map handoff
+    expect(
+      screen.queryByText("serviceCandidates.openInMap"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("serviceCandidates.registration.description"),
+    ).toBeInTheDocument();
+  });
+
+  it("returns from the registration review to the endpoints with its answers", () => {
+    state.resolution = resolution({
+      candidates: [candidate({ service: "WMS" })],
+    }) as RecordResolution;
+    state.validation = {
+      state: "resolved",
+      service_type: "WMS",
+      service_version: "1.3.0",
+    } as CandidateValidation;
+    renderDialog();
+    check();
+    fireEvent.click(screen.getByText(`Register ${WMS_URL}`));
+    expect(screen.getByText(/^Form of/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("serviceCandidates.registration.back"));
+    expect(screen.queryByText(/^Form of/)).not.toBeInTheDocument();
+    // what the endpoint answered is still told by the row
+    expect(
+      screen.getByText("serviceCandidates.state.resolved"),
+    ).toBeInTheDocument();
   });
 });

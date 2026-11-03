@@ -61,6 +61,11 @@ SUPPORTED_VERSIONS = {
     "WFS": {"2.0.0"},
 }
 
+#: The ogc services the registry has a creatable resource for. A candidate of
+#: any other service - WCS, WMTS or a token no resource knows - can be looked
+#: at, but never registered.
+REGISTRY_SERVICES = frozenset({"WMS", "WFS", "CSW"})
+
 # Query parameters which describe a single operation call. A derived
 # GetCapabilities candidate drops them; the hints of a resource stay on the
 # candidate instead of the url. Everything else - the service token, the
@@ -193,6 +198,10 @@ class ValidationResult:
     unresolved_hints: tuple = ()
     #: True when the capabilities hold more names than answered.
     names_truncated: bool = False
+    #: The asked url as a qualified GetCapabilities request, answered only when
+    #: the document named a service the registry can create. It is the value the
+    #: create form of that resource is prefilled with; see _registration_url.
+    registration_url: str | None = None
 
 
 def stored_xml(record) -> bytes:
@@ -270,6 +279,52 @@ def derive_capabilities_url(link) -> str | None:
     if service_segment is None:
         kept.append(f"SERVICE={service}")
 
+    query = "&".join(kept)
+    base = parts._replace(query="").geturl()
+    return f"{base}?{query}" if query else base
+
+
+def _registration_url(url: str, service_type: str | None,
+                      service_version: str | None) -> str | None:
+    """ The capabilities url the create serializer of the registry accepts.
+
+        `extras.validators.validate_get_capablities_uri` demands SERVICE,
+        REQUEST and VERSION on a GetCapabilities url, while a record may
+        advertise the very same endpoint as a bare path. Nothing is guessed to
+        complete it: the service type and the version are the ones the
+        delivered document answered, so the qualified url only names in the
+        query what the endpoint already said. Every other segment keeps its
+        name, spelling and place; a parameter which is already there keeps its
+        name and gets the answered value.
+
+        :param url: the url which was asked and answered
+        :param service_type: the service the delivered document announced
+        :param service_version: the version the delivered document carries
+        :return: the qualified url or None when the service is no resource the
+            registry can create or no version was answered
+    """
+    if service_type not in REGISTRY_SERVICES or not service_version:
+        return None
+    answers = {
+        "service": service_type,
+        "request": "GetCapabilities",
+        "version": service_version,
+    }
+    parts = urlsplit(url)
+    segments = parts.query.split("&") if parts.query else []
+    kept = []
+    answered = set()
+    for segment in segments:
+        name = segment.split("=", 1)[0]
+        lowered = name.lower()
+        if lowered in answers:
+            kept.append(f"{name}={answers[lowered]}")
+            answered.add(lowered)
+        else:
+            kept.append(segment)
+    for name, value in answers.items():
+        if name not in answered:
+            kept.append(f"{name.upper()}={value}")
     query = "&".join(kept)
     base = parts._replace(query="").geturl()
     return f"{base}?{query}" if query else base
@@ -809,6 +864,7 @@ def validate_capabilities_candidate(candidate: ServiceCandidate,
     answered = names[:ADVERTISED_NAMES_LIMIT]
 
     hints = tuple(dict.fromkeys(candidate.type_names + candidate.layers))
+    registration = _registration_url(url, service_type, version)
     if hints:
         matched, unresolved = _confirm_hints(list(names), hints)
         state = (CandidateState.RESOLVED if not unresolved
@@ -820,10 +876,12 @@ def validate_capabilities_candidate(candidate: ServiceCandidate,
             advertised_names=tuple(answered),
             matched_names=tuple(matched),
             unresolved_hints=tuple(unresolved),
-            names_truncated=names_truncated)
+            names_truncated=names_truncated,
+            registration_url=registration)
 
     return ValidationResult(
         state=CandidateState.RESOLVED, detail="ok",
         service_type=service_type, service_version=version,
         advertised_names=tuple(answered),
-        names_truncated=names_truncated)
+        names_truncated=names_truncated,
+        registration_url=registration)

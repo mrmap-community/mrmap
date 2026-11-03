@@ -25,13 +25,19 @@ import {
 
 import ContextBasedDialog from "../../../Dialog/Dialog";
 import DialogHeader from "../../../Dialog/DialogHeader";
+import CandidateHints from "./CandidateHints";
+import {
+  CandidateRegistrationButton,
+  CandidateRegistrationForm,
+  type RegistrationTarget,
+} from "./CandidateRegistration";
 import { useOpenCandidateInViewer } from "./useOpenCandidateInViewer";
 import {
+  registeredTargetResource,
   useServiceCandidates,
   useValidateServiceCandidate,
   type CandidateState,
   type CandidateValidation,
-  type RegisteredTarget,
   type ServiceCandidate,
 } from "./useServiceCandidates";
 
@@ -42,6 +48,8 @@ export interface ServiceCandidatesDialogProps {
   resource?: string;
   /** Record to resolve; the record of the surrounding context by default. */
   recordId?: string;
+  /** What the record is called on the screen which offers the action. */
+  recordTitle?: ReactNode;
 }
 
 /** How loud the answer of a candidate is told to the user. */
@@ -56,14 +64,6 @@ const stateColor: Record<
   unvalidated: "default",
 };
 
-/** The json:api resource a registered target of the answer belongs to. */
-const registeredResource: Record<RegisteredTarget["resource_type"], string> =
-  {
-    wms: "WebMapService",
-    wfs: "WebFeatureService",
-    csw: "CatalogueService",
-  };
-
 /** The host and path of an endpoint, so a row reads as an address. */
 const endpointOf = (url: string) => {
   try {
@@ -72,49 +72,6 @@ const endpointOf = (url: string) => {
   } catch {
     return url;
   }
-};
-
-/** The layer and feature type hints of the record and what they became. */
-const CandidateHints = ({
-  candidate,
-  validation,
-}: {
-  candidate: ServiceCandidate;
-  validation?: CandidateValidation;
-}) => {
-  const translate = useTranslate();
-  const hints = [...(candidate.type_names ?? []), ...(candidate.layers ?? [])];
-  const matched = validation?.matched_names ?? [];
-  const unresolved = validation?.unresolved_hints ?? [];
-  if (!hints.length && !unresolved.length) return null;
-  // Until the endpoint was asked, every hint is only a hint of the record.
-  const confirmed = matched.filter((name) => hints.includes(name));
-  const unconfirmed = hints.filter((name) => !confirmed.includes(name));
-  return (
-    <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5 }}>
-      {confirmed.map((name) => (
-        <Tooltip key={name} title={translate("serviceCandidates.confirmed")}>
-          <Chip size="small" color="success" label={name} />
-        </Tooltip>
-      ))}
-      {unconfirmed.map((name) => (
-        <Chip
-          key={name}
-          size="small"
-          variant="outlined"
-          label={name}
-          color={
-            unresolved.includes(name) || validation ? "warning" : "default"
-          }
-        />
-      ))}
-      {unresolved
-        .filter((name) => !hints.includes(name))
-        .map((name) => (
-          <Chip key={name} size="small" color="warning" label={name} />
-        ))}
-    </Stack>
-  );
 };
 
 const CandidateRow = ({
@@ -143,7 +100,11 @@ const CandidateRow = ({
         sx={{ alignItems: "flex-start", gap: 1 }}
       >
         <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-          <Stack direction="row" useFlexGap sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <Stack
+            direction="row"
+            useFlexGap
+            sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}
+          >
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {candidate.service || t("unknownService")}
             </Typography>
@@ -172,7 +133,9 @@ const CandidateRow = ({
             <Chip
               size="small"
               color={stateColor[validation?.state ?? candidate.state]}
-              icon={validation?.state === "resolved" ? <CheckIcon /> : undefined}
+              icon={
+                validation?.state === "resolved" ? <CheckIcon /> : undefined
+              }
               label={t(`state.${validation?.state ?? candidate.state}`)}
             />
           </Stack>
@@ -232,14 +195,20 @@ const CandidateRow = ({
  * The candidates come from the record itself: its own advertised endpoints, the
  * services whose harvested records name this dataset and — kept apart — the
  * resources which are registered already. Choosing a candidate adds it to the
- * current map without registering anything, so this dialog neither writes to the
- * registry nor replaces the layers the user has on the map.
+ * current map without registering anything, so nothing is written to the
+ * registry and no layer the user has on the map is replaced.
+ *
+ * A candidate whose endpoint delivers can also be registered: that opens the
+ * schema driven create form of the service the endpoint announced, which is the
+ * form of the existing registration workflow and registers nothing until its own
+ * save button is used. Both actions are read-only until the user asks for one.
  */
 export const ServiceCandidatesDialog = ({
   open,
   onClose,
   resource: resourceProp,
   recordId,
+  recordTitle,
 }: ServiceCandidatesDialogProps): ReactNode => {
   const resourceFromContext = useResourceContext();
   const record = useRecordContext();
@@ -247,9 +216,12 @@ export const ServiceCandidatesDialog = ({
   const t = (key: string) => translate(`serviceCandidates.${key}`);
   const openInViewer = useOpenCandidateInViewer();
   const resource = resourceProp ?? resourceFromContext;
-  const id = recordId ?? (record?.id === undefined ? undefined : String(record.id));
+  const id =
+    recordId ?? (record?.id === undefined ? undefined : String(record.id));
   const [selected, setSelected] = useState<string>();
   const [checked, setChecked] = useState<string>();
+  /** The candidate whose registration the user is reviewing, if any. */
+  const [registration, setRegistration] = useState<RegistrationTarget>();
   /** Every endpoint which was asked keeps its answer, so comparing two
    *  candidates does not throw the first answer away. */
   const [answers, setAnswers] = useState<Record<string, CandidateValidation>>(
@@ -271,6 +243,7 @@ export const ServiceCandidatesDialog = ({
     setSelected(undefined);
     setChecked(undefined);
     setAnswers({});
+    setRegistration(undefined);
     onClose();
   };
   const select = (url: string) => setSelected(url);
@@ -288,6 +261,7 @@ export const ServiceCandidatesDialog = ({
   const candidates = useMemo(() => answer?.candidates ?? [], [answer]);
   const registered = answer?.registered_targets ?? [];
   const hasCandidates = candidates.length > 0;
+  const selectedCandidate = candidates.find((item) => item.url === selected);
 
   return (
     <ContextBasedDialog
@@ -297,122 +271,150 @@ export const ServiceCandidatesDialog = ({
       fullWidth
       contentDividers={false}
       title={
-        <DialogHeader onClose={dismiss}>{t("title")}</DialogHeader>
+        <DialogHeader onClose={dismiss}>
+          {t(registration ? "registration.action" : "title")}
+        </DialogHeader>
       }
-      description={t("description")}
+      description={t(registration ? "registration.description" : "description")}
       actions={
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction="row"
+          useFlexGap
+          spacing={1}
+          sx={{
+            alignItems: "center",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
+          {registration ? (
+            <Button onClick={() => setRegistration(undefined)}>
+              {t("registration.back")}
+            </Button>
+          ) : (
+            <CandidateRegistrationButton
+              candidate={selectedCandidate}
+              answer={selected === undefined ? undefined : answers[selected]}
+              onRegister={setRegistration}
+            />
+          )}
           <Button onClick={dismiss}>{translate("ra.action.cancel")}</Button>
-          <Button
-            color="primary"
-            variant="contained"
-            startIcon={<LoginIcon />}
-            disabled={selected === undefined || resolution.isPending}
-            onClick={addToMap}
-          >
-            {t("openInMap")}
-          </Button>
+          {!registration && (
+            <Button
+              color="primary"
+              variant="contained"
+              startIcon={<LoginIcon />}
+              disabled={selected === undefined || resolution.isPending}
+              onClick={addToMap}
+            >
+              {t("openInMap")}
+            </Button>
+          )}
         </Stack>
       }
     >
-      <Stack spacing={2} sx={{ minWidth: 0 }}>
-        {resolution.isPending && (
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: "center" }}
-          >
-            <CircularProgress size={18} />
-            <Typography variant="body2">{t("loading")}</Typography>
-          </Stack>
-        )}
-        {resolution.error && (
-          <Alert severity="error">
-            {t(`error.${resolution.error.code}`)}
-          </Alert>
-        )}
-        {!resolution.isPending &&
-          !resolution.error &&
-          answer?.status &&
-          answer.status !== "ok" && (
-            <Alert severity="info">{t(`status.${answer.status}`)}</Alert>
+      {registration ? (
+        <CandidateRegistrationForm
+          target={registration}
+          registered={registered}
+          sourceRecord={recordTitle}
+          sourceDocument={answer?.file_identifier}
+          onRegistered={dismiss}
+        />
+      ) : (
+        <Stack spacing={2} sx={{ minWidth: 0 }}>
+          {resolution.isPending && (
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <CircularProgress size={18} />
+              <Typography variant="body2">{t("loading")}</Typography>
+            </Stack>
           )}
-        {answer?.truncated && (
-          <Alert severity="info">{t("truncated")}</Alert>
-        )}
-        {hasCandidates && (
-          <List disablePadding>
-            {candidates.map((candidate) => (
-              <CandidateRow
-                key={candidate.url}
-                candidate={candidate}
-                selected={selected === candidate.url}
-                onSelect={select}
-                onCheck={check}
-                validation={answers[candidate.url]}
-                isChecking={
-                  checked === candidate.url && validation.isPending
-                }
-              />
-            ))}
-          </List>
-        )}
-        {/* a record which stores nothing is told apart from one which simply
-            advertises no service */}
-        {!resolution.isPending &&
-          !resolution.error &&
-          answer?.status === "ok" &&
-          !hasCandidates && (
-            <Typography>
-              {registered.length
-                ? t("candidatesNoneRegistered")
-                : t("none")}
-            </Typography>
+          {resolution.error && (
+            <Alert severity="error">
+              {t(`error.${resolution.error.code}`)}
+            </Alert>
           )}
-        {answer?.warnings && answer.warnings.length > 0 && (
-          <Stack spacing={0.5}>
-            {answer.warnings.map((warning) => (
-              <Typography key={warning} variant="caption" color="text.secondary">
-                {warning}
-              </Typography>
-            ))}
-          </Stack>
-        )}
-        {registered.length > 0 && (
-          <Stack spacing={1}>
-            <Divider />
-            <Typography variant="subtitle2">
-              {t("registeredTitle")}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {t("registeredHint")}
-            </Typography>
+          {!resolution.isPending &&
+            !resolution.error &&
+            answer?.status &&
+            answer.status !== "ok" && (
+              <Alert severity="info">{t(`status.${answer.status}`)}</Alert>
+            )}
+          {answer?.truncated && <Alert severity="info">{t("truncated")}</Alert>}
+          {hasCandidates && (
             <List disablePadding>
-              {registered.map((target) => (
-                <ListItem key={`${target.resource_type}-${target.id}`}>
-                  <Typography
-                    variant="body2"
-                    sx={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
-                  >
-                    {target.name}
-                  </Typography>
-                  <ShowButton
-                    resource={registeredResource[target.resource_type]}
-                    record={{ id: target.id, name: target.name }}
-                    label="ra.action.show"
-                    size="small"
-                  />
-                </ListItem>
+              {candidates.map((candidate) => (
+                <CandidateRow
+                  key={candidate.url}
+                  candidate={candidate}
+                  selected={selected === candidate.url}
+                  onSelect={select}
+                  onCheck={check}
+                  validation={answers[candidate.url]}
+                  isChecking={checked === candidate.url && validation.isPending}
+                />
               ))}
             </List>
-          </Stack>
-        )}
-        {(answer?.non_service_links?.length ?? 0) > 0 && (
-          <Typography variant="caption" color="text.secondary">
-            {t("nonService")}
-          </Typography>
-        )}
-      </Stack>
+          )}
+          {/* a record which stores nothing is told apart from one which simply
+            advertises no service */}
+          {!resolution.isPending &&
+            !resolution.error &&
+            answer?.status === "ok" &&
+            !hasCandidates && (
+              <Typography>
+                {registered.length ? t("candidatesNoneRegistered") : t("none")}
+              </Typography>
+            )}
+          {answer?.warnings && answer.warnings.length > 0 && (
+            <Stack spacing={0.5}>
+              {answer.warnings.map((warning) => (
+                <Typography
+                  key={warning}
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {warning}
+                </Typography>
+              ))}
+            </Stack>
+          )}
+          {registered.length > 0 && (
+            <Stack spacing={1}>
+              <Divider />
+              <Typography variant="subtitle2">
+                {t("registeredTitle")}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t("registeredHint")}
+              </Typography>
+              <List disablePadding>
+                {registered.map((target) => (
+                  <ListItem key={`${target.resource_type}-${target.id}`}>
+                    <Typography
+                      variant="body2"
+                      sx={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
+                    >
+                      {target.name}
+                    </Typography>
+                    <ShowButton
+                      resource={registeredTargetResource[target.resource_type]}
+                      record={{ id: target.id, name: target.name }}
+                      label="ra.action.show"
+                      size="small"
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Stack>
+          )}
+          {(answer?.non_service_links?.length ?? 0) > 0 && (
+            <Typography variant="caption" color="text.secondary">
+              {t("nonService")}
+            </Typography>
+          )}
+        </Stack>
+      )}
     </ContextBasedDialog>
   );
 };

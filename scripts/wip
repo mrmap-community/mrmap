@@ -14,6 +14,12 @@ Usage:
                          waiting claim as running again). Refuses while
                          another client holds a fresh claim; --force takes a
                          foreign or stale claim over deliberately.
+  scripts/wip ask "<q>"  post the full question as one structured comment on the
+           [--issue N]   issue and run the wait flow with a one-line summary;
+                         idempotent per client while the question is open
+  scripts/wip answers    show the current client's open questions and the human
+           [--issue N]   replies to them, marking an answered question so it is
+                         not surfaced twice
   scripts/wip wait "<q>" mark the active claim as blocked on user input, with
                          the reason; the board lists it under "Needs user"
   scripts/wip done  [N]  release your claim on the issue
@@ -45,6 +51,8 @@ LABEL_COLOR = "6f42c1"
 BOARD_TITLE = "Agent Work Board (machine-managed - do not close)"
 BOARD_MARK = "agent-board v1"
 CLAIM_RE = re.compile(r"<!-- agent-claim (\{.*?\}) -->")
+QUESTION_RE = re.compile(r"<!-- agent-question client=(\S+) id=(\S+) -->")
+ANSWERED_MARK = "agent-question-answered"
 STALE_DAYS = float(os.environ.get("WIP_STALE_DAYS", "3"))
 
 
@@ -194,6 +202,45 @@ def claim_body(p):
     )
 
 
+def question_body(cid, qid, question):
+    """A question comment: one machine-readable marker plus the full question."""
+    marker = f"<!-- agent-question client={cid} id={qid} -->"
+    return (
+        f"{marker}\n\n"
+        f"🙋 **Question for the user** — asked by `{cid}` (id `{qid}`)\n\n"
+        f"{question}\n"
+    )
+
+
+def answered_body(body, ts):
+    """Re-mark a question comment as answered, so its reply is not shown twice."""
+    return body.rstrip() + f"\n\n<!-- {ANSWERED_MARK} {ts} -->\n"
+
+
+def question_markers(comments):
+    """[(comment_id, client, id, answered, created_at, body)] newest-last, for question comments."""
+    found = []
+    for c in comments:
+        body = c.get("body") or ""
+        m = QUESTION_RE.search(body)
+        if not m:
+            continue
+        found.append((c["id"], m.group(1), m.group(2), ANSWERED_MARK in body,
+                      c.get("created_at") or "", body))
+    return found
+
+
+def is_machine_comment(c):
+    """Claim, question and board comments are generated views, not human answers."""
+    body = c.get("body") or ""
+    return bool(CLAIM_RE.search(body)) or bool(QUESTION_RE.search(body)) or BOARD_MARK in body
+
+
+def summarize(question, limit=72):
+    line = " ".join(question.split())
+    return line if len(line) <= limit else line[:limit].rstrip() + "..."
+
+
 def ensure_label(R):
     names = [l["name"] for l in (gh_json("label", "list", "-R", R, "--limit", "300", "--json", "name") or [])]
     if LABEL not in names:
@@ -310,12 +357,12 @@ def cmd_done(arg):
     sync_board(R)
 
 
-def cmd_wait(reason, force=False):
+def cmd_wait(reason, force=False, issue=None):
     if not reason:
         die('usage: wip wait "<what you need from the user>"')
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(None, "wait")
+    n = infer_issue(issue, "wait")
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") in ("wip", "waiting")]
     ts = now_iso()
@@ -334,6 +381,66 @@ def cmd_wait(reason, force=False):
     add_wip_label(R, n)
     print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
     sync_board(R)
+
+
+def cmd_ask(question, issue_arg=None, force=False):
+    """Hand a full question to the issue, then mark the claim as waiting on it.
+
+    One structured question comment per client: re-running `ask` while a question
+    is still open updates that comment instead of stacking a second one. The board
+    only ever shows the one-line summary; the comment carries the whole question.
+    """
+    if not question:
+        die('usage: wip ask "<what you need from the user>" [--issue N]')
+    R, root = repo(), git_root()
+    cid = client_id(root)
+    n = infer_issue(issue_arg, "ask")
+    open_q = [q for q in question_markers(fetch_comments(R, n))
+              if q[1] == cid and not q[3]]
+    if open_q:
+        q_id, _, qid, _, _, _ = open_q[-1]
+        sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{q_id}",
+            "-f", f"body={question_body(cid, qid, question)}"])
+        action = f"refreshed open question {qid} on"
+    else:
+        qid = os.urandom(4).hex()
+        sh(["gh", "api", f"repos/{R}/issues/{n}/comments",
+            "-f", f"body={question_body(cid, qid, question)}"])
+        action = f"asked ({qid}) on"
+    print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
+    cmd_wait(summarize(question), force, str(n))
+
+
+def cmd_answers(issue_arg=None):
+    """Print this client's open questions and the human replies to them.
+
+    A reply is any comment newer than the question that is not machine-managed
+    (claim, question, board). Once a question has a reply it is stamped answered,
+    so a later run - or a fresh `ask` - does not surface the same answer again.
+    """
+    R, root = repo(), git_root()
+    cid = client_id(root)
+    n = infer_issue(issue_arg, "answers")
+    comments = fetch_comments(R, n)
+    open_q = [q for q in question_markers(comments) if q[1] == cid and not q[3]]
+    if not open_q:
+        print(f"no open questions for `{cid}` on #{n}")
+        return
+    print(f"open questions for `{cid}` on #{n}:")
+    ts = now_iso()
+    for q_id, _, qid, _, created, body in open_q:
+        key = (created, q_id)
+        replies = [c for c in comments
+                   if not is_machine_comment(c) and ((c.get("created_at") or ""), c["id"]) > key]
+        if not replies:
+            print(f"\n- question {qid} ({age_short(created)} ago): still waiting for an answer")
+            continue
+        print(f"\n- question {qid} ({age_short(created)} ago): {len(replies)} answer(s)")
+        for c in replies:
+            who = (c.get("user") or {}).get("login", "?")
+            print(f"    {who}: " + "\n      ".join((c.get("body") or "").strip().splitlines()))
+        sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{q_id}",
+            "-f", f"body={answered_body(body, ts)}"])
 
 
 def cmd_ls(_arg):
@@ -520,6 +627,16 @@ def usage():
     print(__doc__.strip())
 
 
+def pop_issue(tokens):
+    """Split an explicit `--issue N` out of a token list -> (issue, rest)."""
+    if "--issue" not in tokens:
+        return None, tokens
+    i = tokens.index("--issue")
+    if i + 1 >= len(tokens):
+        die("--issue needs an issue number")
+    return tokens[i + 1], tokens[:i] + tokens[i + 2:]
+
+
 def main():
     args = [a for a in sys.argv[1:] if a != "--"]
     force = "--force" in args
@@ -536,6 +653,12 @@ def main():
         cmd_ls(arg)
     elif cmd == "board":
         cmd_board(arg)
+    elif cmd == "ask":
+        issue, rest = pop_issue(args[1:])
+        cmd_ask(" ".join(rest), issue, force)
+    elif cmd == "answers":
+        issue, _ = pop_issue(args[1:])
+        cmd_answers(issue)
     elif cmd == "wait":
         cmd_wait(" ".join(args[1:]), force)
     else:

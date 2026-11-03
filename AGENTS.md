@@ -200,6 +200,13 @@ identifier itself is not an option — it breaks document matching against upstr
   `type: documentation`), but `gh issue create` bypasses the template and files the issue unlabeled,
   where it slips past the triage views. Use the same taxonomy the templates use; `status:`,
   `priority:` and `phase:` labels belong to maintainers, and pull requests carry none.
+- An issue that belongs to an epic carries the epic's slug as a title prefix: `harvest-load: what
+  breaks and how`. The slug is declared on the epic's first body line (`slug: <kebab-name>`,
+  lowercase, ≤ 20 chars, like a branch name); the epic title itself carries no prefix. The machine
+  relation is authoritative and separate from the title: `gh issue edit <epic> --add-sub-issue
+  <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
+  link and prefix disagree, fix the prefix.
+
 
 ## Working with uncertainty
 

@@ -135,7 +135,7 @@ def create_harvesting_job(self, *args, **kwargs):
         # Keep the creation delivery's identity even after the harvest finishes.
         delivery_id = self.request.id or str(uuid4())
         job = HarvestingJob.objects.filter(
-            celery_task_ids__task_id=delivery_id).first()
+            celery_task_id__task_id=delivery_id).first()
         if job is None:
             # a harvest which names no step size starts from the size this catalogue is known to
             # answer - a schedule and the "harvest now" of the ui both come this way (#691)

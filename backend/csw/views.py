@@ -24,8 +24,10 @@ from registry.models.service import CatalogueService
 from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.response.exceptions import (
-    MissingRequestParameterException, MissingServiceParameterException,
-    OGCServiceException, OperationNotSupportedException)
+    InvalidParameterValueException, MissingRequestParameterException,
+    MissingServiceParameterException, MissingVersionParameterException,
+    OGCServiceException, OperationNotSupportedException,
+    VersionNegotiationFailedException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
 
@@ -45,6 +47,59 @@ KVP_OPERATIONS = {
     )
 }
 
+# The CSW versions this endpoint answers. One version profiles this catalogue,
+# and the registry of the schemas its responses are built from registers it
+# alone: the ("csw", "discovery", <version>) key of XSD_LOOKUP in
+# registry/ows_lib/xml/consts.py answers a ValueError for every other value,
+# which is the raw HTTP 500 #910 reports for a wrong `version` -- the report of
+# the refused version has to be built before that lookup is asked.
+SUPPORTED_CSW_VERSIONS = ("2.0.2",)
+
+# The metadata sections a GetCapabilities document is made of (the top level
+# children of the document CSWCapabilities.to_xml builds). Table 64 lets a
+# client ask for a subset of these names by the `sections` parameter and reserves
+# "All" for the whole document.
+CAPABILITIES_SECTIONS = (
+    "ServiceIdentification",
+    "ServiceProvider",
+    "OperationsMetadata",
+    "Filter_Capabilities",
+)
+
+# The media types the capabilities document can be answered in. The handler
+# answers the document as application/xml and builds no other encoding of it, so
+# an AcceptFormats list without this type names a document this endpoint does
+# not have.
+CAPABILITIES_FORMATS = ("application/xml",)
+
+
+def parse_kvp_list(value):
+    """The values of a KVP parameter which carries a comma separated list.
+
+    Table 64 hands `sections`, `acceptVersions` and `acceptFormats` that way; an
+    empty value carries no value at all, so a request which names the parameter
+    without a value is answered as a request which does not name it.
+    """
+    return [part.strip() for part in (value or "").split(",") if part.strip()]
+
+
+def first_mutually_supported(requested, supported):
+    """The first value a client prefers which this service also speaks.
+
+    `requested` is ordered by the preference of the client -- Table 64 hands
+    `acceptVersions` and `acceptFormats` most preferred first, Table 65's
+    mandatory `version` is the same list with one value -- so the value both
+    sides agree on is the first requested one this service speaks. For the one
+    version this catalogue speaks that is also the highest version common to both
+    that OGC 05-008, 7.3.2 answers. `None` says nothing is common to both; the
+    caller refuses with the exception its parameter names, because the reason of
+    a refusal differs per parameter: `VersionNegotiationFailed` for a version
+    which can not be negotiated, `InvalidParameterValue` for a value which is no
+    value of that parameter at all.
+    """
+    return next(
+        (value for value in requested if value in supported), None)
+
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CswServiceView(View):
@@ -61,6 +116,10 @@ class CswServiceView(View):
         exception = self.check_request()
         if exception:
             return exception
+
+        exception = self.check_kvp_version()
+        if exception:
+            return exception
         # self.analyze_request()
 
         return self.get_and_post(request=request, *args, **kwargs)
@@ -73,6 +132,58 @@ class CswServiceView(View):
         canonical = KVP_OPERATIONS.get((self.ogc_request.operation or "").lower())
         if canonical:
             self.ogc_request.operation = canonical
+
+    def check_kvp_version(self):
+        """Refuses the `version` of a KVP request this endpoint can not answer.
+
+        Table 65 makes `version` a mandatory (One) parameter of GetRecords with
+        the fixed value of the version this catalogue profiles, so a GetRecords
+        without it, or with a value outside :data:`SUPPORTED_CSW_VERSIONS`, is a
+        refused request -- not a broken one (#910 answered both with a raw HTTP
+        500: the handler of a KVP GetRecords asks ``OGCRequest.xml_request``,
+        which builds the request XML with a ``CSWBuilder`` of the requested
+        version, and the schema lookup of that builder raises a ValueError for
+        every version but 2.0.2).
+
+        The refusal belongs beside :meth:`canonicalize_kvp_operation`, the other
+        KVP parameter dispatch settles before a handler reads the request. The
+        XML binding carries its version as the `version` attribute of the request
+        element and is read by the binding path of #912; that path can ask the
+        same question of the attribute it parses through
+        :func:`first_mutually_supported`, and
+        :meth:`refuse_unsupported_version` answers the report of a single
+        requested version.
+        """
+        if not (self.ogc_request.is_get
+                and self.ogc_request.is_get_records_request):
+            return
+
+        requested = (
+            self.ogc_request.ogc_query_params.get("VERSION") or "").strip()
+        if not requested:
+            return MissingVersionParameterException(
+                ogc_request=self.ogc_request,
+                message=(
+                    "The version parameter is mandatory for GetRecords and must "
+                    f"name one of {', '.join(SUPPORTED_CSW_VERSIONS)}."))
+        return self.refuse_unsupported_version(requested, locator="version")
+
+    def refuse_unsupported_version(self, requested, locator="version"):
+        """The report of one requested version this endpoint does not speak, or None.
+
+        `InvalidParameterValue` names a value which is no version this catalogue
+        answers; `VersionNegotiationFailed` belongs to the version negotiation of
+        a GetCapabilities, where a client hands a list to choose from (see
+        :meth:`check_capabilities_versions`).
+        """
+        if first_mutually_supported([requested], SUPPORTED_CSW_VERSIONS) is not None:
+            return
+        return InvalidParameterValueException(
+            ogc_request=self.ogc_request,
+            locator=locator,
+            message=(
+                f"Unsupported version: {requested}. This catalogue speaks "
+                f"{', '.join(SUPPORTED_CSW_VERSIONS)}."))
 
     def check_request(self):
         """proof if all mandatory query parameters are part of the reuqest"""
@@ -108,13 +219,134 @@ class CswServiceView(View):
         field_mapping = self.get_field_map()
         return self.ogc_request.filter_constraint(field_mapping=field_mapping)
 
+    def check_capabilities_versions(self):
+        """Refuses an `acceptVersions` list with no version this endpoint speaks.
+
+        OGC 07-006r1, 10.8.3 obliges a CSW to implement the `AcceptVersions`
+        parameter of GetCapabilities: :func:`first_mutually_supported` picks the
+        first requested version this catalogue also speaks, and a
+        list with nothing in common with :data:`SUPPORTED_CSW_VERSIONS` is refused
+        with `VersionNegotiationFailed` naming the versions this server speaks
+        (OGC 05-008, Table 4). An absent parameter negotiates the default of the
+        endpoint, as OGC 05-008, 7.3.1 answers it.
+        """
+        requested = parse_kvp_list(
+            self.ogc_request.ogc_query_params.get("ACCEPTVERSIONS"))
+        if not requested:
+            return
+
+        negotiated = first_mutually_supported(
+            requested, SUPPORTED_CSW_VERSIONS)
+        if negotiated is not None:
+            # the document this handler builds is the document of that version,
+            # which is all the answer the negotiation of a one version server
+            # changes; a server which spoke more than one version would build the
+            # document of `negotiated` here
+            return
+
+        return VersionNegotiationFailedException(
+            ogc_request=self.ogc_request,
+            message=(
+                "None of the requested versions is supported: "
+                f"{', '.join(requested)}. This catalogue speaks "
+                f"{', '.join(SUPPORTED_CSW_VERSIONS)}."))
+
+    def check_capabilities_formats(self):
+        """Refuses an `acceptFormats` list without the type this document has.
+
+        The second parameter 10.8.3 obliges a CSW to implement: the list is
+        negotiated like the versions, so a client which prefers another encoding
+        but will accept application/xml is answered -- and a list without it asks
+        for a document this endpoint does not have, which
+        `InvalidParameterValue` names. An absent parameter is the default format
+        of the endpoint.
+        """
+        requested = parse_kvp_list(
+            self.ogc_request.ogc_query_params.get("ACCEPTFORMATS"))
+        if not requested:
+            return
+
+        negotiated = first_mutually_supported(
+            requested, CAPABILITIES_FORMATS)
+        if negotiated is not None:
+            # this endpoint encodes the document in the one type it speaks, so the
+            # negotiated type is the type the response already carries
+            return
+
+        return InvalidParameterValueException(
+            ogc_request=self.ogc_request,
+            locator="acceptFormats",
+            message=(
+                f"None of the requested formats is supported: "
+                f"{', '.join(requested)}. This catalogue answers "
+                f"{', '.join(CAPABILITIES_FORMATS)}."))
+
+    def requested_capabilities_sections(self):
+        """The sections of the document a request asks for, or their refusal.
+
+        The third parameter 10.8.3 obliges a CSW to implement. Table 64 hands
+        `sections` as a comma separated list of section names and OGC 05-008,
+        7.3.1 answers an absent parameter, as the reserved value "All", with the
+        whole document -- the empty list this returns says exactly that. A name
+        this endpoint builds no section for is refused with
+        `InvalidParameterValue` naming the parameter.
+        """
+        params = self.ogc_request.ogc_query_params
+        requested = parse_kvp_list(
+            params.get("SECTIONS") or params.get("SECTION"))
+        if not requested or any(name.lower() == "all" for name in requested):
+            return []
+
+        unknown = [
+            name for name in requested
+            if name not in CAPABILITIES_SECTIONS
+        ]
+        if unknown:
+            return InvalidParameterValueException(
+                ogc_request=self.ogc_request,
+                locator="sections",
+                message=(
+                    f"Unsupported sections: {', '.join(unknown)}. This "
+                    f"catalogue answers {', '.join(CAPABILITIES_SECTIONS)} "
+                    "and All."))
+        return requested
+
+    def only_requested_sections(self, capabilities, sections):
+        """Drops the top level sections of a document which were not requested.
+
+        The document keeps the order and the shape it has without the parameter:
+        the sections which were asked for simply keep their places.
+        """
+        if not sections:
+            return
+
+        for element in list(capabilities):
+            if etree.QName(element).localname not in sections:
+                capabilities.remove(element)
+
     def get_capabilities(self, request):
         """Return the camouflaged capabilities document of the founded service.
         .. note::
            See :meth:`registry.models.document.DocumentModelMixin.xml_secured` for details of xml_secured function.
+
+        The three request parameters OGC 07-006r1, 10.8.3 obliges a CSW to
+        implement are honoured before the document is read: `AcceptVersions`
+        negotiates the version the answer speaks, `AcceptFormats` refuses a media
+        type the answer can not be encoded in and `Sections` narrows the answer to
+        the metadata sections the client asked for. Without them the full document
+        of the profiled version answers, byte for byte as before.
         :return: the camouflaged capabilities document.
         :rtype: :class:`django.http.response.HttpResponse`
         """
+
+        exception = (self.check_capabilities_versions()
+                     or self.check_capabilities_formats())
+        if exception:
+            return exception
+
+        sections = self.requested_capabilities_sections()
+        if isinstance(sections, OGCServiceException):
+            return sections
 
         dataset_count_subquery = DatasetMetadataRecord.keywords.through.objects.filter(
             keyword=OuterRef('pk')
@@ -266,7 +498,17 @@ class CswServiceView(View):
             }
         )
 
-        capabilitites_doc = builder.to_xml_string()
+        # the sections a client asked for are read out of the built document, so
+        # that the document which answers without the parameter is the one this
+        # builder has always answered
+        capabilities = builder.to_xml()
+        self.only_requested_sections(capabilities, sections)
+        capabilitites_doc = etree.tostring(
+            capabilities,
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="UTF-8"
+        ).decode("utf-8")
 
         # if (settings.DEBUG):
         # return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})

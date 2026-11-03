@@ -214,6 +214,20 @@ class InvalidParameterValueException(OGCServiceException):
     code = "InvalidParameterValue"
 
 
+class VersionNegotiationFailedException(OGCServiceException):
+    """Refusal of a version negotiation which found nothing common to both sides.
+
+    The code OGC 05-008, Table 4 defines for the `acceptVersions` and
+    `updateSequence` negotiation of an OWS GetCapabilities, which OGC 07-006r1
+    keeps for a CSW (`VersionNegotiationFailed`); a caller which names another
+    parameter as the failed one passes its own ``locator``.
+    """
+
+    code = "VersionNegotiationFailed"
+    locator = "acceptVersions"
+    message = "None of the requested versions is supported by this service."
+
+
 class OperationNotSupportedException(OGCServiceException):
     code = "OperationNotSupported"
     message = "No such operation"

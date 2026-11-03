@@ -11,7 +11,9 @@ pinned "Agent Work Board" issue listing all active claims.
 Usage:
   scripts/wip claim [N]  claim the issue for the current worktree (idempotent:
                          running again refreshes the heartbeat and marks a
-                         waiting claim as running again)
+                         waiting claim as running again). Refuses while
+                         another client holds a fresh claim; --force takes a
+                         foreign or stale claim over deliberately.
   scripts/wip wait "<q>" mark the active claim as blocked on user input, with
                          the reason; the board lists it under "Needs user"
   scripts/wip done  [N]  release your claim on the issue
@@ -215,12 +217,30 @@ def worktrees():
 
 # ---------- commands ----------
 
-def cmd_claim(arg):
+def guard_others(payloads, cid, n, cmd, force):
+    """Refuse to join an issue a live other client works on; warn past stale ones."""
+    others = [c for c in active_claims(payloads) if c.get("client") != cid]
+    fresh = [c for c in others if not is_stale(c)]
+    if fresh:
+        h = fresh[0]
+        waiting = f" and waits for user input: {h.get('question', 'input')}" if h.get("state") == "waiting" else ""
+        die(f"issue #{n} is claimed by `{h['client']}` on branch `{h['branch']}` "
+            f"(heartbeat {age_short(h['heartbeat'])} ago){waiting}; "
+            f"check `wip ls`, pick another issue, or take over deliberately with `wip {cmd} --force`")
+    for h in [c for c in others if is_stale(c)]:
+        sys.stderr.write(f"wip: warning: joining issue #{n} despite stale claim by "
+                         f"`{h['client']}` (heartbeat {age_short(h['heartbeat'])} ago)\n")
+
+
+def cmd_claim(arg, force=False):
     R, root = repo(), git_root()
     cid = client_id(root)
     n = infer_issue(arg, "claim")
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid]
+    own_active = any(p.get("state") in ("wip", "waiting") for _, p in own)
+    if not own_active:
+        guard_others(payloads, cid, n, "claim", force)
     last = own[-1] if own else None
     ts = now_iso()
     if last and last[1].get("state") in ("wip", "waiting"):
@@ -260,7 +280,7 @@ def cmd_done(arg):
     print(f"released #{n} for `{cid}` -> {issue_url(R, n)}")
 
 
-def cmd_wait(reason):
+def cmd_wait(reason, force=False):
     if not reason:
         die('usage: wip wait "<what you need from the user>"')
     R, root = repo(), git_root()
@@ -276,6 +296,7 @@ def cmd_wait(reason):
         sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{c_id}", "-f", f"body={claim_body(p)}"])
         action = "marked waiting for user input on"
     else:
+        guard_others(payloads, cid, n, "wait", force)
         p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
              "state": "waiting", "question": reason, "since": ts, "heartbeat": ts, "released": None}
         sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "-f", f"body={claim_body(p)}"])
@@ -432,13 +453,15 @@ def usage():
 
 
 def main():
-    args = sys.argv[1:]
+    args = [a for a in sys.argv[1:] if a != "--"]
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
     cmd = args[0] if args else "ls"
     arg = args[1] if len(args) > 1 else None
     if cmd in ("-h", "--help", "help"):
         usage()
     elif cmd == "claim":
-        cmd_claim(arg)
+        cmd_claim(arg, force)
     elif cmd == "done":
         cmd_done(arg)
     elif cmd == "ls":
@@ -446,7 +469,7 @@ def main():
     elif cmd == "board":
         cmd_board(arg)
     elif cmd == "wait":
-        cmd_wait(" ".join(args[1:]))
+        cmd_wait(" ".join(args[1:]), force)
     else:
         die(f"unknown command '{cmd}' (see: wip help)")
 

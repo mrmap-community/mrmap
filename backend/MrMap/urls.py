@@ -91,11 +91,19 @@ urlpatterns.append(
 
 
 if settings.DEBUG and not settings.TESTING:
-    import debug_toolbar
     from django.conf import settings
     from django.conf.urls.static import static
 
-    urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+    # The settings decide once, when they are imported, whether the toolbar is an
+    # installed app. This branch reads DEBUG and TESTING again and a test may
+    # override both to reach the development media route below; the imported apps
+    # are what tells whether the toolbar is really there, and its urls import a
+    # model which fails when the app was never installed.
+    if "debug_toolbar" in settings.INSTALLED_APPS:
+        import debug_toolbar
+
+        urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+
     # to enable possibility to open media files during development (images, documents, etc)
     urlpatterns += static(settings.MEDIA_URL,
                           view=ProtectedServeView.as_view(),

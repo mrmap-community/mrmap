@@ -146,7 +146,11 @@ class ProtectedServeVerbTests(SimpleTestCase):
 
 @override_settings(DEBUG=True, TESTING=False)
 class DevelopmentProtectedServeVerbTests(ProtectedServeVerbTests):
-    """Exercise the same media contract through the development URLconf branch."""
+    """Exercise the same media contract through the development URLconf branch.
+
+    The toolbar is no installed app of a test run, which the urlconf asks rather
+    than its own DEBUG, so this branch is imported for its media route alone.
+    """
 
     @classmethod
     def setUpClass(cls):

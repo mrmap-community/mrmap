@@ -323,26 +323,6 @@ class CswServiceView(View):
 
         heap_count = start_position + max_records
 
-        # Both sources are ordered by their primary key, which means that a record which
-        # is among the first `heap_count` records of the merged result is among the
-        # first `heap_count` records of *its own* source too: every record standing in
-        # front of it in the merged order stands in front of it in its own source as
-        # well. So taking that many records from both and merging them by pk answers the
-        # requested page, for the price of two limited queries.
-        # TODO: order by correct querparameter
-        merged_records = sorted(
-            chain(dataset_metadata_records_result[:heap_count],
-                  service_metadata_records_result[:heap_count]),
-            key=lambda instance: instance.pk
-        )
-
-        result = merged_records[start_position: heap_count]
-
-        next_record = heap_count + 1
-        next_record = next_record if next_record < total_records else total_records
-
-        records_returned = len(result)
-
         result_type = (self.ogc_request.xml_request.xpath(
             "/csw:GetRecords/@resultType",
             namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
@@ -351,12 +331,16 @@ class CswServiceView(View):
         builder = CSWBuilder()
 
         if result_type == "hits":
+            # Table 66: a hits response answers the size of the result set and no
+            # record of it -- numberOfRecordsReturned is 0 and nextRecord is 0,
+            # which means "all records have been returned" and stops a client from
+            # paging on a phantom position. No page is read for this answer.
             xml = builder.build_get_records_response(
                 total_records=total_records,
-                records_returned=records_returned,
+                records_returned=0,
                 version="2.0.2",
                 time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record,
+                next_record=0,
             )
         elif result_type == "validate":
             # no errors while here. So the request was acknowledget as successfully
@@ -364,6 +348,26 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
+            # Both sources are ordered by their primary key, which means that a record which
+            # is among the first `heap_count` records of the merged result is among the
+            # first `heap_count` records of *its own* source too: every record standing in
+            # front of it in the merged order stands in front of it in its own source as
+            # well. So taking that many records from both and merging them by pk answers the
+            # requested page, for the price of two limited queries.
+            # TODO: order by correct querparameter
+            merged_records = sorted(
+                chain(dataset_metadata_records_result[:heap_count],
+                      service_metadata_records_result[:heap_count]),
+                key=lambda instance: instance.pk
+            )
+
+            result = merged_records[start_position: heap_count]
+
+            next_record = heap_count + 1
+            next_record = next_record if next_record < total_records else total_records
+
+            records_returned = len(result)
+
             gmd_records = [
                 etree.fromstring(record.xml_backup)
                 for record in result
@@ -385,7 +389,7 @@ class CswServiceView(View):
         )
         # if (settings.DEBUG):
         #    return TemplateResponse(request, "csw/debug.html", {"content": content})
-        return HttpResponse(status=200, content=content, content_type="application/xhtml+xml")
+        return HttpResponse(status=200, content=content, content_type="application/xml")
 
     def get_record_by_id(self, request):
         requested_entities = self.ogc_request.requested_entities

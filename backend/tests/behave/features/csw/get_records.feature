@@ -29,13 +29,26 @@ Feature: MrMap CatalogueService Endpoint
     Background: Setup base url
         Given I use the endpoint http://localhost:8000/csw
 
+    # Table 66 (OGC 07-006r1): a hits response answers the size of the result set and no
+    # record of it -- numberOfRecordsReturned 0 and nextRecord 0, where 0 in nextRecord
+    # means "all records have been returned" and leaves the client nothing to page on
+    # (#913; before, the numbers of the page the endpoint had fetched stood in the response
+    # while no record was shipped with them).
     Scenario: GetRecords Hits response
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
         Given I set a queryparam "service" with value "CSW"
         Given I set a queryparam "resultType" with value "hits"
+        Given I set a queryparam "maxRecords" with value "1"
         When I send the request with GET method
         Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsReturned" with value "0"
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@nextRecord" with value "0"
+        # the vocabulary's xpath step compares values of nodes, and a count is no node,
+        # so concat turns the number of records shipped into the one string it can read
+        # (libxml2 demands two arguments from concat, hence the empty one)
+        Then I expect that there is a xpath "concat(count(//*[local-name()='SearchResults']/*), '')" with value "0"
 
     Scenario: GetRecords results response without filter
         Given I set a queryparam "REQUEST" with value "GetRecords"

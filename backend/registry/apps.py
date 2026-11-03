@@ -65,6 +65,30 @@ def find_orphan_metadata_objects(sender, **kwargs):
     logger.info("metadata orphans:", orphans.count())
 
 
+def refresh_coupling_references(sender, instance, **kwargs):
+    """ Keep the derived coupling index in sync with its source record.
+
+        Every save of a service metadata record regenerates the references out
+        of the record's stored xml; the harvesting persists a new backup file
+        through the file field, which saves the record and therefore refreshes
+        the index with it.
+    """
+    from registry.models.metadata import MetadataCouplingReference
+    if kwargs.get("raw"):
+        # a loaddata restores no derived data; the index of a restored
+        # deployment is built by rebuild_metadata_coupling_references
+        return
+    if (not instance.xml_backup_file.name
+            and not MetadataCouplingReference.objects
+            .filter(service_metadata=instance).exists()):
+        # the persistence of a harvested record saves it once before it writes
+        # its backup file - a record which never held a reference has nothing
+        # to regenerate on that first save, which keeps a large import from
+        # parsing an empty document per record
+        return
+    MetadataCouplingReference.objects.rebuild_for(instance)
+
+
 class RegistryConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'registry'
@@ -85,4 +109,14 @@ class RegistryConfig(AppConfig):
         post_migrate.connect(
             find_orphan_metadata_objects,
             sender=self
+        )
+
+        # Keep the derived coupling index in sync with its source service
+        # metadata records, see `refresh_coupling_references`.
+        from django.db.models.signals import post_save
+        from registry.models.metadata import ServiceMetadataRecord
+        post_save.connect(
+            refresh_coupling_references,
+            sender=ServiceMetadataRecord,
+            dispatch_uid="registry.refresh_coupling_references",
         )

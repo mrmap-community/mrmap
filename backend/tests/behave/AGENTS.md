@@ -18,6 +18,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/service_alerts.py` | failed update and object visibility setup for cross-service attention |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
+| `steps/metadata_service_candidates.py` | Service candidates setup of a metadata record: per url prepared capabilities answers, recorded upstream calls and the state of a missing stored document |
 | `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |

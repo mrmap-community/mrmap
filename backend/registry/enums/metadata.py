@@ -69,3 +69,20 @@ class TimeExtentKind(SmartIntegerChoices):
     SINGLE_VALUE = 1, _("Single Value")
     INTERVAL = 2, _("Interval")
     ROLLING = 3, _("Rolling")
+
+
+class MetadataCouplingKindEnum(SmartIntegerChoices):
+    """ Defines the kind of a coupling reference which a harvested service
+        metadata record advertises in its iso document.
+
+        The kind is part of the evidence: the values of different kinds live in
+        different namespaces and shall never be matched against each other.
+    """
+    # srv:operatesOn/@uuidref: names the file identifier of a metadata record
+    UUIDREF = 1, _("Uuid reference")
+    # srv:operatesOn/@xlink:href: names the location of a metadata record
+    HREF = 2, _("Href reference")
+    # srv:SV_CoupledResource/srv:identifier: names the described resource
+    IDENTIFIER = 3, _("Identifier reference")
+    # srv:SV_CoupledResource/srv:scopedName: names the resource by its scope
+    SCOPED_NAME = 4, _("Scoped name reference")

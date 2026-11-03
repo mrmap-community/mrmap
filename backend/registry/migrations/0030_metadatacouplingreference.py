@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0028_a_keyword_is_as_long_as_its_catalogue_says'),
+        ('registry', '0029_harvestingjob_celery_task_ids_side_table'),
     ]
 
     operations = [

@@ -345,7 +345,11 @@ CACHES = {
 # Celery settings
 ################################################################
 CELERY_BROKER_URL = BROKER_URL
-CELERY_RESULT_BACKEND = "django-cache"
+CELERY_RESULT_BACKEND = "extras.celery:RetryingCacheBackend"
+# Chord members must store results. Retry transient cache failures here, after
+# the task body has completed, rather than failing or rerunning the harvest.
+CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
+CELERY_RESULT_BACKEND_MAX_RETRIES = 10
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -589,23 +593,56 @@ LOGGING = {
         # },
     },
 }
+# point the syslog handler at any RFC 5424 capable receiver; the default is the
+# victoria-logs service of the compose stack
+SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", "victoria-logs")
+SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", "5514"))
 try:
     """if syslog server is not reachable the application will not startup otherwise"""
-    socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
+    socket.getaddrinfo(SYSLOG_HOST, SYSLOG_PORT, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
             "formatter": "rfc5424",
             "facility": "user",
-            "address": ("openobserve", 5514),
+            "address": (SYSLOG_HOST, SYSLOG_PORT),
         },
     })
     LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
-    print("sylog logging handler configured.")
+    print("syslog logging handler configured.")
 except socket.gaierror:
     print("syslog server is not reachable. skipping syslog handler setup.")
+
+# the request duration in ms which is worth a "Slow Request Detected" record; the
+# middleware of system/logging/middleware.py reads it while it builds itself
+LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS = int(
+    os.getenv("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
+
+# every record the syslog handler formats leaves a json dump with the details of
+# the record below the media root, see system/logging/formatter.py. Nothing used
+# to take them back, so they grew with every slow request (#888). The sweep which
+# system/tasks.py names deletes them after this many days, aligned with the
+# -retentionPeriod of the log store which keeps the syslog line pointing at them:
+# a dropped dump loses the per request sql detail, nothing else. 0 keeps them
+# until the cap below is reached
+SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
+    os.getenv("MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS", "14"))
+# and keeps at most this many dumps, whichever bound is hit first; this bounds the
+# directory itself, whose listing a chatty deployment pays for on every sweep. 0
+# answers no cap, which leaves the age bound alone
+SLOW_REQUEST_DUMP_MAX_FILES = int(
+    os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
+
+# how many stored metadata files a single import task takes. The fan-out which
+# writes harvested records to the database is one task per chunk instead of one per
+# record (#859): a harvest of 70,000 records publishes ~280 broker messages, task
+# round-trips and result writes instead of 70,000, and the import is limited by the
+# database again. This is not the request step size of the catalogue
+# (HarvestingJob.max_step_size), which is probed per service and stays untouched
+HARVEST_IMPORT_BATCH_SIZE = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_BATCH_SIZE", "250"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
@@ -656,6 +693,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "extras.schema.CustomOperationId",
     "DEFAULT_FILTER_BACKENDS": (
         "rest_framework_json_api.filters.QueryParameterValidationFilter",
+        "rest_framework_json_api.filters.IncludedResourcesFilter",
         "rest_framework_json_api.filters.OrderingFilter",
         # "extras.filter_backend.CustomDjangoFilterBackend",
         "rest_framework_json_api.django_filters.backends.DjangoFilterBackend",

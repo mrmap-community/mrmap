@@ -65,11 +65,11 @@ export interface ElementInspectionProps {
   id?: RaRecord["id"];
   serviceResource: "WebMapService" | "WebFeatureService";
   serviceId?: RaRecord["id"];
-  /** Preview destination of the owning service, e.g. the map viewer button. A
-   *  service which points its viewer at exactly one resource of its capabilities
+  /** Destinations of the owning service, e.g. the buttons which open it in the map
+   *  viewer. A service which shows one resource of its capabilities in its viewer
    *  needs the element which is inspected to do so and is therefore handed the
    *  answer of the element to build the destination out of it. */
-  previewAction?: ReactNode | ((record?: RaRecord) => ReactNode);
+  viewerActions?: ReactNode | ((record?: RaRecord) => ReactNode);
   /** The recent changes of the element, e.g. the compact feed of the changelog. */
   history?: (record?: RaRecord) => ReactNode;
 }
@@ -89,7 +89,7 @@ const ElementInspection = ({
   id,
   serviceResource,
   serviceId,
-  previewAction,
+  viewerActions,
   history,
 }: ElementInspectionProps) => {
   const translate = useTranslate();
@@ -144,8 +144,8 @@ const ElementInspection = ({
     ? "AllowedWebMapServiceOperation"
     : "AllowedWebFeatureServiceOperation";
   const describe = record.describeFeatureTypeDocument as string | undefined;
-  // the owning service builds its destination out of the element which is inspected
-  const preview = typeof previewAction === "function" ? previewAction(record) : previewAction;
+  // the owning service builds its destinations out of the element which is inspected
+  const actions = typeof viewerActions === "function" ? viewerActions(record) : viewerActions;
 
   return (
     <ResourceContextProvider value={resource}>
@@ -155,7 +155,7 @@ const ElementInspection = ({
             {readableName(record)}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ ml: "auto" }}>
-            {preview}
+            {actions}
             {hasEdit && (
               // react-admin gates the editor itself; it is offered when permitted
               <Button size="small" component={Link} to={`/${resource}/${String(id)}/edit`}>

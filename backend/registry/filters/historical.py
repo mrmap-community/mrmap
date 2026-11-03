@@ -15,6 +15,12 @@ class HistoricalFilterSet(FilterSet):
     )
     delta_size__gt = NumberFilter(
         method="filter_delta_size_gt",
+        # what this filter answers is the alias of the queryset, not a field of
+        # the model, and saying so keeps the schema from reading the name as a
+        # field of the resource: since #856 the diff size is a column of the
+        # audit table, which the resource does not answer, and a filter named
+        # after it would be advertised as a lookup of that field
+        field_name="_delta_size",
         min_value=0,
         help_text=_(
             "Returns records with more than this many changed fields."),

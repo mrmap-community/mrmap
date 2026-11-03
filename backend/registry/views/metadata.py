@@ -252,7 +252,11 @@ class DatasetMetadataViewSetMixin(
     PreloadNotIncludesMixin,
     MetadataResolutionViewSetMixin,
 ):
-    queryset = DatasetMetadataRecord.objects.select_related("licence")
+    # the vector of a record is what it is found by, not something this endpoint
+    # answers, and postgres keeps it compressed: see registry/expressions/search.py
+    queryset = DatasetMetadataRecord.objects \
+        .select_related("licence") \
+        .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")
@@ -499,7 +503,10 @@ class ServiceMetadataViewSetMixin(
     PreloadNotIncludesMixin,
     MetadataResolutionViewSetMixin
 ):
-    queryset = ServiceMetadataRecord.objects.select_related("licence")
+    # see DatasetMetadataViewSetMixin.queryset
+    queryset = ServiceMetadataRecord.objects \
+        .select_related("licence") \
+        .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
     search_fields = ("title", "abstract", "keywords__keyword")

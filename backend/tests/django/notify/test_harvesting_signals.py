@@ -81,14 +81,23 @@ class HarvestingJobSignalsTest(TestCase):
             total_records=10, max_step_size=5,
             phase=Phase.DOWNLOAD_RECORDS.value))
 
-        self.assertEqual(len(self.layer.sent), 1)
-        group, message = self.layer.sent[0]
-        self.assertEqual(message["json"]["topic"], "resource/HarvestingJob")
+        # the job creates the background process which reports it, so both
+        # resources announce the new work: the lists of runs read the first, an
+        # open overview of the background activity reads the second (#809)
+        def announced(topic):
+            return [(group, message) for group, message in self.layer.sent
+                    if message["json"]["topic"] == topic]
+
+        created = announced("resource/HarvestingJob")
+
+        self.assertEqual(1, len(created))
+        group, message = created[0]
         self.assertEqual(message["json"]["event"]["type"], "created")
         self.assertEqual(group, group_name("resource/HarvestingJob"))
         self.assertTrue(
             message["immediate"],
             "a client which misses the create of a job never learns of it")
+        self.assertEqual(1, len(announced("resource/BackgroundProcess")))
 
     def test_phase_change_reaches_the_group_of_the_job_it_belongs_to(self):
         job = self.job()

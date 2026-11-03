@@ -63,4 +63,10 @@ it("selects, clears and refreshes a filter without producing an empty option", a
   );
   fireEvent.click(screen.getByRole("button", { name: "ra.action.open" }));
   expect(await screen.findByRole("option", { name: "20" })).toBeInTheDocument();
+
+  // react-admin debounces setFilter by 250ms and never cancels it on unmount.
+  // Let the pending call run while the jsdom environment is still alive:
+  // otherwise the state update lands after the file's teardown and react-dom
+  // throws "window is not defined", which vitest counts as an unhandled error.
+  await new Promise((resolve) => setTimeout(resolve, 300));
 });

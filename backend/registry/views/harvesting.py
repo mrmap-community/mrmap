@@ -1,7 +1,7 @@
 from datetime import timedelta
 
-from camel_converter import to_snake
 from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
+from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import DurationField, FloatField
 from django.db.models.functions import Ceil, Coalesce, Round
 from django.db.models.sql.constants import LOUTER
@@ -11,6 +11,7 @@ from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin, SparseFieldMixin)
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
+from registry.expressions.durations import DurationSeconds
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
@@ -106,7 +107,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         "create": CreateHarvestingJobSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id", 'date_created']
+    # the runs which finished are ordered by their end: the harvesting never sets the creation of
+    # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
+    # catalogue is measured by the runs which ended last (#692)
+    ordering_fields = ["id", 'date_created', 'done_at']
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -255,6 +259,26 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         if self.check_sparse_fields_contains("duplicatedServiceMetadataCount"):
             qs = qs.annotate(
                 duplicated_service_metadata_count=Coalesce(sums.col.duplicated_service_metadata_count, 0))
+        if self.check_sparse_fields_contains("recordsPerMinute"):
+            qs = qs.annotate(
+                harvested_records=Coalesce(sums.col.harvested_records, 0),
+                measured_seconds=Coalesce(sums.col.measured_seconds, 0.0),
+            ).annotate(
+                # Only a run which completed measured a harvest as a whole: the sums of a run which
+                # stopped half way, or broke, name the work it happened to do, not what a harvest of
+                # the catalogue takes. And a run whose records carry no durations measured nothing,
+                # so it answers nothing - an invented number must not be mistaken for a measured one
+                # (#692).
+                records_per_minute=Case(
+                    When(
+                        phase=HarvestingPhaseEnum.COMPLETED,
+                        done_at__isnull=False,
+                        measured_seconds__gt=0,
+                        then=ExpressionWrapper(
+                            F("harvested_records") * 60.0 / F("measured_seconds"),
+                            output_field=FloatField())),
+                    default=None,
+                    output_field=FloatField()))
 
         return qs
 
@@ -269,6 +293,21 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         if self.check_sparse_fields_contains("mdMetadataFileToDbDuration"):
             cte_annotation.update({
                 "md_metadata_file_to_db_duration": Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
+            })
+        if self.check_sparse_fields_contains("recordsPerMinute"):
+            # the throughput of a run are the records it stored against the time their
+            # download and their way into the database measured. Both are summed right here
+            # already, so the number costs no second aggregation of the harvested records (#692).
+            # The records which a completed snapshot only bookkeeps as removed are not among the
+            # ones a run fetched and carry no duration either.
+            cte_annotation.update({
+                "harvested_records": Count(
+                    'id',
+                    filter=~Q(collecting_state=CollectingStatenEnum.REMOVED.value)),
+                "measured_seconds": DurationSeconds(
+                    Coalesce(Sum('download_duration'), timedelta(seconds=0), output_field=DurationField())
+                    + Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
+                ),
             })
         sums = None
         if dataset_cte_annotation or service_cte_annotation or cte_annotation:
@@ -294,20 +333,20 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         unhandled_records_count_needed = self.check_sparse_fields_contains(
             "unhandledRecordsCount")
         progress_needed = self.check_sparse_fields_contains("progress")
-        total_steps_needed = self.check_sparse_fields_contains(
-            "totalSteps") or progress_needed
         done_steps_needed = self.check_sparse_fields_contains(
             "doneSteps") or progress_needed
+        total_steps_needed = self.check_sparse_fields_contains(
+            "totalSteps") or done_steps_needed
         download_tasks_count_needed = total_steps_needed or done_steps_needed
 
-        cte_kwargs = {}
+        counts = {}
         qs_annotation_kwargs = {}
         if import_error_count_needed:
-            cte_kwargs.update({
+            counts.update({
                 "import_error_count": Count("id", filter=Q(has_import_error=True))
             })
         if unhandled_records_count_needed:
-            cte_kwargs.update({
+            counts.update({
                 "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
             })
         if download_tasks_count_needed:
@@ -320,7 +359,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                 "total_steps": F("download_tasks_count") + F("total_records") + 1
             })
         if done_steps_needed:
-            cte_kwargs.update({
+            counts.update({
                 "records_count": Count("id")
             })
 
@@ -372,38 +411,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                 )
             })
 
-        qs = self.construct_cte(
-            qs, cte_kwargs, TemporaryMdMetadataFile, "job_id", qs_annotation_kwargs)
-
-        return qs
-
-    def construct_cte(self, qs, cte_kwargs, model, join_key, qs_annotation_kwargs={}, join_type=LOUTER):
-        if cte_kwargs:
-            cte = CTE(
-                queryset=model.objects.values(
-                    'job_id').annotate(**cte_kwargs),
-                name=f"{to_snake(model.__name__)}_cte"
-            )
-            qs = with_cte(
-                cte,
-                select=cte.join(model_or_queryset=qs,
-                                id=getattr(cte.col, join_key),
-                                _join_type=join_type)
-            )
-            qs = self.annotate_qs_by_cte_fields(qs, cte_kwargs, cte)
+        if counts:
+            qs = HarvestingJob.objects.with_temporary_file_counts(qs, **counts)
         if qs_annotation_kwargs:
             qs = qs.annotate(**qs_annotation_kwargs)
-        return qs
-
-    def annotate_qs_by_cte_fields(self, qs, cte_kwargs, cte):
-        qs_kwargs = {}
-        for key, value in cte_kwargs.items():
-            qs_kwargs.update({
-                # Coalesce with int value will not always be right here;
-                # TODO: Check if the value is Count (int) for example, if not (string) then use empty string for example
-                key: Coalesce(getattr(cte.col, key), 0)
-            })
-        qs = qs.annotate(**qs_kwargs)
         return qs
 
     def get_queryset(self, *args, **kwargs):
@@ -411,6 +422,29 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         qs = self.with_harvesting_stats(qs)
         qs = self.with_unhandled_records(qs)
         return qs
+
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Count the jobs of the answer without the statistics of a job.
+
+        ``with_harvesting_stats`` bounds the ``sums`` CTE, which aggregates the whole
+        table of the harvested metadata relations into one aggregate row per job, and
+        joins it ``LEFT OUTER``: the join answers exactly as many rows as the job
+        table does, so the number of rows of the answer belongs to the job table. The
+        paginator does not know that and asks the annotated queryset for its
+        ``COUNT``, which materializes that aggregation a second time - the whole table
+        of the harvested metadata relations twice for one overview of a deployment
+        which has harvested (#885).
+
+        The number is therefore read from the rows before the statistics: the filters
+        of the request are applied to the queryset without them, which is the same
+        answer without the annotations, and the page itself is still taken from the
+        annotated queryset. The statistics cost one materialization per request.
+        """
+        if getattr(queryset.query, '_with_ctes', None):
+            queryset = queryset.with_cached_count(
+                self.filter_queryset(
+                    super().get_queryset()).count())
+        return super().paginate_queryset(queryset, *args, **kwargs)
 
 
 class HarvestingJobViewSet(
@@ -515,6 +549,7 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
+        "harvesting_job": ["harvesting_job"],
         "dataset_metadata_record": [
             Prefetch(
                 "dataset_metadata_record",

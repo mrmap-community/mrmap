@@ -2,8 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from django.db import models
-from django.db.models import (Case, CharField, Count, F, OuterRef, Q, Subquery,
-                              Value, When)
+from django.db.models import (Case, CharField, Count, F, Q, Value, When)
 from django.db.models.constraints import UniqueConstraint
 from django.db.models.query import Prefetch
 from registry.querys.historical import with_delta_size
@@ -50,41 +49,25 @@ class DefaultHistoryManager(models.Manager):
     def _stats_per_day_queryset(self, group_by_service: bool = False):
         history_model = self.model.change_log.model
 
-        previous_records = (
-            history_model._default_manager
-            .filter(id=OuterRef("id"))
-            .filter(
-                Q(history_date__lt=OuterRef("history_date"))
-                | Q(
-                    history_date=OuterRef("history_date"),
-                    history_id__lt=OuterRef("history_id"),
-                )
-            )
-            .order_by("-history_date", "-history_id")
-        )
-
-        history = (
-            history_model._default_manager
-            .annotate(
-                prev_record_id=Subquery(
-                    previous_records.values("history_id")[:1]
-                )
-            )
-        )
-
-        history = with_delta_size(history)
+        # How many tracked fields an audit row differs in from the row it
+        # precedes is something the row knows about itself: the database wrote
+        # it when the row was written (registry migration 0025), which is what
+        # leaves this aggregation with a single pass over the table. Without a
+        # predecessor a row has no diff size at all, which is how a record which
+        # was created before history existed is told apart from a save which
+        # changed nothing -- the first counts as new, the second as nothing.
+        history = with_delta_size(history_model._default_manager.all())
 
         new_filter = (
             Q(history_type="+")
             | Q(
                 history_type="~",
-                prev_record_id__isnull=True,
+                _delta_size__isnull=True,
             )
         )
 
         updated_filter = Q(
             history_type="~",
-            prev_record_id__isnull=False,
             _delta_size__gt=0,
         )
 
@@ -97,7 +80,7 @@ class DefaultHistoryManager(models.Manager):
             | updated_filter
             | Q(
                 history_type="~",
-                prev_record_id__isnull=True,
+                _delta_size__isnull=True,
             )
         )
 

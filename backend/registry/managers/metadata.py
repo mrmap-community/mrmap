@@ -18,37 +18,18 @@ class KeywordManager(models.Manager):
 
 
 class DatasetMetadataRecordManager(UniqueConstraintDefaultValueManager):
+    """The manager of the dataset metadata records.
 
-    def bulk_create(self, *args, **kwargs):
-        from registry.models.materialized_views import \
-            SearchableDatasetMetadataRecord
-        objs = super().bulk_create(*args, **kwargs)
-        SearchableDatasetMetadataRecord.refresh()
-        return objs
-
-    def bulk_update(self, *args, **kwargs) -> int:
-        objs = super().bulk_update(*args, **kwargs)
-        from registry.models.materialized_views import \
-            SearchableDatasetMetadataRecord
-        SearchableDatasetMetadataRecord.refresh()
-        return objs
+    It asked the searchable projection of the records to be refreshed after every bulk
+    write, which the harvest of a catalogue did on every document. The searchable
+    representation of a record is a column of the record since #854, so there is
+    nothing left to refresh and nothing left here but the behaviour of the base.
+    """
 
 
 class ServiceMetadataRecordManager(UniqueConstraintDefaultValueManager):
-
-    def bulk_create(self, *args, **kwargs):
-        objs = super().bulk_create(*args, **kwargs)
-        from registry.models.materialized_views import \
-            SearchableServiceMetadataRecord
-        SearchableServiceMetadataRecord.refresh()
-        return objs
-
-    def bulk_update(self, *args, **kwargs) -> int:
-        objs = super().bulk_update(*args, **kwargs)
-        from registry.models.materialized_views import \
-            SearchableServiceMetadataRecord
-        SearchableServiceMetadataRecord.refresh()
-        return objs
+    # see DatasetMetadataRecordManager
+    pass
 
 
 class TimeExtentManager(models.Manager):

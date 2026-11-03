@@ -4,7 +4,9 @@ from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
-from django.contrib.postgres.indexes import BTreeIndex
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import BTreeIndex, GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.expressions import CombinedExpression
@@ -15,7 +17,8 @@ from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
 from extras.managers import (ChoiceManager, DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
-from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
+from extras.models import (AdditionalTimeFieldsHistoricalModel, ChoiceModel,
+                           DeltaSizeHistoricalModel)
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
                                 MetadataCharsetChoices, UpdateFrequencyChoices)
 from registry.enums.metadata import (DatasetFormatEnum,
@@ -25,6 +28,7 @@ from registry.enums.metadata import (DatasetFormatEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
 from registry.exceptions.service import NoContent
+from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
                                         MetadataCouplingReferenceManager,
@@ -439,7 +443,18 @@ class MetadataContact(models.Model):
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=300)
+    # A keyword is free text: ISO 19115 gives gmd:keyword no length and catalogues
+    # publish comma joined lists which are longer than any column width - the list
+    # of the report which asked for this is 347 characters of perfectly good
+    # metadata. A width on this column is therefore not a bound on bad input but a
+    # reason for a whole metadata file to die: the insert of the keyword raised
+    # StringDataRightTruncation, the import task judged that a record error and the
+    # records of the file never entered the registry (#894).
+    # The unique index over this column is the only real limit and it is not a
+    # length: postgres stores a truncated key for a value it toasts, so the index
+    # answers a keyword of any length (measured on this schema: 160,000 bytes
+    # inserted into the unique index of a text column, block size 8 kB).
+    keyword = models.TextField()
 
     objects = KeywordManager()
 
@@ -725,10 +740,16 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     def __str__(self):
         return f"{self.title} ({self.pk})"
 
-    def save(self, *args, **kwargs):
-        """Custom save function to set `is_customized` on update."""
-        # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
-        if not self._state.adding:
+    def save(self, *args, mark_customized: bool = True, **kwargs):
+        """Save the record and say with `mark_customized` who wrote it.
+
+        An update of a record is a customization of it, which is what the flag
+        answers to the editor. A write of the harvesting process is not one: the
+        record came from the catalogue as the catalogue has it, and flagging every
+        re-harvest as customized tells that somebody edited it (#858). Those
+        writes pass `mark_customized=False`.
+        """
+        if not self._state.adding and mark_customized:
             self.is_customized = True
 
         return super().save(*args, **kwargs)
@@ -1031,6 +1052,42 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         db_persist=True
     )
 
+    # the keywords of the record as one denormalized array, kept in sync by the
+    # database (see registry/migrations/0021_metadatarecords_keywords_list.py).
+    # Aggregating the keywords relation is not expressible in a column expression,
+    # so this array is what allows a searchable representation of a record to be a
+    # column of the record itself instead of a projection which has to be rebuilt.
+    # A write which brings a different array is answered by the relation instead
+    # (registry/migrations/0024_keep_the_keywords_list_of_a_record_on_every_write.py).
+    # The element follows the column of the keyword it copies: an array of a fixed
+    # width would answer another text than the relation of the very same record and
+    # would refuse the long keyword on the write of the record row, which is where
+    # #894 would have landed otherwise. Widening it is what asks the generated
+    # vector below to be rebuilt by the migration which changes this
+    # (registry/migrations/0028_a_keyword_is_as_long_as_its_catalogue_says.py).
+    keywords_list = ArrayField(
+        base_field=models.TextField(),
+        default=list,
+        editable=False,
+    )
+
+    # columns which the database owns: a mapper must never send a value for them,
+    # because the parsed instance only carries the default of the field -- the
+    # database refuses such a value for the array itself, but a write which names a
+    # maintained column is wrong even where no trigger watches it
+    db_maintained_fields = ("keywords_list",)
+
+    # the searchable representation of the record, computed by the database for every
+    # row: a record is findable the moment it is written, without a projection which
+    # has to be rebuilt and without a window in which it is not (the expression and
+    # the reason it is written out instead of using SearchVector live in
+    # registry/expressions/search.py)
+    search_vector = GeneratedField(
+        expression=MetadataRecordSearchVector(),
+        output_field=SearchVectorField(),
+        db_persist=True
+    )
+
     class Meta:
         abstract = True
 
@@ -1163,8 +1220,8 @@ class DatasetMetadataRecord(MetadataRecord):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        excluded_fields=("keywords_list", "search_vector",),
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
 
     objects = DatasetMetadataRecordManager()
@@ -1177,6 +1234,9 @@ class DatasetMetadataRecord(MetadataRecord):
         ] + MetadataRecord.Meta.constraints
         indexes = [
             models.Index(fields=["code", "code_space"]),
+            # a record is found by its vector through a tsquery, which is a containment
+            # over the vector and not a comparison of its text: only a GIN index answers it
+            GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
 
 
@@ -1219,13 +1279,15 @@ class ServiceMetadataRecord(MetadataRecord):
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector",
-        bases=[AdditionalTimeFieldsHistoricalModel,],
+        excluded_fields=("keywords_list", "search_vector",),
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     history = DefaultHistoryManager()
 
     class Meta:
         indexes = [
+            # see DatasetMetadataRecord.Meta.indexes
+            GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
         constraints = [
 

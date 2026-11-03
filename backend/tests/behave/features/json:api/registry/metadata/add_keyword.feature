@@ -24,3 +24,20 @@ Feature: Keyword Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 201
 
+    Scenario: Can add a keyword which is longer than a column
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "Keyword",
+                    "attributes": {
+                        "keyword": "Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Rudersberg"
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 201
+        Then I expect that response json has an attribute "data.attributes.keyword" with value "Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Remshalden,Flächennutzungsplan WN Rudersberg"
+

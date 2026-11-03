@@ -6,7 +6,6 @@ from celery import chord, current_task
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
-from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
@@ -76,11 +75,6 @@ class ProcessingData(models.Model):
         null=True,
         blank=True,
         editable=False)
-    celery_task_ids = ArrayField(
-        models.UUIDField(),
-        default=list,
-        blank=True,
-        editable=False)
 
     class Meta:
         abstract = True
@@ -91,38 +85,6 @@ class ProcessingData(models.Model):
             models.Index(fields=["done_at"]),
         ]
         constraints = []
-
-    def abort(self):
-        self.phase = HarvestingPhaseEnum.ABORTED.value
-        self.done_at = now()
-        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-by-stamped-headers-revoking-tasks-by-their-stamped-headers
-        # Warning:
-        # The revoked headers mapping is not persistent across restarts,
-        # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
-        current_task_id = current_task.request.id if current_task else None
-        task_ids = [str(_id) for _id in self.celery_task_ids
-                    if str(_id) != current_task_id]
-        if task_ids:
-            # A failing task can abort its own harvest. Store the terminal state and
-            # log before terminating siblings, and let the current task finish.
-            transaction.on_commit(lambda: app.control.revoke(task_ids, terminate=True))
-        # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
-        # but there will be a memory limit which is 50000 by default.
-        # But Harvesting jobs can have a way far more tasks that are currently in the queue.
-        # BKG csw for example provides more than 600000 records. So there will be minimum that number of tasks in the queue.
-        #
-        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-revoking-tasks
-        # Note:
-        # The maximum number of revoked tasks to keep in memory can be specified using the
-        # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
-
-    def append_celery_task_ids(self, ids):
-        """thread safe append function"""
-        with transaction.atomic():
-            current = self._meta.model.objects.select_for_update().get(pk=self.pk)
-            self.celery_task_ids = current.celery_task_ids + ids
-            self._meta.model.objects.filter(pk=self.pk).update(
-                celery_task_ids=self.celery_task_ids)
 
 
 class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
@@ -297,6 +259,80 @@ class HarvestingJob(ProcessingData):
                     "There is an existing noncompleted job for this service.")
             )
         ]
+
+    def append_celery_task_ids(self, ids, creation=False):
+        """Register the ids of the tasks this job is publishing.
+
+        Every id is one row which the task removes again when it reports in
+        (see ``registry/tasks/harvest.py``, ``HarvestingTask.after_return``).
+        The bookkeeping of a harvest thus stays with the tasks it names
+        instead of growing inside the row of the job, which every ordinary
+        read of the job used to parse (#892). An id which is registered
+        twice is the redelivery of one publishing and stays one task, so the
+        unique key of the row is what makes this thread safe - the job row
+        does not need to be locked for it anymore either.
+
+        A ``creation`` id is the delivery of the task which created the job.
+        It is kept when the job ends, because a redelivery of that message
+        has to find this job instead of starting a second harvest (see
+        ``registry/tasks/harvest.py``, ``create_harvesting_job``).
+        """
+        HarvestingJobTaskId.objects.bulk_create(
+            (HarvestingJobTaskId(job_id=self.pk, task_id=_id, creation=creation)
+             for _id in ids),
+            ignore_conflicts=True)
+
+    def abort(self):
+        self.phase = HarvestingPhaseEnum.ABORTED.value
+        self.done_at = now()
+        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-by-stamped-headers-revoking-tasks-by-their-stamped-headers
+        # Warning:
+        # The revoked headers mapping is not persistent across restarts,
+        # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
+        current_task_id = current_task.request.id if current_task else None
+        task_ids = [str(_id) for _id in
+                    self.celery_task_ids.values_list('task_id', flat=True)
+                    if str(_id) != current_task_id]
+        if task_ids:
+            # A failing task can abort its own harvest. Store the terminal state and
+            # log before terminating siblings, and let the current task finish.
+            transaction.on_commit(lambda: app.control.revoke(task_ids, terminate=True))
+        # The ids of the work of this run are bookkeeping for the revocation
+        # above alone: a job which is aborted never aborts again, so its own
+        # ids are dead with it and go. The creation id stays (see
+        # append_celery_task_ids).
+        self.celery_task_ids.filter(creation=False).delete()
+        # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
+        # but there will be a memory limit which is 50000 by default.
+        # But Harvesting jobs can have a way far more tasks that are currently in the queue.
+        # BKG csw for example provides more than 600000 records. So there will be minimum that number of tasks in the queue.
+        #
+        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-revoking-tasks
+        # Note:
+        # The maximum number of revoked tasks to keep in memory can be specified using the
+        # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
+        # The revocation only names the tasks which could still be stopped, as
+        # the tasks which reported in removed their ids themselves (#892).
+
+    def has_live_import_run(self):
+        """True while the import chord this job last published could still run.
+
+        The ids the job registered and has not seen report in are its database
+        shadow of the messages of its last chord in the broker (#892), and the
+        files still waiting for their import are the backlog those messages
+        carry. With both, the messages of this backlog are still to be consumed
+        and publishing a new chord would stack the whole backlog a second time
+        onto the queue - a queue growing per worker restart and gigabytes of
+        redis at the size of a real catalogue (#891). Without waiting files a
+        re-publish is free: it builds no chord and ends the harvest instead,
+        which is what completes a run whose chord was consumed while its
+        callback was lost. The creation id names no work of the backlog and
+        stays out of this (see append_celery_task_ids).
+        """
+        return (
+            self.celery_task_ids.filter(creation=False).exists()
+            and TemporaryMdMetadataFile.objects.filter(
+                job_id=self.pk, has_import_error=False).exists())
 
     def log(self,
             description,
@@ -902,6 +938,31 @@ class HarvestingJob(ProcessingData):
                 batch_size=50
             )
             return len(db_objs)
+
+
+class HarvestingJobTaskId(models.Model):
+    """The id of a task which a harvesting job published and has not seen report in.
+
+    The job used to carry these ids in an array field of its own row, which grew
+    with every chord it published and which every ordinary read of the job loaded
+    and parsed - a job which survived a few crash/recoveries of a 411k backlog
+    had one of those rows parse for seconds per request (#892). One row per id
+    keeps the row of the job constant: an id is registered when its task is
+    published and removed when the task reports in (see
+    ``registry/tasks/harvest.py``, ``HarvestingTask.after_return``) or when the
+    job is aborted (see ``HarvestingJob.abort``), so the table holds the tasks
+    which could still be revoked - and no history of the ones which finished.
+    """
+    job = models.ForeignKey(
+        to=HarvestingJob,
+        on_delete=models.CASCADE,
+        related_name="celery_task_ids",
+        related_query_name="celery_task_id")
+    task_id = models.UUIDField(unique=True)
+    # the delivery of the task which created the job: its id is kept when the
+    # job ends, because a redelivery of that message has to find this job
+    # instead of starting a second harvest (see create_harvesting_job)
+    creation = models.BooleanField(default=False)
 
 
 def response_file_path(instance, filename):

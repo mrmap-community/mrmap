@@ -3,7 +3,7 @@ import traceback
 from os import walk
 from uuid import uuid4
 
-from celery import Task, chord, shared_task
+from celery import Task, chord, shared_task, states
 from celery.signals import worker_ready
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -77,6 +77,35 @@ class HarvestingTask(Task):
             logger.error(
                 f"could not abort harvesting job {harvesting_job_id}: {traceback.format_exc()}")
 
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        """Remove the registered id of a task which reported in (#892).
+
+        A task id is registered for the revocation of an abort, which only
+        needs the work which could still be stopped: a task which ran to its
+        end or gave up leaves no id behind, so the ids of a job stay bounded
+        by its in-flight work instead of accumulating its whole backlog. A
+        retry keeps the id - the task runs again under the same one - and a
+        task which is not about one job never registered an id to begin with,
+        the creation task of a job among them: its delivery id is the identity
+        of the harvest for a redelivery of that message and stays registered.
+        """
+        if status not in (states.SUCCESS, states.FAILURE, states.REJECTED):
+            return
+        harvesting_job_id = (kwargs or {}).get("harvesting_job_id")
+        if harvesting_job_id is None:
+            return
+
+        from registry.models.harvest import HarvestingJobTaskId  # avoid circular import errors
+
+        try:
+            HarvestingJobTaskId.objects.filter(
+                job_id=harvesting_job_id, task_id=task_id).delete()
+        except Exception:
+            # bookkeeping must never be the reason a worker fails
+            logger.error(
+                f"could not remove the id {task_id} of harvesting job "
+                f"{harvesting_job_id}: {traceback.format_exc()}")
+
 
 class MetadataFileImportTask(HarvestingTask):
     """Base of the tasks which write stored metadata files to the database (#895).
@@ -102,12 +131,30 @@ def recover_harvests_after_restart(sender, **kwargs):
 
 @shared_task(queue="default", base=HarvestingTask)
 def recover_harvesting_jobs():
+    """Resume the harvests which did not end while no worker was running.
+
+    A worker restart leaves the messages of a running import chord in the
+    broker - queued ones are untouched by it, unacked ones return through the
+    visibility timeout - so a job whose tasks have not reported in has its
+    backlog in the queue already. Re-chording such a job publishes the whole
+    backlog a second time on top of the queued one and grows the queue per
+    restart (#891); what recovery has to re-chord is a job whose run reported
+    in - or which died between the commit of its phase and the publishing of
+    its chord, whose own unacked message brings it back to run again.
+    """
     from registry.models.harvest import HarvestingJob
 
     for job in HarvestingJob.objects.filter(done_at__isnull=True).iterator():
         if job.phase <= HarvestingPhaseEnum.DOWNLOAD_RECORDS and job.service_id:
             call_fetch_total_records.delay(harvesting_job_id=job.pk)
         elif job.phase == HarvestingPhaseEnum.RECORDS_TO_DB:
+            if job.has_live_import_run():
+                # the chord of this backlog is still in the broker and will be
+                # consumed by the workers which just started (#891)
+                logger.info(
+                    f"harvesting job {job.pk} keeps its queued import backlog: "
+                    f"recovery does not re-publish a chord which could still run")
+                continue
             call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
 
 
@@ -122,14 +169,15 @@ def create_harvesting_job(self, *args, **kwargs):
             return None
         # Keep the creation delivery's identity even after the harvest finishes.
         delivery_id = self.request.id or str(uuid4())
-        job = HarvestingJob.objects.filter(celery_task_ids__contains=[delivery_id]).first()
+        job = HarvestingJob.objects.filter(
+            celery_task_id__task_id=delivery_id).first()
         if job is None:
             # a harvest which names no step size starts from the size this catalogue is known to
             # answer - a schedule and the "harvest now" of the ui both come this way (#691)
             job, _ = HarvestingJob.objects.get_or_create(
                 service=service, done_at__isnull=True,
                 defaults={"max_step_size": service.max_step_size})
-            job.append_celery_task_ids([delivery_id])
+            job.append_celery_task_ids([delivery_id], creation=True)
         if job.done_at is None:
             transaction.on_commit(lambda: call_fetch_total_records.delay(harvesting_job_id=job.pk))
     return job.pk

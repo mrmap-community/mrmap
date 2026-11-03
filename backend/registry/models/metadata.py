@@ -440,7 +440,18 @@ class MetadataContact(models.Model):
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=300)
+    # A keyword is free text: ISO 19115 gives gmd:keyword no length and catalogues
+    # publish comma joined lists which are longer than any column width - the list
+    # of the report which asked for this is 347 characters of perfectly good
+    # metadata. A width on this column is therefore not a bound on bad input but a
+    # reason for a whole metadata file to die: the insert of the keyword raised
+    # StringDataRightTruncation, the import task judged that a record error and the
+    # records of the file never entered the registry (#894).
+    # The unique index over this column is the only real limit and it is not a
+    # length: postgres stores a truncated key for a value it toasts, so the index
+    # answers a keyword of any length (measured on this schema: 160,000 bytes
+    # inserted into the unique index of a text column, block size 8 kB).
+    keyword = models.TextField()
 
     objects = KeywordManager()
 
@@ -1045,8 +1056,14 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     # column of the record itself instead of a projection which has to be rebuilt.
     # A write which brings a different array is answered by the relation instead
     # (registry/migrations/0024_keep_the_keywords_list_of_a_record_on_every_write.py).
+    # The element follows the column of the keyword it copies: an array of a fixed
+    # width would answer another text than the relation of the very same record and
+    # would refuse the long keyword on the write of the record row, which is where
+    # #894 would have landed otherwise. Widening it is what asks the generated
+    # vector below to be rebuilt by the migration which changes this
+    # (registry/migrations/0028_a_keyword_is_as_long_as_its_catalogue_says.py).
     keywords_list = ArrayField(
-        base_field=models.CharField(max_length=300),
+        base_field=models.TextField(),
         default=list,
         editable=False,
     )

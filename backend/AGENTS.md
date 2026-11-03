@@ -19,6 +19,19 @@ Keep ViewSets and serializers thin. Put cross-app generic code in `extras/`
 (`viewsets.py`, `permissions.py`, `schema.py`, `fields.py`, `managers.py`, `decorators.py`) instead
 of duplicating it.
 
+Use class-based views for HTTP endpoints. Extend an existing ViewSet or DRF generic view for
+JSON:API resources, or Django's `View` for plain HTTP responses such as media and OGC endpoints.
+Keep app-specific views in the owning app's view module. Put reusable views, viewsets and view
+mixins in `extras/`, extending its existing abstractions before adding new ones. `MrMap/` holds
+project configuration and URL routing; do not put view implementations there. URLconfs wire
+views with `.as_view()` instead of defining request handlers.
+The media views in `system/views.py` enforce the slow request dump policy of `system.logging`,
+so they belong to `system/` rather than the generic `extras/` layer.
+Declare the accepted verbs with `http_method_names` and implement the corresponding methods
+(`get`, `post`, etc.), using the base class's dispatch. Django's `View` delegates HEAD to `get`
+by default. Preserve each endpoint's existing method policy, including OPTIONS and its `Allow`
+header, when refactoring; media views accept only `get` and `head` in development and production.
+
 
 ## Code navigation
 
@@ -88,17 +101,23 @@ Run Docker commands from the repository root. Test services are defined in
 `docker-compose.dev.yml`; combine it with `docker-compose.yml`, as the existing
 IDE tasks do. Commands require the project's configured environment files and Docker.
 
-Follow the Docker ownership and cleanup rules in `../AGENTS.md`. When dependencies are already
-running and ready, add `--no-deps` to the `run --rm` examples below. All Django and Behave runs sharing
-PostgreSQL must acquire the same host-wide lock, including runs from other worktrees. Prefix those
-commands with `flock -n /tmp/mrmap-backend-tests.lock`, for example:
+Follow the Docker ownership rules in `../AGENTS.md`: each job creates its own Compose stack, so a
+run never shares PostgreSQL with another job and no host-wide lock is involved. Start the
+dependencies this area needs once (`docker compose up -d postgis redis mapserver`) and add
+`--no-deps` to the `run --rm` examples below.
+
+Every Django and Behave command below also needs the admin credentials that the database was
+migrated with: `accounts/apps.py` creates the superuser from `MRMAP_USER` and `MRMAP_PASSWORD`, and
+`docker-compose.dev.yml` fills those from `DJANGO_ADMIN_USER` in `.env`. Behave steps and several
+unit tests look the user up by name, so a run against a database that was created with other values
+fails with `User matching query does not exist`. Pass the pair CI uses explicitly, before the
+service name:
 
 ```bash
-flock -n /tmp/mrmap-backend-tests.lock docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps django-tests python manage.py test tests.django.registry.tests_update_candidates --noinput
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps \
+  -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap django-tests \
+  python manage.py test tests.django.registry.tests_update_candidates --noinput
 ```
-
-If the lock is busy, do other independent work and retry before completing verification; do not
-bypass it or stop another job. Leave the lock file in place so every job locks the same file.
 
 Full Django suite (uses the service's coverage command):
 
@@ -133,12 +152,15 @@ What this loop costs, measured on this checkout:
 
 - Targeted Django tests: ~18 s cold, ~92 s when a stale test database has to be dropped first,
   ~20 s with `--keepdb`.
-- The full `tests/django` suite (183 tests) reports ~216 s of test time but takes ~15 min wall
-  clock, because most test classes rebuild the PostGIS test database; CI budgets 40 min.
-- Run only **one** `django-tests` container at a time. Every run creates the same `test_mrmap`
-  database, so overlapping runs drop each other's tables and fail with unrelated errors such as
-  `relation "django_migrations" does not exist` or `source database "mrmap" is being accessed by
-  other users`. Those failures are not real.
+- The full `tests/django` suite (855 tests) reports ~2,400 s for the run itself and needs at least
+  that much wall clock, because most test classes rebuild the PostGIS test database; CI budgets
+  40 min. The number moves with what else the host is doing — three concurrent image builds
+  coincided with the measurement quoted here.
+- Run only **one** `django-tests` container per stack. Every run creates the same `test_mrmap`
+  database in its own PostgreSQL, so two runs in one stack drop each other's tables and fail with
+  unrelated errors such as `relation "django_migrations" does not exist` or
+  `source database "mrmap" is being accessed by other users`. Those failures are not real. Runs in
+  separate stacks (see `../AGENTS.md`) do not interfere and may overlap.
 
 Django code needs Docker on hosts without GDAL/GEOS, because `MrMap/settings.py` calls `gdal_info()`
 at import time. Postgres and Redis are published on the host at `127.0.0.1:5555` and

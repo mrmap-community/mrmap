@@ -70,40 +70,66 @@ satisfies most of it.
 
 ### Docker ownership and cleanup for parallel agents
 
-- Before starting containers, inspect `docker compose ls` and `docker ps -a` with Compose project
-  labels. Record the project name and any containers that already exist. Reuse compatible shared
-  dependencies instead of creating another stack for each test command. Keep the same project name
-  throughout a job; do not change `.env` to select it.
-- Use `docker compose ... run --rm` for checks, rather than `up` for test services. `--rm` removes
-  the one-off container when it exits; dependencies, project networks and named volumes can remain.
-  Use `--no-deps` when the required dependencies are already running and ready, and for
-  `frontend-tests`, which has no service dependencies. Start only missing services needed by the
-  selected check.
-- Treat the developer's existing Compose project and any dependencies reused by multiple jobs as
-  shared. Never run `down`, `--remove-orphans`, or volume removal against that project. Record exact
-  names or IDs of temporary containers this job creates and remove those on completion; leave shared
-  services and the frontend dependency cache available to other jobs.
-- If a job needs an isolated stack, choose a unique project name such as
-  `mrmap-agent-<issue>-<unique-run-id>` and pass `--project-name` on every Compose command. Verify that
-  the name is unused before creating resources, and record the Compose files and ownership for
-  cleanup. A different project name alone is insufficient: the development configuration publishes
-  fixed host ports (including 5555, 5556 and 8090) and defines fixed `container_name` values. Resolve
-  those conflicts in a temporary override before starting the required services; use a separate
-  checkout for concurrent source changes.
+- Every job runs its checks in **its own Compose stack**. Do not reuse the developer's stack or the
+  stack of another job: two backend runs against one PostgreSQL destroy each other's data (the
+  `django-tests` and `behave` commands both create and flush `test_mrmap`), and shared dependencies
+  get restarted by whichever job needs them. Jobs run checks concurrently without any lock.
+- Choose a unique project name such as `mrmap-agent-<issue>-<unique-run-id>` and keep it for the
+  whole job; do not change `.env` to select it. Record the name and the override file for cleanup.
+- A project name alone is not enough: the development configuration publishes fixed host ports
+  (5555, 5556, 8001, 8003, 8080, 8090) and pins `container_name` (`backend-dev`,
+  `mrmap-frontend-tests`), so a second stack cannot start beside the first. Write one job-local
+  override that frees them, and add it to `COMPOSE_FILE`:
+
+  ```bash
+  export MRMAP_AGENT_PROJECT=mrmap-agent-852-1103
+  cat > /tmp/agent-$MRMAP_AGENT_PROJECT.override.yml <<'YAML'
+  # Compose merges sequences; only `!reset` clears the inherited ones.
+  services:
+    backend:
+      container_name: ${COMPOSE_PROJECT_NAME}-backend
+      ports: !reset []
+    behave:
+      ports: !reset []
+    mapserver:
+      ports: !reset []
+    postgis:
+      ports: !reset []
+    redis:
+      ports: !reset []
+  YAML
+  export COMPOSE_PROJECT_NAME=$MRMAP_AGENT_PROJECT
+  export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:/tmp/agent-$MRMAP_AGENT_PROJECT.override.yml"
+  ```
+
+  With that in the environment, the `-f docker-compose.yml -f docker-compose.dev.yml` of the
+  examples elsewhere can be dropped. Run all Compose commands from the repository root: the
+  `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
+  `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
+  `frontend-tests` pins its container name; add them to the override when a check needs them.
+- A worktree has no `.env` (it is ignored, not tracked), so copy it and
+  `docker/backend/.mrmap.env` from the main checkout before the first Compose command in it;
+  otherwise every command fails with `required variable DJANGO_SECRET_KEY is missing a value`.
+- Start only the services the selected check needs (`postgis`, `redis` and `mapserver` for the
+  backend checks; nothing for `frontend-tests`), then use `docker compose ... run --rm --no-deps`
+  for the check itself rather than `up` for test services. `--rm` removes the one-off container when
+  it exits; dependencies, project networks and named volumes can remain until the end of the job.
+- Never run `down`, `--remove-orphans` or volume removal against a project this job did not create,
+  in particular the developer's.
 - Before creating temporary resources, register shell cleanup with `trap` for normal exit, failure
   and interruption (`EXIT`, `INT`, `TERM`), or use the runner's equivalent `finally` mechanism. Keep
   cleanup active for the full lifetime of background checks and preserve their exit status. For a
   verified job-owned disposable project, clean up using the same project name and Compose files:
-  `docker compose --project-name "$MRMAP_AGENT_PROJECT" -f docker-compose.yml -f docker-compose.dev.yml down --volumes --remove-orphans`
-  (include any temporary override used at startup). This volume removal is only for that disposable
-  project's data; retain shared volumes and reusable images/build caches.
-- After checks and before handing the task back, verify that this job's temporary containers and,
-  for an isolated project, its networks and volumes are gone. Clean up on failed checks too. Report
-  any leftovers with their exact names and the reason they remain. After an interrupted session,
-  recover ownership from the job's recorded project/container names before removing anything; a
-  stopped container or matching name prefix alone does not establish ownership. Never use global
-  `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of other
-  jobs' resources as task cleanup.
+  `docker compose down --volumes --remove-orphans` with the override still in `COMPOSE_FILE`. This
+  volume removal is only for that disposable project's data; retain shared volumes and reusable
+  images and build caches.
+- After checks and before handing the task back, verify that this job's containers, networks and
+  volumes are gone. Clean up on failed checks too.
+  Report any leftovers with their exact names and the reason they remain. After an interrupted
+  session, recover ownership from the job's recorded project/container names before removing
+  anything; a stopped container or matching name prefix alone does not establish ownership. Never use
+  global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
+  other jobs' resources as task cleanup.
 
 ## Development guidelines
 
@@ -193,6 +219,21 @@ identifier itself is not an option — it breaks document matching against upstr
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.
 
+### Filing issues
+
+- Always label at creation: `gh issue create --labels 'type: bug' ...`. The web form takes the label
+  from the issue template's front matter (`type: bug`, `type: story`, `type: housekeeping`,
+  `type: documentation`), but `gh issue create` bypasses the template and files the issue unlabeled,
+  where it slips past the triage views. Use the same taxonomy the templates use; `status:`,
+  `priority:` and `phase:` labels belong to maintainers, and pull requests carry none.
+- An issue that belongs to an epic carries the epic's slug as a title prefix: `harvest-load: what
+  breaks and how`. The slug is declared on the epic's first body line (`slug: <kebab-name>`,
+  lowercase, ≤ 20 chars, like a branch name); the epic title itself carries no prefix. The machine
+  relation is authoritative and separate from the title: `gh issue edit <epic> --add-sub-issue
+  <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
+  link and prefix disagree, fix the prefix.
+
+
 ## Working with uncertainty
 
 If requirements are ambiguous, prefer behavior consistent with the existing codebase.
@@ -222,9 +263,9 @@ documents:
 - `flake8` runs in ~1 s from the host virtualenv (`backend/../.venv/bin/flake8`); everything else
   needs Docker, because `backend/MrMap/settings.py` calls `gdal_info()` and GDAL/GEOS are not
   installed on a plain host.
-- Backend Docker test runs sharing PostgreSQL must not overlap: they create the same `test_mrmap`
-  database and destroy each other mid-run. Use the host-wide lock in `backend/AGENTS.md`, including
-  across worktrees and Compose test services.
+- Backend Docker test runs must not share a PostgreSQL: they create the same `test_mrmap` database
+  and destroy each other mid-run. Give every run its own Compose stack (see "Docker ownership and
+  cleanup for parallel agents"), then runs from different jobs and worktrees may overlap freely.
 - Frontend lint, strict type checking and tests with coverage are required CI checks. Historical red
   baselines were removed by the code-quality cleanup; see `frontend/AGENTS.md`.
 - Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from

@@ -261,6 +261,11 @@ Board" issue listing the active claims.
   again.
 - Run `scripts/wip done` when the pull request is ready for review or the
   work is abandoned.
+- The claims are also a merge gate: do not merge a pull request whose issue
+  still shows a live claim — live means a client is working and not finished,
+  the board even names what it waits for. Run `scripts/wip ls` before
+  merging; when the merge finishes your own work, release your claim
+  (`scripts/wip done`) as part of being ready.
 - Check `scripts/wip ls` before picking up an issue; somebody may hold it.
 - The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
   the board issue are machine-managed; never edit them by hand. Regenerate

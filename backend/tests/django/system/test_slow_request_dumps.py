@@ -149,6 +149,11 @@ class SlowRequestDumpSweepTests(SimpleTestCase):
 class SlowRequestDumpCleanupTaskTests(SimpleTestCase):
     """The celery task reads the bounds of the deployment and sweeps with them."""
 
+    # the sweep itself reads nothing but the file system, but the task is a
+    # SingletonTask and the lock which keeps two sweeps apart is an advisory lock of
+    # a database session since #852, so the run needs one connection
+    databases = {"default"}
+
     def setUp(self):
         media_root = tempfile.TemporaryDirectory()
         self.addCleanup(media_root.cleanup)

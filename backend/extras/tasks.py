@@ -1,12 +1,15 @@
-from logging import Logger
 from collections import OrderedDict
+from contextlib import contextmanager
+from logging import Logger
 
 from celery import Task
 from celery.signals import task_postrun, task_prerun
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import (DEFAULT_DB_ALIAS, DatabaseError, InterfaceError,
+                       connections)
+from django.db.utils import load_backend
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
 
@@ -49,27 +52,109 @@ def reset_current_user(*args, **kwargs):
         del HistoricalRecords.context.request
 
 
-class SingletonTask(Task):
-    """
-    Celery Task Basis, der sicherstellt, dass nur eine Instanz gleichzeitig läuft.
-    """
+def singleton_lock_id(name):
+    """The key the singleton of one task name is locked under.
 
-    lock_timeout = 300  # Sekunden
+    Args:
+        name: the name of the task, which is what identifies it to celery
+
+    Returns:
+        str: the text the advisory lock of that task is derived from
+    """
+    return f"singleton:{name}"
+
+
+def singleton_connection():
+    """The database session a singleton lock is taken on.
+
+    A run reports its state to celery on the connection of the task, and celery
+    closes those connections after every run (`MrMap/celery.py`), so the lock
+    needs a session of its own. That session must also end with the run, which a
+    pooled one does not: it is given back to the pool for the next borrower. So
+    this asks for the default database without its pooling - as the celery
+    processes of this project already run it, where pooling is off deliberately.
+
+    Returns:
+        the wrapper of one new connection of the default database
+    """
+    database = connections.settings[DEFAULT_DB_ALIAS]
+    options = {
+        key: value
+        for key, value in (database.get("OPTIONS") or {}).items()
+        if key != "pool"
+    }
+    backend = load_backend(database["ENGINE"])
+    return backend.DatabaseWrapper(
+        {**database, "OPTIONS": options}, DEFAULT_DB_ALIAS)
+
+
+@contextmanager
+def singleton_lock(name):
+    """Hold the singleton lock of `name` and answer whether it was taken.
+
+    The lock is an advisory lock of one dedicated database session, so every fire
+    of the task asks the same database - in this worker process or in another one -
+    and a holder which dies, be it killed, crashed or a network which goes away,
+    is answered by the postmaster itself: it ends the session and with it the
+    lock. A lock which only expires by a clock did neither (#837): its timeout
+    equalled the beat interval, so a run which outlived that interval met the next
+    fire with a free lock and started a second concurrent run of itself.
+
+    The number to lock is `hashtext` of that text, so two task names which that
+    hash puts on the same number share one lock: such a collision only ever
+    skips a fire, it never lets two runs of one task start.
+
+    Args:
+        name: the name of the task which wants to be alone
+
+    Yields:
+        bool: whether this call holds the lock; the body must not run if not
+    """
+    lock_id = singleton_lock_id(name)
+    connection = singleton_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_try_advisory_lock(hashtext(%s))", [lock_id])
+            if not cursor.fetchone()[0]:
+                yield False
+                return
+        try:
+            yield True
+        finally:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT pg_advisory_unlock(hashtext(%s))", [lock_id])
+            except (DatabaseError, InterfaceError) as error:
+                # the session of this run is gone - which is also how its lock is
+                # gone, so nothing waits for this run to unlock and this is told
+                # instead of raised on top of a run which has already happened
+                logger.warning(
+                    f"Singleton lock '{lock_id}' could not be unlocked: {error}")
+    finally:
+        connection.close()
+
+
+class SingletonTask(Task):
+    """Celery task basis which runs at most one instance of itself at a time.
+
+    A fire which finds the lock taken does not run its body a second time
+    alongside the first one: it is logged and answered as skipped, which is what
+    the beat schedule of a task which sometimes runs longer than its interval
+    needs. The lock belongs to the run which holds it and not to a clock, so a
+    long run is never interrupted by a second one and a dead run never blocks a
+    later one (#837).
+    """
 
     def __call__(self, *args, **kwargs):
-        lock_id = f"singleton:{self.name}"
+        with singleton_lock(self.name) as acquired:
+            if not acquired:
+                msg = f"Task {self.name} skipped: another instance is running"
+                logger.info(msg)
+                self.update_state(state="SKIPPED", meta={"info": msg})
+                return msg
 
-        if not cache.add(lock_id, self.request.id, timeout=self.lock_timeout):
-            msg = f"Task {self.name} skipped: another instance is running"
-            logger.info(msg)
-            self.update_state(state="SKIPPED", meta={"info": msg})
-            return msg
-
-        try:
             self.update_state(state="STARTED", meta={"info": "Task started"})
             # Hier wird die normale run-Methode aufgerufen
             return super().__call__(*args, **kwargs)
-        finally:
-            current_lock = cache.get(lock_id)
-            if current_lock == self.request.id:
-                cache.delete(lock_id)

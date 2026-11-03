@@ -176,3 +176,54 @@ on the filesystem of the backend, for as long as the task above keeps them:
 .. code-block:: console
 
     docker compose exec backend ls /var/mrmap/backend/media/logs
+
+Errors of the user's browser take the same route through the ``frontend``
+service, which carries that ``logging:`` block as well: its access log and
+error log are in the store too. The image injects ``error-beacon.js`` into the
+built ``index.html`` before the app bundle, and that script reports uncaught
+exceptions, unhandled promise rejections and failed resource loads to
+``/api/system/error``. Nginx answers that url itself: the fields of a report
+travel in the query string, so nginx has them at log time without ever reading
+a request body, and one accepted report is one line of
+``/var/log/nginx/frontend-error.log``, which is symlinked to stdout like the
+``access.log`` of the image. The backend has no such endpoint, so a request
+which reaches it without nginx is answered 404.
+
+Such a line names the ``source`` (``error``, ``rejection`` or ``resource``),
+the ``msg``, the ``url`` of the script which failed, the ``page`` the user was
+on, the ``stack``, the ``ua``, the ``ip`` of the client and the ``answered``
+status; every value is percent encoded as it arrived. To count them per
+deployment:
+
+.. code-block:: console
+
+    "Frontend Error" | extract "source=\"<source>\"" | stats by (source) count() as n
+
+Failing api calls are not reported from the browser: the access log of this
+very nginx already knows the status code of every call, and a browser report
+would have the beacon post at exactly the api that is down.
+
+What one address may write is bounded. ``limit_req`` takes five reports a
+second with a burst of 50 and answers 429 beyond that, and only an accepted
+report with a message of its own writes a line — a probe, a GET and anything
+over the limit stay silent. The refused attempts are still readable in the
+nginx error log ("limiting requests"), which travels with the same block. One
+report is one request line, so nginx refuses one above its 8k with a 414; the
+beacon keeps itself below that, deduplicates identical reports for 30 seconds
+and caps a page load at 20 reports.
+
+Script, location and log driver come with the image of the ``frontend`` service,
+so that container has to be recreated to apply them. An existing deployment
+holds the built frontend in the ``frontend-static`` volume, and Docker fills
+such a volume from the image only while it is still empty, so the volume goes
+with the container (``docker volume ls`` names it after the project):
+
+.. code-block:: console
+
+    docker compose rm -fs frontend
+    docker volume rm mrmap_frontend-static
+    docker compose up -d --build frontend
+
+Reporting lives in nginx, so it exists where the built app is served behind it:
+the development server of the frontend (``npm run dev``) answers without nginx
+and reports nothing.

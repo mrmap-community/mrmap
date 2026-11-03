@@ -30,6 +30,29 @@ class KeywordMappingTest(TestCase):
                     PersistenceHandler(mapper).persist_all()
                     self.assertEqual(list(Keyword.objects.values_list('keyword', flat=True)), ['  valid  '])
 
+    def test_a_keyword_longer_than_any_column_is_persisted(self):
+        """A comma joined keyword is not too long to be metadata (#894).
+
+        ISO 19115 gives gmd:keyword no length, and a German geoportal which joins its
+        plan names into one keyword answers a text which is longer than the width the
+        column used to have: the keyword of the report is 347 characters. Those
+        characters were not a bad keyword - the insert of the keyword raised
+        StringDataRightTruncation, the import task judged any exception of a file a
+        record error, and the records of that file never entered the registry.
+        """
+        keyword = ('Flächennutzungsplan WN '
+                   + 'Remshalden,Flächennutzungsplan WN ' * 12 + 'other')
+        self.assertGreater(len(keyword), 300)
+        spec = next(self.keyword_specs(next(iter(XPATH_MAP.values()))))
+        spec = spec | {'_base_xpath': './Keyword'}
+        mapper = XmlMapper(f'<root><Keyword>{keyword}</Keyword></root>',
+                           {'keywords': spec})
+        parsed = mapper.traverse_spec(spec, is_many=True)
+        self.assertEqual([item.keyword for item in parsed], [keyword])
+        PersistenceHandler(mapper).persist_all()
+        self.assertEqual(list(Keyword.objects.values_list('keyword', flat=True)),
+                         [keyword])
+
     def test_all_blank_keyword_list_can_be_persisted(self):
         spec = next(self.keyword_specs(next(iter(XPATH_MAP.values()))))
         spec = spec | {'_base_xpath': './Keyword'}

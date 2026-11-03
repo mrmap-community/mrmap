@@ -248,6 +248,11 @@ identifier itself is not an option — it breaks document matching against upstr
 
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
   `housekeeping/cleanup-frontend-src`.
+- Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
+  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`.
+- Before opening a pull request and before every push while it is under review, merge current
+  `origin/master` into the branch; rebase only on a private, un-reviewed branch. Never force-push a
+  branch under review — bring master in with a merge commit instead.
 - Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.
@@ -355,3 +360,7 @@ documents:
 - Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
   `backend/`) during development. CI also checks migrations and translations; see
   `backend/AGENTS.md`.
+- Squashing the migration history to initial migrations was evaluated and rejected: the 35
+  migration files are light and a cold targeted test run costs 18-20 s, with or without `--keepdb`.
+  Raise the squash again when a cold targeted run exceeds ~60 s or the migration file count passes
+  ~100.

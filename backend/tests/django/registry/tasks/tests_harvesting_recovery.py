@@ -3,6 +3,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
+from celery import states
 from celery.exceptions import Retry
 from django.core.files.base import ContentFile
 from django.db import OperationalError, connection, transaction
@@ -11,10 +12,12 @@ from django.utils.timezone import now
 from lxml import etree
 from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
                                        LogKindEnum, LogLevelEnum)
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.harvest import (HarvestingJob, HarvestingJobTaskId,
+                                     TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
 from registry.models.metadata import MetadataContact
 from registry.querys.harvest_history import complete_harvest
+from registry.serializers.harvesting import HarvestingJobSerializer
 from requests.exceptions import ChunkedEncodingError, Timeout
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from registry.tasks.harvest import (
@@ -176,15 +179,18 @@ class HarvestingRecoveryTest(TestCase):
                 chord.assert_not_called()
         self.job.refresh_from_db()
         header, callback = chord.call_args.args
-        self.assertEqual(set(map(str, self.job.celery_task_ids)), {header[0].options['task_id'], callback.options['task_id']})
+        self.assertEqual(
+            {header[0].options['task_id'], callback.options['task_id']},
+            set(map(str, self.job.celery_task_ids.values_list('task_id', flat=True))))
 
     def test_task_ids_from_stale_instances_are_preserved(self):
         stale = HarvestingJob.objects.get(pk=self.job.pk)
         first, second = uuid4(), uuid4()
         self.job.append_celery_task_ids([first])
         stale.append_celery_task_ids([second])
-        self.job.refresh_from_db()
-        self.assertEqual(self.job.celery_task_ids, [first, second])
+        self.assertEqual(
+            {first, second},
+            set(self.job.celery_task_ids.values_list('task_id', flat=True)))
 
     def test_harvesting_tasks_use_worker_loss_redelivery(self):
         for task in [create_harvesting_job, call_fetch_total_records, call_fetch_records,
@@ -248,11 +254,50 @@ class HarvestingRecoveryTest(TestCase):
             self.assertEqual(create_harvesting_job.run(service_id=service.pk), first_id)
         self.assertEqual(HarvestingJob.objects.filter(service=service).count(), 1)
 
+    def test_a_retried_task_keeps_its_id(self):
+        """a retry runs the same task again under the same id - until the task
+        reported in for good, its id has to stay registered (#892)"""
+        task_id = str(uuid4())
+        HarvestingJobTaskId.objects.create(job=self.job, task_id=task_id)
+        finish_harvesting_job.after_return(
+            states.RETRY, None, task_id, (), {'harvesting_job_id': self.job.pk}, None)
+        self.assertTrue(HarvestingJobTaskId.objects.exists())
+
+    def test_an_abort_keeps_the_creation_id_and_drops_the_ids_of_the_run(self):
+        """after the abort there is nothing left to revoke of the run, so its ids
+        go with it; the creation id alone has to outlive the harvest, because a
+        redelivery of that message has to find this job (#892)"""
+        creation, work = uuid4(), uuid4()
+        HarvestingJobTaskId.objects.bulk_create([
+            HarvestingJobTaskId(job=self.job, task_id=creation, creation=True),
+            HarvestingJobTaskId(job=self.job, task_id=work)])
+        with patch('celery.app.control.Control.revoke') as revoke:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.job.phase = Phase.ABORT
+                self.job.save()
+        revoke.assert_called_once()
+        self.assertEqual(
+            [(str(creation), True)],
+            [(str(_id), _creation) for _id, _creation in
+             HarvestingJobTaskId.objects.values_list('task_id', 'creation')])
+
+    def test_the_job_row_does_not_carry_task_ids(self):
+        """#892: the ids of the published tasks are no column of the job - the row
+        of a job is constant in size and no read of it parses the backlog's ids.
+        The API answer of a job carries them neither, they are internal
+        bookkeeping of the revocation on abort."""
+        self.assertNotIn(
+            'celery_task_ids',
+            {field.name for field in HarvestingJob._meta.fields})
+        self.assertNotIn(
+            'celery_task_ids', HarvestingJobSerializer().get_fields())
+
     def test_a_task_which_gave_up_ends_the_job_as_aborted(self):
         """a page which keeps failing never completes the chord it belongs to, so the callback
         which would end the run never runs - the job must not sit unfinished forever (#690)"""
         HarvestingJob.objects.filter(pk=self.job.pk).update(
-            phase=Phase.DOWNLOAD_RECORDS, celery_task_ids=[uuid4()])
+            phase=Phase.DOWNLOAD_RECORDS)
+        HarvestingJobTaskId.objects.create(job=self.job, task_id=uuid4())
         call_fetch_records.push_request(retries=10)
         self.addCleanup(call_fetch_records.pop_request)
 
@@ -331,10 +376,17 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
         settings.enable()
         self.addCleanup(settings.disable)
 
+    def _job_with_task_ids(self, *task_ids):
+        """a job which published tasks: one row of ids per published task"""
+        job = HarvestingJob()
+        HarvestingJob.objects.bulk_create([job])
+        HarvestingJobTaskId.objects.bulk_create(
+            HarvestingJobTaskId(job=job, task_id=task_id) for task_id in task_ids)
+        return job
+
     def test_exhausted_discovery_commits_failure_before_revoking_siblings(self):
         task_id, sibling_id = uuid4(), uuid4()
-        job = HarvestingJob(celery_task_ids=[task_id, sibling_id])
-        HarvestingJob.objects.bulk_create([job])
+        job = self._job_with_task_ids(task_id, sibling_id)
         observed = []
 
         def check_committed_abort(*args, **kwargs):
@@ -361,8 +413,7 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
 
     def test_manual_abort_is_saved_before_tasks_are_terminated(self):
         task_id = uuid4()
-        job = HarvestingJob(celery_task_ids=[task_id])
-        HarvestingJob.objects.bulk_create([job])
+        job = self._job_with_task_ids(task_id)
 
         def check_committed_abort(*args, **kwargs):
             self.assertFalse(connection.in_atomic_block)
@@ -376,8 +427,7 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
         revoke.assert_called_once_with([str(task_id)], terminate=True)
 
     def test_rolled_back_abort_does_not_terminate_tasks(self):
-        job = HarvestingJob(celery_task_ids=[uuid4()])
-        HarvestingJob.objects.bulk_create([job])
+        job = self._job_with_task_ids(uuid4())
         with patch('celery.app.control.Control.revoke') as revoke:
             with self.assertRaisesMessage(RuntimeError, 'rollback'):
                 with transaction.atomic():
@@ -389,6 +439,8 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
         job.refresh_from_db()
         self.assertEqual(job.phase, Phase.PENDING)
         self.assertIsNone(job.done_at)
+        # the ids belong to the run: an abort which was rolled back keeps them
+        self.assertEqual(1, HarvestingJobTaskId.objects.count())
 
     def test_broker_failure_after_commit_is_retryable_and_resumes_downloads(self):
         job = HarvestingJob(total_records=1, phase=Phase.PENDING)
@@ -406,3 +458,46 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
                 call_fetch_total_records.run(harvesting_job_id=job.pk)
             count.assert_not_called()
             publish.assert_called_once()
+
+
+class HarvestingTaskReportsInTest(TransactionTestCase):
+    """The tasks reporting in through celery's after_return (#892).
+
+    These run a task the way a worker runs it - through celery's trace, so the
+    prerun and postrun hooks of `MrMap/celery.py` fire with it. TestCase cannot
+    survive that: those hooks close connections, which drops the transaction
+    TestCase keeps around the test (see HarvestingPublishingRecoveryTest, the
+    same pattern).
+    """
+
+    def test_a_task_which_reports_in_removes_its_id(self):
+        """the ids of a harvest are the bookkeeping of its revocation on abort: a
+        task which ran to its end could not be revoked anymore and leaves no id
+        behind, so the ids of a job stay bounded by its in-flight work (#892)"""
+        job = HarvestingJob()
+        HarvestingJob.objects.bulk_create([job])
+        task_id = str(uuid4())
+        HarvestingJobTaskId.objects.create(job=job, task_id=task_id)
+        result = call_md_metadata_files_to_db.apply(
+            kwargs={'md_metadata_file_ids': [], 'harvesting_job_id': job.pk},
+            task_id=task_id, throw=False)
+        self.assertEqual('SUCCESS', result.state)
+        self.assertFalse(HarvestingJobTaskId.objects.exists())
+
+    def test_a_finished_creation_task_keeps_the_delivery_id_of_its_harvest(self):
+        """the creation task is not about the work of one job, so reporting in
+        does not remove the id which identifies the harvest it created (#892)"""
+        contact = MetadataContact.objects.create(name='Keep contact')
+        service = CatalogueService(version=202, metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([service])
+        delivery_id = str(uuid4())
+        with patch('celery.canvas.Signature.apply_async'), \
+                patch.object(call_fetch_total_records, 'delay'):
+            result = create_harvesting_job.apply(
+                kwargs={'service_id': service.pk}, task_id=delivery_id, throw=False)
+        self.assertEqual('SUCCESS', result.state)
+        job = HarvestingJob.objects.get()
+        self.assertEqual(
+            [(delivery_id, True)],
+            [(str(_id), _creation) for _id, _creation in
+             job.celery_task_ids.filter(creation=True).values_list('task_id', 'creation')])

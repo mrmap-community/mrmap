@@ -227,6 +227,14 @@ services:
         - VITE_API_BASE_URL=${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}
         - VITE_API_PORT=${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}
         - VITE_API_SCHEMA=${EXTERNAL_SCHEME:?Please configure EXTERNAL_SCHEME in the .env file}
+    # nginx logs are symlinked to stdout/stderr, ship them into victoria-logs
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:5514"
+        syslog-format: "rfc5424"
+        syslog-facility: "local5"
+        tag: "{{.Name}}"
     hostname: "nginx"
     environment:
       - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin

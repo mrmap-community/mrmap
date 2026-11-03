@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""wip: GitHub claim board for parallel OpenCode clients.
+
+Maintainer tool carried by this repository; run it as `scripts/wip` from the
+repository root. It needs an authenticated `gh` for the current user on the
+host and keeps "which client works on which issue" in GitHub itself instead
+of agent context windows. Claims live as one machine-readable comment per
+issue per client, plus the "status: wip" label for fast discovery, plus a
+pinned "Agent Work Board" issue listing all active claims.
+
+Usage:
+  scripts/wip claim [N]  claim the issue for the current worktree (idempotent:
+                         running again refreshes the heartbeat)
+  scripts/wip done  [N]  release your claim on the issue
+  scripts/wip ls         overview: local worktrees + remote claims
+  scripts/wip board      create/refresh the pinned Agent Work Board issue
+
+Client identity: <hostname>:<worktree-dir-name>, override with CLIENT_TAG.
+Issue number: inferred from a branch name containing issue-<N> (or #<N>),
+or passed explicitly. A claim whose heartbeat is older than WIP_STALE_DAYS
+(default 3) is flagged as stale on the board.
+"""
+
+import json
+import os
+import re
+import socket
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+LABEL = "status: wip"
+LABEL_DESC = "actively worked on by a client - see the claim comment on the issue"
+LABEL_COLOR = "6f42c1"
+BOARD_TITLE = "Agent Work Board (machine-managed - do not close)"
+BOARD_MARK = "agent-board v1"
+CLAIM_RE = re.compile(r"<!-- agent-claim (\{.*?\}) -->")
+STALE_DAYS = float(os.environ.get("WIP_STALE_DAYS", "3"))
+
+
+def now_iso():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def parse_iso(s):
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def age_short(s):
+    dt = parse_iso(s)
+    if not dt:
+        return "?"
+    secs = (datetime.now(timezone.utc) - dt).total_seconds()
+    if secs < 90:
+        return "now"
+    if secs < 5400:
+        return f"{int(secs // 60)}m"
+    if secs < 172800:
+        return f"{int(secs // 3600)}h"
+    return f"{int(secs // 86400)}d"
+
+
+def is_stale(p):
+    dt = parse_iso(p.get("heartbeat") or p.get("since"))
+    if not dt:
+        return False
+    return (datetime.now(timezone.utc) - dt).days >= STALE_DAYS
+
+
+def die(msg):
+    sys.stderr.write(f"wip: {msg}\n")
+    sys.exit(1)
+
+
+def sh(cmd, input=None, check=True):
+    r = subprocess.run(cmd, input=input, capture_output=True, text=True)
+    if check and r.returncode != 0:
+        die("command failed: %s\n%s" % (" ".join(cmd[:4]), (r.stderr or "").strip()))
+    return (r.stdout or "").strip()
+
+
+def gh_json(*args):
+    out = sh(["gh"] + list(args))
+    return json.loads(out) if out else None
+
+
+def repo():
+    return sh(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])
+
+
+def git_root():
+    return sh(["git", "rev-parse", "--show-toplevel"])
+
+
+def cur_branch():
+    return sh(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+
+
+def client_id(root):
+    return os.environ.get("CLIENT_TAG") or (
+        socket.gethostname().split(".")[0] + ":" + os.path.basename(root)
+    )
+
+
+def local_host():
+    return socket.gethostname().split(".")[0]
+
+
+def infer_issue(explicit, cmd):
+    if explicit:
+        if re.fullmatch(r"#?\d+", explicit):
+            return int(explicit.lstrip("#"))
+        die(f"'{explicit}' is not an issue number")
+    b = cur_branch()
+    m = re.search(r"issue[-_]?(\d+)", b) or re.search(r"#(\d+)", b)
+    if m:
+        return int(m.group(1))
+    die(f"cannot infer issue number from branch '{b}' - run: wip {cmd} <N>")
+
+
+def issue_url(R, n):
+    return f"https://github.com/{R}/issues/{n}"
+
+
+def fetch_comments(R, n):
+    out = sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "--paginate"])
+    return json.loads(out) if out else []
+
+
+def claim_payloads(comments):
+    """[(comment_id, payload)] newest-last, for all claim comments."""
+    found = []
+    for c in comments:
+        m = CLAIM_RE.search(c.get("body") or "")
+        if not m:
+            continue
+        try:
+            p = json.loads(m.group(1))
+        except ValueError:
+            continue
+        found.append((c["id"], p))
+    return found
+
+
+def active_claims(payloads):
+    return [p for _, p in payloads if p.get("state") == "wip"]
+
+
+def claim_body(p):
+    marker = "<!-- agent-claim %s -->" % json.dumps(p, separators=(",", ":"))
+    if p.get("state") == "wip":
+        head = f"🚧 **WIP** — claimed by `{p['client']}`"
+        tail = f"last heartbeat: {p['heartbeat']} ({age_short(p['heartbeat'])} ago)"
+    else:
+        head = f"✅ **Released** — was claimed by `{p['client']}`"
+        tail = f"released: {p.get('released', p['heartbeat'])}"
+    return (
+        f"{marker}\n\n{head}\n\n"
+        f"- branch: `{p['branch']}`\n"
+        f"- worktree: `{p['worktree']}`\n"
+        f"- since: {p['since']}\n"
+        f"- {tail}\n"
+    )
+
+
+def ensure_label(R):
+    names = [l["name"] for l in (gh_json("label", "list", "-R", R, "--limit", "300", "--json", "name") or [])]
+    if LABEL not in names:
+        sh(["gh", "label", "create", LABEL, "-R", R, "--color", LABEL_COLOR, "--description", LABEL_DESC])
+
+
+def claims_index(R, numbers):
+    """{issue: payloads} for the given issue numbers."""
+    idx = {}
+    for n in numbers:
+        idx[n] = claim_payloads(fetch_comments(R, n))
+    return idx
+
+
+def labeled_issues(R):
+    items = gh_json("issue", "list", "-R", R, "--state", "open", "--label", LABEL,
+                    "--limit", "200", "--json", "number,title") or []
+    return {i["number"]: i["title"] for i in items}
+
+
+def worktrees():
+    raw = sh(["git", "worktree", "list", "--porcelain"])
+    trees, cur = [], {}
+    for line in raw.splitlines():
+        if line.startswith("worktree "):
+            cur = {"path": line[9:]}
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].replace("refs/heads/", "")
+        elif not line.strip():
+            if cur.get("path"):
+                trees.append(cur)
+            cur = {}
+    if cur.get("path"):
+        trees.append(cur)
+    return trees
+
+
+# ---------- commands ----------
+
+def cmd_claim(arg):
+    R, root = repo(), git_root()
+    cid = client_id(root)
+    n = infer_issue(arg, "claim")
+    payloads = claim_payloads(fetch_comments(R, n))
+    own = [(i, p) for i, p in payloads if p.get("client") == cid]
+    last = own[-1] if own else None
+    ts = now_iso()
+    if last and last[1].get("state") == "wip":
+        p = dict(last[1])
+        p["heartbeat"] = ts
+        p["branch"], p["worktree"] = cur_branch(), root
+        sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{last[0]}", "-f", f"body={claim_body(p)}"])
+        action = "heartbeat on claim to"
+    else:
+        p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
+             "state": "wip", "since": ts, "heartbeat": ts, "released": None}
+        sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "-f", f"body={claim_body(p)}"])
+        action = "claimed"
+    ensure_label(R)
+    sh(["gh", "issue", "edit", str(n), "-R", R, "--add-label", LABEL], check=False)
+    print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
+
+
+def cmd_done(arg):
+    R, root = repo(), git_root()
+    cid = client_id(root)
+    n = infer_issue(arg, "done")
+    payloads = claim_payloads(fetch_comments(R, n))
+    own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") == "wip"]
+    if not own:
+        print(f"no active claim for `{cid}` on #{n}")
+        return
+    cid_c, p = own[-1]
+    p = dict(p)
+    p["state"], p["released"], p["heartbeat"] = "done", now_iso(), now_iso()
+    sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{cid_c}", "-f", f"body={claim_body(p)}"])
+    if not active_claims(payloads_after := [x for x in payloads if x[0] != cid_c]):
+        sh(["gh", "issue", "edit", str(n), "-R", R, "--remove-label", LABEL], check=False)
+    print(f"released #{n} for `{cid}` -> {issue_url(R, n)}")
+
+
+def cmd_ls(_arg):
+    R, root = repo(), git_root()
+    cid, host = client_id(root), local_host()
+    trees = worktrees()
+    wt_issues = {}
+    for t in trees:
+        m = re.search(r"issue[-_]?(\d+)", t.get("branch", ""))
+        t["issue"] = int(m.group(1)) if m else None
+        if t["issue"]:
+            wt_issues[t["issue"]] = f"local:{t['branch']}"
+    labeled = labeled_issues(R)
+    scan = dict(labeled)
+    scan.update({n: "" for n in wt_issues})
+    idx = claims_index(R, sorted(scan))
+
+    print(f"repo: {R}   me: `{cid}`\n")
+    print("LOCAL WORKTREES")
+    hdr = f"{'':2}{'branch':46}{'issue':8}{'claims':60}"
+    print(hdr)
+    for t in trees:
+        mark = "*" if t["path"] == root else " "
+        n = t.get("issue")
+        claims = active_claims(idx.get(n, [])) if n else []
+        txt = ", ".join(
+            ("me " if c["client"] == cid else "") + c["client"].split(":", 1)[0] +
+            (" ⚠️" if is_stale(c) else "")
+            for c in claims) or ("-" if n else "(no issue in branch)")
+        print(f"{mark:2}{t.get('branch','(detached)'):46}{'#' + str(n) if n else '-':8}{txt:60}")
+
+    remote = []
+    for n, payloads in sorted(idx.items()):
+        for c in active_claims(payloads):
+            if c["client"] == cid or c["client"].split(":", 1)[0] == host:
+                continue
+            remote.append((n, c))
+    print("\nREMOTE CLAIMS (other machines)")
+    if not remote:
+        print("  none")
+    for n, c in remote:
+        print(f"  #{n:<5} {c['client']:30} {c['branch']:50} hb {age_short(c['heartbeat'])} ago{' ⚠️ STALE' if is_stale(c) else ''}")
+
+    orphans = [n for n, payloads in sorted(idx.items())
+               if n in labeled and not active_claims(payloads)]
+    if orphans:
+        print("\nLABELED WITHOUT CLAIM (label cleanup candidates)")
+        for n in orphans:
+            print(f"  #{n} {issue_url(R, n)}")
+
+
+def board_body(R, rows, orphans):
+    lines = [
+        f"<!-- {BOARD_MARK} -->",
+        "Machine-managed overview of which client works on which issue.",
+        "Regenerated by `wip board` from claim comments — do not edit by hand.",
+        "Claim with `wip claim` inside a worktree, release with `wip done`.",
+        "",
+    ]
+    if rows:
+        lines += ["| Issue | Title | Client | Branch | Worktree | Since | Last heartbeat |",
+                  "|---|---|---|---|---|---|---|"]
+        for n, title, c in rows:
+            t = (title or "").replace("|", "\\|")[:80]
+            flag = " ⚠️ STALE" if is_stale(c) else ""
+            lines.append(
+                f"| [#{n}]({issue_url(R, n)}) | {t} | `{c['client']}` | `{c['branch']}` | "
+                f"`{c['worktree']}` | {c['since'][:10]} | {age_short(c['heartbeat'])} ago{flag} |")
+    else:
+        lines.append("_No active claims._")
+    if orphans:
+        lines += ["", "## Labeled without active claim (stale labels)", ""]
+        lines += [f"- #{n} {issue_url(R, n)}" for n in orphans]
+    lines += ["", f"_Refreshed {now_iso()} by `wip board` on `{local_host()}`._"]
+    return "\n".join(lines) + "\n"
+
+
+def cmd_board(_arg):
+    R = repo()
+    titles = labeled_issues(R)
+    idx = claims_index(R, sorted(titles))
+    rows = []
+    for n, payloads in sorted(idx.items()):
+        for c in active_claims(payloads):
+            rows.append((n, titles.get(n, ""), c))
+    rows.sort(key=lambda r: (r[2]["client"].split(":", 1)[0], r[0]))
+    orphans = [n for n, payloads in sorted(idx.items()) if not active_claims(payloads)]
+    body = board_body(R, rows, orphans)
+    found = gh_json("issue", "list", "-R", R, "--state", "open",
+                    "--search", "Agent Work Board in:title",
+                    "--json", "number", "--limit", "50") or []
+    boards = []
+    for f in sorted(found, key=lambda i: i["number"]):
+        fbody = sh(["gh", "issue", "view", str(f["number"]), "-R", R, "--json", "body", "--jq", ".body"])
+        if BOARD_MARK in fbody:
+            boards.append(f["number"])
+    for dup in boards[1:]:
+        sh(["gh", "issue", "close", str(dup), "-R", R,
+            "--comment", "Duplicate Agent Work Board, auto-closed by `wip board`."], check=False)
+    if boards:
+        b = boards[0]
+        sh(["gh", "issue", "edit", str(b), "-R", R, "--body-file", "-"], input=body)
+        verb = "refreshed"
+    else:
+        out = sh(["gh", "issue", "create", "-R", R, "--title", "🤖 " + BOARD_TITLE,
+                  "--body-file", "-"], input=body)
+        b_url = out.splitlines()[-1].strip()
+        print(f"created board issue with {len(rows)} active claim(s) -> {b_url}")
+        return
+    print(f"{verb} board #{b} with {len(rows)} active claim(s) -> {issue_url(R, b)}")
+
+
+def usage():
+    print(__doc__.strip())
+
+
+def main():
+    args = sys.argv[1:]
+    cmd = args[0] if args else "ls"
+    arg = args[1] if len(args) > 1 else None
+    if cmd in ("-h", "--help", "help"):
+        usage()
+    elif cmd == "claim":
+        cmd_claim(arg)
+    elif cmd == "done":
+        cmd_done(arg)
+    elif cmd == "ls":
+        cmd_ls(arg)
+    elif cmd == "board":
+        cmd_board(arg)
+    else:
+        die(f"unknown command '{cmd}' (see: wip help)")
+
+
+if __name__ == "__main__":
+    main()

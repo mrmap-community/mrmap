@@ -19,6 +19,7 @@ from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
+from registry.ows_lib.client.exceptions import InitialError
 from requests.exceptions import RequestException
 
 logger = get_task_logger(__name__)
@@ -75,6 +76,22 @@ class HarvestingTask(Task):
             # a failing harvest must not be answered with a broken worker
             logger.error(
                 f"could not abort harvesting job {harvesting_job_id}: {traceback.format_exc()}")
+
+
+class MetadataFileImportTask(HarvestingTask):
+    """Base of the tasks which write stored metadata files to the database (#895).
+
+    Building the client of the catalogue answers the request of the constructor with
+    a live round trip of the stored capabilities URL, so importing a record can end
+    in a read timeout or a 5xx of the remote - a failure of the infrastructure, not
+    of the record. These tasks retry those errors too: what the harvest retries is
+    extended by the InitialError which a 5xx or a non-xml answer of that round trip
+    raises, so a catalogue hiccup redelivers the file with the existing backoff
+    instead of the per-file catch of `import_md_metadata_file` ending it and silently
+    losing the records it carries.
+    """
+
+    autoretry_for = HarvestingTask.autoretry_for + (InitialError,)
 
 
 @worker_ready.connect
@@ -248,6 +265,10 @@ def import_md_metadata_file(md_metadata_file_id):
     Answers None when there is nothing to import: the row of a successful import is deleted, so
     its absence is the proof that it was imported. The chunk task relies on this to work through
     its ids again after a retry without importing a record twice.
+
+    Only errors of the record itself are terminal and documented on the file. Everything the
+    task base of the importing tasks retries is re-raised, so the file is redelivered with the
+    backoff of the harvest instead of being lost to a remote or storage outage (#895).
     """
     from registry.models.harvest import TemporaryMdMetadataFile
 
@@ -263,8 +284,10 @@ def import_md_metadata_file(md_metadata_file_id):
                 return
             results = temporary_md_metadata_file.md_metadata_file_to_db()
             return [(str(result[0].pk), result[1], result[2]) for result in results if result is not None]
-    except OperationalError:
-        # Infrastructure outages are retryable, not record import errors.
+    except MetadataFileImportTask.autoretry_for:
+        # Infrastructure outages and remote failures are retryable, not record import
+        # errors: what the task base promises to retry must reach it, or its autoretry
+        # is laundered into a terminal has_import_error by the marking below (#895).
         raise
     except Exception as e:
         TemporaryMdMetadataFile.objects.filter(pk=md_metadata_file_id).update(
@@ -274,12 +297,12 @@ def import_md_metadata_file(md_metadata_file_id):
         logger.error(msg=e)
 
 
-@shared_task(queue="db-routines", base=HarvestingTask)
+@shared_task(queue="db-routines", base=MetadataFileImportTask)
 def call_md_metadata_file_to_db(*args, **kwargs):
     return import_md_metadata_file(kwargs.get("md_metadata_file_id"))
 
 
-@shared_task(queue="db-routines", base=HarvestingTask)
+@shared_task(queue="db-routines", base=MetadataFileImportTask)
 def call_md_metadata_files_to_db(*args, **kwargs):
     """Write a chunk of stored metadata files to the database (#859).
 

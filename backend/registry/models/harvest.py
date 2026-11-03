@@ -44,7 +44,6 @@ from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
-from simple_history.utils import update_change_reason
 
 # A service which refuses a request answers with an exception report, and the prefix of its element
 # is the remote's own choice: a namespaced <ows:ExceptionReport> says the same as the unprefixed
@@ -997,6 +996,18 @@ class TemporaryMdMetadataFile(models.Model):
             transaction.on_commit(lambda: storage.delete(name))
         return ret
 
+    @property
+    def change_reason(self):
+        """Why the records of this stored file are written, for their history rows.
+
+        The run names the catalogue the document came from; that is what the
+        administrator who reads the history of a record is told. An import without
+        a run behind it is a file which somebody handed in.
+        """
+        if self.job is None:
+            return None
+        return 'fileimport' if self.job.service is None else f'csw:{self.job.service}'
+
     def md_metadata_file_to_db(self):
         with self.md_metadata_file.open('rb') as _file:
             try:
@@ -1009,6 +1020,7 @@ class TemporaryMdMetadataFile(models.Model):
                     for instance in instances:
                         handler = PersistenceHandler(
                             mapper=mappers[0],
+                            change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
                                     "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
@@ -1050,12 +1062,6 @@ class TemporaryMdMetadataFile(models.Model):
                                     self.import_error = str(import_error)
                                     self.save()
                                     return created_instance, update, not created
-                                elif update or created:
-                                    # something has changed... so tell us from what service this changes come from
-                                    update_change_reason(
-                                        created_instance,
-                                        'fileimport'if self.job.service is None else f'csw:{self.job.service}'
-                                    )
                             result.append(
                                 (created_instance, update, not created))
                             if self.job:

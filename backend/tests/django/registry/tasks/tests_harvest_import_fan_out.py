@@ -118,10 +118,10 @@ class HarvestImportFanOutTest(StoredFilesTestCaseMixin, TestCase):
                         'a chunk has to name its job, that is how it ends a failing harvest')
 
         # an abort revokes by task id, so it needs the id of every chunk
-        job.refresh_from_db()
-        self.assertEqual([str(task.options['task_id']) for task in header]
-                         + [str(callback.options['task_id'])],
-                         [str(task_id) for task_id in job.celery_task_ids])
+        self.assertEqual(
+            sorted(str(task.options['task_id']) for task in header + [callback]),
+            sorted(str(task_id) for task_id in
+                   job.celery_task_ids.values_list('task_id', flat=True)))
 
     @patch('registry.tasks.harvest.chord')
     def test_the_chunks_are_named_by_the_task_they_run(self, mocked_chord):

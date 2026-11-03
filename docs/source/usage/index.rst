@@ -31,8 +31,10 @@ Both record types have the same detail page:
 
 Tabs can be linked directly, for example ``DatasetMetadataRecord/<id>/show/relations``.
 The header offers edit and delete actions when the backend grants those object permissions.
-The "Written more than once" status reflects ``is_customized``; it does not prove that a user
-manually corrected the record. The source action opens the recorded origin URL, when available.
+The "Written more than once" chip reflects ``is_customized``, which only an edit of the record sets:
+a harvesting run leaves that flag alone, so a record which was merely re-harvested is not flagged.
+The label of the chip still names the older meaning. The source action opens the recorded origin
+URL, when available.
 
 Collect Metadata
 ################

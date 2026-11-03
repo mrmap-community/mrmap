@@ -389,7 +389,7 @@ urlpatterns = router.urls + [
     path(
         route=r'statistical/featuretypes',
         view=stats_views.StatisticalFeatureTypeListView.as_view(),
-        name='statistical-webmapservice'
+        name='statistical-featuretype'
     ),
     path(
         route=r'statistical/featuretypes-per-service',

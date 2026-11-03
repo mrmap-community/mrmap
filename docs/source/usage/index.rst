@@ -31,8 +31,10 @@ Both record types have the same detail page:
 
 Tabs can be linked directly, for example ``DatasetMetadataRecord/<id>/show/relations``.
 The header offers edit and delete actions when the backend grants those object permissions.
-The "Written more than once" status reflects ``is_customized``; it does not prove that a user
-manually corrected the record. The source action opens the recorded origin URL, when available.
+The "Written more than once" chip reflects ``is_customized``, which only an edit of the record sets:
+a harvesting run leaves that flag alone, so a record which was merely re-harvested is not flagged.
+The label of the chip still names the older meaning. The source action opens the recorded origin
+URL, when available.
 
 Collect Metadata
 ################
@@ -69,6 +71,8 @@ Then you can simply run ``docker cp ./test.xml e383a3f0cba2:/var/mrmap/import`` 
 
 If the ``celery-beat`` and ``celery-worker`` container is running, the Mr. Map will find the new files automatically. Not importable files are renamed as ``ignore_{datestamp}_{oldfilename}`` and will be ignored by Mr. Map. 
 In this case you need to study the logs to get more information why the file can't be imported by Mr. Map.
+
+That watcher runs every five minutes. An import which is still running when that interval passes is not started a second time beside the first one: the worker logs ``Task registry.tasks.harvest.check_for_files_to_import skipped: another instance is running`` and the new files wait for the import which is already going. A worker which dies while importing does not leave that lock behind, so the next run does not wait for anything.
 
 .. image:: ../images/sequence_diagram_file_import.svg
   :width: 100%

@@ -32,6 +32,11 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `ows-lib/`, `react-ows-lib/` — OWS domain logic and its React binding.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
+- `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
+  application; `scripts/wip` is the work claim board described under "Claiming work", and
+  `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
+  the host capacity gate described under "Check host capacity before starting another stack".
 
 ## Authoritative sources
 
@@ -70,40 +75,94 @@ satisfies most of it.
 
 ### Docker ownership and cleanup for parallel agents
 
-- Before starting containers, inspect `docker compose ls` and `docker ps -a` with Compose project
-  labels. Record the project name and any containers that already exist. Reuse compatible shared
-  dependencies instead of creating another stack for each test command. Keep the same project name
-  throughout a job; do not change `.env` to select it.
-- Use `docker compose ... run --rm` for checks, rather than `up` for test services. `--rm` removes
-  the one-off container when it exits; dependencies, project networks and named volumes can remain.
-  Use `--no-deps` when the required dependencies are already running and ready, and for
-  `frontend-tests`, which has no service dependencies. Start only missing services needed by the
-  selected check.
-- Treat the developer's existing Compose project and any dependencies reused by multiple jobs as
-  shared. Never run `down`, `--remove-orphans`, or volume removal against that project. Record exact
-  names or IDs of temporary containers this job creates and remove those on completion; leave shared
-  services and the frontend dependency cache available to other jobs.
-- If a job needs an isolated stack, choose a unique project name such as
-  `mrmap-agent-<issue>-<unique-run-id>` and pass `--project-name` on every Compose command. Verify that
-  the name is unused before creating resources, and record the Compose files and ownership for
-  cleanup. A different project name alone is insufficient: the development configuration publishes
-  fixed host ports (including 5555, 5556 and 8090) and defines fixed `container_name` values. Resolve
-  those conflicts in a temporary override before starting the required services; use a separate
-  checkout for concurrent source changes.
+- Every job runs its checks in **its own Compose stack**. Do not reuse the developer's stack or the
+  stack of another job: two backend runs against one PostgreSQL destroy each other's data (the
+  `django-tests` and `behave` commands both create and flush `test_mrmap`), and shared dependencies
+  get restarted by whichever job needs them. Jobs run checks concurrently without any lock.
+- Choose a unique project name such as `mrmap-agent-<issue>-<unique-run-id>` and keep it for the
+  whole job; do not change `.env` to select it. Record the name and the override file for cleanup.
+- A project name alone is not enough: the development configuration publishes fixed host ports
+  (5555, 5556, 8001, 8003, 8080, 8090) and pins `container_name` (`backend-dev`,
+  `mrmap-frontend-tests`), so a second stack cannot start beside the first. Write one job-local
+  override that frees them, and add it to `COMPOSE_FILE`:
+
+  ```bash
+  export MRMAP_AGENT_PROJECT=mrmap-agent-852-1103
+  cat > /tmp/agent-$MRMAP_AGENT_PROJECT.override.yml <<'YAML'
+  # Compose merges sequences; only `!reset` clears the inherited ones.
+  services:
+    backend:
+      container_name: ${COMPOSE_PROJECT_NAME}-backend
+      ports: !reset []
+    behave:
+      ports: !reset []
+    mapserver:
+      ports: !reset []
+    postgis:
+      ports: !reset []
+    redis:
+      ports: !reset []
+  YAML
+  export COMPOSE_PROJECT_NAME=$MRMAP_AGENT_PROJECT
+  export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:/tmp/agent-$MRMAP_AGENT_PROJECT.override.yml"
+  ```
+
+  With that in the environment, the `-f docker-compose.yml -f docker-compose.dev.yml` of the
+  examples elsewhere can be dropped. Run all Compose commands from the repository root: the
+  `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
+  `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
+  `frontend-tests` pins its container name; add them to the override when a check needs them.
+- Isolation is for state: the unique project name, its network and named volumes and the one
+  `django-tests` per stack stay exactly as they are. Built images are not job state. A project name
+  is also the image prefix, so a fresh stack gets its own tag (`docker compose config --images`
+  shows `<project>-<service>`) and `run` builds that tag because it is missing; with a warm
+  BuildKit cache the layers are already there and that costs about a minute, not a rebuild. Build
+  once per checkout (`docker compose build django-tests`) and do not add `--build` to `run`: a
+  rebuild is only needed when `backend/.requirements/*` or `docker/backend/alpine.Dockerfile`
+  changed, never on a branch switch, because the application code arrives over the bind mount.
+  When several stacks of one checkout should share one build outright, pin the built services
+  (`backend`, `django-tests`, `behave` and `pre-commit-check` share one Dockerfile and one set of
+  build args) to a tag of your choosing in the job-local override — at the price that jobs with
+  different requirement sets then overwrite each other's tag.
+- A worktree has no `.env` (it is ignored, not tracked), so copy it and
+  `docker/backend/.mrmap.env` from the main checkout before the first Compose command in it;
+  otherwise every command fails with `required variable DJANGO_SECRET_KEY is missing a value`.
+- Start only the services the selected check needs (`postgis`, `redis` and `mapserver` for the
+  backend checks; nothing for `frontend-tests`), then use `docker compose ... run --rm --no-deps`
+  for the check itself rather than `up` for test services. `--rm` removes the one-off container when
+  it exits; dependencies, project networks and named volumes can remain until the end of the job.
+- Never run `down`, `--remove-orphans` or volume removal against a project this job did not create,
+  in particular the developer's.
 - Before creating temporary resources, register shell cleanup with `trap` for normal exit, failure
   and interruption (`EXIT`, `INT`, `TERM`), or use the runner's equivalent `finally` mechanism. Keep
   cleanup active for the full lifetime of background checks and preserve their exit status. For a
   verified job-owned disposable project, clean up using the same project name and Compose files:
-  `docker compose --project-name "$MRMAP_AGENT_PROJECT" -f docker-compose.yml -f docker-compose.dev.yml down --volumes --remove-orphans`
-  (include any temporary override used at startup). This volume removal is only for that disposable
-  project's data; retain shared volumes and reusable images/build caches.
-- After checks and before handing the task back, verify that this job's temporary containers and,
-  for an isolated project, its networks and volumes are gone. Clean up on failed checks too. Report
-  any leftovers with their exact names and the reason they remain. After an interrupted session,
-  recover ownership from the job's recorded project/container names before removing anything; a
-  stopped container or matching name prefix alone does not establish ownership. Never use global
-  `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of other
-  jobs' resources as task cleanup.
+  `docker compose down --volumes --remove-orphans` with the override still in `COMPOSE_FILE`. This
+  volume removal is only for that disposable project's data; retain shared volumes and reusable
+  images and build caches.
+- After checks and before handing the task back, verify that this job's containers, networks and
+  volumes are gone. Clean up on failed checks too.
+  Report any leftovers with their exact names and the reason they remain. After an interrupted
+  session, recover ownership from the job's recorded project/container names before removing
+  anything; a stopped container or matching name prefix alone does not establish ownership. Never use
+  global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
+  other jobs' resources as task cleanup.
+
+#### Check host capacity before starting another stack
+
+Isolation keeps jobs from corrupting each other, but it does not make the host
+bigger. Before starting a new agent Compose stack — as a nightly runner deciding
+whether to launch one more job, or before any `docker compose up` in a fresh
+worktree — run `scripts/agent_capacity`. It is host-only Python with no network
+and no application dependency: it reports the 15-minute load per core,
+`MemAvailable`, free disk on `/` and the number of running `mrmap-agent-*`
+Compose stacks, prints a single verdict line and exits `0` when the host still
+fits a job or `1` when it is busy. The thresholds are environment overrides so a
+job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE`
+(default 1.5), `AGENT_MIN_MEM_GB` (16), `AGENT_MIN_DISK_GB` (100) and
+`AGENT_MAX_STACKS` (3). It never opens a socket and caps its `docker ps` call
+with a timeout, so a host that is merely offline or whose docker daemon is stuck
+still gets a verdict instead of hanging.
 
 ## Development guidelines
 
@@ -189,9 +248,80 @@ identifier itself is not an option — it breaks document matching against upstr
 
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
   `housekeeping/cleanup-frontend-src`.
+- Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
+  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`.
+- Before opening a pull request and before every push while it is under review, merge current
+  `origin/master` into the branch; rebase only on a private, un-reviewed branch. Never force-push a
+  branch under review — bring master in with a merge commit instead.
 - Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.
+
+### Filing issues
+
+- Always label at creation: `gh issue create --labels 'type: bug' ...`. The web form takes the label
+  from the issue template's front matter (`type: bug`, `type: story`, `type: housekeeping`,
+  `type: documentation`), but `gh issue create` bypasses the template and files the issue unlabeled,
+  where it slips past the triage views. Use the same taxonomy the templates use; `status:`,
+  `priority:` and `phase:` labels belong to maintainers, and pull requests carry none.
+- An issue that belongs to an epic carries the epic's slug as a title prefix: `harvest-load: what
+  breaks and how`. The slug is declared on the epic's first body line (`slug: <kebab-name>`,
+  lowercase, ≤ 20 chars, like a branch name); the epic title itself carries no prefix. The machine
+  relation is authoritative and separate from the title: `gh issue edit <epic> --add-sub-issue
+  <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
+  link and prefix disagree, fix the prefix.
+
+### Claiming work
+
+Several agents and machines work on this repository in parallel; which client
+works on what lives in GitHub, not in chat sessions. `scripts/wip` (host
+Python + `gh`, no application dependency) maintains it: one claim comment per
+issue and client, the `status: wip` label, and the pinned "🤖 Agent Work
+Board" issue listing the active claims.
+
+- Run `scripts/wip claim` from the repository root before the first file edit
+  or commit of a session; the issue number comes from the `issue-<N>` part of
+  the branch name. Claiming is idempotent, so re-running is always safe.
+- Claiming refuses while another client holds a fresh claim on the issue; the
+  message names the holder and its heartbeat. Then pick a different issue —
+  never work two clients on one issue. A claim whose heartbeat went stale
+  passes with a warning; `scripts/wip claim --force` takes a foreign claim
+  over deliberately, e.g. after the holder was confirmed gone.
+- Run `scripts/wip claim` again after every `git push`; it refreshes the
+  heartbeat, and a claim without a heartbeat for three days is flagged stale
+  on the board.
+- When a step needs a human — before asking a question, requesting a
+  permission decision or waiting for credentials — run
+  `scripts/wip wait "<what you need>"`; the board lists the claim under
+  *Needs user* (first) until the next `scripts/wip claim` marks it running
+  again.
+- `scripts/wip ask "<question>"` hands the whole question to GitHub, not just
+  the one-line reason: it posts the full text as one machine-managed question
+  comment (`<!-- agent-question client=<tag> id=<id> -->`) on the issue, then
+  runs the `wait` flow with a one-line summary. It is idempotent per client —
+  re-`ask` while the question is still open refreshes that comment instead of
+  stacking another — so a blocked job can be re-run without spamming the issue.
+  Add `--issue N` to point at a specific issue; otherwise it uses the branch.
+- `scripts/wip answers` reads the answers back: it lists the current client's
+  open questions and the human replies to them (comments newer than the
+  question, ignoring the machine-managed claim/question/board comments), prints
+  the answer text, and stamps an answered question so it is never surfaced
+  twice. Read it after a `Needs user` claim, then `scripts/wip claim` to resume.
+- Run `scripts/wip done` when the pull request is ready for review or the
+  work is abandoned.
+- The claims are also a merge gate: do not merge a pull request whose issue
+  still shows a live claim — live means a client is working and not finished,
+  the board even names what it waits for. Run `scripts/wip ls` before
+  merging; when the merge finishes your own work, release your claim
+  (`scripts/wip done`) as part of being ready.
+- Check `scripts/wip ls` before picking up an issue; somebody may hold it.
+- The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
+  the board issue are machine-managed; never edit them by hand. `claim`, `wait`
+  and `done` refresh the board as they run; regenerate it by hand with
+  `scripts/wip board` when a refresh warned.
+- If `gh` is not authenticated on the host, say so once and continue without
+  claiming; claiming must never block the actual work.
+
 
 ## Working with uncertainty
 
@@ -222,11 +352,15 @@ documents:
 - `flake8` runs in ~1 s from the host virtualenv (`backend/../.venv/bin/flake8`); everything else
   needs Docker, because `backend/MrMap/settings.py` calls `gdal_info()` and GDAL/GEOS are not
   installed on a plain host.
-- Backend Docker test runs sharing PostgreSQL must not overlap: they create the same `test_mrmap`
-  database and destroy each other mid-run. Use the host-wide lock in `backend/AGENTS.md`, including
-  across worktrees and Compose test services.
+- Backend Docker test runs must not share a PostgreSQL: they create the same `test_mrmap` database
+  and destroy each other mid-run. Give every run its own Compose stack (see "Docker ownership and
+  cleanup for parallel agents"), then runs from different jobs and worktrees may overlap freely.
 - Frontend lint, strict type checking and tests with coverage are required CI checks. Historical red
   baselines were removed by the code-quality cleanup; see `frontend/AGENTS.md`.
 - Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
   `backend/`) during development. CI also checks migrations and translations; see
   `backend/AGENTS.md`.
+- Squashing the migration history to initial migrations was evaluated and rejected: the 35
+  migration files are light and a cold targeted test run costs 18-20 s, with or without `--keepdb`.
+  Raise the squash again when a cold targeted run exceeds ~60 s or the migration file count passes
+  ~100.

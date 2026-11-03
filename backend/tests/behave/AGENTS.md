@@ -55,8 +55,10 @@ Rules that these commands encode:
 
 - **Quote the path.** Most features live below `features/json:api/`; the colon is parsed as
   `FILE:LINE` otherwise. `feature.feature:12` runs a single scenario and is the fastest loop.
-- **One behave run at a time.** It uses the same `test_mrmap` database as a `django-tests`
-  container; overlapping runs drop each other's tables and fail with unrelated errors.
+- **One behave run per stack.** It uses the same `test_mrmap` database as a `django-tests` container
+  in that stack; overlapping runs drop each other's tables and fail with unrelated errors. Behave
+  runs of other jobs are unaffected, they run in their own stack (see `../../../AGENTS.md`);
+  the stacks share the built image — the isolation is for the database, not for images.
 - **`--keepdb` (`-k`) is Django's**, not behave's, and is the difference between minutes and seconds
   on a repeat run. Drop it after any model or migration change, or when a failure mentions the
   database schema — a kept database is not migrated.
@@ -101,13 +103,13 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (60) | 59 | 0 | 0 | 1 |
-| scenarios | 387 | 0 | 0 | 5 |
+| features (60) | 60 | 0 | 0 | 0 |
+| scenarios | 396 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
-`definition_of_done.rst` is answered by the four counts. The skipped scenarios are all `/csw`: the
-two of `features/csw/get_capabilities.feature` and three of `features/csw/get_records.feature`, for
-the reason at the end of this file.
+`definition_of_done.rst` is answered by the four counts. Until #908 the skipped scenarios were all
+`/csw` exception-report scenarios; none are skipped anymore — see the section about them at the
+end of this file.
 
 Two conventions keep it green, and the harness enforces both so that no scenario has to repeat them:
 
@@ -129,7 +131,7 @@ a `406` disappear — it is the only thing that catches a view that stopped serv
 response body, and for an HTML response the hint instead of the whole page — so a red run explains
 itself without drowning the log.
 
-### Why one `/csw` feature is still skipped
+### Why the `/csw` exception scenarios are not skipped anymore
 
 `features/csw/get_records.feature` runs. It was `@skip` since #837 because every `GetRecords`
 answered a 500: the query built from GET query parameters joined the `typeNames` of the request,
@@ -138,25 +140,17 @@ looked up a pattern over the tsvector of a searchable projection, which postgres
 `function lower(tsvector) does not exist`. Both are answered by the metadata records themselves
 since #855 — see the header of that file and `csw/queryables.py`.
 
-Five scenarios are still `@skip` and all five assert the exception report of a refused request,
-which is #866:
-
-- the two of `features/csw/get_capabilities.feature` (the whole feature, for a missing `SERVICE`
-  and a missing `REQUEST` parameter), and
-- three of `features/csw/get_records.feature`: a `Constraint` naming a field which is not a
-  queryable, an unsupported `typeNames` and an unsupported `outputSchema`.
-
-`csw/views.py` builds `MissingRequestParameterException`, `MissingServiceParameterException` and
-`InvalidQuery` without the `service_type` and `service_version` arguments `OGCServiceException`
-requires (`registry/proxy/mixins.py` shows the calling convention which is expected here), so the
-three scenarios which ask for a missing parameter or for a field which is not a queryable answer a
-500. The two `NotSupported` ones do reach a response, but the report skeleton of
-`("csw", "Exception", "2.0.2")` in `owsExceptionReport.xsd` carries no `ServiceException`, so the
-endpoint answers an empty
-`<ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows"/>` with nothing to tell a refused
-`typeNames` from a refused `outputSchema`. The reason is written above the `@skip` tags as well;
-unskip them together with that fix and expect the XML comparison of `get_capabilities.feature` to
-need attention.
+Five scenarios stayed `@skip` until #908, all of them asserting the exception report of a refused
+request (the report itself was the tracked problem of #866): the two of
+`features/csw/get_capabilities.feature` (a missing `SERVICE` and a missing `REQUEST` parameter)
+and three of `features/csw/get_records.feature` (a `Constraint` naming a field which is not a
+queryable, an unsupported `typeNames` and an unsupported `outputSchema`). `/csw` answers every
+refusal with the `ows:ExceptionReport` of OWS Common at HTTP 400 now
+(`registry/ows_lib/response/exceptions.py` builds it), so all five are un-skipped. The exact
+XML comparison of `get_capabilities.feature` pinned the document which never rendered back then;
+its scenarios now assert the parts of the report which carry the refusal — its `version` and the
+`exceptionCode`, `locator` and `ExceptionText` of its `Exception` — as the `get_records.feature`
+scenarios already did.
 
 ## Writing or changing a scenario
 
@@ -399,8 +393,8 @@ any scenario. Nothing covers the WFS and CSW update jobs and settings, `layer-ma
 probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-metadata`,
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
 and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
-since #855, but `GetCapabilities`, `GetRecordById` beyond one scenario, and every refused request
-are not covered — see "Why one `/csw` feature is still skipped" above.
+since #855 and every refused `/csw` request since #908 (see above), but the `GetCapabilities`
+document itself and `GetRecordById` beyond one scenario are not covered.
 
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort

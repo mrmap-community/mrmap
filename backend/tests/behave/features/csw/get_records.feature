@@ -10,10 +10,10 @@
 # tsquery over the vector column of a record, a wildcarded pattern is asked of the texts
 # that vector is tokenized out of, and the data of a response is the document of a record.
 #
-# Three scenarios below stay @skip: they assert the exception report of a refused request
-# and that report is the OWS layer problem of #866 -- the endpoint answers an empty
-# <ows:ServiceExceptionReport/> and one of the three refusal paths raises a TypeError
-# before it can answer anything.
+# The refused requests below are answered with the ows:ExceptionReport of OWS Common
+# (OGC 05-008, clause 8) at HTTP 400 since #908; before, an empty
+# <ows:ServiceExceptionReport/> stood at HTTP 200 or a TypeError answered a 500 before
+# a report was built (the scenarios' @skip carried the reason until then).
 #
 # The fixture of this feature answers two dataset metadata records and no service metadata
 # record: "Niederschlag an RBSN Stationen" (de.dwd.geoserver.fach.RBSN_RR, keyword
@@ -57,9 +57,6 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect the response status is 200
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "1"
 
-    # @skip: csw/views.py builds InvalidQuery without the two arguments OGCServiceException
-    # requires, so the refusal of a field which is not a queryable answers a 500 (#866).
-    @skip
     Scenario: GetRecords results response with wrong filter field
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -68,16 +65,35 @@ Feature: MrMap CatalogueService Endpoint
         Given I set a queryparam "CONSTRAINTLANGUAGE" with value "CQL_TEXT"
         Given I set a queryparam "Constraint" with value "unknownfield LIKE '%de.dwd.geoserver.fach.RBSN_RR'"
         When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "InvalidQuery"
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "Constraint"
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidQuery"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "Constraint"
 
-    # @skip: both refusals below are answered with an empty
-    # <ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows"/>, because the
-    # report skeleton of ("csw", "Exception", "2.0.2") carries no ServiceException
-    # (#866). The scenario of the missing SERVICE and REQUEST parameters is the third
-    # case of that issue and belongs to get_capabilities.feature.
-    @skip
+    Scenario: GetRecords answers an exception report for a constraint without language
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "Constraint" with value "AnyText = 'niederschlag'"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "MissingParameter"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "CONSTRAINTLANGUAGE"
+
+    Scenario: GetRecords answers an exception report for a malformed CQL constraint
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "CONSTRAINTLANGUAGE" with value "CQL_TEXT"
+        Given I set a queryparam "Constraint" with value "&&& not a cql expression &&&"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+
+    # The refusals below name the parameter whose value this endpoint can not answer;
+    # the scenario of the missing SERVICE and REQUEST parameters belongs to
+    # get_capabilities.feature.
     Scenario: GetRecords results response with unsupported typeNames
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -85,11 +101,10 @@ Feature: MrMap CatalogueService Endpoint
         Given I set a queryparam "resultType" with value "results"
         Given I set a queryparam "typeNames" with value "csw:record"
         When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "typeNames"
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "NotSupported"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "typeNames"
 
-    @skip
     Scenario: GetRecords results response with unsupported outputSchema
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"
@@ -97,9 +112,9 @@ Feature: MrMap CatalogueService Endpoint
         Given I set a queryparam "resultType" with value "results"
         Given I set a queryparam "outputSchema" with value "http://www.opengis.net/cat/csw/2.0.2"
         When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
-        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "outputSchema"
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "NotSupported"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "outputSchema"
 
     Scenario: GetRecords validate response is acknowledged
         Given I set a queryparam "REQUEST" with value "GetRecords"

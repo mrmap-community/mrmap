@@ -67,7 +67,7 @@ class CswServiceView(View):
                 service_type=self.ogc_request.service_type,
                 service_version=self.ogc_request.service_version,
                 locator="typeNames",
-                message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
+                message="Only 'gmd:MD_Metadata' as typeNames is supported.")
 
     def get_field_map(self):
         # the queryables of this endpoint and the field of a metadata record each of

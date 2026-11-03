@@ -114,5 +114,7 @@ self.assertNoSlowObjectPermissions('/api/registry/layers')
 - When a test fails because production code never populated a field, fix the production path and add
   a regression test; `tests/django/registry/tests_harvest_history.py` and
   `tests/django/registry/models/tests_update.py` are examples of that pattern.
-- Full-suite runs must not overlap with any other `django-tests` container (shared `test_mrmap`
-  database).
+- Full-suite runs must not overlap with another `django-tests` container or a Behave run **in the
+  same stack**: all of them create `test_mrmap` in the same PostgreSQL. Runs in their own stack do
+  not interfere, so use one stack per concurrent run (see `../../AGENTS.md`); the stacks may
+  share the built image — what must not overlap is the database.

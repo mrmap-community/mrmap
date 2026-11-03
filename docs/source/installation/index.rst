@@ -146,5 +146,84 @@ requests" dashboard pre-provisioned from ``docker/grafana/``; login with
 * ``MRMAP_SYSLOG_HOST`` / ``MRMAP_SYSLOG_PORT`` point the backend syslog
   handler at any RFC 5424 receiver; the default is ``victoria-logs:5514``,
   the compose service.
+* ``MRMAP_SLOW_REQUEST_THRESHOLD_MS`` is the duration of a request in milliseconds
+  which is worth a "Slow Request Detected" record; the default is 400.
 * To enable Postgres slow statement logging, run (hot, no restart):
   ``ALTER SYSTEM SET log_min_duration_statement = '400ms'; SELECT pg_reload_conf();``
+
+Every record the syslog handler answers leaves the verbose details of that record as
+a JSON file in ``<MEDIA_ROOT>/logs``. Nothing deleted them, so a deployment which ran
+for a few weeks held a few hundred thousand of them (#888). The periodic task
+``system.tasks.delete_old_slow_request_dumps`` takes them back: it is created on
+migrate, beat hands it over hourly, and it deletes the dumps which are older than
+``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the retention of
+VictoriaLogs above) as well as everything beyond
+``MRMAP_SLOW_REQUEST_DUMP_MAX_FILES`` dumps (default 0, which answers no limit and
+leaves the age bound alone). A dump which is gone costs the per-request SQL detail of
+that one request; the syslog line which pointed at it stays in the log store for its
+whole retention. ``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS=0`` keeps the dumps until
+the cap is reached or until somebody reads them.
+
+Those dumps carry complete SQL statements, the internal host names which answered the
+request and its metadata, and only the syslog line points at them — no screen of
+MrMap does. They are therefore not served over the media route: ``/media/logs/`` is
+answered with 404 by the nginx of the stack (``docker/nginx/mrmap.conf``) and by the
+backend itself for every origin it is reached from, so a deployment which serves the
+backend without that nginx is not more open than one which serves it with it. Recreate
+the ``frontend`` service, which runs that nginx, to apply the location. Read the dumps
+on the filesystem of the backend, for as long as the task above keeps them:
+
+.. code-block:: console
+
+    docker compose exec backend ls /var/mrmap/backend/media/logs
+
+Errors of the user's browser take the same route through the ``frontend``
+service, which carries that ``logging:`` block as well: its access log and
+error log are in the store too. The image injects ``error-beacon.js`` into the
+built ``index.html`` before the app bundle, and that script reports uncaught
+exceptions, unhandled promise rejections and failed resource loads to
+``/api/system/error``. Nginx answers that url itself: the fields of a report
+travel in the query string, so nginx has them at log time without ever reading
+a request body, and one accepted report is one line of
+``/var/log/nginx/frontend-error.log``, which is symlinked to stdout like the
+``access.log`` of the image. The backend has no such endpoint, so a request
+which reaches it without nginx is answered 404.
+
+Such a line names the ``source`` (``error``, ``rejection`` or ``resource``),
+the ``msg``, the ``url`` of the script which failed, the ``page`` the user was
+on, the ``stack``, the ``ua``, the ``ip`` of the client and the ``answered``
+status; every value is percent encoded as it arrived. To count them per
+deployment:
+
+.. code-block:: console
+
+    "Frontend Error" | extract "source=\"<source>\"" | stats by (source) count() as n
+
+Failing api calls are not reported from the browser: the access log of this
+very nginx already knows the status code of every call, and a browser report
+would have the beacon post at exactly the api that is down.
+
+What one address may write is bounded. ``limit_req`` takes five reports a
+second with a burst of 50 and answers 429 beyond that, and only an accepted
+report with a message of its own writes a line — a probe, a GET and anything
+over the limit stay silent. The refused attempts are still readable in the
+nginx error log ("limiting requests"), which travels with the same block. One
+report is one request line, so nginx refuses one above its 8k with a 414; the
+beacon keeps itself below that, deduplicates identical reports for 30 seconds
+and caps a page load at 20 reports.
+
+Script, location and log driver come with the image of the ``frontend`` service,
+so that container has to be recreated to apply them. An existing deployment
+holds the built frontend in the ``frontend-static`` volume, and Docker fills
+such a volume from the image only while it is still empty, so the volume goes
+with the container (``docker volume ls`` names it after the project):
+
+.. code-block:: console
+
+    docker compose rm -fs frontend
+    docker volume rm mrmap_frontend-static
+    docker compose up -d --build frontend
+
+Reporting lives in nginx, so it exists where the built app is served behind it:
+the development server of the frontend (``npm run dev``) answers without nginx
+and reports nothing.

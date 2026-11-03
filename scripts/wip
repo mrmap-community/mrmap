@@ -17,8 +17,13 @@ Usage:
   scripts/wip wait "<q>" mark the active claim as blocked on user input, with
                          the reason; the board lists it under "Needs user"
   scripts/wip done  [N]  release your claim on the issue
-  scripts/wip ls         overview: local worktrees + remote claims
-  scripts/wip board      create/refresh the pinned Agent Work Board issue
+  scripts/wip ls         overview: local worktrees + remote claims, reads only
+  scripts/wip board      create the pinned Agent Work Board issue, rebuild its body
+
+claim, wait and done rebuild the board themselves on their way out, so it moves
+with every claim change; `wip board` is only needed to create the issue the first
+time or to rebuild it after a refresh that failed. Board and label are generated
+views, the claim comments are the truth.
 
 Client identity: <hostname>:<worktree-dir-name>, override with CLIENT_TAG.
 Issue number: inferred from a branch name containing issue-<N> (or #<N>),
@@ -90,6 +95,17 @@ def sh(cmd, input=None, check=True):
 def gh_json(*args):
     out = sh(["gh"] + list(args))
     return json.loads(out) if out else None
+
+
+def try_sh(cmd, input=None):
+    """Best-effort command: True on success, False with the reason on stderr.
+
+    For the writes that follow a claim, which must not decide its exit code.
+    """
+    r = subprocess.run(cmd, input=input, capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.stderr.write(f"wip: {' '.join(cmd[:4])}: {(r.stderr or '').strip()}\n")
+    return r.returncode == 0
 
 
 def repo():
@@ -184,6 +200,19 @@ def ensure_label(R):
         sh(["gh", "label", "create", LABEL, "-R", R, "--color", LABEL_COLOR, "--description", LABEL_DESC])
 
 
+def add_wip_label(R, n):
+    """Label the claim, and name it when the write fails instead of swallowing it.
+
+    The claim comment stays authoritative, so a failure only warns - but it has to
+    say what it costs: `wip board` discovers claims by this label, so a claim
+    without it is invisible there while `wip ls` still shows it.
+    """
+    ensure_label(R)
+    if not try_sh(["gh", "issue", "edit", str(n), "-R", R, "--add-label", LABEL]):
+        sys.stderr.write(f"wip: warning: the claim on #{n} stands, but `{LABEL}` did not "
+                         f"apply, and the board scans by label and will miss it\n")
+
+
 def claims_index(R, numbers):
     """{issue: payloads} for the given issue numbers."""
     idx = {}
@@ -257,9 +286,9 @@ def cmd_claim(arg, force=False):
              "state": "wip", "since": ts, "heartbeat": ts, "released": None}
         sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "-f", f"body={claim_body(p)}"])
         action = "claimed"
-    ensure_label(R)
-    sh(["gh", "issue", "edit", str(n), "-R", R, "--add-label", LABEL], check=False)
+    add_wip_label(R, n)
     print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
+    sync_board(R)
 
 
 def cmd_done(arg):
@@ -278,6 +307,7 @@ def cmd_done(arg):
     if not active_claims(payloads_after := [x for x in payloads if x[0] != cid_c]):
         sh(["gh", "issue", "edit", str(n), "-R", R, "--remove-label", LABEL], check=False)
     print(f"released #{n} for `{cid}` -> {issue_url(R, n)}")
+    sync_board(R)
 
 
 def cmd_wait(reason, force=False):
@@ -301,9 +331,9 @@ def cmd_wait(reason, force=False):
              "state": "waiting", "question": reason, "since": ts, "heartbeat": ts, "released": None}
         sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "-f", f"body={claim_body(p)}"])
         action = "claimed and marked waiting for user input on"
-    ensure_label(R)
-    sh(["gh", "issue", "edit", str(n), "-R", R, "--add-label", LABEL], check=False)
+    add_wip_label(R, n)
     print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
+    sync_board(R)
 
 
 def cmd_ls(_arg):
@@ -383,7 +413,7 @@ def board_body(R, rows, orphans):
     if orphans:
         lines += ["", "## Labeled without active claim (stale labels)", ""]
         lines += [f"- #{n} {issue_url(R, n)}" for n in orphans]
-    lines += ["", f"_Refreshed {now_iso()} by `wip board` on `{local_host()}`._"]
+    lines += ["", f"_Refreshed {now_iso()} by `wip` on `{local_host()}`._"]
     return "\n".join(lines) + "\n"
 
 
@@ -410,8 +440,29 @@ def release_claims_on_closed(R):
     return count
 
 
-def cmd_board(_arg):
-    R = repo()
+def board_table(body):
+    """The body without its refresh stamp, so an unchanged board is detectable."""
+    return "\n".join(line for line in body.splitlines() if not line.startswith("_Refreshed "))
+
+
+def find_board(R):
+    """(number, body) of the pinned board issue, duplicates closed; (None, None) if none."""
+    found = gh_json("issue", "list", "-R", R, "--state", "open",
+                    "--search", "Agent Work Board in:title",
+                    "--json", "number", "--limit", "50") or []
+    boards = []
+    for f in sorted(found, key=lambda i: i["number"]):
+        fbody = sh(["gh", "issue", "view", str(f["number"]), "-R", R, "--json", "body", "--jq", ".body"])
+        if BOARD_MARK in fbody:
+            boards.append((f["number"], fbody))
+    for dup, _ in boards[1:]:
+        sh(["gh", "issue", "close", str(dup), "-R", R,
+            "--comment", "Duplicate Agent Work Board, auto-closed by `wip board`."], check=False)
+    return boards[0] if boards else (None, None)
+
+
+def render_board(R):
+    """(body, active claims, claims released on closed issues) for the board as of now."""
     titles = labeled_issues(R)
     released = release_claims_on_closed(R)
     idx = claims_index(R, sorted(titles))
@@ -421,29 +472,46 @@ def cmd_board(_arg):
             rows.append((n, titles.get(n, ""), c))
     rows.sort(key=lambda r: (r[2].get("state") != "waiting", r[2]["client"].split(":", 1)[0], r[0]))
     orphans = [n for n, payloads in sorted(idx.items()) if not active_claims(payloads)]
-    body = board_body(R, rows, orphans)
-    found = gh_json("issue", "list", "-R", R, "--state", "open",
-                    "--search", "Agent Work Board in:title",
-                    "--json", "number", "--limit", "50") or []
-    boards = []
-    for f in sorted(found, key=lambda i: i["number"]):
-        fbody = sh(["gh", "issue", "view", str(f["number"]), "-R", R, "--json", "body", "--jq", ".body"])
-        if BOARD_MARK in fbody:
-            boards.append(f["number"])
-    for dup in boards[1:]:
-        sh(["gh", "issue", "close", str(dup), "-R", R,
-            "--comment", "Duplicate Agent Work Board, auto-closed by `wip board`."], check=False)
-    if boards:
-        b = boards[0]
-        sh(["gh", "issue", "edit", str(b), "-R", R, "--body-file", "-"], input=body)
-        verb = "refreshed"
-    else:
+    return board_body(R, rows, orphans), len(rows), released
+
+
+def sync_board(R):
+    """Bring the pinned board in step with the claims after a claim changed.
+
+    Runs at the end of claim, wait and done. The claim comment is already written
+    and is what other clients read, so a board that cannot be reached only warns:
+    a stale board must never fail a claim that succeeded, the way an unreachable
+    API must never block the work. Only `wip board` fails loudly, and only it
+    creates the board issue.
+    """
+    try:
+        b, current = find_board(R)
+        if b is None:
+            return
+        body, _, _ = render_board(R)
+        if board_table(body) == board_table(current or ""):
+            return
+        if try_sh(["gh", "issue", "edit", str(b), "-R", R, "--body-file", "-"], input=body):
+            print(f"   board #{b} refreshed")
+        else:
+            sys.stderr.write(f"wip: warning: board #{b} kept its old body; run `wip board`\n")
+    except (SystemExit, ValueError):
+        sys.stderr.write("wip: warning: the board was not refreshed; run `wip board`\n")
+
+
+def cmd_board(_arg):
+    R = repo()
+    body, claims, released = render_board(R)
+    b, current = find_board(R)
+    if b is None:
         out = sh(["gh", "issue", "create", "-R", R, "--title", "🤖 " + BOARD_TITLE,
                   "--body-file", "-"], input=body)
-        b_url = out.splitlines()[-1].strip()
-        print(f"created board issue with {len(rows)} active claim(s) -> {b_url}")
+        print(f"created board issue with {claims} active claim(s) -> {out.splitlines()[-1].strip()}")
         return
-    print(f"{verb} board #{b} with {len(rows)} active claim(s)"
+    changed = board_table(body) != board_table(current or "")
+    if changed and not try_sh(["gh", "issue", "edit", str(b), "-R", R, "--body-file", "-"], input=body):
+        die(f"could not write board #{b}")
+    print(("refreshed" if changed else "confirmed") + f" board #{b} with {claims} active claim(s)"
           + (f", released {released} claim(s) on closed issues" if released else "")
           + f" -> {issue_url(R, b)}")
 

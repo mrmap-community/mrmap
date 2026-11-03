@@ -33,7 +33,9 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
-  application; `scripts/wip` is the work claim board described under "Claiming work".
+  application; `scripts/wip` is the work claim board described under "Claiming work", and
+  `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
 
 ## Authoritative sources
 
@@ -280,8 +282,9 @@ Board" issue listing the active claims.
   (`scripts/wip done`) as part of being ready.
 - Check `scripts/wip ls` before picking up an issue; somebody may hold it.
 - The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
-  the board issue are machine-managed; never edit them by hand. Regenerate
-  the board with `scripts/wip board`.
+  the board issue are machine-managed; never edit them by hand. `claim`, `wait`
+  and `done` refresh the board as they run; regenerate it by hand with
+  `scripts/wip board` when a refresh warned.
 - If `gh` is not authenticated on the host, say so once and continue without
   claiming; claiming must never block the actual work.
 

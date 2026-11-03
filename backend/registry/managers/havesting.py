@@ -164,8 +164,9 @@ class TemporaryMdMetadataFileManager(models.Manager):
     def bulk_create_with_task_scheduling(self, objs, *args, **kwargs):
         from notify.models import BackgroundProcess
         from registry.models.harvest import HarvestingJob
-        from registry.tasks.harvest import \
-            call_md_metadata_file_to_db  # to avoid circular import errors
+        # to avoid circular import errors
+        from registry.tasks.harvest import (call_md_metadata_files_to_db,
+                                            iter_md_metadata_file_chunks)
 
         bp = BackgroundProcess.objects.create(
             total_steps=len(objs) + 1,
@@ -187,12 +188,14 @@ class TemporaryMdMetadataFileManager(models.Manager):
         db_objs = self.get_queryset().filter(job__id=objs[0].job_id)
         request = db_objs[0].job._http_request()
 
+        # one task per chunk of files instead of one per file, so a directory with
+        # thousands of files does not publish thousands of broker messages (#859)
         to_db_tasks = [
-            call_md_metadata_file_to_db.s(
-                md_metadata_file_id=obj.id,
+            call_md_metadata_files_to_db.s(
+                md_metadata_file_ids=chunk,
                 http_request=request,
                 background_process_pk=bp.pk)
-            for obj in db_objs
+            for chunk in iter_md_metadata_file_chunks(obj.id for obj in db_objs)
         ]
         if to_db_tasks:
             transaction.on_commit(

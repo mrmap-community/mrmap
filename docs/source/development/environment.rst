@@ -125,3 +125,9 @@ Used to configure how many days the per request JSON dumps below the media root 
 *************************************
 
 Used to configure how many of those dumps may lie around at most; the oldest beyond that number are taken back by the same sweep. 0 answers no limit, which leaves the age bound alone.
+
+
+``MRMAP_HARVEST_IMPORT_BATCH_SIZE``
+***********************************
+
+Used to configure how many stored metadata files a single import task writes to the database. The fan-out which imports harvested records publishes one task per chunk of that many records instead of one task per record, so the number of task round-trips a harvest costs is bounded by the chunk count and the import is limited by the database again. The default is 250, which takes a harvest of 70,000 records to ~280 tasks. This is not ``max_step_size`` of a harvesting job: that one is the page size the catalogue is asked with and is chosen per catalogue.

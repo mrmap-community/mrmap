@@ -635,6 +635,15 @@ SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
 SLOW_REQUEST_DUMP_MAX_FILES = int(
     os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
 
+# how many stored metadata files a single import task takes. The fan-out which
+# writes harvested records to the database is one task per chunk instead of one per
+# record (#859): a harvest of 70,000 records publishes ~280 broker messages, task
+# round-trips and result writes instead of 70,000, and the import is limited by the
+# database again. This is not the request step size of the catalogue
+# (HarvestingJob.max_step_size), which is probed per service and stays untouched
+HARVEST_IMPORT_BATCH_SIZE = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_BATCH_SIZE", "250"))
+
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 

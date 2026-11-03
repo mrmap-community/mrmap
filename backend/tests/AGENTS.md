@@ -116,4 +116,5 @@ self.assertNoSlowObjectPermissions('/api/registry/layers')
   `tests/django/registry/models/tests_update.py` are examples of that pattern.
 - Full-suite runs must not overlap with another `django-tests` container or a Behave run **in the
   same stack**: all of them create `test_mrmap` in the same PostgreSQL. Runs in their own stack do
-  not interfere, so use one stack per concurrent run (see `../../AGENTS.md`).
+  not interfere, so use one stack per concurrent run (see `../../AGENTS.md`); the stacks may
+  share the built image — what must not overlap is the database.

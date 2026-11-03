@@ -104,7 +104,8 @@ IDE tasks do. Commands require the project's configured environment files and Do
 Follow the Docker ownership rules in `../AGENTS.md`: each job creates its own Compose stack, so a
 run never shares PostgreSQL with another job and no host-wide lock is involved. Start the
 dependencies this area needs once (`docker compose up -d postgis redis mapserver`) and add
-`--no-deps` to the `run --rm` examples below.
+`--no-deps` to the `run --rm` examples below. The isolation is for state; built images are
+shared work — build once per checkout and leave `--build` off, so further stacks reuse the tag.
 
 Every Django and Behave command below also needs the admin credentials that the database was
 migrated with: `accounts/apps.py` creates the superuser from `MRMAP_USER` and `MRMAP_PASSWORD`, and

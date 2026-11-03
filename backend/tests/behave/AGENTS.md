@@ -57,7 +57,8 @@ Rules that these commands encode:
   `FILE:LINE` otherwise. `feature.feature:12` runs a single scenario and is the fastest loop.
 - **One behave run per stack.** It uses the same `test_mrmap` database as a `django-tests` container
   in that stack; overlapping runs drop each other's tables and fail with unrelated errors. Behave
-  runs of other jobs are unaffected, they run in their own stack (see `../../../AGENTS.md`).
+  runs of other jobs are unaffected, they run in their own stack (see `../../../AGENTS.md`);
+  the stacks share the built image — the isolation is for the database, not for images.
 - **`--keepdb` (`-k`) is Django's**, not behave's, and is the difference between minutes and seconds
   on a repeat run. Drop it after any model or migration change, or when a failure mentions the
   database schema — a kept database is not migrated.

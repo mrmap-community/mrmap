@@ -32,6 +32,8 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `ows-lib/`, `react-ows-lib/` — OWS domain logic and its React binding.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
+- `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
+  application; `scripts/wip` is the work claim board described under "Claiming work".
 
 ## Authoritative sources
 
@@ -232,6 +234,34 @@ identifier itself is not an option — it breaks document matching against upstr
   relation is authoritative and separate from the title: `gh issue edit <epic> --add-sub-issue
   <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
   link and prefix disagree, fix the prefix.
+
+### Claiming work
+
+Several agents and machines work on this repository in parallel; which client
+works on what lives in GitHub, not in chat sessions. `scripts/wip` (host
+Python + `gh`, no application dependency) maintains it: one claim comment per
+issue and client, the `status: wip` label, and the pinned "🤖 Agent Work
+Board" issue listing the active claims.
+
+- Run `scripts/wip claim` from the repository root before the first file edit
+  or commit of a session; the issue number comes from the `issue-<N>` part of
+  the branch name. Claiming is idempotent, so re-running is always safe.
+- Run `scripts/wip claim` again after every `git push`; it refreshes the
+  heartbeat, and a claim without a heartbeat for three days is flagged stale
+  on the board.
+- When a step needs a human — before asking a question, requesting a
+  permission decision or waiting for credentials — run
+  `scripts/wip wait "<what you need>"`; the board lists the claim under
+  *Needs user* (first) until the next `scripts/wip claim` marks it running
+  again.
+- Run `scripts/wip done` when the pull request is ready for review or the
+  work is abandoned.
+- Check `scripts/wip ls` before picking up an issue; somebody may hold it.
+- The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
+  the board issue are machine-managed; never edit them by hand. Regenerate
+  the board with `scripts/wip board`.
+- If `gh` is not authenticated on the host, say so once and continue without
+  claiming; claiming must never block the actual work.
 
 
 ## Working with uncertainty

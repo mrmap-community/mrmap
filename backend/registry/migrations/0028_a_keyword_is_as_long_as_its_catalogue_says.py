@@ -135,7 +135,7 @@ BACK_WITH_THE_VECTOR = [
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0026_drops_the_statistics_materialized_views'),
+        ('registry', '0027_files_of_a_job_answer_their_error_count'),
     ]
 
     operations = [

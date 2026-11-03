@@ -54,7 +54,7 @@ class KeywordLengthMigrationTest(TransactionTestCase):
     """
 
     migrate_from = [('registry', '0026_drops_the_statistics_materialized_views')]
-    migrate_to = [('registry', '0027_a_keyword_is_as_long_as_its_catalogue_says')]
+    migrate_to = [('registry', '0028_a_keyword_is_as_long_as_its_catalogue_says')]
 
     # the keyword of the report, with a plan named at its end which the title of the
     # record carrying it does not name: the tail is what a narrow column loses

@@ -10,7 +10,10 @@ pinned "Agent Work Board" issue listing all active claims.
 
 Usage:
   scripts/wip claim [N]  claim the issue for the current worktree (idempotent:
-                         running again refreshes the heartbeat)
+                         running again refreshes the heartbeat and marks a
+                         waiting claim as running again)
+  scripts/wip wait "<q>" mark the active claim as blocked on user input, with
+                         the reason; the board lists it under "Needs user"
   scripts/wip done  [N]  release your claim on the issue
   scripts/wip ls         overview: local worktrees + remote claims
   scripts/wip board      create/refresh the pinned Agent Work Board issue
@@ -146,22 +149,29 @@ def claim_payloads(comments):
 
 
 def active_claims(payloads):
-    return [p for _, p in payloads if p.get("state") == "wip"]
+    return [p for _, p in payloads if p.get("state") in ("wip", "waiting")]
 
 
 def claim_body(p):
     marker = "<!-- agent-claim %s -->" % json.dumps(p, separators=(",", ":"))
     if p.get("state") == "wip":
         head = f"🚧 **WIP** — claimed by `{p['client']}`"
+        extra = ""
+        tail = f"last heartbeat: {p['heartbeat']} ({age_short(p['heartbeat'])} ago)"
+    elif p.get("state") == "waiting":
+        head = f"⏸ **Needs user input** — claimed by `{p['client']}`"
+        extra = f"- waiting for: {p.get('question', 'input')}\n"
         tail = f"last heartbeat: {p['heartbeat']} ({age_short(p['heartbeat'])} ago)"
     else:
         head = f"✅ **Released** — was claimed by `{p['client']}`"
+        extra = ""
         tail = f"released: {p.get('released', p['heartbeat'])}"
     return (
         f"{marker}\n\n{head}\n\n"
         f"- branch: `{p['branch']}`\n"
         f"- worktree: `{p['worktree']}`\n"
         f"- since: {p['since']}\n"
+        f"{extra}"
         f"- {tail}\n"
     )
 
@@ -213,12 +223,15 @@ def cmd_claim(arg):
     own = [(i, p) for i, p in payloads if p.get("client") == cid]
     last = own[-1] if own else None
     ts = now_iso()
-    if last and last[1].get("state") == "wip":
+    if last and last[1].get("state") in ("wip", "waiting"):
+        was_waiting = last[1].get("state") == "waiting"
         p = dict(last[1])
+        p["state"] = "wip"
+        p.pop("question", None)
         p["heartbeat"] = ts
         p["branch"], p["worktree"] = cur_branch(), root
         sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{last[0]}", "-f", f"body={claim_body(p)}"])
-        action = "heartbeat on claim to"
+        action = "resumed claim on" if was_waiting else "heartbeat on claim to"
     else:
         p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
              "state": "wip", "since": ts, "heartbeat": ts, "released": None}
@@ -234,7 +247,7 @@ def cmd_done(arg):
     cid = client_id(root)
     n = infer_issue(arg, "done")
     payloads = claim_payloads(fetch_comments(R, n))
-    own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") == "wip"]
+    own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") in ("wip", "waiting")]
     if not own:
         print(f"no active claim for `{cid}` on #{n}")
         return
@@ -245,6 +258,31 @@ def cmd_done(arg):
     if not active_claims(payloads_after := [x for x in payloads if x[0] != cid_c]):
         sh(["gh", "issue", "edit", str(n), "-R", R, "--remove-label", LABEL], check=False)
     print(f"released #{n} for `{cid}` -> {issue_url(R, n)}")
+
+
+def cmd_wait(reason):
+    if not reason:
+        die('usage: wip wait "<what you need from the user>"')
+    R, root = repo(), git_root()
+    cid = client_id(root)
+    n = infer_issue(None, "wait")
+    payloads = claim_payloads(fetch_comments(R, n))
+    own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") in ("wip", "waiting")]
+    ts = now_iso()
+    if own:
+        c_id, p = own[-1]
+        p = dict(p)
+        p["state"], p["question"], p["heartbeat"] = "waiting", reason, ts
+        sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{c_id}", "-f", f"body={claim_body(p)}"])
+        action = "marked waiting for user input on"
+    else:
+        p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
+             "state": "waiting", "question": reason, "since": ts, "heartbeat": ts, "released": None}
+        sh(["gh", "api", f"repos/{R}/issues/{n}/comments", "-f", f"body={claim_body(p)}"])
+        action = "claimed and marked waiting for user input on"
+    ensure_label(R)
+    sh(["gh", "issue", "edit", str(n), "-R", R, "--add-label", LABEL], check=False)
+    print(f"{action} #{n} as `{cid}` -> {issue_url(R, n)}")
 
 
 def cmd_ls(_arg):
@@ -272,6 +310,7 @@ def cmd_ls(_arg):
         claims = active_claims(idx.get(n, [])) if n else []
         txt = ", ".join(
             ("me " if c["client"] == cid else "") + c["client"].split(":", 1)[0] +
+            (" ⏸" if c.get("state") == "waiting" else "") +
             (" ⚠️" if is_stale(c) else "")
             for c in claims) or ("-" if n else "(no issue in branch)")
         print(f"{mark:2}{t.get('branch','(detached)'):46}{'#' + str(n) if n else '-':8}{txt:60}")
@@ -286,7 +325,8 @@ def cmd_ls(_arg):
     if not remote:
         print("  none")
     for n, c in remote:
-        print(f"  #{n:<5} {c['client']:30} {c['branch']:50} hb {age_short(c['heartbeat'])} ago{' ⚠️ STALE' if is_stale(c) else ''}")
+        wait = " ⏸ NEEDS USER" if c.get("state") == "waiting" else ""
+        print(f"  #{n:<5} {c['client']:30} {c['branch']:50} hb {age_short(c['heartbeat'])} ago{wait}{' ⚠️ STALE' if is_stale(c) else ''}")
 
     orphans = [n for n, payloads in sorted(idx.items())
                if n in labeled and not active_claims(payloads)]
@@ -302,16 +342,20 @@ def board_body(R, rows, orphans):
         "Machine-managed overview of which client works on which issue.",
         "Regenerated by `wip board` from claim comments — do not edit by hand.",
         "Claim with `wip claim` inside a worktree, release with `wip done`.",
+        "A client blocked on a human marks itself with `wip wait \"<what you need>\"`",
+        "and is listed first under *Needs user*.",
         "",
     ]
     if rows:
-        lines += ["| Issue | Title | Client | Branch | Worktree | Since | Last heartbeat |",
-                  "|---|---|---|---|---|---|---|"]
+        lines += ["| Issue | Title | Client | Needs user | Branch | Worktree | Since | Last heartbeat |",
+                  "|---|---|---|---|---|---|---|---|"]
         for n, title, c in rows:
             t = (title or "").replace("|", "\\|")[:80]
             flag = " ⚠️ STALE" if is_stale(c) else ""
+            need = ("⏸ " + str(c.get("question", "input")).replace("|", "\\|"))[:60] \
+                if c.get("state") == "waiting" else ""
             lines.append(
-                f"| [#{n}]({issue_url(R, n)}) | {t} | `{c['client']}` | `{c['branch']}` | "
+                f"| [#{n}]({issue_url(R, n)}) | {t} | `{c['client']}` | {need} | `{c['branch']}` | "
                 f"`{c['worktree']}` | {c['since'][:10]} | {age_short(c['heartbeat'])} ago{flag} |")
     else:
         lines.append("_No active claims._")
@@ -322,15 +366,39 @@ def board_body(R, rows, orphans):
     return "\n".join(lines) + "\n"
 
 
+def release_claims_on_closed(R):
+    """Release claims that are still active on issues closed since the claim;
+    closed work is finished work, no client should keep an active claim."""
+    closed = gh_json("issue", "list", "-R", R, "--state", "closed", "--label", LABEL,
+                     "--limit", "100", "--json", "number") or []
+    count = 0
+    for i in closed:
+        payloads = claim_payloads(fetch_comments(R, i["number"]))
+        here = 0
+        for c_id, p in payloads:
+            if p.get("state") not in ("wip", "waiting"):
+                continue
+            p = dict(p)
+            p["state"], p["released"], p["heartbeat"] = "done", now_iso(), now_iso()
+            p.pop("question", None)
+            sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{c_id}", "-f", f"body={claim_body(p)}"])
+            here += 1
+        if here:
+            sh(["gh", "issue", "edit", str(i["number"]), "-R", R, "--remove-label", LABEL], check=False)
+        count += here
+    return count
+
+
 def cmd_board(_arg):
     R = repo()
     titles = labeled_issues(R)
+    released = release_claims_on_closed(R)
     idx = claims_index(R, sorted(titles))
     rows = []
     for n, payloads in sorted(idx.items()):
         for c in active_claims(payloads):
             rows.append((n, titles.get(n, ""), c))
-    rows.sort(key=lambda r: (r[2]["client"].split(":", 1)[0], r[0]))
+    rows.sort(key=lambda r: (r[2].get("state") != "waiting", r[2]["client"].split(":", 1)[0], r[0]))
     orphans = [n for n, payloads in sorted(idx.items()) if not active_claims(payloads)]
     body = board_body(R, rows, orphans)
     found = gh_json("issue", "list", "-R", R, "--state", "open",
@@ -354,7 +422,9 @@ def cmd_board(_arg):
         b_url = out.splitlines()[-1].strip()
         print(f"created board issue with {len(rows)} active claim(s) -> {b_url}")
         return
-    print(f"{verb} board #{b} with {len(rows)} active claim(s) -> {issue_url(R, b)}")
+    print(f"{verb} board #{b} with {len(rows)} active claim(s)"
+          + (f", released {released} claim(s) on closed issues" if released else "")
+          + f" -> {issue_url(R, b)}")
 
 
 def usage():
@@ -375,6 +445,8 @@ def main():
         cmd_ls(arg)
     elif cmd == "board":
         cmd_board(arg)
+    elif cmd == "wait":
+        cmd_wait(" ".join(args[1:]))
     else:
         die(f"unknown command '{cmd}' (see: wip help)")
 

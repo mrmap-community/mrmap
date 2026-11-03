@@ -249,6 +249,11 @@ Board" issue listing the active claims.
 - Run `scripts/wip claim` again after every `git push`; it refreshes the
   heartbeat, and a claim without a heartbeat for three days is flagged stale
   on the board.
+- When a step needs a human — before asking a question, requesting a
+  permission decision or waiting for credentials — run
+  `scripts/wip wait "<what you need>"`; the board lists the claim under
+  *Needs user* (first) until the next `scripts/wip claim` marks it running
+  again.
 - Run `scripts/wip done` when the pull request is ready for review or the
   work is abandoned.
 - Check `scripts/wip ls` before picking up an issue; somebody may hold it.

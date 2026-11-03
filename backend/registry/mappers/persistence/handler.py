@@ -16,13 +16,17 @@ logger: Logger = settings.ROOT_LOGGER
 
 
 class PersistenceHandler:
-    def __init__(self, mapper, defaults={}):
+    def __init__(self, mapper, defaults={}, change_reason=None):
         """
         mapper: XmlMapper-Instanz
+        defaults: field values the caller adds to a parsed instance
+        change_reason: why this document is written, for the history row of a
+            metadata record; None leaves the reason of that row empty
         """
         self.mapper = mapper
         # FIXME: self.defaults is never accessed. Implement default handling
         self.defaults = defaults
+        self.change_reason = change_reason
         self.final_instances_map = {}
 
     # ------------------------

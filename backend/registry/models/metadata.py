@@ -737,10 +737,16 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     def __str__(self):
         return f"{self.title} ({self.pk})"
 
-    def save(self, *args, **kwargs):
-        """Custom save function to set `is_customized` on update."""
-        # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
-        if not self._state.adding:
+    def save(self, *args, mark_customized: bool = True, **kwargs):
+        """Save the record and say with `mark_customized` who wrote it.
+
+        An update of a record is a customization of it, which is what the flag
+        answers to the editor. A write of the harvesting process is not one: the
+        record came from the catalogue as the catalogue has it, and flagging every
+        re-harvest as customized tells that somebody edited it (#858). Those
+        writes pass `mark_customized=False`.
+        """
+        if not self._state.adding and mark_customized:
             self.is_customized = True
 
         return super().save(*args, **kwargs)

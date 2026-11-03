@@ -1,7 +1,7 @@
 """HTTP verb restriction of the media fallback view (#782, SonarCloud S3752) and the
 dumps which it never serves (#888).
 
-Outside DEBUG the urlconf serves uploaded media through ``protected_serve``, so
+The urlconf serves uploaded media through ``ProtectedServeView``, so
 that the application can answer media requests on its own. Media is static
 content: only the two read verbs may reach the file server, every other verb
 must be answered 405 at the url layer.
@@ -17,11 +17,12 @@ view. The 200 case therefore writes into the configured media root, the same
 directory a deployment serves - and so does every test of the dumps.
 """
 
+import importlib.util
 import uuid
 from pathlib import Path
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
 
@@ -68,20 +69,28 @@ class ProtectedServeVerbTests(SimpleTestCase):
 
     def test_get_serves_the_file(self):
         response = self.client.get(f'/media/{self.media_name}')
+        self.addCleanup(response.close)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(b''.join(response.streaming_content),
+                         self.media_path.read_bytes())
 
     def test_head_serves_the_file(self):
         response = self.client.head(f'/media/{self.media_name}')
+        self.addCleanup(response.close)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(b''.join(response.streaming_content), b'')
+        self.assertEqual(int(response['Content-Length']),
+                         self.media_path.stat().st_size)
 
     def test_unknown_file_is_not_found(self):
         response = self.client.get('/media/does/not/exist.png')
         self.assertEqual(response.status_code, 404)
 
-    def test_write_verbs_are_rejected_before_the_file_server(self):
-        for verb in ('post', 'put', 'patch', 'delete'):
+    def test_unsupported_verbs_are_rejected_before_the_file_server(self):
+        for verb in ('post', 'put', 'patch', 'delete', 'options', 'trace'):
             response = getattr(self.client, verb)(f'/media/{self.media_name}')
             self.assertEqual(response.status_code, 405, verb)
+            self.assertEqual(response['Allow'], 'GET, HEAD', verb)
 
     def test_a_slow_request_dump_is_not_served(self):
         """The media route answers the dump of a slow request like an unknown file."""
@@ -110,7 +119,14 @@ class ProtectedServeVerbTests(SimpleTestCase):
             response = self.client.get(spelling)
             self.assertEqual(response.status_code, 404, spelling)
 
-    def test_a_write_verb_on_a_dump_answers_like_on_an_unknown_file(self):
+    def test_a_symlink_into_the_dumps_is_not_served(self):
+        media_link = Path(settings.MEDIA_ROOT) / f'{uuid.uuid4()}.json'
+        media_link.symlink_to(self.dump_path)
+        self.addCleanup(media_link.unlink)
+        response = self.client.get(f'/media/{media_link.name}')
+        self.assertEqual(response.status_code, 404)
+
+    def test_a_dump_answers_like_an_unknown_file_for_every_verb(self):
         """The dump is refused with the answer every other media path gives.
 
         The two read verbs answer a dump and an unknown file alike with 404, the
@@ -119,8 +135,26 @@ class ProtectedServeVerbTests(SimpleTestCase):
         dump is guarded, so the refusal accepts the verbs a media file is asked with
         and nothing else (#888).
         """
-        for verb in ('get', 'head', 'post', 'put', 'patch', 'delete'):
+        for verb in ('get', 'head', 'post', 'put', 'patch', 'delete',
+                     'options', 'trace'):
             dump = getattr(self.client, verb)(
                 f'/media/{SLOW_REQUEST_DUMP_SUBDIR}/{self.dump_name}')
             unknown = getattr(self.client, verb)('/media/does/not/exist.png')
             self.assertEqual(dump.status_code, unknown.status_code, verb)
+            self.assertEqual(dump.get('Allow'), unknown.get('Allow'), verb)
+
+
+@override_settings(DEBUG=True, TESTING=False)
+class DevelopmentProtectedServeVerbTests(ProtectedServeVerbTests):
+    """Exercise the same media contract through the development URLconf branch."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Execute a fresh URLconf without replacing the module other tests use.
+        spec = importlib.util.find_spec('MrMap.urls')
+        urlconf = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(urlconf)
+        urlconf_settings = override_settings(ROOT_URLCONF=urlconf)
+        urlconf_settings.enable()
+        cls.addClassCleanup(urlconf_settings.disable)

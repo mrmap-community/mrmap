@@ -1,7 +1,7 @@
 from celery import chord
 from django.db import models, transaction
-from django.db.models import (Case, Count, F, FloatField, OuterRef, Q, Subquery,
-                              Value, When)
+from django.db.models import (Case, Count, F, FloatField, OuterRef, Q,
+                              Subquery, Value, When)
 from django.db.models.functions import Ceil, Coalesce, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
@@ -39,17 +39,43 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         before joining their counts makes even a small page read that backlog.
         Correlated subqueries use the existing job index and stay lazy so later
         filters and limits also bound the work (#870).
+
+        A count which only the files carrying some property are asked about is
+        answered by exactly those files: the filter of the count becomes the
+        range of the subquery which answers it, and a range is what the database
+        reads out of an index. A COUNT FILTER in front of the whole range reads
+        every file of the job to find the few it counts - the job of the report
+        read the entries of all 411,518 files of the job to answer how many of
+        them had failed, again on every request which rendered its progress
+        (#886). The new index over the job and its error flag answers the failed
+        files as their own range.
+        A job whose files are all of the other kind leaves a filtered range
+        without a single row; the ``Coalesce`` answers it the 0 the FILTER had
+        counted.
         """
         from registry.models.harvest import TemporaryMdMetadataFile
 
         if qs is None:
             qs = self.get_queryset()
         files = TemporaryMdMetadataFile.objects.filter(
-            job_id=OuterRef("pk")).order_by().values("job_id").annotate(**counts)
-        return qs.annotate(**{
-            name: Coalesce(Subquery(files.values(name)), 0)
-            for name in counts
-        })
+            job_id=OuterRef("pk")).order_by().values("job_id")
+        subqueries = {}
+        for name, count in counts.items():
+            where = getattr(getattr(count, "filter", None), "condition", None)
+            if isinstance(where, Q):
+                # a Q selects files and so is a range: the entries of the rows
+                # the count is about and no others. Any other expression is not
+                # always something a WHERE can filter against and stays a
+                # FILTER; an empty Q narrows nothing here, as its FILTER clause
+                # is left out of the statement just as well.
+                files_of_count = files.filter(where)
+                count = count.copy()
+                count.filter = None
+            else:
+                files_of_count = files
+            subqueries[name] = Coalesce(Subquery(
+                files_of_count.annotate(**{name: count}).values(name)), 0)
+        return qs.annotate(**subqueries)
 
     def with_process_info(self):
         """Adds the progress information of a harvesting job to the queryset.

@@ -417,21 +417,13 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
 
     def assertTemporaryFileScansAreBounded(self, sql):
         """Query counts alone cannot detect one query aggregating the backlog."""
-        with connections['default'].cursor() as cursor:
-            cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
-            plan = cursor.fetchone()[0][0]['Plan']
-        pending = [plan]
-        scans = []
-        while pending:
-            node = pending.pop()
-            pending.extend(node.get('Plans', []))
-            if node.get('Relation Name') == 'registry_temporarymdmetadatafile':
-                scans.append(node)
-                condition = node.get('Index Cond', node.get('Recheck Cond', ''))
-                self.assertIn('job_id', condition, node)
-                self.assertLessEqual(node['Actual Rows'], 2, node)
-                self.assertLessEqual(node['Actual Loops'], 1, node)
-        self.assertTrue(scans, plan)
+        scans = self.temporaryFileScans(sql)
+        self.assertTrue(scans, sql)
+        for node in scans:
+            condition = node.get('Index Cond', node.get('Recheck Cond', ''))
+            self.assertIn('job_id', condition, node)
+            self.assertLessEqual(node['Actual Rows'], 2, node)
+            self.assertLessEqual(node['Actual Loops'], 1, node)
 
     def test_process_info_counts_only_the_selected_job(self):
         with CaptureQueriesContext(connections['default']) as queries:
@@ -444,6 +436,73 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertEqual(job.progress, 77.78)
         self.assertEqual(len(queries), 1)
         self.assertTemporaryFileScansAreBounded(queries[0]['sql'])
+
+    def countSubquery(self, sql, name):
+        """The subquery of the statement which answers one count of a job."""
+        marker = f'AS "{name}" FROM "registry_temporarymdmetadatafile"'
+        start = sql.index(marker) + len(marker)
+        return sql[sql.index('WHERE', start):sql.index(' GROUP BY', start)]
+
+    def test_each_count_is_answered_by_the_files_it_counts(self):
+        """The property a count is about narrows the range of its own subquery.
+
+        The progress of a job asked the files of that job three times: for all of
+        them, for the ones without an error and for the ones with one. Each of the
+        two counts which are about some of the files put its ``COUNT(...) FILTER``
+        in front of the range of *all* files of the job, so a job whose recovery
+        backlog is the whole table read the entries of all 411,518 files it had
+        left behind to answer how many of them had failed - ~200 ms of the 564 ms
+        of the detail request which reported this, again on every poll of the job
+        screen (#886).
+
+        A filter which selects files is a range and so is answered by the new index
+        over the job and its error flag; a FILTER in front of a range is not, it is
+        applied to every entry of it. The number of aggregations is not asserted:
+        the steps of the progress re-inline the count of all files and how often
+        the planner folds those sublinks is its own decision. That every scan which
+        runs stays inside the files of the selected job is what
+        ``assertTemporaryFileScansAreBounded`` keeps, and the values of the three
+        counts are asserted in every phase by
+        ``test_sparse_progress_fields_and_manager_agree_in_each_phase``.
+        """
+        with CaptureQueriesContext(connections['default']) as queries:
+            HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+        sql = queries[0]['sql']
+        self.assertNotIn('FILTER (WHERE', sql,
+                         'a count aggregates all files of the job and picks the '
+                         'ones it is about out of the aggregation')
+        for name, negated in [('unhandled_records_count', True),
+                              ('import_error_count', False)]:
+            where = self.countSubquery(sql, name)
+            self.assertIn('"has_import_error"', where, name)
+            self.assertEqual('NOT' in where, negated, where)
+
+    def test_the_failed_files_of_a_job_have_an_index_of_their_own(self):
+        """The count of the files which failed is answered out of their entries."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                "SELECT indexdef FROM pg_indexes WHERE tablename = "
+                "'registry_temporarymdmetadatafile'")
+            definitions = [row[0] for row in cursor.fetchall()]
+        self.assertTrue(
+            [definition for definition in definitions
+             if definition.endswith('(job_id, has_import_error)')],
+            'the files of a job which failed to import are no range of their own, '
+            'so their count reads every file of the job (#886)')
+
+    def temporaryFileScans(self, sql):
+        """Every node of the plan which reads the files of a job."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
+            plan = cursor.fetchone()[0][0]['Plan']
+        pending = [plan]
+        scans = []
+        while pending:
+            node = pending.pop()
+            pending.extend(node.get('Plans', []))
+            if node.get('Relation Name') == 'registry_temporarymdmetadatafile':
+                scans.append(node)
+        return scans
 
     def test_paginated_progress_does_not_aggregate_recovery_files(self):
         for path, filters in [
@@ -515,6 +574,28 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
                 self.assertEqual(status, 200, body)
                 self.assertEqual(body['data']['attributes'], {
                     'progress': progress, 'unhandledRecordsCount': 0, 'importErrorCount': 0})
+
+    def test_a_count_whose_files_are_all_of_the_other_kind_answers_zero(self):
+        """The empty range of a filtered count is the 0 its FILTER had counted.
+
+        Moving the condition of a count into the WHERE of its subquery leaves a
+        group without a single matching file with no row at all, where the
+        aggregation of the whole range answered a 0. Both numbers of the progress
+        are therefore answered for a job which only has files of one kind.
+        """
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        for has_import_error, counts in [
+            (True, {'unhandledRecordsCount': 0, 'importErrorCount': 2}),
+            (False, {'unhandledRecordsCount': 2, 'importErrorCount': 0}),
+        ]:
+            TemporaryMdMetadataFile.objects.filter(
+                job=self.job).update(has_import_error=has_import_error)
+            with self.subTest(has_import_error=has_import_error):
+                status, body, _queries = self.request(
+                    path, **{'fields[HarvestingJob]':
+                             'unhandledRecordsCount,importErrorCount'})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body['data']['attributes'], counts)
 
     def test_harvesting_job_list_does_not_grow_with_rows(self):
         self.assertQueriesIndependentOfRows(

@@ -955,6 +955,12 @@ class TemporaryMdMetadataFile(models.Model):
         indexes = [
             models.Index(
                 fields=["job_id", "-id"]),
+            # the count of the files of a job which failed to import, which is one
+            # of the numbers of the progress of a job, is answered out of this index
+            # alone: without it the count reads the entries of every file of the job
+            # to find the failed ones among them (#886)
+            models.Index(
+                fields=["job_id", "has_import_error"]),
         ]
 
     def save(self, *args, **kwargs) -> None:

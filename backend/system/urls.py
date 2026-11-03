@@ -20,9 +20,4 @@ urlpatterns = router.urls + [
         view=views.SystemView.as_view(),
         name='system-info'
     ),
-    path(
-        route=r'error',
-        view=views.FrontendErrorView.as_view(),
-        name='frontend-error'
-    ),
 ]

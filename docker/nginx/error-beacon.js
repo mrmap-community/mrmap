@@ -1,27 +1,43 @@
 /*
  * MrMap frontend error beacon.
  *
- * Reports browser side errors to `POST /api/system/error` so they land in the
- * central log stack (see `system.views.FrontendErrorView`). It is deliberately
- * a plain script injected into the built `index.html` instead of app code, so
- * it also catches failures of the app bundle itself:
+ * Reports browser side errors to `POST /api/system/error`, which nginx answers
+ * on its own (see `docker/nginx/mrmap.conf`): the fields of a report travel in
+ * the query string, nginx writes one line into its `mrmap_frontend_error` log
+ * and answers with an empty body. Django never sees a report, so there is no
+ * endpoint that has to be kept free of credentials and no request body that a
+ * report could cost anything more than a log line.
  *
- *   - uncaught exceptions        (window error)
+ * Injected into the built `index.html` *before* the app bundle, and plain JS
+ * instead of app code, so that it also catches the app bundle failing:
+ *
+ *   - uncaught exceptions          (window error)
  *   - unhandled promise rejections (unhandledrejection)
- *   - failed resource loads      (script/img/css, via capturing error listener)
- *   - same origin /api/ calls answering 5xx (fetch + XMLHttpRequest)
+ *   - failed resource loads        (script/img/css, via the capturing listener)
  *
- * Nothing here may ever break the page: everything is wrapped, every report is
- * size limited, deduplicated and capped per page load.
+ * Failing same origin API calls are deliberately NOT reported from here: the
+ * access log of this very nginx records every status code of every call
+ * already, and a browser side report would have the beacon POST at exactly the
+ * API that is down.
+ *
+ * One report is one request line and nginx accepts 8k of it, so the payload is
+ * bounded here rather than answered 414 there. Nothing in this file may ever
+ * break the page: every field is truncated, identical reports within a window
+ * drop, a page load reports at most MAX_REPORTS times, and every failure path
+ * is swallowed.
  */
 (function () {
   'use strict';
 
   var ENDPOINT = '/api/system/error';
-  var MAX_REPORTS = 30;          // hard cap per page load
-  var DEDUP_WINDOW_MS = 30000;   // identical reports inside this window drop
-  var MAX_MSG = 1000;
-  var MAX_STACK = 4000;
+  var SELF = 'error-beacon.js';     // the beacon never reports itself
+  var MAX_REPORTS = 20;             // hard cap per page load
+  var DEDUP_WINDOW_MS = 30000;      // identical reports inside this window drop
+  var MAX_QUERY = 3000;             // of the 8k nginx takes for a request line
+  var MAX_MSG = 500;
+  var MAX_STACK = 1000;
+  var MAX_URL = 200;
+  var MAX_PAGE = 300;
 
   var sent = 0;
   var seen = Object.create(null);
@@ -31,34 +47,90 @@
     return value.length > max ? value.slice(0, max) : value;
   }
 
-  function report(entry) {
+  // encodeURIComponent leaves the sub-delimiters !'()* alone, and those are the
+  // characters a strict reverse proxy is most likely to refuse in a query.
+  // Nothing of a report needs them, so they go too: what travels is unreserved
+  // characters and the separators of the query itself, and the log line reads
+  // as percent encoded text, which is what an access log looks like anyway
+  function encode(value) {
+    return encodeURIComponent(value).replace(
+      /[!'()*]/g,
+      function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); }
+    );
+  }
+
+  // the values stay encoded, nginx hands them to the log line as they arrived
+  function query(entry, withStack) {
+    var parts = [
+      'source=' + encode(entry.source),
+      'msg=' + encode(entry.message),
+      'url=' + encode(entry.url),
+      'page=' + encode(entry.page)
+    ];
+    if (withStack && entry.stack) {
+      parts.push('stack=' + encode(entry.stack));
+    }
+    return parts.join('&');
+  }
+
+  function send(url) {
+    // a beacon survives the page going away, which is when a load failure is
+    // worth most, and it cannot set headers — so a report needs none
+    if (navigator.sendBeacon) {
+      try {
+        if (navigator.sendBeacon(url, '')) {
+          return;
+        }
+      } catch (e) { /* fall through to fetch */ }
+    }
+    if (window.fetch) {
+      try {
+        window.fetch(url, { method: 'POST', keepalive: true })
+          .catch(function () { /* reporting failure must stay silent */ });
+      } catch (e) { /* reporting failure must stay silent */ }
+    }
+  }
+
+  function report(source, message, stack, url) {
     try {
-      if (sent >= MAX_REPORTS) return;
-      var key = entry.source + '|' + truncate(entry.message, 200) + '|' + (entry.status || '');
-      var now = Date.now();
-      if (seen[key] && now - seen[key] < DEDUP_WINDOW_MS) return;
-      seen[key] = now;
-      sent++;
-
-      entry.message = truncate(entry.message, MAX_MSG);
-      entry.stack = truncate(entry.stack, MAX_STACK);
-      entry.url = truncate(entry.url, 500);
-      entry.page = window.location.href;
-      entry.user_agent = navigator.userAgent;
-
-      var body = JSON.stringify(entry);
-      if (body.length > 7000) {
-        // stack is the bulkiest field, sacrifice it first
-        entry.stack = truncate(entry.stack, 500);
-        body = JSON.stringify(entry);
+      if (sent >= MAX_REPORTS) {
+        return;
       }
-      fetch(ENDPOINT, {
-        method: 'POST',
-        body: body,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'omit',
-        keepalive: true
-      }).catch(function () { /* reporting failure must stay silent */ });
+      var entry = {
+        source: source,
+        message: truncate(message, MAX_MSG) || 'unspecified frontend error',
+        stack: truncate(stack, MAX_STACK),
+        url: truncate(url, MAX_URL),
+        page: truncate(window.location.href, MAX_PAGE)
+      };
+
+      var key = source + '|' + entry.message;
+      var now = Date.now();
+      if (seen[key] && now - seen[key] < DEDUP_WINDOW_MS) {
+        return;
+      }
+      seen[key] = now;
+
+      // the stack is the bulkiest field, so it goes first, then the rest of
+      // what a request line has no room for
+      var encoded = query(entry, true);
+      if (encoded.length > MAX_QUERY) {
+        encoded = query(entry, false);
+      }
+      if (encoded.length > MAX_QUERY) {
+        encoded = query({
+          source: entry.source,
+          message: entry.message,
+          url: '',
+          page: entry.page
+        }, false);
+      }
+      if (encoded.length > MAX_QUERY) {
+        return;
+      }
+
+      sent++;
+      send(ENDPOINT + '?' + encoded);
     } catch (e) { /* reporting failure must stay silent */ }
   }
 
@@ -68,91 +140,30 @@
       var target = ev.target;
       if (target && target !== window && target.tagName) {
         var src = target.src || target.href || '';
-        if (src.indexOf('/system/error') !== -1) return;
-        report({
-          source: 'resource',
-          message: target.tagName + ' failed to load: ' + truncate(src, 300)
-        });
+        if (src.indexOf(SELF) !== -1) {
+          return;
+        }
+        report('resource',
+               target.tagName + ' failed to load: ' + truncate(src, MAX_URL));
         return;
       }
       var where = ev.filename || '';
-      if (ev.lineno) where += ':' + ev.lineno + ':' + ev.colno;
-      report({
-        source: 'error',
-        message: ev.message || String(ev.error || 'unknown error'),
-        stack: ev.error && ev.error.stack,
-        url: where
-      });
+      if (ev.lineno) {
+        where += ':' + ev.lineno + ':' + ev.colno;
+      }
+      report('error',
+             ev.message || String(ev.error || 'unknown error'),
+             ev.error && ev.error.stack,
+             where);
     } catch (e) { /* reporting failure must stay silent */ }
   }, true);
 
   window.addEventListener('unhandledrejection', function (ev) {
     try {
       var reason = ev.reason;
-      report({
-        source: 'rejection',
-        message: (reason && reason.message) || String(reason),
-        stack: reason && reason.stack
-      });
+      report('rejection',
+             (reason && reason.message) || String(reason),
+             reason && reason.stack);
     } catch (e) { /* reporting failure must stay silent */ }
   });
-
-  // same origin API calls that answer server side
-  var originFetch = window.fetch;
-  if (originFetch) {
-    window.fetch = function (input, init) {
-      var promise = originFetch.apply(this, arguments);
-      try {
-        var url = typeof input === 'string' ? input : (input && input.url) || '';
-        var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
-        if (url.indexOf('/api/') !== -1 && url.indexOf('/system/error') === -1) {
-          promise.then(function (response) {
-            if (response.status >= 500) {
-              report({
-                source: 'http',
-                message: method + ' ' + url + ' -> ' + response.status,
-                url: url,
-                status: String(response.status)
-              });
-            }
-          }, function () { /* network errors are not server errors */ });
-        }
-      } catch (e) { /* reporting failure must stay silent */ }
-      return promise;
-    };
-  }
-
-  var XHR = window.XMLHttpRequest;
-  if (XHR) {
-    var origOpen = XHR.prototype.open;
-    XHR.prototype.open = function (method, url) {
-      try {
-        if (url && String(url).indexOf('/api/') !== -1 &&
-            String(url).indexOf('/system/error') === -1) {
-          this._mrmapReq = String(method).toUpperCase() + ' ' + url;
-          this._mrmapUrl = String(url);
-        }
-      } catch (e) { /* reporting failure must stay silent */ }
-      return origOpen.apply(this, arguments);
-    };
-    var origSend = XHR.prototype.send;
-    XHR.prototype.send = function () {
-      var xhr = this;
-      if (xhr._mrmapReq) {
-        xhr.addEventListener('load', function () {
-          try {
-            if (xhr.status >= 500) {
-              report({
-                source: 'http',
-                message: xhr._mrmapReq + ' -> ' + xhr.status,
-                url: xhr._mrmapUrl,
-                status: String(xhr.status)
-              });
-            }
-          } catch (e) { /* reporting failure must stay silent */ }
-        });
-      }
-      return origSend.apply(this, arguments);
-    };
-  }
 })();

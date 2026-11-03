@@ -241,3 +241,100 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect the response status is 200
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsReturned" with value "0"
+
+    # ElementSetName and SortBy, ignored by the endpoint until #911 (the view said
+    # so itself: "TODO: HAndle ELEMENTSETNAME parameter"). Table 66 names the
+    # attribute of SearchResults elementSet -- not elementSetName, which every
+    # response of the endpoint carried and which made none of them valid against
+    # the CSW-discovery.xsd they self-declare. The views themselves are the DCMI
+    # record views of record.xsd mapped onto this profile's gmd:MD_Metadata;
+    # brief has no abstract, summary adds it, and full answerss the stored
+    # document as the fixtures of this feature store it.
+    Scenario: GetRecords names the element set it answers by the default of Table 65
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@elementSet" with value "summary"
+        # the identifier of a record belongs to the summary view, so the paging
+        # scenarios above keep answering it -- and the abstract is there too
+        Then I expect that there is a xpath "concat(count(//*[local-name()='SearchResults']//*[local-name()='abstract']), '')" with value "1"
+
+    Scenario Outline: GetRecords answers the <view> of its records
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        Given I set a queryparam "elementsetname" with value "<elementSetName>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@elementSet" with value "<elementSetName>"
+        Then I expect that there is a xpath "concat(count(//*[local-name()='SearchResults']//*[local-name()='fileIdentifier']), '')" with value "<fileIdentifiers>"
+        Then I expect that there is a xpath "concat(count(//*[local-name()='SearchResults']//*[local-name()='abstract']), '')" with value "<abstracts>"
+        Then I expect that there is a xpath "concat(count(//*[local-name()='SearchResults']//*[local-name()='contact']), '')" with value "<contacts>"
+
+        Examples: the element sets of ElementSetType, on the first page
+            | view    | elementSetName | fileIdentifiers | abstracts | contacts |
+            | brief   | brief          | 1               | 0         | 0        |
+            | summary | summary        | 1               | 1         | 0        |
+            | full    | full           | 1               | 1         | 1        |
+
+    Scenario: GetRecords refuses an element set which is none of the three
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "elementsetname" with value "banana"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "ElementSetName"
+
+    Scenario Outline: GetRecords orders its results by <sortby>
+        # the pk order of the endpoint answers the Feuchte record first (the
+        # paging scenarios above); a sort by the title of the records orders the
+        # merged set the other way -- Niederschlag (RBSN_RR) before Relative
+        # Feuchte (RBSN_RH) -- which no page of either record table alone shows
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        Given I set a queryparam "sortby" with value "<sortby>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/*[1]//*[local-name()='fileIdentifier']/*[local-name()='CharacterString']/text()" with value "<first>"
+
+        Examples: ascending and descending over the fixture records
+            | sortby   | first                          |
+            | title:A  | de.dwd.geoserver.fach.RBSN_RR  |
+            | title:D  | de.dwd.geoserver.fach.RBSN_RH  |
+            | title    | de.dwd.geoserver.fach.RBSN_RR  |
+
+    Scenario: GetRecords orders a sorted set page by page
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "maxRecords" with value "1"
+        Given I set a queryparam "startPosition" with value "2"
+        Given I set a queryparam "sortby" with value "title:A"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
+        Then I expect that there is a xpath ".//*[local-name()='SearchResults']/*[1]//*[local-name()='fileIdentifier']/*[local-name()='CharacterString']/text()" with value "de.dwd.geoserver.fach.RBSN_RH"
+
+    Scenario: GetRecords refuses a property it does not sort on
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "sortby" with value "unknownfield:A"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "SortBy"

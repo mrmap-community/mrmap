@@ -1,12 +1,18 @@
 import datetime
+import os
 import platform
 
 from django import __version__ as DJANGO_VERSION
+from django.conf import settings
 from django.db import ProgrammingError, connection
+from django.http import Http404
+from django.views.generic.base import View
+from django.views.static import serve
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap import VERSION
 from rest_framework.permissions import IsAdminUser
 from rest_framework_json_api.views import ModelViewSet, generics
+from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
 from system.serializers import (CrontabScheduleSerializer,
                                 PeriodicTaskSerializer, SystemSerializer,
                                 SystemStatusSerializer)
@@ -133,3 +139,41 @@ class SystemStatusView(generics.RetrieveAPIView):
 
     def get_object(self):
         return get_status_snapshot()
+
+
+class MediaDumpNotFoundView(View):
+    """Answer slow request dump paths like unknown media files.
+
+    Dumps carry SQL statements and internal request details. Deployments read
+    them on the filesystem, for as long as the cleanup task keeps them (#888).
+    Accept the same verbs as ProtectedServeView so the refusal does not reveal
+    guarded paths through a different response to an unsupported verb.
+    """
+
+    http_method_names = ["get", "head"]
+
+    def get(self, request, *args, **kwargs):
+        raise Http404("Slow request dumps are not served.")
+
+
+def _is_media_dump(path, document_root):
+    """Whether the resolved media path leads into the slow request dumps.
+
+    Resolve both sides so dot segments, doubled separators and symlinks cannot
+    expose dumps through the media route.
+    """
+    root = os.path.realpath(document_root or settings.MEDIA_ROOT)
+    dumps = os.path.join(root, SLOW_REQUEST_DUMP_SUBDIR)
+    candidate = os.path.realpath(os.path.join(root, path))
+    return candidate == dumps or candidate.startswith(dumps + os.sep)
+
+
+class ProtectedServeView(View):
+    """Serve uploaded media with read verbs, excluding slow request dumps."""
+
+    http_method_names = ["get", "head"]
+
+    def get(self, request, path, document_root=None, show_indexes=False):
+        if _is_media_dump(path, document_root):
+            raise Http404("Slow request dumps are not served.")
+        return serve(request, path, document_root, show_indexes)

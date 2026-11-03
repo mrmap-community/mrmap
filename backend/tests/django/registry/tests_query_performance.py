@@ -36,6 +36,9 @@ TABLE_RE = re.compile(
 
 COUNT_RE = re.compile(r'COUNT\(\*\).*?FROM\s+"([a-zA-Z_0-9]+)"', re.IGNORECASE)
 
+# the statement a paginator of DRF asks for the number of rows of an answer
+COUNT = 'COUNT(*) AS "__count"'
+
 
 def table_counter(queries):
     """Count the captured sql by the main table it touches.
@@ -616,6 +619,63 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertQueriesIndependentOfRows(
             '/api/registry/harvesting/harvesting-jobs',
             **{'fields[HarvestingJob]': 'id,max_step_size,records_per_minute'})
+
+    def test_statistics_are_aggregated_once_per_request(self):
+        """The number of rows of the answer may not materialize the statistics.
+
+        The statistics of a job are bounded by the ``sums`` CTE, which aggregates the
+        whole table of the harvested metadata relations into one row per job, and that
+        row is joined ``LEFT OUTER``: it cannot answer more or fewer rows than the job
+        table. The paginator asked the annotated queryset for its count, so the
+        aggregation of the whole table cost two materializations per request - one
+        overview of the deployment which reported this ran over 259,377 rows twice,
+        1,081 ms and 12,222 ms of the 14 s the request logged (#885).
+        """
+        fields = 'id,newDatasetMetadataCount,recordsPerMinute,progress'
+        status, page, queries = self.request(
+            '/api/registry/harvesting/harvesting-jobs', **{
+                'page[size]': 1, 'sort': 'id',
+                'fields[HarvestingJob]': fields})
+        self.assertEqual(status, 200, page)
+        aggregated = [q['sql'] for q in queries if '"sums"' in q['sql']]
+        self.assertEqual(len(aggregated), 1, [
+            q['sql'][:90] for q in queries])
+        self.assertNotIn(COUNT, aggregated[0],
+                         'the statistics are materialized for the count')
+        counts = [q['sql'] for q in queries if COUNT in q['sql']]
+        self.assertTrue(counts, 'the page answers a count of its rows')
+        self.assertFalse([q for q in counts if '"sums"' in q],
+                         'the count runs the statistics aggregation')
+        _status, all_of_them, _queries = self.request(
+            '/api/registry/harvesting/harvesting-jobs',
+            **{'fields[HarvestingJob]': fields})
+        self.assertEqual(page['meta']['pagination']['count'],
+                         len(all_of_them['data']),
+                         'the count is the number of rows of the answer')
+
+    def test_the_count_of_a_page_is_the_same_with_and_without_statistics(self):
+        """The statistics of the jobs do not change how many of them there are."""
+        answers = {}
+        for fields in ('id',
+                       'id,newDatasetMetadataCount,recordsPerMinute,progress'):
+            status, body, _queries = self.request(
+                '/api/registry/harvesting/harvesting-jobs', **{
+                    'page[size]': 1, 'sort': 'id',
+                    'fields[HarvestingJob]': fields})
+            self.assertEqual(status, 200, body)
+            # the links are not compared: they echo the fields of the request
+            # they belong to and differ by design
+            answers[fields] = (body['meta']['pagination'],
+                               self.ids_of(body))
+        without, with_ = answers['id'], answers[
+            'id,newDatasetMetadataCount,recordsPerMinute,progress']
+        self.assertGreater(without[0]['count'], 1,
+                           'the page is smaller than the answer it belongs to')
+        self.assertEqual(without[0], with_[0],
+                         'the statistics answer a different number of jobs')
+        self.assertEqual(without[1], with_[1],
+                         'the page answers the same jobs with and without '
+                         'the statistics')
 
 
 class HarvestedMetadataQueryPerformance(QueryMeasurementMixin, TestCase):

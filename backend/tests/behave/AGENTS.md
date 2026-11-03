@@ -103,8 +103,8 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (60) | 59 | 0 | 0 | 1 |
-| scenarios | 387 | 0 | 0 | 5 |
+| features (60) | 60 | 0 | 0 | 0 |
+| scenarios | 396 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
 `definition_of_done.rst` is answered by the four counts. Until #908 the skipped scenarios were all

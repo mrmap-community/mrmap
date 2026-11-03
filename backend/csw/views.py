@@ -1,6 +1,8 @@
 import datetime
 from itertools import chain
 
+from csw.describe_record import (CSWDescribeRecordBuilder,
+                                 SUPPORTED_RECORD_TYPE_NAMES)
 from csw.exceptions import InvalidQuery, NotSupported
 from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
                             service_records)
@@ -15,6 +17,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml import etree
+from registry.enums.service import OGCOperationEnum
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
@@ -25,6 +28,22 @@ from registry.ows_lib.response.exceptions import (
     OGCServiceException, OperationNotSupportedException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
+
+# Table 65 note a of OGC 07-006r1: the KVP binding compares the value of the
+# REQUEST parameter case-insensitively. Dispatch -- and the request analysis in
+# OGCRequest -- compare that value against the label which names the operation,
+# so the value of a GET request is answered as that label before anything reads
+# it; a value which names no operation this endpoint serves keeps its own
+# spelling, which is what an OperationNotSupported report echoes back.
+KVP_OPERATIONS = {
+    label.lower(): label
+    for label in (
+        OGCOperationEnum.GET_CAPABILITIES.label,
+        OGCOperationEnum.DESCRIBE_RECORD.label,
+        OGCOperationEnum.GET_RECORDS.label,
+        OGCOperationEnum.GET_RECORD_BY_ID.label,
+    )
+}
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -37,6 +56,7 @@ class CswServiceView(View):
     def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
         self.ogc_request = OGCRequest.from_django_request(request)
+        self.canonicalize_kvp_operation()
 
         exception = self.check_request()
         if exception:
@@ -44,6 +64,15 @@ class CswServiceView(View):
         # self.analyze_request()
 
         return self.get_and_post(request=request, *args, **kwargs)
+
+    def canonicalize_kvp_operation(self):
+        """Answers the REQUEST value of a GET request as the label of the
+        operation it spells, whatever case the client chose (Table 65 note a)."""
+        if not self.ogc_request.is_get:
+            return
+        canonical = KVP_OPERATIONS.get((self.ogc_request.operation or "").lower())
+        if canonical:
+            self.ogc_request.operation = canonical
 
     def check_request(self):
         """proof if all mandatory query parameters are part of the reuqest"""
@@ -386,6 +415,62 @@ class CswServiceView(View):
             status=200, content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
             content_type="application/xml")
 
+    def requested_type_names(self):
+        """The typeNames the DescribeRecord request asks for.
+
+        A DescribeRecord which names no typeName asks for the whole information
+        model of the catalogue (10.2.4.1), which is the set of typeNames this
+        endpoint serves -- so an absent parameter is answered as that set rather
+        than as nothing. The KVP binding separates a list by comma, the XML
+        binding carries one ``csw:TypeName`` element per name.
+        """
+        if self.ogc_request.is_get:
+            requested = (
+                self.ogc_request.ogc_query_params.get("TYPENAME")
+                or self.ogc_request.ogc_query_params.get("TypeName")
+                or self.ogc_request.ogc_query_params.get("typeNames")
+                or ""
+            )
+            names = requested.replace(",", " ").split()
+        else:
+            names = [
+                element.text.strip()
+                for element in self.ogc_request.xml_request.xpath(
+                    "/csw:DescribeRecord/csw:TypeName",
+                    namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+                )
+                if element.text
+            ]
+        return list(dict.fromkeys(names)) or list(SUPPORTED_RECORD_TYPE_NAMES)
+
+    def describe_record(self, request):
+        """Answer the schema description of the requested record types.
+
+        See :mod:`csw.describe_record` for what a SchemaComponent of this
+        endpoint carries and why.
+        """
+        requested_type_names = self.requested_type_names()
+        if [
+            name for name in requested_type_names
+            if name not in SUPPORTED_RECORD_TYPE_NAMES
+        ]:
+            return NotSupported(
+                service_type=self.ogc_request.service_type,
+                service_version=self.ogc_request.service_version,
+                locator="typeName",
+                message=(
+                    "Only "
+                    f"{', '.join(repr(name) for name in SUPPORTED_RECORD_TYPE_NAMES)}"
+                    " as typeName is supported."))
+
+        builder = CSWDescribeRecordBuilder()
+        xml = builder.build_describe_record_response(requested_type_names)
+
+        return HttpResponse(
+            status=200,
+            content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
+            content_type="application/xml")
+
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method
 
@@ -399,6 +484,14 @@ class CswServiceView(View):
                 return self.get_records(request=request)
         elif self.ogc_request.is_get_record_by_id_request:
             return self.get_record_by_id(request=request)
-        # TODO: other csw operations
+        elif self.ogc_request.is_describe_record_request:
+            return self.describe_record(request=request)
+        # The operations of the minimal CSW profile (Table 60) are answered
+        # above; everything else -- GetDomain and the transactional operations
+        # which mrmap does not serve -- is refused below.
         else:
+            # the fallback of an operation this endpoint does not implement: the
+            # OWS Common report which names it (see #907 -- this call answering
+            # a TypeError -> raw 500 until the exception machinery of #908 made
+            # the identity of the report optional from the request itself)
             return OperationNotSupportedException(ogc_request=self.ogc_request)

@@ -5,14 +5,15 @@ import type { RaRecord } from 'react-admin';
 
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 
-export default function SchemaFormFields({ operationId, overrides, record }: {
+export default function SchemaFormFields({ operationId, overrides, record, omit = [] }: {
   operationId: string;
   overrides?: FieldDefinition[];
   record?: RaRecord;
+  omit?: string[];
 }) {
   const definitions = useFieldsForOperation({ operationId });
   // Preserve the form's shallow prop overrides and schema-disabled filtering.
-  return definitions.filter(definition => !definition.props.disabled).map(definition => {
+  return definitions.filter(definition => !definition.props.disabled && !omit.includes(definition.props.source)).map(definition => {
     const override = overrides?.find(item => item.props.source === definition.props.source);
     return createElement(override?.component ?? definition.component, {
       ...definition.props,

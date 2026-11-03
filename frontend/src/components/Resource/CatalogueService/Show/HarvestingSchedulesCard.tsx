@@ -26,6 +26,7 @@ const HarvestingSchedulesCardBase = ({ children }: PropsWithChildren) => {
   const hasSchedules = (data?.length ?? 0) > 0;
   const color = hasSchedules ? (enabled ? "success" : "warning") : undefined;
   const path = `/CatalogueService/${service?.id}/show/PeriodicHarvestingJob`;
+  if (service?.isHarvestable === false) return null;
   return (
     <SimpleCard
       divider={false}
@@ -130,7 +131,7 @@ const HarvestingSchedulesCard = () => {
   const operation = useOperation(
     "list_related_PeriodicHarvestingJob_of_CatalogueService",
   );
-  if (!service || !operation) return null;
+  if (!service || !operation || service.isHarvestable === false) return null;
   return (
     <ListGuesser
       resource="PeriodicHarvestingJob"

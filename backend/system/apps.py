@@ -5,18 +5,31 @@ from django.db import connection
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
 
+#: the name the sweep of the slow request dumps has in the schedule of beat; the
+#: tests look the row up by it
+SLOW_REQUEST_DUMP_CLEANUP_TASK_NAME = "delete old slow request dumps"
 
-def create_default_system_tasks(sender, **kwargs):
+
+def create_slow_request_dump_cleanup_task(sender, **kwargs):
+    """Creates the periodic task which keeps the slow request dumps bounded.
+
+    Beat reads its schedule out of the database, so a task which shall run on its
+    own has to exist as a row of ``PeriodicTask``, like the import of the metadata
+    files does (#888). Keyed by its name and not by its schedule: a deployment which
+    re-scheduled the row over the api keeps what it chose, while a ``get_or_create``
+    over the crontab would answer a conflicting insert for the unique name.
+    """
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
-    schedule, _ = CrontabSchedule.objects.get_or_create(
-        minute="0,10,15,20,25,30,35,40,45,50,55",
-    )
+    # at five past the hour, out of the way of the five minute metadata import
+    schedule, _ = CrontabSchedule.objects.get_or_create(minute="5")
 
     PeriodicTask.objects.get_or_create(
-        name="refresh materialized views",
-        task="system.tasks.refresh_materialized_views",
-        defaults={"crontab": schedule, }
+        name=SLOW_REQUEST_DUMP_CLEANUP_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "system.tasks.delete_old_slow_request_dumps",
+        }
     )
 
 
@@ -90,5 +103,8 @@ class SystemConfig(AppConfig):
 
     def ready(self):
         # Connect signal handlers
-        post_migrate.connect(create_default_system_tasks, sender=self)
         post_migrate.connect(sync_pg_views_if_missing, sender=self)
+        post_migrate.connect(
+            create_slow_request_dump_cleanup_task,
+            sender=self
+        )

@@ -1,9 +1,7 @@
 from camel_converter import to_camel
-from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Subquery
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
-from django.db.models.sql.constants import LOUTER
-from django_cte import CTE, with_cte
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
 from django.http import HttpResponse, JsonResponse
 from guardian.core import ObjectPermissionChecker
@@ -18,17 +16,16 @@ from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              PreloadNotIncludesMixin, SerializerClassesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
-from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
+from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.filters.service import (CatalogueServiceFilterSet,
                                       FeatureTypeFilterSet, LayerFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.harvest import (HarvestedMetadataRelation,
-                                     HarvestingJob, PeriodicHarvestingJob)
+from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
-                                      MimeType, ReferenceSystem, Style,
+                                      MimeType, ReferenceSystem, ServiceMetadataRecord, Style,
                                       TimeExtent)
 from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
                                         WebFeatureServiceMonitoringSetting,
@@ -45,7 +42,7 @@ from registry.models.update import WebMapServiceUpdateSetting
 from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
                                     alerts_requested, has_alert_annotations)
 from registry.querys.service import LayerPrefetch
-from registry.querys.explorer import ServiceExplorerMixin
+from registry.querys.explorer import ServiceExplorerMixin, catalogue_records
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
     CatalogueServiceSerializer, FeatureTypeSerializer, LayerSerializer,
@@ -989,74 +986,17 @@ class CatalogueServiceViewSetMixin(
         harvested_service_count_needed = self.check_sparse_fields_contains(
             "harvestedServiceCount") or harvested_total_count_needed
 
-        # --- step 1: aggregate per harvesting_job_id ---
-        job_level_kwargs = {}
-        if harvested_dataset_count_needed:
-            job_level_kwargs["dataset_count"] = Count(
-                "id",
-                filter=Q(dataset_metadata_record__isnull=False),
-            )
-        if harvested_service_count_needed:
-            job_level_kwargs["service_count"] = Count(
-                "id",
-                filter=Q(service_metadata_record__isnull=False),
-            )
-        relation_agg = CTE(
-            HarvestedMetadataRelation.objects
-            .filter(~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
-            .values("harvesting_job_id")
-            .annotate(**job_level_kwargs),
-            name="relation_agg",
-        )
-
-        # --- step 2: join by harvestingjob + aggregation per service id
-        cte_kwargs = {}
-        if harvested_dataset_count_needed:
-            cte_kwargs.update({
-                "dataset_count": Sum(relation_agg.col.dataset_count)
-            })
-        if harvested_service_count_needed:
-            cte_kwargs.update({
-                "service_count": Sum(relation_agg.col.service_count)
-            })
-        cte = CTE(
-            relation_agg.join(
-                HarvestingJob,
-                id=relation_agg.col.harvesting_job_id,
-            )
-            .values("service_id")
-            .annotate(**cte_kwargs),
-            name="cte",
-        )
-
-        if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
-            qs = with_cte(
-                cte,
-                relation_agg,
-                select=cte.join(model_or_queryset=qs,
-                                id=cte.col.service_id,
-                                _join_type=LOUTER
-                                )
-            )
-
-        # --- step 3: annotation of the final values
-        annotate_kwargs = {}
+        for needed, field, model in (
+            (harvested_dataset_count_needed, "harvested_dataset_count", DatasetMetadataRecord),
+            (harvested_service_count_needed, "harvested_service_count", ServiceMetadataRecord),
+        ):
+            if needed:
+                count = catalogue_records(model).annotate(
+                    count=Count("pk", distinct=True)).values("count")
+                qs = qs.annotate(**{field: Coalesce(Subquery(count), 0)})
         if harvested_total_count_needed:
-            annotate_kwargs.update({
-                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0),
-                "harvested_service_count": Coalesce(cte.col.service_count, 0),
-                "harvested_total_count": Coalesce(F("harvested_dataset_count"), 0) + Coalesce(F("harvested_service_count"), 0)
-            })
-        if harvested_dataset_count_needed:
-            annotate_kwargs.update({
-                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0)
-            })
-        if harvested_service_count_needed:
-            annotate_kwargs.update({
-                "harvested_service_count": Coalesce(cte.col.service_count, 0),
-            })
-        if annotate_kwargs:
-            qs = qs.annotate(**annotate_kwargs)
+            qs = qs.annotate(harvested_total_count=(
+                F("harvested_dataset_count") + F("harvested_service_count")))
         return qs
 
     def get_queryset(self, *args, **kwargs):

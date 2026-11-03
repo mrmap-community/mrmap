@@ -19,7 +19,7 @@ RUN npm install && \
 # Base build Image for Backend
 ##############################################################
 
-FROM python:3.12.14-alpine3.24 AS backend-compile-image
+FROM python:3.15.2-alpine3.24 AS backend-compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
@@ -38,10 +38,23 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
 ##############################################################
 # Final Image
 ##############################################################  
-FROM nginx:1.31.5-alpine-slim AS production-image
+FROM nginx:1.31.8-alpine-slim AS production-image
 
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/
+
+# report browser side errors into the central log stack; the script is plain
+# JS, not app code, and is injected *before* the app bundle so that it also
+# catches the bundle and its chunks failing to load. Its own src is absolute
+# on purpose: the built references are relative (vite base './'), so on a deep
+# route the app can fail to load while the beacon still loads and says so.
+COPY docker/nginx/error-beacon.js /var/www/mrmap/frontend/error-beacon.js
+RUN sed -i 's|<script type="module"|<script src="/error-beacon.js"></script><script type="module"|' /var/www/mrmap/frontend/index.html && \
+  grep -q 'src="/error-beacon.js"' /var/www/mrmap/frontend/index.html
+
+# the mrmap_frontend_error log of mrmap.conf is a file of its own, ship it to
+# stdout exactly like the access.log of this image
+RUN ln -s /dev/stdout /var/log/nginx/frontend-error.log
 
 EXPOSE 80/tcp
 EXPOSE 443/tcp

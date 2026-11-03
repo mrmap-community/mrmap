@@ -12,15 +12,20 @@ vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: PropsWithChildren) => <div data-testid="map">{children}</div>,
   ScaleControl: () => null,
 }));
-vi.mock('./MapViewerBase', () => ({
-  MapViewerBase: ({ children }: PropsWithChildren) => children,
-  useMapViewerBase: () => ({
-    setMap: vi.fn(),
-    mapLoading: { errors: [], failedFeatures: [] },
-    opacityOf: () => 1,
-    setLayerOpacity: vi.fn(),
-  }),
-}));
+vi.mock('./MapViewerBase', () => {
+  // the claim is stable across renders, the way the viewer hands it over
+  const claimTimeline = vi.fn();
+  return {
+    MapViewerBase: ({ children }: PropsWithChildren) => children,
+    useMapViewerBase: () => ({
+      setMap: vi.fn(),
+      mapLoading: { errors: [], failedFeatures: [] },
+      opacityOf: () => 1,
+      setLayerOpacity: vi.fn(),
+      claimTimeline,
+    }),
+  };
+});
 vi.mock('../MapContainer/GetMapControl', () => ({ default: () => null }));
 vi.mock('../MapContainer/GetFeatureControl', () => ({ default: () => null }));
 vi.mock('./OwsContextGuiActions/OwsContextGuiActions', () => ({ OwsContextActionButtons: () => null }));
@@ -54,18 +59,18 @@ describe('viewer layer settings drawer', () => {
     expect(within(tree).queryByRole('slider')).toBeNull();
     expect(within(tree).queryByRole('combobox')).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
-    fireEvent.change(within(panel).getByRole('combobox'), { target: { value: 'outline' } });
-    expect(within(panel).getByRole('combobox')).toHaveValue('outline');
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'viewerStyles.style' }), { target: { value: 'outline' } });
+    expect(within(panel).getByRole('combobox', { name: 'viewerStyles.style' })).toHaveValue('outline');
     fireEvent.click(within(tree).getByText('Radar B'));
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(panel).toHaveTextContent('Radar B');
-    expect(within(panel).getByRole('combobox')).toHaveValue('');
+    expect(within(panel).getByRole('combobox', { name: 'viewerStyles.style' })).toHaveValue('');
     expect(within(tree).getByText('Radar A')).toBeVisible();
     expect(within(tree).getByText('Radar B')).toBeVisible();
     fireEvent.click(within(tree).getByText('Radar A'));
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
-    expect(within(panel).getByRole('combobox')).toHaveValue('outline');
+    expect(within(panel).getByRole('combobox', { name: 'viewerStyles.style' })).toHaveValue('outline');
     fireEvent.click(screen.getByRole('tab', { name: 'Map Settings' }));
     fireEvent.click(within(tree).getByText('Radar A'));
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();

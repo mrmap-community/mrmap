@@ -6,6 +6,7 @@ from uuid import uuid4
 from celery import Task, chord, shared_task
 from celery.signals import worker_ready
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import OperationalError, transaction
 from django.utils import timezone
@@ -14,6 +15,7 @@ from kombu.exceptions import OperationalError as BrokerOperationalError
 from lxml import etree
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
+from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
@@ -67,6 +69,7 @@ class HarvestingTask(Task):
                     kind=LogKindEnum.REMOTE_ERROR.value,
                 )
                 job.phase = HarvestingPhaseEnum.ABORT.value
+                job.fail_process(f"{type(exc).__name__}: {exc}")
                 job.save(skip_history_when_saving=False)
         except Exception:
             # a failing harvest must not be answered with a broken worker
@@ -98,6 +101,8 @@ def create_harvesting_job(self, *args, **kwargs):
 
     with transaction.atomic():
         service = CatalogueService.objects.select_for_update().get(pk=kwargs.get("service_id"))
+        if not service.is_harvestable:
+            return None
         # Keep the creation delivery's identity even after the harvest finishes.
         delivery_id = self.request.id or str(uuid4())
         job = HarvestingJob.objects.filter(celery_task_ids__contains=[delivery_id]).first()
@@ -177,6 +182,19 @@ def call_fetch_records(self, *args, **kwargs):
     )
 
 
+def iter_md_metadata_file_chunks(ids, batch_size=None):
+    """Split the ids of stored metadata files into the batches one import task takes.
+
+    The fan-out which writes harvested records to the database is bounded by this:
+    one task per chunk instead of one task per record (#859).
+    """
+    size = batch_size or settings.HARVEST_IMPORT_BATCH_SIZE
+    ids = list(ids)
+    size = max(1, size)
+    for start in range(0, len(ids), size):
+        yield ids[start:start + size]
+
+
 @shared_task(queue="db-routines", base=HarvestingTask)
 def call_chord_md_metadata_file_to_db(*args, **kwargs):
     from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
@@ -188,14 +206,14 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
         if harvesting_job.done_at is not None:
             return
         http_request = kwargs.get("http_request") or harvesting_job._http_request()
-        ids = TemporaryMdMetadataFile.objects.filter(
-            job_id=harvesting_job_id, has_import_error=False).values_list("pk", flat=True)
+        ids = list(TemporaryMdMetadataFile.objects.filter(
+            job_id=harvesting_job_id, has_import_error=False).values_list("pk", flat=True))
         task_ids = []
         to_db_tasks = []
-        for _id in ids:
+        for chunk in iter_md_metadata_file_chunks(ids):
             task_id = uuid4()
-            task = call_md_metadata_file_to_db.s(
-                md_metadata_file_id=_id,
+            task = call_md_metadata_files_to_db.s(
+                md_metadata_file_ids=chunk,
                 harvesting_job_id=harvesting_job_id,
                 http_request=http_request)
             task.set(task_id=str(task_id))
@@ -211,16 +229,28 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
             ).set(task_id=str(callback_id))
             harvesting_job.append_celery_task_ids(task_ids + [callback_id])
             harvesting_job.save(skip_history_when_saving=False)
+            # the steps of the harvest stay granular by record, as the annotations of
+            # TemporaryMdMetadataFileQuerySet.with_process_info derive them from the
+            # files which are still waiting; bounding the tasks must not move the
+            # progress the harvesting UI shows (#859)
+            harvesting_job.report_process(
+                ProcessStatusEnum.RUNNING,
+                phase=str(HarvestingPhaseEnum.RECORDS_TO_DB.label),
+                total_steps=len(ids) + 1)
             transaction.on_commit(lambda: chord(to_db_tasks, callback).apply_async(max_retries=300, interval=1))
         else:
             complete_harvest(harvesting_job_id)
 
 
-@shared_task(queue="db-routines", base=HarvestingTask)
-def call_md_metadata_file_to_db(*args, **kwargs):
+def import_md_metadata_file(md_metadata_file_id):
+    """Write a single stored metadata file to the database and return what it created.
+
+    Answers None when there is nothing to import: the row of a successful import is deleted, so
+    its absence is the proof that it was imported. The chunk task relies on this to work through
+    its ids again after a retry without importing a record twice.
+    """
     from registry.models.harvest import TemporaryMdMetadataFile
 
-    md_metadata_file_id = kwargs.get("md_metadata_file_id")
     try:
         with transaction.atomic():
             temporary_md_metadata_file = TemporaryMdMetadataFile.objects.select_for_update(of=("self",)).select_related(
@@ -242,6 +272,29 @@ def call_md_metadata_file_to_db(*args, **kwargs):
             import_error=traceback.format_exc()
         )
         logger.error(msg=e)
+
+
+@shared_task(queue="db-routines", base=HarvestingTask)
+def call_md_metadata_file_to_db(*args, **kwargs):
+    return import_md_metadata_file(kwargs.get("md_metadata_file_id"))
+
+
+@shared_task(queue="db-routines", base=HarvestingTask)
+def call_md_metadata_files_to_db(*args, **kwargs):
+    """Write a chunk of stored metadata files to the database (#859).
+
+    One task per chunk instead of one per record bounds the broker messages, the task round-trips
+    and the result writes of a harvest; the records themselves still commit one by one, so a
+    record which fails is flagged and does not fail its chunk, and a retryable outage which
+    raises for the whole chunk redelivers only what is not committed yet. The row of an aborted
+    job is skipped per record, so an abort stops a chunk as early as it stopped a single record.
+    """
+    imported = []
+    for md_metadata_file_id in kwargs.get("md_metadata_file_ids") or ():
+        results = import_md_metadata_file(md_metadata_file_id)
+        if results:
+            imported.extend(results)
+    return imported
 
 
 @shared_task(

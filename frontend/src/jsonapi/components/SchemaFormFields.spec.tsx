@@ -10,6 +10,10 @@ vi.mock('../hooks/useFieldsForOperation', () => ({
   ],
 }));
 describe('SchemaFormFields', () => {
+  it('omits fields supplied by a workflow instead of registering their inputs', () => {
+    render(<SchemaFormFields operationId="create_Service" omit={['title']} />);
+    expect(screen.queryByText('Title')).not.toBeInTheDocument();
+  });
   it('applies updated overrides and keeps schema-disabled fields hidden', () => {
     const component = ({ label, record }: { label: string; record?: { id: number } }) => <span>{label} {record?.id}</span>;
     const { rerender } = render(<SchemaFormFields operationId="partial_update_Service" overrides={[{ component, props: { source: 'title', label: 'First' } }]} record={{ id: 1 }} />);

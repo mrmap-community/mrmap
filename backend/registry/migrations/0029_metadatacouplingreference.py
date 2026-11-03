@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0018_alter_catalogueservice_max_step_size_and_more'),
+        ('registry', '0028_a_keyword_is_as_long_as_its_catalogue_says'),
     ]
 
     operations = [

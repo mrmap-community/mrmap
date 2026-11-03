@@ -4,6 +4,10 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    cronInput: {
+      openEditor: "Click to edit the cron schedule.",
+      minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",
@@ -68,11 +72,20 @@ const en = lodashMerge(
       position: "%{current} of %{total}",
       sliderHint: "Drag to preview; release to update. Arrow keys move one step. Enter an exact UTC time and leave the field to apply.",
       custom: "Custom dimension values",
+      play: "Play the time animation",
+      pause: "Pause the time animation",
+      loop: "Loop playback at the end of the range",
+      speed: "Playback speed",
+      speedValue: "%{fps} fps",
+      displaying: "The map shows %{time} while the next frame arrives",
       title: "Dimensions",
       dimension: "Dimension %{name}",
       serverDefault: "Server default",
       invalid: "The service does not offer this value.",
       none: "This resource advertises no dimensions.",
+    },
+    viewerMap: {
+      undecodable: "The map image could not be decoded.",
     },
     mapTransfer: {
       export: "Export map as file",
@@ -393,6 +406,14 @@ const en = lodashMerge(
     },
     harvestingSchedules: {
       run: "Harvest now",
+      existing: "View running harvest",
+      configure: "Configure harvesting schedules",
+      bulkCreate: "Add harvesting schedule to selected CSWs",
+      unavailable: "The internal MrMap catalogue cannot be harvested or assigned harvesting schedules.",
+      bulkLoadError: "Unable to check the selected catalogues. Schedule creation is unavailable.",
+      bulkDescription: "Add a new schedule to %{smart_count} selected catalogue, including catalogues that already have schedules. |||| Add a new schedule to each of %{smart_count} selected catalogues, including catalogues that already have schedules.",
+      bulkResult: "Created %{created} schedules; %{failed} failed.",
+      bulkFailed: "Unable to create schedules for: %{ids}. Retry to process only these catalogues.",
       queued: "Harvesting queued.",
       failed: "Unable to start harvesting. A harvest may already be running.",
       count: "%{smart_count} schedule |||| %{smart_count} schedules",
@@ -403,6 +424,13 @@ const en = lodashMerge(
       disabledMessage: "Harvesting schedules are disabled. Enable a schedule to harvest automatically.",
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
+    },
+    harvestThroughput: {
+      basis: "Measured by the %{count} harvests of this catalogue which finished:",
+      perPage: "%{size} records per page: %{throughput} records per minute",
+      recommendation: "The fastest size which was measured is %{size}.",
+      isFastest: "%{size} is the fastest measured size and the size this catalogue is harvested with.",
+      measuredBy: "Measured by the download and database time of the records of a run, which spreads the time of a response over its records: comparable between sizes, no promise about a single run.",
     },
     backgroundActivity: {
       title: "Background activity",
@@ -742,6 +770,7 @@ const en = lodashMerge(
       previewUnavailable: "Preview unavailable",
       openMapViewer: "Open map viewer",
       openSecuredMapViewer: "Open secured map viewer",
+      mapViewerOfElement: "Opens the map viewer of the service which owns this element, with this element activated on the map.",
       activate: "Activate service",
       deactivate: "Deactivate service",
       activated: "The service is activated",

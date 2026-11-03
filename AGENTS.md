@@ -193,6 +193,14 @@ identifier itself is not an option — it breaks document matching against upstr
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.
 
+### Filing issues
+
+- Always label at creation: `gh issue create --labels 'type: bug' ...`. The web form takes the label
+  from the issue template's front matter (`type: bug`, `type: story`, `type: housekeeping`,
+  `type: documentation`), but `gh issue create` bypasses the template and files the issue unlabeled,
+  where it slips past the triage views. Use the same taxonomy the templates use; `status:`,
+  `priority:` and `phase:` labels belong to maintainers, and pull requests carry none.
+
 ## Working with uncertainty
 
 If requirements are ambiguous, prefer behavior consistent with the existing codebase.

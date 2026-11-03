@@ -212,6 +212,18 @@ report is one request line, so nginx refuses one above its 8k with a 414; the
 beacon keeps itself below that, deduplicates identical reports for 30 seconds
 and caps a page load at 20 reports.
 
-Recreate the ``frontend`` container to apply the injected script, the location
-and the log driver. Reporting lives in nginx, so it is there where the image
-serves the app and not in the vite dev server of ``frontend``.
+Script, location and log driver come with the image of the ``frontend`` service,
+so that container has to be recreated to apply them. An existing deployment
+holds the built frontend in the ``frontend-static`` volume, and Docker fills
+such a volume from the image only while it is still empty, so the volume goes
+with the container (``docker volume ls`` names it after the project):
+
+.. code-block:: console
+
+    docker compose rm -fs frontend
+    docker volume rm mrmap_frontend-static
+    docker compose up -d --build frontend
+
+Reporting lives in nginx, so it exists where the built app is served behind it:
+the development server of the frontend (``npm run dev``) answers without nginx
+and reports nothing.

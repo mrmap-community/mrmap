@@ -111,6 +111,18 @@ satisfies most of it.
   `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
   `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
   `frontend-tests` pins its container name; add them to the override when a check needs them.
+- Isolation is for state: the unique project name, its network and named volumes and the one
+  `django-tests` per stack stay exactly as they are. Built images are not job state. A project name
+  is also the image prefix, so a fresh stack gets its own tag (`docker compose config --images`
+  shows `<project>-<service>`) and `run` builds that tag because it is missing; with a warm
+  BuildKit cache the layers are already there and that costs about a minute, not a rebuild. Build
+  once per checkout (`docker compose build django-tests`) and do not add `--build` to `run`: a
+  rebuild is only needed when `backend/.requirements/*` or `docker/backend/alpine.Dockerfile`
+  changed, never on a branch switch, because the application code arrives over the bind mount.
+  When several stacks of one checkout should share one build outright, pin the built services
+  (`backend`, `django-tests`, `behave` and `pre-commit-check` share one Dockerfile and one set of
+  build args) to a tag of your choosing in the job-local override — at the price that jobs with
+  different requirement sets then overwrite each other's tag.
 - A worktree has no `.env` (it is ignored, not tracked), so copy it and
   `docker/backend/.mrmap.env` from the main checkout before the first Compose command in it;
   otherwise every command fails with `required variable DJANGO_SECRET_KEY is missing a value`.

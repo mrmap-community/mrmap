@@ -33,6 +33,7 @@ export const ExplorerView = ({
   showDetails = true,
   rowDetails,
   rowActions,
+  rowExtraActions,
   MapComponent = CoverageMap,
   onSearchArea,
   sortFields = ["title", "dateStamp"],
@@ -43,6 +44,8 @@ export const ExplorerView = ({
   namespace?: string;
   rowDetails?: (record: RaRecord) => ReactNode;
   rowActions?: (record: RaRecord) => ReactNode;
+  /** Actions which belong next to show and edit instead of replacing them. */
+  rowExtraActions?: (record: RaRecord) => ReactNode;
   MapComponent?: ComponentType<CoverageMapProps>;
   sortFields?: string[];
 }) => {
@@ -195,13 +198,18 @@ export const ExplorerView = ({
                       </Stack>
                     </Stack>
                   </ListItemButton>
-                  <Stack direction="row" sx={{ px: 1, pb: 1 }}>
+                  <Stack
+                    direction="row"
+                    useFlexGap
+                    sx={{ px: 1, pb: 1, flexWrap: "wrap", gap: 0.5 }}
+                  >
                     {rowActions ? (
                       rowActions(record)
                     ) : (
                       <>
                         {showDetails && <ShowButton />}
                         <EditButton />
+                        {rowExtraActions?.(record)}
                       </>
                     )}
                   </Stack>

@@ -39,6 +39,10 @@ vi.mock("../../../jsonapi/components/ListGuesser", () => ({
   default: () => null,
 }));
 vi.mock("../../Lists/CustomListActions", () => ({ default: () => null }));
+// the delivery candidates of a result have a screen of their own
+vi.mock("../Generic/ServiceCandidates/ServiceCandidatesButton", () => ({
+  default: () => <button>Candidates</button>,
+}));
 vi.mock("./DatasetCoverageMap", () => ({
   default: ({
     selected,
@@ -61,6 +65,8 @@ describe("dataset explorer", () => {
       screen.getByText("datasetExplorer.missingCoverage"),
     ).toBeInTheDocument();
     expect(screen.getByTestId("coverage-map")).toBeInTheDocument();
+    // every result offers the services which can deliver it
+    expect(screen.getAllByText("Candidates")).toHaveLength(2);
   });
   it("links selection between results and map", () => {
     render(<DatasetExplorer />);

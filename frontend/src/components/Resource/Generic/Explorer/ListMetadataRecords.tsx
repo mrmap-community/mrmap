@@ -15,6 +15,7 @@ import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
+import ServiceCandidatesButton from "../ServiceCandidates/ServiceCandidatesButton";
 import { ExplorerView } from "./ExplorerView";
 import { MetadataFacets, MetadataIndicators } from "./MetadataIndicators";
 
@@ -53,6 +54,7 @@ export const MetadataExplorer = ({
         namespace={namespace}
         showDetails={showDetails}
         rowDetails={rowDetails}
+        rowExtraActions={() => <ServiceCandidatesButton />}
         onSearchArea={(geometry) =>
           setFilters(
             { ...filterValues, bounding_geometry__intersects: geometry },

@@ -24,6 +24,7 @@ import EditGuesser from "../../../../jsonapi/components/EditGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import ContextBasedDialog from "../../../Dialog/Dialog";
 import DialogHeader from "../../../Dialog/DialogHeader";
+import ServiceCandidatesButton from "../ServiceCandidates/ServiceCandidatesButton";
 import RecordFields, { choiceLabel } from "./RecordFields";
 
 const RecordHeader = () => {
@@ -117,6 +118,8 @@ const RecordHeader = () => {
             {translate("recordShow.source")}
           </Button>
         )}
+        {/* which services can deliver this record — discovery, no registration */}
+        <ServiceCandidatesButton />
       </Stack>
       <ContextBasedDialog
         open={editing}

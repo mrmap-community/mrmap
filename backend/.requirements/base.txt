@@ -1,5 +1,5 @@
 # django-celery-beat 2.9.0 requires Django<6.1.
-Django==6.0.8
+Django==6.0.9
 # adds runserver_plus
 django-extensions==4.1
 # adds history models
@@ -17,9 +17,9 @@ argon2-cffi==25.1.0
 # adds cors header middleware for django to configure wildcard cors
 django-cors-headers==4.9.0
 # postgres sql adapter
-psycopg==3.3.6
-psycopg[binary]==3.3.6
-psycopg[pool]==3.3.6
+psycopg==3.3.7
+psycopg[binary]==3.3.7
+psycopg[pool]==3.3.7
 # library to process xml
 lxml==6.1.3
 # ISO 8601 date/time parser
@@ -37,7 +37,7 @@ djangorestframework==3.18.3
 # adds geojson filters
 djangorestframework-gis==1.3.0
 # adds jsonapi implementation on top of django rest framework
-djangorestframework-jsonapi==8.1.0
+djangorestframework-jsonapi==9.0.0
 # adds redis cache backed
 # BLOCKING: websockets (channels) are timedout
 redis==8.1.0
@@ -48,12 +48,12 @@ django-celery-beat==2.9.0
 # adds database results for celery tasks
 django-celery-results==2.6.0
 # adds websockets
-websockets==17.3
+websockets==17.4
 channels==4.3.2
 channels[daphne]==4.3.2
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
-django-cte==4.0.0
+django-cte==5.0.1
 drf-spectacular-jsonapi==0.6.2
 camel-converter==6.0.0
 django-rest-knox==5.1.0

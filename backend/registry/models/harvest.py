@@ -2,8 +2,9 @@ import json
 import sys
 from uuid import uuid4
 
-from celery import chord
+from celery import chord, current_task
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
@@ -18,8 +19,9 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
-from lxml.etree import XML, XMLParser
+from lxml.etree import XMLParser
 from MrMap.celery import app
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
@@ -38,11 +40,17 @@ from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS,
-                               MIN_STEP_SIZE)
+                               MIN_STEP_SIZE, MRMAP_CSW_PK)
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
-from simple_history.utils import update_change_reason
+
+# A service which refuses a request answers with an exception report, and the prefix of its element
+# is the remote's own choice: a namespaced <ows:ExceptionReport> says the same as the unprefixed
+# <ExceptionReport> and as a WMS style <ServiceExceptionReport>. Only the local name identifies the
+# answer, and a substring of the document cannot know it (#815).
+EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
+                          " or local-name()='ServiceExceptionReport']")
 
 
 class ProcessingData(models.Model):
@@ -91,10 +99,13 @@ class ProcessingData(models.Model):
         # Warning:
         # The revoked headers mapping is not persistent across restarts,
         # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
-        app.control.revoke(
-            [str(_id) for _id in self.celery_task_ids],
-            terminate=True
-        )
+        current_task_id = current_task.request.id if current_task else None
+        task_ids = [str(_id) for _id in self.celery_task_ids
+                    if str(_id) != current_task_id]
+        if task_ids:
+            # A failing task can abort its own harvest. Store the terminal state and
+            # log before terminating siblings, and let the current task finish.
+            transaction.on_commit(lambda: app.control.revoke(task_ids, terminate=True))
         # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
         # but there will be a memory limit which is 50000 by default.
         # But Harvesting jobs can have a way far more tasks that are currently in the queue.
@@ -251,6 +262,15 @@ class HarvestingJob(ProcessingData):
         default=LogLevelEnum.INFO,
         blank=True
     )
+    background_process = models.ForeignKey(
+        to="notify.BackgroundProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="harvesting_job_processes",
+        related_query_name="harvesting_job_process",
+        verbose_name=_('background process'),
+        help_text=_('the background process which reports this job'))
     change_log = HistoricalRecords(
         related_name="change_logs",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -265,6 +285,10 @@ class HarvestingJob(ProcessingData):
         get_latest_by = ProcessingData.Meta.get_latest_by
         indexes = ProcessingData.Meta.indexes
         constraints = ProcessingData.Meta.constraints + [
+            models.CheckConstraint(
+                condition=Q(service__isnull=True) | ~Q(service=MRMAP_CSW_PK),
+                name="harvesting_job_excludes_internal_csw",
+            ),
             UniqueConstraint(
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
@@ -375,6 +399,13 @@ class HarvestingJob(ProcessingData):
 
             self.append_celery_task_ids(task_ids + [callback_id])
 
+            # the harvest runs from now on: the process of the job tells the
+            # overview of the background activity what the job is doing
+            self.report_process(
+                ProcessStatusEnum.RUNNING,
+                phase=str(HarvestingPhaseEnum.DOWNLOAD_RECORDS.label),
+                total_steps=round_trips + self.total_records + 1)
+
             # publishing tasks on commit was successfully
             transaction.on_commit(
                 lambda: chord(
@@ -394,19 +425,86 @@ class HarvestingJob(ProcessingData):
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
 
+    def build_process(self):
+        """Build the process which reports this job in the background activity.
+
+        A harvest is long running work which is done by workers without a
+        request to attach a process to, so the job creates its process while it
+        is created and the tasks of the job keep it up to date until the job
+        decided about itself.
+
+        Returns:
+            BackgroundProcess: a process naming the catalogue which is harvested
+        """
+        # imported here, because the process only reports this job and is not a
+        # part of its result
+        from notify.models import BackgroundProcess
+
+        service = self.service if getattr(self, 'service_id', None) else None
+        title = getattr(service, 'title', None)
+        return BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.HARVESTING.value,
+            description=f"Harvesting of the catalogue {title}"[:512] if title
+            else str(self._meta.verbose_name),
+            related_resource_type=ContentType.objects.get_for_model(service)
+            if service else None,
+            related_id=service.pk if service else None)
+
+    def report_process(self, status, phase=None, total_steps=None):
+        """Mirror the state of this job in the process which reports it.
+
+        Args:
+            status (ProcessStatusEnum): the status to report
+            phase (str): current phase of the harvest, optional
+            total_steps (int): amount of steps the harvest is made of, optional
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        return BackgroundProcess.objects.report(
+            self.background_process_id, status, phase=phase,
+            total_steps=total_steps)
+
+    def fail_process(self, error):
+        """Report that a task of this job gave up.
+
+        A page which keeps failing never completes the harvest, so without this
+        report the harvest would stay as running in the overview of the
+        background activity although it ended.
+        """
+        from notify.models import BackgroundProcess
+
+        BackgroundProcess.objects.log(
+            self.background_process_id, f"An error occurred: {error}")
+        return self.report_process(
+            ProcessStatusEnum.FAILED,
+            phase=f"An error occurred: {str(error)[:400]}")
+
     def save(self, skip_history_when_saving=True, *args, **kwargs):
+        if self._state.adding and self.background_process_id is None:
+            self.background_process = self.build_process()
         if self._state.adding and self.service:
             return self.handle_adding(*args, **kwargs)
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
             self.done_at = now()
             self.phase = HarvestingPhaseEnum.COMPLETED.value
-            return super(HarvestingJob, self).save(*args, **kwargs)
+            saved = super(HarvestingJob, self).save(*args, **kwargs)
+            self.report_process(
+                ProcessStatusEnum.COMPLETED,
+                phase=str(HarvestingPhaseEnum.COMPLETED.label))
+            return saved
         elif self.phase == HarvestingPhaseEnum.ABORT.value:
-            self.abort()
-            self.phase = HarvestingPhaseEnum.ABORTED.value
-            self.done_at = now()
-            return super(HarvestingJob, self).save(*args, **kwargs)
+            with transaction.atomic():
+                self.abort()
+                saved = super(HarvestingJob, self).save(*args, **kwargs)
+                self.report_process(
+                    ProcessStatusEnum.ABORTED,
+                    phase=str(HarvestingPhaseEnum.ABORTED.label))
+                return saved
 
         # see docs of django-simple-history
         # https://django-simple-history.readthedocs.io/en/latest/querying_history.html#save-without-creating-historical-records
@@ -454,6 +552,11 @@ class HarvestingJob(ProcessingData):
             ".//csw:SearchResults",
             namespaces=ns
         )
+        if search_results is None:
+            # a response document which is well typed but names no SearchResults names no records;
+            # the AttributeError of the missing node was an MrMap crash which aborted the whole run
+            # instead of leaving it to the fallback and the log of a count which stays 0 (#815)
+            return 0
         total_records = int(search_results.get("numberOfRecordsMatched", 0))
         return total_records
 
@@ -603,22 +706,26 @@ class HarvestingJob(ProcessingData):
             f"URL: {request.url}"
         )
 
-    def _check_xml_is_parseable(self, xml: str) -> bool:
+    def _parse_answer(self, content):
+        """the document a remote service answered with, or None when it is no XML at all; entities
+        and the network are off, because this document is not ours"""
         try:
-            XML(xml, XMLParser())
+            return etree.fromstring(content, XMLParser(resolve_entities=False, no_network=True))
         except Exception:
-            return False
-        return True
+            return None
 
     def _check_xml_response(self, response):
-        if not response.ok or not self._check_xml_is_parseable(response.content) or "<ExceptionReport" in response.text:
-            self._log_response_error(response=response)
-            # only the server error class is worth another request; a chained comparison like
-            # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
-            if 500 <= response.status_code < 600:
-                raise InternalServerError
-            return True
-        return False
+        """whether the answer is no document to work with: no XML at all, or an exception report of
+        whichever namespace prefix the service chose instead of the requested document (#815)"""
+        document = None if not response.ok else self._parse_answer(response.content)
+        if document is not None and not document.xpath(EXCEPTION_REPORT_XPATH):
+            return False
+        self._log_response_error(response=response)
+        # only the server error class is worth another request; a chained comparison like
+        # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
+        if 500 <= response.status_code < 600:
+            raise InternalServerError
+        return True
 
     def get_stored_page_count(self, request) -> int:
         """how many records this job already stores for exactly this request; the requested url
@@ -847,6 +954,12 @@ class TemporaryMdMetadataFile(models.Model):
         indexes = [
             models.Index(
                 fields=["job_id", "-id"]),
+            # the count of the files of a job which failed to import, which is one
+            # of the numbers of the progress of a job, is answered out of this index
+            # alone: without it the count reads the entries of every file of the job
+            # to find the failed ones among them (#886)
+            models.Index(
+                fields=["job_id", "has_import_error"]),
         ]
 
     def save(self, *args, **kwargs) -> None:
@@ -883,6 +996,18 @@ class TemporaryMdMetadataFile(models.Model):
             transaction.on_commit(lambda: storage.delete(name))
         return ret
 
+    @property
+    def change_reason(self):
+        """Why the records of this stored file are written, for their history rows.
+
+        The run names the catalogue the document came from; that is what the
+        administrator who reads the history of a record is told. An import without
+        a run behind it is a file which somebody handed in.
+        """
+        if self.job is None:
+            return None
+        return 'fileimport' if self.job.service is None else f'csw:{self.job.service}'
+
     def md_metadata_file_to_db(self):
         with self.md_metadata_file.open('rb') as _file:
             try:
@@ -895,6 +1020,7 @@ class TemporaryMdMetadataFile(models.Model):
                     for instance in instances:
                         handler = PersistenceHandler(
                             mapper=mappers[0],
+                            change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
                                     "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
@@ -936,14 +1062,20 @@ class TemporaryMdMetadataFile(models.Model):
                                     self.import_error = str(import_error)
                                     self.save()
                                     return created_instance, update, not created
-                                elif update or created:
-                                    # something has changed... so tell us from what service this changes come from
-                                    update_change_reason(
-                                        created_instance,
-                                        'fileimport'if self.job.service is None else f'csw:{self.job.service}'
-                                    )
                             result.append(
                                 (created_instance, update, not created))
+                            if self.job:
+                                for warning in mappers[0].warnings:
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=warning[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{warning}\n"
+                                            "The remaining metadata was imported."
+                                        ),
+                                    )
                             self.delete()
                     return result
             except OperationalError:
@@ -1054,3 +1186,9 @@ class PeriodicHarvestingJob(PeriodicTask):
     class Meta:
         verbose_name = _('Periodic Harvesting Job')
         verbose_name_plural = _('Periodic Harvesting Jobs')
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(service=MRMAP_CSW_PK),
+                name="periodic_harvesting_excludes_internal_csw",
+            ),
+        ]

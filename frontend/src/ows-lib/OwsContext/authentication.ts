@@ -75,6 +75,45 @@ export const assignServiceAuthentication = (
   }
 };
 
+/**
+ * Asks the operations of another origin than the document anonymously.
+ *
+ * The assignment above marks an operation of a foreign origin as `missing:` the credentials it read
+ * for the document, because a header never authorizes a different origin, and the editor of the
+ * viewer offers those operations to assign credentials of their own to them. A document which the
+ * registry itself serves is the exception: it advertises the operations of a service it does not
+ * secure at their upstream origin, where the session of the requester is neither expected nor
+ * understood. A `missing:` assignment there fails the request on missing credentials, while no
+ * assignment at all asks that service the way any other client of it would. Only the tree the
+ * document brought in is looked at, and only a placeholder of the credentials the service was added
+ * with is dropped - an operation which its user assigned credentials to keeps them.
+ */
+export const dropUnassignedAuthentication = (
+  context: OWSContext,
+  treeId: number,
+  href: string,
+) => {
+  const origin = new URL(href).origin;
+  for (const feature of context.features) {
+    if (
+      !feature.properties.folder?.startsWith(`/${treeId}/`) &&
+      feature.properties.folder !== `/${treeId}`
+    )
+      continue;
+    for (const offering of feature.properties.offerings ?? []) {
+      for (const operation of offering.operations ?? []) {
+        const assigned = operation["x-authentication-id"];
+        if (
+          typeof assigned === "string" &&
+          assigned.startsWith("missing:") &&
+          new URL(operation.href).origin !== origin
+        )
+          delete operation["x-authentication-id"];
+      }
+    }
+  }
+};
+
 /** Copyable documents retain assignments but never credential values. */
 export const serializeOwsContext = (context: OWSContext): string =>
   JSON.stringify(

@@ -31,8 +31,10 @@ Both record types have the same detail page:
 
 Tabs can be linked directly, for example ``DatasetMetadataRecord/<id>/show/relations``.
 The header offers edit and delete actions when the backend grants those object permissions.
-The "Written more than once" status reflects ``is_customized``; it does not prove that a user
-manually corrected the record. The source action opens the recorded origin URL, when available.
+The "Written more than once" chip reflects ``is_customized``, which only an edit of the record sets:
+a harvesting run leaves that flag alone, so a record which was merely re-harvested is not flagged.
+The label of the chip still names the older meaning. The source action opens the recorded origin
+URL, when available.
 
 The header also offers *Available services*, which answers which services can deliver what the
 record describes: the endpoints the record advertises itself, the endpoints of the harvested service
@@ -93,6 +95,8 @@ Then you can simply run ``docker cp ./test.xml e383a3f0cba2:/var/mrmap/import`` 
 If the ``celery-beat`` and ``celery-worker`` container is running, the Mr. Map will find the new files automatically. Not importable files are renamed as ``ignore_{datestamp}_{oldfilename}`` and will be ignored by Mr. Map. 
 In this case you need to study the logs to get more information why the file can't be imported by Mr. Map.
 
+That watcher runs every five minutes. An import which is still running when that interval passes is not started a second time beside the first one: the worker logs ``Task registry.tasks.harvest.check_for_files_to_import skipped: another instance is running`` and the new files wait for the import which is already going. A worker which dies while importing does not leave that lock behind, so the next run does not wait for anything.
+
 .. image:: ../images/sequence_diagram_file_import.svg
   :width: 100%
   :alt: Celery tasks livecycle
@@ -137,6 +141,28 @@ previews a time; releasing applies it to both map and identify requests. Previou
 buttons move one advertised step. The exact date/time field applies when you leave it.
 Continuous time ranges retain the exact date field without an invented slider step.
 Choose Server default to reset a time selection.
+
+Changing a time does not blank the map: the frame already drawn stays visible until the frame of
+the new selection has been fetched, decoded and is ready to swap in, and the control names the
+observation the map shows while the next one is on its way. Identify asks that shown frame, so
+answers match what the user sees, and a frame the service refuses leaves the previous image
+visible while the status bar carries the error. Play starts an animation from the first advertised
+time at two frames per second, in the settings panel as well as in the pinned timeline; the
+speed control offers half up to four frames per second and looping returns to the first time at
+the end of the range instead of stopping. Playback waits for each frame to reach the map before
+advancing and steps over frames the service refuses instead of holding on them; previous/next,
+the exact date field and Server default remain usable during playback; closing the control which
+plays, removing the layer or unpinning the timeline ends the animation.
+
+The frames which follow a selection are fetched ahead of it: while the timeline of a layer is
+open, the viewer asks in the background for the next few advertised observations and keeps them
+for the viewer session, so scrubbing or playing into a buffered part of the range draws a frame
+at once instead of waiting for the service. Only advertised times are fetched ahead, never a time
+between them, at most two buffered frames are on their way at once, and the frames a selection
+moved away from are taken back rather than held, which also cancels a request still travelling.
+A layer whose timeline nobody opened is left alone, the image of the server default is never
+fetched ahead, and a buffered frame belongs to the authentication which fetched it, so it never
+answers a layer served with different credentials.
 
 Use Pin timeline to keep a compact time slider over the map while the layer panel is
 closed. Pinning does not pan or resize the map. The timeline follows its layer when

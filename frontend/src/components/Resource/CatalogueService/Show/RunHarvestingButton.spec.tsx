@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   hasCreate: true,
   identity: { id: "user-1" } as { id: string } | undefined,
   isPending: false,
+  record: { id: "csw-1", isHarvestable: true },
 }));
 vi.mock("react-admin", () => ({
   Button: ({
@@ -30,14 +31,21 @@ vi.mock("react-admin", () => ({
   useResourceDefinition: () => ({ hasCreate: state.hasCreate }),
   useNotify: () => state.notify,
   useRefresh: () => state.refresh,
+  useRecordContext: () => state.record,
 }));
 beforeEach(() => {
   vi.clearAllMocks();
   state.hasCreate = true;
   state.identity = { id: "user-1" };
   state.isPending = false;
+  state.record = { id: "csw-1", isHarvestable: true };
 });
 describe("RunHarvestingButton", () => {
+  it("hides the action for the internal MrMap catalogue", () => {
+    state.record.isHarvestable = false;
+    render(<RunHarvestingButton serviceId="csw-1" />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
   it("creates a harvest for this catalogue and reports success", () => {
     render(<RunHarvestingButton serviceId="csw-1" />);
     fireEvent.click(screen.getByRole("button"));

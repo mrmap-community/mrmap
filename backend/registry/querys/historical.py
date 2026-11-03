@@ -1,14 +1,4 @@
-from django.db.models import (BooleanField, Case, F, Func, IntegerField,
-                              OuterRef, Q, Subquery, Value, When)
-
-
-class IsDistinctFrom(Func):
-    """PostgreSQL inequality that treats NULL as a comparable value."""
-
-    template = "(%(expressions)s)"
-    arg_joiner = " IS DISTINCT FROM "
-    arity = 2
-    output_field = BooleanField()
+from django.db.models import F, OuterRef, Q, Subquery
 
 
 def with_prev_record_id(queryset):
@@ -36,40 +26,25 @@ def with_prev_record_id(queryset):
 
 
 def with_delta_size(queryset):
-    """Alias the diff size using the queryset's prev_record_id annotation.
+    """Alias the diff size which every audit row of the queryset carries.
 
-    No predecessor produces NULL; an unchanged predecessor produces zero.
-    Match diff_against()'s default editable, tracked fields and raw FK IDs.
+    ``delta_size`` is written by the database when the row is inserted -- see
+    the ``registry`` migration ``0025`` -- so this reads a column instead of
+    comparing the row with its predecessor per row, which is what it used to be.
+    The meaning is the one the filters and aggregations of the project were
+    written against: NULL for a row without a predecessor, otherwise how many of
+    the tracked, editable fields of the record differ in from that row, so that a
+    save which changed nothing answers zero. Which fields those are is decided by
+    the trigger, which compares the raw foreign key ids like ``diff_against()``
+    does.
+
+    A history which tracks many-to-many fields cannot be answered from the row
+    alone, because such a change is not a column of it; the value the column
+    would hold would silently leave that change out.
     """
-    history_model = queryset.model
-    if history_model._history_m2m_fields:
+    if queryset.model._history_m2m_fields:
         raise NotImplementedError(
             "Delta size does not support historical many-to-many fields."
         )
 
-    size = Value(0, output_field=IntegerField())
-    for field in history_model.tracked_fields:
-        if field.editable:
-            size += Case(
-                When(
-                    IsDistinctFrom(F(field.attname), OuterRef(field.attname)),
-                    then=Value(1),
-                ),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-
-    # Use the same predecessor as the page's bulk loading, independently of
-    # filters on the outer queryset (including date ranges and change reasons).
-    previous = (
-        history_model._default_manager.using(queryset.db)
-        .filter(history_id=OuterRef("prev_record_id"))
-        .order_by()
-        .annotate(_computed_delta_size=size)
-    )
-    return queryset.alias(
-        _delta_size=Subquery(
-            previous.values("_computed_delta_size")[:1],
-            output_field=IntegerField(),
-        )
-    )
+    return queryset.alias(_delta_size=F("delta_size"))

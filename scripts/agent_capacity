@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""agent_capacity: does this host have room for one more agent stack?
+
+Host-side gate to run before starting another parallel agent job. Standard
+library only and entirely local - it reads /proc, the filesystem and `docker
+ps`, and opens no network connection, so it can never hang on a missing or
+slow network. It prints one verdict line and exits 0 when the host fits another
+job, or 1 when it is already busy.
+
+Run it from anywhere: `scripts/agent_capacity` (or `python3
+scripts/agent_capacity`). Every threshold is overridable from the environment so
+a job can tighten or relax the gate without editing the file:
+
+  AGENT_MAX_LOAD_PER_CORE  most 15-minute load average per core  (default 1.5)
+  AGENT_MIN_MEM_GB         least MemAvailable, in GiB            (default 16)
+  AGENT_MIN_DISK_GB        least free disk on /, in GiB          (default 100)
+  AGENT_MAX_STACKS         most running mrmap-agent-* stacks     (default 3)
+
+A missing metric (unreadable /proc entry, or docker not present) is reported as
+n/a and never makes the host look busy - the gate only blocks on what it can
+actually see over budget.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+
+GB = 1024 ** 3
+STACK_PREFIX = "mrmap-agent-"
+PROJECT_LABEL = "com.docker.compose.project"
+
+
+def env_num(name, default):
+    try:
+        return float(os.environ.get(name, "").strip())
+    except ValueError:
+        return default
+
+
+def load_per_core():
+    """15-minute load average divided by core count, or None if unreadable."""
+    try:
+        with open("/proc/loadavg") as f:
+            load15 = float(f.read().split()[2])
+    except (OSError, ValueError, IndexError):
+        return None
+    cores = os.cpu_count() or 1
+    return load15 / cores
+
+
+def mem_available_gb():
+    """MemAvailable from /proc/meminfo in GiB, or None if unreadable."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) * 1024 / GB
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def disk_free_gb():
+    """Free bytes on / in GiB, or None if the filesystem cannot be stat'd."""
+    try:
+        return shutil.disk_usage("/").free / GB
+    except OSError:
+        return None
+
+
+def agent_stacks():
+    """Running mrmap-agent-* Compose stacks, or None if docker is unusable.
+
+    Counted by compose project (one per agent job), not per container, so the
+    limit reads in stacks the way AGENT_MAX_STACKS says. A fixed timeout keeps a
+    wedged docker daemon from blocking the check.
+    """
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "--format", '{{.Label "%s"}}' % PROJECT_LABEL],
+            capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    projects = {ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()}
+    return len([p for p in projects if p.startswith(STACK_PREFIX)])
+
+
+def num(v):
+    return "n/a" if v is None else f"{v:.1f}"
+
+
+def main():
+    max_load = env_num("AGENT_MAX_LOAD_PER_CORE", 1.5)
+    min_mem = env_num("AGENT_MIN_MEM_GB", 16)
+    min_disk = env_num("AGENT_MIN_DISK_GB", 100)
+    max_stacks = env_num("AGENT_MAX_STACKS", 3)
+
+    load, mem, disk, stacks = load_per_core(), mem_available_gb(), disk_free_gb(), agent_stacks()
+
+    problems = []
+    if load is not None and load > max_load:
+        problems.append("load")
+    if mem is not None and mem < min_mem:
+        problems.append("mem")
+    if disk is not None and disk < min_disk:
+        problems.append("disk")
+    if (stacks or 0) > max_stacks:
+        problems.append("stacks")
+
+    print(
+        f"agent_capacity: load {num(load)}/core (max {max_load:g}), "
+        f"mem {num(mem)}G (min {min_mem:g}), "
+        f"disk {num(disk)}G (min {min_disk:g}), "
+        f"stacks {stacks if stacks is not None else 'n/a'} (max {max_stacks:g})"
+        + (" [docker unavailable]" if stacks is None else "")
+        + f" -> {'BUSY: ' + ','.join(problems) if problems else 'fits'}"
+    )
+    sys.exit(1 if problems else 0)
+
+
+if __name__ == "__main__":
+    main()

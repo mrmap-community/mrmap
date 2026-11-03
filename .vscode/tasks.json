@@ -290,7 +290,7 @@
             ]
         },
         {
-            "label": "Docker Compose: openobserve",
+            "label": "Docker Compose: grafana",
             "type": "shell",
             "command": "docker",
             "args": [
@@ -303,7 +303,7 @@
                 "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
                 "--build",
-                "openobserve"
+                "grafana"
             ]
         },
         {

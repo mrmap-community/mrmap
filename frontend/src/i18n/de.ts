@@ -1,6 +1,10 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  cronInput: {
+    openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
+    minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
+  },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
     description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
@@ -65,11 +69,20 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     position: "%{current} von %{total}",
     sliderHint: "Ziehen für Vorschau, loslassen zum Anwenden. Pfeiltasten ändern einen Schritt. Exakte UTC-Zeit eingeben und das Feld zum Anwenden verlassen.",
     custom: "Benutzerdefinierte Dimensionswerte",
+    play: "Zeitanimation abspielen",
+    pause: "Zeitanimation pausieren",
+    loop: "Wiedergabe am Ende der Reichweite wiederholen",
+    speed: "Wiedergabegeschwindigkeit",
+    speedValue: "%{fps} fps",
+    displaying: "Die Karte zeigt %{time}, während das nächste Bild eintrifft",
     title: "Dimensionen",
     dimension: "Dimension %{name}",
     serverDefault: "Serverstandard",
     invalid: "Diesen Wert bietet der Dienst nicht an.",
     none: "Diese Ressource bietet keine Dimensionen an.",
+  },
+  viewerMap: {
+    undecodable: "Das Kartenbild konnte nicht dekodiert werden.",
   },
   mapTransfer: {
     export: "Karte als Datei exportieren",
@@ -436,6 +449,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   },
   harvestingSchedules: {
       run: "Jetzt Daten übernehmen",
+      existing: "Laufende Datenübernahme anzeigen",
+      configure: "Zeitpläne für Datenübernahme konfigurieren",
+      bulkCreate: "Zeitplan für ausgewählte CSWs hinzufügen",
+      unavailable: "Für den internen MrMap-Katalog sind weder Datenübernahmen noch entsprechende Zeitpläne zulässig.",
+      bulkLoadError: "Die ausgewählten Kataloge konnten nicht geprüft werden. Zeitpläne können momentan nicht erstellt werden.",
+      bulkDescription: "Einen neuen Zeitplan für %{smart_count} ausgewählten Katalog hinzufügen, auch wenn bereits Zeitpläne vorhanden sind. |||| Je einen neuen Zeitplan für %{smart_count} ausgewählte Kataloge hinzufügen, auch wenn bereits Zeitpläne vorhanden sind.",
+      bulkResult: "%{created} Zeitpläne erstellt; %{failed} fehlgeschlagen.",
+      bulkFailed: "Zeitpläne konnten für folgende Kataloge nicht erstellt werden: %{ids}. Ein erneuter Versuch verarbeitet nur diese Kataloge.",
       queued: "Datenübernahme eingeplant.",
       failed: "Datenübernahme konnte nicht gestartet werden. Möglicherweise läuft bereits eine Datenübernahme.",
     count: "%{smart_count} Zeitplan |||| %{smart_count} Zeitpläne",
@@ -446,6 +467,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     disabledMessage: "Die Zeitpläne sind deaktiviert. Aktivieren Sie einen Zeitplan für die automatische Datenübernahme.",
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
+  },
+  harvestThroughput: {
+    basis: "Gemessen an den %{count} abgeschlossenen Datenübernahmen dieses Katalogs:",
+    perPage: "%{size} Datensätze pro Seite: %{throughput} Datensätze pro Minute",
+    recommendation: "Die schnellste gemessene Größe ist %{size}.",
+    isFastest: "%{size} ist die schnellste gemessene Größe und die Größe, mit der dieser Katalog übernommen wird.",
+    measuredBy: "Gemessen an der Lade- und Schreibzeit der Datensätze eines Laufs, die auf dessen Datensätze verteilt wird: zwischen Größen vergleichbar, keine Aussage über einen einzelnen Lauf.",
   },
   backgroundActivity: {
     title: "Hintergrundaktivität",
@@ -798,6 +826,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     previewUnavailable: "Vorschau nicht verfügbar",
     openMapViewer: "Kartenbetrachter öffnen",
     openSecuredMapViewer: "Gesicherten Kartenbetrachter öffnen",
+    mapViewerOfElement: "Öffnet den Kartenbetrachter des Diensts, dem dieses Element gehört, mit diesem Element aktiviert auf der Karte.",
     activate: "Dienst aktivieren",
     deactivate: "Dienst deaktivieren",
     activated: "Der Dienst ist aktiviert",

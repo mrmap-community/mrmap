@@ -6,8 +6,9 @@ import PublicIcon from '@mui/icons-material/Public';
 import { v4 as uuidv4 } from 'uuid';
 
 import { API_BASE_URL } from '../../../../context/HttpClientContext';
+import { dropUnassignedAuthentication } from '../../../../ows-lib/OwsContext/authentication';
 import { Authentication } from '../../../../ows-lib/OwsContext/contrib';
-import { OWSContext } from '../../../../ows-lib/OwsContext/core';
+import { OWSContext, type OWSResource } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
 import { getAuthToken } from '../../../../providers/authProvider';
 import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/OwsContextBase';
@@ -18,6 +19,9 @@ export interface MapViewerButtonProps extends ButtonProps{
   wmsRecord?: RaRecord
   capabilititesUrl?: string
   protocol?: 'WMS' | 'WFS'
+  /** The layer the viewer shall show: it is activated the way the tree of the viewer activates a
+   *  layer its user ticked, so the map answers this element instead of an empty document. */
+  element?: RaRecord
 }
 
 const MapViewerButton = (
@@ -25,6 +29,7 @@ const MapViewerButton = (
     wmsRecord, 
     capabilititesUrl,
     protocol = 'WMS',
+    element,
     children,
     ...rest
   }: MapViewerButtonProps
@@ -92,9 +97,16 @@ const MapViewerButton = (
       : []
       context.authenticationHeaders = authHeaders
       authHeaders.push(authHeader)
+      if (getCapaibilitesUrl !== undefined)
+        // the registry served this document, so an operation it advertises on another origin is a
+        // public upstream one: the session of the requester is not its credential
+        dropUnassignedAuthentication(context, treeId, getCapaibilitesUrl)
     }
     
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
+
+    // the layer of the appended tree which is the element the caller named
+    let named: OWSResource | undefined
 
     addedFeatures.forEach(feature => {
       authHeader && feature.properties.offerings?.forEach(offering => {
@@ -115,14 +127,28 @@ const MapViewerButton = (
         const elements = protocol === 'WFS' ? wmsRecordWithUrl?.featuretypes : wmsRecordWithUrl?.layers;
         const dbLayer = elements?.find((layer: RaRecord) => layer.identifier === identifier)
         if (dbLayer !== undefined){
-          const element = protocol === 'WFS' ? 'featuretype' : 'layer';
-          operation[`x-mrmap-${element}-id`] = dbLayer?.id
-          operation[`x-mrmap-${element}-properties`] = {...dbLayer}
+          const kind = protocol === 'WFS' ? 'featuretype' : 'layer';
+          operation[`x-mrmap-${kind}-id`] = dbLayer?.id
+          operation[`x-mrmap-${kind}-properties`] = {...dbLayer}
+          if (element?.id !== undefined && dbLayer.id === element.id)
+            named = feature
         }
       }
     })
+
+    // the element the caller named is the layer the viewer shall show, and it is activated the way
+    // the tree activates a layer which its user ticks: the map draws and the tree ticks what the
+    // GetMap operation of a layer marks active, its properties alone are not what the viewer asks
+    if (named !== undefined) {
+      context.activateFeature(named.properties.folder, true)
+      context.getDescandantsOf(named, true).forEach(layer => {
+        const getMap = layer.getWmsOperationByCode('GetMap')
+        if (getMap !== undefined)
+          getMap.active = true
+      })
+    }
     return context
-  }, [wmsRecordWithUrl, protocol, authHeader, getCapaibilitesUrl])
+  }, [wmsRecordWithUrl, protocol, authHeader, getCapaibilitesUrl, element])
 
   useEffect(() => {
     if (capabilititesUrl !== undefined) {

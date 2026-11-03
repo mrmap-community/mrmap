@@ -24,7 +24,8 @@ class XmlMapper:
         self,
         xml: Union[str, Path, bytes, IO, etree._Element],
         mapping: dict,
-        uuid=None
+        uuid=None,
+        warnings=None,
     ):
         """
         Initialize XmlMapper.
@@ -38,6 +39,8 @@ class XmlMapper:
             mapping (dict): mapping configuration dictionary.
         """
         self.mapping = mapping
+        # Nested mappers share diagnostics so the importer can report them to its user.
+        self.warnings = warnings if warnings is not None else []
         if uuid is None:
             uuid = uuid4()
         self.uuid = uuid
@@ -130,7 +133,8 @@ class XmlMapper:
                 xml=element,
                 mapping=xpath_or_spec | {
                     "_namespaces": self.mapping.get("_namespaces", {})},
-                uuid=self.uuid
+                uuid=self.uuid,
+                warnings=self.warnings,
             )
             parsed = parser.traverse_spec(
                 xpath_or_spec,
@@ -299,10 +303,20 @@ class XmlMapper:
 
     def _get_elements(self, spec, namespaces):
         base_xpath = spec.get("_base_xpath", ".")
-        return (
-            self.current_element.xpath(base_xpath, namespaces=namespaces)
-            if base_xpath else [self.current_element]
-        )
+        if not base_xpath:
+            return [self.current_element]
+        elements = self.current_element.xpath(base_xpath, namespaces=namespaces)
+        if not elements:
+            # Documents of the wild place the information of a field in an other
+            # element than the one the field is mainly mapped from. The fallbacks
+            # are tried in order and only used while parsing; the reverse mapping
+            # only knows _base_xpath, so it always writes to the main element.
+            for fallback_xpath in spec.get("_fallback_xpaths", ()):
+                elements = self.current_element.xpath(
+                    fallback_xpath, namespaces=namespaces)
+                if elements:
+                    break
+        return elements
 
     def _get_model_class(self, spec):
         model_label = spec.get("_model")

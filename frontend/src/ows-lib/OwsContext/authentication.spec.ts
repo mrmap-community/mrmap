@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assignServiceAuthentication,
+  dropUnassignedAuthentication,
   resolveOperationAuthentication,
   serializeOwsContext,
 } from "./authentication";
@@ -157,4 +158,24 @@ it('redacts header values held by older authentication extensions', () => {
   const context = new OWSContext();
   const legacy = { ...context, authentications: [{ type: 'header', name: 'Authorization', value: 'legacy-secret' }] };
   expect(serializeOwsContext(legacy as unknown as OWSContext)).not.toContain('legacy-secret');
+});
+
+it('asks an operation of another origin than the registry document anonymously', () => {
+  const context = setup();
+  dropUnassignedAuthentication(context, 0, 'https://protected.example/wms');
+  const [sameOrigin, otherOrigin, otherService] = operations(context);
+  // the operation the document serves itself keeps the credentials it was added with
+  expect(resolveOperationAuthentication(context, sameOrigin).headers?.get('Authorization')).toBe('Basic secret');
+  // the placeholder of the upstream operation is gone, so it is asked without the session
+  expect(resolveOperationAuthentication(context, otherOrigin)).toEqual({});
+  // a tree added beside this one keeps what it was assigned
+  expect(resolveOperationAuthentication(context, otherService)).toEqual({});
+});
+
+it('keeps credentials a user assigned to an operation of another origin', () => {
+  const context = setup();
+  const [sameOrigin, otherOrigin] = operations(context);
+  otherOrigin['x-authentication-id'] = sameOrigin['x-authentication-id'];
+  dropUnassignedAuthentication(context, 0, 'https://protected.example/wms');
+  expect(resolveOperationAuthentication(context, otherOrigin).error).toBe('blocked');
 });

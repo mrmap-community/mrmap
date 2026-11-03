@@ -9,6 +9,7 @@ from django.db.models import (Avg, Count, DateTimeField, DurationField, Exists,
                               ExpressionWrapper, F, Max, OuterRef, Q, Subquery)
 from django.db.models.functions import Coalesce
 from django.utils.timezone import now
+from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogLevelEnum)
 
@@ -90,6 +91,9 @@ def complete_harvest(job_id):
     job.phase = HarvestingPhaseEnum.COMPLETED
     job.done_at = now()
     job.save(skip_history_when_saving=False)
+    job.report_process(
+        ProcessStatusEnum.COMPLETED,
+        phase=str(HarvestingPhaseEnum.COMPLETED.label))
     if not job.service_id:
         return
     # the size which completed this run is the size the next run of this catalogue starts with, so

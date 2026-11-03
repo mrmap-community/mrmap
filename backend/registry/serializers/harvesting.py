@@ -19,6 +19,12 @@ from rest_framework_json_api.serializers import (CharField, ChoiceField, Duratio
 from system.fields import CrontabStringField
 
 
+def validate_harvestable_service(service):
+    if service is not None and not service.is_harvestable:
+        raise ValidationError(_("The internal MrMap catalogue cannot be harvested."))
+    return service
+
+
 class PeriodicHarvestingJobSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -40,6 +46,9 @@ class PeriodicHarvestingJobSerializer(
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
                   'time_until_next_run', 'enabled')
+
+    def validate_service(self, value):
+        return validate_harvestable_service(value)
 
 
 class HarvestedMetadataRelationSerializer(
@@ -118,6 +127,16 @@ class HarvestingJobSerializer(
 
     fetch_record_duration = DurationField(read_only=True)
     md_metadata_file_to_db_duration = DurationField(read_only=True)
+    records_per_minute = FloatField(
+        label=_("records per minute"),
+        help_text=_(
+            "how many records this run stored per minute of measured work, at the step size it "
+            "asked the catalogue with. Only a run which finished answers one, because only it "
+            "measured a harvest as a whole. Measured work is the summed download and database "
+            "time of the records of the run, which spreads the time of a response over its "
+            "records: the number compares step sizes with each other, it is no promise about a "
+            "single run."),
+        read_only=True)
 
     total_steps = IntegerField(read_only=True)
     done_steps = IntegerField(read_only=True)
@@ -139,12 +158,16 @@ class HarvestingJobSerializer(
 
     class Meta:
         model = HarvestingJob
+        # the background_process is the overview's view ON this job, not a
+        # field of the job itself: the process is explored on its own screen
         exclude = (
             "harvested_dataset_metadata",
-            "harvested_service_metadata"
+            "harvested_service_metadata",
+            "background_process",
         )
 
     def validate_service(self, value):
+        validate_harvestable_service(value)
         # cause model.full_clean ist not called and therefore no ValidationError is raised by the UniqueConstraint from model side.
         # Instead without this extra validation, the endpoint will lead into IntegrityError --> 5xx internal server error
         if HarvestingJob.objects.filter(
@@ -165,6 +188,7 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
         exclude = (
             "harvested_dataset_metadata",
             "harvested_service_metadata",
+            "background_process",
             "phase",
         )
 

@@ -19,6 +19,19 @@ Keep ViewSets and serializers thin. Put cross-app generic code in `extras/`
 (`viewsets.py`, `permissions.py`, `schema.py`, `fields.py`, `managers.py`, `decorators.py`) instead
 of duplicating it.
 
+Use class-based views for HTTP endpoints. Extend an existing ViewSet or DRF generic view for
+JSON:API resources, or Django's `View` for plain HTTP responses such as media and OGC endpoints.
+Keep app-specific views in the owning app's view module. Put reusable views, viewsets and view
+mixins in `extras/`, extending its existing abstractions before adding new ones. `MrMap/` holds
+project configuration and URL routing; do not put view implementations there. URLconfs wire
+views with `.as_view()` instead of defining request handlers.
+The media views in `system/views.py` enforce the slow request dump policy of `system.logging`,
+so they belong to `system/` rather than the generic `extras/` layer.
+Declare the accepted verbs with `http_method_names` and implement the corresponding methods
+(`get`, `post`, etc.), using the base class's dispatch. Django's `View` delegates HEAD to `get`
+by default. Preserve each endpoint's existing method policy, including OPTIONS and its `Allow`
+header, when refactoring; media views accept only `get` and `head` in development and production.
+
 
 ## Code navigation
 

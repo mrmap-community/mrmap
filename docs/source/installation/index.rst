@@ -146,5 +146,33 @@ requests" dashboard pre-provisioned from ``docker/grafana/``; login with
 * ``MRMAP_SYSLOG_HOST`` / ``MRMAP_SYSLOG_PORT`` point the backend syslog
   handler at any RFC 5424 receiver; the default is ``victoria-logs:5514``,
   the compose service.
+* ``MRMAP_SLOW_REQUEST_THRESHOLD_MS`` is the duration of a request in milliseconds
+  which is worth a "Slow Request Detected" record; the default is 400.
 * To enable Postgres slow statement logging, run (hot, no restart):
   ``ALTER SYSTEM SET log_min_duration_statement = '400ms'; SELECT pg_reload_conf();``
+
+Every record the syslog handler answers leaves the verbose details of that record as
+a JSON file in ``<MEDIA_ROOT>/logs``. Nothing deleted them, so a deployment which ran
+for a few weeks held a few hundred thousand of them (#888). The periodic task
+``system.tasks.delete_old_slow_request_dumps`` takes them back: it is created on
+migrate, beat hands it over hourly, and it deletes the dumps which are older than
+``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the retention of
+VictoriaLogs above) as well as everything beyond
+``MRMAP_SLOW_REQUEST_DUMP_MAX_FILES`` dumps (default 0, which answers no limit and
+leaves the age bound alone). A dump which is gone costs the per-request SQL detail of
+that one request; the syslog line which pointed at it stays in the log store for its
+whole retention. ``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS=0`` keeps the dumps until
+the cap is reached or until somebody reads them.
+
+Those dumps carry complete SQL statements, the internal host names which answered the
+request and its metadata, and only the syslog line points at them — no screen of
+MrMap does. They are therefore not served over the media route: ``/media/logs/`` is
+answered with 404 by the nginx of the stack (``docker/nginx/mrmap.conf``) and by the
+backend itself for every origin it is reached from, so a deployment which serves the
+backend without that nginx is not more open than one which serves it with it. Recreate
+the ``frontend`` service, which runs that nginx, to apply the location. Read the dumps
+on the filesystem of the backend, for as long as the task above keeps them:
+
+.. code-block:: console
+
+    docker compose exec backend ls /var/mrmap/backend/media/logs

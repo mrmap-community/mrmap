@@ -246,6 +246,11 @@ Board" issue listing the active claims.
 - Run `scripts/wip claim` from the repository root before the first file edit
   or commit of a session; the issue number comes from the `issue-<N>` part of
   the branch name. Claiming is idempotent, so re-running is always safe.
+- Claiming refuses while another client holds a fresh claim on the issue; the
+  message names the holder and its heartbeat. Then pick a different issue —
+  never work two clients on one issue. A claim whose heartbeat went stale
+  passes with a warning; `scripts/wip claim --force` takes a foreign claim
+  over deliberately, e.g. after the holder was confirmed gone.
 - Run `scripts/wip claim` again after every `git push`; it refreshes the
   heartbeat, and a claim without a heartbeat for three days is flagged stale
   on the board.
@@ -256,6 +261,11 @@ Board" issue listing the active claims.
   again.
 - Run `scripts/wip done` when the pull request is ready for review or the
   work is abandoned.
+- The claims are also a merge gate: do not merge a pull request whose issue
+  still shows a live claim — live means a client is working and not finished,
+  the board even names what it waits for. Run `scripts/wip ls` before
+  merging; when the merge finishes your own work, release your claim
+  (`scripts/wip done`) as part of being ready.
 - Check `scripts/wip ls` before picking up an issue; somebody may hold it.
 - The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
   the board issue are machine-managed; never edit them by hand. Regenerate

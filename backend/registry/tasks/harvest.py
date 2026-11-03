@@ -114,12 +114,30 @@ def recover_harvests_after_restart(sender, **kwargs):
 
 @shared_task(queue="default", base=HarvestingTask)
 def recover_harvesting_jobs():
+    """Resume the harvests which did not end while no worker was running.
+
+    A worker restart leaves the messages of a running import chord in the
+    broker - queued ones are untouched by it, unacked ones return through the
+    visibility timeout - so a job whose tasks have not reported in has its
+    backlog in the queue already. Re-chording such a job publishes the whole
+    backlog a second time on top of the queued one and grows the queue per
+    restart (#891); what recovery has to re-chord is a job whose run reported
+    in - or which died between the commit of its phase and the publishing of
+    its chord, whose own unacked message brings it back to run again.
+    """
     from registry.models.harvest import HarvestingJob
 
     for job in HarvestingJob.objects.filter(done_at__isnull=True).iterator():
         if job.phase <= HarvestingPhaseEnum.DOWNLOAD_RECORDS and job.service_id:
             call_fetch_total_records.delay(harvesting_job_id=job.pk)
         elif job.phase == HarvestingPhaseEnum.RECORDS_TO_DB:
+            if job.has_live_import_run():
+                # the chord of this backlog is still in the broker and will be
+                # consumed by the workers which just started (#891)
+                logger.info(
+                    f"harvesting job {job.pk} keeps its queued import backlog: "
+                    f"recovery does not re-publish a chord which could still run")
+                continue
             call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
 
 

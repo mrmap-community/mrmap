@@ -167,6 +167,49 @@ class HarvestingRecoveryTest(TestCase):
         download.assert_called_once_with(harvesting_job_id=download_job.pk)
         imports.assert_called_once_with(harvesting_job_id=self.job.pk)
 
+    @patch('registry.tasks.harvest.chord')
+    def test_restart_recovery_does_not_republish_a_backlog_which_is_still_queued(self, mocked_chord):
+        """#891: the ids of the import chord are the shadow of its messages in the
+        broker. A worker restart leaves the queued messages untouched and finds
+        their ids unreported - recovery must let the backlog be consumed instead
+        of publishing a whole second backlog on top of the queued one."""
+        with patch.object(HarvestingJob, '_http_request', return_value=None), \
+                self.captureOnCommitCallbacks(execute=True):
+            call_chord_md_metadata_file_to_db.run(harvesting_job_id=self.job.pk)
+        self.assertTrue(self.job.celery_task_ids.filter(creation=False).exists(),
+                        'the fan-out registered the ids of the chord it published')
+
+        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish:
+            recover_harvesting_jobs.run()
+        republish.assert_not_called()
+
+    def test_recovery_republishes_a_backlog_whose_run_reported_in(self):
+        """what the guard of #891 must keep working: an id whose task reported in
+        names no message which could still arrive, so a restart has to re-chord
+        the waiting backlog again. The creation id is registered permanently and
+        names no work of the backlog - it must not block the re-chord either."""
+        task_id = str(uuid4())
+        HarvestingJobTaskId.objects.bulk_create([
+            HarvestingJobTaskId(job=self.job, task_id=task_id),
+            HarvestingJobTaskId(job=self.job, task_id=uuid4(), creation=True)])
+        finish_harvesting_job.after_return(  # the task of the id reports in
+            states.SUCCESS, None, task_id, (), {'harvesting_job_id': self.job.pk}, None)
+
+        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish:
+            recover_harvesting_jobs.run()
+        republish.assert_called_once_with(harvesting_job_id=self.job.pk)
+
+    def test_recovery_still_ends_a_harvest_whose_files_are_all_imported(self):
+        """an unreported id without waiting files is a lost callback, not a queued
+        backlog: re-publishing is free then - it builds no chord and ends the
+        harvest - and it is the only path which completes such a run (#891)"""
+        HarvestingJobTaskId.objects.create(job=self.job, task_id=uuid4())
+        TemporaryMdMetadataFile.objects.filter(job=self.job).delete()
+
+        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish:
+            recover_harvesting_jobs.run()
+        republish.assert_called_once_with(harvesting_job_id=self.job.pk)
+
     def test_worker_startup_queues_recovery(self):
         worker = Mock()
         recover_harvests_after_restart(worker)

@@ -132,7 +132,7 @@ def backwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0029_dedicated_guardian_object_permission_tables'),
+        ('registry', '0030_dedicated_guardian_object_permission_tables'),
     ]
 
     operations = [

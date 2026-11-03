@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('auth', '0012_alter_user_first_name_max_length'),
-        ('registry', '0028_a_keyword_is_as_long_as_its_catalogue_says'),
+        ('registry', '0029_harvestingjob_celery_task_ids_side_table'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

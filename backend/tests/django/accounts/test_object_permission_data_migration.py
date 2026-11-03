@@ -30,7 +30,7 @@ from registry.models.service import WebMapService
 
 #: the two migrations which move the rows, by their module name
 REGISTRY_MOVE = importlib.import_module(
-    "registry.migrations.0030_move_generic_object_permissions_to_direct_tables")
+    "registry.migrations.0031_move_generic_object_permissions_to_direct_tables")
 ACCOUNTS_MOVE = importlib.import_module(
     "accounts.migrations.0003_move_generic_object_permissions_to_direct_tables")
 

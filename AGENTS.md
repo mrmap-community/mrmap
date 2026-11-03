@@ -35,7 +35,8 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
   application; `scripts/wip` is the work claim board described under "Claiming work", and
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
-  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
+  the host capacity gate described under "Check host capacity before starting another stack".
 
 ## Authoritative sources
 
@@ -147,6 +148,22 @@ satisfies most of it.
   global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
   other jobs' resources as task cleanup.
 
+#### Check host capacity before starting another stack
+
+Isolation keeps jobs from corrupting each other, but it does not make the host
+bigger. Before starting a new agent Compose stack — as a nightly runner deciding
+whether to launch one more job, or before any `docker compose up` in a fresh
+worktree — run `scripts/agent_capacity`. It is host-only Python with no network
+and no application dependency: it reports the 15-minute load per core,
+`MemAvailable`, free disk on `/` and the number of running `mrmap-agent-*`
+Compose stacks, prints a single verdict line and exits `0` when the host still
+fits a job or `1` when it is busy. The thresholds are environment overrides so a
+job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE`
+(default 1.5), `AGENT_MIN_MEM_GB` (16), `AGENT_MIN_DISK_GB` (100) and
+`AGENT_MAX_STACKS` (3). It never opens a socket and caps its `docker ps` call
+with a timeout, so a host that is merely offline or whose docker daemon is stuck
+still gets a verdict instead of hanging.
+
 ## Development guidelines
 
 ### General
@@ -231,6 +248,11 @@ identifier itself is not an option — it breaks document matching against upstr
 
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
   `housekeeping/cleanup-frontend-src`.
+- Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
+  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`.
+- Before opening a pull request and before every push while it is under review, merge current
+  `origin/master` into the branch; rebase only on a private, un-reviewed branch. Never force-push a
+  branch under review — bring master in with a merge commit instead.
 - Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.
@@ -273,6 +295,18 @@ Board" issue listing the active claims.
   `scripts/wip wait "<what you need>"`; the board lists the claim under
   *Needs user* (first) until the next `scripts/wip claim` marks it running
   again.
+- `scripts/wip ask "<question>"` hands the whole question to GitHub, not just
+  the one-line reason: it posts the full text as one machine-managed question
+  comment (`<!-- agent-question client=<tag> id=<id> -->`) on the issue, then
+  runs the `wait` flow with a one-line summary. It is idempotent per client —
+  re-`ask` while the question is still open refreshes that comment instead of
+  stacking another — so a blocked job can be re-run without spamming the issue.
+  Add `--issue N` to point at a specific issue; otherwise it uses the branch.
+- `scripts/wip answers` reads the answers back: it lists the current client's
+  open questions and the human replies to them (comments newer than the
+  question, ignoring the machine-managed claim/question/board comments), prints
+  the answer text, and stamps an answered question so it is never surfaced
+  twice. Read it after a `Needs user` claim, then `scripts/wip claim` to resume.
 - Run `scripts/wip done` when the pull request is ready for review or the
   work is abandoned.
 - The claims are also a merge gate: do not merge a pull request whose issue
@@ -326,3 +360,7 @@ documents:
 - Scope backend lint runs to the files you touched (`../.venv/bin/flake8 <paths>` from
   `backend/`) during development. CI also checks migrations and translations; see
   `backend/AGENTS.md`.
+- Squashing the migration history to initial migrations was evaluated and rejected: the 35
+  migration files are light and a cold targeted test run costs 18-20 s, with or without `--keepdb`.
+  Raise the squash again when a cold targeted run exceeds ~60 s or the migration file count passes
+  ~100.

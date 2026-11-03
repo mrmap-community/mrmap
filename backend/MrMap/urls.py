@@ -3,9 +3,6 @@
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.1/topics/http/urls/
 Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='auth:dashboard')
 Class-based views
     1. Add an import:  from other_app.views import Home
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='auth:dashboard')
@@ -21,8 +18,6 @@ from django.conf.urls import include
 from django.contrib import admin
 from django.urls import path, re_path
 from django.views.decorators.cache import cache_page
-from django.views.decorators.http import require_http_methods
-from django.views.static import serve
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
 from mapbender_compatibility.views import MapBenderSearchApi
@@ -32,6 +27,8 @@ from registry.proxy.resource_capabilities import \
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
+from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
+from system.views import MediaDumpNotFoundView, ProtectedServeView
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -82,32 +79,41 @@ urlpatterns = [
 
 ]
 
-# TODO: restrict access via authentication
-# @login_required
-
-
-@require_http_methods(["GET", "HEAD"])
-def protected_serve(request, path, document_root=None, show_indexes=False):
-    # Uploaded media is static content; any verb other than the two read verbs
-    # is answered 405 here instead of reaching the file server.
-    return serve(request, path, document_root, show_indexes)
+# the dumps are refused by a rule of their own and before the media route below, so
+# that the development route which static() adds answers them the same way
+urlpatterns.append(
+    re_path(
+        rf'^media/{SLOW_REQUEST_DUMP_SUBDIR}/.+$',
+        MediaDumpNotFoundView.as_view(),
+        name="media-dump-not-served",
+    )
+)
 
 
 if settings.DEBUG and not settings.TESTING:
-    import debug_toolbar
     from django.conf import settings
     from django.conf.urls.static import static
 
-    urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+    # The settings decide once, when they are imported, whether the toolbar is an
+    # installed app. This branch reads DEBUG and TESTING again and a test may
+    # override both to reach the development media route below; the imported apps
+    # are what tells whether the toolbar is really there, and its urls import a
+    # model which fails when the app was never installed.
+    if "debug_toolbar" in settings.INSTALLED_APPS:
+        import debug_toolbar
+
+        urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+
     # to enable possibility to open media files during development (images, documents, etc)
     urlpatterns += static(settings.MEDIA_URL,
+                          view=ProtectedServeView.as_view(),
                           document_root=settings.MEDIA_ROOT)
 
 else:
     urlpatterns.append(
         re_path(
             r'^media/(?P<path>.*)$',
-            protected_serve,
+            ProtectedServeView.as_view(),
             {'document_root': settings.MEDIA_ROOT}
         ),
     )

@@ -423,6 +423,29 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         qs = self.with_unhandled_records(qs)
         return qs
 
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Count the jobs of the answer without the statistics of a job.
+
+        ``with_harvesting_stats`` bounds the ``sums`` CTE, which aggregates the whole
+        table of the harvested metadata relations into one aggregate row per job, and
+        joins it ``LEFT OUTER``: the join answers exactly as many rows as the job
+        table does, so the number of rows of the answer belongs to the job table. The
+        paginator does not know that and asks the annotated queryset for its
+        ``COUNT``, which materializes that aggregation a second time - the whole table
+        of the harvested metadata relations twice for one overview of a deployment
+        which has harvested (#885).
+
+        The number is therefore read from the rows before the statistics: the filters
+        of the request are applied to the queryset without them, which is the same
+        answer without the annotations, and the page itself is still taken from the
+        annotated queryset. The statistics cost one materialization per request.
+        """
+        if getattr(queryset.query, '_with_ctes', None):
+            queryset = queryset.with_cached_count(
+                self.filter_queryset(
+                    super().get_queryset()).count())
+        return super().paginate_queryset(queryset, *args, **kwargs)
+
 
 class HarvestingJobViewSet(
     HarvestingJobViewSetMixin,

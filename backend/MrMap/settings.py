@@ -615,6 +615,26 @@ try:
 except socket.gaierror:
     print("syslog server is not reachable. skipping syslog handler setup.")
 
+# the request duration in ms which is worth a "Slow Request Detected" record; the
+# middleware of system/logging/middleware.py reads it while it builds itself
+LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS = int(
+    os.getenv("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
+
+# every record the syslog handler formats leaves a json dump with the details of
+# the record below the media root, see system/logging/formatter.py. Nothing used
+# to take them back, so they grew with every slow request (#888). The sweep which
+# system/tasks.py names deletes them after this many days, aligned with the
+# -retentionPeriod of the log store which keeps the syslog line pointing at them:
+# a dropped dump loses the per request sql detail, nothing else. 0 keeps them
+# until the cap below is reached
+SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
+    os.getenv("MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS", "14"))
+# and keeps at most this many dumps, whichever bound is hit first; this bounds the
+# directory itself, whose listing a chatty deployment pays for on every sweep. 0
+# answers no cap, which leaves the age bound alone
+SLOW_REQUEST_DUMP_MAX_FILES = int(
+    os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
+
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 

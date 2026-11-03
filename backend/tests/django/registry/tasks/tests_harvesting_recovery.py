@@ -20,6 +20,7 @@ from kombu.exceptions import OperationalError as BrokerOperationalError
 from registry.tasks.harvest import (
     call_chord_md_metadata_file_to_db, call_fetch_records,
     call_fetch_total_records, call_md_metadata_file_to_db,
+    call_md_metadata_files_to_db,
     create_harvesting_job, finish_harvesting_job, recover_harvesting_jobs,
     recover_harvests_after_restart,
 )
@@ -188,6 +189,7 @@ class HarvestingRecoveryTest(TestCase):
     def test_harvesting_tasks_use_worker_loss_redelivery(self):
         for task in [create_harvesting_job, call_fetch_total_records, call_fetch_records,
                      call_chord_md_metadata_file_to_db, call_md_metadata_file_to_db,
+                     call_md_metadata_files_to_db,
                      finish_harvesting_job, recover_harvesting_jobs]:
             with self.subTest(task=task.name):
                 self.assertTrue(task.acks_late)

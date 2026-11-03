@@ -1,4 +1,7 @@
-from datetime import timedelta
+import decimal
+import uuid
+from datetime import date, datetime, timedelta
+from datetime import timezone as python_timezone
 from unittest.mock import patch
 
 from django.db import DatabaseError, connection
@@ -157,8 +160,10 @@ class InterpolateSqlTests(SimpleTestCase):
     def test_interpolates_without_parsing_or_reformatting_sql(self):
         sql = 'select %s, %s, %s'
         with patch('sqlparse.format') as format_sql:
+            # the literal of the type, not the repr of the value: a bare None is a
+            # column name to postgres, NULL is the parameter it was (#887)
             self.assertEqual(interpolate_sql(sql, [1, 'two  spaces', None]),
-                             "select 1, 'two  spaces', None")
+                             "select 1, 'two  spaces', NULL")
         format_sql.assert_not_called()
 
     def test_preserves_sql_without_parameters(self):
@@ -177,3 +182,63 @@ class InterpolateSqlTests(SimpleTestCase):
             with self.subTest(sql=sql):
                 self.assertTrue(interpolate_sql(sql, params).startswith(
                     f'{sql} -- [Interpolation failed: '))
+
+    def test_a_type_without_an_adapter_falls_back_on_repr(self):
+        """A value the driver cannot quote is still worth reading in the dump."""
+        class Opaque:
+            def __repr__(self):
+                return '<opaque>'
+
+        self.assertEqual(interpolate_sql('select %s', [Opaque()]),
+                         'select <opaque>')
+
+
+class InterpolatedSqlRunsTests(TestCase):
+    """The statement of a dump is the statement the database was asked with (#887).
+
+    A dump is worth what an analyzer can do with it, so the interpolated statement
+    has to answer the same rows as the parameterized one when it is run without its
+    parameters. None of the types below did while they were rendered with ``repr``:
+    ``datetime.timedelta(0)`` answers ``ERROR: schema "datetime" does not exist``,
+    which is a false friend worth more than the time it costs - it sent the reporter
+    looking for an aggregation which was never there.
+    """
+
+    def assert_interpolated_statement_answers_the_same(self, sql, params):
+        with connection.cursor() as cursor:
+            cursor.execute(sql, params)
+            asked = cursor.fetchall()
+
+        interpolated = interpolate_sql(sql, params)
+        self.assertNotIn('%s', interpolated, interpolated)
+        self.assertNotIn('%(', interpolated, interpolated)
+
+        with connection.cursor() as cursor:
+            cursor.execute(interpolated)
+            self.assertEqual(cursor.fetchall(), asked, interpolated)
+
+    def test_the_types_of_a_dump_interpolate_to_executable_literals(self):
+        job = 'beeacc4e-55fe-4dd0-b5f5-23b1e20eed87'
+        for sql, params in (
+                ('SELECT %s::uuid', [uuid.UUID(job)]),
+                ('SELECT COALESCE(%s::interval, \'0 seconds\'::interval)',
+                 [timedelta(0)]),
+                ('SELECT COALESCE(%s::interval, \'0 seconds\'::interval)',
+                 [timedelta(days=1, seconds=5400)]),
+                ('SELECT %s::timestamptz',
+                 [datetime(2026, 11, 2, 13, 4, tzinfo=python_timezone.utc)]),
+                ('SELECT %s::date', [date(2026, 11, 2)]),
+                ('SELECT %s::text', ["it's slow"]),
+                ('SELECT %s::text', ['two  spaces']),
+                ('SELECT %s::int', [7]),
+                ('SELECT %s::numeric', [decimal.Decimal('1.5')]),
+                ('SELECT %s::bool', [True]),
+                ('SELECT %s::bytea', [b'ab'])):
+            with self.subTest(sql=sql, params=repr(params)):
+                self.assert_interpolated_statement_answers_the_same(sql, params)
+
+    def test_named_parameters_interpolate_to_executable_literals(self):
+        self.assert_interpolated_statement_answers_the_same(
+            'SELECT %(job)s::uuid, %(since)s::timestamptz',
+            {'job': uuid.UUID('beeacc4e-55fe-4dd0-b5f5-23b1e20eed87'),
+             'since': datetime(2026, 11, 2, 13, 4, tzinfo=python_timezone.utc)})

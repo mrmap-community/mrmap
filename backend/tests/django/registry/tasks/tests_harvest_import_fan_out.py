@@ -2,13 +2,15 @@
 
 A harvest used to publish one `call_md_metadata_file_to_db` task per record: 70,000 records
 meant 70,000 broker messages, task round-trips and result writes, while the database was the
-only thing that had to keep up. The tasks are chunked now; what must not change is the
-idempotency of a record, the error of a single record and the progress the harvest reports.
+only thing that had to keep up. The watcher of the file system did the same with the files it
+found. Both publish one task per chunk now; what must not change is the idempotency of a
+record, the error of a single record and the progress the harvest reports.
 """
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from notify.models import BackgroundProcess
@@ -245,3 +247,40 @@ class ChunkImportTest(StoredFilesTestCaseMixin, TestCase):
     def test_a_chunk_without_ids_imports_nothing(self):
         self.assertEqual([], call_md_metadata_files_to_db.run(md_metadata_file_ids=[],
                                                               harvesting_job_id=self.job.pk))
+
+
+class DirectoryImportFanOutTest(StoredFilesTestCaseMixin, TestCase):
+    """the watcher of the file system publishes the files it found per chunk as well (#859)"""
+
+    def setUp(self):
+        super().setUp()
+        # a job without a service answers the request of its tasks with the admin user of
+        # the deployment, which HarvestingJob._http_request looks up by name
+        get_user_model().objects.get_or_create(username='mrmap')
+
+    @patch('registry.managers.havesting.chord')
+    def test_found_files_publish_one_task_per_chunk(self, mocked_chord):
+        files = []
+        for number in range(5):
+            found = TemporaryMdMetadataFile()
+            found.md_metadata_file.save('import_%s.xml' % number, ContentFile(b'<record/>'),
+                                        save=False)
+            files.append(found)
+
+        with override_settings(HARVEST_IMPORT_BATCH_SIZE=2), \
+                self.captureOnCommitCallbacks(execute=True):
+            stored = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(files)
+
+        header = mocked_chord.call_args.args[0]
+        self.assertEqual([2, 2, 1],
+                         [len(task.kwargs['md_metadata_file_ids']) for task in header])
+        chunked = [pk for task in header for pk in task.kwargs['md_metadata_file_ids']]
+        self.assertEqual(sorted(row.pk for row in stored), sorted(chunked),
+                         'every found file must sit in exactly one chunk')
+
+        callback = mocked_chord.return_value.apply_async.call_args.args[0]
+        self.assertEqual('notify.tasks.finish_background_process', callback.name)
+
+        process = BackgroundProcess.objects.get(pk=stored[0].job.background_process_id)
+        self.assertEqual(6, process.total_steps,
+                         'the process is made of the files, not of the chunks which carry them')

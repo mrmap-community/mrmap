@@ -35,7 +35,8 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
   application; `scripts/wip` is the work claim board described under "Claiming work", and
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
-  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
+  the host capacity gate described under "Check host capacity before starting another stack".
 
 ## Authoritative sources
 
@@ -146,6 +147,22 @@ satisfies most of it.
   anything; a stopped container or matching name prefix alone does not establish ownership. Never use
   global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
   other jobs' resources as task cleanup.
+
+#### Check host capacity before starting another stack
+
+Isolation keeps jobs from corrupting each other, but it does not make the host
+bigger. Before starting a new agent Compose stack — as a nightly runner deciding
+whether to launch one more job, or before any `docker compose up` in a fresh
+worktree — run `scripts/agent_capacity`. It is host-only Python with no network
+and no application dependency: it reports the 15-minute load per core,
+`MemAvailable`, free disk on `/` and the number of running `mrmap-agent-*`
+Compose stacks, prints a single verdict line and exits `0` when the host still
+fits a job or `1` when it is busy. The thresholds are environment overrides so a
+job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE`
+(default 1.5), `AGENT_MIN_MEM_GB` (16), `AGENT_MIN_DISK_GB` (100) and
+`AGENT_MAX_STACKS` (3). It never opens a socket and caps its `docker ps` call
+with a timeout, so a host that is merely offline or whose docker daemon is stuck
+still gets a verdict instead of hanging.
 
 ## Development guidelines
 
@@ -273,6 +290,18 @@ Board" issue listing the active claims.
   `scripts/wip wait "<what you need>"`; the board lists the claim under
   *Needs user* (first) until the next `scripts/wip claim` marks it running
   again.
+- `scripts/wip ask "<question>"` hands the whole question to GitHub, not just
+  the one-line reason: it posts the full text as one machine-managed question
+  comment (`<!-- agent-question client=<tag> id=<id> -->`) on the issue, then
+  runs the `wait` flow with a one-line summary. It is idempotent per client —
+  re-`ask` while the question is still open refreshes that comment instead of
+  stacking another — so a blocked job can be re-run without spamming the issue.
+  Add `--issue N` to point at a specific issue; otherwise it uses the branch.
+- `scripts/wip answers` reads the answers back: it lists the current client's
+  open questions and the human replies to them (comments newer than the
+  question, ignoring the machine-managed claim/question/board comments), prints
+  the answer text, and stamps an answered question so it is never surfaced
+  twice. Read it after a `Needs user` claim, then `scripts/wip claim` to resume.
 - Run `scripts/wip done` when the pull request is ready for review or the
   work is abandoned.
 - The claims are also a merge gate: do not merge a pull request whose issue

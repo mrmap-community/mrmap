@@ -134,6 +134,26 @@ class SearchVectorContentTest(TestCase, RecordVectorMixin):
         self.assertTrue(self.found_by(self.dataset, 'wohnen'))
         self.assertNotIn('Bauen & Wohnen', self.lexemes_of(self.dataset))
 
+    def test_a_record_is_found_by_the_words_at_the_end_of_a_long_keyword(self):
+        """The tail of a long keyword is as findable as its beginning (#894).
+
+        A catalogue which joins its plan names into one keyword asks two things of the
+        storage: that the keyword is storable at all, and that the words of it reach
+        the vector of the record. The array of a fixed width refused the first on the
+        write of the record row, and a truncation to that width would have dropped the
+        words of the tail in silence. The keyword here names one plan at its end which
+        nothing else of the record names.
+        """
+        keyword = Keyword.objects.create(
+            keyword='Flächennutzungsplan WN Remshalden,' * 12 + 'Rudersberg')
+        self.dataset.keywords.set([keyword])
+        self.assertTrue(self.found_by(self.dataset, 'rudersberg'))
+        stored = DatasetMetadataRecord.objects.values_list(
+            'keywords_list', flat=True).get(pk=self.dataset.pk)
+        self.assertEqual(stored, [keyword.keyword],
+                         'the array of the record answers another text than the '
+                         'keyword relation of the very same record')
+
     def test_the_vector_of_a_service_metadata_record_is_built_the_same_way(self):
         self.service_metadata.keywords.set([self.keyword])
         self.assertTrue(self.found_by(self.service_metadata, 'Bodenrichtwerte'))

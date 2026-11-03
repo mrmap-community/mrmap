@@ -123,7 +123,7 @@ const ServiceExplorer = () => {
   const fields =
     "id,title,abstract,extent,element_count,can_edit,is_active,hits,version,date_stamp,service_contact" +
     (resource === "CatalogueService"
-      ? ",running_harvesting_job"
+      ? ",running_harvesting_job,is_harvestable"
       : ",is_secured,is_spatial_secured,xml_backup_file,xml_backup_file_secured");
   return (
     <Stack spacing={2}>

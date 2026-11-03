@@ -7,6 +7,8 @@ lines that compare and advertise it. That makes the comparison itself the
 behaviour worth pinning down: a client asking for any other identifier, or for
 the same identifier in another spelling, has to be turned away with an OGC
 exception report naming the offending parameter instead of being answered.
+The refusal itself -- an OWS Common exception report at HTTP 400 -- is pinned
+down by ``test_csw_exception_reports.py`` (#908).
 """
 
 from csw.exceptions import NotSupported
@@ -28,7 +30,7 @@ class CswOutputSchemaTests(SimpleTestCase):
 
         self.assertIsInstance(response, NotSupported)
         self.assertEqual(response.get_locator(), 'outputSchema')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(response['Content-Type'], 'application/xml')
 
     def test_the_gmd_identifier_is_compared_verbatim(self):

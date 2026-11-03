@@ -343,6 +343,11 @@ class OGCRequest(Request):
             type_names=self.ogc_query_params.get("typeNames"),
             result_type=self.ogc_query_params.get("resultType"),
             element_set=self.ogc_query_params.get("ElementSetName", "summary"),
+            # the page a client asks for is named by the query parameters of the request
+            # as well; they have to reach the request which is answered, because that --
+            # not the parameters -- is what the endpoint reads its paging from
+            max_records=self.ogc_query_params.get("maxRecords"),
+            start_position=self.ogc_query_params.get("startPosition"),
             sort_by=self.parse_sortby_param(
                 self.ogc_query_params.get("SortBy", "")),
             constraint=self.ogc_query_params.get("Constraint"),

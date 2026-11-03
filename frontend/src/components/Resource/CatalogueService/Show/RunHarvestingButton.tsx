@@ -1,29 +1,39 @@
 import {
   Button,
+  type ButtonProps,
   type Identifier,
   useCreate,
   useGetIdentity,
   useNotify,
+  useRecordContext,
   useRefresh,
   useResourceDefinition,
 } from "react-admin";
 
 import PlayArrow from "@mui/icons-material/PlayArrow";
 
-const RunHarvestingButton = ({ serviceId }: { serviceId?: Identifier }) => {
+const RunHarvestingButton = ({
+  serviceId,
+  variant = "contained",
+}: {
+  serviceId?: Identifier;
+  variant?: ButtonProps["variant"];
+}) => {
   const { hasCreate } = useResourceDefinition({ resource: "HarvestingJob" });
+  const record = useRecordContext();
   const { data: identity } = useGetIdentity();
   const [create, { isPending }] = useCreate();
   const notify = useNotify();
   const refresh = useRefresh();
-  if (!hasCreate || !identity?.id || serviceId == null) return null;
+  if (!hasCreate || !identity?.id || serviceId == null || record?.isHarvestable === false) return null;
   return (
     <Button
       label="harvestingSchedules.run"
-      variant="contained"
+      variant={variant}
       startIcon={<PlayArrow />}
       disabled={isPending}
-      onClick={() =>
+      onClick={(event) => {
+        event.stopPropagation();
         create(
           "HarvestingJob",
           { data: { service: { id: serviceId } } },
@@ -37,8 +47,8 @@ const RunHarvestingButton = ({ serviceId }: { serviceId?: Identifier }) => {
               refresh();
             },
           },
-        )
-      }
+        );
+      }}
     />
   );
 };

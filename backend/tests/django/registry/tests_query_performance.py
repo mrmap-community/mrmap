@@ -16,10 +16,17 @@ from django.db import connections
 from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
+from django.utils.timezone import now
+from registry.enums.harvesting import HarvestingPhaseEnum as Phase
+from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.viewsets import GenericViewSet
 
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
+from registry.enums.harvesting import CollectingStatenEnum as State
+from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
+from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
+                                      ServiceMetadataRecord)
 
 
 JSONAPI = 'application/vnd.api+json'
@@ -28,6 +35,9 @@ TABLE_RE = re.compile(
     r'(?:FROM|JOIN|INSERT INTO|UPDATE|DELETE FROM)\s+"?([a-zA-Z_0-9]+)"?', re.IGNORECASE)
 
 COUNT_RE = re.compile(r'COUNT\(\*\).*?FROM\s+"([a-zA-Z_0-9]+)"', re.IGNORECASE)
+
+# the statement a paginator of DRF asks for the number of rows of an answer
+COUNT = 'COUNT(*) AS "__count"'
 
 
 def table_counter(queries):
@@ -387,6 +397,209 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
                 "test_csw.json"]
 
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.job = HarvestingJob.objects.order_by('pk').first()
+        HarvestingJob.objects.filter(pk=cls.job.pk).update(
+            total_records=4, max_step_size=1, phase=Phase.RECORDS_TO_DB)
+        # Recovery files of an older job of this same catalogue must also stay
+        # outside the work done for a single page, not just other catalogues.
+        backlog = HarvestingJob(service_id=cls.job.service_id,
+                                phase=Phase.ABORTED, done_at=now())
+        HarvestingJob.objects.bulk_create([backlog])
+        TemporaryMdMetadataFile.objects.bulk_create([
+            TemporaryMdMetadataFile(job=backlog) for _ in range(2048)
+        ] + [
+            TemporaryMdMetadataFile(job=cls.job, has_import_error=False),
+            TemporaryMdMetadataFile(job=cls.job, has_import_error=True),
+            TemporaryMdMetadataFile(job=None),
+        ])
+        with connections['default'].cursor() as cursor:
+            cursor.execute('ANALYZE registry_temporarymdmetadatafile')
+
+    def assertTemporaryFileScansAreBounded(self, sql):
+        """Query counts alone cannot detect one query aggregating the backlog."""
+        scans = self.temporaryFileScans(sql)
+        self.assertTrue(scans, sql)
+        for node in scans:
+            condition = node.get('Index Cond', node.get('Recheck Cond', ''))
+            self.assertIn('job_id', condition, node)
+            self.assertLessEqual(node['Actual Rows'], 2, node)
+            self.assertLessEqual(node['Actual Loops'], 1, node)
+
+    def test_process_info_counts_only_the_selected_job(self):
+        with CaptureQueriesContext(connections['default']) as queries:
+            job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+        self.assertEqual(job.unhandled_records_count, 1)
+        self.assertEqual(job.import_error_count, 1)
+        self.assertEqual(job.records_count, 2)
+        self.assertEqual(job.total_steps, 9)
+        self.assertEqual(job.done_steps, 7)
+        self.assertEqual(job.progress, 77.78)
+        self.assertEqual(len(queries), 1)
+        self.assertTemporaryFileScansAreBounded(queries[0]['sql'])
+
+    def countSubquery(self, sql, name):
+        """The subquery of the statement which answers one count of a job."""
+        marker = f'AS "{name}" FROM "registry_temporarymdmetadatafile"'
+        start = sql.index(marker) + len(marker)
+        return sql[sql.index('WHERE', start):sql.index(' GROUP BY', start)]
+
+    def test_each_count_is_answered_by_the_files_it_counts(self):
+        """The property a count is about narrows the range of its own subquery.
+
+        The progress of a job asked the files of that job three times: for all of
+        them, for the ones without an error and for the ones with one. Each of the
+        two counts which are about some of the files put its ``COUNT(...) FILTER``
+        in front of the range of *all* files of the job, so a job whose recovery
+        backlog is the whole table read the entries of all 411,518 files it had
+        left behind to answer how many of them had failed - ~200 ms of the 564 ms
+        of the detail request which reported this, again on every poll of the job
+        screen (#886).
+
+        A filter which selects files is a range and so is answered by the new index
+        over the job and its error flag; a FILTER in front of a range is not, it is
+        applied to every entry of it. The number of aggregations is not asserted:
+        the steps of the progress re-inline the count of all files and how often
+        the planner folds those sublinks is its own decision. That every scan which
+        runs stays inside the files of the selected job is what
+        ``assertTemporaryFileScansAreBounded`` keeps, and the values of the three
+        counts are asserted in every phase by
+        ``test_sparse_progress_fields_and_manager_agree_in_each_phase``.
+        """
+        with CaptureQueriesContext(connections['default']) as queries:
+            HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+        sql = queries[0]['sql']
+        self.assertNotIn('FILTER (WHERE', sql,
+                         'a count aggregates all files of the job and picks the '
+                         'ones it is about out of the aggregation')
+        for name, negated in [('unhandled_records_count', True),
+                              ('import_error_count', False)]:
+            where = self.countSubquery(sql, name)
+            self.assertIn('"has_import_error"', where, name)
+            self.assertEqual('NOT' in where, negated, where)
+
+    def test_the_failed_files_of_a_job_have_an_index_of_their_own(self):
+        """The count of the files which failed is answered out of their entries."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                "SELECT indexdef FROM pg_indexes WHERE tablename = "
+                "'registry_temporarymdmetadatafile'")
+            definitions = [row[0] for row in cursor.fetchall()]
+        self.assertTrue(
+            [definition for definition in definitions
+             if definition.endswith('(job_id, has_import_error)')],
+            'the files of a job which failed to import are no range of their own, '
+            'so their count reads every file of the job (#886)')
+
+    def temporaryFileScans(self, sql):
+        """Every node of the plan which reads the files of a job."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
+            plan = cursor.fetchone()[0][0]['Plan']
+        pending = [plan]
+        scans = []
+        while pending:
+            node = pending.pop()
+            pending.extend(node.get('Plans', []))
+            if node.get('Relation Name') == 'registry_temporarymdmetadatafile':
+                scans.append(node)
+        return scans
+
+    def test_paginated_progress_does_not_aggregate_recovery_files(self):
+        for path, filters in [
+            ('/api/registry/harvesting/harvesting-jobs',
+             {'filter[service.id]': str(self.job.service_id)}),
+            (f'/api/registry/csw/{self.job.service_id}/harvesting-jobs', {}),
+        ]:
+            with self.subTest(path=path):
+                status, body, queries = self.request(path, **filters, **{
+                    'page[size]': 1, 'sort': 'id',
+                    'fields[HarvestingJob]':
+                        'id,progress,totalSteps,doneSteps,unhandledRecordsCount,importErrorCount',
+                })
+                self.assertEqual(status, 200, body)
+                self.assertEqual(self.ids_of(body), [str(self.job.pk)])
+                self.assertEqual(body['data'][0]['attributes'], {
+                    'progress': 77.78, 'totalSteps': 9, 'doneSteps': 7,
+                    'unhandledRecordsCount': 1, 'importErrorCount': 1,
+                })
+                file_queries = [q['sql'] for q in queries
+                                if 'registry_temporarymdmetadatafile' in q['sql']]
+                self.assertEqual(len(file_queries), 1)
+                self.assertTemporaryFileScansAreBounded(file_queries[0])
+
+    def test_sparse_progress_fields_and_manager_agree_in_each_phase(self):
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        fields = ['totalSteps', 'doneSteps', 'progress',
+                  'unhandledRecordsCount', 'importErrorCount']
+        for phase, done_steps, progress in [
+            (Phase.PENDING, 0, 0.0),
+            (Phase.GET_TOTAL_RECORDS_COUNT, 0, 0.0),
+            (Phase.DOWNLOAD_RECORDS, 3, 33.33),
+            (Phase.RECORDS_TO_DB, 7, 77.78),
+            (Phase.COMPLETED, 9, 100.0),
+            (Phase.ABORTED, 9, 100.0),
+        ]:
+            HarvestingJob.objects.filter(pk=self.job.pk).update(
+                phase=phase, done_at=now() if phase >= Phase.COMPLETED else None)
+            expected = dict(zip(fields, [9, done_steps, progress, 1, 1]))
+            job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+            self.assertEqual(job.done_steps, done_steps)
+            self.assertEqual(job.progress, progress)
+            for field in fields:
+                with self.subTest(phase=phase, field=field):
+                    status, body, queries = self.request(
+                        path, **{'fields[HarvestingJob]': field})
+                    self.assertEqual(status, 200, body)
+                    self.assertEqual(body['data']['attributes'], {field: expected[field]})
+                    if field == 'totalSteps':
+                        self.assertFalse(any('registry_temporarymdmetadatafile' in q['sql']
+                                             for q in queries))
+
+    def test_job_without_files_answers_zero_counts(self):
+        TemporaryMdMetadataFile.objects.filter(job=self.job).delete()
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        for total_records, phase, progress in [
+            (None, Phase.PENDING, 0.0), (0, Phase.COMPLETED, 100.0),
+        ]:
+            with self.subTest(total_records=total_records):
+                HarvestingJob.objects.filter(pk=self.job.pk).update(
+                    total_records=total_records, phase=phase)
+                job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
+                self.assertEqual(job.records_count, 0)
+                self.assertEqual(job.unhandled_records_count, 0)
+                self.assertEqual(job.import_error_count, 0)
+                self.assertEqual(job.progress, progress)
+                status, body, _queries = self.request(path, **{
+                    'fields[HarvestingJob]': 'progress,unhandledRecordsCount,importErrorCount'})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body['data']['attributes'], {
+                    'progress': progress, 'unhandledRecordsCount': 0, 'importErrorCount': 0})
+
+    def test_a_count_whose_files_are_all_of_the_other_kind_answers_zero(self):
+        """The empty range of a filtered count is the 0 its FILTER had counted.
+
+        Moving the condition of a count into the WHERE of its subquery leaves a
+        group without a single matching file with no row at all, where the
+        aggregation of the whole range answered a 0. Both numbers of the progress
+        are therefore answered for a job which only has files of one kind.
+        """
+        path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+        for has_import_error, counts in [
+            (True, {'unhandledRecordsCount': 0, 'importErrorCount': 2}),
+            (False, {'unhandledRecordsCount': 2, 'importErrorCount': 0}),
+        ]:
+            TemporaryMdMetadataFile.objects.filter(
+                job=self.job).update(has_import_error=has_import_error)
+            with self.subTest(has_import_error=has_import_error):
+                status, body, _queries = self.request(
+                    path, **{'fields[HarvestingJob]':
+                             'unhandledRecordsCount,importErrorCount'})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body['data']['attributes'], counts)
+
     def test_harvesting_job_list_does_not_grow_with_rows(self):
         self.assertQueriesIndependentOfRows(
             '/api/registry/harvesting/harvesting-jobs')
@@ -395,6 +608,144 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertQueriesIndependentOfRows(
             '/api/registry/harvesting/harvesting-jobs',
             **{'include': 'service'})
+
+    def test_harvesting_job_throughput_does_not_grow_with_rows(self):
+        """the throughput of a run is summed by the aggregation of its durations
+
+        The records of a run are aggregated once for the durations of the run
+        already, so the records per minute which #692 answers out of them add no
+        second aggregation of the harvested records.
+        """
+        self.assertQueriesIndependentOfRows(
+            '/api/registry/harvesting/harvesting-jobs',
+            **{'fields[HarvestingJob]': 'id,max_step_size,records_per_minute'})
+
+    def test_statistics_are_aggregated_once_per_request(self):
+        """The number of rows of the answer may not materialize the statistics.
+
+        The statistics of a job are bounded by the ``sums`` CTE, which aggregates the
+        whole table of the harvested metadata relations into one row per job, and that
+        row is joined ``LEFT OUTER``: it cannot answer more or fewer rows than the job
+        table. The paginator asked the annotated queryset for its count, so the
+        aggregation of the whole table cost two materializations per request - one
+        overview of the deployment which reported this ran over 259,377 rows twice,
+        1,081 ms and 12,222 ms of the 14 s the request logged (#885).
+        """
+        fields = 'id,newDatasetMetadataCount,recordsPerMinute,progress'
+        status, page, queries = self.request(
+            '/api/registry/harvesting/harvesting-jobs', **{
+                'page[size]': 1, 'sort': 'id',
+                'fields[HarvestingJob]': fields})
+        self.assertEqual(status, 200, page)
+        aggregated = [q['sql'] for q in queries if '"sums"' in q['sql']]
+        self.assertEqual(len(aggregated), 1, [
+            q['sql'][:90] for q in queries])
+        self.assertNotIn(COUNT, aggregated[0],
+                         'the statistics are materialized for the count')
+        counts = [q['sql'] for q in queries if COUNT in q['sql']]
+        self.assertTrue(counts, 'the page answers a count of its rows')
+        self.assertFalse([q for q in counts if '"sums"' in q],
+                         'the count runs the statistics aggregation')
+        _status, all_of_them, _queries = self.request(
+            '/api/registry/harvesting/harvesting-jobs',
+            **{'fields[HarvestingJob]': fields})
+        self.assertEqual(page['meta']['pagination']['count'],
+                         len(all_of_them['data']),
+                         'the count is the number of rows of the answer')
+
+    def test_the_count_of_a_page_is_the_same_with_and_without_statistics(self):
+        """The statistics of the jobs do not change how many of them there are."""
+        answers = {}
+        for fields in ('id',
+                       'id,newDatasetMetadataCount,recordsPerMinute,progress'):
+            status, body, _queries = self.request(
+                '/api/registry/harvesting/harvesting-jobs', **{
+                    'page[size]': 1, 'sort': 'id',
+                    'fields[HarvestingJob]': fields})
+            self.assertEqual(status, 200, body)
+            # the links are not compared: they echo the fields of the request
+            # they belong to and differ by design
+            answers[fields] = (body['meta']['pagination'],
+                               self.ids_of(body))
+        without, with_ = answers['id'], answers[
+            'id,newDatasetMetadataCount,recordsPerMinute,progress']
+        self.assertGreater(without[0]['count'], 1,
+                           'the page is smaller than the answer it belongs to')
+        self.assertEqual(without[0], with_[0],
+                         'the statistics answer a different number of jobs')
+        self.assertEqual(without[1], with_[1],
+                         'the page answers the same jobs with and without '
+                         'the statistics')
+
+
+class HarvestedMetadataQueryPerformance(QueryMeasurementMixin, TestCase):
+    """Harvest history loads relationships once for the whole page (#869)."""
+
+    fixtures = HarvestingQueryPerformance.fixtures
+    path = '/api/registry/harvesting/harvested-metadata-records'
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        contact = MetadataContact.objects.first()
+        dataset = DatasetMetadataRecord(
+            title='Harvested dataset', metadata_contact=contact,
+            dataset_contact=contact)
+        metadata = ServiceMetadataRecord(
+            title='Harvested service', metadata_contact=contact)
+        DatasetMetadataRecord.objects.bulk_create([dataset])
+        ServiceMetadataRecord.objects.bulk_create([metadata])
+        cls.job = HarvestingJob.objects.order_by('pk').first()
+        cls.relations = [
+            HarvestedMetadataRelation(
+                harvesting_job=job, collecting_state=state, **{field: record})
+            for job in HarvestingJob.objects.order_by('pk')
+            for state in (State.NEW, State.UPDATED, State.REMOVED)
+            for field, record in (
+                ('dataset_metadata_record', dataset),
+                ('service_metadata_record', metadata))
+        ]
+        HarvestedMetadataRelation.objects.bulk_create(cls.relations)
+
+    def test_list_queries_do_not_grow_with_rows(self):
+        for params in ({}, {
+            'sort': '-historyDate',
+            'filter[harvesting_job__service]': str(self.job.service_id),
+            'filter[collecting_state__in]': '1,2,4',
+        }):
+            with self.subTest(params=params):
+                self.assertQueriesIndependentOfRows(
+                    self.path, **params, **{'page[size]': 100})
+
+    def test_nested_list_queries_do_not_grow_with_rows(self):
+        self.assertQueriesIndependentOfRows(
+            f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
+            '/harvested-metadata-records')
+
+    def test_list_preserves_relationships_and_loads_them_once(self):
+        status, body, queries = self.request(
+            self.path, user='user', **{'page[size]': 100})
+        self.assertEqual(status, 200)
+        expected = {str(row.pk): row for row in self.relations}
+        self.assertEqual(set(self.ids_of(body)), set(expected))
+        for row in body['data']:
+            relation = expected[row['id']]
+            self.assertEqual(
+                row['attributes']['collectingState'], relation.collecting_state)
+            for name, resource_type, pk in (
+                ('harvestingJob', 'HarvestingJob', relation.harvesting_job_id),
+                ('datasetMetadataRecord', 'DatasetMetadataRecord',
+                 relation.dataset_metadata_record_id),
+                ('serviceMetadataRecord', 'ServiceMetadataRecord',
+                 relation.service_metadata_record_id),
+            ):
+                self.assertEqual(
+                    row['relationships'][name]['data'],
+                    {'type': resource_type, 'id': str(pk)} if pk else None)
+        counts = table_counter(queries)
+        for table in ('registry_harvestingjob', 'registry_datasetmetadatarecord',
+                      'registry_servicemetadatarecord'):
+            self.assertEqual(counts[table], 1, msg=counts)
 
 
 class MetadataQueryPerformance(QueryMeasurementMixin, TestCase):

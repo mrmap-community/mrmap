@@ -3,6 +3,7 @@ import {
   type ListControllerResult,
   ListContextProvider,
   ResourceContextProvider,
+  ResourceDefinitionContextProvider,
   testDataProvider,
 } from "react-admin";
 
@@ -17,6 +18,11 @@ import ServiceListExplorer from "./ServiceListExplorer";
 import { summaryTiles } from "./ServiceSummaryTiles";
 
 import "@testing-library/jest-dom/vitest";
+
+vi.mock("react-admin", async importOriginal => ({
+  ...await importOriginal<typeof import("react-admin")>(),
+  useGetIdentity: () => ({ data: { id: "user-1" } }),
+}));
 
 // the details card asks the schema of the api for the fields of its resource
 // and shows the preview of the service, which both belong to the integration
@@ -127,6 +133,9 @@ const listContext = (
 
 const explorer = (context: ListControllerResult) => (
   <AdminContext dataProvider={dataProvider}>
+    <ResourceDefinitionContextProvider definitions={{
+      HarvestingJob: { name: "HarvestingJob", hasCreate: true, hasShow: true },
+    }}>
     <ResourceContextProvider value={context.resource}>
       <ListContextProvider value={context}>
         <ServiceListExplorer
@@ -137,6 +146,7 @@ const explorer = (context: ListControllerResult) => (
         />
       </ListContextProvider>
     </ResourceContextProvider>
+    </ResourceDefinitionContextProvider>
   </AdminContext>
 );
 
@@ -402,11 +412,11 @@ describe("ServiceListExplorer", () => {
     // the rows are compact, the harvest button of the list is not rendered
     // beside the headline but inside every row of the catalogue
     expect(
-      within(rows[1] as HTMLElement).getByText("Harvest"),
+      within(rows[1] as HTMLElement).getByText("harvestingSchedules.run"),
     ).toBeInTheDocument();
     // a catalogue whose harvesting runs is asked for the job which runs
     expect(
-      within(rows[2] as HTMLElement).getByText("running job"),
+      within(rows[2] as HTMLElement).getByText("harvestingSchedules.existing"),
     ).toBeInTheDocument();
   });
 });

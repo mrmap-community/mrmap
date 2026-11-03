@@ -236,7 +236,7 @@ describe("element inspection", () => {
     expect(screen.getByText("layerInspection.loadError")).toBeInTheDocument();
   });
 
-  it("gives the inspected record to the preview action which asks for it", () => {
+  it("gives the inspected record to the viewer action which asks for it", () => {
     state.record = layer;
     render(
       <MemoryRouter>
@@ -244,15 +244,15 @@ describe("element inspection", () => {
           resource="Layer"
           id="layer-1"
           serviceResource="WebMapService"
-          previewAction={(record) => (
+          viewerActions={(record) => (
             <RecordContextProvider value={record}>
-              <RecordName label="preview of" />
+              <RecordName label="map of" />
             </RecordContextProvider>
           )}
         />
       </MemoryRouter>,
     );
-    expect(screen.getByText("preview of roads")).toBeInTheDocument();
+    expect(screen.getByText("map of roads")).toBeInTheDocument();
   });
 
   it("shows the history of the inspected record", () => {

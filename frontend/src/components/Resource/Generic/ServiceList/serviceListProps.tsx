@@ -121,6 +121,8 @@ export const serviceListProps = (
     />,
   ],
   dataGridProps: {
+    bulkActionButtons: config.BulkActions ? <config.BulkActions /> : false,
+    isRowSelectable: config.isRowSelectable,
     sx: {
       '& .RaDatagrid-tableWrapper': { maxWidth: "100%", overflowX: "auto" },
       '& .RaDatagrid-table': { minWidth: 1000 },
@@ -139,6 +141,7 @@ export const serviceListProps = (
   ],
   perPage: SERVICE_LIST_PER_PAGE,
   sort: SERVICE_LIST_SORT,
+  additionalActions: config.RowAction ? <config.RowAction /> : undefined,
   
   queryOptions: {
     meta: {

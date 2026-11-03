@@ -27,8 +27,11 @@ services:
 
 
   mapserver:
-    image: camptocamp/mapserver:7.6
+    image: camptocamp/mapserver:8.6
     hostname: "mrmap-mapserver"
+    environment:
+      # Keep the CGI endpoint used by the proxy fixtures; v8 defaults to "/".
+      MAPSERVER_BASE_PATH: /cgi-bin/mapserv
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles
@@ -213,7 +216,7 @@ services:
   # ... run --rm frontend-tests npx vitest --run src/components/Resource/HarvestingJob
   # ... run --rm frontend-tests npm run type-check
   frontend-tests:
-    image: node:22-alpine
+    image: node:26-alpine
     hostname: "mrmap-frontend-tests"
     container_name: "mrmap-frontend-tests"
     working_dir: /opt/mrmap/frontend

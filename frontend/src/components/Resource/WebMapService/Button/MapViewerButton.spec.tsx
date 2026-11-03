@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { OWSContext } from "../../../../ows-lib/OwsContext/core";
+import inherited from "../../../../ows-lib/XMLParser/tests/capabilities_inherited_130.xml?raw";
 import MapViewerButton from "./MapViewerButton";
 
 const state = vi.hoisted(() => ({
@@ -207,5 +209,85 @@ describe("map viewer button", () => {
 
     expect(state.addWMSByUrl).toHaveBeenCalledOnce();
     expect(state.navigate).toHaveBeenCalledWith("/viewer");
+  });
+
+  // the tree of the viewer keeps the activation of a layer in its GetMap operation and the map draws
+  // only what that operation marks active, so a button which is asked for one element of the
+  // document has to tick it the way a click on the checkbox of the tree does - against a real
+  // document, because both the layer lookup and the tree of a document decide here
+  describe("beside a document it appends", () => {
+    const capabilitiesUrl = "https://wms.example.test/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities";
+    // the records the registry stores for the layers the fixture advertises
+    const fixtureLayers = [
+      { id: "inheriting", identifier: "tests:inheriting", isActive: true },
+      { id: "nested", identifier: "tests:nested", isActive: true },
+    ];
+
+    /** opens the viewer for one element and reports what the appended document ends up asking for */
+    const openWith = (element: { id: string }) => {
+      state.query.data = { ...service, layers: fixtureLayers };
+      const view = render(<MapViewerButton element={element} />);
+      fireEvent.click(screen.getByRole("button"));
+      view.rerender(<MapViewerButton element={element} />);
+
+      const context = new OWSContext();
+      const treeId = context.appendWms(capabilitiesUrl, inherited);
+      state.addWMSByUrl.mock.calls.at(-1)![2](context, treeId);
+      view.unmount();
+
+      const drawn = context.features.filter(
+        feature => feature.getWmsOperationByCode("GetMap")?.active === true);
+      return {
+        drawn: drawn.map(feature => feature.properties.title),
+        active: context.getActiveFeatures().map(feature => feature.properties.title),
+        layerId: drawn.at(-1)?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-id"],
+      };
+    };
+
+    it("ticks the layer it is asked to show and keeps the rest of the document inactive", () => {
+      expect(openWith({ id: "nested" })).toEqual({
+        // the group of the layer is inactive as a layer of its own: it has no GetMap to draw
+        drawn: ["Nested layer"],
+        active: ["Unnamed group", "Nested layer"],
+        layerId: "nested",
+      });
+    });
+
+    it("asks nothing of a document which does not hold the element", () => {
+      expect(openWith({ id: "another" })).toEqual({ drawn: [], active: [], layerId: undefined });
+    });
+  });
+
+  it("asks a service upstream of the registry document without the session", () => {
+    state.token = "session-token";
+    state.query.data = service;
+    const proxyUrl = "https://mrmap.example.test/mrmap-proxy/wms/service";
+    render(<MapViewerButton capabilititesUrl={proxyUrl} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    const secured: Record<string, unknown> = { href: proxyUrl };
+    const upstream: Record<string, unknown> = {
+      href: "https://upstream.example/ows?LAYERS=roads",
+      "x-authentication-id": "missing:any",
+    };
+    const context = {
+      features: [
+        {
+          properties: { folder: "/1", offerings: [{ operations: [secured] }] },
+          getWmsOperationByCode: () => secured,
+        },
+        {
+          properties: { folder: "/1/roads", offerings: [{ operations: [upstream] }] },
+          getWmsOperationByCode: () => upstream,
+        },
+      ],
+    };
+    state.addWMSByUrl.mock.calls[0][2](context, 1);
+
+    // the document of the registry is asked with the session, its upstream service is not
+    expect(secured["x-authentication-id"]).toBe(
+      (context as unknown as { authenticationHeaders: { id: string }[] }).authenticationHeaders[0].id,
+    );
+    expect(upstream).not.toHaveProperty("x-authentication-id");
   });
 });

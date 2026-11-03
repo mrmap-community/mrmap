@@ -20,6 +20,7 @@ class WebMapServiceOperationOrderingTest(TestCase):
                     "/api/registry/security/wms-operations", {"sort": ordering}
                 ))
                 view.action = "list"
+                view.kwargs = {}
                 queryset = view.filter_queryset(view.get_queryset())
                 self.assertEqual(list(queryset.values_list("value", flat=True)), expected)
 
@@ -80,6 +81,20 @@ class AllowedServiceOperationIncludeTest(TestCase):
                         for item in linkage:
                             attributes = included[(item['type'], item['id'])]['attributes']
                             self.assertTrue(attributes['stringRepresentation'])
+
+    def test_list_and_related_list_reject_unsupported_includes(self):
+        from rest_framework.test import APIClient
+
+        client = APIClient()
+        client.force_authenticate(self.user)
+        for protocol, rule, *_ in self.rules:
+            for url in [f'/api/registry/security/allowed-{protocol}-operations',
+                        f'/api/registry/{protocol}/{rule.secured_service_id}/allowed-{protocol}-operations']:
+                for include in ('notAField', 'operations.notAField'):
+                    with self.subTest(url=url, include=include):
+                        response = client.get(url, {'include': include}, HTTP_ACCEPT='application/vnd.api+json')
+                        self.assertEqual(response.status_code, 400, response.content)
+                        self.assertEqual(response.json()['errors'][0]['code'], 'parse_error')
 
 
 class AllowedWebMapServiceOperationGroupFilterTest(TestCase):

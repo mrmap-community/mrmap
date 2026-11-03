@@ -475,3 +475,30 @@ def make_instance_key(instance, key_fields=None):
         )
         for f in key_fields
     )
+
+
+def sort_key_for_instance(instance, key_fields=None):
+    """Comparable form of the instance key, to order instances by their key.
+
+    Concurrent imports write the shared lookup tables (Keyword, ReferenceSystem,
+    MetadataContact, ...) and have to insert the same rows in the same order in
+    every transaction: inserting them in the order a document happens to carry
+    them lets two transactions wait for each other's entry in the same unique
+    index in opposite order, which Postgres resolves by aborting one of them
+    with a deadlock (#817).
+
+    Key values are nullable and of mixed types, so they are compared by their
+    presence and text representation instead of their own ordering, which keeps
+    None and a foreign key instance comparable with the other values.
+    """
+    return tuple(
+        (value is not None, _comparable_value(value))
+        for value in make_instance_key(instance, key_fields)
+    )
+
+
+def _comparable_value(value):
+    if isinstance(value, models.Model):
+        # a foreign key can be part of a unique key, see OperationUrl
+        return f"{value._meta.label}:{value.pk}"
+    return str(value)

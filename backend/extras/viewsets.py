@@ -19,8 +19,7 @@ from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_json_api.utils import (get_included_resources,
                                            get_resource_name)
-from rest_framework_json_api.views import (AutoPrefetchMixin,
-                                           PreloadIncludesMixin, RelatedMixin)
+from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 
 
 class ObjectPermissionCheckerViewSetMixin:
@@ -44,8 +43,9 @@ class ObjectPermissionCheckerViewSetMixin:
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:
 
-                objects = self.filter_queryset(
-                    queryset.select_related(None).prefetch_related(None).only("pk"))
+                # Include filters may add prefetches; permission checks only need ids.
+                objects = self.filter_queryset(queryset).select_related(
+                    None).prefetch_related(None).only("pk")
                 # if self.request.method == "GET":
                 if self.action == 'list':
 
@@ -346,7 +346,7 @@ class NestedViewSetMixin:
 
 
 class NestedModelViewSet(
-    NestedViewSetMixin, AutoPrefetchMixin, PreloadIncludesMixin, RelatedMixin, mixins.ListModelMixin,
+    NestedViewSetMixin, PreloadIncludesMixin, RelatedMixin, mixins.ListModelMixin,
         GenericViewSet
 ):
     """

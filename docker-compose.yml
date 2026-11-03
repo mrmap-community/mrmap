@@ -3,6 +3,14 @@ services:
 
   postgis:
     image: postgis/postgis:18-3.6-alpine
+    # ship container stdout/stderr (postgres stderr log) into victoria-logs
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:5514"
+        syslog-format: "rfc5424"
+        syslog-facility: "local5"
+        tag: "{{.Name}}"
     volumes:
       - type: volume
         source: db-data-18
@@ -31,7 +39,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:7.4.11-alpine
+    image: library/redis:8.10.3-alpine
     volumes:
       - type: volume
         source: mem-db-data
@@ -48,7 +56,7 @@ services:
       start_period: 2s
 
   docker-api:
-    image: haproxy:3.2-alpine
+    image: haproxy:3.4-alpine
     user: "0:0"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -105,6 +113,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      victoria-logs:
+        condition: service_started
 
   celery-worker:
     build:
@@ -217,6 +227,14 @@ services:
         - VITE_API_BASE_URL=${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}
         - VITE_API_PORT=${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}
         - VITE_API_SCHEMA=${EXTERNAL_SCHEME:?Please configure EXTERNAL_SCHEME in the .env file}
+    # nginx logs are symlinked to stdout/stderr, ship them into victoria-logs
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:5514"
+        syslog-format: "rfc5424"
+        syslog-facility: "local5"
+        tag: "{{.Name}}"
     hostname: "nginx"
     environment:
       - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin
@@ -240,23 +258,51 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
-  openobserve:
-    image: openobserve/openobserve:v0.92.2
+  # Central log store: native RFC 5424 syslog receiver, parses MrMap's
+  # structured-data parameters into queryable fields. The HTTP API and the vmui
+  # stay network-internal; Grafana is the only web entry point.
+  victoria-logs:
+    image: victoriametrics/victoria-logs:v1.53.0
     restart: unless-stopped
-    hostname: "openobserve"
-    environment:
-      ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_USER:?Please configure OPENOBSERVE_USER in the .env file}"
-      ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_PASSWORD:?Please configure OPOPENOBSERVE_PASSWORDNOBSERVE_USER in the .env file}"
-      ZO_BASE_URI: "/openobserve"
+    hostname: "victoria-logs"
+    command:
+      - "-storageDataPath=/vlogs-data"
+      - "-retentionPeriod=14d"
+      - "-syslog.listenAddr.udp=:5514"
+      - "-httpListenAddr=:9428"
+    ports:
+      # loopback only: docker's syslog log-driver (e.g. postgis) ships
+      # container stdout/stderr host-side into this receiver
+      - "127.0.0.1:5514:5514/udp"
     volumes:
-      - type: volume 
-        source: openobserve-data
-        target: /data
+      - vlogs-data:/vlogs-data
+    networks:
+      - mrmap-internal
+
+  # Log UI with login/RBAC in front of victoria-logs (which stays network-internal)
+  grafana:
+    image: grafana/grafana:13.3.0
+    restart: unless-stopped
+    hostname: "grafana"
+    environment:
+      GF_SERVER_ROOT_URL: "http://%(domain)s:%(http_port)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:?Please configure GRAFANA_ADMIN_USER in the .env file}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?Please configure GRAFANA_ADMIN_PASSWORD in the .env file}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL: "victoriametrics-logs-datasource"
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "victoriametrics-logs-datasource"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
     networks:
       - mrmap-internal
 
   pgadmin:
-    image: dpage/pgadmin4:9.17
+    image: dpage/pgadmin4:9.19
     restart: unless-stopped
     hostname: "pgadmin"
     environment:
@@ -271,7 +317,7 @@ services:
     networks:
       - mrmap-internal    
   flower:
-    image: mher/flower:2.0
+    image: mher/flower:2.2
     command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
     networks:
       - mrmap-internal
@@ -287,7 +333,8 @@ volumes:
   db-data-17: null
   db-data-18: null
   mem-db-data: null
-  openobserve-data: null
+  vlogs-data: null
+  grafana-data: null
 
 networks:
   docker-status:

@@ -61,3 +61,29 @@ Feature: HarvestingJob List Endpoint
             | ordering | first |
             | id       | 1     |
             | -id      | 2     |
+
+    # The harvesting never set the creation of a job, so the runs which finished cannot be told
+    # apart by it. The end of a run is the order the throughput of a catalogue is measured by: the
+    # screen which recommends a page size asks the runs which finished last (#692). Both jobs of
+    # the fixture never ended, so the order itself is nothing to assert here - what is asserted is
+    # that the endpoint answers the order at all, because an unknown sort field is answered with a
+    # bad request.
+    Scenario Outline: Can sort jobs by the end of the run
+        Given I set a queryparam "sort" with value "<ordering>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+
+        Examples:
+            | ordering |
+            | doneAt   |
+            | -doneAt  |
+
+    # The records per minute of a run are its records against the time their download and their way
+    # into the database measured. The jobs of the fixture carry no harvested records and no
+    # durations, so they measured nothing and are answered without a throughput - a number which
+    # was never measured must not look like a measurement (#692).
+    Scenario: Answers no throughput for a job whose records measured nothing
+        Given I set a queryparam "fields[HarvestingJob]" with value "id,records_per_minute"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.recordsPerMinute" with value "None"

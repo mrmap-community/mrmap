@@ -62,6 +62,8 @@ describe("CatalogueServiceList", () => {
         "harvest_incomplete",
         "harvest_failed_at",
         "running_harvesting_job",
+        "is_harvestable",
+        "periodic_harvesting_jobs",
       ]),
     );
     // no attribute of a web map service or of a web feature service is copied

@@ -22,7 +22,13 @@ import { DomEvent, point, type LatLng } from "leaflet";
 import proj4 from "proj4";
 
 import { resolveOperationAuthentication } from "../../ows-lib/OwsContext/authentication";
-import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
+import {
+  isTimeDimension,
+  isTimeParameter,
+  writeDimensionValue,
+  writeTimeForDimension,
+} from "../../ows-lib/OwsContext/dimensions";
 import { updateOrAppendSearchParam } from "../../ows-lib/OwsContext/utils";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useMapViewerBase } from "../MapViewer/MapViewerBase";
@@ -36,6 +42,40 @@ export interface Tile {
   getMapUrl?: URL;
   getFeatureinfoUrl?: URL;
 }
+
+/**
+ * Identifies a map request up to its time: a new selected time keeps the very same overlay, so
+ * that the image it draws can stay visible until the frame of the new time is ready; every other
+ * change to the request or its authentication gives the overlay a new key and with it a fresh
+ * frame, because the map cannot show the old image for it (#705).
+ */
+const overlayKeyOf = (
+  url: URL,
+  authentication: { headers?: Headers; error?: string },
+  features: OWSResource[],
+): string => {
+  const request = new URL(url.href);
+  // every time the request carries is taken out — the well known TIME as well as a DIM_<name> the
+  // timeline of a layer selects its observations with: a new frame must keep the overlay which is
+  // drawing, wherever its time sits in the query and whatever the dimension is named (#705)
+  [...request.searchParams.keys()]
+    .filter(isTimeParameter)
+    .forEach((name) => request.searchParams.delete(name));
+  features.forEach((feature) =>
+    (feature.getWmsOffering()?.dimensions ?? [])
+      .filter(isTimeDimension)
+      .forEach((dimension) =>
+        writeDimensionValue(request.searchParams, dimension.name, ""),
+      ),
+  );
+  const credentials = authentication.error
+    ?? (authentication.headers
+      ? Array.from(authentication.headers)
+          .map(([name, value]) => `${name}=${value}`)
+          .join("&")
+      : "");
+  return `${request.href}|${credentials}`;
+};
 
 const FeatureInfoRequest = ({ request }: { request: OptimizedUrlsMap }) => {
   const { owsContext } = useOwsContextBase();
@@ -137,7 +177,7 @@ const WebMapServiceControl = () => {
   const [bounds, setBounds] = useState(map?.getBounds());
   const [size, setSize] = useState(map?.getSize());
   const { owsContext } = useOwsContextBase();
-  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls, opacityOf } =
+  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls, opacityOf, displayedTimes = {} } =
     useMapViewerBase();
   const [position, setPosition] = useState<LatLng | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -223,7 +263,11 @@ const WebMapServiceControl = () => {
       _tiles.push({
         leafletTile: (
           <AuthImageOverlay
-            key={atomicGetMapUrl.url.href}
+            key={overlayKeyOf(
+              atomicGetMapUrl.url,
+              authentication,
+              atomicGetMapUrl.features,
+            )}
             bounds={bounds}
             interactive={true}
             optimiuedUrl={atomicGetMapUrl}
@@ -341,6 +385,22 @@ const WebMapServiceControl = () => {
             selectedCrs.stringRepresentation,
           );
         }
+
+        // ask the frame the map is drawing: while a newly selected time is still on its way,
+        // features answer for the observation the user sees, not for one that has not arrived; a
+        // drawn server-default image reports the empty string, which asks identify of the default
+        const displayedTime =
+          displayedTimes[
+            atomicGetFeatureInfoUrl.features[0]?.properties.folder ?? ""
+          ];
+        if (displayedTime !== undefined) {
+          // write it back under the parameter the layer's time dimension was selected with; the
+          // well known TIME also covers the legacy DIM_TIME spelling
+          const dimension = atomicGetFeatureInfoUrl.features[0]
+            ?.getWmsOffering()
+            ?.dimensions?.find(isTimeDimension);
+          writeTimeForDimension(params, dimension?.name ?? "time", displayedTime);
+        }
       });
       return getFeatureInfoUrls;
     }
@@ -350,6 +410,7 @@ const WebMapServiceControl = () => {
     atomicGetFeatureInfoUrls,
     identifyViewport,
     selectedCrs,
+    displayedTimes,
   ]);
 
   useEffect(() => {

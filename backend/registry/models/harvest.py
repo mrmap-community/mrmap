@@ -314,6 +314,26 @@ class HarvestingJob(ProcessingData):
         # The revocation only names the tasks which could still be stopped, as
         # the tasks which reported in removed their ids themselves (#892).
 
+    def has_live_import_run(self):
+        """True while the import chord this job last published could still run.
+
+        The ids the job registered and has not seen report in are its database
+        shadow of the messages of its last chord in the broker (#892), and the
+        files still waiting for their import are the backlog those messages
+        carry. With both, the messages of this backlog are still to be consumed
+        and publishing a new chord would stack the whole backlog a second time
+        onto the queue - a queue growing per worker restart and gigabytes of
+        redis at the size of a real catalogue (#891). Without waiting files a
+        re-publish is free: it builds no chord and ends the harvest instead,
+        which is what completes a run whose chord was consumed while its
+        callback was lost. The creation id names no work of the backlog and
+        stays out of this (see append_celery_task_ids).
+        """
+        return (
+            self.celery_task_ids.filter(creation=False).exists()
+            and TemporaryMdMetadataFile.objects.filter(
+                job_id=self.pk, has_import_error=False).exists())
+
     def log(self,
             description,
             extented_description=None,

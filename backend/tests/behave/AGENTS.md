@@ -392,9 +392,9 @@ any scenario. Nothing covers the WFS and CSW update jobs and settings, `layer-ma
 `featuretype-mappings`, the `*-proxy-settings` and `*-authentication` records, the monitoring probes,
 probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-metadata`,
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
-and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature` since #855 and every refused
-`/csw` request since #908 (see above), but the `GetCapabilities` document itself and
-`GetRecordById` beyond one scenario are not covered.
+and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
+since #855 and every refused `/csw` request since #908 (see above), but the `GetCapabilities`
+document itself and `GetRecordById` beyond one scenario are not covered.
 
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort

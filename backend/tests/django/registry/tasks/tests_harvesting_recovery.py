@@ -254,18 +254,6 @@ class HarvestingRecoveryTest(TestCase):
             self.assertEqual(create_harvesting_job.run(service_id=service.pk), first_id)
         self.assertEqual(HarvestingJob.objects.filter(service=service).count(), 1)
 
-    def test_a_task_which_reports_in_removes_its_id(self):
-        """the ids of a harvest are the bookkeeping of its revocation on abort: a
-        task which ran to its end could not be revoked anymore and leaves no id
-        behind, so the ids of a job stay bounded by its in-flight work (#892)"""
-        task_id = str(uuid4())
-        HarvestingJobTaskId.objects.create(job=self.job, task_id=task_id)
-        result = call_md_metadata_files_to_db.apply(
-            kwargs={'md_metadata_file_ids': [], 'harvesting_job_id': self.job.pk},
-            task_id=task_id, throw=False)
-        self.assertEqual('SUCCESS', result.state)
-        self.assertFalse(HarvestingJobTaskId.objects.exists())
-
     def test_a_retried_task_keeps_its_id(self):
         """a retry runs the same task again under the same id - until the task
         reported in for good, its id has to stay registered (#892)"""
@@ -292,25 +280,6 @@ class HarvestingRecoveryTest(TestCase):
             [(str(creation), True)],
             [(str(_id), _creation) for _id, _creation in
              HarvestingJobTaskId.objects.values_list('task_id', 'creation')])
-
-    def test_a_finished_creation_task_keeps_the_delivery_id_of_its_harvest(self):
-        """the creation task is not about the work of one job, so reporting in
-        does not remove the id which identifies the harvest it created (#892)"""
-        contact = MetadataContact.objects.create(name='Keep contact')
-        service = CatalogueService(version=202, metadata_contact=contact, service_contact=contact)
-        CatalogueService.objects.bulk_create([service])
-        delivery_id = str(uuid4())
-        with patch('celery.canvas.Signature.apply_async'), \
-                patch.object(call_fetch_total_records, 'delay'), \
-                self.captureOnCommitCallbacks(execute=True):
-            result = create_harvesting_job.apply(
-                kwargs={'service_id': service.pk}, task_id=delivery_id, throw=False)
-        self.assertEqual('SUCCESS', result.state)
-        job = HarvestingJob.objects.get()
-        self.assertEqual(
-            [(delivery_id, True)],
-            [(str(_id), _creation) for _id, _creation in
-             job.celery_task_ids.filter(creation=True).values_list('task_id', 'creation')])
 
     def test_the_job_row_does_not_carry_task_ids(self):
         """#892: the ids of the published tasks are no column of the job - the row
@@ -489,3 +458,46 @@ class HarvestingPublishingRecoveryTest(TransactionTestCase):
                 call_fetch_total_records.run(harvesting_job_id=job.pk)
             count.assert_not_called()
             publish.assert_called_once()
+
+
+class HarvestingTaskReportsInTest(TransactionTestCase):
+    """The tasks reporting in through celery's after_return (#892).
+
+    These run a task the way a worker runs it - through celery's trace, so the
+    prerun and postrun hooks of `MrMap/celery.py` fire with it. TestCase cannot
+    survive that: those hooks close connections, which drops the transaction
+    TestCase keeps around the test (see HarvestingPublishingRecoveryTest, the
+    same pattern).
+    """
+
+    def test_a_task_which_reports_in_removes_its_id(self):
+        """the ids of a harvest are the bookkeeping of its revocation on abort: a
+        task which ran to its end could not be revoked anymore and leaves no id
+        behind, so the ids of a job stay bounded by its in-flight work (#892)"""
+        job = HarvestingJob()
+        HarvestingJob.objects.bulk_create([job])
+        task_id = str(uuid4())
+        HarvestingJobTaskId.objects.create(job=job, task_id=task_id)
+        result = call_md_metadata_files_to_db.apply(
+            kwargs={'md_metadata_file_ids': [], 'harvesting_job_id': job.pk},
+            task_id=task_id, throw=False)
+        self.assertEqual('SUCCESS', result.state)
+        self.assertFalse(HarvestingJobTaskId.objects.exists())
+
+    def test_a_finished_creation_task_keeps_the_delivery_id_of_its_harvest(self):
+        """the creation task is not about the work of one job, so reporting in
+        does not remove the id which identifies the harvest it created (#892)"""
+        contact = MetadataContact.objects.create(name='Keep contact')
+        service = CatalogueService(version=202, metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([service])
+        delivery_id = str(uuid4())
+        with patch('celery.canvas.Signature.apply_async'), \
+                patch.object(call_fetch_total_records, 'delay'):
+            result = create_harvesting_job.apply(
+                kwargs={'service_id': service.pk}, task_id=delivery_id, throw=False)
+        self.assertEqual('SUCCESS', result.state)
+        job = HarvestingJob.objects.get()
+        self.assertEqual(
+            [(delivery_id, True)],
+            [(str(_id), _creation) for _id, _creation in
+             job.celery_task_ids.filter(creation=True).values_list('task_id', 'creation')])

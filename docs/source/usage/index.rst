@@ -72,6 +72,8 @@ Then you can simply run ``docker cp ./test.xml e383a3f0cba2:/var/mrmap/import`` 
 If the ``celery-beat`` and ``celery-worker`` container is running, the Mr. Map will find the new files automatically. Not importable files are renamed as ``ignore_{datestamp}_{oldfilename}`` and will be ignored by Mr. Map. 
 In this case you need to study the logs to get more information why the file can't be imported by Mr. Map.
 
+That watcher runs every five minutes. An import which is still running when that interval passes is not started a second time beside the first one: the worker logs ``Task registry.tasks.harvest.check_for_files_to_import skipped: another instance is running`` and the new files wait for the import which is already going. A worker which dies while importing does not leave that lock behind, so the next run does not wait for anything.
+
 .. image:: ../images/sequence_diagram_file_import.svg
   :width: 100%
   :alt: Celery tasks livecycle

@@ -1,3 +1,5 @@
+from registry.mappers.configs.iso_access import (DISTRIBUTOR_ONLINE_LINKS,
+                                                 ONLINE_LINKS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
@@ -6,7 +8,9 @@ XPATH_MAP = {
             "gmd": NAMESPACE_LOOKUP["gmd"],
             "gml": NAMESPACE_LOOKUP["gml_3_2_2"],
             "gco": NAMESPACE_LOOKUP["gco"],
+            "gmx": NAMESPACE_LOOKUP["gmx"],
             "srv": NAMESPACE_LOOKUP["srv"],
+            "xlink": NAMESPACE_LOOKUP["xlink"],
         },
         "_schema": "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd identifier of the mapped metadata schema - not a network endpoint
         "_pre_save": [
@@ -148,6 +152,8 @@ XPATH_MAP = {
                     "_parser": "registry.mappers.parsers.iso.parse_topic_category",
                     "_reverse_parser": "registry.mappers.parsers.iso.serialize_topic_category",
                 },
+                "online_links": ONLINE_LINKS,
+                "distributor_online_links": DISTRIBUTOR_ONLINE_LINKS,
                 "time_extents": {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",

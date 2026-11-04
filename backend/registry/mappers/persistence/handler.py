@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from lxml import etree
+from registry.mappers.persistence.custom import METADATA_RECORD_TYPE_KEYS
 from registry.mappers.utils import (find_spec_for_instance, get_key_fields,
                                     get_unique_fields, make_instance_key,
                                     sort_key_for_instance)
@@ -19,15 +20,32 @@ class PersistenceHandler:
     def __init__(self, mapper, defaults={}, change_reason=None):
         """
         mapper: XmlMapper-Instanz
-        defaults: field values the caller adds to a parsed instance
+        defaults: field values the caller adds to a parsed instance, keyed per
+            model by its class name or, for the metadata records, by their
+            record type name - see defaults_of()
         change_reason: why this document is written, for the history row of a
             metadata record; None leaves the reason of that row empty
         """
         self.mapper = mapper
-        # FIXME: self.defaults is never accessed. Implement default handling
         self.defaults = defaults
         self.change_reason = change_reason
         self.final_instances_map = {}
+
+    def defaults_of(self, model_cls):
+        """The defaults of one model, whichever way they were keyed.
+
+        A harvesting run hands its provenance defaults in keyed by record type
+        name ("dataset", "service", "application"), while the handler has
+        always been read by the name of the model class; both keys resolve to
+        the same model this way, and a caller passing both gets one merged
+        dict with the class name winning (#976).
+        """
+        merged = {}
+        for key in (METADATA_RECORD_TYPE_KEYS.get(model_cls.__name__),
+                    model_cls.__name__):
+            if key:
+                merged.update(self.defaults.get(key, {}))
+        return merged
 
     # ------------------------
     # Helper: load function
@@ -237,8 +255,16 @@ class PersistenceHandler:
         return sorted_models
 
     def _inject_defaults(self, instances_by_model):
+        """Fill the fields which the parsed document left empty with defaults.
+
+        The defaults are resolved by defaults_of(), which answers them whether
+        the caller keyed them by model class name or by record type name;
+        looking them up by the class name alone threw the provenance defaults
+        of a harvesting run away, because that run keys them by type name
+        (#976).
+        """
         for model_cls, instances in instances_by_model.items():
-            defaults = self.defaults.get(model_cls.__name__, {})
+            defaults = self.defaults_of(model_cls)
             if not defaults:
                 continue
 

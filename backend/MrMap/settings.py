@@ -117,6 +117,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Below Security, above Session: strips the session marking's Vary: Cookie
+    # from /api/schema responses after SessionMiddleware added it (#946).
+    "extras.schema_views.SchemaVaryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.locale.LocaleMiddleware",

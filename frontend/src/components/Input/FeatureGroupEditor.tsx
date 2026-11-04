@@ -125,16 +125,19 @@ const FeatureGroupEditor = ({
       />: null}
       {showNoGeometryHint ? (
         // the map is a control-less card here, so the hint rides on top of it
-        // the same way the explorer's search-area button does; it is words
-        // only, so it must never swallow the clicks of the controls it covers
+        // the same way the explorer's search-area button does. the free zones
+        // of these cards are narrow: zoom at the top left, geoman at the
+        // right, attribution along the bottom - so the hint sits top left but
+        // below the zoom control, and with pointer-events: none it never
+        // swallows a click even where it does overlap
         <Alert
           severity="info"
           sx={{
             position: 'absolute',
             zIndex: 1000,
-            top: 12,
+            top: 76,
             left: 12,
-            maxWidth: '80%',
+            maxWidth: '85%',
             pointerEvents: 'none',
           }}
         >

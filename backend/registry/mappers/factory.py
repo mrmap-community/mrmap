@@ -1,6 +1,7 @@
 from lxml import etree
 
 from registry import models
+from registry.mappers.cache import LocalXmlCache
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.utils import load_file
 from registry.mappers.xml_mapper import XmlMapper
@@ -58,7 +59,18 @@ class OGCServiceXmlMapper(XmlMapper):
 class MDMetadataXmlMapper(XmlMapper):
 
     @classmethod
-    def from_xml(cls, xml):
+    def from_xml(cls, xml, cache=None, hierarchy_level=None):
+        """Build one mapper per MD_Metadata node of the document.
+
+        Args:
+            xml: the XML source, see XmlMapper.
+            cache: cache for the parsed instances; None keeps the default
+                GlobalXmlCache of the harvesting path, a LocalXmlCache runs
+                the mapping without touching process-global state (#981).
+            hierarchy_level: interpret every node with the mapping of this
+                record type instead of detecting hierarchyLevel; an unknown
+                type raises just like the detection path does (#981).
+        """
         content = load_file(xml)
         root = etree.fromstring(content)
 
@@ -73,13 +85,49 @@ class MDMetadataXmlMapper(XmlMapper):
             md_xml = etree.tostring(md, encoding="utf-8")
             md_root = etree.fromstring(md_xml)
 
-            hierarchy = cls._detect_hierarchy_level(md_root)
+            hierarchy = hierarchy_level or cls._detect_hierarchy_level(md_root)
             mapping = cls._select_mapping(hierarchy)
 
-            mapper = XmlMapper(xml=md_root, mapping=mapping)
+            mapper = cls(xml=md_root, mapping=mapping, cache=cache)
             mappers.append(mapper)
 
         return mappers
+
+    @classmethod
+    def extract_mapped_values(cls, xml, hierarchy_level=None):
+        """Map an ISO 19139 document to plain values, without persistence.
+
+        The one entry point of #981 for callers which need what a document
+        says but must not write anything: no PersistenceHandler, no database
+        write, no network request, no process-global cache entry. Every
+        MD_Metadata node of the document is mapped with its config - found via
+        hierarchyLevel or forced through hierarchy_level - by exactly the
+        traversal the harvesting path runs, and the answer describes one
+        record per node:
+
+            {"spec": "dataset",                       # the mapping config key
+             "model": "registry.DatasetMetadataRecord",
+             "values": {**mapped fields of the record**}}
+
+        The values dict carries every mapped field: scalars as parsed, parsed
+        relations as nested dicts and lists, and the epic #669 access and
+        coupling elements (online_links, distributor_online_links, operations,
+        operates_on, coupled_resources) as ordered lists of plain dicts with
+        their original external values.
+        """
+        records = []
+        for mapper in cls.from_xml(
+                xml, cache=LocalXmlCache(), hierarchy_level=hierarchy_level):
+            mapper.xml_to_django()
+            for spec_key, mapped in mapper.mapped_values().items():
+                model_label = mapper.mapping[spec_key].get("_model")
+                for values in mapped:
+                    records.append({
+                        "spec": spec_key,
+                        "model": model_label,
+                        "values": values,
+                    })
+        return records
 
     @staticmethod
     def _detect_hierarchy_level(md_node):

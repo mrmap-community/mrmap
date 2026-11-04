@@ -1,3 +1,6 @@
+from registry.mappers.configs.iso_access import (COUPLED_RESOURCES,
+                                                 ONLINE_LINKS, OPERATES_ON,
+                                                 SERVICE_OPERATIONS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
@@ -108,6 +111,10 @@ XPATH_MAP = {
                     "_parser": "registry.mappers.parsers.iso.parse_reference_system",
                     "_reverse_parser": "registry.mappers.parsers.iso.serialize_reference_system",
                 },
+                "online_links": ONLINE_LINKS,
+                "operations": SERVICE_OPERATIONS,
+                "operates_on": OPERATES_ON,
+                "coupled_resources": COUPLED_RESOURCES,
                 "time_extents": {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",

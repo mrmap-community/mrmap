@@ -159,11 +159,30 @@ def fetch_comments(R, n):
     return json.loads(out) if out else []
 
 
+def unquoted_lines(body):
+    """The lines that are not part of a GitHub quote block."""
+    return [l for l in body.splitlines() if not l.lstrip().startswith(">")]
+
+
+def unquoted_match(rx, body):
+    """First match of a marker regex on an unquoted line.
+
+    A human who answers with "Reply in conversation" quotes the machine comment,
+    so its marker text appears inside '>' lines. That repeats the text, it does
+    not repeat the comment: a marker only counts where it stands on its own.
+    """
+    for line in unquoted_lines(body):
+        m = rx.search(line)
+        if m:
+            return m
+    return None
+
+
 def claim_payloads(comments):
     """[(comment_id, payload)] newest-last, for all claim comments."""
     found = []
     for c in comments:
-        m = CLAIM_RE.search(c.get("body") or "")
+        m = unquoted_match(CLAIM_RE, c.get("body") or "")
         if not m:
             continue
         try:
@@ -222,18 +241,25 @@ def question_markers(comments):
     found = []
     for c in comments:
         body = c.get("body") or ""
-        m = QUESTION_RE.search(body)
+        m = unquoted_match(QUESTION_RE, body)
         if not m:
             continue
-        found.append((c["id"], m.group(1), m.group(2), ANSWERED_MARK in body,
+        found.append((c["id"], m.group(1), m.group(2),
+                      any(ANSWERED_MARK in l for l in unquoted_lines(body)),
                       c.get("created_at") or "", body))
     return found
 
 
 def is_machine_comment(c):
-    """Claim, question and board comments are generated views, not human answers."""
+    """Claim, question and board comments are generated views, not human answers.
+
+    Only markers on unquoted lines mark a comment as machine-managed: a quote-reply
+    to a question carries the question's marker text inside '>' lines and is exactly
+    the human answer `answers` has to surface.
+    """
     body = c.get("body") or ""
-    return bool(CLAIM_RE.search(body)) or bool(QUESTION_RE.search(body)) or BOARD_MARK in body
+    return (bool(unquoted_match(CLAIM_RE, body)) or bool(unquoted_match(QUESTION_RE, body))
+            or any(BOARD_MARK in l for l in unquoted_lines(body)))
 
 
 def summarize(question, limit=72):
@@ -415,14 +441,19 @@ def cmd_answers(issue_arg=None):
     """Print this client's open questions and the human replies to them.
 
     A reply is any comment newer than the question that is not machine-managed
-    (claim, question, board). Once a question has a reply it is stamped answered,
+    (claim, question, board), a quote-reply to the question included. Once a
+    question has a reply it is stamped answered, on the original question comment,
     so a later run - or a fresh `ask` - does not surface the same answer again.
     """
     R, root = repo(), git_root()
     cid = client_id(root)
     n = infer_issue(issue_arg, "answers")
     comments = fetch_comments(R, n)
-    open_q = [q for q in question_markers(comments) if q[1] == cid and not q[3]]
+    first = {}
+    for q in question_markers(comments):
+        if q[1] == cid and not q[3] and q[2] not in first:
+            first[q[2]] = q  # the oldest comment of this id is the question itself
+    open_q = list(first.values())
     if not open_q:
         print(f"no open questions for `{cid}` on #{n}")
         return

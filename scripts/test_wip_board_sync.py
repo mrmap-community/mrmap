@@ -160,6 +160,19 @@ def rcomment(created, text, who="dev"):
     return {"id": 99, "created_at": created, "body": text, "user": {"login": who}}
 
 
+def quoted_reply(created, client, qid, question, text="OK;", who="jokiefer", dbid=99):
+    """A GitHub quote-reply, the #825 shape: the question quoted in '>' lines, answer below."""
+    quoted = "\n".join("> " + l for l in m.question_body(client, qid, question).splitlines())
+    return {"id": dbid, "created_at": created, "body": f"{quoted}\n{text}\n", "user": {"login": who}}
+
+
+def claimcomment(created, client, dbid=61):
+    """A raw claim comment from `client`, newer than a question would be."""
+    p = {"v": 1, "client": client, "issue": 930, "branch": "b", "worktree": "/wt",
+         "state": "wip", "since": created, "heartbeat": created, "released": None}
+    return {"id": dbid, "created_at": created, "body": m.claim_body(p)}
+
+
 CID = m.client_id("/wt")
 
 # ask posts the full question as one comment and then runs the wait flow.
@@ -214,6 +227,51 @@ m.fetch_comments = lambda R, n: [
 code, out, err = run(m.cmd_answers, "930")
 results.append(check("a follow-up question does not resurface the earlier answer",
                      code == 0 and "the human answer" not in out and "bbb22222" in out and "still waiting" in out,
+                     f"code={code} out={out} writes={calls} err={err}"))
+
+# the real #825 case: the human answers with "Reply in conversation", so the reply
+# body carries the question's marker text inside '>' lines.
+Q825 = "Confirm the #826 application-mapping scope? Reply here with corrections or an OK."
+qr = quoted_reply("2026-11-03T18:56:57Z", CID, "d70b4cdf", Q825, dbid=6612781098)
+results.append(check("a quote-reply repeating the marker is not machine-managed",
+                     not m.is_machine_comment(qr)
+                     and not m.is_machine_comment({"body": "> <!-- agent-claim {} -->\n+1"})
+                     and not m.is_machine_comment({"body": "> agent-board v1\ndone"})
+                     and m.is_machine_comment(qcomment(CID, "d70b4cdf", Q825, "2026-11-03T17:57:31Z"))))
+
+stub_network()
+q825 = qcomment(CID, "d70b4cdf", Q825, "2026-11-03T17:57:31Z", dbid=6611525807)
+m.fetch_comments = lambda R, n: [q825, qr]
+code, out, err = run(m.cmd_answers, "930")
+marked = [c for c in calls if c[0].startswith("api -X PATCH") and m.ANSWERED_MARK in c[0]]
+results.append(check("answers surfaces the quote-reply and stamps the original question once",
+                     code == 0 and "OK;" in out and out.count("- question d70b4cdf") == 1
+                     and "1 answer" in out
+                     and len(marked) == 1 and "comments/6611525807" in marked[0][0]
+                     and "comments/6612781098" not in marked[0][0],
+                     f"code={code} out={out} writes={calls} err={err}"))
+
+# a duplicated open question comment still surfaces exactly once, oldest first.
+stub_network()
+m.fetch_comments = lambda R, n: [
+    qcomment(CID, "eee55555", "one question posted twice", "2026-01-01T00:00:00Z", dbid=51),
+    qcomment(CID, "eee55555", "one question posted twice", "2026-01-01T00:05:00Z", dbid=52)]
+code, out, err = run(m.cmd_answers, "930")
+results.append(check("an open question is printed at most once",
+                     code == 0 and out.count("- question eee55555") == 1 and "still waiting" in out,
+                     f"code={code} out={out} writes={calls} err={err}"))
+
+# machine comments newer than the question are still no answer.
+stub_network()
+m.fetch_comments = lambda R, n: [
+    qcomment(CID, "fff66666", "a question nobody answered", "2026-01-01T00:00:00Z"),
+    claimcomment("2026-01-02T00:00:00Z", "other:wt"),
+    qcomment("other:wt", "ggg77777", "another client's question", "2026-01-03T00:00:00Z", dbid=63),
+    {"id": 64, "created_at": "2026-01-04T00:00:00Z", "body": "<!-- agent-board v1 -->\nrows"}]
+code, out, err = run(m.cmd_answers, "930")
+results.append(check("a newer claim, question or board comment is still not an answer",
+                     code == 0 and "still waiting" in out and "another client" not in out
+                     and not [c for c in calls if "PATCH" in c[0]],
                      f"code={code} out={out} writes={calls} err={err}"))
 
 print("\n%d/%d passed" % (sum(results), len(results)))

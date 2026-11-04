@@ -18,8 +18,8 @@ from django.conf.urls import include
 from django.contrib import admin
 from django.urls import path, re_path
 from django.views.decorators.cache import cache_page
-from drf_spectacular.views import (SpectacularJSONAPIView,
-                                   SpectacularSwaggerView)
+from drf_spectacular.views import SpectacularSwaggerView
+from extras.schema_views import RevalidatableOpenApiSchemaView
 from mapbender_compatibility.views import MapBenderSearchApi
 from registry.proxy.resource_capabilities import \
     (WebFeatureServiceFeatureTypeCapabilities,
@@ -42,7 +42,7 @@ urlpatterns = [
     path("api/notify/", include("notify.urls", namespace="notify")),
     path("api/schema",
          cache_page(timeout=60 * 15,
-                    cache="local-memory")(SpectacularJSONAPIView.as_view()),
+                    cache="local-memory")(RevalidatableOpenApiSchemaView.as_view()),
          name="openapi-schema"),
 
     path('api/schema/swagger-ui',

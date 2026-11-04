@@ -287,7 +287,12 @@ class OGCRequest(Request):
                           "outputSchema", "startPosition", "maxRecords", "schemaLanguage",
                           "ElementSetName", "ElementName", "typeNames", "CONSTRAINTLANGUAGE",
                           "Constraint", "SortBy", "DistributedSearch", "COUNT", "MAXFEATURES", "X", "Y", "TYPENAMES", "TYPENAME",
-                          "hopCount", "ResponseHandler", "Id", "STYLES"]
+                          "hopCount", "ResponseHandler", "Id", "STYLES",
+                          # the negotiation parameters every OWS GetCapabilities
+                          # answers for (OGC 05-008, 7.3.1 / OGC 07-006r1, Table 64);
+                          # the section parameter is spelled "sections" by that table
+                          # and "section" by the clients of the older binding
+                          "SECTIONS", "SECTION", "ACCEPTVERSIONS", "ACCEPTFORMATS"]
 
             for key in query_keys:
                 if any(name.lower() == key.lower() for name in self._ogc_query_params):

@@ -165,7 +165,9 @@ class HarvestingRecoveryTest(TestCase):
         download_job = HarvestingJob(service=service, total_records=10, phase=Phase.DOWNLOAD_RECORDS)
         aborted = HarvestingJob(total_records=1, phase=Phase.ABORT)
         HarvestingJob.objects.bulk_create([download_job, aborted])
-        with patch.object(call_fetch_total_records, 'delay') as download, patch.object(call_chord_md_metadata_file_to_db, 'delay') as imports:
+        with patch.object(call_fetch_total_records, 'delay') as download, \
+                patch.object(call_chord_md_metadata_file_to_db, 'delay') as imports, \
+                patch('registry.tasks.harvest.chord_publish_message_state', return_value=False):
             recover_harvesting_jobs.run()
         download.assert_called_once_with(harvesting_job_id=download_job.pk)
         imports.assert_called_once_with(harvesting_job_id=self.job.pk)
@@ -202,7 +204,8 @@ class HarvestingRecoveryTest(TestCase):
         finish_harvesting_job.after_return(  # the task of the id reports in
             states.SUCCESS, None, task_id, (), {'harvesting_job_id': self.job.pk}, None)
 
-        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish:
+        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish, \
+                patch('registry.tasks.harvest.chord_publish_message_state', return_value=False):
             recover_harvesting_jobs.run()
         republish.assert_called_once_with(harvesting_job_id=self.job.pk)
 

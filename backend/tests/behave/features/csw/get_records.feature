@@ -129,6 +129,37 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "NotSupported"
         Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "outputSchema"
 
+    # Table 65 of OGC 07-006r1 makes `version` a mandatory (One) parameter of the
+    # KVP GetRecords with the fixed value of the version this catalogue profiles.
+    # Both rows below answered a raw HTTP 500 (#910): the handler of a KVP
+    # GetRecords asks the request XML, which builds a CSWBuilder of the requested
+    # version, and the schema lookup behind that builder raises a ValueError for
+    # every version but 2.0.2 -- a Python error where the exception model of the
+    # specification wants a report.
+    Scenario: GetRecords without a version is refused naming the parameter
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "hits"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath "/*[local-name()='ExceptionReport']/@version" with value "1.2.0"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "MissingParameter"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "version"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/*[local-name()='ExceptionText']/text()" with value "The version parameter is mandatory for GetRecords and must name one of 2.0.2."
+
+    Scenario: GetRecords with a version this catalogue does not speak is refused
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "version" with value "1.0.0"
+        Given I set a queryparam "resultType" with value "hits"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "version"
+        # the text names both the refused value and the values this server speaks,
+        # so a client which sent the wrong one can correct it
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/*[local-name()='ExceptionText']/text()" with value "Unsupported version: 1.0.0. This catalogue speaks 2.0.2."
+
     Scenario: GetRecords validate response is acknowledged
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"

@@ -104,7 +104,7 @@ State of `tests/behave/features` on this checkout:
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
 | features (62) | 62 | 0 | 0 | 0 |
-| scenarios | 403 | 0 | 0 | 0 |
+| scenarios | 421 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
 `definition_of_done.rst` is answered by the four counts. Until #908 the skipped scenarios were all
@@ -150,7 +150,9 @@ refusal with the `ows:ExceptionReport` of OWS Common at HTTP 400 now
 XML comparison of `get_capabilities.feature` pinned the document which never rendered back then;
 its scenarios now assert the parts of the report which carry the refusal — its `version` and the
 `exceptionCode`, `locator` and `ExceptionText` of its `Exception` — as the `get_records.feature`
-scenarios already did.
+scenarios already did. Since #910 the same file asserts the two `VERSION` refusals of `GetRecords`
+(`MissingParameter` for a missing one, `InvalidParameterValue` for an unsupported one) this way;
+the view answers both before the metadata search runs.
 
 ## Writing or changing a scenario
 
@@ -396,8 +398,10 @@ and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/
 since #855 and every refused `/csw` request since #908 (see above); #907 added
 `features/csw/describe_record.feature` for the mandatory `DescribeRecord` and
 `features/csw/operation_dispatch.feature` for the unknown-operation fallback and
-the case-insensitive KVP `REQUEST` value. Still not covered: the `GetCapabilities`
-document itself and `GetRecordById` beyond one scenario.
+the case-insensitive KVP `REQUEST` value; #910 added the `GetCapabilities` document itself —
+content assertions for the default response, the `Sections`, `AcceptVersions` and `AcceptFormats`
+negotiation, and the `VERSION` refusals of `GetRecords`. Still not covered: `GetRecordById` beyond
+one scenario, and both operations over the XML POST binding (#912).
 
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort

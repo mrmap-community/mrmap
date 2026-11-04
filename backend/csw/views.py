@@ -9,8 +9,8 @@ from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
                              requested_sort_by, sortable_field,
                              sortable_properties)
 from csw.exceptions import DocumentUnavailable, InvalidQuery, NotSupported
-from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
-                            service_records)
+from csw.queryables import (FIELD_MAP, application_records, dataset_records,
+                            search_filter, service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models.aggregates import Count
@@ -20,7 +20,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml import etree
 from registry.enums.service import OGCOperationEnum
-from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
@@ -404,7 +405,8 @@ class CswServiceView(View):
         # produced, so the answered document is unchanged.
         usage_counts = {}
         for keyword_links in (DatasetMetadataRecord.keywords.through.objects,
-                              ServiceMetadataRecord.keywords.through.objects):
+                              ServiceMetadataRecord.keywords.through.objects,
+                              ApplicationMetadataRecord.keywords.through.objects):
             for row in keyword_links.values('keyword').annotate(
                     count=Count('keyword')):
                 usage_counts[row['keyword']] = usage_counts.get(
@@ -582,7 +584,7 @@ class CswServiceView(View):
                     f"{', '.join(repr(name) for name in ELEMENT_SETS)}; "
                     f"'{requested_set}' is none of them."))
 
-        # SortBy is read the same way and mapped onto the ordering of both record
+        # SortBy is read the same way and mapped onto the ordering of the record
         # sources; a property this catalogue does not sort on is refused with the
         # InvalidParameterValue 10.8.4.9 leaves for it.
         sort_specs = []
@@ -605,13 +607,17 @@ class CswServiceView(View):
         try:
             # a GetRecords answers the stored document of a record and nothing else
             # of it, so nothing else of it is read -- save for the fields it is
-            # sorted by, which the merge of the two sources compares
+            # sorted by, which the merge of the sources compares
             dataset_metadata_records_result = apply_sort(
                 dataset_records().filter(
                     constraint).only(*loaded_fields(sort_specs)),
                 sort_specs)
             service_metadata_records_result = apply_sort(
                 service_records().filter(
+                    constraint).only(*loaded_fields(sort_specs)),
+                sort_specs)
+            application_metadata_records_result = apply_sort(
+                application_records().filter(
                     constraint).only(*loaded_fields(sort_specs)),
                 sort_specs)
         except FieldError as e:
@@ -623,8 +629,9 @@ class CswServiceView(View):
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
                 message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
             )
-        total_records = dataset_metadata_records_result.count(
-        ) + service_metadata_records_result.count()
+        total_records = (dataset_metadata_records_result.count()
+                         + service_metadata_records_result.count()
+                         + application_metadata_records_result.count())
 
         start_position = int(
             (self.ogc_request.xml_request.xpath(
@@ -669,17 +676,18 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
-            # Both sources are ordered by the same total order -- the requested
+            # All sources are ordered by the same total order -- the requested
             # sorting over the primary key -- which means that a record which is
             # among the first `heap_count` records of the merged result is among
             # the first `heap_count` records of *its own* source too: every record
             # standing in front of it in the merged order stands in front of it in
-            # its own source as well. So taking that many records from both and
-            # merging them by that order answers the requested page, for the price
-            # of two limited queries.
+            # its own source as well. So taking that many records from all of them
+            # and merging them by that order answers the requested page, for the
+            # price of one limited query per source.
             merged_records = merge_sorted(
                 chain(dataset_metadata_records_result[:heap_count],
-                      service_metadata_records_result[:heap_count]),
+                      service_metadata_records_result[:heap_count],
+                      application_metadata_records_result[:heap_count]),
                 sort_specs
             )
 
@@ -725,13 +733,23 @@ class CswServiceView(View):
 
             service_metadata_records = ServiceMetadataRecord.objects.filter(
                 file_identifier=requested_entities[0])
+
+            application_metadata_records = \
+                ApplicationMetadataRecord.objects.filter(
+                    file_identifier=requested_entities[0])
         else:
             dataset_metadata_records = DatasetMetadataRecord.objects.filter(
                 file_identifier__in=requested_entities)
 
             service_metadata_records = ServiceMetadataRecord.objects.filter(
                 file_identifier__in=requested_entities)
-        records = chain(dataset_metadata_records, service_metadata_records)
+
+            application_metadata_records = \
+                ApplicationMetadataRecord.objects.filter(
+                    file_identifier__in=requested_entities)
+        records = chain(dataset_metadata_records,
+                        service_metadata_records,
+                        application_metadata_records)
 
         gmd_records = self.read_stored_documents(records)
         if isinstance(gmd_records, OGCServiceException):

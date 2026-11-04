@@ -20,7 +20,7 @@ answered by a column anymore:
     relation. The array the database maintains for the vector cannot answer this
     queryable: postgres has neither ``=`` nor ``LIKE`` over ``text[]``, so a filter
     could only ever compare an array with an array.
-*   ``type`` is the kind of a record and the two querysets of this module *are* that
+*   ``type`` is the kind of a record and the querysets of this module *are* that
     kind. The record tables have no column for it, so a queryset annotates its own kind
     as a constant: a request for ``type = 'dataset'`` answers the dataset records and
     no service records, which is what the queryable promised, without a column that only
@@ -30,15 +30,19 @@ answered by a column anymore:
 from django.db.models import Q, Value
 
 from registry.expressions.search import client_search_query
-from registry.models.metadata import (DatasetMetadataRecord,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 
-#: The value of the ``type`` queryable which selects the dataset records, and the one
-#: which selects the service records. Both are the ``hierarchyLevel`` of the ISO
-#: document a record was made of -- the value the mapping of a record is chosen by, see
-#: ``registry/mappers/configs/dataset.py`` and ``registry/mappers/configs/service.py``.
+#: The value of the ``type`` queryable which selects the dataset records, and the ones
+#: which select the service and the application records. All of them are the
+#: ``hierarchyLevel`` of the ISO document a record was made of -- the value the mapping
+#: of a record is chosen by, see ``registry/mappers/configs/dataset.py``,
+#: ``registry/mappers/configs/service.py`` and
+#: ``registry/mappers/configs/application.py``.
 HIERARCHY_LEVEL_DATASET = "dataset"
 HIERARCHY_LEVEL_SERVICE = "service"
+HIERARCHY_LEVEL_APPLICATION = "application"
 
 #: The queryable names a CSW client may filter by and the field of a metadata record
 #: each is answered from. A name which is not a field of a record is answered by one of
@@ -92,10 +96,16 @@ def service_records():
     return search_records(ServiceMetadataRecord, HIERARCHY_LEVEL_SERVICE)
 
 
+def application_records():
+    """Every application metadata record, as a search endpoint answers them."""
+    return search_records(ApplicationMetadataRecord,
+                          HIERARCHY_LEVEL_APPLICATION)
+
+
 def search_records(model, hierarchy_level: str):
     """The records of one kind, in the order a search endpoint answers them.
 
-    Ordered by their primary key: a search answers two record tables as one result set,
+    Ordered by their primary key: a search answers the record tables as one result set,
     which is merged by that key, and a client paging through such a set has to see the
     same records on the same page every time.
 

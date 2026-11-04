@@ -1,4 +1,5 @@
 from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
+from django.db.models import F
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
@@ -506,13 +507,15 @@ class TimeExtentViewSet(ReadOnlyModelViewSet):
 
 
 class LanguageViewSet(ReadOnlyModelViewSet):
-    queryset = Language.objects.all()
+    queryset = Language.objects.with_label().annotate(id=F("value"))
     serializer_class = LanguageSerializer
+    ordering_fields = ["id", "value", "label"]
 
 
 class IsoCategoryViewSet(ReadOnlyModelViewSet):
-    queryset = IsoCategory.objects.all()
+    queryset = IsoCategory.objects.with_label().annotate(id=F("value"))
     serializer_class = IsoCategorySerializer
+    ordering_fields = ["id", "value", "label"]
 
 
 class MetadataRelationViewSet(PreloadNotIncludesMixin, ReadOnlyModelViewSet):

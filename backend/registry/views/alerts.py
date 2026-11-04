@@ -51,7 +51,7 @@ class ServiceAlertListView(generics.ListAPIView):
         rows = sorted(rows, key=lambda row: row['id'])
         for field in reversed(fields):
             name = to_snake(field.lstrip('-'))
-            if name not in ('severity', 'occurred_at'):
+            if name not in ('id', 'severity', 'occurred_at'):
                 raise ValidationError('Invalid alert sort field.')
             default = datetime.min.replace(tzinfo=timezone.utc) if name == 'occurred_at' else ''
             rows.sort(key=lambda row: row[name] or default, reverse=field.startswith('-'))

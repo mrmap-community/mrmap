@@ -592,6 +592,37 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.monitoring_run(setting, True)
         self.assertEqual(len(self.response()['data']), 1)
 
+    def test_the_generic_list_can_sort_the_alerts_by_id(self):
+        """A generic list page always sends a sort - for the alerts it is `id`
+
+        The frontend generates the attention list like every other list, so the
+        endpoint has to answer `sort=id` next to the severity and the date it
+        already answers (issue #943).
+        """
+        self.update_job(self.wms_one, JobState.ERROR)
+        self.update_job(self.wms_two, JobState.ERROR)
+        ascending = [row['id'] for row in
+                     self.response(**{'sort': 'id'})['data']]
+        self.assertEqual(len(ascending), 2)
+        self.assertEqual(ascending, sorted(ascending))
+        descending = [row['id'] for row in
+                      self.response(**{'sort': '-id'})['data']]
+        self.assertEqual(descending, list(reversed(ascending)))
+
+    def test_sort_by_the_date_of_an_alert_answers_oldest_first(self):
+        setting = self.monitoring_setting(self.wms_one)
+        self.monitoring_run(setting, False, hours_ago=3)
+        self.update_job(self.wms_two, JobState.ERROR, done_at=now())
+        response = self.response(**{'sort': 'occurredAt'})
+        self.assertEqual([row['attributes']['service'] for row in response['data']],
+                         [WMS_ONE, WMS_TWO])
+
+    def test_sort_by_a_field_an_alert_does_not_have_is_rejected(self):
+        """The whitelist stays a whitelist: alerts have no `created_at`"""
+        response = self.client.get(
+            reverse('registry:service-alert-list'), {'sort': 'created_at'})
+        self.assertEqual(response.status_code, 400, response.content)
+
     def test_overdue_enabled_setting_reuses_scheduling_rule(self):
         setting = self.monitoring_setting(self.wms_one)
         type(setting).objects.filter(pk=setting.pk).update(last_run_at=now() - timedelta(hours=1))

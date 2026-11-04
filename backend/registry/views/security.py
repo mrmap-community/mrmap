@@ -55,10 +55,10 @@ class WebMapServiceOperationViewSet(
 
 
 class WebFeatureServiceOperationViewSetMixin:
-    queryset = WebFeatureServiceOperation.objects.all()
+    queryset = WebFeatureServiceOperation.objects.with_label().annotate(id=F("value"))
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('value', )
-    ordering_fields = ["value"]
+    ordering_fields = ["id", "value", "label"]
     filterset_fields = {
         'value': ['exact', 'icontains', 'contains', 'in'],
     }

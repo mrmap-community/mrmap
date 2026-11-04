@@ -214,6 +214,20 @@ class InvalidParameterValueException(OGCServiceException):
     code = "InvalidParameterValue"
 
 
+class VersionNegotiationFailedException(OGCServiceException):
+    """Refusal of a version negotiation which found nothing common to both sides.
+
+    The code OGC 05-008, Table 4 defines for the `acceptVersions` and
+    `updateSequence` negotiation of an OWS GetCapabilities, which OGC 07-006r1
+    keeps for a CSW (`VersionNegotiationFailed`); a caller which names another
+    parameter as the failed one passes its own ``locator``.
+    """
+
+    code = "VersionNegotiationFailed"
+    locator = "acceptVersions"
+    message = "None of the requested versions is supported by this service."
+
+
 class ParsingErrorException(OGCServiceException):
     """The request document itself is no parsable document.
 
@@ -232,10 +246,6 @@ class OperationNotSupportedException(OGCServiceException):
 
     def get_locator(self):
         if self.ogc_request is not None:
-            # the KVP binding names the operation in the REQUEST parameter --
-            # with the spelling the client chose, which the report echoes; a
-            # posted request names it in the element itself, which is what the
-            # analysis read the operation from (#912)
             return (self.ogc_request.ogc_query_params.get("REQUEST")
                     or self.ogc_request.operation
                     or self.locator)

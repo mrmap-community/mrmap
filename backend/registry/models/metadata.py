@@ -27,7 +27,8 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
                                      TimeExtentKind)
 from registry.exceptions.service import NoContent
 from registry.expressions.search import MetadataRecordSearchVector
-from registry.managers.metadata import (DatasetMetadataRecordManager,
+from registry.managers.metadata import (ApplicationMetadataRecordManager,
+                                        DatasetMetadataRecordManager,
                                         KeywordManager,
                                         MetadataRelationManager,
                                         ServiceMetadataRecordManager,
@@ -1289,3 +1290,53 @@ class ServiceMetadataRecord(MetadataRecord):
         constraints = [
 
         ] + MetadataRecord.Meta.constraints
+
+
+class ApplicationMetadataRecord(MetadataRecord):
+    """ Concrete model class for application metadata records, which are parsed from iso metadata xml.
+
+    An application record (gmd:hierarchyLevel = application) carries its identification
+    as gmd:MD_DataIdentification in every catalogue sampled for #825 -- application
+    records are shaped like dataset records, not like service records. This model
+    therefore mirrors the dataset record: the party which provides the application,
+    its topic categories and its maintenance frequency are read from the same elements.
+    Fields which no sampled application record filled at all (fees, use limitation,
+    licence, lineage) are not mirrored: the mapping config declares no input for them
+    and nothing writes onto them until a catalogue actually publishes them.
+    """
+
+    application_contact = models.ForeignKey(to=MetadataContact,
+                                            on_delete=models.RESTRICT,
+                                            related_name="%(class)s_application_contact",
+                                            related_query_name="%(class)s_application_contact",
+                                            verbose_name=_("contact"),
+                                            help_text=_("this is the contact which provides this application."))
+    update_frequency_code = models.PositiveSmallIntegerField(choices=UpdateFrequencyChoices.choices,
+                                                             null=True,
+                                                             blank=True)
+    categories = models.ManyToManyField(to=IsoCategory,
+                                        blank=True,
+                                        related_name="%(class)s_metadata",
+                                        related_query_name="%(class)s_metadata",
+                                        verbose_name=_("categories"),
+                                        help_text=_("the topic categories of the application"))
+
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields=("keywords_list", "search_vector",),
+        bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
+    )
+
+    objects = ApplicationMetadataRecordManager()
+    history = DefaultHistoryManager()
+
+    class Meta:
+        verbose_name = _("application metadata")
+        verbose_name_plural = _("application metadata")
+        constraints = [
+        ] + MetadataRecord.Meta.constraints
+        indexes = [
+            # see DatasetMetadataRecord.Meta.indexes
+            models.Index(fields=["code", "code_space"]),
+            GinIndex(fields=["search_vector"]),
+        ] + AbstractMetadata.Meta.indexes

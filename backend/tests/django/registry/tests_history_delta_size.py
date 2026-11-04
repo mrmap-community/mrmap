@@ -30,7 +30,8 @@ from django.core.management import call_command
 from django.db import connection
 from django.db.models import F
 from django.test import TestCase
-from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -41,6 +42,11 @@ from registry.querys.historical import with_delta_size, with_prev_record_id
 HISTORY_DIFF = import_module(
     "registry.migrations."
     "0025_history_records_know_their_own_diff_size")
+
+# the migration which attached a record type added after 0025 to the same rule
+APPLICATION_DIFF = import_module(
+    "registry.migrations."
+    "0033_application_metadata_records_are_maintained_like_the_others")
 
 DAY1 = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 
@@ -259,8 +265,8 @@ class HistoryDiffCoversEveryTrackedFieldTest(TestCase):
     """
 
     RESOURCES = [
-        DatasetMetadataRecord, ServiceMetadataRecord, WebMapService,
-        WebFeatureService, CatalogueService, Layer, FeatureType,
+        DatasetMetadataRecord, ServiceMetadataRecord, ApplicationMetadataRecord,
+        WebMapService, WebFeatureService, CatalogueService, Layer, FeatureType,
     ]
 
     def compared_columns(self, table):
@@ -291,14 +297,16 @@ class HistoryDiffCoversEveryTrackedFieldTest(TestCase):
                 )
 
     def test_the_migration_answers_every_audit_table_it_names(self):
-        """Every table the migration writes a trigger for is one of the resources.
+        """Every table a migration writes a trigger for is one of the resources.
 
-        A table which drops out of the migration while its statistics stay -- or
-        the other way round -- leaves an audit table answering nothing or a
-        statement for a table which is gone.
+        A table which drops out of a migration while its statistics stay -- or the
+        other way round -- leaves an audit table answering nothing or a statement
+        for a table which is gone. The record types are spread over more than one
+        migration: a type which arrives after 0025 gets its trigger from a later
+        one, so all of them are asked together.
         """
         self.assertEqual(
-            set(HISTORY_DIFF.HISTORY_TABLES),
+            set(HISTORY_DIFF.HISTORY_TABLES) | {APPLICATION_DIFF.HISTORY_TABLE},
             {resource.change_log.model._meta.db_table
              for resource in self.RESOURCES},
         )

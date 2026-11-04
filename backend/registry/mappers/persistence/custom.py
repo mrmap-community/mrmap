@@ -123,6 +123,8 @@ def get_or_create_metadatarecord(instances, handler):
                 model_key = "dataset"
             case "ServiceMetadataRecord":
                 model_key = "service"
+            case "ApplicationMetadataRecord":
+                model_key = "application"
             case _:
                 raise ValueError(
                     f"Unsupported model class {instance.__class__} for custom persistence.")

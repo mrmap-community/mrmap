@@ -1,0 +1,370 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:MD_Metadata xmlns:ns0="http://www.isotc211.org/2005/gmd" xmlns:ns2="http://www.isotc211.org/2005/gco" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd http://schemas.opengis.net/iso/19139/20060504/gmd/gmd.xsd http://www.isotc211.org/2005/gmx http://schemas.opengis.net/iso/19139/20060504/gmx/gmx.xsd http://www.isotc211.org/2005/srv http://schemas.opengis.net/iso/19139/20060504/srv/srv.xsd">
+      <ns0:fileIdentifier>
+        <ns2:CharacterString>19c44805-c445-4f4a-8420-e71797bf4088</ns2:CharacterString>
+      </ns0:fileIdentifier>
+      <ns0:language>
+        <ns0:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="ger" />
+      </ns0:language>
+      <ns0:characterSet>
+        <ns0:MD_CharacterSetCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" />
+      </ns0:characterSet>
+      <ns0:hierarchyLevel>
+        <ns0:MD_ScopeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_ScopeCode" codeListValue="application" />
+      </ns0:hierarchyLevel>
+      <ns0:hierarchyLevelName>
+        <ns2:CharacterString>kreis_guetersloh</ns2:CharacterString>
+      </ns0:hierarchyLevelName>
+      <ns0:contact>
+        <ns0:CI_ResponsibleParty>
+          <ns0:individualName>
+            <ns2:CharacterString>Geodatenservice</ns2:CharacterString>
+          </ns0:individualName>
+          <ns0:organisationName>
+            <ns2:CharacterString>Kreis Gütersloh</ns2:CharacterString>
+          </ns0:organisationName>
+          <ns0:positionName>
+            <ns2:CharacterString>Abteilung 4.1 Geoinformation, Kataster und Vermessung</ns2:CharacterString>
+          </ns0:positionName>
+          <ns0:contactInfo>
+            <ns0:CI_Contact>
+              <ns0:phone>
+                <ns0:CI_Telephone>
+                  <ns0:voice>
+                    <ns2:CharacterString>+49 (0)5241 851767</ns2:CharacterString>
+                  </ns0:voice>
+                  <ns0:facsimile>
+                    <ns2:CharacterString>+49 (0)5241 8531767</ns2:CharacterString>
+                  </ns0:facsimile>
+                </ns0:CI_Telephone>
+              </ns0:phone>
+              <ns0:address>
+                <ns0:CI_Address>
+                  <ns0:deliveryPoint>
+                    <ns2:CharacterString>Herzebrocker Straße 140</ns2:CharacterString>
+                  </ns0:deliveryPoint>
+                  <ns0:city>
+                    <ns2:CharacterString>Gütersloh</ns2:CharacterString>
+                  </ns0:city>
+                  <ns0:administrativeArea>
+                    <ns2:CharacterString>Nordrhein-Westfalen</ns2:CharacterString>
+                  </ns0:administrativeArea>
+                  <ns0:postalCode>
+                    <ns2:CharacterString>33334</ns2:CharacterString>
+                  </ns0:postalCode>
+                  <ns0:country>
+                    <ns2:CharacterString>Deutschland</ns2:CharacterString>
+                  </ns0:country>
+                  <ns0:electronicMailAddress>
+                    <ns2:CharacterString>gis@gt-net.de</ns2:CharacterString>
+                  </ns0:electronicMailAddress>
+                </ns0:CI_Address>
+              </ns0:address>
+            </ns0:CI_Contact>
+          </ns0:contactInfo>
+          <ns0:role>
+            <ns0:CI_RoleCode codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</ns0:CI_RoleCode>
+          </ns0:role>
+        </ns0:CI_ResponsibleParty>
+      </ns0:contact>
+      <ns0:dateStamp>
+        <ns2:Date>2019-01-21</ns2:Date>
+      </ns0:dateStamp>
+      <ns0:identificationInfo>
+        <ns0:MD_DataIdentification>
+          <ns0:citation>
+            <ns0:CI_Citation>
+              <ns0:title>
+                <ns2:CharacterString>Kreis Gütersloh: Liegenschaftskarte (nicht amtlich)</ns2:CharacterString>
+              </ns0:title>
+              <ns0:alternateTitle>
+                <ns2:CharacterString>Liegenschaftskarte (nicht amtlich)</ns2:CharacterString>
+              </ns0:alternateTitle>
+              <ns0:date>
+                <ns0:CI_Date>
+                  <ns0:date>
+                    <ns2:Date>2017-11-01</ns2:Date>
+                  </ns0:date>
+                  <ns0:dateType>
+                    <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation" />
+                  </ns0:dateType>
+                </ns0:CI_Date>
+              </ns0:date>
+              <ns0:date>
+                <ns0:CI_Date>
+                  <ns0:date>
+                    <ns2:Date>2013-12-12</ns2:Date>
+                  </ns0:date>
+                  <ns0:dateType>
+                    <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication" />
+                  </ns0:dateType>
+                </ns0:CI_Date>
+              </ns0:date>
+            </ns0:CI_Citation>
+          </ns0:citation>
+          <ns0:abstract>
+            <ns2:CharacterString>Mit Hilfe der Anwendung können nicht amtliche Auszüge aus der Liegenschaftskarte als PDF erstellt werden.</ns2:CharacterString>
+          </ns0:abstract>
+          <ns0:pointOfContact>
+            <ns0:CI_ResponsibleParty>
+              <ns0:individualName>
+                <ns2:CharacterString>Geodatenservice</ns2:CharacterString>
+              </ns0:individualName>
+              <ns0:organisationName>
+                <ns2:CharacterString>Kreis Gütersloh</ns2:CharacterString>
+              </ns0:organisationName>
+              <ns0:positionName>
+                <ns2:CharacterString>Abteilung 4.1 Geoinformation, Kataster und Vermessung</ns2:CharacterString>
+              </ns0:positionName>
+              <ns0:contactInfo>
+                <ns0:CI_Contact>
+                  <ns0:phone>
+                    <ns0:CI_Telephone>
+                      <ns0:voice>
+                        <ns2:CharacterString>+49 (0)5241 851767</ns2:CharacterString>
+                      </ns0:voice>
+                      <ns0:facsimile>
+                        <ns2:CharacterString>+49 (0)5241 8531767</ns2:CharacterString>
+                      </ns0:facsimile>
+                    </ns0:CI_Telephone>
+                  </ns0:phone>
+                  <ns0:address>
+                    <ns0:CI_Address>
+                      <ns0:deliveryPoint>
+                        <ns2:CharacterString>Herzebrocker Straße 140</ns2:CharacterString>
+                      </ns0:deliveryPoint>
+                      <ns0:city>
+                        <ns2:CharacterString>Gütersloh</ns2:CharacterString>
+                      </ns0:city>
+                      <ns0:administrativeArea>
+                        <ns2:CharacterString>Nordrhein-Westfalen</ns2:CharacterString>
+                      </ns0:administrativeArea>
+                      <ns0:postalCode>
+                        <ns2:CharacterString>33334</ns2:CharacterString>
+                      </ns0:postalCode>
+                      <ns0:country>
+                        <ns2:CharacterString>Deutschland</ns2:CharacterString>
+                      </ns0:country>
+                      <ns0:electronicMailAddress>
+                        <ns2:CharacterString>gis@gt-net.de</ns2:CharacterString>
+                      </ns0:electronicMailAddress>
+                    </ns0:CI_Address>
+                  </ns0:address>
+                </ns0:CI_Contact>
+              </ns0:contactInfo>
+              <ns0:role>
+                <ns0:CI_RoleCode codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</ns0:CI_RoleCode>
+              </ns0:role>
+            </ns0:CI_ResponsibleParty>
+          </ns0:pointOfContact>
+          <ns0:resourceMaintenance>
+            <ns0:MD_MaintenanceInformation>
+              <ns0:maintenanceAndUpdateFrequency>
+                <ns0:MD_MaintenanceFrequencyCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_MaintenanceFrequencyCode" codeListValue="asNeeded" />
+              </ns0:maintenanceAndUpdateFrequency>
+            </ns0:MD_MaintenanceInformation>
+          </ns0:resourceMaintenance>
+          <ns0:graphicOverview>
+            <ns0:MD_BrowseGraphic>
+              <ns0:fileName>
+                <ns2:CharacterString>https://apps.geoportal.nrw.de/ct-smarteditor-webapp-2.3.2/preview/1548065129942_Anwendung_Liegenschaftskarte_nicht_amtlich.gif</ns2:CharacterString>
+              </ns0:fileName>
+              <ns0:fileDescription>
+                <ns2:CharacterString>Startbildschirm nicht amtliche Liegenschaftskarte</ns2:CharacterString>
+              </ns0:fileDescription>
+              <ns0:fileType>
+                <ns2:CharacterString>GIF</ns2:CharacterString>
+              </ns0:fileType>
+            </ns0:MD_BrowseGraphic>
+          </ns0:graphicOverview>
+          <ns0:descriptiveKeywords>
+            <ns0:MD_Keywords>
+              <ns0:keyword>
+                <ns2:CharacterString>Kreis Gütersloh</ns2:CharacterString>
+              </ns0:keyword>
+              <ns0:type>
+                <ns0:MD_KeywordTypeCode codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode" codeListValue="place" />
+              </ns0:type>
+            </ns0:MD_Keywords>
+          </ns0:descriptiveKeywords>
+          <ns0:descriptiveKeywords>
+            <ns0:MD_Keywords>
+              <ns0:keyword>
+                <ns2:CharacterString>Liegenschaftskarte</ns2:CharacterString>
+              </ns0:keyword>
+              <ns0:keyword>
+                <ns2:CharacterString>Kataster</ns2:CharacterString>
+              </ns0:keyword>
+              <ns0:type>
+                <ns0:MD_KeywordTypeCode codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode" codeListValue="theme" />
+              </ns0:type>
+            </ns0:MD_Keywords>
+          </ns0:descriptiveKeywords>
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints />
+          <ns0:resourceConstraints>
+            <ns0:MD_SecurityConstraints>
+              <ns0:classification>
+                <ns0:MD_ClassificationCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_ClassificationCode" codeListValue="unclassified" />
+              </ns0:classification>
+            </ns0:MD_SecurityConstraints>
+          </ns0:resourceConstraints>
+          <ns0:resourceConstraints>
+            <ns0:MD_LegalConstraints>
+              <ns0:useLimitation>
+                <ns2:CharacterString>Nutzungsbedingungen: Die Nutzungsbedingungen können nach dem Starten der Anwendung eingesehen werden.</ns2:CharacterString>
+              </ns0:useLimitation>
+            </ns0:MD_LegalConstraints>
+          </ns0:resourceConstraints>
+          <ns0:resourceConstraints>
+            <ns0:MD_LegalConstraints>
+              <ns0:useLimitation>
+                <ns2:CharacterString>Nutzungseinschränkungen: Empfohlen wird ein leistungsfähiger Rechner mit einer leistrungsfähigen Grafikkarte und eine schnelle Internetverbindung.</ns2:CharacterString>
+              </ns0:useLimitation>
+            </ns0:MD_LegalConstraints>
+          </ns0:resourceConstraints>
+          <ns0:spatialRepresentationType>
+            <ns0:MD_SpatialRepresentationTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_SpatialRepresentationTypeCode" codeListValue="stereoModel" />
+          </ns0:spatialRepresentationType>
+          <ns0:language>
+            <ns0:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="ger" />
+          </ns0:language>
+          <ns0:characterSet>
+            <ns0:MD_CharacterSetCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" />
+          </ns0:characterSet>
+          <ns0:topicCategory>
+            <ns0:MD_TopicCategoryCode>location</ns0:MD_TopicCategoryCode>
+          </ns0:topicCategory>
+          <ns0:topicCategory>
+            <ns0:MD_TopicCategoryCode>planningCadastre</ns0:MD_TopicCategoryCode>
+          </ns0:topicCategory>
+          <ns0:extent>
+            <ns0:EX_Extent>
+              <ns0:geographicElement>
+                <ns0:EX_GeographicBoundingBox>
+                  <ns0:extentTypeCode>
+                    <ns2:Boolean>false</ns2:Boolean>
+                  </ns0:extentTypeCode>
+                  <ns0:westBoundLongitude>
+                    <ns2:Decimal>8.0011</ns2:Decimal>
+                  </ns0:westBoundLongitude>
+                  <ns0:eastBoundLongitude>
+                    <ns2:Decimal>8.7325</ns2:Decimal>
+                  </ns0:eastBoundLongitude>
+                  <ns0:southBoundLatitude>
+                    <ns2:Decimal>51.7042</ns2:Decimal>
+                  </ns0:southBoundLatitude>
+                  <ns0:northBoundLatitude>
+                    <ns2:Decimal>52.1564</ns2:Decimal>
+                  </ns0:northBoundLatitude>
+                </ns0:EX_GeographicBoundingBox>
+              </ns0:geographicElement>
+            </ns0:EX_Extent>
+          </ns0:extent>
+          <ns0:extent>
+            <ns0:EX_Extent>
+              <ns0:geographicElement>
+                <ns0:EX_GeographicDescription>
+                  <ns0:extentTypeCode>
+                    <ns2:Boolean>true</ns2:Boolean>
+                  </ns0:extentTypeCode>
+                  <ns0:geographicIdentifier>
+                    <ns0:RS_Identifier>
+                      <ns0:code>
+                        <ns2:CharacterString>DE-NW</ns2:CharacterString>
+                      </ns0:code>
+                      <ns0:codeSpace>
+                        <ns2:CharacterString>Kreis Gütersloh</ns2:CharacterString>
+                      </ns0:codeSpace>
+                      <ns0:version>
+                        <ns2:CharacterString />
+                      </ns0:version>
+                    </ns0:RS_Identifier>
+                  </ns0:geographicIdentifier>
+                </ns0:EX_GeographicDescription>
+              </ns0:geographicElement>
+            </ns0:EX_Extent>
+          </ns0:extent>
+        </ns0:MD_DataIdentification>
+      </ns0:identificationInfo>
+      <ns0:distributionInfo>
+        <ns0:MD_Distribution>
+          <ns0:distributor>
+            <ns0:MD_Distributor>
+              <ns0:distributorContact>
+                <ns0:CI_ResponsibleParty>
+                  <ns0:individualName>
+                    <ns2:CharacterString>Geodatenservice</ns2:CharacterString>
+                  </ns0:individualName>
+                  <ns0:organisationName>
+                    <ns2:CharacterString>Kreis Gütersloh</ns2:CharacterString>
+                  </ns0:organisationName>
+                  <ns0:positionName>
+                    <ns2:CharacterString>Abteilung 4.1 Geoinformation, Kataster und Vermessung</ns2:CharacterString>
+                  </ns0:positionName>
+                  <ns0:contactInfo>
+                    <ns0:CI_Contact>
+                      <ns0:phone>
+                        <ns0:CI_Telephone>
+                          <ns0:voice>
+                            <ns2:CharacterString>+49 (0)5241 851767</ns2:CharacterString>
+                          </ns0:voice>
+                          <ns0:facsimile>
+                            <ns2:CharacterString>+49 (0)5241 8531767</ns2:CharacterString>
+                          </ns0:facsimile>
+                        </ns0:CI_Telephone>
+                      </ns0:phone>
+                      <ns0:address>
+                        <ns0:CI_Address>
+                          <ns0:deliveryPoint>
+                            <ns2:CharacterString>Herzebrocker Straße 140</ns2:CharacterString>
+                          </ns0:deliveryPoint>
+                          <ns0:city>
+                            <ns2:CharacterString>Gütersloh</ns2:CharacterString>
+                          </ns0:city>
+                          <ns0:administrativeArea>
+                            <ns2:CharacterString>Nordrhein-Westfalen</ns2:CharacterString>
+                          </ns0:administrativeArea>
+                          <ns0:postalCode>
+                            <ns2:CharacterString>33334</ns2:CharacterString>
+                          </ns0:postalCode>
+                          <ns0:country>
+                            <ns2:CharacterString>Deutschland</ns2:CharacterString>
+                          </ns0:country>
+                          <ns0:electronicMailAddress>
+                            <ns2:CharacterString>gis@gt-net.de</ns2:CharacterString>
+                          </ns0:electronicMailAddress>
+                        </ns0:CI_Address>
+                      </ns0:address>
+                    </ns0:CI_Contact>
+                  </ns0:contactInfo>
+                  <ns0:role>
+                    <ns0:CI_RoleCode codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode" codeListValue="distributor">distributor</ns0:CI_RoleCode>
+                  </ns0:role>
+                </ns0:CI_ResponsibleParty>
+              </ns0:distributorContact>
+            </ns0:MD_Distributor>
+          </ns0:distributor>
+          <ns0:transferOptions>
+            <ns0:MD_DigitalTransferOptions>
+              <ns0:onLine>
+                <ns0:CI_OnlineResource>
+                  <ns0:linkage>
+                    <ns0:URL>https://kreis-guetersloh.maps.arcgis.com/apps/webappviewer/index.html?id=298a1945ed444eff9e5aa71c6caf5494</ns0:URL>
+                  </ns0:linkage>
+                  <ns0:function>
+                    <ns0:CI_OnLineFunctionCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information" />
+                  </ns0:function>
+                </ns0:CI_OnlineResource>
+              </ns0:onLine>
+            </ns0:MD_DigitalTransferOptions>
+          </ns0:transferOptions>
+        </ns0:MD_Distribution>
+      </ns0:distributionInfo>
+    </ns0:MD_Metadata>
+    

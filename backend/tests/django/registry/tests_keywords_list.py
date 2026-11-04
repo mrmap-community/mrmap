@@ -12,8 +12,9 @@ from django.db import connection
 from django.test import TestCase
 
 from registry.mappers.persistence.custom import _defaults_of_instance
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, MetadataContact,
-                                      ServiceMetadataRecord)
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, Keyword,
+                                      MetadataContact, ServiceMetadataRecord)
 
 keywords_list_migration = import_module(
     'registry.migrations.0021_metadatarecords_keywords_list')
@@ -29,6 +30,9 @@ class KeywordsListTest(TestCase):
             metadata_contact=cls.contact, dataset_contact=cls.contact, title='Dataset')
         cls.service_metadata = ServiceMetadataRecord.objects.create(
             metadata_contact=cls.contact, title='Service metadata')
+        cls.application = ApplicationMetadataRecord.objects.create(
+            metadata_contact=cls.contact, application_contact=cls.contact,
+            title='Application')
         cls.alpha = Keyword.objects.create(keyword='alpha')
         cls.beta = Keyword.objects.create(keyword='beta')
         cls.gamma = Keyword.objects.create(keyword='gamma')
@@ -72,19 +76,29 @@ class KeywordsListTest(TestCase):
                 [self.dataset.pk, self.beta.pk])
         self.assertEqual(self.keywords_of(self.dataset), ['beta'])
 
-    def test_both_record_types_are_maintained(self):
-        self.service_metadata.keywords.set([self.beta, self.alpha])
-        self.assertEqual(self.keywords_of(self.service_metadata), ['alpha', 'beta'])
+    def test_every_record_type_is_maintained(self):
+        """One sync trigger per keywords relation, so every record type which
+        declares the array is answered by its own -- including the one whose
+        trigger a later migration attached (0033)."""
+        for record in (self.service_metadata, self.application):
+            with self.subTest(record=record.__class__.__name__):
+                record.keywords.set([self.beta, self.alpha])
+                self.assertEqual(self.keywords_of(record), ['alpha', 'beta'])
 
     def test_a_renamed_keyword_updates_the_records_holding_it(self):
+        """The rename does not pass through a keywords relation, so its fan-out
+        names the record tables -- every table which holds the array, not only the
+        ones the first migration knew."""
         self.dataset.keywords.set([self.alpha, self.beta])
         self.service_metadata.keywords.set([self.alpha])
+        self.application.keywords.set([self.alpha])
 
         self.alpha.keyword = 'alpha renamed'
         self.alpha.save()
 
         self.assertEqual(self.keywords_of(self.dataset), ['alpha renamed', 'beta'])
         self.assertEqual(self.keywords_of(self.service_metadata), ['alpha renamed'])
+        self.assertEqual(self.keywords_of(self.application), ['alpha renamed'])
 
 
 class KeywordRenameScopeTest(TestCase):
@@ -155,7 +169,8 @@ class KeywordsListIsNotHistoryTest(TestCase):
     """The array of a record is derived, so history does not copy it."""
 
     def test_the_history_of_a_record_has_no_keywords_list(self):
-        for model in (DatasetMetadataRecord, ServiceMetadataRecord):
+        for model in (DatasetMetadataRecord, ServiceMetadataRecord,
+                      ApplicationMetadataRecord):
             with self.subTest(model=model.__name__):
                 history_fields = {
                     field.name for field in model.change_log.model._meta.get_fields()}
@@ -195,11 +210,19 @@ class WrittenKeywordsListTest(TestCase):
         cls.dataset = DatasetMetadataRecord.objects.create(
             metadata_contact=cls.contact, dataset_contact=cls.contact,
             file_identifier='holds a keyword', title='Dataset')
+        cls.application = ApplicationMetadataRecord.objects.create(
+            metadata_contact=cls.contact, application_contact=cls.contact,
+            file_identifier='holds a keyword as well', title='Application')
         cls.keyword = Keyword.objects.create(keyword='alpha')
         cls.dataset.keywords.add(cls.keyword)
+        cls.application.keywords.add(cls.keyword)
 
     #: the fields a fixture of a record has to name for its row to be writable
     FIELDS = ('title', 'file_identifier', 'metadata_contact', 'dataset_contact')
+
+    #: the same for a record type which names its own contact
+    APPLICATION_FIELDS = ('title', 'file_identifier', 'metadata_contact',
+                          'application_contact')
 
     def keywords_of(self, record):
         return list(record.__class__.objects.values_list(
@@ -245,3 +268,13 @@ class WrittenKeywordsListTest(TestCase):
         record.save()
 
         self.assertEqual(self.keywords_of(self.dataset), ['alpha'])
+
+    def test_a_write_of_an_application_record_which_never_read_the_array_keeps_it(self):
+        """The guard is one trigger per record table, so the table which arrived
+        after 0024 needs its own -- the second half of the migration which added
+        the record type."""
+        before = self.keywords_of(self.application)
+
+        self.save_as_fixture(self.application, self.APPLICATION_FIELDS)
+
+        self.assertEqual(before, self.keywords_of(self.application))

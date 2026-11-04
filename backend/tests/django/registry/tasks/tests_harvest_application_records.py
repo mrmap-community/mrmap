@@ -42,6 +42,7 @@ from MrMap.settings import BASE_DIR
 from registry.enums.harvesting import CollectingStatenEnum as State
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.harvesting import LogLevelEnum
+from registry.enums.metadata import MetadataOriginEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import (ApplicationMetadataRecord,
@@ -162,8 +163,12 @@ class ApplicationRecordImportTest(HarvestHarness, TestCase):
                       [str(pk) for pk in record.harvested_through.values_list('pk', flat=True)])
         # a successful import deletes the stored file
         self.assertFalse(TemporaryMdMetadataFile.objects.filter(job=job).exists())
-        # provenance (origin/origin_url) is asserted nowhere here: persisting the
-        # defaults is the bug #976 owns, not this story
+        # the provenance of the run reaches the record: #976 fixed the defaults for
+        # every record type and the application path travels with the fix
+        self.assertEqual(record.origin, MetadataOriginEnum.CATALOGUE.value)
+        self.assertEqual(
+            record.origin_url,
+            self.catalogue.client.get_record_by_id_request(id=APPLICATION_FID).url)
 
     def test_collecting_states_new_updated_existing_and_duplicated(self):
         job = self.new_run()

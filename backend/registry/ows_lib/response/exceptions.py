@@ -108,11 +108,25 @@ class OGCServiceException(HttpResponse):
         service which ``XSD_LOOKUP`` registers no report skeleton for: that
         fallback is what keeps a request which names no service, or one nobody
         serves, from answering a bare HTTP error while its report is built.
+
+        True as well for a registered skeleton which declares no
+        ``ServiceExceptionReport`` (#866): the key of a report of the OWS shape
+        -- ``ExceptionReport`` with ``Exception`` children, which is what the CSW
+        2.0.2 and WFS profiles register -- asked the skeleton builder for an
+        element the schema does not declare, and the client was answered the
+        childless root the skeleton cannot fill. A service is answered from its
+        skeleton only where the skeleton can carry the exception; every other
+        refusal is answered by :meth:`build_ows_exception_report`, the one
+        report of this machinery which is never empty.
         """
         service_type = (self.service_type or "").lower()
         if service_type in OWS_COMMON_SERVICE_TYPES:
             return True
-        return (service_type, "Exception", self.service_version) not in XSD_LOOKUP
+        key = (service_type, "Exception", self.service_version)
+        if key not in XSD_LOOKUP:
+            return True
+        return not XSDSkeletonBuilder(key).declares_element(
+            "ServiceExceptionReport")
 
     @property
     def exception_xml(self) -> _Element:
@@ -150,7 +164,15 @@ class OGCServiceException(HttpResponse):
         return report
 
     def build_service_exception_report(self) -> _Element:
-        """Build the ServiceExceptionReport skeleton XSD_LOOKUP registers."""
+        """Build the ServiceExceptionReport skeleton XSD_LOOKUP registers.
+
+        Only reached for a skeleton which declares the WMS style
+        ``ServiceExceptionReport`` root (see :meth:`uses_ows_exception_report`);
+        the element name is what that skeleton is keyed by, so the strict
+        :meth:`XSDSkeletonBuilder.build_element` can only answer empty for a
+        service registered without a report of this shape -- and that shape
+        check is what this method's caller consults before asking it.
+        """
         builder = XSDSkeletonBuilder(
             (self.service_type.lower(), "Exception", self.service_version)
         )

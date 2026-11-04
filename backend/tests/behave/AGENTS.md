@@ -104,13 +104,12 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (63) | 63 | 0 | 0 | 0 |
-| scenarios | 430 | 0 | 0 | 0 |
+| features (64) | 64 | 0 | 0 | 0 |
+| scenarios | 450 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
-`definition_of_done.rst` is answered by the four counts. Until #908 the skipped scenarios were all
-`/csw` exception-report scenarios; none are skipped anymore — see the section about them at the
-end of this file.
+`definition_of_done.rst` is answered by the four counts. No scenario is skipped; how a refused
+`/csw` request is asserted is answered by the section at the end of this file.
 
 Two conventions keep it green, and the harness enforces both so that no scenario has to repeat them:
 
@@ -132,28 +131,24 @@ a `406` disappear — it is the only thing that catches a view that stopped serv
 response body, and for an HTML response the hint instead of the whole page — so a red run explains
 itself without drowning the log.
 
-### Why the `/csw` exception scenarios are not skipped anymore
+### How the `/csw` refusals are answered
 
-`features/csw/get_records.feature` runs. It was `@skip` since #837 because every `GetRecords`
-answered a 500: the query built from GET query parameters joined the `typeNames` of the request,
-which is an optional parameter (`TypeError: can only join an iterable`), and an `AnyText` filter
-looked up a pattern over the tsvector of a searchable projection, which postgres refuses with
-`function lower(tsvector) does not exist`. Both are answered by the metadata records themselves
-since #855 — see the header of that file and `csw/queryables.py`.
-
-Five scenarios stayed `@skip` until #908, all of them asserting the exception report of a refused
-request (the report itself was the tracked problem of #866): the two of
-`features/csw/get_capabilities.feature` (a missing `SERVICE` and a missing `REQUEST` parameter)
-and three of `features/csw/get_records.feature` (a `Constraint` naming a field which is not a
-queryable, an unsupported `typeNames` and an unsupported `outputSchema`). `/csw` answers every
-refusal with the `ows:ExceptionReport` of OWS Common at HTTP 400 now
-(`registry/ows_lib/response/exceptions.py` builds it), so all five are un-skipped. The exact
-XML comparison of `get_capabilities.feature` pinned the document which never rendered back then;
-its scenarios now assert the parts of the report which carry the refusal — its `version` and the
-`exceptionCode`, `locator` and `ExceptionText` of its `Exception` — as the `get_records.feature`
-scenarios already did. Since #910 the same file asserts the two `VERSION` refusals of `GetRecords`
-(`MissingParameter` for a missing one, `InvalidParameterValue` for an unsupported one) this way;
-the view answers both before the metadata search runs.
+`/csw` answers every refused request with the `ows:ExceptionReport` of OWS Common
+at HTTP 400 (`registry/ows_lib/response/exceptions.py` builds it; OGC 07-006r1,
+10.3.7). The scenarios assert the parts which carry a refusal — the report's
+`version` and the `exceptionCode`, `locator` and `ExceptionText` of its
+`Exception` — instead of pinning the whole document. One exception per refusal,
+built from the request it answers, whatever the refusal is found in: the view,
+the request analysis or the handler names `code` and `locator` and hands over
+`ogc_request=`, and the exception reads the identity of the report out of the
+request. #908 un-skipped the five exception-report scenarios of the two
+`features/csw/` files and #866 completed what they waited for: no report of the
+machinery is answered empty — a skeleton which declares no element to fill
+raises instead of answering a childless root — and the KVP request the CSW
+builder synthesizes carries its `typeNames`, constraint `version` and Envelope
+`srsName` as the attributes they name. The `VERSION` refusals of `GetRecords`
+(#910) and the parsing reports of the POST binding (#912) are asserted the same
+way; the view answers the `VERSION` ones before the metadata search runs.
 
 ## Writing or changing a scenario
 

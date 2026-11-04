@@ -16,6 +16,7 @@ from celery import shared_task
 from django.conf import settings
 
 from extras.tasks import SingletonTask
+from MrMap import celery_queues
 from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
 
 logger: Logger = settings.ROOT_LOGGER
@@ -92,14 +93,17 @@ def delete_dumps(directory, retention_days, max_files):
     }
 
 
-@shared_task(queue="db-routines", bind=True, base=SingletonTask)
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
 def delete_old_slow_request_dumps(self, *args, **kwargs):
     """Sweeps the slow request dumps out of the media root (#888).
 
     Runs as a singleton on the ``db-routines`` queue, because two sweeps over the
     same directory have nothing to add to each other, and beat hands it over
     hourly. A dump which is gone only costs the per request sql detail: the syslog
-    line which pointed at it stays in the log store for its own retention.
+    line which pointed at it stays in the log store for its own retention. Since
+    #970 ``db-routines`` carries no floodable backlog anymore - a harvest's import
+    backlog fills ``harvest-import`` instead - so this sweep is also reached
+    while a catalogue imports.
     """
     summary = delete_dumps(
         slow_request_dumps_dir(),

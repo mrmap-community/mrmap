@@ -53,6 +53,9 @@ const FeatureGroupEditor = ({
       }
     })
     geoJsonCallback && geoJsonCallback(multiPolygon)
+    // whatever the user left on the map is what the card shows: the hint is
+    // only for a card without anything drawable, so it follows the drawing
+    setShowNoGeometryHint(multiPolygon.coordinates.length === 0)
   }, [map, geoJsonCallback])
 
   useEffect(() => {
@@ -122,10 +125,18 @@ const FeatureGroupEditor = ({
       />: null}
       {showNoGeometryHint ? (
         // the map is a control-less card here, so the hint rides on top of it
-        // the same way the explorer's search-area button does
+        // the same way the explorer's search-area button does; it is words
+        // only, so it must never swallow the clicks of the controls it covers
         <Alert
           severity="info"
-          sx={{ position: 'absolute', zIndex: 1000, top: 12, left: 12, maxWidth: '80%' }}
+          sx={{
+            position: 'absolute',
+            zIndex: 1000,
+            top: 12,
+            left: 12,
+            maxWidth: '80%',
+            pointerEvents: 'none',
+          }}
         >
           {translate('datasetExplorer.missingCoverage')}
         </Alert>

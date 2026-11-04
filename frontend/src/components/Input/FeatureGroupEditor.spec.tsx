@@ -1,6 +1,6 @@
 import type { GeoJsonObject } from "geojson";
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import L from "leaflet";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,6 +22,15 @@ const POLYGON = {
 // the maps the editor under test receives through useMap, newest last
 const maps = vi.hoisted(() => [] as L.Map[]);
 
+// the drawing events component is a prop sink here: calling its callbacks is
+// how a spec says "the user drew something"
+type EventsProps = {
+  onCreate?: () => void;
+  onUpdate?: () => void;
+  onRemove?: () => void;
+};
+const eventsProps = vi.hoisted(() => [] as EventsProps[]);
+
 vi.mock("react-leaflet", () => ({
   useMap: () => maps[maps.length - 1],
 }));
@@ -32,7 +41,12 @@ vi.mock("react-admin", () => ({
 // plugin side effects to these specs
 vi.mock("@geoman-io/leaflet-geoman-free", () => ({}));
 vi.mock("../GeomanControl", () => ({ GeomanControl: () => null }));
-vi.mock("../GeomanControl/Events", () => ({ default: () => null }));
+vi.mock("../GeomanControl/Events", () => ({
+  default: (props: EventsProps) => {
+    eventsProps.push(props);
+    return null;
+  },
+}));
 
 const createMap = () => {
   const container = document.createElement("div");
@@ -67,6 +81,7 @@ describe("FeatureGroupEditor", () => {
     vi.restoreAllMocks();
     maps.forEach((map) => map.remove());
     maps.length = 0;
+    eventsProps.length = 0;
   });
 
   const renderEditor = (geoJson: GeoJsonObject | string | null | undefined) => {
@@ -178,5 +193,37 @@ describe("FeatureGroupEditor", () => {
     );
     expect(geoJsonLayers(map)).toBe(2);
     expect(screen.queryByText("missingCoverage")).not.toBeInTheDocument();
+  });
+
+  it("keeps the map controls clickable under the hint", () => {
+    renderEditor({} as never);
+    expect(screen.getByRole("alert")).toHaveStyle({ "pointer-events": "none" });
+  });
+
+  it("drops the hint as soon as the drawing has content", () => {
+    const map = createMap();
+    render(
+      <FeatureGroupEditor
+        geoJson={{} as never}
+        geoJsonCallback={() => undefined}
+        editable
+      />,
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    L.polygon([
+      [0, 0],
+      [0, 1],
+      [1, 1],
+    ]).addTo(map);
+    const drawn = eventsProps[eventsProps.length - 1];
+    act(() => drawn.onUpdate?.());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    // removing the drawing again leaves nothing to show, so the hint is back
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Polygon) layer.remove();
+    });
+    act(() => drawn.onRemove?.());
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 });

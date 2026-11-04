@@ -16,10 +16,10 @@ answered as the KVP binding answers it -- the response document, the constraint
 of the request applied -- and a broken POST is refused with the
 ``ows:ExceptionReport`` naming what is broken, never with HTTP 500 HTML.
 
-The GetRecordById response content -- which is what #909 tracks (the builder
-silently dropped the matched records) -- is deliberately not asserted here;
-what this module pins is that the POST binding reaches the operation and reads
-the ``csw:Id`` elements of the request out of the XML.
+The GetRecordById response content was the tracked gap of #909 (the builder
+silently dropped the matched records); since that fix the posted operation
+ships the stored document of the record its ``csw:Id`` elements name, and the
+mandatory-``Id`` refusal of Table 67 answers a posted request without one.
 """
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -210,20 +210,30 @@ class CswPostTests(AssertsExceptionReport, TestCase):
             components[0].get("targetNamespace"),
             "http://www.isotc211.org/2005/gmd")
 
-    def test_a_posted_get_record_by_id_reaches_the_operation(self):
-        # the response content -- which records the response ships -- is
-        # #909's tracked defect; what the binding has to answer is that the
-        # posted csw:Id elements are read out of the XML and the operation
-        # is dispatched with them
+    def test_a_posted_get_record_by_id_answers_the_record_document(self):
+        # #909 closed the gap this test had to leave open: the response now
+        # carries the stored document of the record the posted csw:Id names --
+        # reached as the KVP binding reaches it, from the same operation
         response = self.post(f"""{XML_DECLARATION}
 <csw:GetRecordById {CSW_NAMESPACES} service="CSW" version="2.0.2">
   <csw:Id>de.mrmap.humidity</csw:Id>
 </csw:GetRecordById>""")
 
         self.assertEqual(response.status_code, 200, response.content)
+        root = etree.fromstring(response.content)
         self.assertEqual(
-            etree.QName(etree.fromstring(response.content)).localname,
-            "GetRecordByIdResponse")
+            etree.QName(root).localname, "GetRecordByIdResponse")
+        self.assertEqual(
+            ['de.mrmap.humidity'],
+            root.xpath(FILE_IDENTIFIERS, namespaces=GMD))
+
+    def test_a_posted_get_record_by_id_without_an_id_is_refused(self):
+        # Table 67 makes Id One (Mandatory) for either binding; the posted
+        # request which names none is refused like its KVP equivalent (#909)
+        response = self.post(f"""{XML_DECLARATION}
+<csw:GetRecordById {CSW_NAMESPACES} service="CSW" version="2.0.2"/>""")
+
+        self.assertExceptionReport(response, "MissingParameterValue", "Id")
 
     # -- broken POSTs: reports, never HTTP 500 HTML ---------------------------
 

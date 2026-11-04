@@ -8,7 +8,8 @@ from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
                              project_gmd_record, requested_element_set,
                              requested_sort_by, sortable_field,
                              sortable_properties)
-from csw.exceptions import DocumentUnavailable, InvalidQuery, NotSupported
+from csw.exceptions import (DocumentUnavailable, InvalidQuery,
+                            MissingIdParameterException, NotSupported)
 from csw.queryables import (FIELD_MAP, application_records, dataset_records,
                             search_filter, service_records)
 from django.core.exceptions import FieldError
@@ -726,7 +727,22 @@ class CswServiceView(View):
         return HttpResponse(status=200, content=content, content_type="application/xml")
 
     def get_record_by_id(self, request):
+        """Answer the ``GetRecordById`` operation with the stored documents.
+
+        Table 67 of OGC 07-006r1 makes the ``Id`` parameter One (Mandatory) --
+        the operation has no default to fall back to, so a request which names
+        no identifier is refused with ``MissingParameterValue`` locating the
+        parameter rather than answered with an empty document, and a request
+        whose identifiers name no record is refused with
+        ``InvalidParameterValue`` naming them (#909; both used to be answered
+        200-empty). Identifiers which name a record in any of the three record
+        sources are answered; see :meth:`build_get_records_by_id_response` for
+        how the documents reach the response.
+        """
         requested_entities = self.ogc_request.requested_entities
+        if not requested_entities:
+            return MissingIdParameterException(ogc_request=self.ogc_request)
+
         if len(requested_entities) == 1:
             dataset_metadata_records = DatasetMetadataRecord.objects.filter(
                 file_identifier=requested_entities[0])
@@ -747,14 +763,31 @@ class CswServiceView(View):
             application_metadata_records = \
                 ApplicationMetadataRecord.objects.filter(
                     file_identifier__in=requested_entities)
-        records = chain(dataset_metadata_records,
-                        service_metadata_records,
-                        application_metadata_records)
+        records = list(chain(dataset_metadata_records,
+                             service_metadata_records,
+                             application_metadata_records))
+
+        if not records:
+            # an identifier the client chose which names no record; the report
+            # carries the values so a client can tell this refusal from the
+            # DocumentUnavailable of a record it did find (#909)
+            return InvalidParameterValueException(
+                ogc_request=self.ogc_request,
+                locator="Id",
+                message=(
+                    f"Unknown record identifier(s): "
+                    f"{', '.join(requested_entities)}. No metadata record of "
+                    "this catalogue carries one of these identifiers."))
 
         gmd_records = self.read_stored_documents(records)
         if isinstance(gmd_records, OGCServiceException):
             return gmd_records
 
+        # The response ships the stored documents as they are: the capabilities
+        # advertise "full" as the only ElementSetName of this operation, and the
+        # full view of #911 is the document unchanged (10.8.4.9: a profile
+        # answers its element sets over its own representation), so nothing of
+        # the request element narrows these documents.
         builder = CSWBuilder()
         xml = builder.build_get_records_by_id_response(gmd_records=gmd_records)
 

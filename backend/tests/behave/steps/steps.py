@@ -194,6 +194,31 @@ def step_impl(context, attribute, expected_value=None):
                 context.test.assertEqual(str(value), expected_value)
 
 
+@then('I expect the openapi schema operation "{method}" on "{path}" documents a sort enum')
+def step_impl(context, method, path):
+    """The list operation documents `sort` with the enum of its valid terms.
+
+    The schema keys of the openapi document contain slashes, so the generic
+    attribute traversal cannot reach an operation; this step reads the
+    operation directly.
+    """
+    schema = context.response.json()
+    context.test.assertIn(path, schema["paths"], f"{path} is not in the schema")
+    context.test.assertIn(method, schema["paths"][path], f"{path} has no {method} operation")
+    operation = schema["paths"][path][method]
+    sort_param = next(
+        (param for param in operation.get("parameters", []) if param.get("name") == "sort"),
+        None)
+    context.test.assertIsNotNone(
+        sort_param, f"{method} {path} documents no sort parameter")
+    enum = (sort_param["schema"].get("enum")
+            or sort_param["schema"].get("items", {}).get("enum"))
+    context.test.assertTrue(enum, f"{method} {path} documents sort without an enum")
+    for term in enum:
+        context.test.assertIn(f"-{term.lstrip('-')}", enum,
+                              f"{method} {path} sort enum misses the negation of {term}")
+
+
 @then('I expect that response xml content is:')
 @then(u'I expect that response xml content is')
 def step_impl(context):

@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import traceback
@@ -15,6 +16,7 @@ from extras.tasks import SingletonTask
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from lxml import etree
 from lxml.etree import Error
+from MrMap import celery_queues
 from MrMap.celery import app
 from MrMap.settings import FILE_IMPORT_DIR
 from notify.enums import ProcessStatusEnum
@@ -127,8 +129,15 @@ class MetadataFileImportTask(HarvestingTask):
 
 # The queues a harvest publishes to (see the queue= of its tasks). The message
 # a registered task id names can only sit in one of them, and the redis
-# transport keys a queue by its plain name (#972).
-HARVEST_BROKER_QUEUES = ("default", "download", "db-routines")
+# transport keys a queue by its plain name (#972). Since #970 the import
+# backlog itself lives on HARVEST_IMPORT; the probe reads it like every other
+# queue a harvest message of a registered id could wait on.
+HARVEST_BROKER_QUEUES = (
+    celery_queues.DEFAULT,
+    celery_queues.DOWNLOAD,
+    celery_queues.DB_ROUTINES,
+    celery_queues.HARVEST_IMPORT,
+)
 # The keys the redis transport parks a message under once a worker has taken
 # it out of the queue but not acked it yet (the driver_unacked_key /
 # driver_index_key of kombu.transport.redis). Every harvest task acks late, so
@@ -138,6 +147,11 @@ HARVEST_BROKER_QUEUES = ("default", "download", "db-routines")
 # of a registered id (#972).
 HARVEST_UNACKED_LIST_KEY = "unacked"
 HARVEST_UNACKED_INDEX_KEY = "unacked_index"
+# The message #970 must not publish a second time for one job while it still
+# waits: the publish of the import chord, which recovery and the operator
+# command use to resume a job. It is looked up by name because the publishing
+# code does not know its task id in advance.
+CHORD_PUBLISH_TASK_NAME = "registry.tasks.harvest.call_chord_md_metadata_file_to_db"
 # How the queue keys are read: page by page, so a queue which is draining a
 # real catalogue never has to be held in memory whole (#972).
 HARVEST_BROKER_SCAN_PAGE = 500
@@ -194,6 +208,42 @@ def _task_id_of_message(raw):
         return None
 
 
+def _chord_publish_of_message(raw, job_id):
+    """Whether one serialized message is a publish of the import chord of this job.
+
+    Answers True for the control message of this very job, False for any other
+    message it could read - another task or the same task of another job - and
+    None when the message cannot be read at all. The reading is one deeper
+    than ``_task_id_of_message``: a recovery that publishes the chord through
+    ``.delay`` does not know a task id in advance, so the pending publish is
+    attributed by what the message names itself - the task name of the
+    protocol-2 headers and the job id of its decoded body (#970). None is
+    again no claim: an unreadable message must keep the answer away from
+    "no pending publish" (#972's stance, carried over).
+    """
+    try:
+        message = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(message, dict):
+        return None
+    name = (message.get("headers") or {}).get("task") \
+        or (message.get("properties") or {}).get("task")
+    if not name:
+        return None
+    if name != CHORD_PUBLISH_TASK_NAME:
+        return False
+    try:
+        body = json.loads(base64.b64decode(message.get("body")))
+    except (TypeError, ValueError):
+        return None
+    kwargs = body[1] if isinstance(body, list) and len(body) > 1 else None
+    published_job = kwargs.get("harvesting_job_id") if isinstance(kwargs, dict) else None
+    if published_job is None:
+        return None
+    return str(published_job) == str(job_id)
+
+
 def _iter_broker_messages(client):
     """Every serialized message the harvest queues and the unacked keys hold,
     page by page so the whole backlog never has to be held in memory (#972).
@@ -239,6 +289,32 @@ def _queued_task_ids(client, registered):
             f"could not read the harvest queues of the broker: {traceback.format_exc()}")
         return None
     return set()
+
+
+def _chord_publish_queued(client, job_id):
+    """Whether the broker's queue and unacked keys currently hold a publish of
+    the import chord of this job.
+
+    The same paged read as ``_queued_task_ids``, only asking a different
+    question of every message: not "does this id name it" but "is this the
+    chord control of this job" (#970). The answer leaves the scan at the first
+    pending publish and answers None on the first message it cannot read at
+    all - a pending chord publish must not be declined or re-published on a
+    guess, so an unattributable message keeps the whole answer unknown,
+    exactly as in the staleness probe (#972's stance, carried over).
+    """
+    try:
+        for raw in _iter_broker_messages(client):
+            match = _chord_publish_of_message(raw, job_id)
+            if match is None:
+                return None
+            if match:
+                return True
+    except Exception:
+        logger.warning(
+            f"could not read the harvest queues of the broker: {traceback.format_exc()}")
+        return None
+    return False
 
 
 def _worker_reported_task_ids():
@@ -306,6 +382,77 @@ def import_run_message_state(registered_ids):
     return False
 
 
+def chord_publish_message_state(job_id):
+    """Whether the broker still holds a pending publish of this job's import chord.
+
+    True while a ``call_chord_md_metadata_file_to_db`` message of the job sits
+    in one of the harvest queues or in the unacked keys, False when the broker
+    was readable and none of them is one, None when the broker cannot be
+    asked. This is #970's guard against the duplicate publishes: at the size
+    of a real catalogue every worker restart appended another copy of the
+    control message to the queue behind the very backlog it was meant to
+    build, and none of the copies could run until the queue had drained. All
+    harvest tasks ack late, so a control message a worker is working is on the
+    unacked keys and the queue scan covers the whole life of a pending
+    publish; unlike ``import_run_message_state`` it needs no inspect round to
+    know that.
+    """
+    try:
+        with app.connection_for_read() as connection:
+            client = getattr(connection.default_channel, "client", None)
+            if client is None:
+                logger.warning(
+                    "the broker does not answer queue introspection; a chord "
+                    "publish can not be told pending from absent")
+                return None
+            return _chord_publish_queued(client, job_id)
+    except Exception:
+        logger.warning(
+            f"could not ask the broker about a pending chord publish: "
+            f"{traceback.format_exc()}")
+        return None
+
+
+def publish_import_chord(job, origin):
+    """Publish the import chord of a job unless one of its publishes still waits.
+
+    Recovery and the operator command resume a job's backlog through this one
+    door, and the door is shut while the broker still holds a publish of it:
+    that message will rebuild the chord once it is consumed, and a second one
+    is exactly the pile-up which grew the queue per restart (#970). The
+    decision is written to the harvesting log like every other one about the
+    backlog (#972's logging pattern); when the broker cannot be asked, a
+    duplicate publish is the risk #891 forbids, so publishing is declined and
+    the operator path is named on the job. Answers whether it published.
+    """
+    state = chord_publish_message_state(job.pk)
+    if state is True:
+        logger.info(
+            f"harvesting job {job.pk} keeps its waiting import chord publish: the "
+            "broker still holds a message which will rebuild the backlog when "
+            "it is consumed")
+        job.log(description=(
+            f"{origin}: a publish of the import chord is still pending on the "
+            "broker; the waiting records will be published as a chord when it "
+            "is consumed, so this publish was declined to keep the backlog single"))
+        return False
+    if state is None:
+        logger.warning(
+            f"harvesting job {job.pk} keeps its import backlog unpublished: the "
+            "broker could not answer whether a publish of the import chord is "
+            "already pending")
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"{origin}: the broker could not answer whether a publish of the "
+                "import chord is still pending, so nothing was published to keep "
+                "the backlog from being duplicated. Once the broker answers "
+                f"again, resume with: manage.py resume_harvesting_job {job.pk}"))
+        return False
+    call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+    return True
+
+
 def resume_stale_import_run(job, registered_ids, origin):
     """End a shadow of an import run which the broker does not hold anymore.
 
@@ -340,7 +487,10 @@ def resume_stale_import_run(job, registered_ids, origin):
             "broker; the waiting records are published as a new import chord"),
         extented_description=details,
     )
-    call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+    # the door of #970: if an earlier recovery already left a chord publish
+    # waiting on the broker, that one will build the chord and this resume
+    # declines visibly instead of adding a second copy
+    return publish_import_chord(job, origin)
 
 
 @worker_ready.connect
@@ -379,8 +529,10 @@ def recover_harvesting_jobs():
             if not job.has_live_import_run():
                 # no (or no waiting) shadow: publishing is what completes a run
                 # whose chord was consumed while its callback was lost, and
-                # what restarts one which died before its chord went out (#891)
-                call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+                # what restarts one which died before its chord went out
+                # (#891); publish_import_chord keeps a restart from stacking a
+                # second control message behind a first one still pending (#970)
+                publish_import_chord(job, origin="worker restart recovery")
             else:
                 recover_records_to_db_job(job)
 
@@ -449,8 +601,14 @@ def create_harvesting_job(self, *args, **kwargs):
     return job.pk
 
 
-@shared_task(bind=True, queue="db-routines", base=HarvestingTask, max_retries=None)
+@shared_task(bind=True, queue=celery_queues.DB_ROUTINES, base=HarvestingTask, max_retries=None)
 def finish_harvesting_job(self, *args, **kwargs):
+    """End a harvest whose import chord has come in.
+
+    The chord callback stays on db-routines: the backlog it waits for now
+    floods harvest-import, so this callback is reached while a catalogue is
+    still being written to the database (#970).
+    """
     from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
     from registry.querys.harvest_history import complete_harvest
 
@@ -526,8 +684,16 @@ def iter_md_metadata_file_chunks(ids, batch_size=None):
         yield ids[start:start + size]
 
 
-@shared_task(queue="db-routines", base=HarvestingTask)
+@shared_task(queue=celery_queues.DB_ROUTINES, base=HarvestingTask)
 def call_chord_md_metadata_file_to_db(*args, **kwargs):
+    """Build (or rebuild) the import chord of a harvesting job.
+
+    The chord control stays on db-routines while its member tasks flood
+    harvest-import (#970): this is the message recovery publishes to resume a
+    job, and it must stay reachable while a backlog is being consumed - on a
+    shared queue it waited behind the very backlog it was meant to build,
+    unconsumed for the ~17 h a catalogue takes to drain (#970).
+    """
     from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
     from registry.querys.harvest_history import complete_harvest
 
@@ -611,12 +777,17 @@ def import_md_metadata_file(md_metadata_file_id):
         logger.error(msg=e)
 
 
-@shared_task(queue="db-routines", base=MetadataFileImportTask)
+@shared_task(queue=celery_queues.HARVEST_IMPORT, base=MetadataFileImportTask)
 def call_md_metadata_file_to_db(*args, **kwargs):
+    """Write one stored metadata file to the database.
+
+    One message per stored file is the floodable import backlog of a harvest;
+    a catalogue fills this queue for hours, which is why it is a queue of its
+    own and nothing which has to answer quickly shares it (#970)."""
     return import_md_metadata_file(kwargs.get("md_metadata_file_id"))
 
 
-@shared_task(queue="db-routines", base=MetadataFileImportTask)
+@shared_task(queue=celery_queues.HARVEST_IMPORT, base=MetadataFileImportTask)
 def call_md_metadata_files_to_db(*args, **kwargs):
     """Write a chunk of stored metadata files to the database (#859).
 
@@ -635,11 +806,17 @@ def call_md_metadata_files_to_db(*args, **kwargs):
 
 
 @shared_task(
-    queue="db-routines",
+    queue=celery_queues.DB_ROUTINES,
     bind=True,
     base=SingletonTask,
 )
 def check_for_files_to_import(self, *args, **kwargs):
+    """Import the files handed into the drop directory (beat, every 5 minutes).
+
+    The beat message itself stays on db-routines, which a harvest must not be
+    able to fill: the backlog its import publishes floods harvest-import
+    instead, so the drop directory keeps being watched while a catalogue
+    drains (#970)."""
     from registry.models.harvest import TemporaryMdMetadataFile
 
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")

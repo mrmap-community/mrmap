@@ -134,10 +134,13 @@ class CswDescribeRecordTests(AssertsExceptionReport, SimpleTestCase):
         self.assertEqual(text.text, "No such operation: GetDomain")
 
 
-class CswCaseInsensitiveDispatchTests(TestCase):
+class CswCaseInsensitiveDispatchTests(AssertsExceptionReport, TestCase):
     """Table 65 note a on the operations which read the database: an empty
     catalogue still answers their response document, which is what tells a
-    dispatched operation from a refused one."""
+    dispatched operation from a refused one. GetRecordById answers a refused
+    request without its mandatory Id (Table 67, #909) -- reaching that
+    operation-specific refusal, rather than the OperationNotSupported of the
+    dispatch fallback, is what tells the dispatched one here."""
 
     def test_a_lower_case_get_records_request_is_dispatched(self):
         response = self.client.get("/csw", {
@@ -149,10 +152,9 @@ class CswCaseInsensitiveDispatchTests(TestCase):
             "GetRecordsResponse")
 
     def test_a_lower_case_get_record_by_id_request_is_dispatched(self):
+        # without the mandatory Id the answer is the refusal of the operation,
+        # not the "No such operation" of the fallback (#909)
         response = self.client.get("/csw", {
             "SERVICE": "CSW", "REQUEST": "getrecordbyid", "VERSION": "2.0.2"})
 
-        self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(
-            etree.QName(etree.fromstring(response.content)).localname,
-            "GetRecordByIdResponse")
+        self.assertExceptionReport(response, "MissingParameterValue", "Id")

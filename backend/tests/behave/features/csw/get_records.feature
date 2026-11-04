@@ -170,13 +170,24 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='Acknowledgement']"
         Then I expect that there is a xpath ".//*[local-name()='EchoedRequest']/*[local-name()='GetRecords']/@resultType" with value "validate"
 
-    Scenario: GetRecordById results response
-        Given I set a queryparam "REQUEST" with value "GetRecords"
+    # This scenario used to send REQUEST=GetRecords beside an Id parameter --
+    # it never reached the operation its name names. #909 makes it a real
+    # GetRecordById probe: the operation which retrieves "the default
+    # representation of catalogue records using their identifier" (10.9) used
+    # to answer 200 with a childless response for every identifier; now the
+    # stored document of the record names it in the response. The refusals of
+    # the mandatory Id of Table 67 are pinned in operation_dispatch.feature,
+    # the identifier-list shapes of the audit (comma separated, repeated id=
+    # parameters) in tests/django/test_csw_get_record_by_id.py.
+    Scenario: GetRecordById answers the stored document of the identifier
+        Given I set a queryparam "REQUEST" with value "GetRecordById"
         Given I set a queryparam "version" with value "2.0.2"
         Given I set a queryparam "service" with value "CSW"
-        Given I set a queryparam "Id" with value "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4"
+        Given I set a queryparam "Id" with value "de.dwd.geoserver.fach.RBSN_RR"
         When I send the request with GET method
         Then I expect the response status is 200
+        Then I expect that there is a xpath "/*[local-name()='GetRecordByIdResponse']/@version" with value "2.0.2"
+        Then I expect that there is a xpath ".//*[local-name()='fileIdentifier']/*[local-name()='CharacterString']/text()" with value "de.dwd.geoserver.fach.RBSN_RR"
 
     # AnyText is the searchable representation of a record: a word of its title, its
     # abstract, its identifiers or one of its keywords. A wildcarded AnyText cannot be a

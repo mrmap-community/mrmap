@@ -242,8 +242,11 @@ def get_requested_records(params: dict[str, str] | etree._Element) -> list[str]:
         nsmap = {k if k is not None else "default": v for k,
                  v in params.nsmap.items()}
 
-        # find all <csw:Id> elements anywhere in the XML
-        ids = params.xpath(".//*/Id | .//*/csw:Id", namespaces=nsmap)
+        # find all <csw:Id> elements anywhere in the XML; the `.//` reaches the
+        # children of the request element as well -- `.//*/` started at the
+        # grandchildren and missed the <csw:Id> of a posted GetRecordById,
+        # which is what answered every posted by-id request empty (#909)
+        ids = params.xpath(".//Id | .//csw:Id", namespaces=nsmap)
         for el in ids:
             if el.text:
                 record_ids.append(el.text.strip())

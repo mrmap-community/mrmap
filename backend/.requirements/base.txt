@@ -1,5 +1,5 @@
 # django-celery-beat 2.9.0 requires Django<6.1.
-Django==6.0.9
+Django==6.0.10
 # adds runserver_plus
 django-extensions==4.1
 # adds history models

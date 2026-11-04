@@ -214,13 +214,31 @@ class InvalidParameterValueException(OGCServiceException):
     code = "InvalidParameterValue"
 
 
+class ParsingErrorException(OGCServiceException):
+    """The request document itself is no parsable document.
+
+    A request which arrives as XML -- the POST binding of OGC 07-006r1, 10.3.2
+    -- which is not well-formed XML names its failure nowhere in its parameters,
+    so the report locates it at the request document as a whole.
+    """
+    code = "ParsingError"
+    locator = "request"
+    message = "The request document could not be parsed."
+
+
 class OperationNotSupportedException(OGCServiceException):
     code = "OperationNotSupported"
     message = "No such operation"
 
     def get_locator(self):
         if self.ogc_request is not None:
-            return self.ogc_request.ogc_query_params.get("REQUEST") or self.locator
+            # the KVP binding names the operation in the REQUEST parameter --
+            # with the spelling the client chose, which the report echoes; a
+            # posted request names it in the element itself, which is what the
+            # analysis read the operation from (#912)
+            return (self.ogc_request.ogc_query_params.get("REQUEST")
+                    or self.ogc_request.operation
+                    or self.locator)
         return self.locator
 
     def get_message(self):

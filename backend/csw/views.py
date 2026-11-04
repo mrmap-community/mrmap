@@ -3,7 +3,7 @@ from itertools import chain
 
 from csw.describe_record import (CSWDescribeRecordBuilder,
                                  SUPPORTED_RECORD_TYPE_NAMES)
-from csw.exceptions import InvalidQuery, NotSupported
+from csw.exceptions import DocumentUnavailable, InvalidQuery, NotSupported
 from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
                             service_records)
 from django.core.exceptions import FieldError
@@ -25,7 +25,8 @@ from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.response.exceptions import (
     MissingRequestParameterException, MissingServiceParameterException,
-    OGCServiceException, OperationNotSupportedException)
+    OGCServiceException, OperationNotSupportedException,
+    ParsingErrorException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
 
@@ -76,7 +77,17 @@ class CswServiceView(View):
 
     def check_request(self):
         """proof if all mandatory query parameters are part of the reuqest"""
-        if not self.ogc_request.operation:
+        if self.ogc_request.xml_parse_error is not None:
+            # a posted request document which is not well-formed XML: the
+            # parsing-error report answers it -- not the XMLSyntaxError which
+            # used to raise out of the request analysis and answer a raw HTTP
+            # 500 for every broken POST (#912)
+            return ParsingErrorException(
+                ogc_request=self.ogc_request,
+                message=(
+                    "The request document could not be parsed: "
+                    f"{self.ogc_request.xml_parse_error}"))
+        elif not self.ogc_request.operation:
             return MissingRequestParameterException(ogc_request=self.ogc_request)
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
@@ -103,6 +114,34 @@ class CswServiceView(View):
         # them is answered from; see csw/queryables.py for the three of them which a
         # record does not answer as a column
         return FIELD_MAP
+
+    def read_stored_documents(self, records):
+        """The stored documents of the given records, parsed.
+
+        A record answers its stored ``xml_backup`` document, and that document
+        is a file of the media storage: a file which is gone from the storage,
+        an empty or corrupt one, used to raise its FileNotFoundError out of the
+        list comprehension which materialized a matched page and kill the whole
+        response of an otherwise valid query with a raw HTTP 500 (#912). Such a
+        record is refused with the report which names it instead; which record
+        cannot be served is what a client -- and the operator who has to restore
+        it -- needs to know.
+
+        :return: the parsed documents, or the refusal naming the record of the
+            one which cannot be served
+        :rtype: list | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
+        """
+        documents = []
+        for record in records:
+            try:
+                documents.append(etree.fromstring(record.xml_backup))
+            except (OSError, ValueError, SyntaxError) as e:
+                return DocumentUnavailable(
+                    ogc_request=self.ogc_request,
+                    message=(
+                        "The stored document of the record "
+                        f"'{record.file_identifier}' cannot be served: {e}"))
+        return documents
 
     def get_filter_constraint(self):
         field_mapping = self.get_field_map()
@@ -368,10 +407,10 @@ class CswServiceView(View):
 
             records_returned = len(result)
 
-            gmd_records = [
-                etree.fromstring(record.xml_backup)
-                for record in result
-            ]
+            gmd_records = self.read_stored_documents(result)
+            if isinstance(gmd_records, OGCServiceException):
+                return gmd_records
+
             xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
@@ -407,10 +446,9 @@ class CswServiceView(View):
                 file_identifier__in=requested_entities)
         records = chain(dataset_metadata_records, service_metadata_records)
 
-        gmd_records = [
-            etree.fromstring(record.xml_backup)
-            for record in records
-        ]
+        gmd_records = self.read_stored_documents(records)
+        if isinstance(gmd_records, OGCServiceException):
+            return gmd_records
 
         builder = CSWBuilder()
         xml = builder.build_get_records_by_id_response(gmd_records=gmd_records)

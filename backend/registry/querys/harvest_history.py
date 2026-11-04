@@ -21,15 +21,21 @@ PRESENT_STATES = [CollectingStatenEnum.NEW, CollectingStatenEnum.UPDATED,
 def complete_snapshots(service_id):
     from registry.models.harvest import HarvestingJob, HarvestingLog, TemporaryMdMetadataFile
     present = Q(harvested_metadata_relation__collecting_state__in=PRESENT_STATES)
+    # a harvest is complete when its SNAPSHOT is accounted for (#903): every record the
+    # catalogue counted for this run must be one the run stored, for every bucket the run
+    # requested - application records included, so they can neither make a dataset and
+    # service harvest look incomplete nor hide inside a complete one (#827)
     return HarvestingJob.objects.filter(
         service_id=service_id, harvest_datasets=True, harvest_services=True,
+        harvest_applications=True,
         phase=HarvestingPhaseEnum.COMPLETED, done_at__isnull=False,
         total_records__isnull=False,
     ).annotate(
         dataset_count=Count('harvested_metadata_relation__dataset_metadata_record', filter=present, distinct=True),
         service_count=Count('harvested_metadata_relation__service_metadata_record', filter=present, distinct=True),
+        application_count=Count('harvested_metadata_relation__application_metadata_record', filter=present, distinct=True),
     ).filter(
-        total_records=F('dataset_count') + F('service_count'),
+        total_records=F('dataset_count') + F('service_count') + F('application_count'),
     ).filter(
         ~Exists(HarvestingLog.objects.filter(harvesting_job_id=OuterRef('pk'), level__lte=LogLevelEnum.ERROR)),
         ~Exists(TemporaryMdMetadataFile.objects.filter(job_id=OuterRef('pk'), has_import_error=True)),
@@ -118,7 +124,8 @@ def complete_harvest(job_id):
         return
     current = HarvestedMetadataRelation.objects.filter(harvesting_job=job, collecting_state__in=PRESENT_STATES)
     prior = HarvestedMetadataRelation.objects.filter(harvesting_job=previous, collecting_state__in=PRESENT_STATES)
-    for field in ['dataset_metadata_record_id', 'service_metadata_record_id']:
+    for field in ['dataset_metadata_record_id', 'service_metadata_record_id',
+                  'application_metadata_record_id']:
         missing = prior.filter(**{f'{field}__isnull': False}).exclude(
             **{f'{field}__in': current.filter(**{f'{field}__isnull': False}).values(field)}
         ).values_list(field, flat=True).distinct()

@@ -124,6 +124,35 @@ reports unknown. Detection latency follows healthcheck intervals and retries;
 a reported healthy container does not prove task execution succeeded.
 
 
+Surviving a host reboot
+=======================
+
+Every service of ``docker-compose.yml`` declares ``restart: unless-stopped``, so
+after a host reboot the docker engine starts the whole stack again by itself;
+``docker compose up -d`` only has to converge it. Convergence is real, not a
+race: after an unclean shutdown Postgres replays its write-ahead log before it
+serves queries, which on a busy instance can take minutes, and during that
+window the postmaster already listens on its port but refuses every connection.
+The backend, worker and Beat containers therefore probe the database with
+``pg_isready`` in their entrypoint (``backend/.bash_scripts/wait_db.sh``) - "up"
+means "accepting connections", not "port open" - and the backend additionally
+retries ``manage.py migrate``, the true readiness test, a bounded number of
+times before exiting. The ``backend`` and Celery services gate on the
+``postgis`` (``pg_isready``) and ``redis`` healthchecks via ``depends_on``, so a
+plain ``docker compose up -d`` orders the stack as well.
+
+``unless-stopped`` deliberately and not ``always``: a stack an operator stopped
+with ``docker compose stop`` or ``down`` stays stopped across reboots, while
+``always`` would bring it back against that decision. One-off containers started
+with ``docker compose run`` never inherit a service's restart policy and never
+come back on boot.
+
+The wait and retry budgets are configurable (``WAIT_DB_ATTEMPTS``,
+``WAIT_DB_DELAY``, ``MIGRATE_ATTEMPTS``, ``MIGRATE_RETRY_DELAY``); a container
+that exhausts them exits non-zero and the restart policy tries the whole
+sequence again.
+
+
 Central log aggregation
 =======================
 

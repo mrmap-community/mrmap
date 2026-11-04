@@ -869,6 +869,29 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
+    def get_default_style(self) -> Style:
+        """The default style of this layer as the OGC specs define it.
+
+        The first Style advertised for the deepest layer of the inheritance
+        chain which advertises any. Layers loaded with their (parent's) styles
+        prefetched answer this without further queries.
+
+        Returns:
+            Style: the default style or None when no style is advertised
+        """
+        seen = set()
+        node = self
+        while node is not None and node.pk not in seen:
+            seen.add(node.pk)
+            # The first advertised style is the default one (ogc wms 1.1.1
+            # 7.1.4.5.8 / 1.3.0 7.2.4.6.9); the rows were written in the order
+            # the capabilities document carries them, so the lowest pk wins.
+            styles = node.styles.all()
+            if styles:
+                return min(styles, key=lambda style: style.pk)
+            node = node.mptt_parent
+        return None
+
     def get_map_url(self, bbox: Polygon = None, format: str = None, style: Style = None, width: int = 1, height: int = 1, transparent: bool = False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
         """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """
         if not format:

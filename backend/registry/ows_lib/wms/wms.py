@@ -225,6 +225,111 @@ class WebMapServiceClient(OgcClient):
                 return name
         raise ValueError("Service advertises no XML exception format")
 
+    def _bbox_axis_order(self, crs: str) -> str:
+        """Return the axis order ("xy" or "yx") a GetMap BBOX in this CRS has.
+
+        WMS 1.1.1 serializes every BBOX x/y. WMS 1.3.0 serializes in the CRS's
+        own axis order; the CRS: authority codes are defined as lon/lat.
+        """
+        if self.service_version != "1.3.0" or crs.startswith("CRS:"):
+            return "xy"
+        authority, code = get_epsg_srid(crs)
+        if not authority or not authority.isalnum() or type(code) is not int:
+            raise ValueError(f"Cannot determine axis order for '{crs}'")
+        try:
+            # Pass an authority/code to local GDAL, never a potentially remote URL.
+            if SpatialReference(srs_input=f"{authority}:{code}").is_yx_order:
+                return "yx"
+        except GDALException:
+            raise ValueError(f"Cannot determine axis order for '{crs}'") from None
+        return "xy"
+
+    def _native_layer_bboxes(self, layer_name: str) -> dict:
+        """The BBoundingBoxes a layer advertises per CRS, inherited from its ancestors.
+
+        A BoundingBox in the capabilities is already serialized in the axis
+        order of the protocol and its CRS. The declaration of a deeper layer
+        replaces the inherited one for its CRS.
+        """
+        nodes = self._capabilities_etree.xpath(
+            "//*[local-name()='Layer']/*[local-name()='Name' and text()=$name]",
+            name=layer_name)
+        if not nodes:
+            return {}
+        extents = {}
+        for ancestor in nodes[0].xpath("ancestor-or-self::*[local-name()='Layer']"):
+            for bbox in ancestor.findall("{*}BoundingBox"):
+                crs = bbox.get(self.crs_qp)
+                if crs:
+                    extents[crs] = self._checked_preview_bbox(
+                        bbox.get(name) for name in
+                        ("minx", "miny", "maxx", "maxy"))
+        return extents
+
+    def _native_layer_bbox(self, layer_name: str, crs: str):
+        """The BoundingBox a layer (or its nearest ancestor) advertises for a CRS."""
+        return self._native_layer_bboxes(layer_name).get(crs)
+
+    def _geographic_bbox_in(self, geographic, crs: str) -> tuple:
+        """The geographic extent of a layer serialized into the units of a CRS."""
+        authority, code = get_epsg_srid(crs)
+        if crs.startswith("CRS:"):
+            # CRS:84 is the geographic longitude/latitude frame; the extent of a
+            # 4326 polygon is its extent in CRS:84.
+            if crs != "CRS:84":
+                raise ValueError(
+                    f"Cannot serialize the geographic bounding box in '{crs}'")
+            return tuple(float(value) for value in geographic.extent)
+        if (not authority or authority != "EPSG"
+                or not authority.isalnum() or type(code) is not int):
+            raise ValueError(
+                f"Cannot serialize the geographic bounding box in '{crs}'")
+        # The field stores the geographic bounding box; without an explicit
+        # srid its extent is the longitude/latitude extent of WGS 84.
+        if (geographic.srid or 4326) == code:
+            return tuple(float(value) for value in geographic.extent)
+        try:
+            projected = geographic.clone()
+            projected.transform(code)
+            return tuple(float(value) for value in projected.extent)
+        except GDALException:
+            raise ValueError(
+                f"Cannot transform the bounding box into '{crs}'") from None
+
+    def get_map_bbox(
+            self,
+            crs: str,
+            layer_name: str = None,
+            geographic=None) -> tuple[tuple, str]:
+        """Serialize the BBOX of a GetMap for this client's version and a CRS.
+
+        This is the single source of the BBOX axis order for every builder of a
+        GetMap request. A BoundingBox which the capabilities advertise for the
+        layer in this CRS is authoritative and already carries the protocol's
+        axis order. Otherwise the given geographic extent is serialized into
+        the CRS, applying its axis order for WMS 1.3.0.
+
+        :param crs: the CRS of the request, e.g. "CRS:84" or "EPSG:4326"
+        :param layer_name: name of a layer whose advertised BBoundingBox may be used
+        :param geographic: the geographic extent of the layer (srid 4326)
+        :return: the BBOX values and the axis order ("xy" or "yx") they are in
+        :raises ValueError: when no extent is available or the CRS is unknown
+        """
+        if self.service_type != "WMS" or self.service_version not in {"1.1.1", "1.3.0"}:
+            raise ValueError("BBOX serialization requires WMS 1.1.1 or 1.3.0 capabilities")
+        if layer_name:
+            native = self._native_layer_bbox(layer_name, crs)
+            if native is not None:
+                return native, self._bbox_axis_order(crs)
+        if geographic is None or not hasattr(geographic, "extent"):
+            raise ValueError(
+                f"No bounding box in '{crs}' available for the requested layer")
+        extent = self._geographic_bbox_in(geographic, crs)
+        axis_order = self._bbox_axis_order(crs)
+        if axis_order == "yx":
+            extent = (extent[1], extent[0], extent[3], extent[2])
+        return extent, axis_order
+
     def get_map_request(
             self,
             layers: list[str],

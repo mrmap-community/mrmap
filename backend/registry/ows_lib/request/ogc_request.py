@@ -26,6 +26,28 @@ from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from requests import Request
 
 
+def merged_query_params(*query_dicts) -> dict:
+    """The query parameters of one request as a plain dict, repeats included.
+
+    Spreading the QueryDicts (``{**request.GET, **request.POST}``) answers a
+    parameter which the request names more than once as its last value alone --
+    the dict semantics of ``QueryDict.__getitem__``. A KVP request which hands
+    the identifier list of a ``GetRecordById`` as repeated ``Id`` parameters
+    asks for the same comma separated list the binding spells within one
+    parameter (OGC 07-006r1, Table 67; #909), so the values of a repeated
+    ``Id`` are joined; every other parameter keeps the single value the spread
+    answered with. A later source still wins over an earlier one, as it did.
+    """
+    merged = {}
+    for query_dict in query_dicts:
+        for name, values in query_dict.lists():
+            if name.lower() == "id" and len(values) > 1:
+                merged[name] = ",".join(values)
+            else:
+                merged[name] = values[-1]
+    return merged
+
+
 class OGCRequest(Request):
     """Extended Request class which provides some analyzing functionality for ogc requests."""
 
@@ -81,7 +103,7 @@ class OGCRequest(Request):
         ogc_request = cls(
             method=request.method,
             url=request.build_absolute_uri(),
-            params={**request.GET, **request.POST},
+            params=merged_query_params(request.GET, request.POST),
             data=request.data if hasattr(request, "data") else request.body,
             cookies=request.COOKIES,
             django_request=request
@@ -446,8 +468,10 @@ class OGCRequest(Request):
 
     def build_get_record_by_id_from_get(self):
         builder = CSWBuilder(service_version=self.service_version)
+        # the parameter is the canonical "Id" of Table 67 -- the read spelled
+        # "id" never matched it, so the synthesized request asked an empty list
         self._xml_request = builder.build_get_record_by_id(
-            ids=self.ogc_query_params.get("id", "").split(","),
+            ids=self.ogc_query_params.get("Id", "").split(","),
             element_set_name=self.ogc_query_params.get(
                 "ElementSetName", "summary")
         )

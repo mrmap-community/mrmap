@@ -137,12 +137,43 @@ the level above genuinely cannot:
 
 Run commands from `frontend/`. Scripts are defined in `package.json`; do not assume a script exists
 without checking it. If `node`/`npm` are not installed on the host, use the `frontend-tests` service
-from the repository root; it keeps its dependencies in a named volume, so only the first run pays
-for `npm ci` (~20 s):
+from the repository root.
 
 Follow the Docker ownership and cleanup rules in `../AGENTS.md`. Use `--no-deps` for frontend checks;
 they do not need backend services. Retain the shared `frontend-node-modules` cache. Avoid running
 `npm ci` or changing dependencies in a shared volume while another job is using it.
+
+Preferred startup — the prebuilt dependency image seeds the project's `node_modules` volume once
+instead of installing on every run, and an unchanged lockfile never reinstalls (details and
+measured timings: `docs/source/development/prebuilt-images.rst`):
+
+```bash
+# from the repository root of the job's checkout, after choosing COMPOSE_PROJECT_NAME per ../AGENTS.md
+export MRMAP_FRONTEND_IMAGE_FP=$(python3 scripts/dev_image_id.py --resolve --image frontend --build)
+export MRMAP_FRONTEND_DEV_IMAGE=ghcr.io/mrmap-community/mrmap-frontend-dev:${MRMAP_FRONTEND_IMAGE_FP}
+cat > /tmp/agent-$COMPOSE_PROJECT_NAME.override.yml <<'YAML'
+services:
+  frontend-tests:
+    container_name: ${COMPOSE_PROJECT_NAME}-frontend-tests
+YAML
+export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt-frontend.yml:/tmp/agent-$COMPOSE_PROJECT_NAME.override.yml"
+docker compose run --rm --no-deps frontend-tests npm run lint
+docker compose run --rm --no-deps frontend-tests npm run type-check
+docker compose run --rm --no-deps frontend-tests npx vitest --run src/components/Resource/HarvestingJob
+docker compose run --rm --no-deps frontend-tests npm run test -- --run   # all specs
+```
+
+The entrypoint of that image verifies the lockfile fingerprint on every start: after a
+`package.json`/`package-lock.json` change it re-seeds from a matching image or, when the image is
+stale, runs a real `npm ci` — a changed lockfile can never run on stale modules. The override file
+resets the `container_name` pinned in `docker-compose.dev.yml`; without it a second stack cannot run
+`frontend-tests` beside the first. The default command under this file is the full test suite, so a
+bare `run --rm --no-deps frontend-tests` needs no arguments.
+
+Without the prebuilt file the local flow keeps working unchanged — `node:26-alpine` plus the
+project's `node_modules` volume, where only the first run in a fresh project pays for `npm ci`
+(~20 s) as long as you pass an explicit command (the service's default command installs on every
+start):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps frontend-tests

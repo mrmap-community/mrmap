@@ -1,0 +1,569 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:MD_Metadata xmlns:ns0="http://www.isotc211.org/2005/gmd" xmlns:ns2="http://www.isotc211.org/2005/gco" xmlns:ns3="http://www.opengis.net/gml/3.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd">
+  <ns0:fileIdentifier>
+    <ns2:CharacterString>1a83899e-8bad-5be4-1ec3-7486a9ec3d35</ns2:CharacterString>
+  </ns0:fileIdentifier>
+  <ns0:language><ns0:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="ger">Deutsch</ns0:LanguageCode></ns0:language>
+  <ns0:characterSet>
+    <ns0:MD_CharacterSetCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" />
+  </ns0:characterSet>
+  <ns0:hierarchyLevel>
+    <ns0:MD_ScopeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode" codeListValue="application">application</ns0:MD_ScopeCode>
+  </ns0:hierarchyLevel>
+  <ns0:contact>
+    <ns0:CI_ResponsibleParty>
+      <ns0:organisationName>
+        <ns2:CharacterString>GDI-SÜDHESSEN</ns2:CharacterString>
+      </ns0:organisationName>
+      <ns0:contactInfo>
+        <ns0:CI_Contact>
+          <ns0:address>
+            <ns0:CI_Address>
+              <ns0:electronicMailAddress>
+                <ns2:CharacterString>info@gdi-suedhessen.de</ns2:CharacterString>
+              </ns0:electronicMailAddress>
+            </ns0:CI_Address>
+          </ns0:address>
+        </ns0:CI_Contact>
+      </ns0:contactInfo>
+      <ns0:role>
+        <ns0:CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</ns0:CI_RoleCode>
+      </ns0:role>
+    </ns0:CI_ResponsibleParty>
+  </ns0:contact>
+  <ns0:dateStamp>
+    <ns2:Date>2026-11-02</ns2:Date>
+  </ns0:dateStamp>
+  <ns0:metadataStandardName>
+    <ns2:CharacterString>ISO19115</ns2:CharacterString>
+  </ns0:metadataStandardName>
+  <ns0:metadataStandardVersion>
+    <ns2:CharacterString>2003/Cor.1:2006</ns2:CharacterString>
+  </ns0:metadataStandardVersion>
+  <ns0:referenceSystemInfo>
+    <ns0:MD_ReferenceSystem>
+      <ns0:referenceSystemIdentifier>
+        <ns0:RS_Identifier>
+          <ns0:authority>
+            <ns0:CI_Citation>
+              <ns0:title>
+                <ns2:CharacterString>European Petroleum Survey Group (EPSG) Geodetic Parameter Registry</ns2:CharacterString>
+              </ns0:title>
+              <ns0:date>
+                <ns0:CI_Date>
+                  <ns0:date>
+                    <ns2:Date>2008-11-12</ns2:Date>
+                  </ns0:date>
+                  <ns0:dateType>
+                    <ns0:CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                  </ns0:dateType>
+                </ns0:CI_Date>
+              </ns0:date>
+              <ns0:citedResponsibleParty>
+                <ns0:CI_ResponsibleParty>
+                  <ns0:organisationName>
+                    <ns2:CharacterString>European Petroleum Survey Group</ns2:CharacterString>
+                  </ns0:organisationName>
+                  <ns0:contactInfo>
+                    <ns0:CI_Contact>
+                      <ns0:onlineResource>
+                        <ns0:CI_OnlineResource>
+                          <ns0:linkage>
+                            <ns0:URL>http://www.epsg-registry.org/</ns0:URL>
+                          </ns0:linkage>
+                        </ns0:CI_OnlineResource>
+                      </ns0:onlineResource>
+                    </ns0:CI_Contact>
+                  </ns0:contactInfo>
+                  <ns0:role ns2:nilReason="missing" />
+                </ns0:CI_ResponsibleParty>
+              </ns0:citedResponsibleParty>
+            </ns0:CI_Citation>
+          </ns0:authority>
+          <ns0:code>
+            <ns2:CharacterString>urn:ogc:def:crs:EPSG:4326</ns2:CharacterString>
+          </ns0:code>
+          <ns0:version>
+            <ns2:CharacterString>6.18.3</ns2:CharacterString>
+          </ns0:version>
+        </ns0:RS_Identifier>
+      </ns0:referenceSystemIdentifier>
+    </ns0:MD_ReferenceSystem>
+  </ns0:referenceSystemInfo>
+  <ns0:identificationInfo>
+    <ns0:MD_DataIdentification id="spatial_dataset_25031aceb593d677d559a2faa81fce29">
+      <ns0:citation>
+        <ns0:CI_Citation>
+          <ns0:title>
+            <ns2:CharacterString>Geoportal Südhessen</ns2:CharacterString>
+          </ns0:title>
+          <ns0:alternateTitle>
+            <ns2:CharacterString />
+          </ns0:alternateTitle>
+          <ns0:date>
+            <ns0:CI_Date>
+              <ns0:date>
+                <ns2:Date>2026-11-02</ns2:Date>
+              </ns0:date>
+              <ns0:dateType>
+                <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="revision">revision</ns0:CI_DateTypeCode>
+              </ns0:dateType>
+            </ns0:CI_Date>
+          </ns0:date>
+          <ns0:identifier>
+            <ns0:MD_Identifier>
+              <ns0:code>
+                <ns2:CharacterString>https://gdi-suedhessen.de/registry/spatial/dataset/1a83899e-8bad-5be4-1ec3-7486a9ec3d35</ns2:CharacterString>
+              </ns0:code>
+            </ns0:MD_Identifier>
+          </ns0:identifier>
+        </ns0:CI_Citation>
+      </ns0:citation>
+      <ns0:abstract>
+        <ns2:CharacterString>Über das Geoportal Südhessen erhalten Sie Zugang zur Kartenanwendung und zu weiteren Informationen zu den bearbeiteten Fachthemen, sowie sämtliche veröffentlichten Geodienste der GDI-Südhessen im harmonisierten und im INSPIRE-konformen Datenmodell.  Ein wesentliches Ziel der GDI-Südhessen ist die gemeinsame, übergreifende Bereitstellung und Harmonisierung von Fachdaten der Region. </ns2:CharacterString>
+      </ns0:abstract>
+      <ns0:pointOfContact>
+        <ns0:CI_ResponsibleParty>
+          <ns0:organisationName>
+            <ns2:CharacterString>GDI-SÜDHESSEN</ns2:CharacterString>
+          </ns0:organisationName>
+          <ns0:contactInfo>
+            <ns0:CI_Contact>
+              <ns0:address>
+                <ns0:CI_Address>
+                  <ns0:electronicMailAddress>
+                    <ns2:CharacterString>info@gdi-suedhessen.de</ns2:CharacterString>
+                  </ns0:electronicMailAddress>
+                </ns0:CI_Address>
+              </ns0:address>
+            </ns0:CI_Contact>
+          </ns0:contactInfo>
+          <ns0:role>
+            <ns0:CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</ns0:CI_RoleCode>
+          </ns0:role>
+        </ns0:CI_ResponsibleParty>
+      </ns0:pointOfContact>
+      <ns0:resourceMaintenance>
+        <ns0:MD_MaintenanceInformation>
+          <ns0:maintenanceAndUpdateFrequency>
+            <ns0:MD_MaintenanceFrequencyCode codeListValue="continual" codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_MaintenanceFrequencyCode" />
+          </ns0:maintenanceAndUpdateFrequency>
+        </ns0:MD_MaintenanceInformation>
+      </ns0:resourceMaintenance>
+      <ns0:graphicOverview>
+        <ns0:MD_BrowseGraphic>
+          <ns0:fileName>
+            <ns2:CharacterString>https://www.geoportal.hessen.de/mapbender/geoportal/mod_showPreview.php?resource=metadata&amp;id=1749</ns2:CharacterString>
+          </ns0:fileName>
+        </ns0:MD_BrowseGraphic>
+      </ns0:graphicOverview>
+      <ns0:descriptiveKeywords>
+    <ns0:MD_Keywords>
+        <ns0:keyword>
+            <ns2:CharacterString>1c349fea-924b-488f-b6a2-e896f40ac897</ns2:CharacterString>
+        </ns0:keyword>
+	<ns0:thesaurusName>
+	    <ns0:CI_Citation>
+		<ns0:title>
+		    <ns2:CharacterString>mapbender.2.registryId</ns2:CharacterString>
+		</ns0:title>
+		<ns0:date>
+		    <ns0:CI_Date>
+			<ns0:date>
+			    <ns2:Date>2019-10-30</ns2:Date>
+			</ns0:date>
+			<ns0:dateType>
+			    <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+			</ns0:dateType>
+		    </ns0:CI_Date>
+		</ns0:date>
+	    </ns0:CI_Citation>
+	</ns0:thesaurusName>
+    </ns0:MD_Keywords>
+</ns0:descriptiveKeywords>
+      <ns0:descriptiveKeywords>
+        <ns0:MD_Keywords>
+          <ns0:keyword>
+            <ns2:CharacterString>Bauleitplan</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Bauleitplanung</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Bebauunsplan</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Bergstraße</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Biotop- und Nutzungskartierung</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Darmstadt-Dieburg</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Feuerwehr</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Feuerwehrstandorte und Einsatzbereiche</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>FrankfurtRheinMain</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>GDI-Südhessen</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Geodaten</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Geodateninfrastruktur</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Geoportal</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Geoportal Südhessen</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Groß-Gerau</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Hochtaunuskreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Industrieflächen</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>KBRP</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Kita</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Kommunale Boden- und Raumplanung</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Limburg-Weilburg</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Main-Kinzig-Kreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Main-Taunus-Kreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Odenwaldkreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Open-Data</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>RegFNP</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Regionaler Flächennutzungsplan</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Regionalverband</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Rettungswachen</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Rettungswachen und -bezirke</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Rheingau-Taunus-Kreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Schulstandorte und -bezirke</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>Wetteraukreis</ns2:CharacterString>
+          </ns0:keyword>
+          <ns0:keyword>
+            <ns2:CharacterString>XPlanung</ns2:CharacterString>
+          </ns0:keyword>
+        </ns0:MD_Keywords>
+      </ns0:descriptiveKeywords>
+      <ns0:descriptiveKeywords>
+        <ns0:MD_Keywords />
+      </ns0:descriptiveKeywords>
+      <ns0:descriptiveKeywords>
+        <ns0:MD_Keywords>
+          <ns0:thesaurusName>
+            <ns0:CI_Citation>
+              <ns0:title>
+                <ns2:CharacterString>GEMET - INSPIRE themes, version 1.0</ns2:CharacterString>
+              </ns0:title>
+              <ns0:date>
+                <ns0:CI_Date>
+                  <ns0:date>
+                    <ns2:Date>2008-06-01</ns2:Date>
+                  </ns0:date>
+                  <ns0:dateType>
+                    <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                  </ns0:dateType>
+                </ns0:CI_Date>
+              </ns0:date>
+            </ns0:CI_Citation>
+          </ns0:thesaurusName>
+        </ns0:MD_Keywords>
+      </ns0:descriptiveKeywords>
+      <ns0:resourceConstraints>
+        <ns0:MD_LegalConstraints>
+          <ns0:accessConstraints>
+            <ns0:MD_RestrictionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode" codeListValue="otherRestrictions" />
+          </ns0:accessConstraints>
+          <ns0:otherConstraints>
+            <ns2:CharacterString>keine Beschränkungen</ns2:CharacterString>
+          </ns0:otherConstraints>
+        </ns0:MD_LegalConstraints>
+      </ns0:resourceConstraints>
+      <ns0:resourceConstraints>
+        <ns0:MD_LegalConstraints>
+          <ns0:useConstraints>
+            <ns0:MD_RestrictionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode" codeListValue="otherRestrictions" />
+          </ns0:useConstraints>
+          <ns0:otherConstraints>
+            <ns2:CharacterString>dl-by-de/2.0 Datenlizenz Deutschland - Namensnennung - Version 2.0 - Lizenz: dl-by-de/2.0 - Datenlizenz Deutschland Namensnennung 2.0 - https://www.govdata.de/dl-de/by-2-0 - Quellenvermerk: Source note required by license, but not given!</ns2:CharacterString>
+          </ns0:otherConstraints>
+          <ns0:otherConstraints>
+            <ns2:CharacterString>{"id":"dl-by-de/2.0","name":"Datenlizenz Deutschland Namensnennung 2.0","url":"https://www.govdata.de/dl-de/by-2-0","quelle":"Source note required by license, but not given!"}</ns2:CharacterString>
+          </ns0:otherConstraints>
+        </ns0:MD_LegalConstraints>
+      </ns0:resourceConstraints>
+      <ns0:spatialRepresentationType>
+        <ns0:MD_SpatialRepresentationTypeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_SpatialRepresentationTypeCode" codeListValue="vector" />
+      </ns0:spatialRepresentationType>
+      <ns0:spatialResolution>
+        <ns0:MD_Resolution>
+          <ns0:equivalentScale>
+            <ns0:MD_RepresentativeFraction>
+              <ns0:denominator>
+                <ns2:Integer>0</ns2:Integer>
+              </ns0:denominator>
+            </ns0:MD_RepresentativeFraction>
+          </ns0:equivalentScale>
+        </ns0:MD_Resolution>
+      </ns0:spatialResolution>
+      <ns0:language><ns0:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="ger">Deutsch</ns0:LanguageCode></ns0:language>
+      <ns0:characterSet>
+        <ns0:MD_CharacterSetCode codeListValue="" codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode" />
+      </ns0:characterSet>
+      <ns0:topicCategory>
+        <ns0:MD_TopicCategoryCode>no category defined till now!</ns0:MD_TopicCategoryCode>
+      </ns0:topicCategory>
+      <ns0:extent>
+        <ns0:EX_Extent>
+          <ns0:geographicElement>
+            <ns0:EX_GeographicBoundingBox>
+              <ns0:westBoundLongitude>
+                <ns2:Decimal>7.7724673</ns2:Decimal>
+              </ns0:westBoundLongitude>
+              <ns0:eastBoundLongitude>
+                <ns2:Decimal>9.7488228</ns2:Decimal>
+              </ns0:eastBoundLongitude>
+              <ns0:southBoundLatitude>
+                <ns2:Decimal>49.3952723</ns2:Decimal>
+              </ns0:southBoundLatitude>
+              <ns0:northBoundLatitude>
+                <ns2:Decimal>50.5996859</ns2:Decimal>
+              </ns0:northBoundLatitude>
+            </ns0:EX_GeographicBoundingBox>
+          </ns0:geographicElement>
+        </ns0:EX_Extent>
+      </ns0:extent>
+      <ns0:extent>
+        <ns0:EX_Extent>
+          <ns0:temporalElement>
+            <ns0:EX_TemporalExtent>
+              <ns0:extent>
+                <ns3:TimePeriod ns3:id="temporalextent">
+                  <ns3:beginPosition>2022-07-24</ns3:beginPosition>
+                  <ns3:endPosition>2026-11-02</ns3:endPosition>
+                </ns3:TimePeriod>
+              </ns0:extent>
+            </ns0:EX_TemporalExtent>
+          </ns0:temporalElement>
+        </ns0:EX_Extent>
+      </ns0:extent>
+    </ns0:MD_DataIdentification>
+  </ns0:identificationInfo>
+  <ns0:distributionInfo>
+    <ns0:MD_Distribution>
+      <ns0:distributionFormat>
+        <ns0:MD_Format>
+          <ns0:name>
+            <ns2:CharacterString />
+          </ns0:name>
+          <ns0:version ns2:nilReason="unknown" />
+          <ns0:specification>
+            <ns2:CharacterString>Specification unkown</ns2:CharacterString>
+          </ns0:specification>
+        </ns0:MD_Format>
+      </ns0:distributionFormat>
+      <ns0:transferOptions>
+        <ns0:MD_DigitalTransferOptions>
+          <ns0:onLine>
+            <ns0:CI_OnlineResource>
+              <ns0:linkage>
+                <ns0:URL>https://www.gdi-suedhessen.de/geoportal/</ns0:URL>
+              </ns0:linkage>
+            </ns0:CI_OnlineResource>
+          </ns0:onLine>
+        </ns0:MD_DigitalTransferOptions>
+      </ns0:transferOptions>
+    </ns0:MD_Distribution>
+  </ns0:distributionInfo>
+  <ns0:dataQualityInfo>
+    <ns0:DQ_DataQuality>
+      <ns0:scope>
+        <ns0:DQ_Scope>
+          <ns0:level>
+            <ns0:MD_ScopeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset">dataset</ns0:MD_ScopeCode>
+          </ns0:level>
+          <ns0:levelDescription>
+            <ns0:MD_ScopeDescription>
+              <ns0:other>
+                <ns2:CharacterString>Datensatz</ns2:CharacterString>
+              </ns0:other>
+            </ns0:MD_ScopeDescription>
+          </ns0:levelDescription>
+        </ns0:DQ_Scope>
+      </ns0:scope>
+      <ns0:report>
+        <ns0:DQ_DomainConsistency xsi:type="gmd:DQ_DomainConsistency_Type">
+          <ns0:result>
+            <ns0:DQ_ConformanceResult xsi:type="gmd:DQ_ConformanceResult_Type">
+              <ns0:specification>
+                <ns0:CI_Citation>
+                  <ns0:title>
+                    <ns2:CharacterString>VERORDNUNG (EG) Nr. 1205/2008 DER KOMMISSION vom 3. Dezember 2008 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich Metadaten</ns2:CharacterString>
+                  </ns0:title>
+                  <ns0:date>
+                    <ns0:CI_Date>
+                      <ns0:date>
+                        <ns2:Date>2008-12-04</ns2:Date>
+                      </ns0:date>
+                      <ns0:dateType>
+                        <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                      </ns0:dateType>
+                    </ns0:CI_Date>
+                  </ns0:date>
+                </ns0:CI_Citation>
+              </ns0:specification>
+              <ns0:explanation>
+                <ns2:CharacterString>No explanation available</ns2:CharacterString>
+              </ns0:explanation>
+              <ns0:pass>
+                <ns2:Boolean>true</ns2:Boolean>
+              </ns0:pass>
+            </ns0:DQ_ConformanceResult>
+          </ns0:result>
+        </ns0:DQ_DomainConsistency>
+      </ns0:report>
+      <ns0:report>
+        <ns0:DQ_DomainConsistency xsi:type="gmd:DQ_DomainConsistency_Type">
+          <ns0:result>
+            <ns0:DQ_ConformanceResult xsi:type="gmd:DQ_ConformanceResult_Type">
+              <ns0:specification>
+                <ns0:CI_Citation>
+                  <ns0:title>
+                    <ns2:CharacterString>VERORDNUNG (EU) Nr. 1253/2013 DER KOMMISSION vom 21. Oktober 2013 zur Änderung der Verordnung (EU) Nr. 1089/2010 zur Durchführung der Richtlinie 2007/2/EG hinsichtlich der Interoperabilität von Geodatensätzen und -diensten</ns2:CharacterString>
+                  </ns0:title>
+                  <ns0:date>
+                    <ns0:CI_Date>
+                      <ns0:date>
+                        <ns2:Date>2013-12-10</ns2:Date>
+                      </ns0:date>
+                      <ns0:dateType>
+                        <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                      </ns0:dateType>
+                    </ns0:CI_Date>
+                  </ns0:date>
+                </ns0:CI_Citation>
+              </ns0:specification>
+              <ns0:explanation>
+                <ns2:CharacterString>No explanation available</ns2:CharacterString>
+              </ns0:explanation>
+              <ns0:pass>
+                <ns2:Boolean>false</ns2:Boolean>
+              </ns0:pass>
+            </ns0:DQ_ConformanceResult>
+          </ns0:result>
+        </ns0:DQ_DomainConsistency>
+      </ns0:report>
+      <ns0:report>
+        <ns0:DQ_DomainConsistency xsi:type="gmd:DQ_DomainConsistency_Type">
+          <ns0:result>
+            <ns0:DQ_ConformanceResult xsi:type="gmd:DQ_ConformanceResult_Type">
+              <ns0:specification>
+                <ns0:CI_Citation>
+                  <ns0:title>
+                    <ns2:CharacterString>VERORDNUNG (EU) Nr. 102/2011 DER KOMMISSION vom 4. Februar 2011 zur Änderung der Verordnung (EU) Nr. 1089/2010 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Interoperabilität von Geodatensätzen und -diensten</ns2:CharacterString>
+                  </ns0:title>
+                  <ns0:date>
+                    <ns0:CI_Date>
+                      <ns0:date>
+                        <ns2:Date>2011-02-05</ns2:Date>
+                      </ns0:date>
+                      <ns0:dateType>
+                        <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                      </ns0:dateType>
+                    </ns0:CI_Date>
+                  </ns0:date>
+                </ns0:CI_Citation>
+              </ns0:specification>
+              <ns0:explanation>
+                <ns2:CharacterString>No explanation available</ns2:CharacterString>
+              </ns0:explanation>
+              <ns0:pass>
+                <ns2:Boolean>false</ns2:Boolean>
+              </ns0:pass>
+            </ns0:DQ_ConformanceResult>
+          </ns0:result>
+        </ns0:DQ_DomainConsistency>
+      </ns0:report>
+      <ns0:report>
+        <ns0:DQ_DomainConsistency xsi:type="gmd:DQ_DomainConsistency_Type">
+          <ns0:result>
+            <ns0:DQ_ConformanceResult xsi:type="gmd:DQ_ConformanceResult_Type">
+              <ns0:specification>
+                <ns0:CI_Citation>
+                  <ns0:title>
+                    <ns2:CharacterString>VERORDNUNG (EG) Nr. 1089/2010 DER KOMMISSION vom 23. November 2010 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Interoperabilität von Geodatensätzen und -diensten</ns2:CharacterString>
+                  </ns0:title>
+                  <ns0:date>
+                    <ns0:CI_Date>
+                      <ns0:date>
+                        <ns2:Date>2010-12-08</ns2:Date>
+                      </ns0:date>
+                      <ns0:dateType>
+                        <ns0:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="publication">publication</ns0:CI_DateTypeCode>
+                      </ns0:dateType>
+                    </ns0:CI_Date>
+                  </ns0:date>
+                </ns0:CI_Citation>
+              </ns0:specification>
+              <ns0:explanation>
+                <ns2:CharacterString>No explanation available</ns2:CharacterString>
+              </ns0:explanation>
+              <ns0:pass>
+                <ns2:Boolean>false</ns2:Boolean>
+              </ns0:pass>
+            </ns0:DQ_ConformanceResult>
+          </ns0:result>
+        </ns0:DQ_DomainConsistency>
+      </ns0:report>
+      <ns0:lineage>
+        <ns0:LI_Lineage>
+          <ns0:statement>
+            <ns2:CharacterString />
+          </ns0:statement>
+        </ns0:LI_Lineage>
+      </ns0:lineage>
+    </ns0:DQ_DataQuality>
+  </ns0:dataQualityInfo>
+</ns0:MD_Metadata>

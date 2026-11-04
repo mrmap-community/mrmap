@@ -83,6 +83,8 @@ create .env file under your mrmap path with the following variables. Please setu
     PGADMIN_USER=admin@example.com
     PGADMIN_PASSWORD=supersecurepassword
 
+Beside these required variables ``.env`` accepts the optional ``DJANGO_ALLOWED_HOSTS``: a ``;`` or ``,`` separated list of additional names and addresses the deployment is reached by, for example ``DJANGO_ALLOWED_HOSTS=10.0.0.12,mrmap.internal``. The host of ``EXTERNAL_BASE_URL`` and the internal presets of the image (``localhost``, loopback addresses, the compose service names) are always allowed; every other name or address answers HTTP 400 until it is listed here. See :ref:`development-environment` for both variables.
+
 ..warning::
     If some of the environment variables are not configured, the docker compose command will fail with erro message like this: error while interpolating services.backend.environment.EXTERNAL_BASE_URL: required variable EXTERNAL_BASE_URL is missing a value: Please configure EXTERNAL_BASE_URL in the .env file.
 

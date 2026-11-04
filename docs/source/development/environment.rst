@@ -43,7 +43,15 @@ Used to configure the secrete key which is used by django. See `django docs <htt
 ``DJANGO_ALLOWED_HOSTS``
 ************************
 
-Used to configure the allowed hosts from the origin header. See `django docs <https://docs.djangoproject.com/en/3.2/ref/settings/#allowed-hosts>`__ for details.
+Used to configure the allowed hosts from the origin header. The entries are separated by ``;`` and/or ``,``. docker-compose.yml passes this variable to ``backend``, ``celery-worker`` and ``celery-beat``; it may also be set in the ``.env`` file of a deployment. It is added to the hosts of ``DJANGO_ALLOWED_HOST_DEFAULTS`` and to the host of ``EXTERNAL_BASE_URL``, which are allowed in any case. See `django docs <https://docs.djangoproject.com/en/3.2/ref/settings/#allowed-hosts>`__ for details.
+
+.. note::
+    Requests with a Host which is not allowed are answered with HTTP 400 by django, which is most visible when a deployment is reached by an IP address or by a second name next to ``EXTERNAL_BASE_URL`` -- list those names here.
+
+``DJANGO_ALLOWED_HOST_DEFAULTS``
+********************************
+
+The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the ETF validator answering to ``MRMAP_BASE_URL_FOR_ETF``, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
 
 ``DJANGO_TIME_ZONE``
 ********************

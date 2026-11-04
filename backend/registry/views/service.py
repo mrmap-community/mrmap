@@ -7,6 +7,7 @@ from django.http import HttpResponse, JsonResponse
 from guardian.core import ObjectPermissionChecker
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
@@ -332,6 +333,7 @@ class ServiceMonitoringProbePreviewMixin:
     )
     @action(detail=True, methods=["post"], url_path="monitoring-probes",
             renderer_classes=[JSONRenderer], filter_backends=[],
+            parser_classes=[JSONParser],
             permission_classes=[MonitoringProbeApplyPermissions])
     def monitoring_probes(self, request, *args, **kwargs):
         service = self.get_object()
@@ -342,11 +344,20 @@ class ServiceMonitoringProbePreviewMixin:
         if not checker.has_perm(
                 f"change_{service.__class__.__name__.lower()}", service):
             raise PermissionDenied
-        setting_pk = (request.data or {}).get("setting")
-        setting = WebMapServiceMonitoringSetting.objects.filter(
-            pk=setting_pk, service=service).first()
-        if setting is None or not checker.has_perm(
-                "change_webmapservicemonitoringsetting", setting):
+        payload = request.data if isinstance(request.data, dict) else {}
+        setting = None
+        try:
+            setting = WebMapServiceMonitoringSetting.objects.filter(
+                pk=payload.get("setting"), service=service).first()
+        except (ValueError, TypeError):
+            setting = None
+        if setting is None:
+            # the payload owes the apply an existing setting of this service;
+            # report the field, the permission on it is checked next
+            return JsonResponse(
+                {"error": "setting"}, status=400,
+                headers={"Cache-Control": "no-store"})
+        if not checker.has_perm("change_webmapservicemonitoringsetting", setting):
             raise PermissionDenied
         try:
             result = apply_generated_probes(service, request.data)

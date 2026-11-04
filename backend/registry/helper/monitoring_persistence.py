@@ -329,6 +329,11 @@ def _apply_candidate(entry, service, setting, candidate, preset,
     else:
         _write_probe(existing, desired)
         action = "updated"
+    if existing.generator_preset != preset:
+        # the identity keys on the target, not on the preset which proposed
+        # it: a recognized probe carries the preset of the latest apply
+        existing.generator_preset = preset
+        existing.save()
     return {"candidateId": entry["candidateId"],
             "probeType": probe_type, "action": action,
             "probeId": str(existing.pk)}

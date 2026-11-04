@@ -8,6 +8,7 @@ from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.utils.timezone import now
+from MrMap import celery_queues
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.exceptions.harvesting import InternalServerError
@@ -125,7 +126,7 @@ class BackgroundProcessBased(Task):
 
 @shared_task(
     bind=True,
-    queue="db-routines",
+    queue=celery_queues.DB_ROUTINES,
     base=BackgroundProcessBased
 )
 def finish_background_process(

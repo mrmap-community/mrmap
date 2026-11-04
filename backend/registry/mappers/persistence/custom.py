@@ -6,6 +6,18 @@ from django.db.models.fields.generated import GeneratedField
 # the name the xml backup of an imported record is stored under
 XML_BACKUP_NAME = 'md_metadata.xml'
 
+# The record types which the custom persistence writes, keyed by the model class
+# name, answering the key of their provenance defaults: `md_metadata_file_to_db`
+# hands the handler a dict per record type named `"dataset"`, `"service"` and
+# `"application"`, while a caller may name the model class itself - which of the
+# two keys belong to one model is what `PersistenceHandler.defaults_of` needs to
+# know to resolve both (#976).
+METADATA_RECORD_TYPE_KEYS = {
+    "DatasetMetadataRecord": "dataset",
+    "ServiceMetadataRecord": "service",
+    "ApplicationMetadataRecord": "application",
+}
+
 
 def _defaults_of_instance(instance):
     """The field values of a parsed instance, to create or update the db record
@@ -41,7 +53,7 @@ def _defaults_of_instance(instance):
     return defaults
 
 
-def _write_values_of(instance, handler, model_key):
+def _write_values_of(instance, handler):
     """The column values a parsed record is written with.
 
     Two columns are left out of that set because the document says nothing about
@@ -49,12 +61,19 @@ def _write_values_of(instance, handler, model_key):
     the record, and `is_customized`, which says whether an editor changed the
     record - a harvest which sets the flag or resets it tells a lie either way
     (#858).
+
+    The defaults the caller handed the handler fill every column the document
+    left empty - for a harvesting run that is its provenance, `origin` and
+    `origin_url`. Filling only the keys which the instance dict lacked never
+    reached them: the dict names every column already, the empty ones as None,
+    so the provenance was setdefault-ed onto its own None and lost (#976).
     """
     values = _defaults_of_instance(instance)
     values.pop("xml_backup_file", None)
     values.pop("is_customized", None)
-    for field, value in handler.defaults.get(model_key, {}).items():
-        values.setdefault(field, value)
+    for field, value in handler.defaults_of(instance.__class__).items():
+        if not values.get(field):
+            values[field] = value
     return values
 
 
@@ -118,18 +137,11 @@ def get_or_create_metadatarecord(instances, handler):
     change_reason = getattr(handler, "change_reason", None)
     db_objs = []
     for instance in instances:
-        match (instance.__class__.__name__):
-            case "DatasetMetadataRecord":
-                model_key = "dataset"
-            case "ServiceMetadataRecord":
-                model_key = "service"
-            case "ApplicationMetadataRecord":
-                model_key = "application"
-            case _:
-                raise ValueError(
-                    f"Unsupported model class {instance.__class__} for custom persistence.")
+        if instance.__class__.__name__ not in METADATA_RECORD_TYPE_KEYS:
+            raise ValueError(
+                f"Unsupported model class {instance.__class__} for custom persistence.")
 
-        values = _write_values_of(instance, handler, model_key)
+        values = _write_values_of(instance, handler)
         created = update = False
         db_obj = _record_of(instance.__class__, instance.file_identifier)
 

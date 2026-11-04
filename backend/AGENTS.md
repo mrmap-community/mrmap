@@ -105,7 +105,32 @@ Follow the Docker ownership rules in `../AGENTS.md`: each job creates its own Co
 run never shares PostgreSQL with another job and no host-wide lock is involved. Start the
 dependencies this area needs once (`docker compose up -d postgis redis mapserver`) and add
 `--no-deps` to the `run --rm` examples below. The isolation is for state; built images are
-shared work — build once per checkout and leave `--build` off, so further stacks reuse the tag.
+shared work. Preferred: run on the prebuilt dependency image instead of building anything; the
+`-f docker-compose.yml -f docker-compose.dev.yml` prefix of the examples below is then set once via
+`COMPOSE_FILE` and can be dropped from every command:
+
+```bash
+# from the repository root of the job's checkout, after choosing COMPOSE_PROJECT_NAME per ../AGENTS.md
+export MRMAP_BACKEND_DEV_FP=$(python3 scripts/dev_image_id.py --resolve --image backend --build)
+export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt.yml"
+docker compose up -d postgis redis mapserver
+# targeted Django tests, cold and repeated (--keepdb reuses the created test database)
+docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
+  django-tests python manage.py test tests.django.registry.tests_update_candidates --noinput
+docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
+  django-tests python manage.py test tests.django.registry.tests_update_candidates --noinput --keepdb
+# targeted Behave scenarios
+docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
+  behave /bin/sh -c "python manage.py behave --simple --noinput --no-skipped 'tests/behave/features/json:api/registry/service/wms'"
+```
+
+`docker-compose.prebuilt.yml` pins all six services sharing `docker/backend/alpine.Dockerfile` to
+the immutable fingerprint tag and carries the standard parallel-run resets, so no job-local override
+file is needed for this area's checks. Never add `--build` to a `run` with that file in
+`COMPOSE_FILE` — with the `build:` sections reset it is a silent no-op. Without the file, the
+local-build flow below works unchanged: build once per checkout and leave `--build` off, so further
+stacks reuse the tag. See `docs/source/development/prebuilt-images.rst` for resolver semantics
+(publish, pull, sanctioned fallback build) and measured timings.
 
 Every Django and Behave command below also needs the admin credentials that the database was
 migrated with: `accounts/apps.py` creates the superuser from `MRMAP_USER` and `MRMAP_PASSWORD`, and

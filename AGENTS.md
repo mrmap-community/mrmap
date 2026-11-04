@@ -112,18 +112,68 @@ satisfies most of it.
   `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
   `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
   `frontend-tests` pins its container name; add them to the override when a check needs them.
-- Isolation is for state: the unique project name, its network and named volumes and the one
-  `django-tests` per stack stay exactly as they are. Built images are not job state. A project name
-  is also the image prefix, so a fresh stack gets its own tag (`docker compose config --images`
-  shows `<project>-<service>`) and `run` builds that tag because it is missing; with a warm
-  BuildKit cache the layers are already there and that costs about a minute, not a rebuild. Build
-  once per checkout (`docker compose build django-tests`) and do not add `--build` to `run`: a
-  rebuild is only needed when `backend/.requirements/*` or `docker/backend/alpine.Dockerfile`
-  changed, never on a branch switch, because the application code arrives over the bind mount.
-  When several stacks of one checkout should share one build outright, pin the built services
-  (`backend`, `django-tests`, `behave` and `pre-commit-check` share one Dockerfile and one set of
-  build args) to a tag of your choosing in the job-local override — at the price that jobs with
-  different requirement sets then overwrite each other's tag.
+
+  This override file belongs to the local-build flow; the preferred prebuilt startup below carries
+  the standard resets for the backend services itself.
+
+#### Preferred agent startup: prebuilt dependency images
+
+Instead of building the dependency images once per checkout, run the stack on the centrally built,
+immutable images published by `.github/workflows/dev-images.yml` —
+`ghcr.io/mrmap-community/mrmap-backend-dev:<fp>` and `ghcr.io/mrmap-community/mrmap-frontend-dev:<fp>`.
+This is the preferred path; everything below this subsection keeps describing the fully supported
+local-build fallback. The dependency fingerprint `<fp>` changes only when a dependency input changes
+(requirements, Dockerfile, resolved base image), never on a source edit. Full background, resolver
+semantics, troubleshooting and measured startup timings: `docs/source/development/prebuilt-images.rst`.
+
+- Backend checks — one resolve per checkout pins every service sharing
+  `docker/backend/alpine.Dockerfile` (`backend`, `django-tests`, `behave`, `pre-commit-check`,
+  Celery) to the immutable tag and replaces their `build:` sections:
+
+  ```bash
+  export MRMAP_BACKEND_DEV_FP=$(python3 scripts/dev_image_id.py --resolve --image backend --build)
+  export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt.yml"
+  ```
+
+  `docker-compose.prebuilt.yml` carries the standard port and `container_name` resets of the
+  override above, so backend checks need no job-local override file. The resolver uses a matching
+  local image, else pulls the pinned tag, else — with `--build` — runs the sanctioned local fallback
+  build under the same immutable tag; it exits `3` when the tag was never published, `4` on a
+  transient registry failure, `0` on a hit.
+
+- Frontend checks — layer the dependency image that seeds the project's `node_modules` volume
+  instead of running `npm ci` on every start:
+
+  ```bash
+  export MRMAP_FRONTEND_IMAGE_FP=$(python3 scripts/dev_image_id.py --resolve --image frontend --build)
+  export MRMAP_FRONTEND_DEV_IMAGE=ghcr.io/mrmap-community/mrmap-frontend-dev:${MRMAP_FRONTEND_IMAGE_FP}
+  export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt-frontend.yml:/tmp/agent-$COMPOSE_PROJECT_NAME.override.yml"
+  ```
+
+  The job-local override is needed here: `docker-compose.prebuilt-frontend.yml` does not reset the
+  `container_name` pinned by `docker-compose.dev.yml`, so add
+  `frontend-tests: { container_name: ${COMPOSE_PROJECT_NAME}-frontend-tests }` to it.
+
+- Never combine `run --build` with the prebuilt files. Their `build:` sections are `!reset`, so
+  `--build` is a **silent no-op** that keeps running the pinned image — compose reports no error,
+  and the local source changes you thought you rebuilt into the image are not in it. With a prebuilt
+  file in `COMPOSE_FILE` the pinned image is fixed; changes to `backend/.requirements/*` or a
+  `package-lock.json` change the fingerprint, so re-run the resolve to get a (new) correct image.
+- Isolation is for state; images are shared work. The unique project name, its network and named
+  volumes and the one `django-tests` per stack stay exactly as they are: that state is disposable
+  per job and never shared. The immutable `<fp>` images and their layers are the opposite —
+  reusable by every job on the host, deliberately kept after a stack is torn down, and never
+  removed as task cleanup (the no-global-prune rule below covers them).
+- Local-build fallback: a project name is also the image prefix, so a fresh stack gets its own tag
+  (`docker compose config --images` shows `<project>-<service>`) and `run` builds that tag because
+  it is missing; with a warm BuildKit cache the layers are already there and that costs about a
+  minute, not a rebuild. Build once per checkout (`docker compose build django-tests`) and do not
+  add `--build` to `run` here either: a rebuild is only needed when `backend/.requirements/*` or
+  `docker/backend/alpine.Dockerfile` changed, never on a branch switch, because the application code
+  arrives over the bind mount. When several stacks of one checkout should share one build outright,
+  pin the built services (`backend`, `django-tests`, `behave` and `pre-commit-check` share one
+  Dockerfile and one set of build args) to a tag of your choosing in the job-local override — at
+  the price that jobs with different requirement sets then overwrite each other's tag.
 - A worktree has no `.env` (it is ignored, not tracked), so copy it and
   `docker/backend/.mrmap.env` from the main checkout before the first Compose command in it;
   otherwise every command fails with `required variable DJANGO_SECRET_KEY is missing a value`.

@@ -1097,6 +1097,10 @@ class TemporaryMdMetadataFile(models.Model):
                                 "service": {
                                     "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
                                     'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                },
+                                "application": {
+                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                                 }
                             }
                         )

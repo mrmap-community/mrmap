@@ -14,14 +14,17 @@ from django.test import TestCase, TransactionTestCase
 
 from registry.expressions.search import TEXT_CONFIGURATION_NAME
 from registry.mappers.persistence.custom import _defaults_of_instance
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, MetadataContact,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, Keyword,
+                                      MetadataContact,
                                       ServiceMetadataRecord)
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            ServiceMetadataRecordSerializer)
 from registry.views.metadata import (DatasetMetadataViewSetMixin,
                                      ServiceMetadataViewSetMixin)
 
-RECORDS = (DatasetMetadataRecord, ServiceMetadataRecord)
+RECORDS = (DatasetMetadataRecord, ServiceMetadataRecord,
+           ApplicationMetadataRecord)
 
 
 class RecordVectorMixin:
@@ -67,7 +70,7 @@ class SearchVectorGenerationTest(TestCase):
     they are asserted here against the statement django hands to it.
     """
 
-    def test_the_generation_expression_of_both_records_needs_no_parameters(self):
+    def test_the_generation_expression_of_every_record_needs_no_parameters(self):
         for model in RECORDS:
             with self.subTest(model=model.__name__):
                 sql, params = model._meta.get_field(
@@ -75,7 +78,7 @@ class SearchVectorGenerationTest(TestCase):
                 self.assertEqual(params, ())
                 self.assertNotIn('%s', sql)
 
-    def test_the_generation_expression_of_both_records_is_the_same(self):
+    def test_the_generation_expression_of_every_record_is_the_same(self):
         """One record is found by the same words the other is found by."""
         vectors = {
             model._meta.get_field('search_vector').generated_sql(connection)[0]

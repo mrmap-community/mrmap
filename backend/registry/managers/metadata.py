@@ -31,6 +31,11 @@ class ServiceMetadataRecordManager(UniqueConstraintDefaultValueManager):
     pass
 
 
+class ApplicationMetadataRecordManager(UniqueConstraintDefaultValueManager):
+    # see DatasetMetadataRecordManager
+    pass
+
+
 class TimeExtentManager(models.Manager):
 
     def get_queryset(self):

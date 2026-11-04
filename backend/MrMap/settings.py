@@ -18,6 +18,7 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
+from MrMap import celery_queues
 from MrMap.celery import is_celery_process, is_this_a_celery_beat_process
 from system.logging.formatter import RFC5424Formatter
 
@@ -358,41 +359,51 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
-CELERY_TASK_DEFAULT_QUEUE = "default"
-CELERY_TASK_DEFAULT_EXCHANGE = "default"
+CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
+CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
 CELERY_TASK_QUEUES = (
     Queue(
-        name="default",
-        exchange=Exchange("default"),
-        routing_key="default",
+        name=celery_queues.DEFAULT,
+        exchange=Exchange(celery_queues.DEFAULT),
+        routing_key=celery_queues.DEFAULT,
         max_priority=10,
     ),
     Queue(
-        name="download",
-        exchange=Exchange("download"),
-        routing_key="download",
+        name=celery_queues.DOWNLOAD,
+        exchange=Exchange(celery_queues.DOWNLOAD),
+        routing_key=celery_queues.DOWNLOAD,
         max_priority=3,
     ),
     Queue(
-        name="db-routines",
-        exchange=Exchange("db-routines"),
-        routing_key="db-routines",
+        name=celery_queues.DB_ROUTINES,
+        exchange=Exchange(celery_queues.DB_ROUTINES),
+        routing_key=celery_queues.DB_ROUTINES,
         max_priority=6,
     ),
     Queue(
-        name="monitoring",
-        exchange=Exchange("monitoring"),
-        routing_key="monitoring",
+        # the import backlog of a harvest, kept off db-routines so that the
+        # chord control, the background process callbacks and the beat
+        # scheduled tasks there stay reachable while a catalogue drains
+        # through this queue (#970)
+        name=celery_queues.HARVEST_IMPORT,
+        exchange=Exchange(celery_queues.HARVEST_IMPORT),
+        routing_key=celery_queues.HARVEST_IMPORT,
+        max_priority=6,
+    ),
+    Queue(
+        name=celery_queues.MONITORING,
+        exchange=Exchange(celery_queues.MONITORING),
+        routing_key=celery_queues.MONITORING,
         max_priority=5,
     ),
     Queue(
-        name="update",
-        exchange=Exchange("update"),
-        routing_key="update",
+        name=celery_queues.UPDATE,
+        exchange=Exchange(celery_queues.UPDATE),
+        routing_key=celery_queues.UPDATE,
         max_priority=4,
     ),
 )

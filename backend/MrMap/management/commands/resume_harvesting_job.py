@@ -67,9 +67,20 @@ class Command(BaseCommand):
                 "run this command again"))
             raise SystemExit(1)
 
-        resume_stale_import_run(
+        published = resume_stale_import_run(
             job, registered, origin="manage.py resume_harvesting_job")
-        self.stdout.write(self.style.SUCCESS(
-            f"harvesting job {job.pk}: {len(registered)} registered task ids name no "
-            "message on the broker; the waiting records were published as a new "
-            "import chord and the job carries the harvesting log entry of it"))
+        if published:
+            self.stdout.write(self.style.SUCCESS(
+                f"harvesting job {job.pk}: {len(registered)} registered task ids name no "
+                "message on the broker; the waiting records were published as a new "
+                "import chord and the job carries the harvesting log entry of it"))
+        else:
+            # #970: the stale shadow is gone but the chord did not go out, so
+            # the operator is told which of the two waits it is, not lied to
+            self.stdout.write(self.style.WARNING(
+                f"harvesting job {job.pk}: {len(registered)} registered task ids name "
+                "no message on the broker and their rows are gone, but the import "
+                "chord was not published: either a publish of it still waits on the "
+                "broker and rebuilds the chord when consumed, or the broker could "
+                "not answer and the publish stays declined to keep the backlog "
+                "single - the harvesting log of the job says which"))

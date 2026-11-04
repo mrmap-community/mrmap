@@ -1,0 +1,164 @@
+name: Dev Images
+
+# Prebuilt backend dev/test images for parallel agent worktrees (epic #959,
+# issue #960). PR runs only prove the image builds; pushes to ghcr.io happen
+# exclusively from push to master and manual dispatch.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# pull_request (NOT pull_request_target): fork code runs with the default
+# read-only token. Nothing in the PR path pushes or logs into a registry, and
+# packages: write exists only on the publish job below.
+permissions:
+  contents: read
+
+env:
+  BACKEND_DEV_IMAGE: ghcr.io/mrmap-community/mrmap-backend-dev
+
+jobs:
+  backend-dev-build:
+    if: github.event_name == 'pull_request'
+    name: backend-dev-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: fingerprint the dependency inputs
+        id: image_id
+        # scripts/dev_image_id.py is the single source of truth for the tag
+        # and for the build args the fingerprint covers; the workflow never
+        # re-implements either.
+        run: |
+          {
+            echo "fp=$(python3 scripts/dev_image_id.py)"
+            echo "build_args=$(python3 scripts/dev_image_id.py --print-build-args)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build backend dev/test image (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./backend
+          file: docker/backend/alpine.Dockerfile
+          build-args: ${{ steps.image_id.outputs.build_args }}
+          push: false
+          # Build cache is scoped per image; mode=min keeps one small cache
+          # per layer instead of the full build history.
+          cache-from: type=gha,scope=backend-dev
+          cache-to: type=gha,scope=backend-dev,mode=min
+
+  backend-dev-publish:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    name: backend-dev-publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: fingerprint the dependency inputs
+        id: image_id
+        run: |
+          fp="$(python3 scripts/dev_image_id.py)"
+          # Immutable fingerprint tag always; the mutable :main convenience
+          # tag (contract #959) only moves on master, agent tooling pins the
+          # fingerprint tag.
+          tags="${{ env.BACKEND_DEV_IMAGE }}:${fp}"
+          if [ "$GITHUB_REF" = "refs/heads/master" ]; then
+            tags="${tags},${{ env.BACKEND_DEV_IMAGE }}:main"
+          fi
+          {
+            echo "fp=${fp}"
+            echo "build_args=$(python3 scripts/dev_image_id.py --print-build-args)"
+            echo "tags=${tags}"
+          } >> "$GITHUB_OUTPUT"
+          echo "publishing $tags" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: log in to ghcr.io
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build and publish backend dev/test image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./backend
+          file: docker/backend/alpine.Dockerfile
+          build-args: ${{ steps.image_id.outputs.build_args }}
+          pull: true
+          push: true
+          tags: ${{ steps.image_id.outputs.tags }}
+          cache-from: type=gha,scope=backend-dev
+          cache-to: type=gha,scope=backend-dev,mode=min
+          # Provenance/SBOM attestations would need the id-token: write
+          # permission; this job deliberately stays at contents: read +
+          # packages: write, so attestations are off.
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            io.github.mrmap.dependency-fingerprint=${{ steps.image_id.outputs.fp }}
+
+  # frontend-dev-publish: stub for #963, deliberately inactive.
+  #
+  # #963 designs the frontend dependency image (ghcr.io/mrmap-community/
+  # mrmap-frontend-dev); no frontend Dockerfile exists in the repository yet,
+  # so there is nothing to build here. Once #963 lands one, mirror the two
+  # jobs above for it: compute the fingerprint with
+  # `python3 scripts/dev_image_id.py --image frontend` (that extension is
+  # owned by #962 - until it exists, extend the script here first, the
+  # fingerprint generation must stay in this single script), use
+  # cache scope `frontend-dev`, keep the same permission split
+  # (packages: write only on the publish job) and add the node version from
+  # the #963 Dockerfile to the fingerprint inputs as the contract defines.
+  #
+  # frontend-dev-publish:
+  #   if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+  #   name: frontend-dev-publish
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - id: image_id
+  #       run: echo "fp=$(python3 scripts/dev_image_id.py --image frontend)" >> "$GITHUB_OUTPUT"
+  #     - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+  #     - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ github.token }}
+  #     - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+  #       with:
+  #         context: ./frontend
+  #         file: <Dockerfile path from #963>
+  #         push: true
+  #         tags: ghcr.io/mrmap-community/mrmap-frontend-dev:${{ steps.image_id.outputs.fp }}
+  #         cache-from: type=gha,scope=frontend-dev
+  #         cache-to: type=gha,scope=frontend-dev,mode=min
+  #         provenance: false

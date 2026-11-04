@@ -1,3 +1,4 @@
+import ast
 import json
 from unittest.mock import Mock, patch
 
@@ -65,6 +66,14 @@ def step_impl(context):
 
 @given('I set a queryparam "{param}" with value "{value}"')
 def step_impl(context, param, value):
+    # GeometryFilter expects GeoJSON, not the Python dict representation used in
+    # older bbox acceptance scenarios (single quotes are not valid JSON).
+    # Keep the scenarios readable while sending standards-compliant GeoJSON.
+    if param.startswith("filter[bboxLatLon."):
+        try:
+            value = json.dumps(ast.literal_eval(value))
+        except (SyntaxError, ValueError):
+            pass  # Preserve malformed input for negative validation scenarios.
     context.query_params.update({param: value})
 
 

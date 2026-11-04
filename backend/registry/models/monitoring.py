@@ -15,6 +15,7 @@ from extras.scheduling import next_run_expected_at
 from lxml import etree
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from PIL import Image, UnidentifiedImageError
+from registry.enums.monitoring import ProbeOriginEnum
 from registry.managers.monitoring import MonitoringRunManager
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import (CatalogueService, FeatureType, Layer,
@@ -485,6 +486,17 @@ class Probe(models.Model):
 
     Concrete probes define the request to send and the checks to apply on the
     response. The result of a probe is stored in the `result_model`.
+
+    Every probe carries its provenance: probes which existed before the
+    generated probes of the monitoring epic, and probes which a user created
+    by hand, are ``manual``; probes which an explicit apply of a monitoring
+    probe preview persisted are ``generated`` and additionally carry the
+    version and the preset of the generator which proposed them and a stable
+    identity derived from the service and the layer / feature-type identifiers
+    of their target - never from display names. The identity is pinned by a
+    partial unique index: repeated, retried or concurrent applies of the same
+    candidate can not duplicate the generated probe, the database refuses the
+    second row.
     """
 
     timeout = models.IntegerField(
@@ -501,11 +513,55 @@ class Probe(models.Model):
             "comma seperated search strings like: ExceptionReport>,ServiceException>")
     )
 
+    origin = models.CharField(
+        max_length=16,
+        choices=ProbeOriginEnum.choices,
+        default=ProbeOriginEnum.MANUAL,
+        verbose_name=_("origin"),
+        help_text=_(
+            "manual for probes created by hand or taken over by the upgrade, "
+            "generated for probes which an apply of a probe preview persisted"))
+
+    generator_version = models.CharField(
+        max_length=32,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name=_("generator version"),
+        help_text=_(
+            "the version of the probe generator which proposed this probe"))
+
+    generator_preset = models.CharField(
+        max_length=32,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name=_("generator preset"),
+        help_text=_(
+            "the preset of the probe generation which proposed this probe"))
+
+    generator_identity = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name=_("generator identity"),
+        help_text=_(
+            "stable identity of the generated probe, derived from the "
+            "service and the identifiers of its target elements; unique "
+            "among the generated probes of a probe type"))
+
     #: model which stores the result of this kind of probe
     result_model = None
 
     class Meta:
         abstract = True
+        constraints = [
+            models.UniqueConstraint(
+                fields=["generator_identity"],
+                condition=models.Q(origin=ProbeOriginEnum.GENERATED),
+                name="%(app_label)s_%(class)s_unique_generated_identity"),
+        ]
 
     def build_request(self, client) -> Request:
         """Build the request which is send to the monitored service."""
@@ -604,7 +660,7 @@ class CapabilitiesProbe(Probe):
         help_text=_("comma seperated search strings like: Title>,Abstract>")
     )
 
-    class Meta:
+    class Meta(Probe.Meta):
         abstract = True
 
     def build_request(self, client) -> Request:
@@ -631,7 +687,7 @@ class WebMapServiceProbe(Probe):
         help_text=_('The related setting object')
     )
 
-    class Meta:
+    class Meta(Probe.Meta):
         abstract = True
 
 
@@ -725,7 +781,7 @@ class WebFeatureServiceProbe(Probe):
         help_text=_('The related setting object')
     )
 
-    class Meta:
+    class Meta(Probe.Meta):
         abstract = True
 
 
@@ -794,7 +850,7 @@ class CatalogueServiceProbe(Probe):
         help_text=_('The related setting object')
     )
 
-    class Meta:
+    class Meta(Probe.Meta):
         abstract = True
 
 

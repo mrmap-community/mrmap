@@ -51,6 +51,11 @@ class GetCapabilitiesProbeSerializer(
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 
@@ -91,6 +96,11 @@ class GetMapProbeSerializer(
             'bbox_lat_lon',
             "check_response_is_image",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 
@@ -361,6 +371,11 @@ class WebFeatureServiceGetCapabilitiesProbeSerializer(
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 
@@ -402,6 +417,11 @@ class WebFeatureServiceGetFeatureProbeSerializer(
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 
@@ -572,6 +592,11 @@ class CatalogueServiceGetCapabilitiesProbeSerializer(
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 
@@ -600,6 +625,11 @@ class CatalogueServiceGetRecordsProbeSerializer(
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
         )
 
 

@@ -6,6 +6,14 @@ from notify.utils import invalidate_service_alerts
 
 WMS_RUN_MODEL = "registry.webmapservicemonitoringrun"
 
+#: upper bound of probe requests one monitoring run has in flight against
+#: the monitored service; the checks of a run are dispatched in batches of
+#: this size, chained so that the next batch starts when the previous one
+#: is done. A generated probe set (#743) may hold far more probes than a
+#: manual setting ever had and a plain group would fan all of them out at
+#: once against one external service.
+MAX_CONCURRENT_PROBE_REQUESTS = 10
+
 
 @shared_task(bind=True)
 def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwargs):
@@ -46,7 +54,13 @@ def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kw
 
 
 def start_run(run, probes, task):
-    """Start the checks of all probes of a monitoring run in parallel mode.
+    """Start the checks of all probes of a monitoring run, in bounded batches.
+
+    The probe tasks are dispatched as groups of at most
+    `MAX_CONCURRENT_PROBE_REQUESTS` checks, chained one after another: no
+    run ever puts more than that amount of requests against the monitored
+    service at the same time, while the per-probe result and the
+    `BackgroundProcess` reporting of `finish_run` stay exactly the same.
 
     Args:
         run (MonitoringRun): the run to store the probe results in
@@ -69,8 +83,14 @@ def start_run(run, probes, task):
         ProcessStatusEnum.RUNNING,
         phase=f"Running {len(tasks)} checks",
         total_steps=len(tasks))
-    chain(group(tasks), finish_run.s(
-        run_pk=run.pk, run_model=run._meta.label_lower)).apply_async()
+    # a run without probes keeps its (empty) group: `finish_run` expects a
+    # preceding result in the chain
+    batches = [tasks[i:i + MAX_CONCURRENT_PROBE_REQUESTS]
+               for i in range(0, len(tasks), MAX_CONCURRENT_PROBE_REQUESTS)] or [[]]
+    chain(
+        *(group(batch) for batch in batches),
+        finish_run.s(run_pk=run.pk, run_model=run._meta.label_lower),
+    ).apply_async()
     return run.pk
 
 

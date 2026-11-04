@@ -93,6 +93,23 @@ def candidate_identifier(probe_type: str, identifiers: list) -> str:
     return digest.hexdigest()[:20]
 
 
+def generated_identity(service_pk, probe_type: str, identifiers: list) -> str:
+    """The stable identity of a PERSISTED generated probe.
+
+    The service-scoped variant of :func:`candidate_identifier`: layer
+    identifiers are only unique inside one service, so the identity which the
+    database pins with its unique constraint additionally names the service.
+    Like the candidate identity it is derived from the target only — never
+    from the preset or the current parameters — which is what makes repeated,
+    retried and concurrent applies of the same candidate recognize the
+    existing row instead of duplicating it.
+    """
+    digest = hashlib.sha256("|".join([
+        "mrmap-monitoring-probe-identity", str(service_pk), probe_type,
+        ",".join(identifiers)]).encode())
+    return digest.hexdigest()[:20]
+
+
 def request_summary(request, operation: str) -> dict:
     """The request a probe would send, prepared without a session.
 
@@ -622,3 +639,64 @@ def generate_probe_preview(service, query) -> dict:
         "skippedTotal": len(reported),
         "skippedTruncated": len(reported) > MAX_SKIPPED_REPORTED,
     }
+
+
+def current_candidate_map(service) -> dict:
+    """The candidates the generator currently proposes for the service.
+
+    The revalidation source of the apply action of the epic's persistence
+    child: it answers every candidate which the CURRENT stored capabilities
+    can produce — a full deterministic scan without pagination and with the
+    generator's default request parameters — keyed by its ``candidateId``.
+    A candidate of an outdated preview which is not in this map is stale: the
+    capabilities changed and a new preview is required before persisting.
+
+    The proposal parameters are the regeneration's current parameters: the
+    customization rule of the persistence compares the stored parameters of a
+    generated probe against exactly these.
+
+    Raises:
+        PreviewError: the same codes as :func:`generate_probe_preview` — a
+            preview which can not be generated now can not be applied either.
+    """
+    if getattr(service, "service_type", None) != "WMS":
+        raise PreviewError("serviceType", 400)
+    if not service.is_active:
+        raise PreviewError("disabled", 423)
+
+    client = _stored_client(service)
+    if client.service_version not in {"1.1.1", "1.3.0"}:
+        raise PreviewError("version", 422)
+
+    exceptions = _exception_format(client)
+    image_formats = _advertised_image_formats(client)
+    if not image_formats:
+        raise PreviewError("noImageFormat", 422)
+
+    capabilities_request = None
+    try:
+        capabilities_request = client.get_capabilities_request()
+    except InitialError:
+        pass
+
+    layers = list(service.layers.with_inherited_attributes_cte()
+                  .order_by("mptt_tree_id", "mptt_lft")
+                  .prefetch_related("styles", "mptt_parent__styles"))
+    proposals, _skips = _scan_layers(
+        client, _Lookup(), layers, _node_map(client),
+        DEFAULT_IMAGE_DIMENSION, DEFAULT_IMAGE_DIMENSION, DEFAULT_TIMEOUT,
+        exceptions, None, None, [])
+
+    candidates = {
+        proposal["candidateId"]: proposal for proposal in proposals}
+    if capabilities_request is not None:
+        candidates[candidate_identifier("GetCapabilities", [])] = {
+            "candidateId": candidate_identifier("GetCapabilities", []),
+            "probeType": "GetCapabilities",
+            "targetLayer": None,
+            "parameters": {
+                "timeout": DEFAULT_TIMEOUT,
+                "maxResponseBytes": MAX_RESPONSE_BYTES},
+            "supported": {},
+        }
+    return candidates

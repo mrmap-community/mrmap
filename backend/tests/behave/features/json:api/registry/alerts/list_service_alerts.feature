@@ -34,6 +34,13 @@ Feature: Cross-service attention
         Then I expect the response status is 400
         And I expect that response json has an attribute "errors.[0].code" with value "invalid"
 
+    Scenario: A generated list can sort the attention records by their identifier
+        Given I am logged in as User2 with password User2
+        And I set a queryparam "sort" with value "id"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "data.[0].type" with value "ServiceAlert"
+
     Scenario: Anonymous callers cannot read attention
         Given I am an anonymous user
         When I send the request with GET method

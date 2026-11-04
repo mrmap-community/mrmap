@@ -3,6 +3,11 @@ from itertools import chain
 
 from csw.describe_record import (CSWDescribeRecordBuilder,
                                  SUPPORTED_RECORD_TYPE_NAMES)
+from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
+                             apply_sort, loaded_fields, merge_sorted,
+                             project_gmd_record, requested_element_set,
+                             requested_sort_by, sortable_field,
+                             sortable_properties)
 from csw.exceptions import InvalidQuery, NotSupported
 from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
                             service_records)
@@ -25,9 +30,10 @@ from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.response.exceptions import (
     InvalidParameterValueException, MissingRequestParameterException,
-    MissingServiceParameterException, MissingVersionParameterException,
+    MissingVersionParameterException,
     OGCServiceException, OperationNotSupportedException,
-    VersionNegotiationFailedException)
+    VersionNegotiationFailedException,
+    MissingServiceParameterException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
 
@@ -191,8 +197,10 @@ class CswServiceView(View):
             return MissingRequestParameterException(ogc_request=self.ogc_request)
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
-        # TODO: HAndle ELEMENTSETNAME parameter, handle resultType parameter
-        # FIXME: if post method, this will not cover the check
+        # The ElementSetName of a request is read and answered where the response
+        # is built (see get_records), which is also where a posted request is
+        # covered: these KVP checks can not cover it (FIXME: if post method, this
+        # will not cover the check)
 
         elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
             return NotSupported(
@@ -525,17 +533,53 @@ class CswServiceView(View):
         if isinstance(q, OGCServiceException):
             return q
 
+        # The element set the response is answered in is read from the request
+        # element -- both bindings carry their parameters in it (see
+        # csw/elementsets.py) -- and a value outside ElementSetType is refused
+        # before anything of the result set is read; 10.8.4.9, Table 65.
+        requested_set = requested_element_set(self.ogc_request.xml_request)
+        element_set = (requested_set or DEFAULT_ELEMENT_SET).lower()
+        if element_set not in ELEMENT_SETS:
+            return InvalidParameterValueException(
+                ogc_request=self.ogc_request,
+                locator="ElementSetName",
+                message=(
+                    f"ElementSetName must be one of "
+                    f"{', '.join(repr(name) for name in ELEMENT_SETS)}; "
+                    f"'{requested_set}' is none of them."))
+
+        # SortBy is read the same way and mapped onto the ordering of both record
+        # sources; a property this catalogue does not sort on is refused with the
+        # InvalidParameterValue 10.8.4.9 leaves for it.
+        sort_specs = []
+        for property_name, descending in requested_sort_by(self.ogc_request.xml_request):
+            field = sortable_field(property_name)
+            if field is None:
+                return InvalidParameterValueException(
+                    ogc_request=self.ogc_request,
+                    locator="SortBy" if self.ogc_request.is_get else "csw:SortBy",
+                    message=(
+                        f"The property '{property_name}' is not sortable. "
+                        f"Sortable properties are: "
+                        f"{', '.join(sortable_properties())}."))
+            sort_specs.append((field, descending))
+
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         constraint = search_filter(q)
 
         try:
-            # a GetRecords answers the stored document of a record and nothing else of
-            # it, so nothing else of it is read
-            dataset_metadata_records_result = dataset_records().filter(
-                constraint).only("pk", "xml_backup_file")
-            service_metadata_records_result = service_records().filter(
-                constraint).only("pk", "xml_backup_file")
+            # a GetRecords answers the stored document of a record and nothing else
+            # of it, so nothing else of it is read -- save for the fields it is
+            # sorted by, which the merge of the two sources compares
+            dataset_metadata_records_result = apply_sort(
+                dataset_records().filter(
+                    constraint).only(*loaded_fields(sort_specs)),
+                sort_specs)
+            service_metadata_records_result = apply_sort(
+                service_records().filter(
+                    constraint).only(*loaded_fields(sort_specs)),
+                sort_specs)
         except FieldError as e:
             requested_field = str(e).split(":")[0].split("'")[1]
             available_fields = field_mapping.keys()
@@ -583,6 +627,7 @@ class CswServiceView(View):
                 version="2.0.2",
                 time_stamp=self.start_time,
                 next_record=0,
+                element_set=element_set,
             )
         elif result_type == "validate":
             # no errors while here. So the request was acknowledget as successfully
@@ -590,17 +635,18 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
-            # Both sources are ordered by their primary key, which means that a record which
-            # is among the first `heap_count` records of the merged result is among the
-            # first `heap_count` records of *its own* source too: every record standing in
-            # front of it in the merged order stands in front of it in its own source as
-            # well. So taking that many records from both and merging them by pk answers the
-            # requested page, for the price of two limited queries.
-            # TODO: order by correct querparameter
-            merged_records = sorted(
+            # Both sources are ordered by the same total order -- the requested
+            # sorting over the primary key -- which means that a record which is
+            # among the first `heap_count` records of the merged result is among
+            # the first `heap_count` records of *its own* source too: every record
+            # standing in front of it in the merged order stands in front of it in
+            # its own source as well. So taking that many records from both and
+            # merging them by that order answers the requested page, for the price
+            # of two limited queries.
+            merged_records = merge_sorted(
                 chain(dataset_metadata_records_result[:heap_count],
                       service_metadata_records_result[:heap_count]),
-                key=lambda instance: instance.pk
+                sort_specs
             )
 
             result = merged_records[start_position: heap_count]
@@ -610,8 +656,11 @@ class CswServiceView(View):
 
             records_returned = len(result)
 
+            # Table 66: the response names the element set it answers with, and
+            # the non-full sets are the stored documents pruned to their view
             gmd_records = [
-                etree.fromstring(record.xml_backup)
+                project_gmd_record(etree.fromstring(record.xml_backup),
+                                   element_set)
                 for record in result
             ]
             xml = builder.build_get_records_response(
@@ -620,6 +669,7 @@ class CswServiceView(View):
                 version="2.0.2",
                 time_stamp=self.start_time,
                 next_record=0 if next_record == total_records else next_record,
+                element_set=element_set,
                 gmd_records=gmd_records
             )
 

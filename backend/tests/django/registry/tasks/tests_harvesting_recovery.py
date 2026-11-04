@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import Mock, patch
+from types import SimpleNamespace
+from unittest.mock import Mock, PropertyMock, patch
 from uuid import uuid4
 
 from celery import states
@@ -16,12 +17,14 @@ from registry.models.harvest import (HarvestingJob, HarvestingJobTaskId,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
 from registry.models.metadata import MetadataContact
+from registry.ows_lib.client.exceptions import InitialError
 from registry.querys.harvest_history import complete_harvest
 from registry.serializers.harvesting import HarvestingJobSerializer
-from requests.exceptions import ChunkedEncodingError, Timeout
+from requests.exceptions import (ChunkedEncodingError, ConnectionError,
+                                 ReadTimeout, Timeout)
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from registry.tasks.harvest import (
-    call_chord_md_metadata_file_to_db, call_fetch_records,
+    HarvestingTask, call_chord_md_metadata_file_to_db, call_fetch_records,
     call_fetch_total_records, call_md_metadata_file_to_db,
     call_md_metadata_files_to_db,
     create_harvesting_job, finish_harvesting_job, recover_harvesting_jobs,
@@ -409,6 +412,178 @@ class HarvestingRecoveryTest(TestCase):
         with patch('celery.canvas.Signature.apply_async'), patch.object(call_fetch_total_records, 'delay'):
             job_id = create_harvesting_job.run(service_id=service.pk)
         self.assertEqual(HarvestingJob.objects.get(pk=job_id).max_step_size, 250)
+
+
+class ImportTransientFailureTest(TestCase):
+    """a stored metadata file must survive a catalogue which times out or answers 5xx
+    while its records are imported: the terminal has_import_error is reserved for
+    errors of the record, not of the network (#895)"""
+
+    CAPABILITIES_URL = ('https://catalogue.example.org/csw'
+                        '?service=CSW&version=2.0.2&request=GetCapabilities')
+
+    def setUp(self):
+        self.media = TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        self.settings_override = override_settings(MEDIA_ROOT=self.media.name)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        contact = MetadataContact.objects.create(name='Transient import contact')
+        service = CatalogueService(version=202, metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([service])
+        self.job = HarvestingJob(total_records=1, phase=Phase.RECORDS_TO_DB, service=service)
+        HarvestingJob.objects.bulk_create([self.job])
+        # a real record: its import asks the catalogue for the origin url of the record,
+        # which is where the read timeout of the live failure was raised
+        dataset = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+        self.record = self._stored('dataset.xml', dataset.read_bytes())
+
+    def _stored(self, name, content=b'<record/>'):
+        stored = TemporaryMdMetadataFile(job=self.job)
+        stored.md_metadata_file.save(name, ContentFile(content), save=False)
+        TemporaryMdMetadataFile.objects.bulk_create([stored])
+        return stored
+
+    def test_a_read_timeout_while_the_client_is_built_retries_the_file(self):
+        """the origin url of an imported record is answered by the client of the catalogue,
+        whose constructor GETs the stored capabilities URL; the live read timeout of that
+        request must redeliver the file with the backoff of the harvest instead of ending
+        it with the traceback of the network (the mechanism of #895)"""
+        with patch.object(CatalogueService, 'capabilities', new_callable=PropertyMock,
+                          return_value=self.CAPABILITIES_URL), \
+                patch('requests.Session.send', side_effect=ReadTimeout(
+                    'HTTPSConnectionPool(host=...): Read timed out. (read timeout=10)')):
+            with self.assertRaises(ReadTimeout):
+                call_md_metadata_file_to_db.run(md_metadata_file_id=self.record.pk,
+                                                harvesting_job_id=self.job.pk)
+        self.record.refresh_from_db()
+        self.assertFalse(self.record.has_import_error)
+        self.assertEqual('', self.record.import_error)
+        self.assertTrue(TemporaryMdMetadataFile.objects.filter(pk=self.record.pk).exists())
+
+    def test_a_5xx_while_the_client_is_built_retries_the_file(self):
+        """the same round trip answers a 5xx with the InitialError of the client
+        package: it is the failure of the same remote and must not end the file either"""
+        response = Mock(status_code=503, headers={'content-type': 'text/html'})
+        with patch.object(CatalogueService, 'capabilities', new_callable=PropertyMock,
+                          return_value=self.CAPABILITIES_URL), \
+                patch('requests.Session.send', return_value=response):
+            with self.assertRaises(InitialError):
+                call_md_metadata_file_to_db.run(md_metadata_file_id=self.record.pk,
+                                                harvesting_job_id=self.job.pk)
+        self.record.refresh_from_db()
+        self.assertFalse(self.record.has_import_error)
+
+    def test_transient_failures_reach_the_task_base_of_both_import_tasks(self):
+        """what a harvest task retries must escape the per-file catch, and that has to
+        hold for the single file and for the chunk which carries many of them"""
+        for error in (Timeout('read timeout=10'), ReadTimeout('read timeout=10'),
+                      ConnectionError('connection refused'),
+                      InitialError('client could not be initialized. Response status code: 502')):
+            for task in (call_md_metadata_file_to_db, call_md_metadata_files_to_db):
+                with self.subTest(task=task.name, error=type(error).__name__):
+                    stored = self._stored('record.xml')
+                    with patch.object(TemporaryMdMetadataFile, 'md_metadata_file_to_db',
+                                      side_effect=error):
+                        with self.assertRaises(type(error)):
+                            if task is call_md_metadata_file_to_db:
+                                task.run(md_metadata_file_id=stored.pk,
+                                         harvesting_job_id=self.job.pk)
+                            else:
+                                task.run(md_metadata_file_ids=[stored.pk],
+                                         harvesting_job_id=self.job.pk)
+                    stored.refresh_from_db()
+                    self.assertFalse(stored.has_import_error)
+                    self.assertEqual('', stored.import_error)
+
+    def test_the_import_tasks_retry_what_must_not_end_a_file(self):
+        """the re-raising of the import and the autoretry of its tasks answer one
+        set: two contradicting statements about retryable failures were #895"""
+        for task in (call_md_metadata_file_to_db, call_md_metadata_files_to_db):
+            with self.subTest(task=task.name):
+                self.assertIn(InitialError, task.autoretry_for)
+                self.assertTrue(set(HarvestingTask.autoretry_for) <= set(task.autoretry_for))
+        self.assertNotIn(InitialError, HarvestingTask.autoretry_for,
+                         'the other tasks of the harvest keep their retry contract')
+
+    def test_a_transient_error_sends_the_pending_files_of_a_chunk_to_retry(self):
+        """a chunk which loses the catalogue stops at that file: the files it did not
+        commit stay unflagged, so the redelivery of the chunk imports them"""
+        first, second = self._stored('first.xml'), self._stored('second.xml')
+        attempts = []
+
+        def import_file(record):
+            attempts.append(record.pk)
+            raise ReadTimeout('read timed out')
+
+        with patch.object(TemporaryMdMetadataFile, 'md_metadata_file_to_db', import_file):
+            with self.assertRaises(ReadTimeout):
+                call_md_metadata_files_to_db.run(md_metadata_file_ids=[first.pk, second.pk],
+                                                 harvesting_job_id=self.job.pk)
+
+        self.assertEqual([first.pk], attempts, 'the chunk stops at the transient error')
+        for stored in (first, second):
+            stored.refresh_from_db()
+            self.assertFalse(stored.has_import_error,
+                             'the pending files wait for the redelivery unflagged')
+
+    def test_a_record_error_is_still_documented_as_terminal(self):
+        """nothing transient is in play here: the document is no MD_Metadata, so the
+        file ends with the error of its own content and stays flagged for inspection"""
+        broken = self._stored('broken.xml')
+        self.assertIsNone(call_md_metadata_file_to_db.run(md_metadata_file_id=broken.pk,
+                                                          harvesting_job_id=self.job.pk))
+        broken.refresh_from_db()
+        self.assertTrue(broken.has_import_error)
+        self.assertIn('No MD_Metadata elements found', broken.import_error)
+        self.assertIsNone(call_md_metadata_file_to_db.run(md_metadata_file_id=broken.pk,
+                                                          harvesting_job_id=self.job.pk))
+        broken.refresh_from_db()
+        self.assertTrue(broken.has_import_error, 'the documented error stays terminal')
+
+
+class ImportTransientRetryEagerTest(TransactionTestCase):
+    """the celery machinery, not only the body of the task, must answer a first read
+    timeout with a retry: applied eagerly, the task retries with its backoff and the
+    second attempt imports the file (#895).
+
+    TransactionTestCase: the deployment closes old connections before and after every
+    task run (MrMap/celery.py), which the atomic block wrapping a TestCase does not
+    survive - the celery apply tests of this module are TransactionTestCases too.
+    """
+
+    def setUp(self):
+        self.media = TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        self.settings_override = override_settings(MEDIA_ROOT=self.media.name)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.job = HarvestingJob(total_records=1, phase=Phase.RECORDS_TO_DB)
+        HarvestingJob.objects.bulk_create([self.job])
+        self.record = TemporaryMdMetadataFile(job=self.job)
+        self.record.md_metadata_file.save('dataset.xml', ContentFile(b'<record/>'), save=False)
+        TemporaryMdMetadataFile.objects.bulk_create([self.record])
+
+    def test_the_file_is_imported_after_a_retried_timeout(self):
+        attempts = []
+
+        def import_file(record):
+            attempts.append(record.pk)
+            if len(attempts) == 1:
+                raise ReadTimeout('HTTPSConnectionPool(host=...): Read timed out.')
+            record.delete()
+            return [(SimpleNamespace(pk=record.pk), False, False)]
+
+        with patch.object(TemporaryMdMetadataFile, 'md_metadata_file_to_db', import_file):
+            result = call_md_metadata_file_to_db.apply(
+                kwargs={'md_metadata_file_id': self.record.pk,
+                        'harvesting_job_id': self.job.pk}, throw=False)
+
+        self.assertEqual('SUCCESS', result.state, str(result.result))
+        self.assertGreaterEqual(len(attempts), 2,
+                                'the timeout was retried by the task base, not documented')
+        self.assertFalse(TemporaryMdMetadataFile.objects.filter(pk=self.record.pk).exists(),
+                         'the file of the retry was imported')
 
 
 class HarvestingPublishingRecoveryTest(TransactionTestCase):

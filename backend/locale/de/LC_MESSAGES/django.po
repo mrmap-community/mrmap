@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 00:24+0100\n"
+"POT-Creation-Date: 2026-11-05 00:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:238
+#: MrMap/settings.py:284
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:239
+#: MrMap/settings.py:285
 msgid "German"
 msgstr "Deutsch"
 
@@ -1619,7 +1619,10 @@ msgstr "kommagetrennte Suchbegriffe wie: ExceptionReport>,ServiceException>"
 msgid ""
 "manual for probes created by hand or taken over by the upgrade, generated "
 "for probes which an apply of a probe preview persisted"
-msgstr "manuell bei von Hand erstellten oder durch das Upgrade übernommenen Überprüfungen, generiert bei Überprüfungen, die ein Anwenden einer Sondenvorschau gespeichert hat"
+msgstr ""
+"manuell bei von Hand erstellten oder durch das Upgrade übernommenen "
+"Überprüfungen, generiert bei Überprüfungen, die ein Anwenden einer "
+"Sondenvorschau gespeichert hat"
 
 #: registry/models/monitoring.py:530
 msgid "generator version"
@@ -1635,7 +1638,8 @@ msgstr "Vorgabe des Generators"
 
 #: registry/models/monitoring.py:541
 msgid "the preset of the probe generation which proposed this probe"
-msgstr "die Vorgabe der Probenerzeugung, die diese Überprüfung vorgeschlagen hat"
+msgstr ""
+"die Vorgabe der Probenerzeugung, die diese Überprüfung vorgeschlagen hat"
 
 #: registry/models/monitoring.py:548
 msgid "generator identity"
@@ -1646,7 +1650,10 @@ msgid ""
 "stable identity of the generated probe, derived from the service and the "
 "identifiers of its target elements; unique among the generated probes of a "
 "probe type"
-msgstr "stabile Identität der generierten Überprüfung, abgeleitet aus dem Dienst und den Bezeichnern ihrer Zielelemente; eindeutig unter den generierten Überprüfungen einer Art"
+msgstr ""
+"stabile Identität der generierten Überprüfung, abgeleitet aus dem Dienst und "
+"den Bezeichnern ihrer Zielelemente; eindeutig unter den generierten "
+"Überprüfungen einer Art"
 
 #: registry/models/monitoring.py:659 registry/models/monitoring.py:817
 #: registry/models/monitoring.py:898

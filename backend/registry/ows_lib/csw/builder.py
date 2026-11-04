@@ -158,7 +158,10 @@ class CSWBuilder(XSDSkeletonBuilder):
                     "numberOfRecordsReturned": records_returned,
                     "nextRecord": next_record,
                     "recordSchema": record_schema,
-                    "elementSetName": element_set,
+                    # Table 66 names this attribute elementSet -- the set the
+                    # response answers -- not ElementSetName, which is the request
+                    # parameter asking for it (CSW-discovery.xsd SearchResultsType)
+                    "elementSet": element_set,
                     "resultSetId": result_set_id,
                     "expires": expires.isoformat() if expires else None,
                 }

@@ -6,13 +6,11 @@ from uuid import uuid4
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from django.db.models.fields import BooleanField, CharField
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
-from epsg_cache.utils import adjust_axis_order
 from extras.scheduling import next_run_expected_at
 from lxml import etree
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
@@ -685,25 +683,35 @@ class GetMapProbe(WebMapServiceProbe):
             self.check_does_not_contain(response=response)
 
     def build_request(self, client) -> Request:
-        layers: list[Layer] = self.layers.with_inherited_attributes_cte()
-        bbox: Polygon = layers[0].bbox_lat_lon_inherited
-        if client.service_version == "1.3.0":
-            bbox = adjust_axis_order(bbox)
-
+        # One ordered list of the configured layers, so that LAYERS and STYLES
+        # stay aligned and a re-run of the same probe sends the same request.
+        layers: list[Layer] = list(self.layers.with_inherited_attributes_cte())
+        crs = str(self.reference_system) if self.reference_system_id else "EPSG:4326"
+        if self.bbox_lat_lon is not None:
+            # The configured bounding box of this probe is authoritative.
+            bbox, _ = client.get_map_bbox(crs=crs, geographic=self.bbox_lat_lon)
+        else:
+            # Fall back to the bounding box the capabilities advertise for the
+            # first configured layer, as the OGC specs inherit it.
+            first = layers[0] if layers else None
+            bbox, _ = client.get_map_bbox(
+                crs=crs,
+                layer_name=first.identifier if first else None,
+                geographic=first.bbox_lat_lon_inherited if first else None)
+        styles = [
+            style.name if (style := layer.get_default_style()) else ""
+            for layer in layers]
         return client.get_map_request(
-            layers=[layer.identifier for layer in self.layers.all()],
-            crs=str(self.reference_system),
-            # TODO: use configured styles instead
-            styles=",".join(["" for layer in layers]),
+            layers=[layer.identifier for layer in layers],
+            crs=crs,
+            # the default style every configured layer advertises; the empty
+            # string keeps a layer without any advertised style at the server
+            # default
+            styles=styles,
             height=self.height,
             width=self.width,
             format=str(self.format) if self.format else "image/png",
-            bbox=(
-                str(bbox.extent[0]),
-                str(bbox.extent[1]),
-                str(bbox.extent[2]),
-                str(bbox.extent[3])
-            )
+            bbox=bbox
         )
 
 

@@ -522,3 +522,140 @@ class WebMapServiceClientTest(SimpleTestCase):
                     self.assertNotIn("TRANSPARENT", params)
                 else:
                     self.assertEqual(params["TRANSPARENT"], expected)
+
+
+class GetMapBboxSerializationTest(SimpleTestCase):
+    """The BBOX and axis order proof of the shared GetMap bbox serialization.
+
+    :meth:`WebMapServiceClient.get_map_bbox` is the single source of the BBOX
+    serialization for generated probes and for the executing GetMapProbe, so
+    both WMS protocol families and the axis order of the actual CRS are
+    pinned here.
+    """
+
+    def setUp(self):
+        self.session = Mock(spec=Session)
+
+    def tearDown(self):
+        self.session.send.assert_not_called()
+
+    def make_client(self, layers, version="1.3.0"):
+        namespace = 'xmlns="http://www.opengis.net/wms"' if version == "1.3.0" else ""
+        root = "WMS_Capabilities" if version == "1.3.0" else "WMT_MS_Capabilities"
+        capabilities = f"""
+            <{root} version="{version}" {namespace} xmlns:xlink="http://www.w3.org/1999/xlink">
+                <Service><Name>WMS</Name></Service>
+                <Capability><Request><GetMap><Format>image/png</Format>
+                    <DCPType><HTTP><Get>
+                        <OnlineResource xlink:href="https://example.test/wms?"/>
+                    </Get></HTTP></DCPType></GetMap></Request>
+                    {layers}
+                </Capability>
+            </{root}>
+        """.encode()
+        return WebMapServiceClient(capabilities, session=self.session)
+
+    @staticmethod
+    def geographic():
+        from django.contrib.gis.geos import Polygon
+        bbox = Polygon.from_bbox((5.0, 47.0, 16.0, 55.0))
+        bbox.srid = 4326
+        return bbox
+
+    def test_wms_111_serializes_geographic_extent_lon_lat(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>", version="1.1.1")
+
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:4326", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(bbox, (5.0, 47.0, 16.0, 55.0))
+        self.assertEqual(axis, "xy")
+
+    def test_wms_130_epsg4326_serializes_lat_lon(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>")
+
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:4326", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(bbox, (47.0, 5.0, 55.0, 16.0))
+        self.assertEqual(axis, "yx")
+
+    def test_wms_130_crs84_keeps_lon_lat(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>")
+
+        bbox, axis = client.get_map_bbox(
+            crs="CRS:84", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(bbox, (5.0, 47.0, 16.0, 55.0))
+        self.assertEqual(axis, "xy")
+
+    def test_wms_130_epsg4258_serializes_lat_lon(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>")
+
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:4258", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(axis, "yx")
+        # ETRS89 and WGS 84 coincide at the precision stored in capabilities
+        self.assertEqual(tuple(round(value) for value in bbox), (47.0, 5.0, 55.0, 16.0))
+
+    def test_advertised_native_bbox_is_used_as_it_is(self):
+        client = self.make_client("""
+            <Layer><Name>all</Name><CRS>EPSG:4326</CRS>
+                <Layer><Name>roads</Name><CRS>EPSG:3857</CRS>
+                    <BoundingBox CRS="EPSG:3857" minx="556597.45" miny="5942074.07"
+                        maxx="1781111.85" maxy="7420309.05"/>
+                    <BoundingBox CRS="EPSG:4326" minx="47.0" miny="5.0" maxx="55.3" maxy="16.0"/>
+                </Layer>
+            </Layer>
+        """)
+
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:3857", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(
+            bbox, (556597.45, 5942074.07, 1781111.85, 7420309.05))
+        self.assertEqual(axis, "xy")
+        # the native declaration in the axis order of the protocol is not
+        # swapped again for the y/x ordered EPSG:4326
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:4326", layer_name="roads", geographic=self.geographic())
+        self.assertEqual(bbox, (47.0, 5.0, 55.3, 16.0))
+        self.assertEqual(axis, "yx")
+
+    def test_deeper_native_bbox_replaces_the_inherited_one(self):
+        client = self.make_client("""
+            <Layer><Name>all</Name><CRS>EPSG:3857</CRS>
+                <BoundingBox CRS="EPSG:3857" minx="0" miny="0" maxx="100" maxy="100"/>
+                <Layer><Name>roads</Name>
+                    <BoundingBox CRS="EPSG:3857" minx="1" miny="2" maxx="3" maxy="4"/>
+                </Layer>
+            </Layer>
+        """)
+
+        bbox, _ = client.get_map_bbox(
+            crs="EPSG:3857", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(bbox, (1.0, 2.0, 3.0, 4.0))
+
+    def test_geographic_extent_is_transformed_into_projected_crs(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>")
+
+        bbox, axis = client.get_map_bbox(
+            crs="EPSG:3857", layer_name="roads", geographic=self.geographic())
+
+        self.assertEqual(axis, "xy")
+        self.assertAlmostEqual(bbox[0], 556597.45, delta=1)
+        self.assertAlmostEqual(bbox[2], 1781111.85, delta=1)
+
+    def test_unknown_crs_or_missing_extent_is_reported(self):
+        client = self.make_client("<Layer><Name>roads</Name></Layer>")
+
+        with self.assertRaises(ValueError):
+            client.get_map_bbox(crs="AUTO:42003", geographic=self.geographic())
+        with self.assertRaises(ValueError):
+            client.get_map_bbox(crs="None", geographic=self.geographic())
+        with self.assertRaises(ValueError):
+            client.get_map_bbox(crs="EPSG:4326", layer_name="roads")
+        with self.assertRaises(ValueError):
+            client.get_map_bbox(crs="EPSG:4326", layer_name="unregistered")

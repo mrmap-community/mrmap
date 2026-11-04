@@ -13,3 +13,18 @@ class NotImplemented(OGCServiceException):
 
 class NotSupported(OGCServiceException):
     code = "NotSupported"
+
+
+class DocumentUnavailable(OGCServiceException):
+    """The stored document of a matched record cannot be served.
+
+    NoApplicableCode is the code OGC 07-006r1, Table 10 leaves for a failure
+    the request itself is not to blame for: the xml backup file of a record is
+    gone from the media storage, or its content cannot be read as the document
+    it is (lost files of a storage incident, quota, a failing disk). The report
+    names the record so the client and the operator know which one it is about
+    (#912); before, the FileNotFoundError of such a record killed the whole
+    response with a raw HTTP 500.
+    """
+    code = "NoApplicableCode"
+    message = "The stored document of a matched record cannot be served."

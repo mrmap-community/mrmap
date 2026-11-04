@@ -228,13 +228,27 @@ class VersionNegotiationFailedException(OGCServiceException):
     message = "None of the requested versions is supported by this service."
 
 
+class ParsingErrorException(OGCServiceException):
+    """The request document itself is no parsable document.
+
+    A request which arrives as XML -- the POST binding of OGC 07-006r1, 10.3.2
+    -- which is not well-formed XML names its failure nowhere in its parameters,
+    so the report locates it at the request document as a whole.
+    """
+    code = "ParsingError"
+    locator = "request"
+    message = "The request document could not be parsed."
+
+
 class OperationNotSupportedException(OGCServiceException):
     code = "OperationNotSupported"
     message = "No such operation"
 
     def get_locator(self):
         if self.ogc_request is not None:
-            return self.ogc_request.ogc_query_params.get("REQUEST") or self.locator
+            return (self.ogc_request.ogc_query_params.get("REQUEST")
+                    or self.ogc_request.operation
+                    or self.locator)
         return self.locator
 
     def get_message(self):

@@ -8,15 +8,12 @@ from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
                              project_gmd_record, requested_element_set,
                              requested_sort_by, sortable_field,
                              sortable_properties)
-from csw.exceptions import InvalidQuery, NotSupported
+from csw.exceptions import DocumentUnavailable, InvalidQuery, NotSupported
 from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
                             service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
-from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
-from django.db.models.functions import Coalesce
-from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -33,7 +30,7 @@ from registry.ows_lib.response.exceptions import (
     MissingVersionParameterException,
     OGCServiceException, OperationNotSupportedException,
     VersionNegotiationFailedException,
-    MissingServiceParameterException)
+    MissingServiceParameterException, ParsingErrorException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
 
@@ -193,8 +190,19 @@ class CswServiceView(View):
 
     def check_request(self):
         """proof if all mandatory query parameters are part of the reuqest"""
-        if not self.ogc_request.operation:
+        if self.ogc_request.xml_parse_error is not None:
+            # a posted request document which is not well-formed XML: the
+            # parsing-error report answers it -- not the XMLSyntaxError which
+            # used to raise out of the request analysis and answer a raw HTTP
+            # 500 for every broken POST (#912)
+            return ParsingErrorException(
+                ogc_request=self.ogc_request,
+                message=(
+                    "The request document could not be parsed: "
+                    f"{self.ogc_request.xml_parse_error}"))
+        elif not self.ogc_request.operation:
             return MissingRequestParameterException(ogc_request=self.ogc_request)
+
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
         # The ElementSetName of a request is read and answered where the response
@@ -222,6 +230,34 @@ class CswServiceView(View):
         # them is answered from; see csw/queryables.py for the three of them which a
         # record does not answer as a column
         return FIELD_MAP
+
+    def read_stored_documents(self, records):
+        """The stored documents of the given records, parsed.
+
+        A record answers its stored ``xml_backup`` document, and that document
+        is a file of the media storage: a file which is gone from the storage,
+        an empty or corrupt one, used to raise its FileNotFoundError out of the
+        list comprehension which materialized a matched page and kill the whole
+        response of an otherwise valid query with a raw HTTP 500 (#912). Such a
+        record is refused with the report which names it instead; which record
+        cannot be served is what a client -- and the operator who has to restore
+        it -- needs to know.
+
+        :return: the parsed documents, or the refusal naming the record of the
+            one which cannot be served
+        :rtype: list | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
+        """
+        documents = []
+        for record in records:
+            try:
+                documents.append(etree.fromstring(record.xml_backup))
+            except (OSError, ValueError, SyntaxError) as e:
+                return DocumentUnavailable(
+                    ogc_request=self.ogc_request,
+                    message=(
+                        "The stored document of the record "
+                        f"'{record.file_identifier}' cannot be served: {e}"))
+        return documents
 
     def get_filter_constraint(self):
         field_mapping = self.get_field_map()
@@ -356,38 +392,36 @@ class CswServiceView(View):
         if isinstance(sections, OGCServiceException):
             return sections
 
-        dataset_count_subquery = DatasetMetadataRecord.keywords.through.objects.filter(
-            keyword=OuterRef('pk')
-        ).values('keyword').annotate(
-            count=Count('keyword')
-        ).values('count')
-
-        service_count_subquery = ServiceMetadataRecord.keywords.through.objects.filter(
-            keyword=OuterRef('pk')
-        ).values('keyword').annotate(
-            count=Count('keyword')
-        ).values('count')
-
-        keywords = Keyword.objects.annotate(
-            dataset_count=Coalesce(Subquery(
-                dataset_count_subquery, output_field=BigIntegerField()), Value(0)),
-            service_count=Coalesce(Subquery(
-                service_count_subquery, output_field=BigIntegerField()), Value(0)),
-            usage_count=F('dataset_count') + F('service_count')
-        ).filter(
-            Q(dataset_count__gt=0) | Q(service_count__gt=0)
-        ).order_by(
-            '-usage_count'
-        ).values_list(
-            "keyword",
-            flat=True
-        )[:10]
+        # the 10 most used keywords of the catalogue for the capabilities
+        # KeywordList. One grouped aggregation per keyword link table (#912):
+        # the previous per-row Subquery(Count()) pair was evaluated for every
+        # keyword row -- and each count twice, because the usage filter
+        # re-read the same annotations -- so the database could never apply
+        # the top-10 limit before all keywords had been counted, which is
+        # what pushed a cold GetCapabilities over the nginx timeout on the
+        # demo box. A keyword is only a candidate when it carries links, and
+        # equal usages keep the keyword id order the old sequential sort
+        # produced, so the answered document is unchanged.
+        usage_counts = {}
+        for keyword_links in (DatasetMetadataRecord.keywords.through.objects,
+                              ServiceMetadataRecord.keywords.through.objects):
+            for row in keyword_links.values('keyword').annotate(
+                    count=Count('keyword')):
+                usage_counts[row['keyword']] = usage_counts.get(
+                    row['keyword'], 0) + row['count']
+        most_used = sorted(usage_counts,
+                           key=lambda pk: (-usage_counts[pk], pk))[:10]
+        keywords = []
+        if most_used:
+            names = dict(Keyword.objects.filter(
+                pk__in=most_used).values_list('pk', 'keyword'))
+            keywords = [names[pk] for pk in most_used]
 
         csw = CatalogueService.objects.get(pk=MRMAP_CSW_PK)
 
         builder = CSWCapabilities(
             csw,
-            extra_keywords=list(keywords),
+            extra_keywords=keywords,
             base_url=request.build_absolute_uri("/csw"),
             operation_parameters={
                 "GetRecords": {
@@ -658,11 +692,11 @@ class CswServiceView(View):
 
             # Table 66: the response names the element set it answers with, and
             # the non-full sets are the stored documents pruned to their view
-            gmd_records = [
-                project_gmd_record(etree.fromstring(record.xml_backup),
-                                   element_set)
-                for record in result
-            ]
+            gmd_records = self.read_stored_documents(result)
+            if isinstance(gmd_records, OGCServiceException):
+                return gmd_records
+            gmd_records = [project_gmd_record(document, element_set)
+                           for document in gmd_records]
             xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
@@ -699,10 +733,9 @@ class CswServiceView(View):
                 file_identifier__in=requested_entities)
         records = chain(dataset_metadata_records, service_metadata_records)
 
-        gmd_records = [
-            etree.fromstring(record.xml_backup)
-            for record in records
-        ]
+        gmd_records = self.read_stored_documents(records)
+        if isinstance(gmd_records, OGCServiceException):
+            return gmd_records
 
         builder = CSWBuilder()
         xml = builder.build_get_records_by_id_response(gmd_records=gmd_records)

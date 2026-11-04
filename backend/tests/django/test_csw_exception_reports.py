@@ -131,7 +131,38 @@ class CswConstraintRefusalTests(AssertsExceptionReport, TestCase):
             "CONSTRAINTLANGUAGE": "CQL_TEXT",
             "Constraint": "&&& not a cql expression &&&",
         })
-        self.assertExceptionReport(response, "InvalidParameterValue")
+        # the report locates the failure at the parameter whose value it is
+        # (#912; the audit's probe title === bad syntax)
+        self.assertExceptionReport(response, "InvalidParameterValue", "Constraint")
+
+    def test_unsupported_constraint_language(self):
+        # the audit's probe constraintlanguage=banana
+        response = self.client.get("/csw", {
+            **GET_RECORDS,
+            "CONSTRAINTLANGUAGE": "banana",
+            "Constraint": "identifier='x'",
+        })
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "CONSTRAINTLANGUAGE")
+
+    def test_malformed_filter_constraint(self):
+        response = self.client.get("/csw", {
+            **GET_RECORDS,
+            "CONSTRAINTLANGUAGE": "FILTER",
+            "Constraint": "<Filter><broken>",
+        })
+        self.assertExceptionReport(response, "InvalidParameterValue", "Constraint")
+
+    def test_filter_constraint_of_an_unsupported_namespace(self):
+        # pygeofilter picks its parser from the namespace of the Filter
+        # element and refuses any other with a ValueError -- that is a value
+        # the client chose, not a server error
+        response = self.client.get("/csw", {
+            **GET_RECORDS,
+            "CONSTRAINTLANGUAGE": "FILTER",
+            "Constraint": "<Filter xmlns='http://example.com/nope'/>",
+        })
+        self.assertExceptionReport(response, "InvalidParameterValue", "Constraint")
 
     def test_constraint_field_which_is_no_queryable(self):
         response = self.client.get("/csw", {

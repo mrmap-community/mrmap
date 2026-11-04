@@ -1,0 +1,36 @@
+# Opt-in compose layer that replaces the per-run `npm ci` of the
+# `frontend-tests` service with a prebuilt frontend dependency image
+# (issue #963, epic #959). Layer it over the development configuration:
+#
+#   export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt-frontend.yml"
+#
+# The image (docker/frontend/tests.Dockerfile) carries the result of `npm ci`
+# under /opt/frontend-deps - outside the ./frontend bind mount, so nothing
+# shadows it - plus the fingerprint of the lockfile it was built from. The
+# bootstrap entrypoint seeds the project's own node_modules volume from that
+# copy on first use and verifies the fingerprint marker inside the volume on
+# every start: a changed package.json/package-lock.json triggers a re-seed
+# from a matching image or falls back to a real `npm ci` when the image is
+# stale. A changed lockfile therefore can never reuse stale modules, and an
+# unchanged one never reinstalls.
+#
+# Image selection follows the epic #959 contract: the dependency fingerprint
+# is resolved by scripts/dev_image_id.py (#960/#962) and passed in via
+# MRMAP_FRONTEND_DEV_IMAGE as ghcr.io/mrmap-community/mrmap-frontend-dev:<fp>;
+# on a pull miss, build the very same tag locally with
+# `docker compose build frontend-tests`. Without the variable the mutable
+# :main convenience tag is pulled; the bootstrap fingerprint check keeps even
+# that honest. The node_modules volume stays the per-project named volume of
+# docker-compose.dev.yml - compose project scoping already keeps agent stacks
+# isolated from each other.
+services:
+  frontend-tests:
+    image: ${MRMAP_FRONTEND_DEV_IMAGE:-ghcr.io/mrmap-community/mrmap-frontend-dev:main}
+    build:
+      context: ./
+      dockerfile: ./docker/frontend/tests.Dockerfile
+    # Replaces the `npm ci && npm run test` default command of
+    # docker-compose.dev.yml: the bootstrap entrypoint takes care of the
+    # dependencies, so the command only runs the check itself.
+    entrypoint: /usr/local/bin/mrmap-frontend-bootstrap
+    command: /bin/sh -c "npm run test -- --run"

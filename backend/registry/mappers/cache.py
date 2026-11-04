@@ -9,6 +9,47 @@ from uuid import UUID
 # -------------------------------------------------------------------
 
 
+class LocalXmlCache:
+    """Instance-scoped stand-in for GlobalXmlCache with the same call surface.
+
+    A mapper running on one of these keeps every parsed instance inside its own
+    run: nothing is registered in process-global state, so mapping a document
+    for extraction alone leaves no trace. Sub-mappers must be constructed with
+    the very same cache object - that is what a shared mapper uuid and the
+    element-path lookups between parent and child specs rely on, exactly as
+    with the class-level GlobalXmlCache.
+    """
+
+    def __init__(self):
+        self._data = OrderedDict()
+
+    def set(self, key, value):
+        self._data[key] = value
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def get_many(self, keys):
+        return OrderedDict((key, self._data.get(key)) for key in keys)
+
+    def delete(self, key):
+        self._data.pop(key, None)
+        # a cached instance is also named in the key list stored under its uuid
+        key_list = self._data.get(UUID(key.split(":", 1)[0]))
+        if isinstance(key_list, list) and key in key_list:
+            key_list.remove(key)
+
+    def add_to_list(self, key, value):
+        key_list = self._data.get(key)
+        if not isinstance(key_list, list):
+            key_list = []
+            self._data[key] = key_list
+        key_list.append(value)
+
+    def clear(self):
+        self._data.clear()
+
+
 class GlobalXmlCache:
     """Threadsicherer Cache mit TTL und automatischem Hintergrund-Cleanup."""
     _lock = threading.RLock()

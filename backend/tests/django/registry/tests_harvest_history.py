@@ -3,9 +3,11 @@ from django.test import TestCase
 from django.utils.timezone import now
 from registry.enums.harvesting import CollectingStatenEnum as State, HarvestingPhaseEnum as Phase
 from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob, HarvestingLog, TemporaryMdMetadataFile
-from registry.models.metadata import MetadataContact, DatasetMetadataRecord, ServiceMetadataRecord
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
+                                      MetadataContact, ServiceMetadataRecord)
 from registry.models.service import CatalogueService, WebFeatureService
-from registry.querys.harvest_history import complete_harvest
+from registry.querys.harvest_history import complete_harvest, complete_snapshots
 from registry.views.harvesting import HarvestedMetadataRelationViewSet
 from registry.views.service import CatalogueServiceViewSet
 from registry.views.historical import FeatureTypeHistoricalViewSet
@@ -22,8 +24,10 @@ class HarvestHistoryTest(TestCase):
         CatalogueService.objects.bulk_create([cls.service])
         cls.dataset = DatasetMetadataRecord(metadata_contact=contact, dataset_contact=contact, title='Dataset')
         cls.metadata = ServiceMetadataRecord(metadata_contact=contact, title='Service metadata')
+        cls.application = ApplicationMetadataRecord(metadata_contact=contact, application_contact=contact, title='Application')
         DatasetMetadataRecord.objects.bulk_create([cls.dataset])
         ServiceMetadataRecord.objects.bulk_create([cls.metadata])
+        ApplicationMetadataRecord.objects.bulk_create([cls.application])
         cls.previous = HarvestingJob(service=cls.service, total_records=2, phase=Phase.COMPLETED, done_at=now()-timedelta(days=1))
         HarvestingJob.objects.bulk_create([cls.previous])
         HarvestedMetadataRelation.objects.bulk_create([
@@ -131,6 +135,106 @@ class HarvestHistoryTest(TestCase):
     def test_first_snapshot_does_not_infer_removals(self):
         HarvestedMetadataRelation.objects.filter(harvesting_job=self.previous).delete()
         job = self.job()
+        complete_harvest(job.pk)
+        self.assertFalse(self.removed(job).exists())
+
+    def test_all_three_buckets_account_for_the_snapshot(self):
+        """a run which stored the dataset, the service and the application the catalogue
+        counted is a complete snapshot: application records neither hide in it nor make it
+        read incomplete (#903, #827)"""
+        HarvestedMetadataRelation.objects.filter(harvesting_job=self.previous).delete()
+        job = self.job(total_records=3)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.NEW),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.NEW),
+            HarvestedMetadataRelation(harvesting_job=job, application_metadata_record=self.application, collecting_state=State.NEW),
+        ])
+        complete_harvest(job.pk)
+        snapshot = complete_snapshots(self.service.pk).get(pk=job.pk)
+        self.assertEqual(
+            (snapshot.dataset_count, snapshot.service_count, snapshot.application_count),
+            (1, 1, 1))
+
+    def test_a_run_which_loses_the_application_count_is_not_a_snapshot(self):
+        """the catalogue counted three but the run only accounts for two - the application
+        record the index promised did not land - so the run is no snapshot and stores no
+        removals; the count which is short cannot be trusted to decide about records (#827)"""
+        job = self.job(total_records=3)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+        ])
+        complete_harvest(job.pk)
+        self.assertFalse(complete_snapshots(self.service.pk).filter(pk=job.pk).exists())
+        self.assertFalse(self.removed(job).exists())
+
+    def test_a_run_which_stores_more_than_the_catalogue_counted_is_not_a_snapshot(self):
+        """the other direction: the count of the catalogue did not carry the application
+        which the run stored - the run cannot be a snapshot either"""
+        job = self.job(total_records=2)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, application_metadata_record=self.application, collecting_state=State.EXISTING),
+        ])
+        complete_harvest(job.pk)
+        self.assertFalse(complete_snapshots(self.service.pk).filter(pk=job.pk).exists())
+
+    def test_a_run_without_applications_keeps_the_legacy_snapshot_semantics(self):
+        """harvest_applications=False means the run never asked for applications; the two
+        existing buckets decide its completeness alone, exactly as before #827 - and its
+        snapshot does not claim the third flag the run never carried"""
+        HarvestedMetadataRelation.objects.filter(harvesting_job=self.previous).delete()
+        job = self.job(total_records=2, harvest_applications=False)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+        ])
+        complete_harvest(job.pk)
+        # the flag subset the run carries is a condition of the snapshot, so a run which
+        # never asked for applications is not one of the three-type snapshots this query answers
+        self.assertFalse(complete_snapshots(self.service.pk).filter(pk=job.pk).exists())
+
+    def test_an_application_record_missing_from_the_next_snapshot_is_removed(self):
+        """a complete snapshot which no longer answers an application the previous one
+        carried removes it like any other record; the application bucket travels with the
+        removal loop the dataset and service columns already drove (#827)"""
+        previous = self.job(total_records=3, phase=Phase.COMPLETED,
+                            done_at=now() - timedelta(hours=1))
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=previous, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=previous, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=previous, application_metadata_record=self.application, collecting_state=State.EXISTING),
+        ])
+        job = self.job(total_records=2)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+        ])
+        complete_harvest(job.pk)
+        removed = self.removed(job)
+        self.assertEqual(
+            list(removed.values_list('application_metadata_record_id', flat=True)),
+            [self.application.pk])
+        self.assertIsNone(removed.get().dataset_metadata_record_id)
+        self.assertIsNone(removed.get().service_metadata_record_id)
+
+    def test_an_application_record_the_snapshot_keeps_is_not_removed(self):
+        """the application the new snapshot still answers stays - the removal only names
+        what the previous snapshot carried and this one lost"""
+        previous = self.job(total_records=3, phase=Phase.COMPLETED,
+                            done_at=now() - timedelta(hours=1))
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=previous, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=previous, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=previous, application_metadata_record=self.application, collecting_state=State.EXISTING),
+        ])
+        job = self.job(total_records=3)
+        HarvestedMetadataRelation.objects.bulk_create([
+            HarvestedMetadataRelation(harvesting_job=job, dataset_metadata_record=self.dataset, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, service_metadata_record=self.metadata, collecting_state=State.EXISTING),
+            HarvestedMetadataRelation(harvesting_job=job, application_metadata_record=self.application, collecting_state=State.EXISTING),
+        ])
         complete_harvest(job.pk)
         self.assertFalse(self.removed(job).exists())
 

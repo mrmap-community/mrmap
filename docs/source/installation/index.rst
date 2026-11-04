@@ -227,3 +227,31 @@ with the container (``docker volume ls`` names it after the project):
 Reporting lives in nginx, so it exists where the built app is served behind it:
 the development server of the frontend (``npm run dev``) answers without nginx
 and reports nothing.
+
+Database tuning
+===============
+
+The reference deployment ships Postgres with Just-in-Time compilation switched
+off (``command: ["postgres", "-c", "jit=off"]`` on the ``postgis`` service), so a
+fresh ``docker compose up`` is fast without any manual step.
+
+The service-list endpoints (for example ``GET /api/registry/csw``) are answered by
+one annotated query carrying dozens of correlated sub-selects (alert flags,
+monitoring/update/harvest state, ``elementCount``). Its planner cost is far above
+Postgres' default ``jit_above_cost = 100000``, so the stock image JIT-compiles that
+plan on *every* request. These are one-shot OLTP queries whose plan is never reused,
+so the compile time is pure overhead and has no chance to amortize: measured on the
+reference stack the query dropped from ``721 ms`` to ``363 ms`` once JIT was off
+(``EXPLAIN ANALYZE`` loses its ``JIT:`` section entirely, issue ``#871``).
+
+Nothing in mrmap loses a JIT speed-up by this: the genuinely heavy reads -- the
+harvest day statistics and the ``tsvector`` search -- plan at a few thousand cost,
+well under ``jit_above_cost``, so they were never JIT-compiled in the first place.
+A raised ``jit_above_cost`` was rejected as brittle: the list query's cost grows
+with the number of harvested records, so it would cross any fixed threshold again.
+
+The setting is passed to the server process, not with ``ALTER SYSTEM`` (which would
+write into the shared data directory and leak into the test databases). It therefore
+applies to every database on that server. A deployment that wants JIT back removes
+the ``command:`` line or raises ``jit_above_cost`` instead.
+

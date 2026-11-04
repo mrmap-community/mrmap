@@ -23,7 +23,15 @@ export default defineConfig({
     server: {
         host: true,
     },
-    base: './',
+    // Root-absolute on purpose. The app is always served from the root of the
+    // origin (docker/nginx/mrmap.conf serves dist/ under `location /`), and the
+    // built index.html is returned for every route by the SPA fallback. A
+    // relative base ('./') makes the browser resolve ./assets/* against the
+    // *route path*, so any deep link with 2+ path segments requests the bundle
+    // under the route, gets index.html (200, text/html) from the fallback and
+    // never boots - stuck at "Loading..." (#941). The dev server serves the
+    // same routes from '/' as well, so '/' is correct for both.
+    base: '/',
     optimizeDeps: {
         include: ['@mui/material/Tooltip', '@mui/x-data-grid', '@emotion/styled'],
     }

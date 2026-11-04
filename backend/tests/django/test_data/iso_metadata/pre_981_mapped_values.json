@@ -1,0 +1,1188 @@
+{
+ "dataset.xml": [
+  {
+   "model": "DatasetMetadataRecord",
+   "spec": "dataset",
+   "values": {
+    "abstract": "Messwerte der Windgeschwindigkeit an den DWD Stationen im Regional Basic Synoptic\n                    Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
+    "access_constraints": "Zugriffseinschr\u00e4nkungen: Es gelten keine Bedingungen.",
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))"
+     }
+    },
+    "categories": [
+     {}
+    ],
+    "charset": 5,
+    "code": "de.dwd.geoserver.fach.RBSN_FF",
+    "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+    "dataset_contact": {
+     "email": "datenservice@dwd.de",
+     "name": "Deutscher Wetterdienst",
+     "person_name": "",
+     "phone": "+49 (0) 69 8062-0"
+    },
+    "date_stamp": {
+     "__iso__": "2019-05-16T12:55:18+02:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "de.dwd.geoserver.fach.RBSN_FF",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "meteorological"
+     },
+     {
+      "keyword": "inspireidentifiziert"
+     },
+     {
+      "keyword": "Wind"
+     },
+     {
+      "keyword": "meteorology"
+     },
+     {
+      "keyword": "Meteorologisch-geografische Kennwerte"
+     },
+     {
+      "keyword": "Deutschland"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "info@dwd.de",
+     "name": "Deutscher Wetterdienst",
+     "person_name": "",
+     "phone": "+49 (0) 69 8062-0"
+    },
+    "reference_systems": [
+     {
+      "code": "4258",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "4326",
+      "prefix": "EPSG"
+     }
+    ],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "2016-02-25T00:00:00+00:00"
+      },
+      "end": {
+       "__iso__": "2016-02-25T00:00:00+00:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Windgeschwindigkeit an RBSN Stationen",
+    "update_frequency_code": 2
+   }
+  }
+ ],
+ "gdi-bw-01.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Elektronisches Wasserstra\u00dfen-Informationssystem der WSV. ELWIS ist ein Online-Serviceangebot der Wasserstra\u00dfen- und Schifffahrtsverwaltung des Bundes (WSV) mit Informationen f\u00fcr alle Nutzer der Wasserstra\u00dfen- Schifffahrtstreibende, Gewerbe und Freizeit - und sonstige Interessierte an den Wasserstra\u00dfen.\n\nMit Hilfe der Informationen in ELWIS soll den Schifffahrtstreibenden geholfen werden, ihre Fahrt besser planen zu k\u00f6nnen. Das wirkt sich u.a. positiv auf den Verkehrsfluss und somit auch auf die Sicherheit auf den Wasserstra\u00dfen aus. Mit ELWIS k\u00f6nnen aber auch andere Nutzer wichtige Informationen erhalten, z.B. \u00fcber Wasserst\u00e4nde. Die WSV stellt hierf\u00fcr wichtige Informationen zentral \u00fcber ELWIS zur Verf\u00fcgung.",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "info@elwis.de",
+     "name": "GDWS - Generaldirektion Wasserstra\u00dfen und Schifffahrt",
+     "person_name": "Brunsch, Michael, Herr",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((6.098034 47.23942, 6.098034 55.054344, 15.578555 55.054344, 15.578555 47.23942, 6.098034 47.23942)))"
+     }
+    },
+    "categories": [],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2026-03-30T00:00:00+02:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "270C4127-5EE3-477D-A3E4-2834649CD57C",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Binnengew\u00e4sser"
+     },
+     {
+      "keyword": "wsv_topic_code:application"
+     },
+     {
+      "keyword": "Pegelauswahl"
+     },
+     {
+      "keyword": "Karte"
+     },
+     {
+      "keyword": "Leitfaden"
+     },
+     {
+      "keyword": "Schifffahrtsrecht"
+     },
+     {
+      "keyword": "Verkehrslenkung"
+     },
+     {
+      "keyword": "Schweiz"
+     },
+     {
+      "keyword": "Mittelrhein"
+     },
+     {
+      "keyword": "Niederrhein"
+     },
+     {
+      "keyword": "Verkehr"
+     },
+     {
+      "keyword": "Binnenschifffahrt"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "geodatenservices@itzbund.de",
+     "name": "ITZBund - Informationstechnikzentrum Bund, Poststelle",
+     "person_name": "",
+     "phone": "+49 (22899) 680 - 0"
+    },
+    "reference_systems": [],
+    "time_extents": [],
+    "title": "ELWIS - www.elwis.de - Website",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "gdi-bw-02.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "PEGELONLINE (www.pegelonline.wsv.de) ist das gew\u00e4sserkundliche Informationssystem der WSV. PEGELONLINE bietet den Zugang zu unplausibilisierten Messwerten (Rohdaten) f\u00fcr Wasserst\u00e4nde und Abfl\u00fcsse sowie weiteren Parametern, die an den Pegeln der WSV gemessen, zu PEGELONLINE \u00fcbertragen und f\u00fcr 30 Tage kostenfrei zur Verf\u00fcgung gestellt werden. Alle ver\u00f6ffentlichten Messstellen der WSV sind hier dokumentiert (http://www.pegelonline.wsv.de/gast/pegelinformationen). Die Messwerte k\u00f6nnen mittels verschiedener Webservices visualisiert und bezogen werden. (http://www.pegelonline.wsv.de/webservice/ueberblick)",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "gdws@wsv.bund.de",
+     "name": "GDWS - Generaldirektion Wasserstra\u00dfen und Schifffahrt",
+     "person_name": "",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((6.098 47.239, 6.098 55.054, 15.579 55.054, 15.579 47.239, 6.098 47.239)))"
+     }
+    },
+    "categories": [],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2026-08-20T00:00:00+02:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "5E243836-9359-40AD-B887-E0A526F3979E",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "mobilithek_category_WATERROADS_AND_WATER"
+     },
+     {
+      "keyword": "opendata"
+     },
+     {
+      "keyword": "ENVI"
+     },
+     {
+      "keyword": "TRAN"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "pegelonline@itzbund.de",
+     "name": "ITZBund - Informationstechnikzentrum Bund, Poststelle",
+     "person_name": "",
+     "phone": "+49 800 800 75451"
+    },
+    "reference_systems": [],
+    "time_extents": [],
+    "title": "PEGELONLINE, gew\u00e4sserkundliches Informationssystem der WSV",
+    "update_frequency_code": 3
+   }
+  }
+ ],
+ "gdi-bw-04.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Portal zur Darstellung von kommunalen Geodaten der Stadt Schw\u00e4bisch Hall aus den Bereichen Stadtkarte, Stadtinformationen/POI, Bodenrichtwertkarte, Fl\u00e4chennutzungsplan, Bebauungsplan, Wahlbezirke, Grundschulbezirke, Statistische Einheiten (Stadtteil, Stadtviertel), Gedenkorte, H\u00e4userlexikon, Bauplatz, Historische Luftbilder.",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "info@ibbgdv.de",
+     "name": "ibb DV-Systems GmbH",
+     "person_name": "Uwe Traum",
+     "phone": "02173/915310"
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((9.54 49.02, 9.54 49.18, 9.92 49.18, 9.92 49.02, 9.54 49.02)))"
+     }
+    },
+    "categories": [
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {}
+    ],
+    "charset": 5,
+    "code": "schwaebischhall",
+    "code_space": "https://www.gisserver.de/",
+    "date_stamp": {
+     "__iso__": "2023-11-14T16:29:30+01:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "78538593-0e19-a5b7-c64a-756898eac073",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Geod\u00e4sie"
+     },
+     {
+      "keyword": "Geobasisdaten"
+     },
+     {
+      "keyword": "Raumordnung"
+     },
+     {
+      "keyword": "Tourismus und Freizeit"
+     },
+     {
+      "keyword": "Stra\u00dfe"
+     },
+     {
+      "keyword": "Kartographie"
+     },
+     {
+      "keyword": "Topographie"
+     },
+     {
+      "keyword": "Kataster"
+     },
+     {
+      "keyword": "H\u00f6he"
+     },
+     {
+      "keyword": "kommunale Geodaten"
+     },
+     {
+      "keyword": "Stadtkarte"
+     },
+     {
+      "keyword": "Administrative units"
+     },
+     {
+      "keyword": "Addresses"
+     },
+     {
+      "keyword": "Cadastral parcels"
+     },
+     {
+      "keyword": "Protected sites"
+     },
+     {
+      "keyword": "Orthoimagery"
+     },
+     {
+      "keyword": "Statistical units"
+     },
+     {
+      "keyword": "Buildings"
+     },
+     {
+      "keyword": "Bodenrichtwert"
+     },
+     {
+      "keyword": "Fl\u00e4chennutzungsplan"
+     },
+     {
+      "keyword": "Bebauungsplan"
+     },
+     {
+      "keyword": "Wahlbezirk"
+     },
+     {
+      "keyword": "Wahllokal"
+     },
+     {
+      "keyword": "Schulbezirk"
+     },
+     {
+      "keyword": "Gedenkorte"
+     },
+     {
+      "keyword": "H\u00e4userlexikon"
+     },
+     {
+      "keyword": "Bauplatz"
+     },
+     {
+      "keyword": "Statistik"
+     },
+     {
+      "keyword": "Historische Luftbilder"
+     },
+     {
+      "keyword": "\u00d6PNV"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "alexander.gessler@schwaebischhall.de",
+     "name": "Stadt Schw\u00e4bisch Hall",
+     "person_name": "Alexander Gessler",
+     "phone": "0791/751265"
+    },
+    "reference_systems": [],
+    "time_extents": [],
+    "title": "Geoportal Stadt Schw\u00e4bisch Hall",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "gdi-de-01.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Der Kreis Herford hat mit Hilfe des Planungsb\u00fcros Bockermann+Fritze ein Alltagsradwegenetz ausgearbeitet. Die Ergebnisse wurden im Fr\u00fchjahr 2023 im Umwelt- und Planungsausschuss des Kreises Herford pr\u00e4sentiert. Das Alltagsradwegenetz stellt einen m\u00f6glichen Ausbau der Fahrradinfrastruktur im Kreis Herford dar, mit dem das Ziel verfolgt wird, ein leistungsf\u00e4higes Radwegenetz f\u00fcr Berufspendler aufzubauen. Die Schwierigkeit bei der Realisierung besteht unter anderem in dem begrenzten Stra\u00dfenraum (Bebauung, Eigentumsverh\u00e4ltnisse und topographische Rahmenbedingungen) sowie den unterschiedlichen Zust\u00e4ndigkeiten (Kommunen, Kreis, Land, Bund). Dadurch sind \u00c4nderungen der Planung / Abweichungen in der Umsetzung jederzeit m\u00f6glich. Weiteren Informationen zum Alltagsradwegenetz sowie zu den Freizeitrouten im Kreis Herford sind unter Info-Links zu finden.",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "radverkehr@kreis-herford.de",
+     "name": "Stabsbereich Kreisentwicklung und Klimaschutz",
+     "person_name": "Kreis Herford",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((8.396 52.043, 8.396 52.28, 8.932 52.28, 8.932 52.043, 8.396 52.043)))"
+     }
+    },
+    "categories": [
+     {}
+    ],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2024-05-07T00:00:00+02:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "17517355-a52a-4823-add7-1d5c99536eeb",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Fahrrad"
+     },
+     {
+      "keyword": "Fahrradweg"
+     },
+     {
+      "keyword": "Mobilit\u00e4t"
+     },
+     {
+      "keyword": "Radweg"
+     },
+     {
+      "keyword": "Radwege"
+     },
+     {
+      "keyword": "Radwegenetz"
+     },
+     {
+      "keyword": "Alltag"
+     },
+     {
+      "keyword": "Alltagsradwegenetz"
+     },
+     {
+      "keyword": "Fahrradstra\u00dfe"
+     },
+     {
+      "keyword": "Pendler"
+     },
+     {
+      "keyword": "Bike"
+     },
+     {
+      "keyword": "Bicycle"
+     },
+     {
+      "keyword": "Mobilit\u00e4tsmanagement"
+     },
+     {
+      "keyword": "Startseite"
+     },
+     {
+      "keyword": "KreisHerford"
+     },
+     {
+      "keyword": "Herford"
+     },
+     {
+      "keyword": "B\u00fcnde"
+     },
+     {
+      "keyword": "Hiddenhausen"
+     },
+     {
+      "keyword": "L\u00f6hne"
+     },
+     {
+      "keyword": "Kirchlengern"
+     },
+     {
+      "keyword": "Vlotho"
+     },
+     {
+      "keyword": "Spenge"
+     },
+     {
+      "keyword": "Enger"
+     },
+     {
+      "keyword": "R\u00f6dinghausen"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "geoportal@kreis-herford.de",
+     "name": "Kataster und Vermessung",
+     "person_name": "Kreis Herford",
+     "phone": ""
+    },
+    "reference_systems": [],
+    "time_extents": [],
+    "title": "Kreis Herford: Alltagsradwegenetz",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "gdi-de-03.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Daten der nach dem Bundes- Immissionsschutzgesetz genehmigungsbed\u00fcrftigen Anlagen.",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "edgar.neuwirth@staunsn.mv-regierung.de",
+     "name": "Staatliches Amt f\u00fcr Landwirtschaft und Umwelt Westmecklenburg, Dienststelle Schwerin (StALU WM SN)",
+     "person_name": "Neuwirth, Edgar, Herr",
+     "phone": "(0385) 59586-400"
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((10.593673 53.11003, 10.593673 53.65325, 11.85377 53.65325, 11.85377 53.11003, 10.593673 53.11003)))"
+     }
+    },
+    "categories": [],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2025-01-28T00:00:00+01:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "18923033-6CCD-11D3-98D2-0060086FDABA",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Produktions- und Industrieanlagen"
+     },
+     {
+      "keyword": "Bundesimmissionsschutzgesetz (BImSchG)"
+     },
+     {
+      "keyword": "4. Bundesimmissionsschutzverordnung (BImSchV)"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "christian.lange@staunsn.mv-regierung.de",
+     "name": "Staatliches Amt f\u00fcr Landwirtschaft und Umwelt Westmecklenburg, Dienststelle Schwerin (StALU WM SN)",
+     "person_name": "Lange, Christian, Herr",
+     "phone": "(0385) 59586-201"
+    },
+    "reference_systems": [],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "1990-07-01T00:00:00+02:00"
+      },
+      "end": {
+       "__iso__": "1990-07-01T00:00:00+02:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Daten genehmigungsbed\u00fcrfiger Anlagen (StALU WM Schwerin)",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "gdi-de-04.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Mit Hilfe der Anwendung k\u00f6nnen nicht amtliche Ausz\u00fcge aus der Liegenschaftskarte als PDF erstellt werden.",
+    "access_constraints": null,
+    "application_contact": {
+     "email": "gis@gt-net.de",
+     "name": "Kreis G\u00fctersloh",
+     "person_name": "Geodatenservice",
+     "phone": "+49 (0)5241 851767"
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((8.0011 51.7042, 8.0011 52.1564, 8.7325 52.1564, 8.7325 51.7042, 8.0011 51.7042)))"
+     }
+    },
+    "categories": [
+     {},
+     {}
+    ],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2019-01-21T00:00:00+01:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "19c44805-c445-4f4a-8420-e71797bf4088",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Kreis G\u00fctersloh"
+     },
+     {
+      "keyword": "Liegenschaftskarte"
+     },
+     {
+      "keyword": "Kataster"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "gis@gt-net.de",
+     "name": "Kreis G\u00fctersloh",
+     "person_name": "Geodatenservice",
+     "phone": "+49 (0)5241 851767"
+    },
+    "reference_systems": [],
+    "time_extents": [],
+    "title": "Kreis G\u00fctersloh: Liegenschaftskarte (nicht amtlich)",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "gdi-de-05.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Im Unfallatlas werden Unf\u00e4lle mit Personenschaden nach Stra\u00dfenabschnitten sowie nach einzelnen Unfallstellen sichtbar gemacht. Dabei k\u00f6nnen Nutzerinnen und Nutzer selbst ausw\u00e4hlen, ob alle Unf\u00e4lle oder nur Unf\u00e4lle mit bestimmten Verkehrsmitteln angezeigt werden. Eine erg\u00e4nzende Tabelle enth\u00e4lt Zusatzinformationen \u2013 zum Beispiel, ob es sich um einen Unfall mit Verkehrstoten, Schwer- oder Leichtverletzten handelt. Der Unfallatlas enth\u00e4lt Angaben aus der Statistik der Stra\u00dfenverkehrsunf\u00e4lle ab 2016. Die Geokoordinaten der Unfallstellen werden von der Polizei bei der Unfallaufnahme erfasst. Der Zeitpunkt, ab wann die Geokoordinaten erhoben werden, unterscheidet sich zwischen den einzelnen Bundesl\u00e4ndern. Seit Sommer 2021 sind erstmalig Unfalldaten aller Bundesl\u00e4nder im Atlas enthalten. Die dem Atlas zugrunde liegenden Daten sowie ausgew\u00e4hlte weitere Zusatzinformationen k\u00f6nnen als OpenData-Download (shp und csv) heruntergeladen werden. Dieses Angebot richtet sich zum Beispiel an die kommunale Verkehrsplanung oder den Datenjournalismus, die dadurch regional tief gegliederte Unfalldaten f\u00fcr eigene Anwendungen mit anderen Daten kombiniert nutzen k\u00f6nnen.",
+    "access_constraints": "Dieses Werk ist lizensiert unter der Datenlizenz Deutschland - Namensnennung - Version 2.0 (www.govdata.de/dl-de/by-2-0)",
+    "application_contact": {
+     "email": "gis@destatis.de",
+     "name": "Statistisches Bundesamt",
+     "person_name": "",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((5.81 47.26, 5.81 54.76, 15.77 54.76, 15.77 47.26, 5.81 47.26)))"
+     }
+    },
+    "categories": [
+     {}
+    ],
+    "charset": 5,
+    "code": "",
+    "code_space": "",
+    "date_stamp": {
+     "__iso__": "2024-08-13T00:00:00+02:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "12f10205-53c7-459c-bf6e-40e67ccd0c00",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Unfallatlas"
+     },
+     {
+      "keyword": "Stra\u00dfenverkehrsunf\u00e4lle"
+     },
+     {
+      "keyword": "Stra\u00dfenverkehrsunfallstatistik"
+     },
+     {
+      "keyword": "Unfall"
+     },
+     {
+      "keyword": "Unf\u00e4lle"
+     },
+     {
+      "keyword": "Verkehr"
+     },
+     {
+      "keyword": "Statistik"
+     },
+     {
+      "keyword": "Deutschland"
+     },
+     {
+      "keyword": "transport_verkehr"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "limgeo@it.nrw.de",
+     "name": "Information und Technik Nordrhein-Westfalen",
+     "person_name": "IT.NRW",
+     "phone": "+49 (0)211 9449-6301"
+    },
+    "reference_systems": [],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "2016-01-01T00:00:00+00:00"
+      },
+      "end": {
+       "__iso__": "2016-01-01T00:00:00+00:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Unfallatlas",
+    "update_frequency_code": 9
+   }
+  }
+ ],
+ "geocat-01.xml": {
+  "error": "ValueError: No MD_Metadata elements found"
+ },
+ "hessen-01.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "Statistik r\u00e4umlich sehen, ist unsere Mission.\nDie Geodateninfrastruktur (GDI) ist unser R\u00fcckgrat.\nDigital und nutzerfreundlich sind unsere Anspr\u00fcche.\nDas Competence Center Geoinformation (CCG) des Hessischen Statistischen Landesamtes zeigt eine Story Map.",
+    "access_constraints": "keine Beschr\u00e4nkung",
+    "application_contact": {
+     "email": "ccgeoinformation@statistik.hessen.de",
+     "name": "HSL",
+     "person_name": "",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((7.695788 49.379589, 7.695788 51.658643, 10.238454 51.658643, 10.238454 49.379589, 7.695788 49.379589)))"
+     }
+    },
+    "categories": [
+     {}
+    ],
+    "charset": 5,
+    "code": "0a7cb996-69d1-69bd-9e64-da089a3bb1e4",
+    "code_space": "https://statistik-hessen.de/registry/spatial/dataset/",
+    "date_stamp": {
+     "__iso__": "2026-11-02T00:00:00+01:00"
+    },
+    "equivalent_scale": "0",
+    "file_identifier": "0a7cb996-69d1-69bd-9e64-da089a3bb1e4",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "1c349fea-924b-488f-b6a2-e896f40ac897"
+     },
+     {
+      "keyword": "CCG"
+     },
+     {
+      "keyword": "Digital"
+     },
+     {
+      "keyword": "Fernerkundung"
+     },
+     {
+      "keyword": "GDI"
+     },
+     {
+      "keyword": "Geodateninfrastruktur"
+     },
+     {
+      "keyword": "Hessen"
+     },
+     {
+      "keyword": "Hessisches Statistisches Landesamt"
+     },
+     {
+      "keyword": "Statistik"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "ccgeoinformation@statistik.hessen.de",
+     "name": "HSL",
+     "person_name": "",
+     "phone": ""
+    },
+    "reference_systems": [
+     {
+      "code": "25832",
+      "prefix": "EPSG"
+     }
+    ],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "2021-01-01T00:00:00+00:00"
+      },
+      "end": {
+       "__iso__": "2021-12-31T00:00:00+00:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Statistik r\u00e4umlich sehen - das CCG",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "hessen-03.xml": [
+  {
+   "model": "ApplicationMetadataRecord",
+   "spec": "application",
+   "values": {
+    "abstract": "\u00dcber das Geoportal S\u00fcdhessen erhalten Sie Zugang zur Kartenanwendung und zu weiteren Informationen zu den bearbeiteten Fachthemen, sowie s\u00e4mtliche ver\u00f6ffentlichten Geodienste der GDI-S\u00fcdhessen im harmonisierten und im INSPIRE-konformen Datenmodell.  Ein wesentliches Ziel der GDI-S\u00fcdhessen ist die gemeinsame, \u00fcbergreifende Bereitstellung und Harmonisierung von Fachdaten der Region. ",
+    "access_constraints": "keine Beschr\u00e4nkungen",
+    "application_contact": {
+     "email": "info@gdi-suedhessen.de",
+     "name": "GDI-S\u00dcDHESSEN",
+     "person_name": "",
+     "phone": ""
+    },
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((7.7724673 49.3952723, 7.7724673 50.5996859, 9.7488228 50.5996859, 9.7488228 49.3952723, 7.7724673 49.3952723)))"
+     }
+    },
+    "categories": [],
+    "charset": 5,
+    "code": "1a83899e-8bad-5be4-1ec3-7486a9ec3d35",
+    "code_space": "https://gdi-suedhessen.de/registry/spatial/dataset/",
+    "date_stamp": {
+     "__iso__": "2026-11-02T00:00:00+01:00"
+    },
+    "equivalent_scale": "0",
+    "file_identifier": "1a83899e-8bad-5be4-1ec3-7486a9ec3d35",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "1c349fea-924b-488f-b6a2-e896f40ac897"
+     },
+     {
+      "keyword": "Bauleitplan"
+     },
+     {
+      "keyword": "Bauleitplanung"
+     },
+     {
+      "keyword": "Bebauunsplan"
+     },
+     {
+      "keyword": "Bergstra\u00dfe"
+     },
+     {
+      "keyword": "Biotop- und Nutzungskartierung"
+     },
+     {
+      "keyword": "Darmstadt-Dieburg"
+     },
+     {
+      "keyword": "Feuerwehr"
+     },
+     {
+      "keyword": "Feuerwehrstandorte und Einsatzbereiche"
+     },
+     {
+      "keyword": "FrankfurtRheinMain"
+     },
+     {
+      "keyword": "GDI-S\u00fcdhessen"
+     },
+     {
+      "keyword": "Geodaten"
+     },
+     {
+      "keyword": "Geodateninfrastruktur"
+     },
+     {
+      "keyword": "Geoportal"
+     },
+     {
+      "keyword": "Geoportal S\u00fcdhessen"
+     },
+     {
+      "keyword": "Gro\u00df-Gerau"
+     },
+     {
+      "keyword": "Hochtaunuskreis"
+     },
+     {
+      "keyword": "Industriefl\u00e4chen"
+     },
+     {
+      "keyword": "KBRP"
+     },
+     {
+      "keyword": "Kita"
+     },
+     {
+      "keyword": "Kommunale Boden- und Raumplanung"
+     },
+     {
+      "keyword": "Limburg-Weilburg"
+     },
+     {
+      "keyword": "Main-Kinzig-Kreis"
+     },
+     {
+      "keyword": "Main-Taunus-Kreis"
+     },
+     {
+      "keyword": "Odenwaldkreis"
+     },
+     {
+      "keyword": "Open-Data"
+     },
+     {
+      "keyword": "RegFNP"
+     },
+     {
+      "keyword": "Regionaler Fl\u00e4chennutzungsplan"
+     },
+     {
+      "keyword": "Regionalverband"
+     },
+     {
+      "keyword": "Rettungswachen"
+     },
+     {
+      "keyword": "Rettungswachen und -bezirke"
+     },
+     {
+      "keyword": "Rheingau-Taunus-Kreis"
+     },
+     {
+      "keyword": "Schulstandorte und -bezirke"
+     },
+     {
+      "keyword": "Wetteraukreis"
+     },
+     {
+      "keyword": "XPlanung"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "info@gdi-suedhessen.de",
+     "name": "GDI-S\u00dcDHESSEN",
+     "person_name": "",
+     "phone": ""
+    },
+    "reference_systems": [
+     {
+      "code": "4326",
+      "prefix": "EPSG"
+     }
+    ],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "2022-07-24T00:00:00+00:00"
+      },
+      "end": {
+       "__iso__": "2026-11-02T00:00:00+00:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Geoportal S\u00fcdhessen",
+    "update_frequency_code": 2
+   }
+  }
+ ],
+ "service.xml": [
+  {
+   "model": "ServiceMetadataRecord",
+   "spec": "service",
+   "values": {
+    "abstract": "Die Rohstoffgewinnungsstellen stellen historische und aktuelle Abbaustellen dar, welche durch die Gewinnungsfl\u00e4chen n\u00e4her bestimmt werden. Durch Auswertungen von Luftbildern und Digitalem Gel\u00e4ndemodell, sowie durch Gel\u00e4ndebefahrungen wurde der Zustand der Rohstoffgewinnungsfl\u00e4che in Abbau, Aufgelassen, Halde, Verf\u00fcllung, Wasser und Betriebsgel\u00e4nde unterteilt. In kleineren Ma\u00dfst\u00e4ben werden die Gewinnungsfl\u00e4chen durch einen Umgriff des gesamten Abbaugebiets dargestellt. Die Ausdehnung der Fl\u00e4chen und der Betriebszustand der Abbaustellen spiegeln den Zustand zum Aufnahmezeitpunkt des letzten Luftbildes wieder und stellt nicht den Tagesaktuellen Zustand dar. Der Darstellungsma\u00dfstab f\u00fcr die einzelnen Themen ist: Gewinnungsstellen (aktiv): ab 1 : 7.500, Gewinnungsstellen (inaktiv): ab 1 : 7.500 bis 150.000, Gewinnungsfl\u00e4chen nutzungsdifferenziert (aktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsfl\u00e4chen nutzungsdifferenziert (inaktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsfl\u00e4chen \u00dcbersicht (aktiv): 1 : 50.000 bis 1 : 200.000, Gewinnungsfl\u00e4chen \u00dcbersicht (inaktiv): 1 : 50.000 bis 1 : 200.000 Ma\u00dfstab: 1:null; Bodenaufl\u00f6sung: 1m; Scanaufl\u00f6sung (DPI): null",
+    "access_constraints": null,
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((9.09 47.17, 9.09 50.59, 13.98 50.59, 13.98 47.17, 9.09 47.17)))"
+     }
+    },
+    "charset": null,
+    "date_stamp": {
+     "__iso__": "2025-12-08T00:00:00+01:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "ee065040-1015-44c7-839e-e8e349c74bbd",
+    "ground_res": null,
+    "keywords": [],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "datenstelle@lfu.bayern.de",
+     "name": "Bayerisches Landesamt f\u00fcr Umwelt",
+     "person_name": "",
+     "phone": ""
+    },
+    "reference_systems": [
+     {
+      "code": "25832",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "31467",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "4326",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "31468",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "25833",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "4258",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "3857",
+      "prefix": "EPSG"
+     },
+     {
+      "code": "31258",
+      "prefix": "EPSG"
+     }
+    ],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "1980-01-01T00:00:00+00:00"
+      },
+      "end": {
+       "__iso__": "2024-12-31T23:59:59+00:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "Rohstoffgewinnungsstellen in Bayern - WMS",
+    "update_frequency_code": null
+   }
+  }
+ ],
+ "wms-service-metadata.xml": [
+  {
+   "model": "ServiceMetadataRecord",
+   "spec": "service",
+   "values": {
+    "abstract": "Die Daten der Verkehrsnetze f\u00fcr das Hamburger Stadtgebiet werden von diesem WebMapService (WMS) dargestellt.\n\nDie Daten zu Verkehrsnetzen auf der Basis von ATKIS werden vom Landesbetrieb Geoinformation und Vermessung gepflegt, die Stra\u00dfendaten aus der HH-SIB von der Beh\u00f6rde f\u00fcr Wirtschaft.\n\n\nZur genaueren Beschreibung der Daten und Datenverantwortung nutzen Sie bitte den Verweis zur Datensatzbeschreibung.",
+    "access_constraints": null,
+    "bounding_geometry": {
+     "__geom__": {
+      "srid": 4326,
+      "wkt": "MULTIPOLYGON (((8.420551 53.394985, 8.420551 53.964153, 10.326304 53.964153, 10.326304 53.394985, 8.420551 53.394985)))"
+     }
+    },
+    "charset": null,
+    "date_stamp": {
+     "__iso__": "2025-01-29T00:00:00+01:00"
+    },
+    "equivalent_scale": null,
+    "file_identifier": "A9A1A766-6C68-4B52-B30F-90BA3190AF25",
+    "ground_res": null,
+    "keywords": [
+     {
+      "keyword": "Verkehrsnetze"
+     },
+     {
+      "keyword": "infoMapAccessService"
+     },
+     {
+      "keyword": "Verwaltung"
+     },
+     {
+      "keyword": "WMS"
+     },
+     {
+      "keyword": "OGC"
+     },
+     {
+      "keyword": "Web"
+     },
+     {
+      "keyword": "Map"
+     },
+     {
+      "keyword": "Service"
+     },
+     {
+      "keyword": "Dienst"
+     },
+     {
+      "keyword": "Strassenverkehr"
+     },
+     {
+      "keyword": "Transport"
+     },
+     {
+      "keyword": "Networks"
+     },
+     {
+      "keyword": "FDS"
+     },
+     {
+      "keyword": "Hamburgisches Geodateninfrastrukturgesetz (HmbGDIG)"
+     }
+    ],
+    "languages": [
+     {
+      "value": 110
+     }
+    ],
+    "metadata_contact": {
+     "email": "Info@gv.hamburg.de",
+     "name": "Landesbetrieb Geoinformation und Vermessung (LGV) Hamburg",
+     "person_name": "",
+     "phone": "+49 40 4 28 28 - 0"
+    },
+    "reference_systems": [
+     {
+      "code": "25832",
+      "prefix": "EPSG"
+     }
+    ],
+    "time_extents": [
+     {
+      "begin": {
+       "__iso__": "2011-01-03T00:00:00+01:00"
+      },
+      "end": {
+       "__iso__": "2011-01-03T00:00:00+01:00"
+      },
+      "is_relative": false,
+      "resolution": {
+       "__duration__": "0:00:00"
+      }
+     }
+    ],
+    "title": "WMS INSPIRE Verkehrsnetze Hamburg",
+    "update_frequency_code": null
+   }
+  }
+ ]
+}

@@ -159,10 +159,14 @@ class HarvestingJobSerializer(
     class Meta:
         model = HarvestingJob
         # the background_process is the overview's view ON this job, not a
-        # field of the job itself: the process is explored on its own screen
+        # field of the job itself: the process is explored on its own screen.
+        # The harvested relations go the same way: the records a run collected
+        # are explored as harvested-metadata-records, so the job answers their
+        # counts but never the records themselves (#827 adds the third of them)
         exclude = (
             "harvested_dataset_metadata",
             "harvested_service_metadata",
+            "harvested_application_metadata",
             "background_process",
         )
 
@@ -188,6 +192,7 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
         exclude = (
             "harvested_dataset_metadata",
             "harvested_service_metadata",
+            "harvested_application_metadata",
             "background_process",
             "phase",
         )

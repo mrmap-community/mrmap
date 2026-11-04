@@ -46,8 +46,8 @@ COPY --from=backend-compile-image ./static /var/www/mrmap/backend/
 # report browser side errors into the central log stack; the script is plain
 # JS, not app code, and is injected *before* the app bundle so that it also
 # catches the bundle and its chunks failing to load. Its own src is absolute
-# on purpose: the built references are relative (vite base './'), so on a deep
-# route the app can fail to load while the beacon still loads and says so.
+# (as are the built app references since the vite base fix for #941), so on any
+# route the beacon still loads and reports what failed.
 COPY docker/nginx/error-beacon.js /var/www/mrmap/frontend/error-beacon.js
 RUN sed -i 's|<script type="module"|<script src="/error-beacon.js"></script><script type="module"|' /var/www/mrmap/frontend/index.html && \
   grep -q 'src="/error-beacon.js"' /var/www/mrmap/frontend/index.html

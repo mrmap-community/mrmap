@@ -131,3 +131,9 @@ Used to configure how many of those dumps may lie around at most; the oldest bey
 ***********************************
 
 Used to configure how many stored metadata files a single import task writes to the database. The fan-out which imports harvested records publishes one task per chunk of that many records instead of one task per record, so the number of task round-trips a harvest costs is bounded by the chunk count and the import is limited by the database again. The default is 250, which takes a harvest of 70,000 records to ~280 tasks. This is not ``max_step_size`` of a harvesting job: that one is the page size the catalogue is asked with and is chosen per catalogue.
+
+
+``MRMAP_HARVEST_IMPORT_PROGRESS_STEPS`` and ``MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS``
+**************************************************************************************
+
+Used to configure how the draining import backlog reports its progress to the background process of the harvest (#958). A worker coalesces the files it has committed and answers them as one bulk increment of the progress once it has piled up this many steps or this many seconds have passed since its last report - whichever comes first. The defaults are 200 steps and 30 seconds, which keep a catalogue of 400k+ records to a few thousand single-row updates instead of one contended row-lock per imported file. ``MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS=0`` disables the time trigger alone; the step threshold then coalesces alone too.

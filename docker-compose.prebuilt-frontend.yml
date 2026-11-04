@@ -1,8 +1,20 @@
 # Opt-in compose layer that replaces the per-run `npm ci` of the
 # `frontend-tests` service with a prebuilt frontend dependency image
-# (issue #963, epic #959). Layer it over the development configuration:
+# (issue #963, epic #959; resolver wiring #962). Layer it over the development
+# configuration:
+#
+#   cd <worktree>                                  # never the developer's stack
+#   export COMPOSE_PROJECT_NAME=mrmap-agent-<issue>-<run-id>
+#
+#   # resolve the dependency image the sanctioned way (#962): local hit, else
+#   # pull, else loud exit (add --build for the local fallback build under the
+#   # same immutable tag). stdout yields the fingerprint, wiring is printed to
+#   # stderr; exit code 3 means "never published, see the printed fallbacks".
+#   export MRMAP_FRONTEND_IMAGE_FP=$(python3 scripts/dev_image_id.py --resolve --image frontend --build)
+#   export MRMAP_FRONTEND_DEV_IMAGE="ghcr.io/mrmap-community/mrmap-frontend-dev:${MRMAP_FRONTEND_IMAGE_FP}"
 #
 #   export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt-frontend.yml"
+#   docker compose run --rm --no-deps frontend-tests npm run type-check
 #
 # The image (docker/frontend/tests.Dockerfile) carries the result of `npm ci`
 # under /opt/frontend-deps - outside the ./frontend bind mount, so nothing
@@ -17,18 +29,33 @@
 # Image selection follows the epic #959 contract: the dependency fingerprint
 # is resolved by scripts/dev_image_id.py (#960/#962) and passed in via
 # MRMAP_FRONTEND_DEV_IMAGE as ghcr.io/mrmap-community/mrmap-frontend-dev:<fp>;
-# on a pull miss, build the very same tag locally with
-# `docker compose build frontend-tests`. Without the variable the mutable
-# :main convenience tag is pulled; the bootstrap fingerprint check keeps even
-# that honest. The node_modules volume stays the per-project named volume of
-# docker-compose.dev.yml - compose project scoping already keeps agent stacks
-# isolated from each other.
+# on a pull miss, `python3 scripts/dev_image_id.py --resolve --image frontend
+# --build` builds the very same tag locally (with the resolver's stamp arg).
+# Without MRMAP_FRONTEND_DEV_IMAGE the mutable :main convenience tag is
+# pulled - fine for humans exploring, wrong for agents: resolve the fp tag.
+# The bootstrap fingerprint check keeps even :main honest. The node_modules
+# volume stays the per-project named volume of docker-compose.dev.yml -
+# compose project scoping already keeps agent stacks isolated from each other.
+#
+# MRMAP_FRONTEND_IMAGE_FP feeds the canonical host-resolved fingerprint into
+# the container (the #962 sync contract): the bootstrap stores it in the
+# volume marker next to the deps fingerprint it verifies locally, so the
+# marker check consumes the canonical value instead of re-deriving it. Empty
+# keeps the #963 behavior (marker = locally computed deps fingerprint only).
 services:
   frontend-tests:
     image: ${MRMAP_FRONTEND_DEV_IMAGE:-ghcr.io/mrmap-community/mrmap-frontend-dev:main}
     build:
       context: ./
       dockerfile: ./docker/frontend/tests.Dockerfile
+      # Stamp the image with the canonical fingerprint the resolver verifies
+      # on local hits (scripts/dev_image_id.py --resolve). Use the same value
+      # as MRMAP_FRONTEND_IMAGE_FP; the resolver's --build fallback passes it
+      # itself.
+      args:
+        MRMAP_IMAGE_FP: ${MRMAP_FRONTEND_IMAGE_FP:-unset}
+    environment:
+      MRMAP_FRONTEND_IMAGE_FP: ${MRMAP_FRONTEND_IMAGE_FP:-}
     # Replaces the `npm ci && npm run test` default command of
     # docker-compose.dev.yml: the bootstrap entrypoint takes care of the
     # dependencies, so the command only runs the check itself.

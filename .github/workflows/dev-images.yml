@@ -24,6 +24,7 @@ permissions:
 
 env:
   BACKEND_DEV_IMAGE: ghcr.io/mrmap-community/mrmap-backend-dev
+  FRONTEND_DEV_IMAGE: ghcr.io/mrmap-community/mrmap-frontend-dev
 
 jobs:
   backend-dev-build:
@@ -122,43 +123,93 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             io.github.mrmap.dependency-fingerprint=${{ steps.image_id.outputs.fp }}
 
-  # frontend-dev-publish: stub for #963, deliberately inactive.
-  #
-  # #963 designs the frontend dependency image (ghcr.io/mrmap-community/
-  # mrmap-frontend-dev); no frontend Dockerfile exists in the repository yet,
-  # so there is nothing to build here. Once #963 lands one, mirror the two
-  # jobs above for it: compute the fingerprint with
-  # `python3 scripts/dev_image_id.py --image frontend` (that extension is
-  # owned by #962 - until it exists, extend the script here first, the
-  # fingerprint generation must stay in this single script), use
-  # cache scope `frontend-dev`, keep the same permission split
-  # (packages: write only on the publish job) and add the node version from
-  # the #963 Dockerfile to the fingerprint inputs as the contract defines.
-  #
-  # frontend-dev-publish:
-  #   if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-  #   name: frontend-dev-publish
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 30
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - id: image_id
-  #       run: echo "fp=$(python3 scripts/dev_image_id.py --image frontend)" >> "$GITHUB_OUTPUT"
-  #     - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-  #     - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ github.token }}
-  #     - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-  #       with:
-  #         context: ./frontend
-  #         file: <Dockerfile path from #963>
-  #         push: true
-  #         tags: ghcr.io/mrmap-community/mrmap-frontend-dev:${{ steps.image_id.outputs.fp }}
-  #         cache-from: type=gha,scope=frontend-dev
-  #         cache-to: type=gha,scope=frontend-dev,mode=min
-  #         provenance: false
+  # frontend dependency image (epic #959, #963 Dockerfile, #962 fingerprint
+  # extension). Mirror of the backend pair: PR runs build without pushing,
+  # only pushes to master and manual dispatch publish, packages: write stays
+  # on the publish job. The fingerprint generation is not re-implemented
+  # here - scripts/dev_image_id.py --image frontend is the single source.
+  frontend-dev-build:
+    if: github.event_name == 'pull_request'
+    name: frontend-dev-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: fingerprint the dependency inputs
+        id: image_id
+        run: echo "fp=$(python3 scripts/dev_image_id.py --image frontend)" >> "$GITHUB_OUTPUT"
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build frontend dependency image (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/frontend/tests.Dockerfile
+          # MRMAP_IMAGE_FP only records the fingerprint in the image for
+          # resolver verification; it is not a fingerprint input itself.
+          build-args: MRMAP_IMAGE_FP=${{ steps.image_id.outputs.fp }}
+          push: false
+          cache-from: type=gha,scope=frontend-dev
+          cache-to: type=gha,scope=frontend-dev,mode=min
+
+  frontend-dev-publish:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    name: frontend-dev-publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: fingerprint the dependency inputs
+        id: image_id
+        run: |
+          fp="$(python3 scripts/dev_image_id.py --image frontend)"
+          # Immutable fingerprint tag always; the mutable :main convenience
+          # tag (contract #959) only moves on master. The frontend layer
+          # docker-compose.prebuilt-frontend.yml falls back to :main when no
+          # fp tag is exported - agent tooling always exports the fp tag.
+          tags="${{ env.FRONTEND_DEV_IMAGE }}:${fp}"
+          if [ "$GITHUB_REF" = "refs/heads/master" ]; then
+            tags="${tags},${{ env.FRONTEND_DEV_IMAGE }}:main"
+          fi
+          {
+            echo "fp=${fp}"
+            echo "tags=${tags}"
+          } >> "$GITHUB_OUTPUT"
+          echo "publishing $tags" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: log in to ghcr.io
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build and publish frontend dependency image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/frontend/tests.Dockerfile
+          build-args: MRMAP_IMAGE_FP=${{ steps.image_id.outputs.fp }}
+          pull: true
+          push: true
+          tags: ${{ steps.image_id.outputs.tags }}
+          cache-from: type=gha,scope=frontend-dev
+          cache-to: type=gha,scope=frontend-dev,mode=min
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            io.github.mrmap.dependency-fingerprint=${{ steps.image_id.outputs.fp }}

@@ -20,23 +20,29 @@ This module is the contract of that story:
 * an import without a catalogue behind it is no bucket delivery and stays unfiltered,
   and the unsupported ``CHE_MD_Metadata`` root (#825 decision) stays the documented
   clean import error of the mapper detection - not a crash;
-* the relation table keeps its XOR over three columns and its per-type unique states.
+* the relation table keeps its XOR over three columns and its per-type unique states;
+* the API of the harvest answers the third column: a relation names its application
+  record, while a job answers its flag but no list of the records it harvested - an
+  answered relation of the job is a query per row of the jobs list.
 
 The documents are the #825 spike samples under ``test_data/iso_metadata/`` which #826
 landed; the expectations on their contents live with the mapping tests of #826.
 """
 
+import json
 from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from urllib.parse import unquote
 
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.test import TestCase, override_settings
+from django.urls import resolve
 from django.utils.timezone import now
 from MrMap.settings import BASE_DIR
 from registry.enums.harvesting import CollectingStatenEnum as State
@@ -51,9 +57,12 @@ from registry.models.metadata import (ApplicationMetadataRecord,
 from registry.models.service import CatalogueService
 from registry.ows_lib.client.core import OgcClient
 from registry.tasks.harvest import import_md_metadata_file
+from rest_framework.test import APIRequestFactory, force_authenticate
 from tests.django.utils import MockResponse
 
 ISO_DATA = Path(__file__).parent / '../../test_data/iso_metadata'
+
+JSONAPI = 'application/vnd.api+json'
 
 CAPABILITIES = f"{BASE_DIR}/tests/django/test_data/capabilities/csw/2.0.2.xml"
 
@@ -449,3 +458,51 @@ class RequestFilterTest(HarvestHarness, TestCase):
                     self.assertIn("%3Eapplication%3C", url)
                 else:
                     self.assertNotIn("%3Eapplication%3C", url)
+
+
+class RelationEndpointOfThreeColumnsTest(HarvestHarness, TestCase):
+    """The API of the harvest answers the third column and no hidden record list.
+
+    ``HarvestedMetadataRelationSerializer`` answers all columns of a relation, so
+    the application column is explored where the two existing ones are. The job
+    itself keeps answering only counts: its serializer names the harvested records
+    of neither type, and the M2M of #827 joins that exclusion - a relation which
+    is answered per job is a query per row of the jobs list.
+    """
+
+    fixtures = ["test_users.json"]
+
+    def get(self, path):
+        request = APIRequestFactory().get(path, HTTP_ACCEPT=JSONAPI)
+        force_authenticate(
+            request, user=get_user_model().objects.get(username='User1'))
+        callback, _, kwargs = resolve(path)
+        response = callback(request, **kwargs)
+        if not response.is_rendered:
+            response.render()
+        return response.status_code, json.loads(response.content)
+
+    def test_an_application_relation_is_answered_with_its_record(self):
+        job = self.new_run()
+        import_md_metadata_file(self.stored(job, APPLICATION).pk)
+        record = ApplicationMetadataRecord.objects.get(
+            file_identifier=APPLICATION_FID)
+        status, body = self.get('/api/registry/harvesting/harvested-metadata-records')
+        self.assertEqual(status, 200, body)
+        rows = [row for row in body['data']
+                if (row['relationships']
+                    .get('applicationMetadataRecord', {}).get('data') or {}).get('id')
+                == str(record.pk)]
+        self.assertEqual(len(rows), 1, msg=f'no row names the application record: {body}')
+        self.assertEqual(rows[0]['attributes']['collectingState'], State.NEW)
+
+    def test_a_job_answers_no_list_of_the_records_it_harvested(self):
+        job = self.new_run()
+        import_md_metadata_file(self.stored(job, APPLICATION).pk)
+        status, body = self.get('/api/registry/harvesting/harvesting-jobs')
+        self.assertEqual(status, 200, body)
+        self.assertEqual(len(body['data']), 1, body)
+        self.assertNotIn('harvestedApplicationMetadata', body['data'][0]['relationships'])
+        # the flag of #827 is a field of the job and is answered as one
+        self.assertIn('harvestApplications', body['data'][0]['attributes'])
+        self.assertIs(body['data'][0]['attributes']['harvestApplications'], True)

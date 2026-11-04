@@ -315,19 +315,26 @@ class HarvestingJob(ProcessingData):
         # the tasks which reported in removed their ids themselves (#892).
 
     def has_live_import_run(self):
-        """True while the import chord this job last published could still run.
+        """True while the database shadow of this job says a run is live.
 
         The ids the job registered and has not seen report in are its database
         shadow of the messages of its last chord in the broker (#892), and the
         files still waiting for their import are the backlog those messages
-        carry. With both, the messages of this backlog are still to be consumed
-        and publishing a new chord would stack the whole backlog a second time
-        onto the queue - a queue growing per worker restart and gigabytes of
-        redis at the size of a real catalogue (#891). Without waiting files a
-        re-publish is free: it builds no chord and ends the harvest instead,
-        which is what completes a run whose chord was consumed while its
-        callback was lost. The creation id names no work of the backlog and
-        stays out of this (see append_celery_task_ids).
+        carry. The answer is the question for the broker, not the verdict: an
+        id whose message the broker dropped stays registered for the rest of
+        the job's life, and only
+        ``registry.tasks.harvest.import_run_message_state`` can tell such a
+        shadow from messages which really could still run - a shadow left
+        alone as if it were a live chord holds the backlog hostage forever
+        (#972). With both, and a broker which confirms, the messages of this
+        backlog are still to be consumed and publishing a new chord would
+        stack the whole backlog a second time onto the queue - a queue growing
+        per worker restart and gigabytes of redis at the size of a real
+        catalogue (#891). Without waiting files a re-publish is free: it builds
+        no chord and ends the harvest instead, which is what completes a run
+        whose chord was consumed while its callback was lost. The creation id
+        names no work of the backlog and stays out of this (see
+        append_celery_task_ids).
         """
         return (
             self.celery_task_ids.filter(creation=False).exists()

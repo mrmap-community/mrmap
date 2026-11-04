@@ -175,14 +175,18 @@ class HarvestingRecoveryTest(TestCase):
         """#891: the ids of the import chord are the shadow of its messages in the
         broker. A worker restart leaves the queued messages untouched and finds
         their ids unreported - recovery must let the backlog be consumed instead
-        of publishing a whole second backlog on top of the queued one."""
+        of publishing a whole second backlog on top of the queued one. The chord
+        is mocked, so no message ever reached a broker this test could show the
+        recovery; since #972 recovery believes the broker and not the ids, so
+        the test stubs the broker answer its name claims: a message still pending."""
         with patch.object(HarvestingJob, '_http_request', return_value=None), \
                 self.captureOnCommitCallbacks(execute=True):
             call_chord_md_metadata_file_to_db.run(harvesting_job_id=self.job.pk)
         self.assertTrue(self.job.celery_task_ids.filter(creation=False).exists(),
                         'the fan-out registered the ids of the chord it published')
 
-        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish:
+        with patch.object(call_chord_md_metadata_file_to_db, 'delay') as republish, \
+                patch('registry.tasks.harvest.import_run_message_state', return_value=True):
             recover_harvesting_jobs.run()
         republish.assert_not_called()
 

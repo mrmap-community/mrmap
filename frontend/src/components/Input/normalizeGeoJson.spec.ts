@@ -1,3 +1,4 @@
+import L from "leaflet";
 import { describe, expect, it } from "vitest";
 
 import { normalizeGeoJson } from "./normalizeGeoJson";
@@ -107,5 +108,39 @@ describe("normalizeGeoJson", () => {
     expect(normalizeGeoJson([POLYGON])).toBeUndefined();
     expect(normalizeGeoJson(42)).toBeUndefined();
     expect(normalizeGeoJson(true)).toBeUndefined();
+  });
+
+  it("pins the leaflet behaviour this normalizer exists for", () => {
+    // every value below makes the project's own leaflet (1.9) throw with
+    // "Invalid GeoJSON object." - the audit's console line and the silently
+    // empty map
+    const thrownByLeaflet: unknown[] = [
+      JSON.stringify(POLYGON),
+      "{}",
+      "not json",
+      {},
+      { type: "Nonsense" },
+      { _southEast: { lat: 1, lng: 1 }, _northWest: { lat: 0, lng: 0 } },
+      42,
+    ];
+    thrownByLeaflet.forEach((value) => {
+      expect(() => L.geoJSON(value as never)).toThrow(/Invalid GeoJSON/);
+      // what the normalizer makes of such a value is either nothing at all -
+      // the component then shows the hint - or a value leaflet renders
+      const normalized = normalizeGeoJson(value);
+      if (normalized !== undefined) {
+        expect(() => L.geoJSON(normalized)).not.toThrow();
+      }
+    });
+
+    // and everything it accepts from a usable value is drawable
+    [
+      POLYGON,
+      FEATURE,
+      JSON.stringify(POLYGON),
+      { type: "Feature", properties: {}, geometry: JSON.stringify(POLYGON) },
+    ].forEach((value) => {
+      expect(() => L.geoJSON(normalizeGeoJson(value) as never)).not.toThrow();
+    });
   });
 });

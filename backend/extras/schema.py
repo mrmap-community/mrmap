@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from extras.viewsets import NestedModelViewSet
+from rest_framework.filters import OrderingFilter as DRFOrderingFilter
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
@@ -194,4 +195,79 @@ class CustomOperationId(JsonApiAutoSchema):
             }
 
         """
+        self._restore_undocumented_sort_parameter(res)
         return res
+
+    def _restore_undocumented_sort_parameter(self, parameters):
+        """Document `sort` for list views whose ordering fields are implicit.
+
+        JsonApiAutoSchema drops the `sort` parameter whenever the view has no
+        explicit `ordering_fields`. That assumes such an endpoint rejects
+        sorting, but the json:api OrderingFilter is still in the default
+        filter backends: without `ordering_fields` DRF validates `sort`
+        against the serializer fields (get_default_valid_fields) and answers
+        400 for anything else. The parameter is therefore enforced but hidden
+        from the contract. Re-add it with the same enum the filter accepts, so
+        the schema describes the enforced contract instead of hiding it.
+        """
+        if any(parameter.get("name") == "sort" for parameter in parameters):
+            return
+        for filter_backend in self.get_filter_backends():
+            if not issubclass(filter_backend, DRFOrderingFilter):
+                continue
+            enum = self._implicit_sort_enum(filter_backend())
+            if not enum:
+                continue
+            for parameter in filter_backend().get_schema_operation_parameters(self.view):
+                if parameter.get("name") != "sort":
+                    continue
+                parameter["schema"] = {
+                    "type": "array",
+                    "items": {"type": "string", "enum": enum},
+                }
+                parameter["explode"] = False
+                parameters.append(parameter)
+            return
+
+    def _implicit_sort_enum(self, backend):
+        """The terms a json:api OrderingFilter accepts when the view declares
+        no `ordering_fields`, formatted as clients send them. None when the
+        fallback cannot be resolved without a request (no class queryset);
+        then nothing is documented, which is the pre-existing state."""
+        if getattr(self.view, "ordering_fields", None) is not None:
+            return None
+        queryset = getattr(self.view, "queryset", None)
+        if queryset is None:
+            return None
+        try:
+            valid_fields = backend.get_valid_fields(queryset, self.view, {})
+        except Exception:  # a view DRF itself could not sort at runtime
+            return None
+        enum = []
+        for field_name, _label in valid_fields:
+            term = format_field_name(field_name)
+            enum.append(term)
+            enum.append(f"-{term}")
+        return enum
+
+    def _patch_sort_param_schema(self, sort_param):
+        """Accept tuple (or any non-str iterable) `ordering_fields` too.
+
+        Upstream only builds the enum for a `list` or "__all__"; the tuple
+        whitelists several mrmap viewsets use stay a plain string parameter,
+        so clients cannot see the accepted values. Same enum shape as the
+        list case.
+        """
+        ordering_fields = getattr(self.view, "ordering_fields", None)
+        if ordering_fields is not None and not isinstance(ordering_fields, (list, str)):
+            enum = []
+            for field_name in ordering_fields:
+                term = format_field_name(field_name)
+                enum.append(term)
+                enum.append(f"-{term}")
+            if enum:
+                sort_param["schema"]["type"] = "array"
+                sort_param["schema"]["items"] = {"type": "string", "enum": enum}
+                sort_param["explode"] = False
+            return
+        super()._patch_sort_param_schema(sort_param=sort_param)

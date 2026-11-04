@@ -19,7 +19,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
-| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
+| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set (`after_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |
 
@@ -334,8 +334,11 @@ reads like the existing ones is what keeps the scenarios reviewable.
   `test_csw.json` (3 CSW, 2 harvesting jobs), `test_mapcontext.json` (2 mapcontexts, 11 layers,
   group object permissions), `test_datasetmetadata.json` (plus the XML files under
   `tests/django/test_data/`), `test_keywords.json` (159 keywords), `test_crs.json`,
-  `test_monitoring.json`, `test_allowed_wms_operation.json`, `test_allowed_wfs_operation.json` and
-  `test_background.json`.
+  `test_monitoring.json`, `test_allowed_wms_operation.json`, `test_allowed_wfs_operation.json`,
+  `test_background.json` and `test_csw_mixed_records.json` (one service and one application
+  metadata record for the mixed `/csw` features, whose stored documents
+  `environment.py` attaches from `tests/django/test_data/csw/` and whose rows it removes
+  again in `after_feature`, so a feature loading it does not move its siblings' counts).
 - A feature declares its data with one tag per file: `@fixtures:test_keywords.json
   @fixtures:test_wms.json`, in the order `loaddata` should read them — that order is what resolves
   foreign keys between fixture files, so copy it when a new feature needs the same set.
@@ -402,8 +405,11 @@ since #855 and every refused `/csw` request since #908 (see above); #907 added
 the case-insensitive KVP `REQUEST` value; #910 added the `GetCapabilities` document itself —
 content assertions for the default response, the `Sections`, `AcceptVersions` and `AcceptFormats`
 negotiation, and the `VERSION` refusals of `GetRecords`; #912 added
-`features/csw/post_binding.feature` for POST XML dispatch, constraints and parsing reports.
-Still not covered: `GetRecordById` beyond the existing dispatch scenario.
+`features/csw/post_binding.feature` for POST XML dispatch, constraints and parsing reports;
+#829 added `features/csw/get_records_mixed_types.feature` (all three record kinds in one paged
+stream and the `type` filter over them, on the `test_csw_mixed_records.json` fixture whose rows
+an `after_feature` hook removes again for the sibling features) and
+`features/csw/get_record_by_id.feature` (the by-id lookup over that mixed set).
 
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort

@@ -654,6 +654,16 @@ SLOW_REQUEST_DUMP_MAX_FILES = int(
 # (HarvestingJob.max_step_size), which is probed per service and stays untouched
 HARVEST_IMPORT_BATCH_SIZE = int(
     os.getenv("MRMAP_HARVEST_IMPORT_BATCH_SIZE", "250"))
+# How a draining import backlog reports its progress without writing the row of
+# the background process once per file: a worker coalesces the files it has
+# committed and reports them as one bulk increment after this many steps or
+# once this many seconds have passed since its last report (#958). At the size
+# of a real catalogue one UPDATE per file would turn the single row of the
+# process into a row-lock hotspot behind every import transaction.
+HARVEST_IMPORT_PROGRESS_STEPS = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_STEPS", "200"))
+HARVEST_IMPORT_PROGRESS_SECONDS = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS", "30"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True

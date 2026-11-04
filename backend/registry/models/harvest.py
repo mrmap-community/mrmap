@@ -1047,6 +1047,7 @@ class TemporaryMdMetadataFile(models.Model):
             task = call_md_metadata_file_to_db.s(
                 md_metadata_file_id=self.pk,
                 harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                background_process_pk=self.job.background_process_id,
                 http_request=self.job._http_request(),
             )
             task.set(task_id=str(task_id))

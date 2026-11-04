@@ -1,0 +1,137 @@
+# Opt-in prebuilt backend images - changes nothing until it is appended.
+# Issue #961 (epic #959). Add this file LAST to COMPOSE_FILE to let an isolated
+# agent stack run on the centrally published dev/test image instead of building
+# docker/backend/alpine.Dockerfile under the project's own tag:
+#
+#   cd <worktree>                                  # never the developer's stack
+#   export COMPOSE_PROJECT_NAME=mrmap-agent-<issue>-<run-id>
+#   export MRMAP_BACKEND_DEV_FP=<fingerprint>      # see "Fingerprint" below
+#   export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.prebuilt.yml"
+#   docker compose up -d postgis redis mapserver
+#   docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
+#     django-tests python manage.py test tests.django.notify.test_tasks --noinput
+#
+# The plain local-build flow stays untouched: without this file in
+# COMPOSE_FILE, docker-compose.yml and docker-compose.dev.yml keep their
+# build: sections and project-prefixed tags, byte-identical to before #961.
+#
+# What this file does
+#   * Pins every service sharing docker/backend/alpine.Dockerfile - backend,
+#     celery-worker, celery-beat, pre-commit-check, behave, django-tests - to
+#
+#       ghcr.io/mrmap-community/mrmap-backend-dev:<fp>
+#
+#     (registry and image name per the integration contract on issue #960) and
+#     resets their build: sections, so no compose command can build or rebuild
+#     that tag locally.
+#   * Touches no mounts: backend source stays bind-mounted at /opt/mrmap, so
+#     ordinary code changes need no image and never change <fp>.
+#   * Carries the standard parallel-run port and container_name resets from
+#     AGENTS.md ("Docker ownership and cleanup"), so two stacks of one
+#     checkout coexist on one host with just these three files and different
+#     COMPOSE_PROJECT_NAME values - no job-local override file required. An
+#     agent override may still be appended after this file; identical !reset
+#     blocks compose idempotently. Service names, hostnames, volumes and
+#     networks stay per project as always: the isolation is for state, the
+#     prebuilt tag is shared work.
+#     Pins not covered here (frontend 8000, flower 5655, inspire-validator
+#     5557, victoria-logs 5514, pgadmin, grafana, the frontend-tests container
+#     name) only matter when a check brings those services up; extend a
+#     job-local override for them, as AGENTS.md describes.
+#
+# Fingerprint
+#   <fp> = first 12 hex of sha256 over the canonical manifest of the dependency
+#   inputs: the Dockerfile(s), backend/.requirements/*, the build args and the
+#   resolved FROM base references. Source-only changes must not change <fp>.
+#   Generation lives in scripts/dev_image_id.py (#960, extended by #962); a
+#   host without that script yet tags its own equivalent build under the same
+#   name (see the TODO seam). CI publishes the tag with MRMAP_PRODUCTION=False,
+#   the dev flavor all six services use in docker-compose.dev.yml - compose
+#   this file with docker-compose.dev.yml, never with the production stack
+#   alone. A mutable :main tag may exist for humans; this file deliberately
+#   never references it.
+#
+# Effective image semantics (docker compose with image: set, build: reset,
+# pull_policy: missing) - each case verified against Compose v5:
+#   * Tag present locally (earlier pull, or a #962 local fallback build under
+#     the same name): run and up use it as-is. missing only contacts the
+#     registry when the tag is absent locally, so there is no pull attempt and
+#     no offline surprise. Nothing is buildable anymore either: with the
+#     build: sections reset there is no target to rebuild - run --build is a
+#     no-op that keeps the pinned tag as-is (verified with Compose v5), never
+#     re-tags the contract name with local build output. Combine --build with
+#     this file never; local content for the name is #962's sanctioned
+#     fallback build below.
+#   * Tag absent locally: Compose anonymously pulls the pinned fp tag from
+#     ghcr.io. If that fingerprint was never published, the pull fails with a
+#     registry "not found"/"manifest unknown" error and run exits non-zero.
+#     There is no silent fallback: no build (build: is reset) and no :main
+#     (this file never references a mutable tag). A missing image can not run
+#     a stack.
+#   * Tag present locally but supposedly stale: missing does not re-check a
+#     present tag. The fp tag is the safeguard - it is recomputed from the
+#     checkout's dependency inputs including the resolved base images, so a
+#     stale tag cannot match a checkout that needs other content. Residual
+#     staleness detection is #962's subject.
+#   pull_policy: never was considered and rejected: it turns every fresh host
+#   into a mandatory manual pull (docker compose pull even refuses services
+#   pinned to never) while providing the same no-rebuild guarantee; missing
+#   additionally fails just as loudly for unpublished tags.
+#
+# TODO(#962) seam: the sanctioned fallback for the loud pull-miss above. The
+# agreed agent flow is: resolve fp with scripts/dev_image_id.py, try the pull
+# (which run already performs under pull_policy: missing), and on a registry
+# miss build locally under the SAME ghcr.io/mrmap-community/mrmap-backend-dev:<fp>
+# tag - the only case in which local content may carry the contract name. When
+# #962 ships the resolver tool, reference it here between the export and the
+# run and keep pull_policy: missing; do not paper over the failure with
+# pull_policy: always (registry round-trip per run) or with the mutable :main.
+
+services:
+
+  backend:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+    # standard parallel-run resets (AGENTS.md): dev pins container_name and
+    # publishes 8001, which would block a second stack on the host.
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
+    ports: !reset []
+
+  celery-worker:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+
+  celery-beat:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+
+  pre-commit-check:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+
+  behave:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+    ports: !reset []
+
+  django-tests:
+    image: ghcr.io/mrmap-community/mrmap-backend-dev:${MRMAP_BACKEND_DEV_FP:?export MRMAP_BACKEND_DEV_FP with the 12 hex fingerprint printed by scripts/dev_image_id.py - see the header of docker-compose.prebuilt.yml}
+    pull_policy: missing
+    build: !reset null
+    ports: !reset []
+
+  # remaining standard parallel-run resets: the dev configuration publishes
+  # these fixed host ports, a second stack only needs them network-internal.
+  postgis:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  mapserver:
+    ports: !reset []

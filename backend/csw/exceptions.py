@@ -28,3 +28,26 @@ class DocumentUnavailable(OGCServiceException):
     """
     code = "NoApplicableCode"
     message = "The stored document of a matched record cannot be served."
+
+
+class MissingIdParameterException(OGCServiceException):
+    """A ``GetRecordById`` which names no record identifier.
+
+    Table 67 of OGC 07-006r1 makes the ``Id`` parameter of the operation One
+    (Mandatory), and unlike the paging parameters of a ``GetRecords`` it
+    carries no default this endpoint could fall back to -- a request which
+    names no identifier asks for nothing and is refused with the
+    ``MissingParameterValue`` of OWS Common (Table 8), locating the parameter
+    it misses (#909; the request used to be answered with an empty response
+    document).
+
+    The code is the one Table 8 names for a missing mandatory parameter. The
+    refusals dispatch answers for the parameters it reads itself
+    (``request``, ``service``) carry the established ``MissingParameter`` code
+    of :mod:`registry.ows_lib.response.exceptions`; the audit of #909
+    prescribes the normative code for the parameter of the operation, and this
+    is where the two meet: a refusal of a parameter only a handler reads.
+    """
+    code = "MissingParameterValue"
+    locator = "Id"
+    message = "The Id parameter is mandatory for GetRecordById."

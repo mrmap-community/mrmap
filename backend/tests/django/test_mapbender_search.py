@@ -15,12 +15,13 @@ record that has one; the values below are read from the record itself.
 from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.test import TestCase
 
-from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, Keyword,
                                       MetadataContact, ServiceMetadataRecord)
 
 
 class MapBenderSearchTest(TestCase):
-    """The dataset and the service branch of ``/mapbender/search``."""
+    """The dataset, service and application branch of ``/mapbender/search``."""
 
     def setUp(self):
         self.contact = MetadataContact.objects.create(
@@ -37,12 +38,21 @@ class MapBenderSearchTest(TestCase):
         self.berlin = self.record(
             ServiceMetadataRecord, title='Wasserversorgung Berlin',
             keywords=['Wasser'])
+        # the application record is found by words no dataset or service record
+        # holds, so an application hit is always the application branch's doing
+        self.anwendung = self.record(
+            ApplicationMetadataRecord, title='Anwendung Wartung Dresden',
+            keywords=['Anwendung'])
 
     def record(self, model, keywords=(), **fields):
         if model is DatasetMetadataRecord:
             # the dataset contact is the one invariant a dataset record has and a
             # service record does not
             fields.setdefault('dataset_contact', self.contact)
+        elif model is ApplicationMetadataRecord:
+            # ... and the application contact is the same invariant of an
+            # application record
+            fields.setdefault('application_contact', self.contact)
         record = model.objects.create(metadata_contact=self.contact, **fields)
         for keyword in keywords:
             # a keyword is a lookup row which every record carrying it shares (#817)
@@ -81,6 +91,23 @@ class MapBenderSearchTest(TestCase):
         [entry] = answer['srv']
         self.assertEqual(str(self.berlin.pk), entry['id'])
         self.assertEqual('Wasserversorgung Berlin', entry['title'])
+
+    def test_the_application_branch_answers_the_application_records(self):
+        """``searchResources=application`` is a kind of record now, not an empty page.
+
+        The record is found by a word of its title as well as by a word of its
+        keyword -- both are words of its vector, the same vector a ``GetRecords``
+        searches (#828).
+        """
+        for words in ('anwendung', 'wartung'):
+            with self.subTest(searchText=words):
+                answer = self.entries('application', searchText=words)
+
+                self.assertEqual(1, answer['md']['nresults'])
+                [entry] = answer['srv']
+                self.assertEqual(str(self.anwendung.pk), entry['id'])
+                self.assertEqual('Anwendung Wartung Dresden', entry['title'])
+                self.assertEqual(self.contact.name, entry['respOrg'])
 
     def test_a_word_of_a_keyword_is_a_word_of_a_record(self):
         """The words of the keywords are in the vector of a record, not only its text."""
@@ -121,7 +148,7 @@ class MapBenderSearchTest(TestCase):
             searchText='bodenrichtwerte')['md']['nresults'])
 
     def test_a_resource_kind_no_search_answers_answers_no_records(self):
-        """``searchResources`` other than the two kinds of a metadata record."""
+        """``searchResources`` other than the kinds of a metadata record."""
         answer = self.entries('layer', searchText='wasser')
 
         self.assertEqual(0, answer['md']['nresults'])

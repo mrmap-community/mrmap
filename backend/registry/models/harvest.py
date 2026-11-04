@@ -32,7 +32,8 @@ from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.utils import make_instance_key
-from registry.models.metadata import (DatasetMetadataRecord,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -103,6 +104,11 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                 null=True,
                                                 related_name="harvested_service_metadata_relations",
                                                 related_query_name="harvested_service_metadata_relation")
+    application_metadata_record = models.ForeignKey(to="registry.ApplicationMetadataRecord",
+                                                    on_delete=models.CASCADE,
+                                                    null=True,
+                                                    related_name="harvested_application_metadata_relations",
+                                                    related_query_name="harvested_application_metadata_relation")
     collecting_state = models.PositiveSmallIntegerField(
         choices=CollectingStatenEnum.choices)
     download_duration = models.DurationField(null=True,
@@ -136,14 +142,30 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
             models.Index(
                 fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
             models.Index(
+                fields=["harvesting_job", "application_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "application_metadata_record", "collecting_state"]),
+            models.Index(
                 fields=["harvesting_job", "id"]),
         ]
         constraints = [
+            # exactly one of the three record columns carries the record of a relation; the
+            # disjunction spells "exactly one" for three columns, because a chained ^ on three
+            # boolean columns is not the parity it reads as for two (#827)
             models.CheckConstraint(
-                name="dm_record_or_sm_record",
-                condition=(Q(dataset_metadata_record__isnull=True)
-                           ^ Q(service_metadata_record__isnull=True)),
-                violation_error_message="wrong relation type. dataset_metadata_record or service_metadata_record, not both is required."
+                name="dm_record_or_sm_record_or_am_record",
+                condition=(
+                    (Q(dataset_metadata_record__isnull=False)
+                     & Q(service_metadata_record__isnull=True)
+                     & Q(application_metadata_record__isnull=True))
+                    | (Q(dataset_metadata_record__isnull=True)
+                       & Q(service_metadata_record__isnull=False)
+                       & Q(application_metadata_record__isnull=True))
+                    | (Q(dataset_metadata_record__isnull=True)
+                       & Q(service_metadata_record__isnull=True)
+                       & Q(application_metadata_record__isnull=False))
+                ),
+                violation_error_message="wrong relation type. dataset_metadata_record, service_metadata_record or application_metadata_record, exactly one is required."
             ),
             models.UniqueConstraint(
                 name="atomic_new_updated_or_exsisting_collecting_state_for_dm_record",
@@ -161,6 +183,18 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                 name="atomic_new_updated_or_exsisting_collecting_state_for_sm_record",
                 fields=["harvesting_job",
                         "service_metadata_record",
+                        "collecting_state"],
+                # new, updated, existing can only be set one time per harvesting job.
+                # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
+                # To support analyzing this failure behaviour of remote services,
+                # we support storing collecting_state="duplicated" multiple times per harvesting job
+                condition=~Q(
+                    collecting_state=CollectingStatenEnum.DUPLICATED.value)
+            ),
+            models.UniqueConstraint(
+                name="atomic_new_updated_or_exsisting_collecting_state_for_am_record",
+                fields=["harvesting_job",
+                        "application_metadata_record",
                         "collecting_state"],
                 # new, updated, existing can only be set one time per harvesting job.
                 # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
@@ -192,6 +226,10 @@ class HarvestingJob(ProcessingData):
         validators=[MinValueValidator(MIN_STEP_SIZE)])
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
+    # like datasets and services, every harvest requests application records by
+    # default (epic #824 scope decision); a catalogue which never offers them just
+    # answers none, which the snapshot math of #903 accounts for as 0
+    harvest_applications = models.BooleanField(default=True)
     total_records: int = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -207,6 +245,13 @@ class HarvestingJob(ProcessingData):
         blank=True)
     harvested_service_metadata = models.ManyToManyField(
         to=ServiceMetadataRecord,
+        through=HarvestedMetadataRelation,
+        related_name="harvesting_jobs",
+        related_query_name="harvesting_job",
+        editable=False,
+        blank=True)
+    harvested_application_metadata = models.ManyToManyField(
+        to=ApplicationMetadataRecord,
         through=HarvestedMetadataRelation,
         related_name="harvesting_jobs",
         related_query_name="harvesting_job",
@@ -369,14 +414,18 @@ class HarvestingJob(ProcessingData):
             download_duration,
             processing_duration):
         model = HarvestedMetadataRelation
-        kwargs = {"service_metadata_record": related_object,
+        # the column which carries the record of a relation is named by the class of the
+        # record; the application counterpart mirrors the two existing paths (#827)
+        record_field = {
+            "DatasetMetadataRecord": "dataset_metadata_record",
+            "ServiceMetadataRecord": "service_metadata_record",
+            "ApplicationMetadataRecord": "application_metadata_record",
+        }.get(related_object.__class__.__name__, "service_metadata_record")
+        kwargs = {record_field: related_object,
                   "harvesting_job": self,
                   "collecting_state": collecting_state,
                   "download_duration": download_duration,
                   "processing_duration": processing_duration}
-        if related_object.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.pop("service_metadata_record")
-            kwargs.update({"dataset_metadata_record": related_object})
         try:
             with transaction.atomic():
                 return model.objects.create(**kwargs)
@@ -584,6 +633,8 @@ class HarvestingJob(ProcessingData):
             record_types.append("dataset")
         if self.harvest_services:
             record_types.append("service")
+        if self.harvest_applications:
+            record_types.append("application")
         return record_types
 
     def get_total_records(self, response):
@@ -1076,6 +1127,59 @@ class TemporaryMdMetadataFile(models.Model):
             return None
         return 'fileimport' if self.job.service is None else f'csw:{self.job.service}'
 
+    def _drop_record_for_wrong_bucket(self, mapper):
+        """Post-filter of the application bucket (#827, decision note of #826).
+
+        A document which the catalogue delivered for this run passed the run's type
+        filter - which is what the catalogue's own type index says about it, never what
+        the document says. The mapper already keys everything by the detected
+        ``hierarchyLevel``, so requiring the detected level to name one of the buckets
+        the run actually requests is free to compute: a record the index tagged into a
+        bucket the run does not harvest (the spike of #825 measured 0/10 violations, so
+        this is a guard rail) never lands in the registry, because storing it by the
+        claimed filter value instead of the detected level would pollute the per type
+        counts which gate the snapshot math of #903. It is dropped as unhandled and
+        loud: the file keeps its import error for inspection and the run gets a
+        harvesting log entry, the way #690 traces records a catalogue did not deliver.
+
+        Returns:
+            bool: whether the document of this file was dropped
+        """
+        # an import without a catalogue behind it is no bucket delivery: the document
+        # was handed in by somebody who chose its bucket by importing it
+        if self.job is None or not self.job.service_id:
+            return False
+        requested = self.job.get_record_types()
+        detected = MDMetadataXmlMapper._detect_hierarchy_level(mapper.xml_root)
+        if detected in requested:
+            return False
+        file_identifier = "".join(mapper.xml_root.xpath(
+            ".//*[local-name()='fileIdentifier']//text()")).strip()
+        self.has_import_error = True
+        self.import_error = str({
+            "reason": "hierarchy_level_mismatch",
+            "file_identifier": file_identifier,
+            "detected_hierarchy_level": detected,
+            "requested_record_types": requested,
+        })
+        self.save()
+        self.job.log(
+            level=LogLevelEnum.ERROR.value,
+            description=(
+                f"Unhandled record: hierarchyLevel '{detected}' delivered for the "
+                f"buckets {requested} of file {self.md_metadata_file.name}"[:512]),
+            extented_description=(
+                f"Metadata record: {file_identifier}\n"
+                f"Source file: {self.md_metadata_file.name}\n"
+                f"Requested url: {self.requested_url}\n"
+                f"The catalogue's type index delivered this document for {requested}, "
+                f"but its XML names hierarchyLevel '{detected}'. The run stores records "
+                "by the level the XML names, never by the filter the index passed, so "
+                "this record is not imported and its run is no snapshot."
+            ),
+        )
+        return True
+
     def md_metadata_file_to_db(self):
         with self.md_metadata_file.open('rb') as _file:
             try:
@@ -1083,6 +1187,8 @@ class TemporaryMdMetadataFile(models.Model):
                     start_db_processing = now()
 
                     mappers = MDMetadataXmlMapper.from_xml(_file.read())
+                    if self._drop_record_for_wrong_bucket(mappers[0]):
+                        return []
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
@@ -1133,7 +1239,11 @@ class TemporaryMdMetadataFile(models.Model):
                                     self.has_import_error = True
                                     self.import_error = str(import_error)
                                     self.save()
-                                    return created_instance, update, not created
+                                    # the whole method answers a list of (record, updated,
+                                    # existed) - the duplicated entry is one such row, so the
+                                    # import task which iterates the result does not crash and
+                                    # the DUPLICATED relation of #827 stays committed
+                                    return [(created_instance, update, not created)]
                             result.append(
                                 (created_instance, update, not created))
                             if self.job:

@@ -6,6 +6,8 @@ from registry.querys.alerts import ALERT_CATEGORIES, collect_service_alerts
 from registry.serializers.alerts import ServiceAlertSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_json_api.filters import OrderingFilter
+from rest_framework_json_api.utils import format_field_name
 from rest_framework_json_api.views import generics
 
 FILTERS = {
@@ -17,6 +19,13 @@ FILTERS = {
     'service': None,
 }
 
+#: sort fields the hand-written ordering in filter_queryset accepts; the
+#: schema documents exactly these terms, so enum and whitelist cannot drift
+SORT_FIELDS = ('id', 'severity', 'occurred_at')
+SORT_TERMS = tuple(
+    term for field in SORT_FIELDS
+    for term in (format_field_name(field), f'-{format_field_name(field)}'))
+
 
 class ServiceAlertListView(generics.ListAPIView):
     """Read-only attention across the services the caller may view."""
@@ -27,7 +36,10 @@ class ServiceAlertListView(generics.ListAPIView):
     @extend_schema(parameters=[
         OpenApiParameter(f'filter[{name}]', str, enum=choices)
         for name, choices in FILTERS.items()
-    ] + [OpenApiParameter('sort', str)])
+    ] + [OpenApiParameter(
+        OrderingFilter.ordering_param, str,
+        description=OrderingFilter.ordering_description,
+        many=True, enum=list(SORT_TERMS), explode=False)])
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
@@ -51,7 +63,7 @@ class ServiceAlertListView(generics.ListAPIView):
         rows = sorted(rows, key=lambda row: row['id'])
         for field in reversed(fields):
             name = to_snake(field.lstrip('-'))
-            if name not in ('severity', 'occurred_at'):
+            if name not in SORT_FIELDS:
                 raise ValidationError('Invalid alert sort field.')
             default = datetime.min.replace(tzinfo=timezone.utc) if name == 'occurred_at' else ''
             rows.sort(key=lambda row: row[name] or default, reverse=field.startswith('-'))

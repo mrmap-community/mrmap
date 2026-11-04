@@ -28,4 +28,16 @@ Feature: OpenApi Schema
         Then I expect that response json has an attribute "components.schemas.WebMapService.properties.attributes.properties.abstract.title" with value "Beschreibung"
         Then I expect that response json has an attribute "components.schemas.WebMapService.properties.attributes.properties.abstract.description" with value "Kurzfassung des Inhalts"
 
-
+    Scenario: Paginated list operations document their sort enum
+        # issue #944: every paginated list endpoint polices `sort` with a 400,
+        # so each one has to document the parameter with its valid terms -
+        # one per shape: implicit serializer fields, nested related list,
+        # tuple whitelist and hand-written sort (plus the choice lists of #943)
+        When I send the request with GET method
+        Then I expect the openapi schema operation "get" on "/api/registry/keywords" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/accounts/groups" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/accounts/users/{UserId}/groups" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/registry/layers/{LayerId}/keywords" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/registry/update/webmapservice-update-jobs" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/registry/service-alerts" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/registry/languages" documents a sort enum

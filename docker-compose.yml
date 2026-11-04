@@ -3,6 +3,21 @@ services:
 
   postgis:
     image: postgis/postgis:18-3.6-alpine
+    # Disable Postgres JIT for the reference deployment (#871). The annotated
+    # service-list query carries dozens of correlated SubPlans and its planner
+    # cost (~700k at a realistic dataset, ~110k already with a few 10k records)
+    # is above the default jit_above_cost = 100000, so the stock image re-JIT-
+    # compiles it on *every* request: a ~360 ms compile over a ~360 ms query
+    # (EXPLAIN ANALYZE: Execution 721 -> 363 ms, the JIT: block disappears).
+    # These are one-shot OLTP queries whose plan is never reused, so JIT has no
+    # chance to amortize. Nothing else in mrmap triggers JIT: the heavy reads
+    # (harvest day statistics, tsvector search) cost a few thousand, far below
+    # jit_above_cost, so jit=off never removes a JIT speed-up they could use.
+    # A raised jit_above_cost would be brittle - the list query's cost grows
+    # with the dataset, so it would cross any fixed value again. Set on the
+    # server process (not ALTER SYSTEM, which would persist into the shared
+    # data volume and leak into test databases); applies to every database.
+    command: ["postgres", "-c", "jit=off"]
     # ship container stdout/stderr (postgres stderr log) into victoria-logs
     logging:
       driver: syslog

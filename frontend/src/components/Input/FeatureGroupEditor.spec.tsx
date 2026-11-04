@@ -197,7 +197,11 @@ describe("FeatureGroupEditor", () => {
 
   it("keeps the map controls clickable under the hint", () => {
     renderEditor({} as never);
-    expect(screen.getByRole("alert")).toHaveStyle({ "pointer-events": "none" });
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveStyle({ "pointer-events": "none" });
+    // leaflet's zoom control occupies the top left of these cards, so the
+    // hint starts below that band instead of covering it
+    expect(alert).toHaveStyle({ top: "76px" });
   });
 
   it("drops the hint as soon as the drawing has content", () => {

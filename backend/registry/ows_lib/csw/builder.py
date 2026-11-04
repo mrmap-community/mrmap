@@ -75,8 +75,13 @@ class CSWBuilder(XSDSkeletonBuilder):
             },
         )
 
+        # the identifiers are the csw:Id children of the request element
+        # (CSW-discovery.xsd GetRecordByIdType); the call spelled "Id" into the
+        # namespace argument, which raised a TypeError out of the KVP synthesis
+        # the first time a reader asked for this request element (#909)
         self.add_foreign_child(
             root,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "Id",
             text=",".join(ids),
         )
@@ -192,18 +197,25 @@ class CSWBuilder(XSDSkeletonBuilder):
     def build_get_records_by_id_response(
             self,
             gmd_records):
-        children_attrs = {
-            "{http://www.isotc211.org/2005/gmd}MD_Metadata": gmd_records or []
-        }
         root = self.build_element(
             "GetRecordByIdResponse",
             attributes={
                 "version": "2.0.2",
                 "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation":
                     "http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd"
-            },
-            children_attributes=children_attrs
+            }
         )
+        # The stored documents are the children of the response element itself,
+        # appended exactly as build_get_records_response appends them to its
+        # SearchResults: children_attributes is a description which
+        # build_element reads off the schema skeleton to CREATE children, and a
+        # pre-built lxml element passed through it was silently dropped -- every
+        # GetRecordByIdResponse answered zero children (#909). The schema of
+        # GetRecordByIdResponse carries its records as an xsd:any of another
+        # namespace (cswDiscovery.xsd), never as schema children to create.
+        for md in gmd_records or []:
+            root.append(md)
+
         return root
 
     def _build_element_set_name(self, parent, value="summary"):

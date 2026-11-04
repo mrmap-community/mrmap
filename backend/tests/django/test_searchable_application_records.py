@@ -12,8 +12,9 @@ kind of record which was missing from the search until now:
     vocabulary the dataset and the service records are found by (``AnyText`` words,
     ``subject`` keywords, a bounding box, the ``type``), without any rebuild step;
 *   both endpoints which search records answer it -- ``GetRecords`` and the MapBender
-    compatibility search; the ``GetRecordById`` lookup asks its table too (the
-    response body of that operation is the open gap of #909 for every kind);
+    compatibility search; the ``GetRecordById`` lookup asks its table too and names
+    the record by its stored document in the response (that body became answerable
+    when #909 fixed the builder which used to drop it);
 *   an update of the record replaces its words in the answer and a delete takes the
     record out of it, on the very next request.
 """
@@ -137,23 +138,26 @@ class HarvestedApplicationRecordIsSearchableTest(TestCase):
         self.assertEqual(['de.beispiel.anwendung-1'], identifiers)
 
     def test_get_record_by_id_finds_the_application_record(self):
-        """The by-id lookup asks the application table too.
+        """The by-id lookup asks the application table and ships its document.
 
-        The body of a ``GetRecordById`` response is the tracked gap of #909: the
-        builder drops the matched documents for every kind of record (see
-        ``tests/django/test_csw_post_binding.py``), so the answer cannot name the
-        record by its document. What pins the lookup is the report of the one
-        record the storage owes: with the stored document gone, reading the
-        matched record refuses the request and names it -- which it can only do
-        when the lookup found the record in the application table.
+        This pin used to run over the stored-document-gone refusal of #912: the
+        body of a ``GetRecordById`` response carried nothing for any kind of
+        record while the builder dropped the matched documents, so the report
+        of a lost backup was the only answer naming the application table
+        (#909's tracked gap). Since that fix the document itself pins the
+        lookup; the refusal of a record whose document the storage owes stays
+        pinned in ``test_csw_missing_backup.py``.
         """
-        self.record.xml_backup_file.delete()
         response = self.client.get('/csw', {
             **GET_RECORD_BY_ID, 'Id': 'de.beispiel.anwendung-1'})
-        self.assertEqual(response.status_code, 400, response.content)
-        text = etree.fromstring(response.content).xpath(
-            "//*[local-name()='Exception']/*[local-name()='ExceptionText']")[0]
-        self.assertIn('de.beispiel.anwendung-1', text.text, response.content)
+        self.assertEqual(response.status_code, 200, response.content)
+        identifiers = etree.fromstring(response.content).xpath(
+            '//gmd:fileIdentifier/gco:CharacterString/text()',
+            namespaces={
+                'gmd': NAMESPACE_LOOKUP['gmd'],
+                'gco': NAMESPACE_LOOKUP['gco']})
+        self.assertEqual(['de.beispiel.anwendung-1'], identifiers,
+                         response.content)
 
     def test_the_mapbender_search_answers_the_application_record(self):
         """The branch of #828: the application kind is a browsable resource kind."""

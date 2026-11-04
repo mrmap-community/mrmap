@@ -3,7 +3,9 @@ from behave_django.testcase import BehaviorDrivenTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from MrMap.settings import BASE_DIR
-from registry.models.metadata import DatasetMetadataRecord
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 from rest_framework.test import APIClient
 
 #: Prefix of the feature tag that requests one fixture file, e.g. ``@fixtures:test_wms.json``.
@@ -11,6 +13,16 @@ FIXTURE_TAG_PREFIX = "fixtures:"
 
 #: Tag of a feature that needs no data at all beyond the users ``before_all`` loads.
 NO_FIXTURES_TAG = "no_fixtures"
+
+#: Fixture file adding the service and application records of the #829 mixed
+#: ``/csw`` set to the dataset set the ``/csw`` features share.
+MIXED_RECORDS_FIXTURE = 'test_csw_mixed_records.json'
+
+#: Pks of the two records that file declares (see the file itself).
+MIXED_RECORDS_PKS = (
+    'f4ac83a9-3d1e-4b2f-9c6a-9f2e7d1c5b0a',
+    'c0ffee00-7a11-4c1d-8f2b-3e9d5a2b6c01',
+)
 
 
 def before_all(context):
@@ -53,6 +65,31 @@ def load_fixtures(fixtures):
         rbsn_rh.save()
         rbsn_rh_file.close()
 
+    if MIXED_RECORDS_FIXTURE in fixtures:
+        # the service and application records of the mixed #829 set carry their
+        # stored document as a file the same way the dataset records above do,
+        # so the fixture names a path and the document is attached here
+        _attach_backup(ServiceMetadataRecord,
+                       'f4ac83a9-3d1e-4b2f-9c6a-9f2e7d1c5b0a',
+                       'tests/django/test_data/csw/mixed_service_dienst-1.xml')
+        _attach_backup(ApplicationMetadataRecord,
+                       'c0ffee00-7a11-4c1d-8f2b-3e9d5a2b6c01',
+                       'tests/django/test_data/csw/mixed_application_anwendung-1.xml')
+
+
+def _attach_backup(model, pk, relative_document_path):
+    """Write a stored document onto a metadata record loaded from a fixture.
+
+    Same fix the dataset records already owe: a fixture names a file but cannot
+    ship its content, and the ``/csw`` response reads the stored document, so
+    the file is attached right after ``loaddata``.
+    """
+    with open(f"{BASE_DIR}/{relative_document_path}", mode="rb") as document:
+        record = model.objects.get(pk=pk)
+        record.xml_backup_file = SimpleUploadedFile(
+            'md_metadata.xml', document.read())
+        record.save()
+
 
 def before_feature(context, feature):
     """Load the data a feature declared with its tags.
@@ -73,6 +110,23 @@ def before_feature(context, feature):
             f"happen silently whenever a title did not match the legacy mapping, and a feature "
             f"without data passes on 'meta.pagination.count == 0' without testing anything.")
     load_fixtures(requested)
+
+
+def after_feature(context, feature):
+    """Undo the records which the mixed ``/csw`` fixture set added.
+
+    A feature's fixtures are loaded once and not restored for its siblings,
+    and the counts which the sibling ``/csw`` features assert name exactly the
+    two dataset records of the shared set -- so the service and application
+    records of ``test_csw_mixed_records.json`` have to be gone as soon as the
+    feature which asked for them is done. Its own scenarios only see them
+    while it runs.
+    """
+    if MIXED_RECORDS_FIXTURE not in requested_fixtures(feature):
+        return
+    for pk in MIXED_RECORDS_PKS:
+        ServiceMetadataRecord.objects.filter(pk=pk).delete()
+        ApplicationMetadataRecord.objects.filter(pk=pk).delete()
 
 
 def before_scenario(context, scenario):

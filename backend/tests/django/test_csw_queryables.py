@@ -19,7 +19,8 @@ from django.test import TestCase
 from lxml import etree
 
 from csw.queryables import dataset_records, search_filter
-from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, Keyword,
                                       MetadataContact, ServiceMetadataRecord)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
@@ -70,9 +71,18 @@ class CswQueryablesTest(TestCase):
             title='Wasserversorgung Berlin',
             keywords=['Boden'])
 
+        # the application record of the mix: found by words no other record holds,
+        # so its presence in every answer below is always the application kind's
+        # doing and never the echo of another record
+        self.zeta = self.record(
+            ApplicationMetadataRecord, 'zeta',
+            title='Anwendung Wartung Dresden',
+            keywords=['Anwendung'])
+
         # the document of a record names it in the response of a page, its primary key
         # is the order the pages answer them in
-        self.by_pk = {self.alpha.pk: 'alpha', self.beta.pk: 'beta', self.gamma.pk: 'gamma'}
+        self.by_pk = {self.alpha.pk: 'alpha', self.beta.pk: 'beta',
+                      self.gamma.pk: 'gamma', self.zeta.pk: 'zeta'}
 
     def record(self, model, identifier, keywords=(), **fields):
         """A metadata record with a document of its own and its keywords.
@@ -87,6 +97,10 @@ class CswQueryablesTest(TestCase):
             # the dataset contact is the one invariant a dataset record has and a
             # service record does not
             fields.setdefault('dataset_contact', self.contact)
+        elif model is ApplicationMetadataRecord:
+            # ... and the application contact is the same invariant of an
+            # application record
+            fields.setdefault('application_contact', self.contact)
         record = model.objects.create(
             metadata_contact=self.contact,
             code_space='de.mrmap.',
@@ -131,8 +145,8 @@ class CswQueryablesTest(TestCase):
                 'gmd': NAMESPACE_LOOKUP['gmd'],
                 'gco': NAMESPACE_LOOKUP['gco']}))
 
-    def test_without_a_filter_both_kinds_of_record_are_answered(self):
-        self.assertEqual(3, self.matched())
+    def test_without_a_filter_every_kind_of_record_is_answered(self):
+        self.assertEqual(4, self.matched())
 
     def test_anytext_without_a_wildcard_is_a_word_a_record_holds(self):
         """The acceptance criterion of #855: ``AnyText`` as a real tsquery.
@@ -188,6 +202,18 @@ class CswQueryablesTest(TestCase):
     def test_type_is_the_kind_of_record_a_queryset_answers(self):
         self.assertEqual(2, self.matched("type = 'dataset'"))
         self.assertEqual(1, self.matched("type = 'service'"))
+        self.assertEqual(1, self.matched("type = 'application'"))
+
+    def test_an_application_record_is_found_by_its_words_and_its_keywords(self):
+        """The vocabulary of #828: an application record answers it like the others.
+
+        The searchable projection of #828 was re-scoped by epic #851: the record
+        itself answers the vector and the keywords, so these counts are the whole
+        of what the story asked for the view.
+        """
+        self.assertEqual(1, self.matched("AnyText = 'wartung'"))
+        self.assertEqual(1, self.matched("AnyText = 'anwendung'"))
+        self.assertEqual(1, self.matched("subject = 'Anwendung'"))
 
     def test_the_queryables_narrow_each_other(self):
         # the word is a keyword of the service record ...
@@ -202,8 +228,15 @@ class CswQueryablesTest(TestCase):
         self.alpha.bounding_geometry = MultiPolygon(Polygon.from_bbox(
             (5.0, 47.0, 10.0, 55.0)))
         self.alpha.save()
+        self.zeta.bounding_geometry = MultiPolygon(Polygon.from_bbox(
+            (6.0, 48.0, 9.0, 51.0)))
+        self.zeta.save()
 
-        self.assertEqual(1, self.matched('BBOX(coverage, 4.0, 46.0, 11.0, 56.0)'))
+        self.assertEqual(2, self.matched('BBOX(coverage, 4.0, 46.0, 11.0, 56.0)'))
+        # the application record answers the extent like the others (#828)
+        self.assertEqual(
+            1, self.matched(
+                "BBOX(coverage, 4.0, 46.0, 11.0, 56.0) AND type = 'application'"))
         self.assertEqual(0, self.matched('BBOX(coverage, -10.0, 30.0, -5.0, 35.0)'))
 
     def test_resource_identifier_and_identifier_are_columns_of_a_record(self):
@@ -219,11 +252,11 @@ class CswQueryablesTest(TestCase):
         """
         self.record(DatasetMetadataRecord, 'delta',
                     title='Frisch geerntete Metadaten', keywords=['Ernte'])
-        self.assertEqual(4, self.matched())
+        self.assertEqual(5, self.matched())
 
     def test_a_record_deleted_between_two_requests_is_gone_from_the_second_one(self):
         self.beta.delete()
-        self.assertEqual(2, self.matched())
+        self.assertEqual(3, self.matched())
         self.assertEqual(0, self.matched("identifier = 'de.mrmap.beta'"))
 
     def test_a_record_which_is_not_answered_by_the_request_is_not_matched(self):
@@ -242,13 +275,13 @@ class CswQueryablesTest(TestCase):
 
         self.assertEqual(ordered, first + second)
         self.assertEqual(2, len(first), 'the first page does not answer two records')
-        self.assertEqual(1, len(second), 'the second page answers beyond the last record')
+        self.assertEqual(2, len(second), 'the second page does not answer two records')
 
     def test_every_page_answers_the_number_of_records_the_query_matches(self):
         """The second number of the response is the size of the whole result set."""
         for start_position in ('1', '3', '5'):
             with self.subTest(startPosition=start_position):
-                self.assertEqual(3, self.matched(
+                self.assertEqual(4, self.matched(
                     result_type='results',
                     maxRecords='2',
                     startPosition=start_position))

@@ -34,7 +34,7 @@ Two request parameters of ``GetRecords`` shape the response around the records:
     it is paged. Both bindings carry the request the same way -- the KVP binding
     embeds a ``csw:SortBy`` in the request it synthesizes -- so the sorting is
     read from the request element and mapped onto the ORM: every sortable queryable
-    orders both record sources by that expression and the merge of the sources
+    orders every record source by that expression and the merge of the sources
     compares records by it too. A queryable which is not sortable -- a text a
     pattern is searched with, a geometry, a keyword the record reaches over a
     relation -- is refused with ``InvalidParameterValue``, which 10.8.4.9 leaves
@@ -62,7 +62,7 @@ DEFAULT_ELEMENT_SET = "summary"
 #: is reached over a many-to-many relation, which would multiply the records it
 #: sorts; the search vector of a record is compared with a tsquery and answers no
 #: order; and a geometry cannot be compared by the merge which orders the pages of
-#: the two record tables against each other.
+#: the record tables against each other.
 NOT_SORTABLE = frozenset({"keywords__keyword", "search_vector", "bounding_geometry"})
 
 #: The fields a record answers as a date rather than as a text; the text of a
@@ -135,7 +135,7 @@ def loaded_fields(sort_specs) -> list:
     """The columns the answer of a page has to carry.
 
     The pk and the document of a record always; the field of every sort criterion
-    too, because the merge of the two record sources compares the records it
+    too, because the merge of the record sources compares the records it
     merges by the very values the database ordered its half of the page by.
     """
     fields = ["pk", "xml_backup_file"]
@@ -155,7 +155,7 @@ def apply_sort(queryset, sort_specs):
     of a distinct query to stand in the select list too -- which an annotation
     always does. Text is ordered over ``LOWER(...)``: the collation of the cluster
     orders ASCII case-insensitively, and the python merge which interleaves the
-    two sources cannot know that collation -- it compares casefolded copies
+    sources cannot know that collation -- it compares casefolded copies
     instead, which orders the same text the same way whatever the collation is,
     once the database has lowercased its side too.
 
@@ -177,12 +177,12 @@ def apply_sort(queryset, sort_specs):
 
 
 def merge_sorted(records, sort_specs) -> list:
-    """The records of both sources merged into the order the sources answered.
+    """The records of all sources merged into the order the sources answered.
 
     Every source was sliced and ordered by :func:`apply_sort`, which is a total
     order over ``(sort fields, pk)``; a record which belongs to the first ``n``
     records of the merged result belongs to the first ``n`` of its own source
-    under the same order, so merging the two limited slices answers the page.
+    under the same order, so merging the limited slices answers the page.
     """
     return sorted(records, key=cmp_to_key(
         lambda a, b: _compare_records(a, b, sort_specs)))

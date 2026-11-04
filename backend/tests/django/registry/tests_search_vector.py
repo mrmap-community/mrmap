@@ -111,6 +111,9 @@ class SearchVectorContentTest(TestCase, RecordVectorMixin):
             title='Wasserversorgung Hamburg')
         cls.service_metadata = ServiceMetadataRecord.objects.create(
             metadata_contact=cls.contact, title='Bodenrichtwerte Schleswig-Holstein')
+        cls.application = ApplicationMetadataRecord.objects.create(
+            metadata_contact=cls.contact, application_contact=cls.contact,
+            title='Anwendung Wartung Dresden')
         cls.keyword = Keyword.objects.create(keyword='Bauen & Wohnen')
 
     def test_a_record_is_found_by_the_words_of_its_title(self):
@@ -161,6 +164,17 @@ class SearchVectorContentTest(TestCase, RecordVectorMixin):
         self.service_metadata.keywords.set([self.keyword])
         self.assertTrue(self.found_by(self.service_metadata, 'Bodenrichtwerte'))
         self.assertTrue(self.found_by(self.service_metadata, 'wohnen'))
+
+    def test_the_vector_of_an_application_metadata_record_is_built_the_same_way(self):
+        """The table which #828 added to the search is tokenized like the others.
+
+        The generated column and the sync trigger of the keywords array are the ones
+        of the record base -- 0033 only attached this table to them -- so the words
+        the other kinds are found by are the words this kind is found by too.
+        """
+        self.application.keywords.set([self.keyword])
+        self.assertTrue(self.found_by(self.application, 'wartung'))
+        self.assertTrue(self.found_by(self.application, 'wohnen'))
 
     def test_a_changed_text_replaces_its_words(self):
         DatasetMetadataRecord.objects.filter(pk=self.dataset.pk).update(

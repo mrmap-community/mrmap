@@ -7,6 +7,7 @@ from django.http import HttpResponse, JsonResponse
 from guardian.core import ObjectPermissionChecker
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
@@ -54,6 +55,8 @@ from registry.helper.preview import PreviewError, feature_preview_image, preview
 from registry.helper.monitoring_generation import (
     COMPREHENSIVE_OPERATIONS, IMPLEMENTED_PRESETS,
     generate_probe_preview)
+from registry.helper.monitoring_persistence import (
+    ApplyError, apply_generated_probes)
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -231,8 +234,39 @@ class PreviewImageRenderer(JSONRenderer):
         return super().render(data, accepted_media_type, renderer_context)
 
 
+class MonitoringProbeApplyPermissions(DjangoObjectPermissionsOrAnonReadOnly):
+    """Writing generated probes onto a service is a CHANGE of it.
+
+    The default POST mapping of the DRF object permissions would require the
+    ADD permission of the service — which would let a client create probes
+    that a plain service PATCH forbids. Both the view level and the object
+    level of the apply action therefore ask for change.
+    """
+
+    perms_map = {
+        'GET': [],
+        'OPTIONS': [],
+        'HEAD': [],
+        'POST': ['%(app_label)s.change_%(model_name)s'],
+        'PUT': ['%(app_label)s.change_%(model_name)s'],
+        'PATCH': ['%(app_label)s.change_%(model_name)s'],
+        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+    }
+
+
 class ServiceMonitoringProbePreviewMixin:
-    """Read-only preview of monitoring probes generated from stored capabilities."""
+    """Read-only preview of monitoring probes generated from stored capabilities
+    and the explicit apply which persists selected candidates of a preview."""
+
+    @classmethod
+    def get_extra_actions(cls):
+        actions = super().get_extra_actions()
+        # the apply action persists on the canonical registered-service
+        # endpoint; nested relationship viewsets must not offer it
+        if issubclass(cls, NestedModelViewSet):
+            return [item for item in actions
+                    if item.__name__ not in {"monitoring_probes"}]
+        return actions
 
     @extend_schema(
         parameters=[
@@ -276,6 +310,64 @@ class ServiceMonitoringProbePreviewMixin:
                 payload["implementedPresets"] = list(IMPLEMENTED_PRESETS)
                 payload["operations"] = list(COMPREHENSIVE_OPERATIONS)
             return JsonResponse(payload, status=error.status,
+                                headers={"Cache-Control": "no-store"})
+
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
+                   403: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT,
+                   422: OpenApiTypes.OBJECT, 423: OpenApiTypes.OBJECT},
+        description="Explicit apply of monitoring probes selected from the "
+                    "monitoring probe preview: every candidate is revalidated "
+                    "against the CURRENT capabilities (a stale preview is "
+                    "refused with 'stalePreview') and its parameters are "
+                    "validated server side. Persists the probes atomically "
+                    "and idempotently onto an existing monitoring setting: "
+                    "stable identities and unique constraints make repeated, "
+                    "retried or concurrent applies never duplicate a "
+                    "generated probe; user-customized parameters are "
+                    "preserved unless confirmReplace is true; manual probes "
+                    "are never touched and the setting is never enabled or "
+                    "rescheduled. Requires change on the service and on the "
+                    "monitoring setting.",
+    )
+    @action(detail=True, methods=["post"], url_path="monitoring-probes",
+            renderer_classes=[JSONRenderer], filter_backends=[],
+            parser_classes=[JSONParser],
+            permission_classes=[MonitoringProbeApplyPermissions])
+    def monitoring_probes(self, request, *args, **kwargs):
+        service = self.get_object()
+        checker = ObjectPermissionChecker(request.user)
+        # writing generated probes is a change of this service and of the
+        # monitoring setting the probes are persisted onto — never trust the
+        # preview passthrough for either
+        if not checker.has_perm(
+                f"change_{service.__class__.__name__.lower()}", service):
+            raise PermissionDenied
+        payload = request.data if isinstance(request.data, dict) else {}
+        setting = None
+        try:
+            setting = WebMapServiceMonitoringSetting.objects.filter(
+                pk=payload.get("setting"), service=service).first()
+        except (ValueError, TypeError):
+            setting = None
+        if setting is None:
+            # the payload owes the apply an existing setting of this service;
+            # report the field, the permission on it is checked next
+            return JsonResponse(
+                {"error": "setting"}, status=400,
+                headers={"Cache-Control": "no-store"})
+        if not checker.has_perm("change_webmapservicemonitoringsetting", setting):
+            raise PermissionDenied
+        try:
+            result = apply_generated_probes(service, request.data)
+            return JsonResponse(result, headers={"Cache-Control": "no-store"})
+        except ApplyError as error:
+            return JsonResponse(
+                {"error": error.code, **error.detail}, status=error.status,
+                headers={"Cache-Control": "no-store"})
+        except PreviewError as error:
+            return JsonResponse({"error": error.code}, status=error.status,
                                 headers={"Cache-Control": "no-store"})
 
 

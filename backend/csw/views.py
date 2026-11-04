@@ -8,10 +8,7 @@ from csw.queryables import (FIELD_MAP, dataset_records, search_filter,
                             service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
-from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
-from django.db.models.functions import Coalesce
-from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -155,38 +152,36 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        dataset_count_subquery = DatasetMetadataRecord.keywords.through.objects.filter(
-            keyword=OuterRef('pk')
-        ).values('keyword').annotate(
-            count=Count('keyword')
-        ).values('count')
-
-        service_count_subquery = ServiceMetadataRecord.keywords.through.objects.filter(
-            keyword=OuterRef('pk')
-        ).values('keyword').annotate(
-            count=Count('keyword')
-        ).values('count')
-
-        keywords = Keyword.objects.annotate(
-            dataset_count=Coalesce(Subquery(
-                dataset_count_subquery, output_field=BigIntegerField()), Value(0)),
-            service_count=Coalesce(Subquery(
-                service_count_subquery, output_field=BigIntegerField()), Value(0)),
-            usage_count=F('dataset_count') + F('service_count')
-        ).filter(
-            Q(dataset_count__gt=0) | Q(service_count__gt=0)
-        ).order_by(
-            '-usage_count'
-        ).values_list(
-            "keyword",
-            flat=True
-        )[:10]
+        # the 10 most used keywords of the catalogue for the capabilities
+        # KeywordList. One grouped aggregation per keyword link table (#912):
+        # the previous per-row Subquery(Count()) pair was evaluated for every
+        # keyword row -- and each count twice, because the usage filter
+        # re-read the same annotations -- so the database could never apply
+        # the top-10 limit before all keywords had been counted, which is
+        # what pushed a cold GetCapabilities over the nginx timeout on the
+        # demo box. A keyword is only a candidate when it carries links, and
+        # equal usages keep the keyword id order the old sequential sort
+        # produced, so the answered document is unchanged.
+        usage_counts = {}
+        for keyword_links in (DatasetMetadataRecord.keywords.through.objects,
+                              ServiceMetadataRecord.keywords.through.objects):
+            for row in keyword_links.values('keyword').annotate(
+                    count=Count('keyword')):
+                usage_counts[row['keyword']] = usage_counts.get(
+                    row['keyword'], 0) + row['count']
+        most_used = sorted(usage_counts,
+                           key=lambda pk: (-usage_counts[pk], pk))[:10]
+        keywords = []
+        if most_used:
+            names = dict(Keyword.objects.filter(
+                pk__in=most_used).values_list('pk', 'keyword'))
+            keywords = [names[pk] for pk in most_used]
 
         csw = CatalogueService.objects.get(pk=MRMAP_CSW_PK)
 
         builder = CSWCapabilities(
             csw,
-            extra_keywords=list(keywords),
+            extra_keywords=keywords,
             base_url=request.build_absolute_uri("/csw"),
             operation_parameters={
                 "GetRecords": {

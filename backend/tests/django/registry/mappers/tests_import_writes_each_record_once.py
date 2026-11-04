@@ -287,7 +287,7 @@ class ImportedRecordWriteCountTest(ImportHarness, TestCase):
         self.import_document(self.run)
         file = self.stored_file(self.run)
 
-        record, updated, existed = file.md_metadata_file_to_db()
+        record, updated, existed = file.md_metadata_file_to_db()[0]
 
         self.assertTrue(existed)
         self.assertFalse(updated)

@@ -1,7 +1,8 @@
+import json
 import os
 import traceback
 from os import walk
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from celery import Task, chord, shared_task, states
 from celery.signals import worker_ready
@@ -14,6 +15,7 @@ from extras.tasks import SingletonTask
 from kombu.exceptions import OperationalError as BrokerOperationalError
 from lxml import etree
 from lxml.etree import Error
+from MrMap.celery import app
 from MrMap.settings import FILE_IMPORT_DIR
 from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
@@ -123,6 +125,224 @@ class MetadataFileImportTask(HarvestingTask):
     autoretry_for = HarvestingTask.autoretry_for + (InitialError,)
 
 
+# The queues a harvest publishes to (see the queue= of its tasks). The message
+# a registered task id names can only sit in one of them, and the redis
+# transport keys a queue by its plain name (#972).
+HARVEST_BROKER_QUEUES = ("default", "download", "db-routines")
+# The keys the redis transport parks a message under once a worker has taken
+# it out of the queue but not acked it yet (the driver_unacked_key /
+# driver_index_key of kombu.transport.redis). Every harvest task acks late, so
+# a message a worker is working stays here until the task reports in, and one
+# whose worker died returns to its queue when the visibility timeout expires -
+# which is why the queues plus these two keys are the whole broker-side life
+# of a registered id (#972).
+HARVEST_UNACKED_LIST_KEY = "unacked"
+HARVEST_UNACKED_INDEX_KEY = "unacked_index"
+# How the queue keys are read: page by page, so a queue which is draining a
+# real catalogue never has to be held in memory whole (#972).
+HARVEST_BROKER_SCAN_PAGE = 500
+# How long to wait for a worker to answer what it holds. The answer only
+# reinforces the unacked keys above, so a worker which does not answer - the
+# starting one at worker_ready never answers itself - must not make an answer
+# of "no message" fail (#972).
+HARVEST_WORKER_INSPECT_TIMEOUT = 0.5
+
+
+def _iter_task_ids(node):
+    """The task ids nested in one worker's inspect answer.
+
+    ``inspect().active()`` and ``.scheduled()`` answer task-info dicts while
+    ``.reserved()`` answers nested lists, so the walk collects every string
+    which parses as a uuid and lets the caller intersect them with the
+    registered ids (#972).
+    """
+    if isinstance(node, str):
+        try:
+            yield str(UUID(node))
+        except ValueError:
+            return
+    elif isinstance(node, dict):
+        for value in node.values():
+            yield from _iter_task_ids(value)
+    elif isinstance(node, (list, tuple)):
+        for value in node:
+            yield from _iter_task_ids(value)
+
+
+def _task_id_of_message(raw):
+    """The task id a serialized celery message names, or None when the
+    message does not answer that question.
+
+    The protocol-2 envelope carries the task id as ``properties.correlation_id``;
+    the base64 body must not be decoded for this. None is deliberately not a
+    claim that no id is named: an unreadable message must keep the answer away
+    from "no message" (#972).
+    """
+    try:
+        message = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(message, dict):
+        return None
+    task_id = (message.get("properties") or {}).get("correlation_id") \
+        or (message.get("headers") or {}).get("id")
+    if not task_id:
+        return None
+    try:
+        return str(UUID(str(task_id)))
+    except ValueError:
+        return None
+
+
+def _iter_broker_messages(client):
+    """Every serialized message the harvest queues and the unacked keys hold,
+    page by page so the whole backlog never has to be held in memory (#972).
+    """
+
+    def _paged(key, read):
+        start = 0
+        while True:
+            page = read(key, start, start + HARVEST_BROKER_SCAN_PAGE - 1)
+            if not page:
+                return
+            yield from page
+            if len(page) < HARVEST_BROKER_SCAN_PAGE:
+                return
+            start += HARVEST_BROKER_SCAN_PAGE
+
+    for queue in HARVEST_BROKER_QUEUES:
+        yield from _paged(queue, client.lrange)
+    yield from _paged(HARVEST_UNACKED_LIST_KEY, client.lrange)
+    yield from _paged(HARVEST_UNACKED_INDEX_KEY, client.zrange)
+
+
+def _queued_task_ids(client, registered):
+    """The task ids the broker's queue and unacked keys currently hold, out of
+    the registered ones.
+
+    Answers None when a key could not be read or a message on it could not be
+    attributed: a message which exists but does not name itself must not
+    count as "no message" (#972). A live id exits the scan at its first match;
+    a stale answer pays the scan of the queues, which a worker restart pays
+    once per job - and since #859 a draining queue is a few thousand chunk
+    messages, not one message per record.
+    """
+    try:
+        for raw in _iter_broker_messages(client):
+            task_id = _task_id_of_message(raw)
+            if task_id is None:
+                return None
+            if task_id in registered:
+                return {task_id}
+    except Exception:
+        logger.warning(
+            f"could not read the harvest queues of the broker: {traceback.format_exc()}")
+        return None
+    return set()
+
+
+def _worker_reported_task_ids():
+    """The task ids the running workers report as active, reserved or scheduled.
+
+    A worker which does not answer adds nothing: everything its tasks could
+    still need is on the unacked keys until it acks late, and those the queue
+    scan has already read (#972).
+    """
+    reported = set()
+    try:
+        inspector = app.control.inspect(timeout=HARVEST_WORKER_INSPECT_TIMEOUT)
+        replies = (inspector.active(), inspector.reserved(), inspector.scheduled())
+    except Exception:
+        logger.warning(
+            f"could not ask the workers what they hold: {traceback.format_exc()}")
+        return reported
+    for reply in replies:
+        if reply is None:
+            continue
+        for held in reply.values():
+            reported.update(_iter_task_ids(held))
+    return reported
+
+
+def import_run_message_state(registered_ids):
+    """Whether the broker still holds a message of a registered import run.
+
+    Answers True while one of the registered ids names a message which could
+    still be consumed, False when the broker was readable and none of them
+    names one - the shadow is stale - and None when the broker cannot be asked
+    at all. This is what lets the database shadow of
+    ``HarvestingJob.has_live_import_run`` go STALE: an id whose message the
+    broker dropped (a broker recreated or flushed with the database kept, a
+    purge, a message discarded by the transport) stays registered for the rest
+    of the job's life, and one such id plus waiting files was enough to let
+    recovery decline the backlog forever (#972). Time bounding the ids was the
+    other remedy on the issue; the broker answers the actual question, and a
+    wall-clock bound is a guess a real catalogue breaks in both directions -
+    a 341k backlog legitimately runs for hours, and an id of a flushed broker
+    wants to be stale at once (#970 measured both).
+    """
+    registered = {str(UUID(str(_id))) for _id in registered_ids}
+    if not registered:
+        return False
+    try:
+        with app.connection_for_read() as connection:
+            client = getattr(connection.default_channel, "client", None)
+            if client is None:
+                logger.warning(
+                    "the broker does not answer queue introspection; a registered "
+                    "task id can not be told stale from live")
+                return None
+            queued = _queued_task_ids(client, registered)
+    except Exception:
+        logger.warning(
+            f"could not ask the broker about the messages of a harvest: {traceback.format_exc()}")
+        return None
+    if queued is None:
+        return None
+    if queued & registered:
+        return True
+    if _worker_reported_task_ids() & registered:
+        return True
+    return False
+
+
+def resume_stale_import_run(job, registered_ids, origin):
+    """End a shadow of an import run which the broker does not hold anymore.
+
+    Both the worker-restart recovery and ``manage.py resume_harvesting_job``
+    come here once the broker was asked and answered that no registered id
+    names a message which could still be consumed. The rows of those ids name
+    nothing: they go - revoking them would be meaningless - and the decision
+    with the ids is written to the harvesting log, so the harvesting card
+    tells what happened to the backlog instead of only going on counting the
+    waiting files (#972). Only the ids the broker was asked about are dropped:
+    one a concurrent publishing registered in the meantime is fresh and stays.
+    """
+    from registry.models.harvest import HarvestingJobTaskId  # avoid circular import errors
+
+    dead = HarvestingJobTaskId.objects.filter(
+        job_id=job.pk, creation=False, task_id__in=list(registered_ids))
+    dead_ids = [str(_id) for _id in dead.values_list("task_id", flat=True)]
+    dead.delete()
+    shown = dead_ids[:50]
+    details = (
+        "The rows of these task ids outlived their messages: the broker holds "
+        "no queued, no unacked and no worker-held message for any of them.\n"
+        f"{json.dumps(shown, indent=1)}\n")
+    if len(dead_ids) > len(shown):
+        details += f"{len(dead_ids) - len(shown)} more not shown.\n"
+    details += ("The ids are gone with the messages they named; the backlog goes "
+                "out again as one chord.")
+    job.log(
+        level=LogLevelEnum.WARNING.value,
+        description=(
+            f"{origin}: {len(dead_ids)} registered task ids name no message on the "
+            "broker; the waiting records are published as a new import chord"),
+        extented_description=details,
+    )
+    call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+
+
 @worker_ready.connect
 def recover_harvests_after_restart(sender, **kwargs):
     # Database state also covers a crash between commit and publishing a chord.
@@ -141,6 +361,14 @@ def recover_harvesting_jobs():
     restart (#891); what recovery has to re-chord is a job whose run reported
     in - or which died between the commit of its phase and the publishing of
     its chord, whose own unacked message brings it back to run again.
+
+    The registered ids answer that only as long as every one of them still
+    names a message. A task id which outlives its message - a broker recreated
+    or flushed with the database kept, a purge, a discarded message - is a row
+    naming nothing, and it alone would let the guard decline the backlog for
+    the life of the job (#972). So the shadow is not trusted with the verdict:
+    the broker is asked, and whichever answer the asking takes is written to
+    the harvesting log, which is what the harvesting card answers.
     """
     from registry.models.harvest import HarvestingJob
 
@@ -148,14 +376,52 @@ def recover_harvesting_jobs():
         if job.phase <= HarvestingPhaseEnum.DOWNLOAD_RECORDS and job.service_id:
             call_fetch_total_records.delay(harvesting_job_id=job.pk)
         elif job.phase == HarvestingPhaseEnum.RECORDS_TO_DB:
-            if job.has_live_import_run():
-                # the chord of this backlog is still in the broker and will be
-                # consumed by the workers which just started (#891)
-                logger.info(
-                    f"harvesting job {job.pk} keeps its queued import backlog: "
-                    f"recovery does not re-publish a chord which could still run")
-                continue
-            call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+            if not job.has_live_import_run():
+                # no (or no waiting) shadow: publishing is what completes a run
+                # whose chord was consumed while its callback was lost, and
+                # what restarts one which died before its chord went out (#891)
+                call_chord_md_metadata_file_to_db.delay(harvesting_job_id=job.pk)
+            else:
+                recover_records_to_db_job(job)
+
+
+def recover_records_to_db_job(job):
+    """Decide about a job whose database shadow says an import run is live.
+
+    Asks the broker (``import_run_message_state``) and writes its decision to
+    the job: while one of the registered ids names a message which could still
+    run, the backlog is being consumed and recovery must not stack a second
+    one onto it (#891); when the broker holds none of them, the shadow is
+    stale and the backlog goes out as a fresh chord (#972); when the broker
+    cannot be asked at all, recovery stays on the safe side of #891 and names
+    the operator path which can resume the job once the broker answers again.
+    """
+    registered = {
+        str(_id) for _id in
+        job.celery_task_ids.filter(creation=False).values_list("task_id", flat=True)}
+    state = import_run_message_state(registered)
+    if state is True:
+        logger.info(
+            f"harvesting job {job.pk} keeps its queued import backlog: the broker "
+            f"still holds a message of the {len(registered)} ids it registered")
+        job.log(
+            description=(
+                f"recovery left the import backlog alone: the broker still holds a "
+                f"message of the run this job registered ({len(registered)} task ids)"))
+        return
+    if state is None:
+        logger.warning(
+            f"harvesting job {job.pk} keeps its queued import backlog although its "
+            f"{len(registered)} registered ids could not be checked against the broker")
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                "recovery left the import backlog alone: the broker could not answer "
+                "whether the run this job registered is still live. Once it answers "
+                f"again, resume with: manage.py resume_harvesting_job {job.pk}"),
+        )
+        return
+    resume_stale_import_run(job, registered, origin="worker restart recovery")
 
 
 @shared_task(queue="default", bind=True, base=HarvestingTask)

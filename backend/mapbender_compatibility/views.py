@@ -2,7 +2,8 @@ import datetime
 from typing import Any
 from urllib import parse
 
-from csw.queryables import dataset_records, service_records
+from csw.queryables import (application_records, dataset_records,
+                            service_records)
 from django.db.models.query_utils import Q
 from django.forms import ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -146,6 +147,8 @@ class MapBenderSearchApi(View):
             records = dataset_records()
         elif search_resources == "service":
             records = service_records()
+        elif search_resources == "application":
+            records = application_records()
         else:
             # TODO: implement other hierachylevels also
             # return empty result for all other hierachylevels

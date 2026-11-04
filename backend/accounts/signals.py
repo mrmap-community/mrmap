@@ -1,3 +1,32 @@
+"""The permission bootstrap: which creation grants what to whom.
+
+Both receivers of this module connect themselves to ``post_save`` and both
+return early when ``raw`` is true. That guard is not an optimisation. A
+``loaddata`` does emit ``post_save`` for every row it writes: the deserializer
+does not call ``Model.save()``, it calls ``save_base`` with ``raw=True``, and
+``save_base`` forwards that to the signal. A receiver therefore sees
+``created=True`` **and** ``raw=True`` for a fixture row, and one acting on
+``created`` alone creates the groups and the grants of a deployment a second
+time for every organization its dump carries - and the second ``loaddata`` of
+the same dump then collides on the unique name of ``auth_group`` (#864).
+
+So the rule for every receiver this app connects - #731, #732 and #734 add
+more: one which creates or grants anything takes ``raw`` in its signature and
+returns before its first write when it is true.
+``tests/django/accounts/test_fixture_raw_guards.py`` fails for a connected
+receiver of this app which does not take the parameter, so the rule cannot be
+forgotten by a receiver written later; an exemption has to be named there, with
+the reason it cannot run during a ``loaddata``.
+
+What is exempt and why:
+
+* ``accounts.apps.create_default_user_and_org`` creates a user and an
+  organization, but on ``post_migrate``, which no fixture emits,
+* ``PublishRequest.save`` grants publishing rights through
+  ``Organization.add_publisher``, and a deserializer does not call
+  ``Model.save()`` - it calls ``save_base`` - so a loaded publish request
+  grants nothing either.
+"""
 from logging import Logger
 
 from django.conf import settings

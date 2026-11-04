@@ -1,0 +1,122 @@
+[
+{
+    "model": "auth.group",
+    "pk": 950,
+    "fields": {
+        "name": "Deployed Organization",
+        "permissions": []
+    }
+},
+{
+    "model": "auth.group",
+    "pk": 951,
+    "fields": {
+        "name": "Deployed Organization Administrators",
+        "permissions": []
+    }
+},
+{
+    "model": "auth.group",
+    "pk": 952,
+    "fields": {
+        "name": "Deployed Organization Members",
+        "permissions": []
+    }
+},
+{
+    "model": "auth.group",
+    "pk": 953,
+    "fields": {
+        "name": "Deployed Organization webmapservice Admins",
+        "permissions": []
+    }
+},
+{
+    "model": "auth.group",
+    "pk": 954,
+    "fields": {
+        "name": "Deployed Organization webfeatureservice Admins",
+        "permissions": []
+    }
+},
+{
+    "model": "accounts.organization",
+    "pk": 950,
+    "fields": {
+        "name": "Deployed Organization",
+        "description": "An organization as a dump of a running deployment carries it: the parent row of auth_group, the four groups the bootstrap of accounts.signals created for it, and the object grants of those groups. A fixture which only loaded the organization could not show what a receiver without the raw guard duplicates on a real dump (#864)."
+    }
+},
+{
+    "model": "accounts.organizationgroupobjectpermission",
+    "pk": 950,
+    "fields": {
+        "permission": ["view_organization", "accounts", "organization"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 950
+    }
+},
+{
+    "model": "accounts.organizationgroupobjectpermission",
+    "pk": 951,
+    "fields": {
+        "permission": ["change_organization", "accounts", "organization"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 950
+    }
+},
+{
+    "model": "accounts.organizationgroupobjectpermission",
+    "pk": 952,
+    "fields": {
+        "permission": ["view_organization", "accounts", "organization"],
+        "group": ["Deployed Organization Members"],
+        "content_object": 950
+    }
+},
+{
+    "model": "accounts.organizationgroupobjectpermission",
+    "pk": 953,
+    "fields": {
+        "permission": ["can_publish_for_organization", "accounts", "organization"],
+        "group": ["Deployed Organization Members"],
+        "content_object": 950
+    }
+},
+{
+    "model": "accounts.groupgroupobjectpermission",
+    "pk": 950,
+    "fields": {
+        "permission": ["view_group", "auth", "group"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 953
+    }
+},
+{
+    "model": "accounts.groupgroupobjectpermission",
+    "pk": 951,
+    "fields": {
+        "permission": ["change_group", "auth", "group"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 953
+    }
+},
+{
+    "model": "accounts.groupgroupobjectpermission",
+    "pk": 952,
+    "fields": {
+        "permission": ["view_group", "auth", "group"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 954
+    }
+},
+{
+    "model": "accounts.groupgroupobjectpermission",
+    "pk": 953,
+    "fields": {
+        "permission": ["change_group", "auth", "group"],
+        "group": ["Deployed Organization Administrators"],
+        "content_object": 954
+    }
+}
+]

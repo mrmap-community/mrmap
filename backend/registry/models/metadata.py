@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import timedelta
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from django.db.models.expressions import CombinedExpression
 from django.db.models.fields.generated import GeneratedField
 from django.db.transaction import atomic
 from django.utils.timezone import now
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
 from extras.managers import (ChoiceManager, DefaultHistoryManager,
@@ -751,6 +753,103 @@ class AbstractMetadata(MetadataDocumentModelMixin):
             self.is_customized = True
 
         return super().save(*args, **kwargs)
+
+    # The threshold of the keyword list rule (#919), see
+    # keyword_publishes_several_values().
+    #
+    # Measured before it was chosen, as the issue demands: the issue's two
+    # queries ran over the keyword corpus this repository carries - the
+    # fixture keyword tables plus every gmd:keyword of the real-world ISO
+    # 19139 documents below tests/django/test_data (DWD, GDI-DE, GDI-BW),
+    # 417 distinct keywords in 29 records. 17 of them carry a comma and all
+    # of them are list-shaped for the regex of the issue; 16 are legitimate
+    # single values - German appositions ("Heimerziehung, in einer
+    # Einrichtung") and decimal commas ("Horizontale Auflösung von 0,0625
+    # Grad") - and the longest of them is 50 characters. The reported defect
+    # shape (the ten plan names of the GDI-BW record, 315 characters in the
+    # corpus document) is flagged by every threshold from 50 on; the 9 single
+    # valued keywords longer than 100 characters carry no delimiter and stay
+    # unflagged at every threshold,
+    # which is the proof that the rule does not become a length rule in
+    # disguise. 100 keeps a factor of two to the longest legitimate comma
+    # keyword and flags 1 of 29 corpus records - a signal, not the wall of
+    # chips the issue warns about.
+    KEYWORD_LIST_THRESHOLD = 100
+
+    @classmethod
+    def keyword_publishes_several_values(cls, keyword):
+        """Whether one gmd:keyword element carries a list of values (#919).
+
+        A catalogue which publishes ten values in one element should have
+        published ten elements: "Keyword value" is 1..*. The comma alone is
+        not the signal - a legitimate keyword can carry one as an
+        apposition or as a decimal separator - so the rule is the number of
+        delimiter separated parts and the length of the element together.
+        What the rule deliberately does not do: judge the text. The blank
+        rule of parse_keyword stays the only text judgement on a keyword,
+        the keyword is never split, rejected or rewritten, and this is no
+        length rule: it is about granularity, so a part count of one keeps
+        every long keyword unflagged.
+        """
+        parts = [p.strip() for p in re.split(r"[,;]", keyword) if p.strip()]
+        return len(parts) > 1 and len(keyword) > cls.KEYWORD_LIST_THRESHOLD
+
+    def quality_findings(self, keywords=None):
+        """The machine statements which the quality rules make about this record.
+
+        One rule for now (#919), so one finding per offending keyword
+        element. Each finding is a translated sentence naming the keyword it
+        reports - the field renders verbatim as chip, tooltip and detail
+        text in de and en, so it is translated at write time, not at read
+        time. The keyword of a finding is excerpted because a keyword is as
+        long as its catalogue says (#894) and a tooltip must stay readable.
+
+        Args:
+            keywords: the keyword strings to judge, the already mapped ones
+                from the import hot path; None asks the stored keywords of
+                a saved record instead.
+        """
+        if keywords is None:
+            keywords = self.keywords.values_list("keyword", flat=True)
+        findings = []
+        for keyword in keywords:
+            if self.keyword_publishes_several_values(keyword):
+                parts = [p.strip() for p in re.split(r"[,;]", keyword) if p.strip()]
+                excerpt = keyword if len(keyword) <= 120 else keyword[:120] + "…"
+                findings.append(gettext(
+                    "The keyword '%(keyword)s' publishes %(count)d values in one "
+                    "gmd:keyword element; the catalogue should publish one "
+                    "gmd:keyword element per value.") % {
+                        "keyword": excerpt, "count": len(parts)})
+        return findings
+
+    def refresh_quality_indicators(self, keywords=None):
+        """Recompute the quality indicator of #600 and answer what changed.
+
+        The field is one slot for the agreed string of all findings, so a
+        later rule joins its sentence in instead of overwriting this one.
+        `is_broken` stays untouched: a comma joined keyword list is a
+        quality problem, not broken metadata, and the read side of #600
+        renders the two indicators apart (the quality chip warns, the
+        broken chip reports damage).
+
+        The method writes nothing. The import hands the already mapped
+        keywords in and lets the answer ride the one write which the record
+        costs anyway (#858); a caller which asks a saved record without
+        keywords reads them from the relation.
+
+        Args:
+            keywords: the keyword strings to judge; None asks the stored
+                keywords of a saved record.
+
+        Returns:
+            bool: whether the recomputed text differs from the stored one -
+                the caller only writes a record on a True.
+        """
+        text = "\n".join(self.quality_findings(keywords))
+        changed = text != self.insufficient_quality
+        self.insufficient_quality = text
+        return changed
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):

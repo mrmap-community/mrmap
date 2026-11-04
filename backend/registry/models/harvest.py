@@ -1193,6 +1193,16 @@ class TemporaryMdMetadataFile(models.Model):
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
+                        # #919: the keyword quality indicator is evaluated on the
+                        # keywords which this document just mapped - no second
+                        # XML parse - so its answer rides the one write which the
+                        # record costs anyway (#858). The keyword rows themselves
+                        # stay exactly as the catalogue published them.
+                        mapped_keywords = [
+                            keyword.keyword
+                            for keyword in getattr(instance, "_keywords_parsed", None) or []
+                        ]
+                        instance.refresh_quality_indicators(mapped_keywords)
                         handler = PersistenceHandler(
                             mapper=mappers[0],
                             change_reason=self.change_reason,
@@ -1220,6 +1230,19 @@ class TemporaryMdMetadataFile(models.Model):
 
                         if created_instance:
                             created, update = created_instance._custom_state
+                            # #919: the answer of the rule belongs to the stored
+                            # record even when the row was not written at all -
+                            # a record which a run re-harvests unchanged is
+                            # evaluated too, which is what flags the records
+                            # that entered the registry before the rule
+                            # existed and clears the flag once the catalogue
+                            # has fixed its keyword. Only a difference is
+                            # written.
+                            quality_changed = created_instance.refresh_quality_indicators(
+                                mapped_keywords)
+                            if quality_changed:
+                                created_instance._change_reason = "quality"
+                                created_instance.save(mark_customized=False)
                             if self.job:
                                 end_db_processing = now()
                                 relation = self.update_relations(
@@ -1257,6 +1280,21 @@ class TemporaryMdMetadataFile(models.Model):
                                             f"Source file: {self.md_metadata_file.name}\n"
                                             f"{warning}\n"
                                             "The remaining metadata was imported."
+                                        ),
+                                    )
+                                if created_instance.insufficient_quality and (
+                                        created or update or quality_changed):
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=(
+                                            "Keyword quality: "
+                                            f"{created_instance.insufficient_quality}")[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{created_instance.insufficient_quality}\n"
+                                            "The record was imported; the keyword list rule "
+                                            "flags it as of insufficient quality."
                                         ),
                                     )
                             self.delete()

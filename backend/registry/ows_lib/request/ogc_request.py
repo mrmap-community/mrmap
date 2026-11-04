@@ -21,6 +21,7 @@ from registry.ows_lib.request.utils import (
 from registry.ows_lib.response.exceptions import (
     InvalidParameterValueException,
     MissingConstraintLanguageParameterException)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from requests import Request
 
@@ -35,6 +36,7 @@ class OGCRequest(Request):
         self._bbox: GEOSGeometry = None
         self._requested_entities: list[str] = []
         self._xml_request = None
+        self._xml_parse_error: XMLSyntaxError = None
         self.operation = "unknown"
         self.service_version = "unknown"
         self.service_type = "unknown"
@@ -45,11 +47,33 @@ class OGCRequest(Request):
                 "VERSION", "")
             self.service_type: str = self.ogc_query_params.get("SERVICE", "")
         elif self.method == "POST" and self.data and isinstance(self.data, bytes):
-            self._xml_request = etree.fromstring(self.data)
+            try:
+                self._xml_request = etree.fromstring(self.data)
+            except XMLSyntaxError as e:
+                # a request body which is not well-formed XML is no request to
+                # analyse; the error is kept for the parsing-error report the
+                # endpoint answers for it (OGC 07-006r1, 10.3.7) instead of
+                # raising this XMLSyntaxError out of the request analysis (#912)
+                self._xml_parse_error = e
 
-            self.operation = QName(self._xml_request).localname
-            self.service_version = self._xml_request.get("version")
-            self.service_type = self._xml_request.get("service_type", "")
+            if self._xml_request is not None:
+                self.operation = QName(self._xml_request).localname
+                self.service_version = self._xml_request.get("version") or ""
+                # the XML binding spells the service parameter `service`
+                # (Table 65); no request document carries a `service_type`
+                # attribute, so reading that one here left every posted request
+                # without the service identity its dispatch and its reports are
+                # answered from (#912)
+                self.service_type = self._xml_request.get("service") or ""
+
+    @property
+    def xml_parse_error(self) -> XMLSyntaxError:
+        """The XMLSyntaxError of a posted request body which was no well-formed XML.
+
+        None for every request which could be parsed -- including every GET,
+        whose query parameters are no XML document to parse.
+        """
+        return self._xml_parse_error
 
     @classmethod
     def from_django_request(cls, request: DjangoRequest):
@@ -104,49 +128,110 @@ class OGCRequest(Request):
                             ast = parse_ecql(constraint)
                             return to_filter(ast, field_mapping, mapping_choices)
                         except LarkError as e:
-                            return InvalidParameterValueException(ogc_request=self, message=e)
+                            return InvalidParameterValueException(
+                                ogc_request=self,
+                                locator="Constraint",
+                                message=e)
                     elif constraint_language == "FILTER":
                         try:
                             ast = parse_fes(constraint)
                             return to_filter(ast, field_mapping, mapping_choices)
-                        except (XMLSyntaxError, NodeParsingError) as e:
+                        except (XMLSyntaxError, NodeParsingError, ValueError) as e:
                             return InvalidParameterValueException(
                                 ogc_request=self,
+                                locator="Constraint",
                                 message=e
                             )
                     else:
                         return InvalidParameterValueException(
                             ogc_request=self,
+                            locator="CONSTRAINTLANGUAGE",
                             message="Provided CONSTRAINTLANGUAGE is not supported.")
             elif self.is_post:
                 return self.get_django_filter(field_mapping, mapping_choices)
 
         return Q()
 
+    @property
+    def csw_constraints(self) -> list:
+        """The ``csw:Constraint`` elements a posted ``GetRecords`` carries.
+
+        The constraint of the XML binding sits inside the ``csw:Query`` of the
+        request (10.2.5.1.8); an empty list is a request which asks unfiltered.
+        """
+        if self._xml_request is None:
+            return []
+        return self._xml_request.xpath(
+            "/csw:GetRecords/csw:Query/csw:Constraint",
+            namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]})
+
+    @property
+    def fes_filter(self):
+        """The ``Filter`` element of the posted request, or None.
+
+        Both filter profile namespaces are read -- the ``ogc`` one of the
+        Filter 1.1.0 conformance class and the ``fes`` one of Filter 2.0 -- the
+        constraint's ``version`` attribute selects them and pygeofilter chooses
+        its parser from the namespace of this element itself.
+        """
+        for constraint in self.csw_constraints:
+            for child in constraint:
+                if isinstance(child.tag, str) \
+                        and etree.QName(child).localname == "Filter":
+                    return child
+        return None
+
+    @property
+    def cql_filter(self):
+        """The CQL text of the posted request, or None.
+
+        The CQL_TEXT conformance class carries its expression as the text of a
+        ``csw:CqlText`` child of the constraint.
+        """
+        for constraint in self.csw_constraints:
+            for child in constraint:
+                if isinstance(child.tag, str) \
+                        and etree.QName(child).localname == "CqlText":
+                    text = (child.text or "").strip()
+                    if text:
+                        return text
+        return None
+
     def get_django_filter(self, field_mapping=None, mapping_choices=None):
-        if not self.fes_filter and not self.cql_filter:
-            return Q()
-        elif self.fes_filter:
+        """The Q which the constraint of a posted request asks.
+
+        The names of the properties this reads are what a posted request
+        carries in its XML: nothing defined them since the request class became
+        the ``requests`` based one, so every ``GetRecords`` which arrived as XML
+        died on the AttributeError of this read before the filter was ever
+        parsed (#912). A constraint which cannot be parsed is refused with the
+        invalid-parameter report naming the constraint it failed on.
+        """
+        fes_filter = self.fes_filter
+        if fes_filter is not None:
             try:
-                ast = parse_fes(
-                    self.fes_filter.node)
+                ast = parse_fes(fes_filter)
                 return to_filter(ast, field_mapping, mapping_choices)
-            except (XMLSyntaxError, NodeParsingError) as e:
+            except (XMLSyntaxError, NodeParsingError, ValueError) as e:
                 return InvalidParameterValueException(
                     ogc_request=self,
+                    locator="csw:Constraint",
                     message=e
                 )
-        elif self.cql_filter:
+
+        cql_filter = self.cql_filter
+        if cql_filter:
             try:
-                ast = parse_cql(
-                    self.cql_filter.node
-                )
+                ast = parse_cql(cql_filter)
                 return to_filter(ast, field_mapping, mapping_choices)
             except Exception as e:
                 return InvalidParameterValueException(
                     ogc_request=self,
+                    locator="csw:Constraint",
                     message=e
                 )
+
+        return Q()
 
     @property
     def is_wms(self) -> bool:

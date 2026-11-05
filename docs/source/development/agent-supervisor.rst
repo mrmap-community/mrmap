@@ -3,17 +3,17 @@
 Agent Supervisor: Approval Gate, Scheduler And Worker
 =====================================================
 
-.. sidebar:: Epic #1052, issues #1058 to #1062
+.. sidebar:: Epic #1052, issues #1058 to #1063
 
    Code: ``scripts/agent_supervisor/`` (standard library only) with the
-   operator command ``scripts/agent-supervisor``. Checks:
-   ``python3 scripts/test_agent_supervisor_approvals.py``,
-   ``..._scheduler.py``, ``..._capacity.py``, ``..._runner.py``, ``..._ci.py`` and
-   ``..._reviews.py`` — none of them needs ``gh``, the network, a container or a
-   model, and none of them can touch a repository. This page documents the gate,
-   the scheduler, the worktree runner, the CI watcher and the review watcher; the
-   daemon that ties them to a timer is the follow-up issue #1063 and will extend
-   it.
+   operator command ``scripts/agent-supervisor``, the systemd unit
+   ``scripts/systemd/mrmap-agent-supervisor.service``. Checks: ``python3
+   scripts/test_agent_supervisor_approvals.py``, ``..._scheduler.py``,
+   ``..._capacity.py``, ``..._runner.py``, ``..._ci.py``, ``..._reviews.py`` and
+   ``..._daemon.py`` — none of them needs ``gh``, the network, a container or a
+   model, and none of them can touch a repository. This page documents the
+   gate, the scheduler, the worktree runner, both watchers and the daemon that
+   ties them to a timer.
 
 An OpenCode worker may start work on a MrMap issue when a human has said so.
 That sentence is the whole design; everything below is what "a human has said
@@ -297,7 +297,7 @@ Scheduling a tick
 =================
 
 A tick is one pass over the queue, and it is a *decision procedure*, not a
-daemon: the daemon of #1063 only calls it on a timer, so the same code answers
+daemon: the daemon only calls it on a timer, so the same code answers
 ``plan`` in a terminal and runs unattended. The order matters and is fixed:
 
 1. Forget plans that no runner adopted within ``plan_ttl_s``, so an issue is not
@@ -418,7 +418,10 @@ GitHub read, which is why it still answers while the network is down.
 ``plan --start`` is the same tick with the hand attached: it reconciles what a
 crash left behind, then starts what the tick decides to start. It is the command
 to watch when a daemon is not installed yet, and the one an operator can run by
-hand because it prints every decision it makes on the way.
+hand because it prints every decision it makes on the way. ``start <issue>``
+is the same path narrowed to one issue the operator named: the gate first,
+then the board, then the capacity gate; what it skips is only the slot
+arithmetic, because naming one issue is making that decision by hand.
 
 Reason codes in a report
 ------------------------
@@ -765,7 +768,7 @@ Exit codes are for a timer
 
 ``0`` nothing waits for anybody; ``1`` at least one pull request is red in a way
 only a human can settle; ``2`` the question could not be asked at all. That is the
-whole contract the timer of #1063 needs.
+whole contract the daemon's timer is built on.
 
 Answering review feedback
 =========================
@@ -946,6 +949,170 @@ thread, digest and outcome. After a restart the answer to "have we answered
 this review?" comes from disk, which is the only reason a watcher can be run by
 a timer at all.
 
+Running the supervisor as a service
+===================================
+
+The daemon is the hand that runs the whole sequence on a timer: plan, follow
+CI, follow review feedback, sleep, repeat — ``run`` in the foreground, or the
+shipped systemd unit. It is one process, one state directory, one SQLite file,
+and no framework: no Celery, no queue broker, no Kubernetes. The scheduling
+decisions stay in ``Scheduler``, the CI decisions in ``Monitor``, the review
+decisions in ``Reviews``; the daemon adds a timer, a lock and a log, which is
+exactly the difference between commands and a service.
+
+::
+
+    scripts/agent-supervisor run --once --dry-run    # one quiet tick, and out
+    scripts/agent-supervisor run                     # the loop, in the foreground
+    scripts/agent-supervisor daemon status           # running? paused? under systemd?
+    scripts/agent-supervisor daemon pause --reason "until the queue is reviewed"
+    scripts/agent-supervisor metrics                 # the numbers, honestly unknown
+    scripts/agent-supervisor doctor                  # every precondition, answered
+
+Four properties were worth designing for, and each has a test:
+
+* **One daemon per state directory.** Two supervisors over one state file are
+  the double scheduling the lease's primary key exists to prevent. The loop
+  holds ``flock`` on ``supervisor.lock`` for its whole life; a second one exits
+  ``3`` before it reads GitHub. The pid file is a hint that is checked against
+  ``/proc``; the lock is the answer. A daemon that is SIGKILLed loses the lock
+  with its process, so a crash cannot lock a healthy restart out.
+
+* **A stop must not be a disaster.** The workers are the work. ``SIGTERM``
+  finishes the current tick and leaves; running workers are left alone and the
+  next start adopts them through ``reconcile`` — the same path a reboot takes.
+  Under systemd this needs ``KillMode=process``, because the workers sit in the
+  unit's cgroup even though the runner gives each its own process group. That
+  is why the unit ships it, and why stopping the service during a forty-minute
+  agent run costs nothing.
+
+* **A failed stage must not kill the loop.** GitHub answers a rate limit, one
+  payload has a shape nobody predicted: the failure lands in the event log and
+  the tick report under its stage name, and the next stage still runs. What is
+  *not* contained is the approval gate — a stage that cannot tell whether an
+  issue is authorized starts nothing, and says so.
+
+* **Paused means no writes, not no looking.** ``daemon pause`` writes a marker
+  file, so the pause survives a restart (the difference between a pause and a
+  pause until reboot). While it exists the scheduler only plans and both
+  watchers run report-only — no resume, no question comment, no push. The queue
+  keeps making sense while the operator looks at it.
+
+Exit codes continue the watchers' contract, because a service manager and a
+timer are the audience: ``0`` stopped cleanly with nothing waiting, ``1``
+stopped while something needs a human, ``3`` another daemon holds this state
+directory, ``4`` the configuration refuses everything. The exit-code check
+happens before the lock is taken: a broken configuration must not be able to
+lock a healthy supervisor out.
+
+The unit is a user service
+--------------------------
+
+``scripts/systemd/mrmap-agent-supervisor.service`` is a *user* unit, and that
+is a security decision, not laziness. The workers inherit the operator's
+OpenCode authentication and the host's ``gh`` credential, and both live in the
+operator's home — often in a keyring that only exists inside a login session.
+A system service as root reaches neither without weakening both, and "can
+start agents" must not be a root privilege. Install it as the account that
+owns the ``gh`` login and the state directory, point the three paths in the
+unit at them, ``loginctl enable-linger`` so it survives logout, and the whole
+chain — gate, scheduler, runner, workers — runs with exactly one account's
+rights: the operator's. The unit header carries the exact commands. A host
+without a systemd user instance gets the same loop from ``daemon start``,
+which detaches with the same log and the same lock.
+
+What a fresh host needs
+-----------------------
+
+``doctor`` is the readiness check, and it answers each precondition from the
+host rather than from documentation; what it walks through is the real list:
+
+* **Configuration** at ``$MRMAP_SUPERVISOR_CONFIG`` — outside every directory a
+  worker can write, mode ``0600`` (the file mode is warned about in every
+  status line until it is fixed), holding no credentials, only policy.
+* **GitHub credentials, and whose they are.** The supervisor reads through the
+  host's ``gh``; workers push through the same binary. Least privilege says
+  those should be two accounts: an operator login that reviews and is on
+  ``authorized_humans``, and an agent login the push side uses — with
+  ``agent_accounts`` naming the second, so the gate refuses an approval from
+  it even if the allowlist mistakenly includes it. The single-account host is
+  the documented escape hatch (``allow_same_account``), and ``doctor`` warns
+  when the same login both reads the approvals and drives the agents.
+  Whatever the topology, *only humans* go on ``authorized_humans`` — an
+  approval the automation could have given is not an approval.
+* **OpenCode authentication** for the workers, on the same account, since the
+  daemon starts them as a child of its own session: ``opencode auth`` working
+  for the login that runs the unit is a precondition, not a runtime detail.
+  ``doctor`` checks the binary; it cannot check the model provider's keyring
+  any better than OpenCode can.
+* **The labels, the claim board tool, the capacity gate** — the same
+  preconditions ``labels`` and the scheduler already insist on, in one pass.
+* **State and log directories**: the log is created ``0600`` and everything a
+  later line logs passes a filter that redacts anything credential-shaped
+  before it is written. The supervisor holds no credentials by design; the
+  filter is the guarantee that a future debug line cannot undo that design,
+  and a test plants fake tokens and fails if any of them reaches the file.
+* **The worktree root** — ``worktree_root``, where the runner's worktrees are
+  branched from ``repo_root``. Both operator-readable, neither worker-writable
+  beyond its own tree, and the ownership rule of the repository's cleanup
+  rules stays: the supervisor never removes a worktree at all.
+* **Memory**: the unit deliberately ships no ``MemoryMax``. The ceiling that
+  matters is the agent container's, which the capacity gate measures before
+  every start — the supervisor's own cgroup limit would only ever stop the
+  supervisor, never its workers. The operator runbook for the ceiling itself
+  is ``docs/source/development/agent-capacity.rst`` (#1054).
+
+The metrics the epic asked for
+------------------------------
+
+``metrics`` answers the operational questions from the state file the
+supervisor already keeps, the capacity gate, and two host commands — no second
+accounting system, and the one rule that makes the rest honest: **a number is
+either read from its real source or reported as unknown, never as zero**, so a
+``0`` always means "measured, none".
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Question
+     - Where the answer comes from
+   * - active agent slots, test slots
+     - live leases against ``max_opencode_processes`` / ``max_test_stacks``
+   * - queue wait
+     - eligible verdicts without a lease, ``since_last_decision`` — the name
+       says what it measures; the difference to "approved since" is the
+       verdict cache
+   * - per-issue duration
+     - the lease row, which is per issue and overwritten by a re-claim: the
+       last run on record, not a lifetime sum — the field says so
+   * - PR CI time
+     - the CI watcher's own sightings: first finding, findings per head, the
+       moment it saw all-green. Exact pipeline wall-clock stays on GitHub —
+       the report says *seen*, because that is what it knows
+   * - retry counts
+     - the attempt columns of verdicts, the CI watch and the review watch
+   * - OOM events
+     - the capacity gate's own cgroup counters, one read, no second reader
+   * - worktree and Compose leftovers
+     - ``git worktree list`` and ``docker ps -a`` under a timeout, diffed
+       against what a live lease owns — and reported only: deletion needs the
+       per-project ownership check the cleanup rules demand, which no
+       periodic table can do
+
+What stays switched off
+-----------------------
+
+The daemon changes nothing about what may be decided, only who reaches for the
+timer. Auto-approval, auto-enqueue and auto-merge are not features this issue
+forgot to enable; they are the features the epic forbids, and nothing in this
+loop can do them even by configuration. The approval label is applied by a
+human; a pull request enters the merge queue because a human puts it there; a
+green pipeline is still read by a person before anything happens to it. What
+the daemon adds to that contract is only that the waiting, watching and
+reporting keep happening at three in the morning without anyone awake to do
+them.
+
 What the supervisor does not do
 ===============================
 
@@ -958,9 +1125,10 @@ it needs more memory has one answer available, which is to wait. It never remove
 a worktree, a branch or a volume it did not create, and one test per rule keeps it
 that way.
 
-What is still missing is the hand that runs this on a schedule: #1063 adds the
-daemon, the systemd unit and the operator's entry point. Until it lands, running a
-tick means running ``plan --start``, watching CI means ``watch-prs`` and answering
-review means ``watch-reviews`` — by hand, or under a supervisor of one's choosing.
-All three are one command with an exit code, which is what makes that substitution
-safe rather than improvised.
+The hand that runs this on a schedule is the daemon above: it adds a timer, a
+lock and a log to the commands, and nothing else — every decision is still made
+by the gate, the scheduler and the two watchers, whether a human or the loop
+reached for them. That identity is what makes running the whole thing by hand
+(``plan --start``, ``watch-prs``, ``watch-reviews``, each one command with an
+exit code) and running it as a service the same supervisor rather than two
+implementations that agree by luck.

@@ -411,9 +411,13 @@ class Store:
         return [dict(r) for r in rows]
 
     def update_pr(self, issue, **fields):
-        """Set the given columns of one tracked pull request."""
+        """Set the given columns of one tracked pull request.
+
+        ``last_seen`` is written on every call unless the caller names a value
+        itself - which tests and the metrics seeding legitimately do.
+        """
         unknown = set(fields) - {"pr", "branch", "head_sha", "state", "attempts",
-                                 "repair_sha", "escalated_at", "detail"}
+                                 "repair_sha", "escalated_at", "last_seen", "detail"}
         if unknown:
             raise ValueError(f"unknown pull request columns: {', '.join(sorted(unknown))}")
         if "state" in fields and fields["state"] not in PR_STATES:
@@ -452,6 +456,18 @@ class Store:
             rows = db.execute("SELECT name, verdict FROM ci_seen WHERE pr=? AND head_sha=?",
                               (pr, head_sha)).fetchall()
         return {r["name"]: r["verdict"] for r in rows}
+
+    def ci_seen_summary(self):
+        """Every recorded finding with its time - the metrics read (#1063).
+
+        The whole table, not one head: the question here is "what has the watcher
+        seen of this pull request over its life", which is exactly what the
+        per-head method above refuses to answer.
+        """
+        with self._connect() as db:
+            rows = db.execute("SELECT pr, head_sha, name, verdict, seen_at "
+                              "FROM ci_seen ORDER BY pr, seen_at").fetchall()
+        return [dict(r) for r in rows]
 
     # -- review feedback under supervision (#1062) --------------------------
 
@@ -492,9 +508,13 @@ class Store:
         return [dict(r) for r in rows]
 
     def update_review(self, issue, **fields):
-        """Set the given columns of one review watch."""
+        """Set the given columns of one review watch.
+
+        ``last_seen`` is written on every call unless the caller names a value
+        itself.
+        """
         unknown = set(fields) - {"pr", "head_sha", "state", "attempts", "acted_sha",
-                                 "acted_at", "detail"}
+                                 "acted_at", "last_seen", "detail"}
         if unknown:
             raise ValueError(f"unknown review columns: {', '.join(sorted(unknown))}")
         if "state" in fields and fields["state"] not in REVIEW_STATES:

@@ -29,10 +29,19 @@ Modules
 ``reviews``     read the human review feedback on those pull requests, answer what
                 a trusted reviewer asked for, hand reserved acts to a human and
                 never settle a thread the human raised (#1062)
-``cli``         the operator's command line
+``daemon``      the loop on a timer: one daemon per state directory, per-stage
+                containment, a pause that survives a restart, and a log that
+                redacts anything credential-shaped before it is written (#1063)
+``metrics``     the operational numbers, each read from its real source or
+                reported as unknown - never as zero (#1063)
+``cli``         the operator's command line: the gate's answers, the loop and its
+                controls, one issue started or stopped by hand, the metrics and
+                the readiness check
 
-The daemon that ties these commands to a timer (#1063) is the remaining issue of
-this epic.
+The seven offline checks are ``scripts/test_agent_supervisor_approvals.py``,
+``..._scheduler.py``, ``..._capacity.py``, ``..._runner.py``, ``..._ci.py``,
+``..._reviews.py`` and ``..._daemon.py``; none of them needs ``gh``, the network,
+a container or a model, and none of them can write to a repository.
 """
 
 VERSION = "0.1.0"

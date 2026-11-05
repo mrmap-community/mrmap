@@ -467,6 +467,39 @@ def test_no_write_paths():
           "edit_issue" not in dir(gh) and "close_issue" not in dir(gh)
           and "add_labels" not in dir(gh), str(sorted(dir(gh))))
 
+    # The scheduling modules are audited the same way. They add one thing the gate
+    # does not have: a hand that can file a claim - but that hand is `scripts/wip`,
+    # run as a child process by the worker, never a REST call of the supervisor's
+    # own. Anything else would let the queue grant itself permission.
+    scheduling_found = set()
+    for name in ("scheduler.py", "capacity.py", "claims.py", "store.py"):
+        path = os.path.join(root, "agent_supervisor", name)
+        if not os.path.exists(path):
+            continue                       # this branch has no scheduler yet
+        with open(path) as handle:
+            source = handle.read()
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            verb = next((k.value.value for k in node.keywords
+                         if k.arg == "method" and isinstance(k.value, ast.Constant)), None)
+            if verb in ("POST", "PATCH", "PUT", "DELETE"):
+                scheduling_found.add((name, _enclosing_function(tree, node.lineno), verb))
+        check(f"{name} writes to GitHub directly",
+              "gh_json(" not in source or "method=" not in source, name)
+        # Only endpoint strings are checked: reading an issue's `labels` field is
+        # not the same thing as calling the labels endpoint, and a check that
+        # cannot tell the two apart is a check that gets switched off.
+        endpoints = [node.value for node in ast.walk(tree)
+                     if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                     and "repos/" in node.value]
+        write_paths = ("/comments", "/reviews", "/merge", "/assignees", "/labels")
+        bad = [path for path in endpoints if any(part in path for part in write_paths)]
+        check(f"{name} calls no write endpoint of the REST API", not bad, str(bad))
+    check("no scheduling module performs a GitHub write", not scheduling_found,
+          str(sorted(scheduling_found)))
+
 
 def _enclosing_function(tree, lineno):
     """Innermost function or method containing a line, for the write audit."""

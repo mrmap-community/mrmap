@@ -58,11 +58,13 @@ base reference. Generate it with::
     python3 scripts/dev_image_id.py                  # backend fp
     python3 scripts/dev_image_id.py --image frontend # frontend fp
 
-Publishing happens in ``.github/workflows/dev-images.yml``: every pull request
-proves the images build (read-only token, no push), and only pushes to
-``master`` or a manual workflow dispatch publish the fp tag (and, on ``master``,
-move the mutable ``:main`` convenience tag). The publish job runs with
-``contents: read`` plus ``packages: write`` - nothing else.
+Publishing happens in ``.github/workflows/dev-images.yml``: a pull request
+proves the images build (read-only token, no push) whenever there is something
+to prove - a fingerprint that is not published yet - and only pushes to
+``master`` or a manual workflow dispatch publish the fp tag (and, on
+``master``, move the mutable ``:main`` convenience tag). The publish job runs
+with ``contents: read`` plus ``packages: write`` - nothing else. The
+pull-request side of that trade is ``What CI builds and what it skips`` below.
 
 Agent startup in one block
 ==========================
@@ -216,6 +218,83 @@ registry for a present tag); offline with the image absent is exit 4.
 Deliberately rejected: ``pull_policy: always`` (a registry round-trip per run
 for zero extra safety - an immutable tag cannot change under its name) and the
 mutable ``:main`` as an agent default (it moves on every master merge).
+
+What CI builds and what it skips
+================================
+
+A fingerprint is a hash of exactly the inputs an image is built from, so a pull
+request whose fingerprint is already published asks for an image that already
+exists, immutably: rebuilding it proves nothing new and the merge queue pays
+minutes for it. Since issue #1057 the two validation jobs therefore ask the
+registry before they reach for buildx::
+
+    python3 scripts/dev_image_gate.py --image backend    # or --image frontend
+
+The gate wraps the documented resolver probe - ``--resolve``, never ``--build``,
+so a validation run neither builds nor pushes - and turns one exit code into one
+output, ``needs_build``:
+
+.. list-table:: Gate decision (issue #1057)
+   :header-rows: 1
+   :widths: 18 16 66
+
+   * - Resolver exit
+     - ``needs_build``
+     - Why
+   * - 0
+     - false
+     - the fp tag is published and pulled intact; the build would rebuild bytes that are already immutable
+   * - 3
+     - true
+     - never published: this branch changed a dependency input, so this build IS the validation
+   * - 4
+     - true
+     - transient failure, or a private package refusing an anonymous look - "unchanged" and "could not look" are indistinguishable here, so build
+   * - 5, 6, 7
+     - true
+     - the tag exists but its content proves nothing usable here (wrong platform, a failed build, a retagged foreign image)
+   * - anything else, or no answer at all
+     - true
+     - an inconclusive probe is never read as "already built"
+
+The rule is one-sided on purpose: only exit 0 skips. Reading exit 4 - or a
+missing docker CLI, or a timeout - as "unchanged" would silently drop a build
+that is really needed and let a broken Dockerfile through; the cost of the other
+direction is one unnecessary build. On the fresh ``ubuntu-latest`` runner the
+gate runs on, exit 0 can only be a registry hit; a self-hosted runner may answer
+it from a leftover local tag, which is the same fingerprint and therefore the
+same dependency content by construction. The gate also strips
+``MRMAP_ALLOW_MUTABLE_DEV_IMAGE``, because under that human opt-out the resolver
+exits 0 without ever looking at the registry.
+
+Two properties keep the gate on the safe side of its own required check. It always
+exits ``0``, including when the decision itself raises: a failing step reddens
+``backend-dev-build``, which would stop every pull request over a script whose only
+purpose is to save minutes, so an internal failure is printed as
+``needs_build=true`` instead of raised. And the two gated steps ask
+``needs_build != 'false'`` rather than ``== 'true'``, so an answer that never
+arrived — a crash before the write, an unwritable ``$GITHUB_OUTPUT`` — leaves the
+build running. Only a gate that positively answered "published and pulled intact"
+may skip work.
+
+Nothing about the two jobs changed - not their names, and not their conditions:
+the ``if:`` sits on their buildx and build *steps*, never on the job. So
+``backend-dev-build`` and ``frontend-dev-build`` still start for every pull
+request and every merge-group run and still post a terminal green status, with
+two steps marked skipped and the gate's reason in the log. A required check
+never disappears, which is what the merge queue waits for. The publish jobs are
+untouched and unconditional, ``packages: write`` stays on them, and a
+pull-request run keeps only ``contents: read`` - it cannot publish either way.
+While the two GHCR packages are still private (see "GHCR access: anonymous pull,
+and the current visibility") the probe answers exit 4 and CI builds exactly as
+it did before this gate; the skipping starts with the visibility flip, and an
+unchanged run then pays a checkout plus one anonymous pull of the published tag
+instead of a build. The Actions build cache is written by runs that build, and
+the publish runs on ``master`` still build unconditionally, so a later
+dependency change finds the ``master`` cache as warm as before.
+
+``python3 scripts/test_dev_image_gate.py`` checks the decision table, the probe
+invocation and the workflow wiring offline - no docker, no network, no ``gh``.
 
 The ``--build`` trap
 ====================

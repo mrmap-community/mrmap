@@ -60,6 +60,12 @@ it. There is no code path for it: the package contains no call that labels an
 issue, comments, reviews, assigns, closes or merges — a test parses the modules
 and fails if one appears.
 
+Names are compared the way GitHub compares them: case-insensitively, and with
+inner runs of blanks folded, because a label created through the API can carry a
+double space that no one sees in the web UI. ``Agent:  Approved`` is therefore
+the approval label; ``AGENT:APPROVED`` is a different label, and an issue
+carrying only that one stays ineligible with ``no-approval-label``.
+
 Why the history, not the label
 ==============================
 

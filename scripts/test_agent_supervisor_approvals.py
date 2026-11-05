@@ -478,10 +478,54 @@ def _enclosing_function(tree, lineno):
     return best
 
 
+def test_label_spelling():
+    """Label names are GitHub's, so the gate must compare them GitHub's way.
+
+    GitHub matches label names case-insensitively, and a label made through the
+    API can hold a double space that no one sees in the web UI. A raw string
+    comparison would then refuse an approval a human can point at - failing
+    closed, but invisibly, which is the kind of surprise that makes operators
+    switch a gate off.
+    """
+    check("normalize_label folds case and inner blanks",
+          config.normalize_label("  Agent:  Approved ") == "agent: approved",
+          repr(config.normalize_label("  Agent:  Approved ")))
+
+    fake = FakeGh(issue=issue(labels=("Agent:  Approved",)),
+                  events=[label_event("human", name="Agent:  Approved")])
+    d = decide(fake)
+    check("an approval label with odd spelling still counts", d.eligible, d.reason)
+
+    fake = FakeGh(issue=issue(labels=("AGENT:APPROVED",)),
+                  events=[label_event("human", name="AGENT:APPROVED")])
+    d = decide(fake)
+    check("a label that is merely similar is not the approval label",
+          not d.eligible and d.code == approvals.NO_APPROVAL_LABEL, d.reason)
+
+    # the label is on the issue, but no event names it, so nobody approved with it
+    fake = FakeGh(issue=issue(labels=("agent: approved",)),
+                  events=[label_event("human", name="AGENT:APPROVED")])
+    d = decide(fake)
+    check("a label with no matching event behind it stays a denial",
+          not d.eligible and d.code == approvals.HISTORY_INCOMPLETE, d.reason)
+
+    fake = FakeGh(issue=issue(labels=("agent: approved", "Agent:  Paused")),
+                  events=[label_event("human")])
+    d = decide(fake)
+    check("the pause label is matched the same way", d.code == approvals.PAUSED, d.reason)
+
+    # a configuration that would make the two labels collide once folded is refused
+    bad = cfg(approved_label="agent: paused", paused_label="AGENT:  PAUSED")
+    check("two labels that differ only in spelling are refused",
+          not bad.ok and any("must differ" in p for p in bad.problems), str(bad.problems))
+    blank = cfg(approved_label="   ")
+    check("a blank label name is refused", not blank.ok, str(blank.problems))
+
+
 def main():
     for fn in (test_configuration, test_obvious_rejections, test_history, test_who_approved,
                test_association, test_age, test_decisions_are_read_only, test_pagination,
-               test_epic_acceptance, test_no_write_paths):
+               test_epic_acceptance, test_label_spelling, test_no_write_paths):
         run(fn)
     print(f"\n{PASS} passed, {FAIL} failed")
     for failure in FAILURES:

@@ -101,6 +101,17 @@ WORKER_DENY_PERMISSIONS = [
 ]
 
 
+def normalize_label(name):
+    """A label name the way GitHub compares it.
+
+    GitHub matches label names case-insensitively, and a label created through
+    the API can hold an inner run of spaces that nobody sees in the web UI, so
+    both are folded here. Comparing raw strings would let `Agent:  Approved`
+    look like the approval label to a human eye and miss it in the gate.
+    """
+    return " ".join(str(name or "").strip().lower().split())
+
+
 class Config:
     """Resolved configuration plus the operator-visible problems with it.
 
@@ -240,8 +251,12 @@ def _validate(cfg):
             "longer tell the two roles apart")
     if not cfg.data.get("approved_label") or not cfg.data.get("paused_label"):
         problems.append("approved_label and paused_label must both be set")
-    if cfg.data.get("approved_label") == cfg.data.get("paused_label"):
+    if normalize_label(cfg.data.get("approved_label")) == \
+            normalize_label(cfg.data.get("paused_label")):
         problems.append("approved_label and paused_label must differ")
+    for key in ("approved_label", "paused_label"):
+        if not normalize_label(cfg.data.get(key)):
+            problems.append(f"{key} must be a label name, not blanks")
     if not isinstance(cfg.data.get("approval_max_age_days"), (int, float)):
         problems.append("approval_max_age_days must be a number")
     for key in ("max_opencode_processes", "max_test_stacks", "ci_repair_attempts"):

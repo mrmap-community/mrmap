@@ -34,6 +34,12 @@ TMP = tempfile.mkdtemp(prefix="supervisor-ci-tests-")
 OWNER = "o"
 REPO = "o/r"
 HEAD = "abc123def456abc123def456abc123def456abc1"
+# A check run's own URL, as one constant instead of a host with a name interpolated
+# after it. Two reasons, one of them practical: a check that asserts this exact URL
+# arrived says more than "the word github.com appears somewhere in the text", and a
+# host position no string can move is not what a scan means when it warns about a
+# URL built from a value.
+RUN_URL = "https://github.com/o/r/actions/runs/9876543210"
 OTHER_HEAD = "9999999999999999999999999999999999999999"
 QUEUE_SHA = "7777777777777777777777777777777777777777"
 
@@ -97,7 +103,7 @@ def run(name, conclusion="failure", title="", summary="", annotations=(), kind="
                "conclusion": conclusion if kind == "check" else None,
                "output": {"title": title, "summary": summary, "text": summary},
                "annotations": [{"message": a} for a in annotations],
-               "html_url": url or f"https://github.com/{REPO}/runs/{name}", "id": abs(hash(name))}
+               "html_url": url or RUN_URL, "id": abs(hash(name))}
     if kind == "status":
         return {"context": name, "state": conclusion, "description": summary,
                 "target_url": payload["html_url"], "id": payload["id"]}
@@ -231,7 +237,7 @@ def test_classification():
 
     check("line() names the check, its conclusion and where to look",
           "backend unit tests" in line(run("backend unit tests"))
-          and "github.com" in line(run("backend unit tests")))
+          and RUN_URL in line(run("backend unit tests")))
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +256,7 @@ def test_one_repair():
     check("the worker of the right issue was woken", runner.resumed[0][0] == 7)
     prompt = runner.resumed[0][1] or ""
     check("the prompt names the failing check", "backend unit tests" in prompt, prompt[:120])
-    check("the prompt carries the check's URL", "github.com" in prompt)
+    check("the prompt carries the check's URL", RUN_URL in prompt)
     check("the prompt names the head SHA that is red", HEAD in prompt)
     check("the prompt repeats the rules of the worktree",
           "this worktree" in prompt.lower() and "compose project" in prompt.lower())

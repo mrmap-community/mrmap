@@ -1,4 +1,4 @@
-"""Exception reports of the /csw endpoint (#908).
+"""Exception reports of the /csw endpoint (#908, completed by #866).
 
 OGC 07-006r1, 10.3.7 obliges a CSW to answer a refused request with the
 ExceptionReport of OWS Common (OGC 05-008, clause 8): an
@@ -7,6 +7,13 @@ ExceptionReport of OWS Common (OGC 05-008, clause 8): an
 tests drive the error paths of the endpoint through the test client and pin
 down what carries a refusal -- the HTTP status and the three parts of the
 report -- and validate the report against the exception schema.
+
+Two sweeps belong to #866, the defect of the 500 and the empty document:
+every exception class has to build a report out of the refused request alone
+(no positional identity it could be called without), and every exception
+report ``XSD_LOOKUP`` registers a skeleton for has to answer a FILLED report
+-- never the childless root of a skeleton which declares no element the
+builder asked for.
 
 The validation runs against a reduced copy of that schema: the full
 ``owsExceptionReport.xsd`` pulls its includes through http schema locations,
@@ -17,9 +24,12 @@ carries exactly the constraints a report of this endpoint has to satisfy.
 
 from django.test import SimpleTestCase, TestCase
 from lxml import etree
-from registry.ows_lib.response.exceptions import LayerNotDefined
+from registry.ows_lib.response import exceptions as ows_exceptions
+from registry.ows_lib.response.exceptions import (
+    LayerNotDefined, OGCServiceException)
 from registry.ows_lib.response.exceptions import \
     RuntimeError as OgcRuntimeError
+from registry.ows_lib.xml.consts import XSD_LOOKUP
 
 OWS_NS = "http://www.opengis.net/ows"
 
@@ -199,3 +209,101 @@ class OwsExceptionReportFallbackTests(AssertsExceptionReport, SimpleTestCase):
         self.assertEqual(etree.QName(root).localname, "ServiceExceptionReport")
         self.assertEqual(
             root.find(".//{*}ServiceException").get("code"), "LayerNotDefined")
+
+    def test_wfs_profile_is_answered_by_the_common_report_not_the_empty_skeleton(self):
+        # ("wfs", "Exception", "2.0.0") registers the OWS ExceptionReport
+        # schema, which declares no ServiceExceptionReport; asking it for that
+        # WMS spelling answered the childless
+        # <ows:ServiceExceptionReport xmlns:ows="http://www.opengis.net/ows/2.0"/>
+        # at HTTP 200 until #866 routed ExceptionReport-shaped skeletons to the
+        # common report -- the same empty-document defect the CSW key of the
+        # issue had, on the profile the skeleton path actually reaches
+        response = LayerNotDefined(service_type="wfs", service_version="2.0.0")
+        self.assertExceptionReport(response, "LayerNotDefined", "LAYERS")
+
+
+class ExceptionSkeletonShapeTests(SimpleTestCase):
+    """No registered exception report skeleton may answer empty (#866)."""
+
+    def test_every_registered_exception_key_answers_a_filled_report(self):
+        for key in sorted(k for k in XSD_LOOKUP if k[1] == "Exception"):
+            service_type, _, service_version = key
+            with self.subTest(key=key):
+                response = OGCServiceException(
+                    service_type=service_type,
+                    service_version=service_version,
+                    message="what the client did wrong",
+                    locator="the parameter")
+                root = etree.fromstring(response.content)
+
+                # either report shape names the exception, its code and the
+                # refused parameter -- an empty root names nothing
+                exceptions = root.findall(".//{*}Exception") \
+                    + root.findall(".//{*}ServiceException")
+                self.assertEqual(len(exceptions), 1, response.content)
+                code = exceptions[0].get("exceptionCode") \
+                    or exceptions[0].get("code")
+                self.assertEqual(code, "NoApplicableCode")
+                self.assertEqual(exceptions[0].get("locator"),
+                                 "the parameter")
+                # the OWS shape carries the text in an ExceptionText child, the
+                # WMS skeleton as the text of the ServiceException itself
+                text = next(
+                    (t.text for t in
+                     exceptions[0].findall(".//{*}ExceptionText")),
+                    exceptions[0].text)
+                self.assertEqual((text or "").strip(),
+                                 "what the client did wrong")
+
+
+class _StubbedOgcRequest:
+    """The attributes OGCServiceException reads out of the refused request."""
+
+    service_type = "CSW"
+    service_version = "2.0.2"
+    operation = "GetRecords"
+    ogc_query_params = {"REQUEST": "GetRecords"}
+
+
+class ExceptionArityTests(SimpleTestCase):
+    """Every exception builds its report out of the refused request alone.
+
+    The three refusals of ``csw/views.py`` which used to answer a raw 500 were
+    raised with nothing but the request while the exception demanded
+    ``service_type`` and ``service_version`` as positional arguments
+    (#866); the #908 machinery reads that identity out of the request, and this
+    sweep keeps every class of both exception modules constructible the way the
+    endpoint calls it -- a class which demands the identity again raises
+    TypeError out of dispatch and answers 500, which is exactly the defect.
+    """
+
+    @staticmethod
+    def _refusal_classes():
+        from csw import exceptions as csw_exceptions
+        classes = []
+        for module in (ows_exceptions, csw_exceptions):
+            classes.extend(
+                klass for name, klass in vars(module).items()
+                if isinstance(klass, type)
+                and issubclass(klass, OGCServiceException)
+                and klass is not OGCServiceException
+                and klass.__module__ == module.__name__)
+        return classes
+
+    def test_every_refusal_class_answers_a_report_from_the_request_alone(self):
+        classes = self._refusal_classes()
+        # the classes the issue names must be in the sweep, not silently absent
+        self.assertTrue(classes)
+        for klass in classes:
+            with self.subTest(klass=klass.__name__):
+                exception = klass(ogc_request=_StubbedOgcRequest())
+                root = etree.fromstring(exception.content)
+                self.assertEqual(
+                    etree.QName(root).localname, "ExceptionReport")
+                children = root.findall(f"{{{OWS_NS}}}Exception")
+                self.assertEqual(len(children), 1, exception.content)
+                self.assertEqual(
+                    children[0].get("exceptionCode"), klass.code)
+                if klass.locator:
+                    self.assertEqual(children[0].get("locator"),
+                                     klass.locator)

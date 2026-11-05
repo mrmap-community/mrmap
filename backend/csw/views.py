@@ -213,17 +213,17 @@ class CswServiceView(View):
         # will not cover the check)
 
         elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
+            # every refusal of this view hands the exception the request it
+            # answers and lets the exception read the identity of the report
+            # out of it (#908; the #866 audit removed the sites which spelled
+            # the identity by hand instead -- one convention)
             return NotSupported(
-                # ogc_request=self.ogc_request,
-                service_type=self.ogc_request.service_type,
-                service_version=self.ogc_request.service_version,
+                ogc_request=self.ogc_request,
                 locator="outputSchema",
                 message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
         elif self.ogc_request.ogc_query_params.get("typeNames", "gmd:MD_Metadata") != "gmd:MD_Metadata":
             return NotSupported(
-                # ogc_request=self.ogc_request,
-                service_type=self.ogc_request.service_type,
-                service_version=self.ogc_request.service_version,
+                ogc_request=self.ogc_request,
                 locator="typeNames",
                 message="Only 'gmd:MD_Metadata' as typeNames is supported.")
 
@@ -835,8 +835,7 @@ class CswServiceView(View):
             if name not in SUPPORTED_RECORD_TYPE_NAMES
         ]:
             return NotSupported(
-                service_type=self.ogc_request.service_type,
-                service_version=self.ogc_request.service_version,
+                ogc_request=self.ogc_request,
                 locator="typeName",
                 message=(
                     "Only "

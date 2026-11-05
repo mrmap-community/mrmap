@@ -40,14 +40,19 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   `scripts/agent_supervisor` (command: `scripts/agent-supervisor`) is the OpenCode agent supervisor
   described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
   issue an agent may start, its scheduler decides which of those to start next against this very
-  claim board and `scripts/agent_capacity`, and its runner starts that one worker in its own
-  worktree, process group and Compose project and stops it again. Four offline checks cover it
-  (`python3 scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py`, `..._capacity.py` and
-  `..._runner.py`; each needs neither `gh` nor the network nor a container, and none of them can
-  write to a repository). The supervisor never claims an issue from its own checkout — the runner
-  files `scripts/wip claim` from inside the worker's own worktree, which is the only way that
-  claim's heartbeat can be refreshed. What a worker must never do (merge, review, force push) is
-  handed to it as deny permissions, not as prompt wording. An agent never applies
+  claim board and `scripts/agent_capacity`, its runner starts that one worker in its own worktree,
+  process group and Compose project and stops it again, and `watch-prs` follows the CI of the pull
+  requests those workers opened. The watcher resumes the same session for a failure that names a
+  test, a lint rule or a build — once per head SHA, within `ci_repair_attempts` — and hands
+  everything else to a human through `scripts/wip ask`; it never approves, reviews, merges,
+  enqueues or reruns a workflow. Five offline checks cover the supervisor (`python3
+  scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py`, `..._capacity.py`,
+  `..._runner.py` and `..._ci.py`; each needs neither `gh` nor the network nor a container, and
+  none of them can write to a repository). The supervisor never claims an issue from its own
+  checkout — the runner files `scripts/wip claim` from inside the worker's own worktree, which is
+  the only way that claim's heartbeat can be refreshed. What a worker must never do (merge,
+  review, force push) is handed to it as deny permissions, not as prompt wording, and that applies
+  to a resumed worker as much as to a started one. An agent never applies
   `agent: approved` itself — a human does.
 
 ## Authoritative sources

@@ -186,6 +186,7 @@ def cmd_status(args):
                           "warnings": cfg.warnings, "state": info["path"],
                           "leases": info["leases"],
                           "waiting_for_human": [lease["issue"] for lease in waiting],
+                          "pull_requests": info["pulls"],
                           "events": events}, indent=2, default=str))
         return 1 if cfg.problems else 0
     print(f"state: {info['path']}")
@@ -198,6 +199,20 @@ def cmd_status(args):
               + (f" - {lease['detail']}" if lease.get("detail") else ""))
     if waiting:
         print(f"waiting for a human: {', '.join('#%d' % lease['issue'] for lease in waiting)}")
+    # The CI watcher's rows belong here too: the question an operator asks at 8 am
+    # is "is anything waiting for me", and after #1061 that includes a pull request
+    # whose pipeline is red in a way no worker is allowed to fix.
+    pulls = [row for row in info["pulls"] if row["state"] != "closed"]
+    if pulls:
+        print("pull requests under CI watch:")
+        for row in pulls:
+            print(f"  #{row['issue']} pr #{row['pr']} {row['state']:14s} "
+                  f"repair attempts {row['attempts']}"
+                  + (f" - {row['detail']}" if row.get("detail") else ""))
+    needs_human = [row["issue"] for row in pulls if row["state"] == "waiting-human"]
+    if needs_human:
+        print(f"pull requests waiting for a human: "
+              f"{', '.join('#%d' % issue for issue in needs_human)}")
     print("recent events:" if events else "no events recorded")
     for event in events:
         stamp = datetime.fromtimestamp(event["at"], timezone.utc).strftime("%m-%d %H:%M:%S")
@@ -304,6 +319,61 @@ def cmd_stack_down(args):
     return 0
 
 
+def cmd_prs(args):
+    """What the CI watcher knows about the pull requests of this supervisor's work."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    rows = runner.store.status()["pulls"] if args.all else runner.store.watched_prs()
+    if args.json:
+        # JSON only: #1063's daemon reads this output, and a human line after a
+        # closing bracket is not parseable.
+        print(json.dumps(rows, indent=2, default=str))
+        return 0
+    if not rows:
+        print("no pull request is under CI watch yet (watch-prs records them)")
+    for row in rows:
+        print(f"  #{row['issue']} pr #{row['pr']} [{row['state']}] "
+              f"attempts {row['attempts']} - {row['detail'] or 'nothing recorded'}")
+    return 0
+
+
+def cmd_watch_prs(args):
+    """One look at the CI of every pull request this supervisor's workers opened."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    from .ci_monitor import Monitor
+
+    monitor = Monitor(cfg, store=runner.store, runner=runner)
+    try:
+        report = monitor.watch(issue=args.issue, dry_run=args.dry_run)
+    except gh.GhError as exc:
+        print(f"cannot watch CI: {exc}", file=sys.stderr)
+        return 2
+    actions = {}
+    for row in report:
+        actions[row["action"]] = actions.get(row["action"], 0) + 1
+    # A pull request that is red and cannot be repaired is a human's decision, and
+    # a non-zero exit is how a cron entry notices that one is waiting.
+    waiting = sum(count for key, count in actions.items()
+                  if key in ("escalated", "escalation-failed", "held", "repair-refused"))
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+        return 1 if waiting else 0
+    for row in report:
+        print(f"  #{row.get('issue')} "
+              + (f"pr #{row['pr']} " if row.get("pr") else "")
+              + f"{row['action']}"
+              + (f" [{row['verdicts']}]" if row.get("verdicts") else "")
+              + (f" - {row['detail']}" if row.get("detail") else ""))
+    if not report:
+        print("nothing to watch: no lease of this supervisor has an open pull request")
+    print("watched: " + (", ".join(f"{key} {count}" for key, count in sorted(actions.items()))
+                         or "nothing"))
+    return 1 if waiting else 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agent_supervisor",
@@ -372,6 +442,21 @@ def build_parser():
     p.add_argument("--keep-volumes", action="store_true",
                    help="remove the containers and network but keep the volumes")
     p.set_defaults(func=cmd_stack_down)
+
+    p = sub.add_parser("prs", help="what the CI watcher knows about the pull requests "
+                                   "of this supervisor's work")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--all", action="store_true", help="include pull requests already closed")
+    p.set_defaults(func=cmd_prs)
+
+    p = sub.add_parser("watch-prs", help="one look at the CI of those pull requests: repair "
+                                         "an actionable failure within the budget, report "
+                                         "everything else to a human, never merge")
+    p.add_argument("--issue", type=int, help="only the pull request of this issue")
+    p.add_argument("--dry-run", action="store_true",
+                   help="report what would happen, resume and ask nobody")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_watch_prs)
     return parser
 
 

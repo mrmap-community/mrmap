@@ -3,16 +3,17 @@
 Agent Supervisor: Approval Gate, Scheduler And Worker
 =====================================================
 
-.. sidebar:: Epic #1052, issues #1058 to #1060
+.. sidebar:: Epic #1052, issues #1058 to #1061
 
    Code: ``scripts/agent_supervisor/`` (standard library only) with the
    operator command ``scripts/agent-supervisor``. Checks:
    ``python3 scripts/test_agent_supervisor_approvals.py``,
-   ``..._scheduler.py``, ``..._capacity.py`` and ``..._runner.py`` — none of them
-   needs ``gh``, the network, a container or a model, and none of them can touch a
-   repository. This page documents the gate, the scheduler and the worktree
-   runner; the CI and review supervision of the resulting pull requests are the
-   follow-up issues #1061 to #1063 and will extend it.
+   ``..._scheduler.py``, ``..._capacity.py``, ``..._runner.py`` and ``..._ci.py``
+   — none of them needs ``gh``, the network, a container or a model, and none of
+   them can touch a repository. This page documents the gate, the scheduler, the
+   worktree runner and the CI watcher; answering review feedback and the daemon
+   that ties them to a timer are the follow-up issues #1062 and #1063 and will
+   extend it.
 
 An OpenCode worker may start work on a MrMap issue when a human has said so.
 That sentence is the whole design; everything below is what "a human has said
@@ -105,8 +106,8 @@ In the order the gate reaches them, and with the reason code each one produces
    * - ``issue-unavailable:<kind>``
      - the issue could not be read (``notfound``, ``auth``, ``network``, …)
    * - ``is-pull-request``
-     - that number is a pull request, and pull requests are supervised by
-       #1061/#1062, not started from this queue
+     - that number is a pull request, and pull requests are supervised by the CI
+       watcher and #1062, not started from this queue
    * - ``not-open``
      - the issue is closed or its state is anything but ``open``
    * - ``paused``
@@ -215,8 +216,8 @@ scheduling keys below it have working defaults and are listed there.
 The keys the scheduler adds
 ---------------------------
 
-The scheduler and runner read the same file, so one set of file permissions
-covers the whole supervisor.
+The scheduler, runner and CI watcher read the same file, so one set of file
+permissions covers the whole supervisor.
 
 .. list-table:: The keys that decide scheduling
    :header-rows: 1
@@ -249,6 +250,10 @@ covers the whole supervisor.
      - ``1``
      - the same for Compose stacks. The capacity gate of ``scripts/agent_capacity``
        still has the last word: these are ceilings, never permissions
+   * - ``ci_repair_attempts``
+     - ``2``
+     - how many repair cycles the CI watcher may start for one pull request over
+       its whole lifetime; ``0`` means "watch and report, never repair"
 
 The single-account host
 =======================
@@ -593,6 +598,166 @@ this issue's number, or the command is refused before it is built. There is no
 own cleanup rules record that orphans match by compose-file path rather than by
 project, which once wiped a foreign stack despite an exact ``-p``.
 
+Watching the checks of a pull request
+=====================================
+
+A worker's job ends at a pull request; the checks that decide whether it can be
+merged keep running for another ten minutes after the process is gone. Without a
+watcher that gap looks like a finished task, and with a naive watcher it looks
+like an agent that keeps pushing at a red pipeline. ``watch-prs`` is the pass that
+looks at them:
+
+::
+
+    scripts/agent-supervisor watch-prs --dry-run      # report only, wake nobody
+    scripts/agent-supervisor watch-prs                # act: repair or escalate
+    scripts/agent-supervisor prs                      # what it knows, per issue
+
+Both commands read GitHub. The two writes reachable from them are the worker
+process the runner starts in the issue's own worktree and ``scripts/wip``'s
+question comment on the issue. There is no call anywhere in the watcher that could
+approve, review, merge, enqueue, rerun a workflow or resolve a review thread, and
+a check fails if a non-``GET`` path appears among its reads.
+
+Which pull requests are followed
+--------------------------------
+
+Rows come from the supervisor's own leases, never from "whatever is open": the
+watcher looks up the open pull request whose head is the lease's branch and
+remembers it in the ``pull_requests`` table. A finished lease counts — a worker
+opens its pull request and exits, and the review that follows is exactly the gap
+this is for. A pull request that came back closed leaves the watch by itself but
+keeps its row, because "closed" and "never tracked" are different answers.
+
+Checks are read for the **pull request's head SHA**, plus the legacy commit
+statuses, because a repository can mix the two and a watcher that reads only one
+decides "all green" about a check it never saw. Not ``latest``, not the merge
+commit.
+
+A pass stays cheap enough to finish, which matters as soon as a timer runs it: a
+pull request already recorded closed is never looked up again, and a lease that
+never produced one is asked about for thirty days after its last update
+(``MRMAP_CI_LOOKBACK_S``). ``--issue`` bypasses both bounds — an operator who names
+a number wants an answer, not a policy.
+
+What may wake a worker
+----------------------
+
+The asymmetry that decides every row of the table below: acting on a failure that
+is really infrastructure costs code churn against a broken runner — commits that
+fix nothing, a branch that drifts, a reviewer who cannot tell what was ever wrong.
+Missing a real code failure costs a human noticing one red check they were going
+to read anyway. So a repair cycle needs *positive* evidence that the failure names
+a test, a lint rule or a build, and everything else is reported instead.
+
+.. list-table:: The six answers one check gets
+   :header-rows: 1
+   :widths: 16 34 50
+
+   * - Verdict
+     - When
+     - What happens
+   * - ``green``
+     - ``success``, ``skipped``, ``neutral``
+     - recorded green, waits for a human review. Nothing is ever approved here
+   * - ``pending``
+     - queued, in progress, waiting
+     - the normal state of a healthy pull request, never news
+   * - ``cancelled``
+     - someone stopped the run
+     - a decision somebody made on purpose, not a defect to repair
+   * - ``code``
+     - the text names an assertion, a failed test, a lint rule, a type error, a
+       migration or a coverage threshold
+     - one repair cycle, if the budget allows it
+   * - ``infra``
+     - the text names DNS, a timeout, a 5xx, a rate limit, a full disk, a missing
+       runner, a cache or artifact service or a docker daemon — or the run hit the
+       workflow's own ``timed_out``
+     - escalated to a human; the branch is not touched
+   * - ``unknown``
+     - a failure that names neither of the two
+     - escalated. Guessing "probably the agent's fault" is exactly the input that
+       turns a flaky runner into a branch full of meaningless commits
+
+A failure whose text names *both* — a red test and "no space left on device" —
+counts as ``infra``. A worker that edits code while the runner is also on fire
+cannot tell which one it fixed, and neither can the reviewer.
+
+Two budgets, because they fail differently
+------------------------------------------
+
+The lifetime budget is ``ci_repair_attempts`` (2 by default): how many repair
+cycles one pull request may cost over its whole life. The per-head rule is stricter
+and not configurable: one repair per head SHA. Without it one red commit is
+repaired twice — once by the pass that saw it and once by the pass that sees the
+same red check again while the worker has pushed nothing yet. And no repair starts
+while a worker of that issue is still alive; the watcher holds the failure instead
+of doubling the process.
+
+A repair that may not run is reported as ``held`` with its reason ("budget spent
+(2/2 repair cycles for this pull request)"), not swallowed: an operator reading
+``prs`` should see a decision, not silence.
+
+What a repair is
+----------------
+
+Not a new agent with a summary of the situation: the resume wakes the **same
+OpenCode session** in the same worktree and Compose project, and the approval gate
+is asked again first — a paused issue, a removed approval or a closed issue does
+not get to continue just because a process used to run for it. The prompt names
+the failing checks with their URLs and the head SHA that is red, tells the worker
+to reproduce the named check before changing anything, to push as ordinary commits
+on top rather than rebasing a branch that is open for review, and to stop with
+``scripts/wip wait`` instead of pushing a guess when the check does not reproduce.
+What the worker may not do stays the deny configuration of #1060, which applies to
+a resumed worker exactly as it does to a started one: it is a configuration fact,
+not wording.
+
+A resume that cannot happen — no recorded session, a gate that now refuses — is
+reported as ``repair-refused`` and costs no attempt: a budget is for failures that
+were really tried.
+
+Escalation goes to the board, not to the pull request
+-----------------------------------------------------
+
+``scripts/wip ask`` posts the whole question as one machine-managed comment on the
+**issue** and puts the claim under *Needs user*. That is where the operator already
+looks, and it is idempotent per client, so a watcher that runs every few minutes
+cannot stack five copies of the same complaint. Escalation happens once per head
+SHA: the marker of "already told you" is a row in ``ci_seen``, and it is written
+only *after* the question went out — a board that was unreachable must not leave a
+pull request looking reported, because then nobody would ever be told.
+
+Merge-queue runs are not this worker's business
+-----------------------------------------------
+
+A ``merge_group`` run belongs to a merge commit GitHub builds itself, combining
+this branch with other pull requests. A failure there may have nothing to do with
+this branch, and "fixing" it would mean editing this branch to answer somebody
+else's conflict. The watcher reports ``mergeable_state`` in every pass and acts on
+nothing but the pull request's own head. The merge queue stays the merge queue:
+nothing here enqueues, dequeues or reruns it.
+
+What survives a restart
+-----------------------
+
+Both tables live in the supervisor's SQLite file next to the leases.
+``pull_requests``: which pull request belongs to which issue, the head it was last
+seen at, the budget already spent. ``ci_seen``: every *check, head SHA, verdict*
+triple already dealt with. After a crash the answer to "have we already acted on
+this one?" comes from disk, so a supervisor that comes back does not read last
+night's red check as news and wake the worker a third time. Re-tracking a pull
+request keeps ``attempts`` and ``repair_sha`` — losing the budget at the moment the
+worker pushes a new commit is how a bounded budget becomes an unlimited one.
+
+Exit codes are for a timer
+--------------------------
+
+``0`` nothing waits for anybody; ``1`` at least one pull request is red in a way
+only a human can settle; ``2`` the question could not be asked at all. That is the
+whole contract the timer of #1063 needs.
+
 What the supervisor does not do
 ===============================
 
@@ -605,8 +770,9 @@ it needs more memory has one answer available, which is to wait. It never remove
 a worktree, a branch or a volume it did not create, and one test per rule keeps it
 that way.
 
-What is still missing is the part that watches what a worker leaves behind: #1061
-follows the checks of a pull request, #1062 answers review feedback, and #1063
-adds the daemon, the systemd unit and the operator's entry point. Until #1063
-lands, running a tick means running ``plan --start`` — by hand, or under a
-supervisor of one's choosing.
+What is still missing is the rest of what a worker leaves behind: #1062 answers
+review feedback on the pull request, and #1063 adds the daemon, the systemd unit
+and the operator's entry point. Until #1063 lands, running a tick means running
+``plan --start`` and watching CI means running ``watch-prs`` — by hand, or under a
+supervisor of one's choosing. Both are one command with an exit code, which is
+what makes that substitution safe rather than improvised.

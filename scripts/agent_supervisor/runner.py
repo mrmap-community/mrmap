@@ -66,6 +66,11 @@ LOG_ERROR = ("error",)
 # built, and a fake binary is the only honest way to watch what would have run.
 DOCKER_COMMAND = os.environ.get("MRMAP_DOCKER_COMMAND") or "docker"
 
+# What a worker is told when a human (or nothing in particular) resumes it. The CI
+# monitor passes its own text instead, naming the checks it woke the worker for.
+DEFAULT_RESUME_PROMPT = ("Continue where you stopped. Check the current state of the branch "
+                         "and the checks before doing anything else.")
+
 
 def project_name(number, run_id):
     """The Compose project name of one job, in the shape ``scripts/wip`` and the
@@ -173,12 +178,16 @@ class Runner:
         return {"pid": handle.pid, "pgid": handle.pid, "session": session,
                 "project": project, "worktree": worktree, "branch": branch, "log": log}
 
-    def resume(self, number):
+    def resume(self, number, prompt=None):
         """Start the worker of an existing lease again, on its own session.
 
         The approval is asked again before anything starts: a paused issue, a
         removed label or a closed issue does not get to continue just because a
         process used to run for it.
+
+        `prompt` replaces the instruction the worker wakes up with. The CI monitor
+        (#1061) passes the failing checks it woke the worker for; left alone, this
+        is the plain "carry on" a human means when they type `resume`.
         """
         from . import approvals
 
@@ -202,9 +211,7 @@ class Runner:
             stdin=subprocess.PIPE, stdout=open(log, "ab"), stderr=subprocess.STDOUT,
             start_new_session=True)
         with handle.stdin:
-            handle.stdin.write("Continue where you stopped. Check the current state of "
-                               "the branch and the checks before doing anything else."
-                               .encode("utf-8"))
+            handle.stdin.write((prompt or DEFAULT_RESUME_PROMPT).encode("utf-8"))
         self.store.update_lease(number, state="running", pid=handle.pid, pgid=handle.pid,
                                 project=project, detail=f"resumed, log {log}")
         self.store.event("worker-resumed", f"pid={handle.pid} session={lease['session']}",

@@ -53,7 +53,6 @@ from registry.serializers.service import (
 from registry.tasks.service import build_ogc_service
 from registry.helper.preview import PreviewError, feature_preview_image, preview
 from registry.helper.monitoring_generation import (
-    COMPREHENSIVE_OPERATIONS, IMPLEMENTED_PRESETS,
     generate_probe_preview)
 from registry.helper.monitoring_persistence import (
     ApplyError, apply_generated_probes)
@@ -115,6 +114,13 @@ WFS_OPERATION_URLS_AS_RELATION = Prefetch(
 # as related resources of the operation url
 MIME_TYPES_AS_RELATION = Prefetch(
     "mime_types", queryset=MimeType.objects.only("id"))
+
+# the monitoring setting which the generated probes of a kind of service are
+# persisted onto; the preview and apply actions answer every kind they serve
+MONITORING_SETTING_OF = {
+    WebMapService: WebMapServiceMonitoringSetting,
+    WebFeatureService: WebFeatureServiceMonitoringSetting,
+}
 
 
 class ServiceAlertAnnotationMixin:
@@ -270,27 +276,33 @@ class ServiceMonitoringProbePreviewMixin:
 
     @extend_schema(
         parameters=[
-            OpenApiParameter("preset", OpenApiTypes.STR, description="Generation preset 'basic' or 'standard'. 'comprehensive' is answered with an explicit 'presetNotImplemented' error; its operations are listed in that answer."),
-            OpenApiParameter("layer", OpenApiTypes.STR, many=True, description="Repeatable explicit selection of layers by identifier or layer id. Large services require selection or offset/limit paging instead of an unbounded preview."),
-            OpenApiParameter("offset", OpenApiTypes.INT, description="0-based offset into the deterministic GetMap candidate list."),
-            OpenApiParameter("limit", OpenApiTypes.INT, description="Maximum number of GetMap probes on this page, at most 100."),
-            OpenApiParameter("width", OpenApiTypes.INT, description="Proposed image width, at most 2048 pixels."),
-            OpenApiParameter("height", OpenApiTypes.INT, description="Proposed image height, at most 2048 pixels."),
+            OpenApiParameter("preset", OpenApiTypes.STR, description="Generation preset 'basic', 'standard' or 'comprehensive'. Comprehensive probes are only proposed where the stored capabilities advertise the operation and its required parameters can be satisfied; every other case is answered by an explicit skip reason."),
+            OpenApiParameter("layer", OpenApiTypes.STR, many=True, description="Repeatable explicit selection of WMS layers by identifier or layer id. Large services require selection or offset/limit paging instead of an unbounded preview."),
+            OpenApiParameter("featureType", OpenApiTypes.STR, many=True, description="Repeatable explicit selection of WFS feature types by identifier or feature type id."),
+            OpenApiParameter("offset", OpenApiTypes.INT, description="0-based offset into the deterministic candidate list of the operation probes."),
+            OpenApiParameter("limit", OpenApiTypes.INT, description="Maximum number of operation probes on this page, at most 100."),
+            OpenApiParameter("width", OpenApiTypes.INT, description="WMS only: proposed image width, at most 2048 pixels."),
+            OpenApiParameter("height", OpenApiTypes.INT, description="WMS only: proposed image height, at most 2048 pixels."),
             OpenApiParameter("timeout", OpenApiTypes.INT, description="Proposed probe timeout in seconds, at most 120."),
-            OpenApiParameter("imageFormat", OpenApiTypes.STR, description="Proposed GetMap response format; must be an advertised image format. Named imageFormat because 'format' is reserved by content negotiation."),
-            OpenApiParameter("crs", OpenApiTypes.STR, description="Proposed CRS; must be advertised for the layer and serializable.")],
+            OpenApiParameter("imageFormat", OpenApiTypes.STR, description="WMS only: proposed GetMap response format; must be an advertised image format. Named imageFormat because 'format' is reserved by content negotiation."),
+            OpenApiParameter("crs", OpenApiTypes.STR, description="WMS only: proposed CRS; must be advertised for the layer and serializable."),
+            OpenApiParameter("outputFormat", OpenApiTypes.STR, description="WFS only: proposed GetFeature response format; must be an advertised output format."),
+            OpenApiParameter("maxFeatures", OpenApiTypes.INT, description="WFS only: proposed upper bound of features a GetFeature probe may receive, at most 100 and never above the count the service advertises.")],
         responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
                    403: OpenApiTypes.OBJECT, 422: OpenApiTypes.OBJECT,
                    423: OpenApiTypes.OBJECT},
-        description="Preview of proposed WMS monitoring probes from the stored "
-                    "capabilities: presets basic and standard, deterministic "
-                    "candidate ordering with stable candidate identities, BBOX "
-                    "and axis order serialized per WMS version and CRS, explicit "
-                    "skip reasons for layers which do not become probes. "
-                    "Answers generatorVersion, bounds, pagination and the not "
-                    "yet implemented comprehensive operations. Writes no "
-                    "settings and executes no request against the service; "
-                    "request summaries never contain credentials.",
+        description="Preview of proposed monitoring probes from the stored "
+                    "capabilities of a registered service: presets basic, "
+                    "standard and comprehensive, deterministic candidate "
+                    "ordering with stable candidate identities, BBOX and axis "
+                    "order serialized per version and CRS, bounded WFS "
+                    "GetFeature requests, explicit skip reasons for the layers "
+                    "and feature types which do not become probes. Answers "
+                    "generatorVersion, bounds, the operations the service "
+                    "advertises, the versions this generator implements, "
+                    "pagination and the skipped candidates. Writes no settings "
+                    "and executes no request against the service; request "
+                    "summaries never contain credentials.",
     )
     @action(detail=True, methods=["get"], url_path="monitoring-probe-preview",
             renderer_classes=[JSONRenderer], filter_backends=[])
@@ -305,12 +317,37 @@ class ServiceMonitoringProbePreviewMixin:
             result = generate_probe_preview(service, request.query_params)
             return JsonResponse(result, headers={"Cache-Control": "no-store"})
         except PreviewError as error:
-            payload = {"error": error.code}
-            if error.code == "presetNotImplemented":
-                payload["implementedPresets"] = list(IMPLEMENTED_PRESETS)
-                payload["operations"] = list(COMPREHENSIVE_OPERATIONS)
-            return JsonResponse(payload, status=error.status,
+            return JsonResponse({"error": error.code}, status=error.status,
                                 headers={"Cache-Control": "no-store"})
+
+    def _monitoring_setting(self, request, service, checker):
+        """The existing setting of this service the apply may write onto.
+
+        Args:
+            request: the request whose payload names the setting
+            service: the service the probes belong to
+            checker: the permission checker of the request's user
+
+        Returns:
+            the setting, or ``None`` if the payload names none of this service
+        """
+        payload = request.data if isinstance(request.data, dict) else {}
+        setting_model = MONITORING_SETTING_OF.get(service.__class__)
+        if setting_model is None:
+            return None
+        try:
+            setting = setting_model.objects.filter(
+                pk=payload.get("setting"), service=service).first()
+        except (ValueError, TypeError):
+            setting = None
+        if setting is None:
+            # the payload owes the apply an existing setting of this service;
+            # the permission on it is checked by the caller
+            return None
+        if not checker.has_perm(
+                f"change_{setting_model._meta.model_name}", setting):
+            raise PermissionDenied
+        return setting
 
     @extend_schema(
         request=OpenApiTypes.OBJECT,
@@ -344,21 +381,12 @@ class ServiceMonitoringProbePreviewMixin:
         if not checker.has_perm(
                 f"change_{service.__class__.__name__.lower()}", service):
             raise PermissionDenied
-        payload = request.data if isinstance(request.data, dict) else {}
-        setting = None
-        try:
-            setting = WebMapServiceMonitoringSetting.objects.filter(
-                pk=payload.get("setting"), service=service).first()
-        except (ValueError, TypeError):
-            setting = None
+        setting = self._monitoring_setting(request, service, checker)
         if setting is None:
-            # the payload owes the apply an existing setting of this service;
-            # report the field, the permission on it is checked next
+            # the payload owes the apply an existing setting of this service
             return JsonResponse(
                 {"error": "setting"}, status=400,
                 headers={"Cache-Control": "no-store"})
-        if not checker.has_perm("change_webmapservicemonitoringsetting", setting):
-            raise PermissionDenied
         try:
             result = apply_generated_probes(service, request.data)
             return JsonResponse(result, headers={"Cache-Control": "no-store"})
@@ -704,6 +732,7 @@ class NestedWebMapServiceOperationUrlViewSet(
 @extend_schema_view(preview=extend_schema(operation_id="preview_WebFeatureService"))
 class WebFeatureServiceViewSet(
     ServicePreviewMixin,
+    ServiceMonitoringProbePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,

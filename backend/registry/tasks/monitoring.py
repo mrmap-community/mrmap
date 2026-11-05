@@ -101,7 +101,8 @@ def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
     run = WebMapServiceMonitoringRun.objects.select_related(
         "setting").get(pk=run_pk)
     probes = list(run.setting.registry_getcapabilitiesprobes.all()) + \
-        list(run.setting.registry_getmapprobes.all())
+        list(run.setting.registry_getmapprobes.all()) + \
+        list(run.setting.registry_getfeatureinfoprobes.all())
 
     return start_run(run=run, probes=probes, task=run_probe_check)
 
@@ -123,7 +124,8 @@ def run_wfs_monitoring(self, run_pk=None, *args, **kwargs):
     run = WebFeatureServiceMonitoringRun.objects.select_related(
         "setting").get(pk=run_pk)
     probes = list(run.setting.registry_webfeatureservicegetcapabilitiesprobes.all()) + \
-        list(run.setting.registry_webfeatureservicegetfeatureprobes.all())
+        list(run.setting.registry_webfeatureservicegetfeatureprobes.all()) + \
+        list(run.setting.registry_webfeatureservicedescribefeaturetypeprobes.all())
 
     return start_run(run=run, probes=probes, task=run_probe_check)
 

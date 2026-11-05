@@ -175,6 +175,10 @@ wms_monitoring_routes.register(r'get-capabilities-probes', monitoring_views.Nest
                                basename='webmapservicemonitoringsetting-getcap-probes', parents_query_lookups=['setting'])
 wms_monitoring_routes.register(r'get-map-probes', monitoring_views.NestedGetMapProbeViewSet,
                                basename='webmapservicemonitoringsetting-getmap-probes', parents_query_lookups=['setting'])
+wms_monitoring_routes.register(r'get-feature-info-probes',
+                               monitoring_views.NestedGetFeatureInfoProbeViewSet,
+                               basename='webmapservicemonitoringsetting-getfeatureinfo-probes',
+                               parents_query_lookups=['setting'])
 
 wms_monitoring_runs_routes = router.register(r'monitoring/wms-monitoring-runs',
                                              monitoring_views.WebMapServiceMonitoringRunViewSet, basename='webmapservicemonitoringrun')
@@ -185,6 +189,10 @@ wms_monitoring_runs_routes.register(r'get-cap-probe-results',
 wms_monitoring_runs_routes.register(r'get-map-probe-results',
                                     monitoring_views.NestedGetMapProbeResultViewSet,
                                     basename='webmapservicemonitoringsetting-getmap-probe-results',
+                                    parents_query_lookups=['run'])
+wms_monitoring_runs_routes.register(r'get-feature-info-probe-results',
+                                    monitoring_views.NestedGetFeatureInfoProbeResultViewSet,
+                                    basename='webmapservicemonitoringsetting-getfeatureinfo-probe-results',
                                     parents_query_lookups=['run'])
 
 wfs_monitoring_routes = router.register(r'monitoring/wfs-monitoring-settings',
@@ -198,6 +206,10 @@ wfs_monitoring_routes.register(r'get-feature-probes',
                                monitoring_views.NestedWebFeatureServiceGetFeatureProbeViewSet,
                                basename='webfeatureservicemonitoringsetting-getfeature-probes',
                                parents_query_lookups=['setting'])
+wfs_monitoring_routes.register(r'describe-feature-type-probes',
+                               monitoring_views.NestedWebFeatureServiceDescribeFeatureTypeProbeViewSet,
+                               basename='webfeatureservicemonitoringsetting-describefeaturetype-probes',
+                               parents_query_lookups=['setting'])
 
 wfs_monitoring_runs_routes = router.register(r'monitoring/wfs-monitoring-runs',
                                              monitoring_views.WebFeatureServiceMonitoringRunViewSet,
@@ -209,6 +221,10 @@ wfs_monitoring_runs_routes.register(r'get-cap-probe-results',
 wfs_monitoring_runs_routes.register(r'get-feature-probe-results',
                                     monitoring_views.NestedWebFeatureServiceGetFeatureProbeResultViewSet,
                                     basename='webfeatureservicemonitoringsetting-getfeature-probe-results',
+                                    parents_query_lookups=['run'])
+wfs_monitoring_runs_routes.register(r'describe-feature-type-probe-results',
+                                    monitoring_views.NestedWebFeatureServiceDescribeFeatureTypeProbeResultViewSet,
+                                    basename='webfeatureservicemonitoringsetting-describefeaturetype-probe-results',
                                     parents_query_lookups=['run'])
 
 csw_monitoring_routes = router.register(r'monitoring/csw-monitoring-settings',
@@ -319,6 +335,12 @@ router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
                 monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result')
 router.register(r'monitoring/wms-monitoring-get-map-probe-results',
                 monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result')
+router.register(r'monitoring/wms-monitoring-get-feature-info-probes',
+                monitoring_views.GetFeatureInfoProbeViewSet,
+                basename='webmapservicemonitoring-getfeatureinfo-probe')
+router.register(r'monitoring/wms-monitoring-get-feature-info-probe-results',
+                monitoring_views.GetFeatureInfoProbeResultViewSet,
+                basename='webmapservicemonitoring-getfeatureinfo-probe-result')
 router.register(r'monitoring/wfs-monitoring-get-capabilities-probes',
                 monitoring_views.WebFeatureServiceGetCapabilitiesProbeViewSet,
                 basename='webfeatureservicemonitoring-getcapabilities-probe')
@@ -331,6 +353,12 @@ router.register(r'monitoring/wfs-monitoring-get-capabilities-probe-results',
 router.register(r'monitoring/wfs-monitoring-get-feature-probe-results',
                 monitoring_views.WebFeatureServiceGetFeatureProbeResultViewSet,
                 basename='webfeatureservicemonitoring-getfeature-probe-result')
+router.register(r'monitoring/wfs-monitoring-describe-feature-type-probes',
+                monitoring_views.WebFeatureServiceDescribeFeatureTypeProbeViewSet,
+                basename='webfeatureservicemonitoring-describefeaturetype-probe')
+router.register(r'monitoring/wfs-monitoring-describe-feature-type-probe-results',
+                monitoring_views.WebFeatureServiceDescribeFeatureTypeProbeResultViewSet,
+                basename='webfeatureservicemonitoring-describefeaturetype-probe-result')
 router.register(r'monitoring/csw-monitoring-get-capabilities-probes',
                 monitoring_views.CatalogueServiceGetCapabilitiesProbeViewSet,
                 basename='catalogueservicemonitoring-getcapabilities-probe')

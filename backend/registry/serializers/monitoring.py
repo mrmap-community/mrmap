@@ -3,7 +3,7 @@ from extras.fields import CrontabStringField
 from extras.scheduling import run_overdue
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
-from registry.models.metadata import ReferenceSystem
+from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.monitoring import (
     CatalogueServiceGetCapabilitiesProbe,
     CatalogueServiceGetCapabilitiesProbeResult,
@@ -12,7 +12,10 @@ from registry.models.monitoring import (
     CatalogueServiceMonitoringRun, CatalogueServiceMonitoringSetting,
     GetCapabilitiesProbe,
     GetCapabilitiesProbeResult,
+    GetFeatureInfoProbe, GetFeatureInfoProbeResult,
     GetMapProbe, GetMapProbeResult,
+    WebFeatureServiceDescribeFeatureTypeProbe,
+    WebFeatureServiceDescribeFeatureTypeProbeResult,
     WebFeatureServiceGetCapabilitiesProbe,
     WebFeatureServiceGetCapabilitiesProbeResult,
     WebFeatureServiceGetFeatureProbe,
@@ -23,7 +26,8 @@ from registry.models.monitoring import (
     WebMapServiceMonitoringSetting)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
-from rest_framework.fields import DateTimeField, IntegerField, SerializerMethodField
+from rest_framework.fields import (DateTimeField, IntegerField, JSONField,
+                                   SerializerMethodField)
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
@@ -104,6 +108,65 @@ class GetMapProbeSerializer(
         )
 
 
+class GetFeatureInfoProbeSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    """Serializer of the comprehensive get feature info probe of a wms."""
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoring-getfeatureinfo-probe-detail',
+    )
+    timeout = IntegerField(
+        default=30
+    )
+    layer = ResourceRelatedField(
+        label=_("layer"),
+        help_text=_("the layer the feature info request asks about."),
+        many=False,
+        queryset=Layer.objects,
+        required=False,
+        allow_null=True,
+    )
+    info_format = ResourceRelatedField(
+        label=_("info format"),
+        help_text=_("the requested information format of the response."),
+        many=False,
+        queryset=MimeType.objects,
+        required=False,
+        allow_null=True,
+    )
+    skip_reasons = JSONField(
+        label=_("skip reasons"),
+        help_text=_(
+            "technical reasons why this comprehensive probe was not "
+            "executed by the last monitoring run"),
+        read_only=True,
+    )
+
+    class Meta:
+        model = GetFeatureInfoProbe
+        fields = (
+            'url',
+            'setting',
+            'timeout',
+            'layer',
+            'info_format',
+            'i',
+            'j',
+            'feature_count',
+            'check_response_format',
+            'check_response_does_not_contain',
+            'skip_reasons',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
+        )
+
+
 class MonitoringSettingSerializerMixin:
     """Mixin which reports the scheduled execution of a monitoring setting.
 
@@ -147,6 +210,12 @@ class WebMapServiceMonitoringSettingSerializer(
         required=False,
         read_only=True,
     )
+    get_feature_info_probes = ResourceRelatedField(
+        many=True,
+        source='registry_getfeatureinfoprobes',
+        required=False,
+        read_only=True,
+    )
 
     last_run_at = DateTimeField(read_only=True, allow_null=True)
     next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
@@ -155,7 +224,8 @@ class WebMapServiceMonitoringSettingSerializer(
     class Meta:
         model = WebMapServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
-                  "get_capabilitites_probes", "get_map_probes", "enabled",
+                  "get_capabilitites_probes", "get_map_probes",
+                  "get_feature_info_probes", "enabled",
                   "last_run_at", "next_run_expected_at", "run_overdue")
 
 
@@ -191,6 +261,14 @@ class WebMapServiceMonitoringRunSerializer(
         label=_("Get Map Probe Results"),
         help_text=_("results for get map requests"),
     )
+    get_feature_info_probe_results = ResourceRelatedField(
+        source="registry_getfeatureinfoproberesults",
+        many=True,
+        queryset=GetFeatureInfoProbeResult.objects,
+        label=_("Get Feature Info Probe Results"),
+        help_text=_("results for get feature info requests"),
+        required=False,
+    )
 
     class Meta:
         model = WebMapServiceMonitoringRun
@@ -200,6 +278,7 @@ class WebMapServiceMonitoringRunSerializer(
             'setting',
             'get_capabilitites_probe_results',
             'get_map_probe_results',
+            'get_feature_info_probe_results',
             'date_created',
             'date_done'
         )
@@ -260,6 +339,32 @@ class GetMapProbeResultSerializer(
         )
 
 
+class GetFeatureInfoProbeResultSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoring-getfeatureinfo-probe-result-detail',
+    )
+    run = ResourceRelatedField(
+        label=_("monitoring setting"),
+        help_text=_("the setting which to used for this run."),
+        queryset=WebMapServiceMonitoringRun.objects,
+    )
+
+    class Meta:
+        model = GetFeatureInfoProbeResult
+        fields = (
+            'url',
+            'run',
+            'check_response_format_success',
+            'check_response_format_message',
+            'check_response_does_not_contain_success',
+            'check_response_does_not_contain_message'
+        )
+
+
 class WebFeatureServiceMonitoringSettingSerializer(
     MonitoringSettingSerializerMixin,
     StringRepresentationSerializer,
@@ -292,6 +397,12 @@ class WebFeatureServiceMonitoringSettingSerializer(
         required=False,
         read_only=True,
     )
+    describe_feature_type_probes = ResourceRelatedField(
+        many=True,
+        source='registry_webfeatureservicedescribefeaturetypeprobes',
+        required=False,
+        read_only=True,
+    )
 
     last_run_at = DateTimeField(read_only=True, allow_null=True)
     next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
@@ -300,7 +411,8 @@ class WebFeatureServiceMonitoringSettingSerializer(
     class Meta:
         model = WebFeatureServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
-                  "get_capabilities_probes", "get_feature_probes", "enabled",
+                  "get_capabilities_probes", "get_feature_probes",
+                  "describe_feature_type_probes", "enabled",
                   "last_run_at", "next_run_expected_at", "run_overdue")
 
 
@@ -336,6 +448,14 @@ class WebFeatureServiceMonitoringRunSerializer(
         label=_("Get Feature Probe Results"),
         help_text=_("results for get feature requests"),
     )
+    describe_feature_type_probe_results = ResourceRelatedField(
+        source="registry_webfeatureservicedescribefeaturetypeproberesults",
+        many=True,
+        queryset=WebFeatureServiceDescribeFeatureTypeProbeResult.objects,
+        label=_("Describe Feature Type Probe Results"),
+        help_text=_("results for describe feature type requests"),
+        required=False,
+    )
 
     class Meta:
         model = WebFeatureServiceMonitoringRun
@@ -345,6 +465,7 @@ class WebFeatureServiceMonitoringRunSerializer(
             'setting',
             'get_capabilities_probe_results',
             'get_feature_probe_results',
+            'describe_feature_type_probe_results',
             'date_created',
             'date_done'
         )
@@ -404,6 +525,14 @@ class WebFeatureServiceGetFeatureProbeSerializer(
         required=False,
         allow_null=True,
     )
+    output_format = ResourceRelatedField(
+        label=_("output format"),
+        help_text=_("the requested response format of the get feature request."),
+        many=False,
+        queryset=MimeType.objects,
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = WebFeatureServiceGetFeatureProbe
@@ -413,7 +542,57 @@ class WebFeatureServiceGetFeatureProbeSerializer(
             'timeout',
             'feature_types',
             'reference_system',
+            'output_format',
             'max_features',
+            "check_response_is_valid_xml",
+            "check_response_does_contain",
+            'check_response_feature_collection',
+            'check_response_contains_features',
+            'check_response_does_not_contain',
+            'origin', 'generator_version', 'generator_preset', 'generator_identity',
+        )
+        read_only_fields = (
+            'origin', 'generator_version', 'generator_preset',
+            'generator_identity',
+        )
+
+
+class WebFeatureServiceDescribeFeatureTypeProbeSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    """Serializer of the comprehensive describe feature type probe of a wfs."""
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:webfeatureservicemonitoring-describefeaturetype-probe-detail',
+    )
+    timeout = IntegerField(
+        default=30
+    )
+    feature_types = ResourceRelatedField(
+        label=_("feature types"),
+        help_text=_("the feature types which shall be described."),
+        many=True,
+        queryset=FeatureType.objects,
+    )
+    output_format = ResourceRelatedField(
+        label=_("output format"),
+        help_text=_("the requested response format of the describe request."),
+        many=False,
+        queryset=MimeType.objects,
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = WebFeatureServiceDescribeFeatureTypeProbe
+        fields = (
+            'url',
+            'setting',
+            'timeout',
+            'feature_types',
+            'output_format',
             "check_response_is_valid_xml",
             "check_response_does_contain",
             'check_response_does_not_contain',
@@ -469,6 +648,36 @@ class WebFeatureServiceGetFeatureProbeResultSerializer(
 
     class Meta:
         model = WebFeatureServiceGetFeatureProbeResult
+        fields = (
+            'url',
+            'run',
+            'check_response_is_valid_xml_success',
+            'check_response_is_valid_xml_message',
+            'check_response_does_contain_success',
+            'check_response_does_contain_message',
+            'check_response_feature_collection_success',
+            'check_response_feature_collection_message',
+            'check_response_does_not_contain_success',
+            'check_response_does_not_contain_message'
+        )
+
+
+class WebFeatureServiceDescribeFeatureTypeProbeResultSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webfeatureservicemonitoring-describefeaturetype-probe-result-detail',
+    )
+    run = ResourceRelatedField(
+        label=_("monitoring run"),
+        help_text=_("the run which executed the probe."),
+        queryset=WebFeatureServiceMonitoringRun.objects,
+    )
+
+    class Meta:
+        model = WebFeatureServiceDescribeFeatureTypeProbeResult
         fields = (
             'url',
             'run',

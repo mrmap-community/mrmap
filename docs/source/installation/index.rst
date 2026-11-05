@@ -83,6 +83,8 @@ create .env file under your mrmap path with the following variables. Please setu
     PGADMIN_USER=admin@example.com
     PGADMIN_PASSWORD=supersecurepassword
 
+``PGADMIN_USER`` configures the pgadmin administrator login and falls back to ``admin@example.com`` if it is not set; pgadmin rejects an address without a fully qualified domain (for example ``admin@localhost``) at startup and then crash-loops, so keep this value a valid email address.
+
 Beside these required variables ``.env`` accepts the optional ``DJANGO_ALLOWED_HOSTS``: a ``;`` or ``,`` separated list of additional names and addresses the deployment is reached by, for example ``DJANGO_ALLOWED_HOSTS=10.0.0.12,mrmap.internal``. The host of ``EXTERNAL_BASE_URL`` and the internal presets of the image (``localhost``, loopback addresses, the compose service names) are always allowed; every other name or address answers HTTP 400 until it is listed here. See :ref:`development-environment` for both variables.
 
 ..warning::

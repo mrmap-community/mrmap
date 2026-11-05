@@ -330,7 +330,10 @@ services:
     restart: unless-stopped
     hostname: "pgadmin"
     environment:
-      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_USER:?Please configure PGADMIN_USER in the .env file}"
+      # pgadmin validates its default email at startup and crash-loops on
+      # addresses without a fully-qualified domain (e.g. admin@localhost, #1013);
+      # an explicit PGADMIN_USER in .env still wins over this fallback.
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_USER:-admin@example.com}"
       PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:?Please configure PGADMIN_PASSWORD in the .env file}"
       PGADMIN_REPLACE_SERVERS_ON_STARTUP: true
       PGADMIN_LISTEN_PORT: 8009

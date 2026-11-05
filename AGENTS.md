@@ -41,14 +41,21 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
   issue an agent may start, its scheduler decides which of those to start next against this very
   claim board and `scripts/agent_capacity`, its runner starts that one worker in its own worktree,
-  process group and Compose project and stops it again, and `watch-prs` follows the CI of the pull
-  requests those workers opened. The watcher resumes the same session for a failure that names a
-  test, a lint rule or a build — once per head SHA, within `ci_repair_attempts` — and hands
-  everything else to a human through `scripts/wip ask`; it never approves, reviews, merges,
-  enqueues or reruns a workflow. Five offline checks cover the supervisor (`python3
+  process group and Compose project and stops it again, `watch-prs` follows the CI of the pull
+  requests those workers opened, and `watch-reviews` answers the human review feedback on them.
+  The CI watcher resumes the same session for a failure that names a test, a lint rule or a build
+  — once per head SHA, within `ci_repair_attempts` — and hands everything else to a human through
+  `scripts/wip ask`. The review watcher acts on feedback only from an account that may direct it
+  — the operator's allowlist or a trusted repository role, never a bot — answers each item once
+  from a ledger keyed by GitHub's own ids, and turns any ask for an act an agent may not do
+  (approve, merge, resolve threads, rewrite an open branch, change branch protection or CI,
+  grant access, commit a secret) into a question on the issue instead of a try. A thread a human
+  raised stays open: the worker replies underneath it, `gh api *threads*` is on the deny list and
+  there is no resolve call to find. Six offline checks cover the supervisor (`python3
   scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py`, `..._capacity.py`,
-  `..._runner.py` and `..._ci.py`; each needs neither `gh` nor the network nor a container, and
-  none of them can write to a repository). The supervisor never claims an issue from its own
+  `..._runner.py`, `..._ci.py` and `..._reviews.py`; each needs neither `gh` nor the network nor a
+  container, and none of them can write to a repository). The supervisor never claims an issue
+  from its own
   checkout — the runner files `scripts/wip claim` from inside the worker's own worktree, which is
   the only way that claim's heartbeat can be refreshed. What a worker must never do (merge,
   review, force push) is handed to it as deny permissions, not as prompt wording, and that applies

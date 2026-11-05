@@ -187,6 +187,7 @@ def cmd_status(args):
                           "leases": info["leases"],
                           "waiting_for_human": [lease["issue"] for lease in waiting],
                           "pull_requests": info["pulls"],
+                          "review_watches": info["reviews"],
                           "events": events}, indent=2, default=str))
         return 1 if cfg.problems else 0
     print(f"state: {info['path']}")
@@ -210,9 +211,21 @@ def cmd_status(args):
                   f"repair attempts {row['attempts']}"
                   + (f" - {row['detail']}" if row.get("detail") else ""))
     needs_human = [row["issue"] for row in pulls if row["state"] == "waiting-human"]
+    # Review feedback belongs to the same 8 am question. A pull request whose
+    # reviewer asked for something an agent may not do is waiting just as hard as
+    # one whose pipeline is red, and an operator should not have to know which
+    # watcher noticed it.
+    reviews = [row for row in info["reviews"] if row["state"] != "closed"]
+    if reviews:
+        print("pull requests under review watch:")
+        for row in reviews:
+            print(f"  #{row['issue']} pr #{row['pr']} {row['state']:14s} "
+                  f"answer attempts {row['attempts']}"
+                  + (f" - {row['detail']}" if row.get("detail") else ""))
+        needs_human += [row["issue"] for row in reviews if row["state"] == "waiting-human"]
     if needs_human:
-        print(f"pull requests waiting for a human: "
-              f"{', '.join('#%d' % issue for issue in needs_human)}")
+        print("pull requests waiting for a human: "
+              f"{', '.join('#%d' % issue for issue in sorted(set(needs_human)))}")
     print("recent events:" if events else "no events recorded")
     for event in events:
         stamp = datetime.fromtimestamp(event["at"], timezone.utc).strftime("%m-%d %H:%M:%S")
@@ -374,6 +387,67 @@ def cmd_watch_prs(args):
     return 1 if waiting else 0
 
 
+def cmd_reviews(args):
+    """What the review watcher knows about this supervisor's pull requests."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    rows = runner.store.reviewed_prs() if not args.all else runner.store.status()["reviews"]
+    if args.json:
+        print(json.dumps(rows, indent=2, default=str))
+        return 0
+    if not rows:
+        print("no pull request is under review watch yet (watch-reviews records them)")
+    for row in rows:
+        pending = runner.store.review_items(row["pr"], statuses=("pending",))
+        print(f"  #{row['issue']} pr #{row['pr']} [{row['state']}] "
+              f"attempts {row['attempts']} - {row['detail'] or 'nothing recorded'}")
+        for item in pending[:args.items]:
+            print(f"      open: {item['kind']} {item['github_id']} by {item['author']} "
+                  + (f" at {item['path']}:{item['line']}" if item.get("path") else "")
+                  + (f" - {item['detail']}" if item.get("detail") else ""))
+        if len(pending) > args.items:
+            print(f"      and {len(pending) - args.items} more")
+    return 0
+
+
+def cmd_watch_reviews(args):
+    """One look at the review feedback on those pull requests."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    from .reviews import Reviews
+
+    watcher = Reviews(cfg, store=runner.store, runner=runner)
+    try:
+        report = watcher.watch(issue=args.issue, dry_run=args.dry_run)
+    except gh.GhError as exc:
+        print(f"cannot watch reviews: {exc}", file=sys.stderr)
+        return 2
+    actions = {}
+    for row in report:
+        actions[row["action"]] = actions.get(row["action"], 0) + 1
+    # Feedback that only a human can settle has to leave a non-zero exit, or a
+    # timer runs it for a year and nobody reads it.
+    waiting = sum(count for key, count in actions.items()
+                  if key in ("escalated", "escalation-failed", "held", "respond-refused"))
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+        return 1 if waiting else 0
+    for row in report:
+        counts = [f"{row['work']} work", f"{row['asks']} ask(s)", f"{row['context']} context"]
+        print(f"  #{row.get('issue')} "
+              + (f"pr #{row['pr']} " if row.get("pr") else "")
+              + f"{row['action']}"
+              + (f" [{', '.join(counts)}]" if row.get("items") else "")
+              + (f" - {row['detail']}" if row.get("detail") else ""))
+    if not report:
+        print("nothing to watch: no pull request of this supervisor is open")
+    print("watched: " + (", ".join(f"{key} {count}" for key, count in sorted(actions.items()))
+                         or "nothing"))
+    return 1 if waiting else 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agent_supervisor",
@@ -457,6 +531,24 @@ def build_parser():
                    help="report what would happen, resume and ask nobody")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_watch_prs)
+
+    p = sub.add_parser("reviews", help="what the review watcher knows about the review "
+                                       "feedback on those pull requests")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--all", action="store_true", help="include pull requests already closed")
+    p.add_argument("--items", type=int, default=8,
+                   help="how many open feedback items to list per pull request")
+    p.set_defaults(func=cmd_reviews)
+
+    p = sub.add_parser("watch-reviews", help="one look at the human review feedback on those "
+                                             "pull requests: answer what a trusted reviewer "
+                                             "asked for, hand reserved acts to a human, never "
+                                             "approve, merge or resolve a thread")
+    p.add_argument("--issue", type=int, help="only the pull request of this issue")
+    p.add_argument("--dry-run", action="store_true",
+                   help="report what would happen, resume and ask nobody")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_watch_reviews)
     return parser
 
 

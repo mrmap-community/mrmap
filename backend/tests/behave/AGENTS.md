@@ -290,10 +290,16 @@ Two gaps are worth knowing before reading too much into a green list scenario:
   `features/json:api/registry/security/list_related_allowedwebmapserviceoperations.feature`; assert it
   as a `200` together with the fix, never as a `500`.
 
-Diagnosing a red filter scenario needs `--no-capture -f plain`: behave re-formats the log records it
-captured for the scenario it is about to report, and formatting one of mrmap's records raises
-`TypeError: not all arguments converted during string formatting` inside behave, which stops the run
-before the failing assertion is ever printed.
+Since #1015 the default (progress) formatter survives a run without any flag. It used to die at the
+first scenario with `TypeError: not all arguments converted during string formatting`: the
+`post_migrate` handler in `registry/apps.py` logged `logger.info("metadata orphans:", count)`, and the
+`flush` of the default runner's `TransactionTestCase` re-fires that handler inside the log records
+behave captures for a scenario — behave formats the captured records itself when it closes the
+capture scope, so the broken record stopped the run whatever formatter was chosen (`-f plain` alone
+died too; only `--simple`, which does not flush, or `--no-capture` avoided it). The green invocation
+stays `manage.py behave --simple` for a different reason: the default runner flushes the database
+before every scenario, which deletes the rows `before_all` and `before_feature` have committed, so
+fixture-tagged features then fail their loaddata with `HOOK-ERROR in before_feature`.
 
 ## Step vocabulary
 

@@ -114,8 +114,7 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "up",
-                "--build",
-                "--remove-orphans"
+                "--build"
             ]
         },
         {
@@ -131,7 +130,6 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
-                "--remove-orphans",
                 "--build",
                 "--exit-code-from",
                 "backend",
@@ -151,7 +149,6 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.dev.yml",
                 "up",
-                "--remove-orphans",
                 "--build",
                 "--exit-code-from",
                 "swagger-ui",
@@ -173,7 +170,6 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
-                "--remove-orphans",
                 "--build",
                 "--exit-code-from",
                 "inspire-validator",
@@ -195,7 +191,6 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
-                "--remove-orphans",
                 "--build",
                 "--exit-code-from",
                 "celery-worker",
@@ -216,7 +211,6 @@
                 "-f",
                 "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
-                "--remove-orphans",
                 "--build",
                 "--exit-code-from",
                 "celery-beat",

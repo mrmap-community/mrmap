@@ -215,20 +215,52 @@ beacon keeps itself below that, deduplicates identical reports for 30 seconds
 and caps a page load at 20 reports.
 
 Script, location and log driver come with the image of the ``frontend`` service,
-so that container has to be recreated to apply them. An existing deployment
-holds the built frontend in the ``frontend-static`` volume, and Docker fills
-such a volume from the image only while it is still empty, so the volume goes
-with the container (``docker volume ls`` names it after the project):
-
-.. code-block:: console
-
-    docker compose rm -fs frontend
-    docker volume rm mrmap_frontend-static
-    docker compose up -d --build frontend
+so that container has to be recreated to apply them; a plain
+``docker compose up -d --build frontend`` does exactly that — the app it then
+serves is the content of the new image. What an upgrade does with the static
+assets of a deployment in general, and the one-time cleanup an older one still
+has to do, is :ref:`its own section <installation-static-assets>` below.
 
 Reporting lives in nginx, so it exists where the built app is served behind it:
 the development server of the frontend (``npm run dev``) answers without nginx
 and reports nothing.
+
+.. _installation-static-assets:
+
+Static assets and upgrades
+==========================
+
+Static assets are build artifacts and live in the images, not in volumes. The
+image of the ``frontend`` service carries the built SPA under
+``/var/www/mrmap/frontend`` and the ``collectstatic`` output of the backend
+under ``/var/www/mrmap/backend``, and its nginx serves both from the image. An
+``docker compose up -d --build`` after an upgrade therefore always serves the
+new version's statics, and files of old builds (``index-<old hash>.js`` and
+every chunk nobody references) leave with the image that built them instead of
+accumulating in a volume. Note that the ``collectstatic`` output travels in
+the ``frontend`` image (see ``docker/nginx/nginx.Dockerfile``), so an upgrade
+of the backend's statics builds that image too — a plain
+``docker compose up -d --build`` covers every service with a ``build:``
+section.
+
+Deployments created before issue ``#922`` are the exception, and they need one
+manual step, once. Their compose file kept the two statics in the named
+volumes ``frontend-static`` and ``backend-static``, and Docker fills a named
+volume from the image only while it is still empty: such a volume shadows the
+new image's content and keeps serving the previous version's assets however
+often the container is recreated. Upgrade to the current compose file first —
+it no longer mounts those volumes — which recreates the containers onto the
+image content; the two volumes then hold nothing but the debris of old
+versions (``docker volume ls`` names them after the project, ``<project>``
+below is that prefix):
+
+.. code-block:: console
+
+    docker compose up -d --build
+    docker volume rm <project>_frontend-static <project>_backend-static
+
+Remove exactly these two volumes; the database, media, log and celery volumes
+carry state and survive upgrades.
 
 Database tuning
 ===============

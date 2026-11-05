@@ -18,6 +18,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    project-structure
    environment
    prebuilt-images
+   agent-capacity
    code-quality
    definition_of_done
    vscode-configuration

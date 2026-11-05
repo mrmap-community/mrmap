@@ -247,8 +247,10 @@ and `AGENT_MAX_PROCESSES` (6); inside a 16 GiB agent container `AGENT_MAX_STACKS
 is the honest setting. It never opens a socket and caps its `docker ps` call with
 a timeout, so a host that is merely offline or whose docker daemon is stuck still
 gets a verdict instead of hanging. What each metric means, why page cache is not
-charged against a cgroup, how to read the same numbers by hand and the measured
-before/after: `docs/source/development/agent-capacity.rst`. The admission rules
+charged against a cgroup, how to read the same numbers by hand, the measured
+before/after, and the operator runbook for the ceiling itself — raise the agent
+container's limit or move the docker daemon out of it, and what to measure either
+way (#1054): `docs/source/development/agent-capacity.rst`. The admission rules
 have offline checks — `python3 scripts/test_agent_capacity.py`, which needs
 neither docker nor the network.
 

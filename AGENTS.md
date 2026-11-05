@@ -207,18 +207,38 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
 #### Check host capacity before starting another stack
 
 Isolation keeps jobs from corrupting each other, but it does not make the host
-bigger. Before starting a new agent Compose stack — as a nightly runner deciding
-whether to launch one more job, or before any `docker compose up` in a fresh
-worktree — run `scripts/agent_capacity`. It is host-only Python with no network
-and no application dependency: it reports the 15-minute load per core,
-`MemAvailable`, free disk on `/` and the number of running `mrmap-agent-*`
-Compose stacks, prints a single verdict line and exits `0` when the host still
-fits a job or `1` when it is busy. The thresholds are environment overrides so a
-job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE`
-(default 1.5), `AGENT_MIN_MEM_GB` (16), `AGENT_MIN_DISK_GB` (100) and
-`AGENT_MAX_STACKS` (3). It never opens a socket and caps its `docker ps` call
-with a timeout, so a host that is merely offline or whose docker daemon is stuck
-still gets a verdict instead of hanging.
+bigger — and on an agent host the jobs do not own the machine either: the
+OpenCode session and the dockerd that starts its test stacks share one container
+cgroup, so the room that matters is the cgroup's, not the machine's. Before
+starting a new agent Compose stack — as a nightly runner deciding whether to
+launch one more job, or before any `docker compose up` in a fresh worktree — run
+`scripts/agent_capacity`. It is host-only Python with no network and no
+application dependency: it reports the 15-minute load per core, the **effective**
+memory (the smaller of `MemAvailable` and the headroom of this cgroup and every
+parent, counting what cannot be reclaimed), free disk on `/`, the running
+`mrmap-agent-*` stacks and agent processes and the memory pressure, prints a
+single verdict line and exits `0` when the job still fits or `1` when it does
+not. It refuses newcomers; it never pauses, renices or kills a running job.
+
+Ask for the class of work you are about to start: `scripts/agent_capacity`
+decides about a heavy Compose test stack (the default), `--need process` about
+one more agent worker without a stack, `--json` answers for a program, and
+`--stacks`/`--processes` pass counts a caller already keeps. The counts are
+prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
+and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
+job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE` (1.5),
+`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
+(16, the floor when no memory limit of this cgroup is visible),
+`AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
+`AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)
+and `AGENT_MAX_PROCESSES` (6); inside a 16 GiB agent container `AGENT_MAX_STACKS=1`
+is the honest setting. It never opens a socket and caps its `docker ps` call with
+a timeout, so a host that is merely offline or whose docker daemon is stuck still
+gets a verdict instead of hanging. What each metric means, why page cache is not
+charged against a cgroup, how to read the same numbers by hand and the measured
+before/after: `docs/source/development/agent-capacity.rst`. The admission rules
+have offline checks — `python3 scripts/test_agent_capacity.py`, which needs
+neither docker nor the network.
 
 ## Development guidelines
 

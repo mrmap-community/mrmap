@@ -31,7 +31,7 @@ that stopped the gate, so `explain` output reads as an instruction.
 from datetime import datetime, timedelta, timezone
 
 from . import gh
-from .config import REPORTED_ROLES
+from .config import REPORTED_ROLES, normalize_label
 
 # Reason codes, in the order the gate reaches them.
 CONFIG_INVALID = "config-invalid"
@@ -107,9 +107,9 @@ def parse_ts(value):
 
 
 def label_names(issue):
-    """Label names of an issue payload, compared case-insensitively because
-    GitHub treats label names case-insensitively when assigning them."""
-    return {(one.get("name") or "").strip().lower() for one in (issue.get("labels") or [])}
+    """Label names of an issue payload, folded for comparison the way GitHub
+    compares them (see config.normalize_label)."""
+    return {normalize_label(one.get("name")) for one in (issue.get("labels") or [])}
 
 
 def issue_of(repo, number):
@@ -162,14 +162,14 @@ def approval_events(repo, number, label):
     second one is evidence. Raises gh.GhError if any page is unreadable - a
     partial timeline is not evidence either.
     """
-    wanted = label.strip().lower()
+    wanted = normalize_label(label)
     events = gh.list_paginated(f"repos/{repo}/issues/{number}/timeline",
                                        {"per_page": gh.PER_PAGE})
     out = []
     for event in events:
         if event.get("event") not in ("labeled", "unlabeled"):
             continue
-        name = ((event.get("label") or {}).get("name") or "").strip().lower()
+        name = normalize_label((event.get("label") or {}).get("name"))
         if name != wanted:
             continue
         actor = event.get("actor") or {}
@@ -227,10 +227,10 @@ def decide(cfg, number, issue=None, now=None):
 
     names = label_names(issue)
     facts["labels"] = sorted(names)
-    if paused.strip().lower() in names:
+    if normalize_label(paused) in names:
         return Decision(number, False, PAUSED,
                         f"'{paused}' is set; a human suspended automated work here", facts)
-    if approved.strip().lower() not in names:
+    if normalize_label(approved) not in names:
         return Decision(number, False, NO_APPROVAL_LABEL,
                         f"'{approved}' is not on the issue; a human has to add it "
                         f"before any agent may work on it", facts)

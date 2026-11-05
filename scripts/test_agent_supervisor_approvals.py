@@ -175,7 +175,9 @@ def test_configuration():
     loose = os.path.join(TMP, "loose.json")
     with open(loose, "w") as f:
         json.dump({"repo": "o/r", "authorized_humans": ["human"]}, f)
-    os.chmod(loose, 0o644)
+    # Intentional: verify that the loader warns about world-readable configuration.
+    # This temporary fixture contains synthetic data, not credentials.
+    os.chmod(loose, 0o644)  # codeql[py/overly-permissive-file]
     loaded = config.load(loose)
     check("a world-readable config warns",
           any("chmod" in w for w in loaded.warnings), str(loaded.warnings))

@@ -8,12 +8,16 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
+  merge_group:
+    types: [checks_requested]
+    branches: [master]
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Keep speculative merge-group runs independent from PR and branch runs.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # pull_request (NOT pull_request_target): fork code runs with the default
@@ -28,7 +32,7 @@ env:
 
 jobs:
   backend-dev-build:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     name: backend-dev-build
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -129,7 +133,7 @@ jobs:
   # on the publish job. The fingerprint generation is not re-implemented
   # here - scripts/dev_image_id.py --image frontend is the single source.
   frontend-dev-build:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     name: frontend-dev-build
     runs-on: ubuntu-latest
     timeout-minutes: 30

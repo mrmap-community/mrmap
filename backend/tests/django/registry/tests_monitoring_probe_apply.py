@@ -21,16 +21,25 @@ from django.urls import Resolver404, resolve
 from django_celery_beat.models import CrontabSchedule
 from guardian.shortcuts import assign_perm
 from registry.enums.monitoring import ProbeOriginEnum
+from registry.helper.monitoring_generation import GENERATOR_VERSION
+from registry.helper.monitoring_generation_wfs import DEFAULT_MAX_FEATURES
 from registry.models.monitoring import (
-    GetCapabilitiesProbe, GetMapProbe, WebMapServiceMonitoringRun,
-    WebMapServiceMonitoringSetting)
-from registry.models.service import Layer, WebMapService
+    GetCapabilitiesProbe, GetMapProbe,
+    WebFeatureServiceDescribeFeatureTypeProbe,
+    WebFeatureServiceGetCapabilitiesProbe, WebFeatureServiceGetFeatureProbe,
+    WebFeatureServiceMonitoringRun, WebFeatureServiceMonitoringSetting,
+    WebMapServiceMonitoringRun, WebMapServiceMonitoringSetting)
+from registry.models.service import Layer, WebFeatureService, WebMapService
 from registry.ows_lib.client.core import OgcClient
 from rest_framework.renderers import JSONRenderer
 from rest_framework.test import APIClient
+from tests.django.registry.tests_monitoring_probe_generation_wfs import (
+    GML, VERSION_CODES, WFS as WFS_FEATURE_SERVICE,
+    capabilities as wfs_capabilities)
 from tests.django.utils import MockResponse
 
 WMS = 'cd16cc1f-3abb-4625-bb96-fbe80dbe23e3'
+WFS = '73cf78c9-6605-47fd-ac4f-1be59265df65'
 
 CAPABILITIES = """
     <WMS_Capabilities version="1.3.0" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -62,11 +71,15 @@ def capabilities():
 
 
 def probe_parameters(preview, probe_type, identifier=None):
-    """The full candidate of one preview probe, as the UI would submit it."""
+    """The full candidate of one preview probe, as the UI would submit it.
+
+    The target of a probe is named after the kind of the service it monitors:
+    a layer for a web map service, a feature type for a web feature service.
+    """
     for probe in preview['probes']:
         if probe['probeType'] != probe_type:
             continue
-        target = probe.get('targetLayer')
+        target = probe.get('targetLayer') or probe.get('targetFeatureType')
         if identifier is None and probe_type == 'GetCapabilities':
             return probe
         if target and target['identifier'] == identifier:
@@ -148,6 +161,14 @@ class MonitoringProbeApplyTestsMixin:
     fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
                 'test_wms.json', 'test_wfs_proxy.json']
 
+    #: The kind of service the tests apply for. The canonical route, the
+    #: models and the fixture are the only difference between the generated
+    #: service kinds, so a subclass for another kind overrides these.
+    route = 'wms'
+    service_model = WebMapService
+    setting_model = WebMapServiceMonitoringSetting
+    service_pk = WMS
+
     def setUp(self):
         self.media = TemporaryDirectory()
         self.addCleanup(self.media.cleanup)
@@ -159,11 +180,9 @@ class MonitoringProbeApplyTestsMixin:
         self.client = PlainJSONClient()
         self.client.force_authenticate(self.user)
         self.client.credentials(HTTP_ACCEPT='application/json')
-        self.wms = WebMapService.objects.get(pk=WMS)
-        self.wms.layers.update(is_active=True)
-        self.store()
-        self.setting = WebMapServiceMonitoringSetting.objects.create(
-            service=self.wms, enabled=False,
+        self.service = self.prepare_service()
+        self.setting = self.setting_model.objects.create(
+            service=self.service, enabled=False,
             crontab=CrontabSchedule.objects.create(minute="*/5", hour="*"))
         # persistence never contacts the service either
         self.send = patch(
@@ -172,17 +191,27 @@ class MonitoringProbeApplyTestsMixin:
         ).start()
         self.addCleanup(patch.stopall)
 
-    def store(self, document=None):
-        self.wms.xml_backup_file = SimpleUploadedFile(
+    def prepare_service(self):
+        """The fixture service with all targets active and its document."""
+        service = self.service_model.objects.get(pk=self.service_pk)
+        self.activate_targets(service)
+        self.store(service)
+        return service
+
+    def activate_targets(self, service):
+        """Bring the probeable resources of the service to a known state."""
+        service.layers.update(is_active=True)
+
+    def store(self, service, document=None):
+        service.xml_backup_file = SimpleUploadedFile(
             'probes.xml', document or capabilities())
-        self.wms.save()
+        service.save()
 
-    def url(self):
-        return f'/api/registry/wms/{self.wms.pk}/monitoring-probes'
+    def url(self, action='monitoring-probes'):
+        return f'/api/registry/{self.route}/{self.service.pk}/{action}'
 
-    def preview(self):
-        response = self.client.get(
-            f'/api/registry/wms/{self.wms.pk}/monitoring-probe-preview')
+    def preview(self, **params):
+        response = self.client.get(self.url('monitoring-probe-preview'), params)
         self.assertEqual(response.status_code, 200, response.content)
         return response.json()
 
@@ -220,7 +249,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
         result = report.json()
         self.assertEqual(result['summary'], {
             'created': 3, 'updated': 0, 'unchanged': 0, 'preserved': 0})
-        self.assertEqual(result['generatorVersion'], '1.0.0')
+        self.assertEqual(result['generatorVersion'], GENERATOR_VERSION)
         self.send.assert_not_called()
 
         generated = GetMapProbe.objects.filter(
@@ -230,7 +259,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
             GetCapabilitiesProbe.objects.filter(
                 origin=ProbeOriginEnum.GENERATED).count(), 1)
         probe = generated.select_related('reference_system', 'format').first()
-        self.assertEqual(probe.generator_version, '1.0.0')
+        self.assertEqual(probe.generator_version, GENERATOR_VERSION)
         self.assertEqual(probe.generator_preset, 'standard')
         self.assertEqual(len(probe.generator_identity), 20)
         self.assertEqual(probe.timeout, 30)
@@ -347,7 +376,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
         stale = next(c for c in candidates if c['probeType'] == 'GetMap'
                      and c['targetLayer']['identifier'] == 'node1.1.3')
         # the capabilities change after the preview was fetched
-        self.store(document=capabilities().replace(
+        self.store(self.service, document=capabilities().replace(
             b'<Layer><Name>node1.1.3</Name></Layer>', b''))
 
         response = self.client.post(
@@ -560,7 +589,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
 
     def test_user_without_write_permission_is_rejected(self):
         user = get_user_model().objects.create_user(username='no-apply')
-        assign_perm('view_webmapservice', user, self.wms)
+        assign_perm('view_webmapservice', user, self.service)
         self.client.force_authenticate(user)
 
         response = self.client.post(
@@ -594,7 +623,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
             *user.user_permissions.model.objects.filter(
                 codename__in=['change_webmapservice'],
                 content_type__app_label='registry'))
-        assign_perm('change_webmapservice', user, self.wms)
+        assign_perm('change_webmapservice', user, self.service)
         self.client.force_authenticate(user)
 
         response = self.client.post(self.url(), body, format='json')
@@ -609,7 +638,7 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
             *user.user_permissions.model.objects.filter(
                 codename__in=['change_webmapservice'],
                 content_type__app_label='registry'))
-        assign_perm('change_webmapservice', user, self.wms)
+        assign_perm('change_webmapservice', user, self.service)
         assign_perm('change_webmapservicemonitoringsetting', user, self.setting)
         self.client.force_authenticate(user)
 
@@ -635,31 +664,42 @@ class MonitoringProbeApplyApiTests(MonitoringProbeApplyTestsMixin, TestCase):
 
     # --- routing and schema ---------------------------------------------------------
 
-    def test_only_the_canonical_wms_route_offers_the_apply(self):
-        for url in (f'/api/registry/wfs/{WMS}/monitoring-probes',
-                    f'/api/registry/csw/{WMS}/monitoring-probes',
+    def test_only_the_canonical_service_routes_offer_the_apply(self):
+        # the apply persists on the canonical route of the service kind, for
+        # both generated kinds...
+        for url, view_name in (
+                (f'/api/registry/wms/{WMS}/monitoring-probes',
+                 'registry:wms-monitoring-probes'),
+                (f'/api/registry/wfs/{WFS}/monitoring-probes',
+                 'registry:wfs-monitoring-probes')):
+            with self.subTest(url=url):
+                self.assertEqual(resolve(url).view_name, view_name)
+
+        # ... and never on another kind or on a nested relationship route
+        for url in (f'/api/registry/csw/{WMS}/monitoring-probes',
                     '/api/registry/service-metadata/wms/'
                     f'{WMS}/monitoring-probes'):
-            with self.subTest(url=url):
-                try:
-                    match = resolve(url)
-                except Resolver404:
-                    continue
-                # a resolvable nested route must not expose the action
-                self.fail(f"{url} unexpectedly resolves to {match.view_name}")
+            with self.subTest(url=url), self.assertRaises(Resolver404):
+                resolve(url)
 
-    def test_the_schema_describes_the_apply_endpoint(self):
+    def test_the_schema_describes_the_apply_endpoints(self):
         from drf_spectacular.generators import SchemaGenerator
 
-        # the full schema: exactly one POST under the canonical WMS route,
-        # which also proves the nested viewsets do not expose the action
+        # the full schema: exactly one POST under each canonical route, which
+        # also proves the nested viewsets do not expose the action
         schema = SchemaGenerator().get_schema(public=True)
-        paths = [url for url in schema['paths']
-                 if url.endswith('/wms/{id}/monitoring-probes')]
+        paths = sorted(url for url in schema['paths']
+                       if url.endswith('/monitoring-probes')
+                       and '/{id}/' in url)
 
-        self.assertEqual(len(paths), 1, schema['paths'].keys())
-        self.assertIn('post', schema['paths'][paths[0]])
-        self.assertIn('requestBody', schema['paths'][paths[0]]['post'])
+        self.assertEqual(
+            paths,
+            ['/api/registry/wfs/{id}/monitoring-probes',
+             '/api/registry/wms/{id}/monitoring-probes'],
+            schema['paths'].keys())
+        for url in paths:
+            self.assertIn('post', schema['paths'][url])
+            self.assertIn('requestBody', schema['paths'][url]['post'])
 
 
 class MonitoringProbeApplyConcurrencyTests(MonitoringProbeApplyTestsMixin,
@@ -804,3 +844,395 @@ class MonitoringRunDispatchBoundTests(SimpleTestCase):
         self.assertIs(mocked_chain.call_args.args[0],
                       mocked_group.return_value)
         mocked_chain.return_value.apply_async.assert_called_once_with()
+
+
+class MonitoringWfsProbeApplyTestsMixin(MonitoringProbeApplyTestsMixin):
+    """The apply of a web feature service.
+
+    The contract is the one the WMS tests of this module state — revalidate,
+    persist atomically, stay idempotent, never touch manual probes — only the
+    service kind, its canonical route and its probe tables differ.
+    """
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
+                'test_wfs.json']
+
+    route = 'wfs'
+    service_model = WebFeatureService
+    setting_model = WebFeatureServiceMonitoringSetting
+    service_pk = WFS_FEATURE_SERVICE
+
+    def activate_targets(self, service):
+        service.featuretypes.update(is_active=True)
+
+    def store(self, service, document=None, version='2.0.0', **kwargs):
+        # the stored version is part of the honest version matrix: the
+        # generator only reads a document whose version the registry believes
+        service.version = VERSION_CODES[version]
+        service.xml_backup_file = SimpleUploadedFile(
+            'probes.xml',
+            document or wfs_capabilities(version=version, **kwargs))
+        service.save()
+
+    def default_candidates(self, preview=None):
+        preview = preview or self.preview()
+        return [probe_parameters(preview, 'GetCapabilities'),
+                probe_parameters(preview, 'GetFeature', 'node2'),
+                probe_parameters(preview, 'GetFeature', 'node3')]
+
+
+class MonitoringWfsProbeApplyApiTests(MonitoringWfsProbeApplyTestsMixin,
+                                      TestCase):
+    """Generated WFS probes land in the WFS probe tables, with provenance."""
+
+    def test_apply_persists_the_generated_probes_with_provenance(self):
+        report = self.client.post(
+            self.url(), self.payload(*self.default_candidates()),
+            format='json')
+
+        self.assertEqual(report.status_code, 200, report.content)
+        self.assertEqual(report['Cache-Control'], 'no-store')
+        self.assertEqual(report.json()['summary'], {
+            'created': 3, 'updated': 0, 'unchanged': 0, 'preserved': 0})
+        self.send.assert_not_called()
+
+        generated = WebFeatureServiceGetFeatureProbe.objects.filter(
+            origin=ProbeOriginEnum.GENERATED)
+        self.assertEqual(generated.count(), 2)
+        self.assertEqual(
+            WebFeatureServiceGetCapabilitiesProbe.objects.filter(
+                origin=ProbeOriginEnum.GENERATED).count(), 1)
+        probe = generated.select_related(
+            'reference_system', 'output_format').first()
+        self.assertEqual(probe.generator_version, GENERATOR_VERSION)
+        self.assertEqual(probe.generator_preset, 'standard')
+        self.assertEqual(len(probe.generator_identity), 20)
+        # the bounded request the generator proposed is the stored probe
+        self.assertEqual(probe.max_features, DEFAULT_MAX_FEATURES)
+        self.assertEqual(str(probe.output_format), GML)
+        self.assertEqual(str(probe.reference_system), 'EPSG:4326')
+        self.assertEqual(probe.feature_types.count(), 1)
+        # an empty bounded response is healthy unless the operator says otherwise
+        self.assertFalse(probe.check_response_contains_features)
+        self.assertTrue(probe.check_response_feature_collection)
+        self.assertEqual(
+            set(WebFeatureServiceGetFeatureProbe.objects.values_list(
+                'setting_id', flat=True)),
+            {self.setting.pk})
+
+    def test_repeated_apply_never_duplicates(self):
+        candidates = self.default_candidates()
+        first = self.client.post(self.url(), self.payload(*candidates),
+                                 format='json').json()
+        second = self.client.post(self.url(), self.payload(*candidates),
+                                  format='json')
+
+        self.assertEqual(second.status_code, 200, second.content)
+        self.assertEqual(second.json()['summary'], {
+            'created': 0, 'updated': 0, 'unchanged': 3, 'preserved': 0})
+        self.assertEqual(first['summary']['created'], 3)
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 2)
+        self.assertEqual(
+            WebFeatureServiceGetCapabilitiesProbe.objects.count(), 1)
+
+    def test_every_probe_type_keeps_its_own_identity(self):
+        # GetFeature and DescribeFeatureType of ONE feature type are two rows
+        # in two tables: the identity the database pins is per probe type
+        preview = self.preview(preset='comprehensive')
+        candidates = [probe_parameters(preview, 'GetFeature', 'node2'),
+                      probe_parameters(preview, 'DescribeFeatureType', 'node2')]
+        response = self.client.post(
+            self.url(), self.payload(*candidates, preset='comprehensive'),
+            format='json')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        get_feature = WebFeatureServiceGetFeatureProbe.objects.get()
+        describe = WebFeatureServiceDescribeFeatureTypeProbe.objects.get()
+        self.assertNotEqual(get_feature.generator_identity,
+                            describe.generator_identity)
+        self.assertEqual(get_feature.generator_preset, 'comprehensive')
+        self.assertEqual(describe.generator_preset, 'comprehensive')
+        self.assertEqual(str(describe.output_format), GML)
+        self.assertEqual(describe.feature_types.get().identifier, 'node2')
+
+        # the identity keys on the target only: the same feature type under
+        # the standard preset is the same generated probe
+        again = self.client.post(
+            self.url(),
+            self.payload(probe_parameters(self.preview(), 'GetFeature',
+                                          'node2'),
+                         preset='standard'),
+            format='json').json()
+
+        self.assertEqual(again['summary']['unchanged'], 1)
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 1)
+        self.assertEqual(
+            WebFeatureServiceGetFeatureProbe.objects.get().generator_preset,
+            'standard')
+        # the comprehensive counterpart of the same target stays untouched
+        self.assertEqual(
+            WebFeatureServiceDescribeFeatureTypeProbe.objects.count(), 1)
+
+    def test_manual_probes_are_never_touched(self):
+        manual = WebFeatureServiceGetFeatureProbe.objects.create(
+            setting=self.setting, timeout=99, max_features=1)
+
+        response = self.client.post(
+            self.url(),
+            self.payload(*self.default_candidates(), confirmReplace=True),
+            format='json')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        manual.refresh_from_db()
+        self.assertEqual(manual.timeout, 99)
+        self.assertEqual(manual.origin, ProbeOriginEnum.MANUAL)
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 3)
+        self.assertEqual(
+            WebFeatureServiceGetFeatureProbe.objects.filter(
+                origin=ProbeOriginEnum.GENERATED).count(), 2)
+
+    # --- revalidation against the current capabilities -------------------------
+
+    def test_a_candidate_the_capabilities_do_not_advertise_anymore_is_stale(self):
+        candidates = self.default_candidates()
+        stale = next(
+            candidate for candidate in candidates
+            if (candidate.get('targetFeatureType') or {}).get(
+                'identifier') == 'node3')
+        # the capabilities change after the preview was fetched
+        self.store(self.service, feature_types=['node2', 'node4'])
+
+        response = self.client.post(
+            self.url(), self.payload(*candidates), format='json')
+
+        self.assertEqual(response.status_code, 409, response.content)
+        body = response.json()
+        self.assertEqual(body['error'], 'stalePreview')
+        self.assertEqual(body['candidates'], [stale['candidateId']])
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 0)
+
+    def test_a_deactivated_feature_type_refuses_its_candidate(self):
+        candidates = self.default_candidates()
+        self.service.featuretypes.filter(identifier='node2').update(
+            is_active=False)
+
+        response = self.client.post(
+            self.url(), self.payload(*candidates), format='json')
+
+        self.assertEqual(response.status_code, 409, response.content)
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 0)
+
+    def test_a_comprehensive_candidate_without_the_operation_is_stale(self):
+        # the operation vanished from the capabilities between preview and
+        # apply: the describe probe can not be executed and is refused
+        candidate = probe_parameters(
+            self.preview(preset='comprehensive'), 'DescribeFeatureType',
+            'node2')
+        self.store(self.service, describe=False)
+
+        response = self.client.post(
+            self.url(), self.payload(candidate, preset='comprehensive'),
+            format='json')
+
+        self.assertEqual(response.status_code, 409, response.content)
+        self.assertEqual(response.json()['error'], 'stalePreview')
+        self.assertEqual(
+            WebFeatureServiceDescribeFeatureTypeProbe.objects.count(), 0)
+
+    def test_a_probe_type_of_the_other_service_kind_is_refused(self):
+        # a GetMap candidate is a web map service operation, never a probe of
+        # a web feature service — even with a well formed candidate id
+        candidate = {'candidateId': 'a' * 20, 'probeType': 'GetMap',
+                     'parameters': {'layers': ['node2']}}
+
+        response = self.client.post(
+            self.url(), self.payload(candidate), format='json')
+
+        self.assertEqual(response.status_code, 400, response.content)
+        body = response.json()
+        self.assertEqual(body['error'], 'probeType')
+        self.assertEqual(body['probeTypes'], ['GetMap'])
+        self.assertEqual(WebFeatureServiceGetFeatureProbe.objects.count(), 0)
+
+    def test_max_features_may_be_lowered_but_not_raised_over_the_bound(self):
+        candidate = probe_parameters(self.preview(), 'GetFeature', 'node2')
+
+        lowered = dict(candidate['parameters'], maxFeatures=3)
+        response = self.client.post(
+            self.url(), self.payload(dict(candidate, **{'parameters': lowered})),
+            format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            WebFeatureServiceGetFeatureProbe.objects.get().max_features, 3)
+
+        WebFeatureServiceGetFeatureProbe.objects.update(
+            origin=ProbeOriginEnum.MANUAL, generator_identity=None)
+        raised = self.client.post(
+            self.url(),
+            self.payload(dict(candidate, parameters=dict(
+                candidate['parameters'],
+                maxFeatures=candidate['supported']['maxFeatures'] + 1))),
+            format='json')
+
+        self.assertEqual(raised.status_code, 400, raised.content)
+        self.assertEqual(raised.json()['error'], 'parameters')
+
+
+class MonitoringWfsProbeRunnerIntegrationTests(
+        MonitoringWfsProbeApplyTestsMixin, TransactionTestCase):
+    """The generated WFS probes run through the current runner and their
+    results appear in the current run endpoints."""
+
+    #: a bounded GML response with one feature
+    FEATURE_COLLECTION = """
+        <wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            xmlns:gml="http://www.opengis.net/gml/3.2"
+            numberMatched="1" numberReturned="1">
+            <wfs:member>
+                <ex:node2 xmlns:ex="https://registered.example/feature">
+                    <ex:name>one</ex:name>
+                </ex:node2>
+            </wfs:member>
+        </wfs:FeatureCollection>"""
+
+    #: the same answer, well formed but without any feature
+    EMPTY_FEATURE_COLLECTION = """
+        <wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            numberMatched="0" numberReturned="0">
+        </wfs:FeatureCollection>"""
+
+    #: the schema a DescribeFeatureType answers for a feature type
+    SCHEMA = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="https://registered.example/feature"
+            elementFormDefault="qualified">
+            <xs:element name="node2" type="xs:string"/>
+        </xs:schema>"""
+
+    def setUp(self):
+        super().setUp()
+        # the response of the GetFeature probes, replaceable per test
+        self.feature_collection = self.FEATURE_COLLECTION
+
+    def _side_effect(self, request, timeout):
+        from pathlib import Path
+
+        test_data = Path(__file__).resolve().parent.parent / 'test_data'
+        if 'GetCapabilities' in request.url:
+            return MockResponse(
+                url=request.url, status_code=200,
+                content=test_data / 'dwd_wfs_2_0_0.xml')
+        if 'DescribeFeatureType' in request.url:
+            return MockResponse(url=request.url, status_code=200,
+                                content=self.SCHEMA)
+        return MockResponse(url=request.url, status_code=200,
+                            content=self.feature_collection)
+
+    def _eager_runner(func):
+        """The celery hand-off of a monitoring run, executed inline."""
+        func = override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                                 CELERY_TASK_ALWAYS_EAGER=True,
+                                 BROKER_BACKEND='memory')(func)
+        return patch('django.db.transaction.on_commit',
+                     side_effect=lambda f: f())(func)
+
+    def _apply(self, *candidates, **overrides):
+        response = self.client.post(
+            self.url(), self.payload(*candidates, **overrides), format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        # the run itself is allowed to send (mocked)
+        self.send.stop()
+
+    @_eager_runner
+    @patch.object(target=OgcClient, attribute='send_request')
+    def test_generated_probes_execute_in_a_monitoring_run(self, mocked_send,
+                                                          _mocked_on_commit):
+        mocked_send.side_effect = self._side_effect
+        preview = self.preview(preset='comprehensive')
+        self._apply(
+            probe_parameters(preview, 'GetCapabilities'),
+            probe_parameters(preview, 'GetFeature', 'node2'),
+            probe_parameters(preview, 'DescribeFeatureType', 'node2'),
+            preset='comprehensive')
+
+        run = WebFeatureServiceMonitoringRun.objects.create(
+            setting=self.setting)
+
+        self.assertEqual(
+            run.registry_webfeatureservicegetcapabilitiesproberesults.count(),
+            1)
+        self.assertEqual(
+            run.registry_webfeatureservicegetfeatureproberesults.count(), 1)
+        self.assertEqual(
+            run.registry_webfeatureservicedescribefeaturetypeproberesults
+            .count(), 1)
+        self.assertEqual(mocked_send.call_count, 3)
+
+        feature_result = run.registry_webfeatureservicegetfeatureproberesults\
+            .get()
+        self.assertTrue(feature_result.check_response_feature_collection_success)  # noqa
+        self.assertTrue(
+            run.registry_webfeatureservicedescribefeaturetypeproberesults
+            .get().check_response_is_valid_xml_success)
+        self.assertTrue(
+            WebFeatureServiceMonitoringRun.objects.with_is_successful()
+            .get(pk=run.pk).success)
+
+        # the results are answered by the current run endpoint
+        self.client.credentials(HTTP_ACCEPT='application/vnd.api+json')
+        detail = self.client.get(
+            f'/api/registry/monitoring/wfs-monitoring-runs/{run.pk}')
+        self.assertEqual(detail.status_code, 200, detail.content)
+        relationships = detail.json()['data']['relationships']
+        self.assertEqual(
+            len(relationships['getFeatureProbeResults']['data']), 1)
+        self.assertEqual(
+            len(relationships['describeFeatureTypeProbeResults']['data']), 1)
+
+    @_eager_runner
+    @patch.object(target=OgcClient, attribute='send_request')
+    def test_a_valid_empty_response_is_a_successful_probe(self, mocked_send,
+                                                          _mocked_on_commit):
+        # the acceptance criterion: a bounded response which is well formed but
+        # holds no feature is a healthy service, unless the operator expects
+        # content — see the follow-up test
+        mocked_send.side_effect = self._side_effect
+        self.feature_collection = self.EMPTY_FEATURE_COLLECTION
+        preview = self.preview()
+        self._apply(
+            probe_parameters(preview, 'GetCapabilities'),
+            probe_parameters(preview, 'GetFeature', 'node2'))
+
+        run = WebFeatureServiceMonitoringRun.objects.create(
+            setting=self.setting)
+        result = run.registry_webfeatureservicegetfeatureproberesults.get()
+
+        self.assertTrue(result.check_response_feature_collection_success)
+        self.assertIn('0 features',
+                      result.check_response_feature_collection_message)
+        self.assertTrue(
+            WebFeatureServiceMonitoringRun.objects.with_is_successful()
+            .get(pk=run.pk).success)
+
+    @_eager_runner
+    @patch.object(target=OgcClient, attribute='send_request')
+    def test_a_configured_content_expectation_fails_an_empty_response(
+            self, mocked_send, _mocked_on_commit):
+        mocked_send.side_effect = self._side_effect
+        self.feature_collection = self.EMPTY_FEATURE_COLLECTION
+        preview = self.preview()
+        self._apply(
+            probe_parameters(preview, 'GetFeature', 'node2'))
+        WebFeatureServiceGetFeatureProbe.objects.update(
+            check_response_contains_features=True)
+
+        run = WebFeatureServiceMonitoringRun.objects.create(
+            setting=self.setting)
+        result = run.registry_webfeatureservicegetfeatureproberesults.get()
+
+        self.assertFalse(result.check_response_feature_collection_success)
+        self.assertIn('empty FeatureCollection',
+                      result.check_response_feature_collection_message)
+        self.assertFalse(
+            WebFeatureServiceMonitoringRun.objects.with_is_successful()
+            .get(pk=run.pk).success)

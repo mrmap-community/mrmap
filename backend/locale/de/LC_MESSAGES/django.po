@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 00:30+0100\n"
+"POT-Creation-Date: 2026-11-05 10:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -314,7 +314,7 @@ msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:69
 #: registry/models/harvest.py:127 registry/models/harvest.py:1310
-#: registry/models/monitoring.py:109 registry/models/monitoring.py:339
+#: registry/models/monitoring.py:109 registry/models/monitoring.py:351
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
@@ -323,7 +323,7 @@ msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
 #: notify/models.py:40 registry/models/harvest.py:74
-#: registry/models/monitoring.py:344
+#: registry/models/monitoring.py:356
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
@@ -382,7 +382,7 @@ msgid "Description"
 msgstr "Beschreibung"
 
 #: notify/models.py:171 registry/models/harvest.py:1311
-#: registry/models/monitoring.py:340
+#: registry/models/monitoring.py:352
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
@@ -803,7 +803,7 @@ msgid "the service targeted by this check"
 msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:152 registry/models/metadata.py:581
-#: registry/models/service.py:720
+#: registry/models/service.py:720 registry/serializers/monitoring.py:125
 msgid "layer"
 msgstr "Ebene:"
 
@@ -957,7 +957,7 @@ msgstr ""
 
 #: registry/models/harvest.py:1342 registry/models/metadata.py:611
 #: registry/models/monitoring.py:89 registry/models/service.py:382
-#: registry/models/update.py:183 registry/serializers/monitoring.py:494
+#: registry/models/update.py:183 registry/serializers/monitoring.py:703
 #: registry/serializers/service.py:986 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
@@ -1210,7 +1210,7 @@ msgstr "Der Inhalt der heruntergeladenen URL."
 
 #: registry/models/metadata.py:571 registry/models/monitoring.py:65
 #: registry/models/security.py:150 registry/models/service.py:248
-#: registry/models/update.py:97 registry/serializers/monitoring.py:128
+#: registry/models/update.py:97 registry/serializers/monitoring.py:191
 #: registry/serializers/service.py:59 registry/serializers/service.py:90
 #: registry/serializers/update.py:64
 msgid "web map service"
@@ -1229,7 +1229,7 @@ msgstr ""
 #: registry/models/metadata.py:591 registry/models/monitoring.py:77
 #: registry/models/security.py:165 registry/models/security.py:180
 #: registry/models/service.py:340 registry/models/update.py:140
-#: registry/serializers/monitoring.py:273 registry/serializers/service.py:653
+#: registry/serializers/monitoring.py:378 registry/serializers/service.py:653
 #: registry/serializers/update.py:82
 msgid "web feature service"
 msgstr "Ihre registrierten Web Feature Services"
@@ -1277,7 +1277,7 @@ msgid ""
 msgstr "Gefundener Dateienidentifikator"
 
 #: registry/models/metadata.py:672 registry/models/metadata.py:882
-#: registry/models/monitoring.py:520
+#: registry/models/monitoring.py:560
 msgid "origin"
 msgstr "Herkunft"
 
@@ -1463,7 +1463,7 @@ msgid "all time extents which are available for this metadata record."
 msgstr "alle Zeitbereiche, die für diesen Metadatensatz verfügbar sind."
 
 #: registry/models/metadata.py:1177 registry/models/service.py:721
-#: registry/serializers/monitoring.py:74
+#: registry/serializers/monitoring.py:78
 msgid "layers"
 msgstr "Ebenen"
 
@@ -1475,7 +1475,8 @@ msgstr ""
 "sind."
 
 #: registry/models/metadata.py:1187 registry/models/service.py:978
-#: registry/serializers/monitoring.py:394
+#: registry/serializers/monitoring.py:515
+#: registry/serializers/monitoring.py:574
 msgid "feature types"
 msgstr "Merkmalstypen"
 
@@ -1574,48 +1575,48 @@ msgstr "Der Zeitpunkt des Abschlusses des Laufs in UTC"
 msgid "the background process which reports this run"
 msgstr "der Hintergrundprozess, der diesen Lauf meldet"
 
-#: registry/models/monitoring.py:317
+#: registry/models/monitoring.py:329
 msgid "HTTP status code"
 msgstr "Gesundheitszustand"
 
-#: registry/models/monitoring.py:318
+#: registry/models/monitoring.py:330
 msgid "The http status code of the response"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
-#: registry/models/monitoring.py:322
+#: registry/models/monitoring.py:334
 msgid "monitored uri"
 msgstr "Überwachte Ressource"
 
-#: registry/models/monitoring.py:323
+#: registry/models/monitoring.py:335
 msgid "This is the url which was monitored"
 msgstr "Die url die überwacht wurde"
 
-#: registry/models/monitoring.py:328
+#: registry/models/monitoring.py:340
 msgid "request duration"
 msgstr "Organisation entfernen"
 
-#: registry/models/monitoring.py:329
+#: registry/models/monitoring.py:341
 msgid "elapsed time of the request"
 msgstr "Gesundheitszustand der Ressource"
 
-#: registry/models/monitoring.py:345
+#: registry/models/monitoring.py:357
 msgid "Datetime field when the task was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses der Aufgabe in UTC"
 
-#: registry/models/monitoring.py:388 registry/models/monitoring.py:424
-#: registry/models/monitoring.py:457
+#: registry/models/monitoring.py:400 registry/models/monitoring.py:449
+#: registry/models/monitoring.py:497
 msgid "Run"
 msgstr "Lauf"
 
-#: registry/models/monitoring.py:511
+#: registry/models/monitoring.py:551
 msgid "Check response does not contain"
 msgstr "Antwort enthält nicht"
 
-#: registry/models/monitoring.py:513
+#: registry/models/monitoring.py:553
 msgid "comma seperated search strings like: ExceptionReport>,ServiceException>"
 msgstr "kommagetrennte Suchbegriffe wie: ExceptionReport>,ServiceException>"
 
-#: registry/models/monitoring.py:522
+#: registry/models/monitoring.py:562
 msgid ""
 "manual for probes created by hand or taken over by the upgrade, generated "
 "for probes which an apply of a probe preview persisted"
@@ -1624,28 +1625,28 @@ msgstr ""
 "Überprüfungen, generiert bei Überprüfungen, die ein Anwenden einer "
 "Sondenvorschau gespeichert hat"
 
-#: registry/models/monitoring.py:530
+#: registry/models/monitoring.py:570
 msgid "generator version"
 msgstr "Version des Generators"
 
-#: registry/models/monitoring.py:532
+#: registry/models/monitoring.py:572
 msgid "the version of the probe generator which proposed this probe"
 msgstr "die Version des Generators, der diese Überprüfung vorgeschlagen hat"
 
-#: registry/models/monitoring.py:539
+#: registry/models/monitoring.py:579
 msgid "generator preset"
 msgstr "Vorgabe des Generators"
 
-#: registry/models/monitoring.py:541
+#: registry/models/monitoring.py:581
 msgid "the preset of the probe generation which proposed this probe"
 msgstr ""
 "die Vorgabe der Probenerzeugung, die diese Überprüfung vorgeschlagen hat"
 
-#: registry/models/monitoring.py:548
+#: registry/models/monitoring.py:588
 msgid "generator identity"
 msgstr "Identität des Generators"
 
-#: registry/models/monitoring.py:550
+#: registry/models/monitoring.py:590
 msgid ""
 "stable identity of the generated probe, derived from the service and the "
 "identifiers of its target elements; unique among the generated probes of a "
@@ -1655,74 +1656,172 @@ msgstr ""
 "den Bezeichnern ihrer Zielelemente; eindeutig unter den generierten "
 "Überprüfungen einer Art"
 
-#: registry/models/monitoring.py:659 registry/models/monitoring.py:817
-#: registry/models/monitoring.py:898
+#: registry/models/monitoring.py:703 registry/models/monitoring.py:879
+#: registry/models/monitoring.py:1076 registry/models/monitoring.py:1356
 msgid "Check response does contain"
 msgstr "Antwort enthält"
 
-#: registry/models/monitoring.py:660
+#: registry/models/monitoring.py:704
 msgid "comma seperated search strings like: Title>,Abstract>"
 msgstr "kommagetrennte Suchbegriffe wie: Title>,Abstract>"
 
-#: registry/models/monitoring.py:686 registry/models/monitoring.py:780
-#: registry/models/monitoring.py:849
+#: registry/models/monitoring.py:730 registry/models/monitoring.py:824
+#: registry/models/monitoring.py:1307
 msgid "Setting"
 msgstr "Einstellung"
 
-#: registry/models/monitoring.py:687 registry/models/monitoring.py:781
-#: registry/models/monitoring.py:850
+#: registry/models/monitoring.py:731 registry/models/monitoring.py:825
+#: registry/models/monitoring.py:1308
 msgid "The related setting object"
 msgstr "Das zugehörige Einstellungsobjekt"
 
-#: registry/models/monitoring.py:718 registry/models/service.py:532
+#: registry/models/monitoring.py:762 registry/models/service.py:532
 msgid "bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: registry/models/monitoring.py:800
+#: registry/models/monitoring.py:850
 msgid "max features"
 msgstr "maximale Anzahl an Features"
 
-#: registry/models/monitoring.py:802
+#: registry/models/monitoring.py:852
 msgid "the maximum number of features the request shall return"
 msgstr "die maximale Anzahl an Features, die die Anfrage zurückgeben soll"
 
-#: registry/models/monitoring.py:818
+#: registry/models/monitoring.py:866 registry/models/monitoring.py:1063
+msgid "Output format"
+msgstr "Ausgabeformat"
+
+#: registry/models/monitoring.py:868
+msgid ""
+"The requested response format. Checks which depend on the response format "
+"are only performed for a matching format."
+msgstr ""
+
+#: registry/models/monitoring.py:880
 msgid "comma seperated search strings like: FeatureCollection"
 msgstr "kommagetrennte Suchbegriffe wie: FeatureCollection"
 
-#: registry/models/monitoring.py:869
+#: registry/models/monitoring.py:885
+msgid "Check response feature collection"
+msgstr "Antwort ist Feature-Sammlung"
+
+#: registry/models/monitoring.py:887
+msgid ""
+"Check that the response is a feature collection in the configured response "
+"format."
+msgstr ""
+
+#: registry/models/monitoring.py:894
+msgid "Check response contains features"
+msgstr "Antwort enthält Merkmale"
+
+#: registry/models/monitoring.py:896
+msgid ""
+"Expect the bounded response to contain at least one feature. Without this, a "
+"valid but empty feature collection is reported as a successful monitoring."
+msgstr ""
+
+#: registry/models/monitoring.py:1065
+msgid "The requested response format of the describe feature type operation"
+msgstr "das angefragte Antwortformat der DescribeFeatureType-Operation"
+
+#: registry/models/monitoring.py:1077
+msgid "comma seperated search strings like: schema"
+msgstr "kommagetrennte Suchbegriffe wie: schema"
+
+#: registry/models/monitoring.py:1127
+msgid "Layer"
+msgstr "Ebene"
+
+#: registry/models/monitoring.py:1128
+msgid "The layer the feature info request shall ask about"
+msgstr "die Ebene, nach der die GetFeatureInfo-Anfrage fragt"
+
+#: registry/models/monitoring.py:1136
+msgid "Info format"
+msgstr "Infoformat"
+
+#: registry/models/monitoring.py:1138
+msgid "The requested information format of the get feature info request"
+msgstr "das angefragte Informationsformat der GetFeatureInfo-Anfrage"
+
+#: registry/models/monitoring.py:1145
+msgid "i"
+msgstr "i"
+
+#: registry/models/monitoring.py:1147
+msgid "the i position of the pixel which shall be asked about"
+msgstr "die i-Position des Pixels, nach dem gefragt werden soll"
+
+#: registry/models/monitoring.py:1151
+msgid "j"
+msgstr "j"
+
+#: registry/models/monitoring.py:1153
+msgid "the j position of the pixel which shall be asked about"
+msgstr "die j-Position des Pixels, nach dem gefragt werden soll"
+
+#: registry/models/monitoring.py:1157
+msgid "feature count"
+msgstr "Anzahl Merkmale"
+
+#: registry/models/monitoring.py:1159
+msgid "the maximum number of features the feature info response should contain"
+msgstr "die maximale Anzahl an Merkmalen, die die Antwort enthalten soll"
+
+#: registry/models/monitoring.py:1164
+msgid "Check response format"
+msgstr "Antwortformat"
+
+#: registry/models/monitoring.py:1166
+msgid ""
+"Check that the response matches the requested info format. XML responses are "
+"additionally checked for validity."
+msgstr ""
+
+#: registry/models/monitoring.py:1175
+msgid "Skip reasons"
+msgstr "Gründe zum Überspringen"
+
+#: registry/models/monitoring.py:1177
+msgid ""
+"Technical reasons why this comprehensive probe was not executed. Empty if "
+"the probe was executed."
+msgstr ""
+
+#: registry/models/monitoring.py:1327
 msgid "type names"
 msgstr "Typnamen"
 
-#: registry/models/monitoring.py:871
+#: registry/models/monitoring.py:1329
 msgid "the type names of the records which shall be requested"
 msgstr "die Typnamen der Datensätze, die angefragt werden sollen"
 
-#: registry/models/monitoring.py:876
+#: registry/models/monitoring.py:1334
 msgid "result type"
 msgstr "Ergebnistyp"
 
-#: registry/models/monitoring.py:877
+#: registry/models/monitoring.py:1335
 msgid "the result type of the get records request"
 msgstr "der Ergebnistyp der GetRecords-Anfrage"
 
-#: registry/models/monitoring.py:882
+#: registry/models/monitoring.py:1340
 msgid "element set name"
 msgstr "Name des Elementsatzes"
 
-#: registry/models/monitoring.py:884
+#: registry/models/monitoring.py:1342
 msgid "the element set name of the records which shall be returned"
 msgstr "der Name des Elementsatzes der zurückzugebenden Datensätze"
 
-#: registry/models/monitoring.py:888
+#: registry/models/monitoring.py:1346
 msgid "max records"
 msgstr "maximale Anzahl an Datensätzen"
 
-#: registry/models/monitoring.py:890
+#: registry/models/monitoring.py:1348
 msgid "the maximum number of records the request shall return"
 msgstr "die maximale Anzahl an Datensätzen, die die Anfrage zurückgeben soll"
 
-#: registry/models/monitoring.py:899
+#: registry/models/monitoring.py:1357
 msgid "comma seperated search strings like: GetRecordsResponse"
 msgstr "kommagetrennte Suchbegriffe wie: GetRecordsResponse"
 
@@ -2296,118 +2395,177 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
-#: registry/serializers/monitoring.py:75 registry/serializers/monitoring.py:81
-#: registry/serializers/monitoring.py:177
-#: registry/serializers/monitoring.py:219
+#: registry/serializers/monitoring.py:79 registry/serializers/monitoring.py:85
 #: registry/serializers/monitoring.py:247
-#: registry/serializers/monitoring.py:322
-#: registry/serializers/monitoring.py:543
+#: registry/serializers/monitoring.py:298
+#: registry/serializers/monitoring.py:326
+#: registry/serializers/monitoring.py:352
+#: registry/serializers/monitoring.py:434
+#: registry/serializers/monitoring.py:752
 msgid "the setting which to used for this run."
 msgstr "die Einstellung, die für diesen Lauf verwendet wurde."
 
-#: registry/serializers/monitoring.py:80 registry/serializers/monitoring.py:176
-#: registry/serializers/monitoring.py:218
-#: registry/serializers/monitoring.py:246
-#: registry/serializers/monitoring.py:321
-#: registry/serializers/monitoring.py:542
+#: registry/serializers/monitoring.py:84 registry/serializers/monitoring.py:246
+#: registry/serializers/monitoring.py:297
+#: registry/serializers/monitoring.py:325
+#: registry/serializers/monitoring.py:351
+#: registry/serializers/monitoring.py:433
+#: registry/serializers/monitoring.py:751
 msgid "monitoring setting"
 msgstr "Monitoring-Einstellung"
 
-#: registry/serializers/monitoring.py:129 registry/serializers/update.py:65
+#: registry/serializers/monitoring.py:126
+msgid "the layer the feature info request asks about."
+msgstr "die Ebene, nach der die GetFeatureInfo-Anfrage fragt."
+
+#: registry/serializers/monitoring.py:133
+msgid "info format"
+msgstr "Infoformat"
+
+#: registry/serializers/monitoring.py:134
+msgid "the requested information format of the response."
+msgstr "das angefragte Informationsformat der Antwort."
+
+#: registry/serializers/monitoring.py:141
+msgid "skip reasons"
+msgstr "Gründe zum Überspringen"
+
+#: registry/serializers/monitoring.py:143
+msgid ""
+"technical reasons why this comprehensive probe was not executed by the last "
+"monitoring run"
+msgstr ""
+
+#: registry/serializers/monitoring.py:192 registry/serializers/update.py:65
 msgid "the web map service for that this settings are."
 msgstr "der Web Map Service, für den diese Einstellungen sind."
 
-#: registry/serializers/monitoring.py:134
-#: registry/serializers/monitoring.py:279
-#: registry/serializers/monitoring.py:500 registry/serializers/update.py:40
+#: registry/serializers/monitoring.py:197
+#: registry/serializers/monitoring.py:384
+#: registry/serializers/monitoring.py:709 registry/serializers/update.py:40
 msgid "schedule interval"
 msgstr "Planungsintervall"
 
-#: registry/serializers/monitoring.py:136
-#: registry/serializers/monitoring.py:281
-#: registry/serializers/monitoring.py:502 registry/serializers/update.py:42
+#: registry/serializers/monitoring.py:199
+#: registry/serializers/monitoring.py:386
+#: registry/serializers/monitoring.py:711 registry/serializers/update.py:42
 msgid "the schedule interval for this setting (e.g. '*/5 * * * *')."
 msgstr "das Planungsintervall für diese Einstellung (z. B. '*/5 * * * *')."
 
-#: registry/serializers/monitoring.py:171
-#: registry/serializers/monitoring.py:316
-#: registry/serializers/monitoring.py:537
+#: registry/serializers/monitoring.py:241
+#: registry/serializers/monitoring.py:428
+#: registry/serializers/monitoring.py:746
 msgid "Success"
 msgstr "Erfolgreich"
 
-#: registry/serializers/monitoring.py:172
-#: registry/serializers/monitoring.py:317
-#: registry/serializers/monitoring.py:538
+#: registry/serializers/monitoring.py:242
+#: registry/serializers/monitoring.py:429
+#: registry/serializers/monitoring.py:747
 msgid "false if any probe has failed"
 msgstr "false, wenn eine Überprüfung fehlgeschlagen ist"
 
-#: registry/serializers/monitoring.py:184
-#: registry/serializers/monitoring.py:329
-#: registry/serializers/monitoring.py:550
+#: registry/serializers/monitoring.py:254
+#: registry/serializers/monitoring.py:441
+#: registry/serializers/monitoring.py:759
 msgid "Get Capabilities Probe Results"
 msgstr "GetCapabilities-Überprüfungsergebnisse"
 
-#: registry/serializers/monitoring.py:185
-#: registry/serializers/monitoring.py:330
-#: registry/serializers/monitoring.py:551
+#: registry/serializers/monitoring.py:255
+#: registry/serializers/monitoring.py:442
+#: registry/serializers/monitoring.py:760
 msgid "results for get capabilities requests"
 msgstr "Ergebnisse für GetCapabilities-Anfragen"
 
-#: registry/serializers/monitoring.py:191
+#: registry/serializers/monitoring.py:261
 msgid "Get Map Probe Results"
 msgstr "GetMap-Überprüfungsergebnisse"
 
-#: registry/serializers/monitoring.py:192
+#: registry/serializers/monitoring.py:262
 msgid "results for get map requests"
 msgstr "Ergebnisse für GetMap-Anfragen"
 
-#: registry/serializers/monitoring.py:274 registry/serializers/update.py:83
+#: registry/serializers/monitoring.py:268
+msgid "Get Feature Info Probe Results"
+msgstr "GetFeatureInfo-Überprüfungsergebnisse"
+
+#: registry/serializers/monitoring.py:269
+msgid "results for get feature info requests"
+msgstr "Ergebnisse für GetFeatureInfo-Anfragen"
+
+#: registry/serializers/monitoring.py:379 registry/serializers/update.py:83
 msgid "the web feature service for that this settings are."
 msgstr "der Web Feature Service, für den diese Einstellungen sind."
 
-#: registry/serializers/monitoring.py:336
+#: registry/serializers/monitoring.py:448
 msgid "Get Feature Probe Results"
 msgstr "GetFeature-Überprüfungsergebnisse"
 
-#: registry/serializers/monitoring.py:337
+#: registry/serializers/monitoring.py:449
 msgid "results for get feature requests"
 msgstr "Ergebnisse für GetFeature-Anfragen"
 
-#: registry/serializers/monitoring.py:395
+#: registry/serializers/monitoring.py:455
+msgid "Describe Feature Type Probe Results"
+msgstr "DescribeFeatureType-Überprüfungsergebnisse"
+
+#: registry/serializers/monitoring.py:456
+msgid "results for describe feature type requests"
+msgstr "Ergebnisse für DescribeFeatureType-Anfragen"
+
+#: registry/serializers/monitoring.py:516
 msgid "the feature types which shall be requested."
 msgstr "die Featuretypes, die angefragt werden sollen."
 
-#: registry/serializers/monitoring.py:400
+#: registry/serializers/monitoring.py:521
 msgid "reference system"
 msgstr "Referenzsystem"
 
-#: registry/serializers/monitoring.py:401
+#: registry/serializers/monitoring.py:522
 msgid "the reference system of the requested features."
 msgstr "das Referenzsystem der angefragten Features."
 
-#: registry/serializers/monitoring.py:437
-#: registry/serializers/monitoring.py:465
-#: registry/serializers/monitoring.py:645
-#: registry/serializers/monitoring.py:673
+#: registry/serializers/monitoring.py:529
+#: registry/serializers/monitoring.py:580
+msgid "output format"
+msgstr "Ausgabeformat"
+
+#: registry/serializers/monitoring.py:530
+msgid "the requested response format of the get feature request."
+msgstr "das angefragte Antwortformat der GetFeature-Anfrage."
+
+#: registry/serializers/monitoring.py:575
+msgid "the feature types which shall be described."
+msgstr "die Featuretypes, die beschrieben werden sollen."
+
+#: registry/serializers/monitoring.py:581
+msgid "the requested response format of the describe request."
+msgstr "das angefragte Antwortformat der DescribeFeatureType-Anfrage."
+
+#: registry/serializers/monitoring.py:616
+#: registry/serializers/monitoring.py:644
+#: registry/serializers/monitoring.py:674
+#: registry/serializers/monitoring.py:854
+#: registry/serializers/monitoring.py:882
 msgid "monitoring run"
 msgstr "Monitoring-Lauf"
 
-#: registry/serializers/monitoring.py:438
-#: registry/serializers/monitoring.py:466
-#: registry/serializers/monitoring.py:646
-#: registry/serializers/monitoring.py:674
+#: registry/serializers/monitoring.py:617
+#: registry/serializers/monitoring.py:645
+#: registry/serializers/monitoring.py:675
+#: registry/serializers/monitoring.py:855
+#: registry/serializers/monitoring.py:883
 msgid "the run which executed the probe."
 msgstr "der Lauf, der die Überprüfung ausgeführt hat."
 
-#: registry/serializers/monitoring.py:495 registry/serializers/update.py:102
+#: registry/serializers/monitoring.py:704 registry/serializers/update.py:102
 msgid "the catalogue service for that this settings are."
 msgstr "der Katalogdienst, für den diese Einstellungen sind."
 
-#: registry/serializers/monitoring.py:557
+#: registry/serializers/monitoring.py:766
 msgid "Get Records Probe Results"
 msgstr "GetRecords-Überprüfungsergebnisse"
 
-#: registry/serializers/monitoring.py:558
+#: registry/serializers/monitoring.py:767
 msgid "results for get records requests"
 msgstr "Ergebnisse für GetRecords-Anfragen"
 
@@ -3099,9 +3257,6 @@ msgstr "System"
 #~ msgstr ""
 #~ "Der letzte Harvesting-Lauf des Dienstes hat %(count)s Datensätze "
 #~ "hinterlassen, die nicht importiert werden konnten."
-
-#~ msgid "id"
-#~ msgstr "ID"
 
 #~ msgid "the category and the id of the row this alert is derived from"
 #~ msgstr ""

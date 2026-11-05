@@ -1,4 +1,5 @@
 import math
+from urllib.parse import parse_qsl, urlparse
 
 from django.contrib.gis.gdal import GDALException
 from epsg_cache.models import SpatialReference
@@ -439,7 +440,15 @@ class WebMapServiceClient(OgcClient):
         :rtype: requests.Request
         """
 
-        params: dict = get_map_request.params
+        # a GetFeatureInfo request must repeat the map request it asks about
+        # (OGC 04-021, 7.4.3.2), so the parameters of the base request are
+        # taken from it. The request builders of this client put their
+        # parameters into the url and leave `Request.params` empty, so the
+        # query is read back before the feature info parameters overwrite the
+        # ones the specification names for this operation.
+        params: dict = dict(parse_qsl(
+            urlparse(get_map_request.url).query, keep_blank_values=True))
+        params.update(get_map_request.params or {})
 
         get_feature_info_params = {
             "VERSION": self.service_version,

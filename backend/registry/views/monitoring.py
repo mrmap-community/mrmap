@@ -8,7 +8,10 @@ from registry.models.monitoring import (
     CatalogueServiceMonitoringRun, CatalogueServiceMonitoringSetting,
     GetCapabilitiesProbe,
     GetCapabilitiesProbeResult,
+    GetFeatureInfoProbe, GetFeatureInfoProbeResult,
     GetMapProbe, GetMapProbeResult,
+    WebFeatureServiceDescribeFeatureTypeProbe,
+    WebFeatureServiceDescribeFeatureTypeProbeResult,
     WebFeatureServiceGetCapabilitiesProbe,
     WebFeatureServiceGetCapabilitiesProbeResult,
     WebFeatureServiceGetFeatureProbe,
@@ -24,7 +27,10 @@ from registry.serializers.monitoring import (
     CatalogueServiceMonitoringRunSerializer,
     CatalogueServiceMonitoringSettingSerializer,
     GetCapabilitiesProbeResultSerializer, GetCapabilitiesProbeSerializer,
+    GetFeatureInfoProbeResultSerializer, GetFeatureInfoProbeSerializer,
     GetMapProbeResultSerializer, GetMapProbeSerializer,
+    WebFeatureServiceDescribeFeatureTypeProbeResultSerializer,
+    WebFeatureServiceDescribeFeatureTypeProbeSerializer,
     WebFeatureServiceGetCapabilitiesProbeResultSerializer,
     WebFeatureServiceGetCapabilitiesProbeSerializer,
     WebFeatureServiceGetFeatureProbeResultSerializer,
@@ -110,6 +116,12 @@ class WebMapServiceMonitoringRunViewSetMixin:
             Prefetch(
                 "registry_getmapproberesults",
                 queryset=GetMapProbeResult.objects.all().select_related("run")
+            )
+        ],
+        "getfeatureinfoproberesults": [
+            Prefetch(
+                "registry_getfeatureinfoproberesults",
+                queryset=GetFeatureInfoProbeResult.objects.all().select_related("run")
             )
         ],
     }
@@ -251,6 +263,59 @@ class NestedGetMapProbeResultViewSet(
     pass
 
 
+class GetFeatureInfoProbeResultViewSetMixin:
+    """ Endpoints for resource `GetFeatureInfoProbeResult`
+
+        create:
+            Endpoint to register new `GetFeatureInfoProbeResult` object
+        list:
+            Retrieves all registered `GetFeatureInfoProbeResult` objects
+        retrieve:
+            Retrieve one specific `GetFeatureInfoProbeResult` by the given id
+        partial_update:
+            Endpoint to update some fields of a `GetFeatureInfoProbeResult`
+        destroy:
+            Endpoint to remove a registered `GetFeatureInfoProbeResult` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = GetFeatureInfoProbeResult.objects.all()
+    serializer_class = GetFeatureInfoProbeResultSerializer
+    select_for_includes = {
+        "run": ["run"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'check_response_format_success': ['exact'],
+        'check_response_does_not_contain_success': ['exact'],
+    }
+    search_fields = (
+        "id",
+        "check_response_format_success",
+        "check_response_does_not_contain_success",
+        "check_response_format_message",
+        "check_response_does_not_contain_message",
+    )
+    ordering_fields = [
+        "id",
+        "check_response_format_success",
+        "check_response_does_not_contain_success",
+    ]
+
+
+class GetFeatureInfoProbeResultViewSet(
+    GetFeatureInfoProbeResultViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedGetFeatureInfoProbeResultViewSet(
+    GetFeatureInfoProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
 class GetCapabilitiesProbeViewSetMixin:
     """ Endpoints for resource `GetCapabilitiesProbe`
 
@@ -355,6 +420,56 @@ class NestedGetMapProbeViewSet(
     pass
 
 
+class GetFeatureInfoProbeViewSetMixin:
+    """ Endpoints for resource `GetFeatureInfoProbe`
+
+        create:
+            Endpoint to register new `GetFeatureInfoProbe` object
+        list:
+            Retrieves all registered `GetFeatureInfoProbe` objects
+        retrieve:
+            Retrieve one specific `GetFeatureInfoProbe` by the given id
+        partial_update:
+            Endpoint to update some fields of a `GetFeatureInfoProbe`
+        destroy:
+            Endpoint to remove a registered `GetFeatureInfoProbe` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = GetFeatureInfoProbe.objects.all()
+    serializer_class = GetFeatureInfoProbeSerializer
+    select_for_includes = {
+        "setting": ["setting"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'setting__id': ['exact', 'icontains', 'contains', 'in'],
+        'layer__id': ['exact', 'icontains', 'contains', 'in'],
+        'info_format__id': ['exact', 'icontains', 'contains', 'in'],
+        'feature_count': ['exact', 'icontains', 'contains'],
+        'check_response_format': ['exact'],
+    }
+    search_fields = (
+        "id",
+    )
+    ordering_fields = [
+        "id",
+    ]
+
+
+class GetFeatureInfoProbeViewSet(
+    GetFeatureInfoProbeViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedGetFeatureInfoProbeViewSet(
+    GetFeatureInfoProbeViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
 class WebFeatureServiceMonitoringSettingViewSetMixin:
     """ Endpoints for resource `WebFeatureServiceMonitoringSetting`
 
@@ -429,6 +544,12 @@ class WebFeatureServiceMonitoringRunViewSetMixin:
             Prefetch(
                 "registry_webfeatureservicegetfeatureproberesults",
                 queryset=WebFeatureServiceGetFeatureProbeResult.objects.all().select_related("run")
+            )
+        ],
+        "describefeaturetypeproberesults": [
+            Prefetch(
+                "registry_webfeatureservicedescribefeaturetypeproberesults",
+                queryset=WebFeatureServiceDescribeFeatureTypeProbeResult.objects.all().select_related("run")
             )
         ],
     }
@@ -576,6 +697,42 @@ class NestedWebFeatureServiceGetFeatureProbeViewSet(
     """ Nested endpoints for resource `WebFeatureServiceGetFeatureProbe`"""
     queryset = WebFeatureServiceGetFeatureProbe.objects.all()
     serializer_class = WebFeatureServiceGetFeatureProbeSerializer
+
+
+class WebFeatureServiceDescribeFeatureTypeProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceDescribeFeatureTypeProbeResult`"""
+    queryset = WebFeatureServiceDescribeFeatureTypeProbeResult.objects.all()
+    serializer_class = WebFeatureServiceDescribeFeatureTypeProbeResultSerializer
+
+
+class NestedWebFeatureServiceDescribeFeatureTypeProbeResultViewSet(
+    ContentCheckProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceDescribeFeatureTypeProbeResult`"""
+    queryset = WebFeatureServiceDescribeFeatureTypeProbeResult.objects.all()
+    serializer_class = WebFeatureServiceDescribeFeatureTypeProbeResultSerializer
+
+
+class WebFeatureServiceDescribeFeatureTypeProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceDescribeFeatureTypeProbe`"""
+    queryset = WebFeatureServiceDescribeFeatureTypeProbe.objects.all()
+    serializer_class = WebFeatureServiceDescribeFeatureTypeProbeSerializer
+
+
+class NestedWebFeatureServiceDescribeFeatureTypeProbeViewSet(
+    ContentCheckProbeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested endpoints for resource `WebFeatureServiceDescribeFeatureTypeProbe`"""
+    queryset = WebFeatureServiceDescribeFeatureTypeProbe.objects.all()
+    serializer_class = WebFeatureServiceDescribeFeatureTypeProbeSerializer
 
 
 class CatalogueServiceMonitoringSettingViewSetMixin:

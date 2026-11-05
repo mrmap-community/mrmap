@@ -659,3 +659,89 @@ class GetMapBboxSerializationTest(SimpleTestCase):
             client.get_map_bbox(crs="EPSG:4326", layer_name="roads")
         with self.assertRaises(ValueError):
             client.get_map_bbox(crs="EPSG:4326", layer_name="unregistered")
+
+
+class FeatureInfoRequestTest(SimpleTestCase):
+    """A GetFeatureInfo request repeats the map request it asks about.
+
+    OGC 04-021, 7.4.3.2: the feature info request is the map request plus the
+    parameters which name the point and the format of the answer. The request
+    builders of this client bake their parameters into the url and leave
+    ``Request.params`` empty, so the base parameters are read back from it.
+    """
+
+    def setUp(self):
+        self.session = Mock(spec=Session)
+        self.addCleanup(self.session.send.assert_not_called)
+
+    def make_client(self):
+        capabilities = """
+            <WMS_Capabilities version="1.3.0"
+                xmlns="http://www.opengis.net/wms"
+                xmlns:xlink="http://www.w3.org/1999/xlink">
+                <Service><Name>WMS</Name></Service>
+                <Capability><Request>
+                    <GetMap><Format>image/png</Format><DCPType><HTTP><Get>
+                        <OnlineResource xlink:href="https://example.test/wms?"/>
+                    </Get></HTTP></DCPType></GetMap>
+                    <GetFeatureInfo><Format>application/json</Format>
+                        <Format>text/plain</Format><DCPType><HTTP><Get>
+                        <OnlineResource xlink:href="https://example.test/wms?"/>
+                    </Get></HTTP></DCPType></GetFeatureInfo>
+                </Request>
+                <Exception><Format>XML</Format></Exception>
+                <Layer><Name>roads</Name><CRS>CRS:84</CRS></Layer>
+            </Capability>
+            </WMS_Capabilities>
+        """.encode()
+        return WebMapServiceClient(capabilities, session=self.session)
+
+    def params(self, request):
+        self.assertIsInstance(request, Request)
+        return {key: values[0] for key, values in parse_qs(
+            urlparse(request.url).query, keep_blank_values=True).items()}
+
+    def test_the_feature_info_request_repeats_the_map_request(self):
+        client = self.make_client()
+        get_map = client.get_map_request(
+            layers=["roads"], styles=[""], crs="CRS:84",
+            bbox=(0.0, 0.0, 10.0, 5.0), width=256, height=128,
+            format="image/png", exceptions="XML")
+
+        params = self.params(client.get_feature_info_request(
+            get_map_request=get_map, query_layers=["roads"],
+            info_format="application/json", i=128, j=64, feature_count=3))
+
+        self.assertEqual(params["REQUEST"], "GetFeatureInfo")
+        self.assertEqual(params["SERVICE"], "WMS")
+        self.assertEqual(params["VERSION"], "1.3.0")
+        # the map request it asks about is repeated...
+        self.assertEqual(params["LAYERS"], "roads")
+        self.assertEqual(params["STYLES"], "")
+        self.assertEqual(params["CRS"], "CRS:84")
+        self.assertEqual(params["BBOX"], "0.0,0.0,10.0,5.0")
+        self.assertEqual(params["WIDTH"], "256")
+        self.assertEqual(params["HEIGHT"], "128")
+        self.assertEqual(params["FORMAT"], "image/png")
+        # ... and the operation adds the parameters it names itself
+        self.assertEqual(params["QUERY_LAYERS"], "roads")
+        self.assertEqual(params["INFO_FORMAT"], "application/json")
+        self.assertEqual(params["FEATURE_COUNT"], "3")
+        self.assertEqual(params["I"], "128")
+        self.assertEqual(params["J"], "64")
+
+    def test_parameters_of_a_base_request_which_are_in_params_survive(self):
+        # a caller may hand over a request whose parameters are not baked into
+        # the url — they must not be dropped by the read back of the query
+        client = self.make_client()
+        base = Request(
+            method="GET", url="https://example.test/wms?",
+            params={"LAYERS": "roads", "BBOX": "1,2,3,4"})
+
+        params = self.params(client.get_feature_info_request(
+            get_map_request=base, query_layers=["roads"],
+            info_format="text/plain", i=1, j=2))
+
+        self.assertEqual(params["LAYERS"], "roads")
+        self.assertEqual(params["BBOX"], "1,2,3,4")
+        self.assertEqual(params["INFO_FORMAT"], "text/plain")

@@ -247,6 +247,11 @@ class WebMapServiceMonitoringRun(MonitoringRun):
                 models.Q(check_response_image_success=False) |
                 models.Q(check_response_does_not_contain_success=False)
             ),
+            "is_get_feature_info_failed": (
+                GetFeatureInfoProbeResult,
+                models.Q(check_response_format_success=False) |
+                models.Q(check_response_does_not_contain_success=False)
+            ),
         }
 
 
@@ -272,6 +277,13 @@ class WebFeatureServiceMonitoringRun(MonitoringRun):
             ),
             "is_get_feature_failed": (
                 WebFeatureServiceGetFeatureProbeResult,
+                models.Q(check_response_is_valid_xml_success=False) |
+                models.Q(check_response_does_contain_success=False) |
+                models.Q(check_response_does_not_contain_success=False) |
+                models.Q(check_response_feature_collection_success=False)
+            ),
+            "is_describe_feature_type_failed": (
+                WebFeatureServiceDescribeFeatureTypeProbeResult,
                 models.Q(check_response_is_valid_xml_success=False) |
                 models.Q(check_response_does_contain_success=False) |
                 models.Q(check_response_does_not_contain_success=False)
@@ -415,6 +427,19 @@ class GetMapProbeResult(
         pass
 
 
+class GetFeatureInfoProbeResult(
+        WebMapServiceProbeResult,
+        ExceptionResponseCheckResult):
+    check_response_format_success = BooleanField(
+        null=True, blank=True, default=None)
+    check_response_format_message = models.TextField(
+        null=True, blank=True, default=None)
+
+    class Meta(WebMapServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
 class WebFeatureServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebFeatureServiceMonitoringRun,
@@ -439,6 +464,21 @@ class WebFeatureServiceGetCapabilitiesProbeResult(
 
 
 class WebFeatureServiceGetFeatureProbeResult(
+        WebFeatureServiceProbeResult,
+        XmlContentCheckResult,
+        ExceptionResponseCheckResult):
+
+    check_response_feature_collection_success = BooleanField(
+        null=True, blank=True, default=None)
+    check_response_feature_collection_message = models.TextField(
+        null=True, blank=True, default=None)
+
+    class Meta(WebFeatureServiceProbeResult.Meta):
+        # Inheritate meta
+        pass
+
+
+class WebFeatureServiceDescribeFeatureTypeProbeResult(
         WebFeatureServiceProbeResult,
         XmlContentCheckResult,
         ExceptionResponseCheckResult):
@@ -566,6 +606,10 @@ class Probe(models.Model):
     def build_request(self, client) -> Request:
         """Build the request which is send to the monitored service."""
         raise NotImplementedError
+
+    def get_result(self) -> 'ProbeResult':
+        """Return the result of the run which this probe belongs to."""
+        return self.result
 
     def run_response_checks(self, response: Response) -> None:
         """Apply the configured checks on the response of the probe."""
@@ -791,7 +835,13 @@ class WebFeatureServiceGetCapabilitiesProbe(
 
 
 class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
-    """Probe which requests features of the monitored web feature service."""
+    """Probe which requests features of the monitored web feature service.
+
+    The request is always bounded: it asks only for the feature types stored
+    for the service and limits the response with `max_features`. Which checks
+    are applied depends on the configured output format, so a service which
+    advertises e.g. JSON is not forced through the XML checks.
+    """
 
     feature_types = models.ManyToManyField(to=FeatureType)
 
@@ -808,6 +858,18 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
         blank=True
     )
 
+    output_format = models.ForeignKey(
+        to=MimeType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Output format"),
+        help_text=_(
+            "The requested response format. Checks which depend on the "
+            "response format are only performed for a matching format."
+        )
+    )
+
     check_response_is_valid_xml = BooleanField(default=True)
 
     check_response_does_contain = CharField(
@@ -818,7 +880,204 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
         help_text=_("comma seperated search strings like: FeatureCollection")
     )
 
+    check_response_feature_collection = BooleanField(
+        default=False,
+        verbose_name=_("Check response feature collection"),
+        help_text=_(
+            "Check that the response is a feature collection in the "
+            "configured response format."
+        )
+    )
+
+    check_response_contains_features = BooleanField(
+        default=False,
+        verbose_name=_("Check response contains features"),
+        help_text=_(
+            "Expect the bounded response to contain at least one feature. "
+            "Without this, a valid but empty feature collection is reported "
+            "as a successful monitoring."
+        )
+    )
+
     result_model = WebFeatureServiceGetFeatureProbeResult
+
+    #: substrings of a mime type which expects an XML response
+    XML_HINTS = ('xml', 'gml')
+
+    #: substrings of a mime type which expects a GeoJSON like response
+    JSON_HINTS = ('json', 'geojson')
+
+    def _response_format(self) -> str:
+        return str(self.output_format).lower() if self.output_format else ''
+
+    def _expects_xml(self) -> bool:
+        """Whether the configured response format is to be read as XML.
+
+        Probes without a configured format keep the XML oriented checks, they
+        are the historical default of the get feature probes.
+        """
+        fmt = self._response_format()
+        if not fmt:
+            return True
+        return any(hint in fmt for hint in self.XML_HINTS)
+
+    def _expects_json(self) -> bool:
+        fmt = self._response_format()
+        return any(hint in fmt for hint in self.JSON_HINTS)
+
+    def run_response_checks(self, response: Response) -> None:
+        if self._expects_xml():
+            if self.check_response_is_valid_xml:
+                self.check_is_valid_xml(response=response)
+
+            if self.check_response_does_contain:
+                self.check_does_contain(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+        if self.check_response_feature_collection:
+            self.check_is_feature_collection(response=response)
+
+    def check_is_feature_collection(self, response: Response) -> None:
+        """Check the response to be a feature collection in the used format.
+
+        A valid but empty feature collection passes this check as long as the
+        probe does not expect features to be returned: an authorized, well
+        formed and empty response is a healthy service.
+
+        Args:
+            response (Response): the response of the get feature request
+        """
+        result = self.get_result()
+        fmt = self._response_format()
+
+        if self._expects_json():
+            self._check_json_feature_collection(response)
+            return
+
+        if fmt and not self._expects_xml():
+            # neither XML nor JSON can be inspected by the content checks
+            result.check_response_feature_collection_success = True
+            result.check_response_feature_collection_message = \
+                f'Skipped the feature collection check: the response format {fmt} is neither checked as XML nor as JSON.'  # noqa
+            return
+
+        try:
+            xml = etree.fromstring(
+                response.content,
+                parser=etree.XMLParser(
+                    recover=False, resolve_entities=False, no_network=True))
+        except Exception as error:
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                f'The response is not a valid xml document: {error}'
+            return
+
+        root = etree.QName(xml).localname
+        if root != 'FeatureCollection':
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                f'The root element {root} of the response is not a FeatureCollection.'
+            return
+
+        members = [
+            child for child in xml
+            if etree.QName(child).localname in
+            ('member', 'featureMember', 'featureMembers')]
+
+        if self.check_response_contains_features and not members:
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                'The response is a valid but empty FeatureCollection, while the monitoring expects features to be returned.'  # noqa
+            return
+
+        result.check_response_feature_collection_success = True
+        result.check_response_feature_collection_message = \
+            f'The response is a FeatureCollection with {len(members)} features.'
+
+    def _check_json_feature_collection(self, response: Response) -> None:
+        """Check a JSON response to be a feature collection.
+
+        Args:
+            response (Response): the response of the get feature request
+        """
+        result = self.get_result()
+
+        try:
+            payload = json.loads(response.text)
+        except Exception as error:
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                f'The response is not a valid json document: {error}'
+            return
+
+        if not isinstance(payload, dict):
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                'The json response is not an object describing a feature collection.'  # noqa
+            return
+
+        features = payload.get('features')
+        if not isinstance(features, list):
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                'The json response does not list any features of a feature collection.'  # noqa
+            return
+
+        if self.check_response_contains_features and not features:
+            result.check_response_feature_collection_success = False
+            result.check_response_feature_collection_message = \
+                'The response is a valid but empty FeatureCollection, while the monitoring expects features to be returned.'  # noqa
+            return
+
+        result.check_response_feature_collection_success = True
+        result.check_response_feature_collection_message = \
+            f'The response is a FeatureCollection with {len(features)} features.'
+
+    def build_request(self, client) -> Request:
+        return client.get_feature_kvp_request(
+            type_names=[
+                feature_type.identifier
+                for feature_type in self.feature_types.all()],
+            max_features=self.max_features,
+            srs_name=str(self.reference_system) if self.reference_system else None,
+            output_format=str(self.output_format) if self.output_format else None,
+        )
+
+
+class WebFeatureServiceDescribeFeatureTypeProbe(WebFeatureServiceProbe):
+    """Probe which describes the stored feature types of the service.
+
+    Relevant for a comprehensive monitoring of a web feature service which
+    advertises the DescribeFeatureType operation.
+    """
+
+    feature_types = models.ManyToManyField(to=FeatureType)
+
+    output_format = models.ForeignKey(
+        to=MimeType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Output format"),
+        help_text=_(
+            "The requested response format of the describe feature type "
+            "operation"
+        )
+    )
+
+    check_response_is_valid_xml = BooleanField(default=True)
+
+    check_response_does_contain = CharField(
+        max_length=256,
+        default="schema",
+        blank=True,
+        verbose_name=_("Check response does contain"),
+        help_text=_("comma seperated search strings like: schema")
+    )
+
+    result_model = WebFeatureServiceDescribeFeatureTypeProbeResult
 
     def run_response_checks(self, response: Response) -> None:
         if self.check_response_is_valid_xml:
@@ -831,12 +1090,211 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
             self.check_does_not_contain(response=response)
 
     def build_request(self, client) -> Request:
-        return client.get_feature_kvp_request(
+        return client.describe_feature_type_request(
             type_names=[
                 feature_type.identifier
                 for feature_type in self.feature_types.all()],
-            max_features=self.max_features,
-            srs_name=str(self.reference_system) if self.reference_system else None,
+            output_format=[
+                str(self.output_format)
+                if self.output_format else None],
+        )
+
+
+class GetFeatureInfoProbe(WebMapServiceProbe):
+    """Probe which asks the service for information about a point of a layer.
+
+    Relevant for a comprehensive monitoring of a web map service which
+    advertises the GetFeatureInfo operation. The request is derived from the
+    GetMap request of the same setting, so it stays inside the bounded extent
+    which the map probe uses. If the operation can not be executed, the probe
+    reports the technical reasons why it was skipped and is not counted as a
+    failing probe: a service may be perfectly healthy without advertising
+    this optional operation.
+    """
+
+    #: substrings of a mime type which expects an XML response
+    XML_HINTS = ('xml', 'gml')
+
+    SKIP_REASON_NO_LAYER = 'no_layer_configured'
+    SKIP_REASON_NO_INFO_FORMAT = 'no_info_format_configured'
+    SKIP_REASON_NO_GET_MAP_PROBE = 'no_get_map_probe_configured'
+
+    layer = models.ForeignKey(
+        to=Layer,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_("Layer"),
+        help_text=_("The layer the feature info request shall ask about")
+    )
+
+    info_format = models.ForeignKey(
+        to=MimeType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Info format"),
+        help_text=_(
+            "The requested information format of the get feature info request")
+    )
+
+    # the point of the map which is asked about, in pixels of the GetMap
+    # request which this probe is based on
+    i = models.PositiveIntegerField(
+        default=128,
+        verbose_name=_("i"),
+        help_text=_(
+            "the i position of the pixel which shall be asked about"))
+
+    j = models.PositiveIntegerField(
+        default=128,
+        verbose_name=_("j"),
+        help_text=_(
+            "the j position of the pixel which shall be asked about"))
+
+    feature_count = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_("feature count"),
+        help_text=_(
+            "the maximum number of features the feature info response should "
+            "contain"))
+
+    check_response_format = BooleanField(
+        default=True,
+        verbose_name=_("Check response format"),
+        help_text=_(
+            "Check that the response matches the requested info format. XML "
+            "responses are additionally checked for validity."
+        )
+    )
+
+    skip_reasons = models.JSONField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("Skip reasons"),
+        help_text=_(
+            "Technical reasons why this comprehensive probe was not "
+            "executed. Empty if the probe was executed.")
+    )
+
+    result_model = GetFeatureInfoProbeResult
+
+    @property
+    def get_map_probe(self) -> 'GetMapProbe':
+        """The GetMap probe of the same setting, which the request bases on."""
+        return GetMapProbe.objects.filter(
+            setting_id=self.setting_id).first()
+
+    def get_skip_reasons(self) -> list:
+        """Report why this probe can not be executed, may be empty.
+
+        Returns:
+            list: technical identifiers of the missing prerequisites
+        """
+        reasons = []
+        if not self.layer_id:
+            reasons.append(self.SKIP_REASON_NO_LAYER)
+        if not self.info_format_id:
+            reasons.append(self.SKIP_REASON_NO_INFO_FORMAT)
+        if not self.get_map_probe:
+            reasons.append(self.SKIP_REASON_NO_GET_MAP_PROBE)
+        return reasons
+
+    def run_checks(self, run: MonitoringRun, *args, **kwargs) -> ProbeResult:
+        """Execute the probe or report why it was skipped.
+
+        Args:
+            run (MonitoringRun): the monitoring run which belongs to the setting
+                of this probe
+
+        Returns:
+            ProbeResult: the result of this probe or of the skip
+        """
+        reasons = self.get_skip_reasons()
+        if reasons:
+            self.skip_reasons = reasons
+            self.save()
+            result = self.result_model.objects.create(run=run)
+            self.result = result
+            result.date_done = now()
+            result.save()
+            return result
+
+        # clear reasons of a previous run, the probe is executed this time
+        self.skip_reasons = []
+        return super().run_checks(run, *args, **kwargs)
+
+    def run_response_checks(self, response: Response) -> None:
+        if self.check_response_format:
+            self.check_is_expected_format(response=response)
+
+        if self.check_response_does_not_contain:
+            self.check_does_not_contain(response=response)
+
+    def check_is_expected_format(self, response: Response) -> None:
+        """Check the response to match the requested info format.
+
+        Args:
+            response (Response): the response of the get feature info request
+        """
+        result = self.get_result()
+        content_type = response.headers.get('Content-Type', '')
+        # a service may add parameters like a charset to the content type
+        received = content_type.split(';')[0].strip().lower()
+        expected = str(self.info_format).lower()
+
+        if not received:
+            result.check_response_format_success = False
+            result.check_response_format_message = \
+                'The response does not report any content type.'
+            return
+
+        if received != expected:
+            result.check_response_format_success = False
+            result.check_response_format_message = \
+                f'The response has the content type {received} while {expected} was requested.'  # noqa
+            return
+
+        if any(hint in expected for hint in self.XML_HINTS) and \
+                self._is_invalid_xml(response):
+            return
+
+        result.check_response_format_success = True
+        result.check_response_format_message = \
+            f'The response has the requested content type {expected}.'
+
+    def _is_invalid_xml(self, response: Response) -> bool:
+        """Check an XML response to be parsable, storing the failure reason.
+
+        Args:
+            response (Response): the response to parse
+
+        Returns:
+            bool: whether the response is not valid XML
+        """
+        result = self.get_result()
+        try:
+            etree.fromstring(
+                response.content,
+                parser=etree.XMLParser(
+                    recover=False, resolve_entities=False, no_network=True))
+        except Exception as error:
+            result.check_response_format_success = False
+            result.check_response_format_message = \
+                f'The response is not a valid xml document: {error}'
+            return True
+        return False
+
+    def build_request(self, client) -> Request:
+        get_map_probe = self.get_map_probe
+        return client.get_feature_info_request(
+            get_map_request=get_map_probe.build_request(client),
+            query_layers=[self.layer.identifier],
+            info_format=str(self.info_format),
+            i=self.i,
+            j=self.j,
+            feature_count=self.feature_count
         )
 
 

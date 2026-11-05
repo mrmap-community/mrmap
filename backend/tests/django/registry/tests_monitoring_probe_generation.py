@@ -12,8 +12,9 @@ from urllib.parse import parse_qs, urlsplit
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from registry.helper.monitoring_generation import (
-    COMPREHENSIVE_OPERATIONS, DEFAULT_PROBE_LIMIT, GENERATOR_VERSION,
-    MAX_PROBES, SkipReason, candidate_identifier, generate_probe_preview)
+    DEFAULT_IMAGE_DIMENSION, DEFAULT_PROBE_LIMIT, GENERATOR_VERSION,
+    MAX_FEATURE_COUNT, MAX_PROBES, SkipReason, WMS_OPERATIONS, WMS_VERSIONS,
+    candidate_identifier, generate_probe_preview)
 from registry.helper.preview import PreviewError
 from registry.models.monitoring import (GetMapProbe,
                                         WebMapServiceMonitoringSetting)
@@ -29,9 +30,12 @@ LAYER_ORDER = ['node1', 'node1.1', 'node1.1.1', 'node1.1.2',
 
 def capabilities(version, layers, get_map_formats="image/png image/jpeg",
                  get_map=True, get_capabilities=True, exceptions=True,
-                 get_map_verb="Get"):
+                 get_map_verb="Get", get_feature_info=True,
+                 get_feature_info_formats="application/json text/plain"):
     """A minimal capabilities document wrapping the given Layer tree."""
     formats = "".join(f"<Format>{value}</Format>" for value in get_map_formats.split())
+    info_formats = "".join(
+        f"<Format>{value}</Format>" for value in get_feature_info_formats.split())
     get_capabilities_block = """
         <GetCapabilities><Format>text/xml</Format><DCPType><HTTP><Get>
             <OnlineResource xlink:href="https://registered.example/capabilities?"/>
@@ -40,10 +44,16 @@ def capabilities(version, layers, get_map_formats="image/png image/jpeg",
         <GetMap>{formats}<DCPType><HTTP><{get_map_verb}>
             <OnlineResource xlink:href="https://registered.example/wms?"/>
         </{get_map_verb}></HTTP></DCPType></GetMap>""" if get_map else ""
+    # the comprehensive operation of a WMS; its endpoint and its formats are
+    # advertised in the same Request element the GetMap lives in
+    get_feature_info_block = f"""
+        <GetFeatureInfo>{info_formats}<DCPType><HTTP><Get>
+            <OnlineResource xlink:href="https://registered.example/wms?"/>
+        </Get></HTTP></DCPType></GetFeatureInfo>""" if get_feature_info else ""
     exception_block = "<Exception><Format>XML</Format></Exception>" if exceptions else ""
     return f"""
         <WMS_Capabilities version="{version}" xmlns:xlink="http://www.w3.org/1999/xlink">
-            <Capability><Request>{get_capabilities_block}{get_map_block}</Request>
+            <Capability><Request>{get_capabilities_block}{get_map_block}{get_feature_info_block}</Request>
                 {exception_block}
                 {layers}
             </Capability>
@@ -110,6 +120,10 @@ class MonitoringProbeGenerationTest(TestCase):
     def get_map_probes(self, result):
         return [probe for probe in result["probes"] if probe["probeType"] == "GetMap"]
 
+    def get_feature_info_probes(self, result):
+        return [probe for probe in result["probes"]
+                if probe["probeType"] == "GetFeatureInfo"]
+
     def skip_reasons(self, result):
         return {skip["reason"] for skip in result["skipped"]}
 
@@ -128,7 +142,7 @@ class MonitoringProbeGenerationTest(TestCase):
                          "GetCapabilities")
         self.assertEqual([probe["targetLayer"]["identifier"]
                           for probe in self.get_map_probes(result)], LAYER_ORDER)
-        self.assertEqual(result["pagination"]["totalGetMapCandidates"], len(LAYER_ORDER))
+        self.assertEqual(result["pagination"]["totalLayerCandidates"], len(LAYER_ORDER))
         self.assertFalse(result["pagination"]["truncated"])
 
     def test_basic_preset_stays_at_the_representative_layer(self):
@@ -138,7 +152,7 @@ class MonitoringProbeGenerationTest(TestCase):
         self.assertEqual(len(get_map), 1)
         self.assertEqual(get_map[0]["targetLayer"]["identifier"], "node1")
         # the scan still saw every candidate, the preset just proposes less
-        self.assertEqual(result["pagination"]["totalGetMapCandidates"], len(LAYER_ORDER))
+        self.assertEqual(result["pagination"]["totalLayerCandidates"], len(LAYER_ORDER))
 
     def test_default_preset_is_standard(self):
         self.assertEqual(self.generate()["preset"], "standard")
@@ -338,7 +352,7 @@ class MonitoringProbeGenerationTest(TestCase):
         result = self.generate(preset="standard")
 
         self.assertEqual(self.skipped_layers(result, SkipReason.INACTIVE), ["node1.2"])
-        self.assertEqual(result["pagination"]["totalGetMapCandidates"], len(LAYER_ORDER) - 1)
+        self.assertEqual(result["pagination"]["totalLayerCandidates"], len(LAYER_ORDER) - 1)
 
     def test_layer_the_stored_capabilities_do_not_advertise_anymore_is_stale(self):
         self.store("1.3.0", layer_tree("CRS", identifiers=LAYER_ORDER[:-2]))
@@ -355,7 +369,7 @@ class MonitoringProbeGenerationTest(TestCase):
         result = self.generate(preset="standard")
 
         self.assertEqual(self.skip_reasons(result), {SkipReason.NO_EXTENT})
-        self.assertEqual(result["pagination"]["totalGetMapCandidates"], 0)
+        self.assertEqual(result["pagination"]["totalLayerCandidates"], 0)
 
     def test_layer_with_fixed_image_dimensions_needs_exactly_them(self):
         self.store("1.3.0", layer_tree("CRS").replace(
@@ -483,20 +497,76 @@ class MonitoringProbeGenerationTest(TestCase):
         self.assertEqual(error.code, "noImageFormat")
         self.assertEqual(error.status, 422)
 
-    def test_comprehensive_preset_is_reported_as_not_implemented(self):
-        error = self.errors(preset="comprehensive")
+    def test_comprehensive_preset_adds_the_feature_info_probe_of_every_layer(self):
+        result = self.generate(preset="comprehensive")
 
-        self.assertEqual(error.code, "presetNotImplemented")
-        self.assertEqual(error.status, 400)
+        feature_info = self.get_feature_info_probes(result)
+        self.assertEqual([probe["targetLayer"]["identifier"]
+                          for probe in feature_info], LAYER_ORDER)
+        # every feature info probe belongs to a layer which got a map probe
+        self.assertEqual(
+            {probe["targetLayer"]["identifier"] for probe in feature_info},
+            {probe["targetLayer"]["identifier"]
+             for probe in self.get_map_probes(result)})
 
-    def test_the_contract_reports_which_presets_are_implemented(self):
+        probe = feature_info[0]
+        params = params_of(probe["requestSummary"]["url"])
+        self.assertEqual(probe["candidateId"],
+                         candidate_identifier("GetFeatureInfo", ["node1"]))
+        self.assertEqual(params["REQUEST"], "GetFeatureInfo")
+        self.assertEqual(params["QUERY_LAYERS"], "node1")
+        self.assertEqual(params["LAYERS"], "node1")
+        self.assertEqual(params["INFO_FORMAT"], "application/json")
+        self.assertEqual(params["FEATURE_COUNT"], "1")
+        # the point asked about is the center of the proposed image
+        self.assertEqual(params["I"], str(DEFAULT_IMAGE_DIMENSION // 2))
+        self.assertEqual(params["J"], str(DEFAULT_IMAGE_DIMENSION // 2))
+        self.assertEqual(probe["parameters"]["checkResponseFormat"], True)
+
+    def test_comprehensive_needs_the_advertised_feature_info_endpoint(self):
+        self.store("1.3.0", layer_tree("CRS"), get_feature_info=False)
+
+        result = self.generate(preset="comprehensive")
+
+        self.assertEqual(self.get_feature_info_probes(result), [])
+        self.assertIn(SkipReason.OPERATION_UNSUPPORTED, self.skip_reasons(result))
+        # the standard part of the preset is untouched by the missing operation
+        self.assertEqual(len(self.get_map_probes(result)), len(LAYER_ORDER))
+
+    def test_comprehensive_reports_unusable_info_formats_instead_of_a_probe(self):
+        self.store("1.3.0", layer_tree("CRS"),
+                   get_feature_info_formats="text/html application/xhtml+xml")
+
+        result = self.generate(preset="comprehensive")
+
+        self.assertEqual(self.get_feature_info_probes(result), [])
+        self.assertIn(SkipReason.NO_SUPPORTED_FORMAT, self.skip_reasons(result))
+
+    def test_a_page_never_splits_a_layer_from_its_feature_info_probe(self):
+        first = self.generate(preset="comprehensive", limit=1)
+        second = self.generate(preset="comprehensive", limit=1, offset=1)
+
+        # the window bounds PROPOSED PROBES, so one layer answers both of them
+        self.assertEqual([probe["probeType"] for probe in first["probes"]][1:],
+                         ["GetMap", "GetFeatureInfo"])
+        self.assertEqual([probe["probeType"] for probe in second["probes"]][1:],
+                         ["GetMap", "GetFeatureInfo"])
+        self.assertEqual(second["probes"][1]["targetLayer"]["identifier"], "node1.1")
+        self.assertTrue(first["pagination"]["truncated"])
+
+    def test_the_contract_reports_the_operations_and_versions_of_the_service(self):
         result = self.generate()
 
         self.assertEqual(result["presets"], {
-            "implemented": ["basic", "standard"], "notImplemented": ["comprehensive"]})
-        self.assertEqual(result["notImplemented"]["preset"], "comprehensive")
-        self.assertEqual(result["notImplemented"]["operations"],
-                         list(COMPREHENSIVE_OPERATIONS))
+            "implemented": ["basic", "standard", "comprehensive"],
+            "notImplemented": []})
+        self.assertEqual(result["operations"], WMS_OPERATIONS)
+        self.assertEqual(result["advertisedOperations"], {
+            "GetCapabilities": True,
+            "GetMap": True,
+            "GetFeatureInfo": True})
+        self.assertEqual(result["supportedVersions"], list(WMS_VERSIONS))
+        self.assertEqual(result["bounds"]["maxFeatureCount"], MAX_FEATURE_COUNT)
 
     def test_unknown_preset_is_rejected(self):
         self.assertEqual(self.errors(preset="kitchen-sink").code, "preset")
@@ -526,12 +596,24 @@ class MonitoringProbeGenerationTest(TestCase):
 
         self.assertEqual(self.errors().code, "malformed")
 
-    def test_non_wms_services_are_not_generated_from(self):
+    def test_other_service_types_are_not_generated_from(self):
+        # a catalogue service is neither a WMS nor a WFS: the dispatcher hands
+        # it to the map generator, which refuses it by its type
+        from registry.models.service import CatalogueService
+
+        with self.assertRaises(PreviewError) as caught:
+            generate_probe_preview(CatalogueService(), {})
+        self.assertEqual(caught.exception.code, "serviceType")
+
+    def test_a_wfs_is_generated_by_its_own_generator(self):
+        # the dispatcher of the preview routes by service type; the WFS
+        # fixtures carry no stored capabilities, so its own generator answers
+        # the missing discovery
         wfs = WebFeatureService.objects.get(pk=WFS)
 
         with self.assertRaises(PreviewError) as caught:
             generate_probe_preview(wfs, {})
-        self.assertEqual(caught.exception.code, "serviceType")
+        self.assertEqual(caught.exception.code, "discovery")
 
     def test_disabled_service_is_locked(self):
         WebMapService.objects.filter(pk=WMS).update(is_active=False)

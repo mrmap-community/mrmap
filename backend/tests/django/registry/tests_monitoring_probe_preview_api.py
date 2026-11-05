@@ -1,10 +1,9 @@
-"""Tests of the monitoring probe preview endpoint of a registered WMS.
+"""Tests of the monitoring probe preview endpoint of a registered service.
 
-The endpoint exposes the transient generator of
+The endpoint exposes the transient generators of
 ``registry.helper.monitoring_generation`` for the epic's consumers: it must
-respect object permissions, answer the full preview contract, report the not
-yet implemented comprehensive preset explicitly and never execute a probe or
-write a setting while previewing.
+respect object permissions, answer the full preview contract for a WMS as well
+as for a WFS and never execute a probe or write a setting while previewing.
 """
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -24,7 +23,12 @@ WMS_WITHOUT_CAPABILITIES = '1b195589-dcfa-403f-9e66-e7e1c0a67024'
 WFS = '73cf78c9-6605-47fd-ac4f-1be59265df65'
 
 
-def capabilities(version="1.3.0"):
+def capabilities(version="1.3.0", get_feature_info=True):
+    """A WMS 1.3.0 document; the comprehensive operation may be missing."""
+    info_block = """
+                <GetFeatureInfo><Format>application/json</Format><DCPType><HTTP><Get>
+                    <OnlineResource xlink:href="https://registered.example/wms?"/>
+                </Get></HTTP></DCPType></GetFeatureInfo>""" if get_feature_info else ""
     return f"""
         <WMS_Capabilities version="{version}" xmlns:xlink="http://www.w3.org/1999/xlink">
             <Capability><Request>
@@ -33,7 +37,7 @@ def capabilities(version="1.3.0"):
                 </Get></HTTP></DCPType></GetCapabilities>
                 <GetMap><Format>image/png</Format><DCPType><HTTP><Get>
                     <OnlineResource xlink:href="https://registered.example/wms?"/>
-                </Get></HTTP></DCPType></GetMap>
+                </Get></HTTP></DCPType></GetMap>{info_block}
             </Request>
             <Exception><Format>XML</Format></Exception>
             <Layer><Name>node1</Name>
@@ -99,9 +103,13 @@ class MonitoringProbePreviewApiTests(TestCase):
         self.assertEqual(result['preset'], 'standard')
         self.assertEqual({
             'serviceId', 'serviceTitle', 'preset', 'generatorVersion', 'wmsVersion',
-            'bounds', 'presets', 'notImplemented', 'request', 'pagination',
+            'bounds', 'presets', 'operations', 'advertisedOperations',
+            'supportedVersions', 'request', 'pagination',
             'probes', 'skipped', 'skippedTotal', 'skippedTruncated',
         } - set(result), set())
+        self.assertEqual(result['advertisedOperations'], {
+            'GetCapabilities': True, 'GetMap': True, 'GetFeatureInfo': True})
+        self.assertEqual(result['presets']['notImplemented'], [])
         self.assertEqual(len(result['probes']), 1 + 8)  # GetCapabilities plus layers
         self.assertEqual(result['probes'][0]['probeType'], 'GetCapabilities')
         self.assertNotEqual(result['probes'][0]['candidateId'],
@@ -165,16 +173,33 @@ class MonitoringProbePreviewApiTests(TestCase):
 
     # --- explicit rejections -----------------------------------------------------
 
-    def test_comprehensive_preset_is_reported_with_its_operations(self):
+    def test_comprehensive_preset_proposes_the_feature_info_probes(self):
         response = self.client.get(self.url(), {'preset': 'comprehensive'})
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertEqual(response.status_code, 200, response.content)
         result = response.json()
-        self.assertEqual(result['error'], 'presetNotImplemented')
-        self.assertEqual(result['implementedPresets'], ['basic', 'standard'])
-        self.assertEqual(result['operations'],
-                         ['GetFeatureInfo', 'DescribeFeatureType'])
+        self.assertEqual(result['preset'], 'comprehensive')
+        kinds = [probe['probeType'] for probe in result['probes']]
+        self.assertEqual(kinds.count('GetMap'), 8)
+        self.assertEqual(kinds.count('GetFeatureInfo'), 8)
+        self.assertEqual(result['skipped'], [])
+        self.send.assert_not_called()
+        self.assertEqual(WebMapServiceMonitoringSetting.objects.count(), 0)
+
+    def test_comprehensive_reports_a_missing_operation_instead_of_failing(self):
+        self.store(document=capabilities(get_feature_info=False))
+
+        response = self.client.get(self.url(), {'preset': 'comprehensive'})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        result = response.json()
+        self.assertEqual(
+            [probe['probeType'] for probe in result['probes']]
+            .count('GetFeatureInfo'), 0)
+        self.assertEqual(result['advertisedOperations']['GetFeatureInfo'], False)
+        self.assertEqual(
+            [skip['reason'] for skip in result['skipped']],
+            ['operationUnsupported'])
 
     def test_invalid_parameters_are_answered_with_their_code(self):
         for params, code in [({'preset': 'kitchen-sink'}, 'preset'),
@@ -204,9 +229,17 @@ class MonitoringProbePreviewApiTests(TestCase):
         self.assertEqual(response.json()['error'], 'discovery')
         self.send.assert_not_called()
 
-    def test_only_the_wms_route_offers_the_preview(self):
-        for url in (self.url(pk=WFS, protocol='wfs'),
-                    f'/api/registry/csw/{WFS}/monitoring-probe-preview'):
+    def test_the_service_routes_offer_the_preview(self):
+        # both generated kinds offer it on their canonical route...
+        for url, view_name in (
+                (self.url(), 'registry:wms-monitoring-probe-preview'),
+                (self.url(pk=WFS, protocol='wfs'),
+                 'registry:wfs-monitoring-probe-preview')):
+            with self.subTest(url=url):
+                self.assertEqual(resolve(url).view_name, view_name)
+
+        # ... a service kind which is not generated from does not
+        for url in (f'/api/registry/csw/{WFS}/monitoring-probe-preview',):
             with self.subTest(url=url), self.assertRaises(Resolver404):
                 resolve(url)
 
@@ -232,3 +265,24 @@ class MonitoringProbePreviewApiTests(TestCase):
         self.assertTrue({'id', 'pk'} & parameters)
         self.assertIn('200', operation['responses'])
         self.assertIn('comprehensive', operation['description'])
+
+    def test_the_schema_describes_the_endpoint_on_the_wfs_route(self):
+        from django.urls import include, path
+        from drf_spectacular.generators import SchemaGenerator
+        from registry.urls import urlpatterns
+
+        patterns = [pattern for pattern in urlpatterns
+                    if getattr(pattern, 'name', None) == 'wfs-monitoring-probe-preview']
+        self.assertTrue(patterns)
+        schema = SchemaGenerator(
+            patterns=[path('api/registry/', include(patterns))]
+        ).get_schema(public=True)
+
+        paths = [operation for url, operation in schema['paths'].items()
+                 if url.endswith('/monitoring-probe-preview')]
+        self.assertEqual(len(paths), 1)
+        parameters = {parameter['name']
+                      for parameter in paths[0]['get']['parameters']}
+        self.assertTrue({'preset', 'featureType', 'offset', 'limit', 'timeout',
+                         'outputFormat', 'maxFeatures'} <= parameters)
+        self.assertIn('200', paths[0]['get']['responses'])

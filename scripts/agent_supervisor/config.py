@@ -94,8 +94,18 @@ DEFAULTS = {
     "opencode_command": "opencode",
     "opencode_model": "",
     "opencode_agent": "",
+    # What a session is called. It is the handle a restarted supervisor resumes
+    # on, so it names the issue rather than the run.
+    "session_prefix": "mrmap",
     "worker_timeout_s": 14400,
     "resume_timeout_s": 7200,
+    # How long a withdrawn approval may take to take effect on a running worker:
+    # the group gets TERM, waits this long, then KILL.
+    "cancel_grace_s": 30,
+    # Empty means the built-in deny list of config.WORKER_DENY_PERMISSIONS, which
+    # a worker cannot override from inside its own session. A list here replaces
+    # it - an operator who weakens it weakens it visibly, in one place.
+    "worker_permissions": [],
     # Pull-request supervision (#1061, #1062).
     "ci_repair_attempts": 2,
     "pr_poll_seconds": 300,
@@ -169,6 +179,17 @@ class Config:
     @property
     def worktree_root(self):
         return os.path.expanduser(self.data["worktree_root"])
+
+    @property
+    def repo_root(self):
+        """The checkout new worktrees are branched from.
+
+        Empty means "the directory this was started from", which is right for a
+        developer running ``plan`` in their own checkout. A deployment says so
+        explicitly, because the daemon of #1063 runs as a service and its working
+        directory is not something anyone should have to reason about.
+        """
+        return os.path.expanduser(self.data.get("repo_root") or os.getcwd())
 
     @property
     def log_dir(self):

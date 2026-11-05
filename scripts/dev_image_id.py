@@ -18,6 +18,29 @@ scripts/dev_image_id.py` from the repository root. It has two halves:
     given). A missing image is NEVER silently replaced by a mutable tag; the
     only opt-out is the explicit env var MRMAP_ALLOW_MUTABLE_DEV_IMAGE=1,
     intended for humans, never for agent tooling.
+  * existence (`--exists`, no docker and no credential): ask the registry over
+    plain HTTPS whether one tag is there, and answer in one of three ways.
+    Deliberately a separate command and not a cheaper mode of `--resolve`,
+    because the two prove different things - see "What each probe proves".
+
+What each probe proves
+  `--exists` sends an anonymous pull token request plus ONE manifest request
+  and proves that the registry serves a manifest under this exact name. It
+  proves nothing about the bytes: nothing is downloaded, so it cannot notice a
+  truncated layer, a tag pointed at foreign content, or an image that will not
+  run on this host. `--resolve` proves the stronger statement - published AND
+  pulled intact - and pays for it: measured 2026-11-05, 38 s and 308 MB of
+  compressed layers for the backend fp tag, against 0.3 s and about 1.5 kB for
+  `--exists` on the same tag.
+
+  So only `--resolve` may justify "we do not need to build this" in a context
+  where the bytes will never be pulled (an image the run throws away is still
+  an image whose buildx output has to be valid, and CI's gate is exactly that
+  context: `scripts/dev_image_gate.py` keeps calling `--resolve`). Where a
+  manifest-only answer is enough: an agent's pre-flight, which decides between
+  `--resolve` and `--build` without waiting on a pull, and a human asking "did
+  the publish for my fingerprint land?". `docs/source/development/
+  prebuilt-images.rst` carries the same table with the gate's decision.
 
 Images and their manifest inputs
   backend  (docker/backend/alpine.Dockerfile, shared by backend, django-tests,
@@ -79,6 +102,12 @@ Usage
                   locally under the same immutable tag when --build is given.
                   The fingerprint goes to stdout (capture it for the compose
                   variables); every diagnostic goes to stderr.
+  python3 scripts/dev_image_id.py --exists [--image IMAGE] [--fp TAG]
+                  ask the registry whether this tag is published, over plain
+                  HTTPS: anonymous token plus one manifest request, no docker,
+                  no credential, nothing downloaded. Existence only - see "What
+                  each probe proves" above. The asked tag goes to stdout, every
+                  diagnostic to stderr, like --resolve.
   python3 scripts/dev_image_id.py --self-check
                   verify determinism and input sensitivity of both images'
                   fingerprints, the marker formula, and the resolver's failure
@@ -97,10 +126,18 @@ Resolver exit codes
   6  --build: the local fallback build failed
   7  the local tag exists but its stamped fingerprint differs: the tag was
      pointed at foreign content - do not use it; rebuild with --build
+
+  --exists answers within the same codes, and only these three:
+  0  the registry serves a manifest under this name (existence, nothing more)
+  3  the registry says this name is not there ("manifest unknown")
+  4  could not look: no answer, a timeout, a 5xx, a refused anonymous read, or
+     a 404 that does not say "manifest unknown" - a registry that changed its
+     answer shape is not evidence that the tag is gone
 """
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -109,7 +146,11 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # Single source of truth for the build args of the published backend dev/test
 # image: docker-compose.dev.yml passes the same value to the shared
@@ -154,6 +195,31 @@ REGISTRY_REPO = {
 # tooling must never set it.
 MUTABLE_OPT_OUT_ENV = "MRMAP_ALLOW_MUTABLE_DEV_IMAGE"
 MUTABLE_TAG = "main"
+
+# The media type the published dev-image tags are actually stored as, measured
+# 2026-11-05 against ghcr.io for both packages: an OCI *manifest* (single
+# architecture, not an index). This is not a negotiation to widen - ghcr answers
+# 404 MANIFEST_UNKNOWN, "OCI manifest found, but Accept header does not support
+# OCI manifests", for every header that does not name this type, including
+# */*, an empty header and the docker distribution types. A second type beside
+# it is harmless, a wildcard beside it is not, so exactly one type is sent.
+MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
+
+# The registry's own origin, for the two API endpoints below. REGISTRY_REPO
+# above carries full references; the API needs host and repository path apart.
+# Overridable for the offline test (see --registry-base), which points both
+# endpoints at a local stub instead of the network.
+REGISTRY_BASE = "https://ghcr.io"
+USER_AGENT = "mrmap-dev-image-id"
+
+# Both requests of the probe are small JSON reads. A registry that does not
+# answer within this is "could not look", which is exit 4 and a retry - never a
+# statement about the tag - so the cap is what keeps a pre-flight cheap.
+REGISTRY_TIMEOUT_S = 20
+
+# A manifest is a few kB of JSON; the cap keeps a confused or hostile endpoint
+# from turning a pre-flight into a download.
+MAX_RESPONSE_BYTES = 65536
 
 EXIT_OK = 0
 EXIT_MISS = 3
@@ -578,6 +644,213 @@ def repo_hint(image):
 
 
 # --------------------------------------------------------------------------
+# existence probe (--exists): anonymous HTTPS, no docker, nothing downloaded
+# --------------------------------------------------------------------------
+
+
+def repository_path(repo, base=REGISTRY_BASE):
+    """The registry's repository path of an image reference.
+
+    REGISTRY_REPO holds full references ("ghcr.io/mrmap-community/..."), while
+    the token scope and the /v2/ API address a repository by its path alone.
+    A reference naming a different host than the request is stripped the same
+    way, which is what lets the offline test reuse the --repo hook.
+    """
+    path = repo
+    origin = urlsplit(base).netloc
+    if path.startswith(f"{origin}/"):
+        return path[len(origin) + 1:]
+    first, slash, rest = path.partition("/")
+    if slash and "." in first:
+        return rest
+    return path
+
+
+def registry_endpoints(repo, tag, base=REGISTRY_BASE):
+    """(token grant, manifest url) for one repository path and tag.
+
+    The scope asks for exactly what the probe needs - `pull` on this one
+    repository - because an anonymous token that asked for more would be a
+    broader credential than the question deserves.
+    """
+    base = base.rstrip("/")
+    origin = urlsplit(base)
+    service = origin.hostname or ""
+    scope = urllib.parse.quote(f"repository:{repository_path(repo, base)}:pull", safe=":")
+    token_url = f"{base}/token?service={urllib.parse.quote(service, safe='')}&scope={scope}"
+    manifest_url = f"{base}/v2/{repository_path(repo, base)}/manifests/{urllib.parse.quote(tag, safe='')}"
+    return token_url, manifest_url
+
+
+def http_get(url, headers=None, timeout=REGISTRY_TIMEOUT_S):
+    """One bounded GET: (status, headers, body) or (None, None, why not).
+
+    Every transport failure - refused, unresolvable, timed out, a response that
+    is not HTTP at all - comes back in the third shape. The probe's contract
+    has exactly one answer for "the registry did not tell us" and it is not
+    "the tag does not exist", so collapsing them here is the point.
+    """
+    request = urllib.request.Request(url, headers=headers or {}, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.status, dict(response.headers or {}), response.read(MAX_RESPONSE_BYTES)
+    except urllib.error.HTTPError as exc:      # a real answer, including 4xx/5xx
+        try:
+            body = exc.read(MAX_RESPONSE_BYTES)
+        except Exception:                      # noqa: BLE001 - the status still stands
+            body = b""
+        return exc.code, dict(exc.headers or {}), body
+    except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError) as exc:
+        return None, None, f"{type(exc).__name__}: {exc}"
+
+
+def classify_manifest_answer(status, body, detail=""):
+    """What one manifest answer says about a tag: (kind, what it says).
+
+    Kinds: "published", "absent", "ambiguous", "denied", "transient",
+    "malformed", "unreachable". Only the first two are statements about the
+    tag; the rest are "could not look" and exit 4.
+
+    The distinction between "absent" and "ambiguous" is the whole subtlety of
+    this probe: ghcr answers BOTH with 404 and the code MANIFEST_UNKNOWN. One
+    of them means the tag is not there, the other means the request did not ask
+    in a language the registry answers ("... but Accept header does not support
+    OCI manifests"). Reading the second as "not published" would tell an agent
+    to build an image that already exists, and would tell CI the same thing.
+    """
+    if status is None:
+        return "unreachable", detail or "the registry did not answer"
+    text = (body or b"").decode("utf-8", "replace").strip()
+    reasons = []
+    try:
+        payload = json.loads(text) if text else None
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        for entry in payload.get("errors") or []:
+            if isinstance(entry, dict):
+                reasons.append(" ".join(str(part) for part in (entry.get("code"), entry.get("message"))
+                                        if part).strip())
+    registry_said = "; ".join(reasons) or (text[:160] or "no body")
+
+    if status == 200:
+        if isinstance(payload, dict) and payload.get("schemaVersion") is not None:
+            return "published", registry_said
+        return "malformed", ("the registry answered 200 with something that is not a manifest "
+                             "(or not all of it): " + repr(text[:120]))
+    if status in (401, 403):
+        return "denied", registry_said
+    if status == 404:
+        lowered = registry_said.lower()
+        names_the_header = "accept header" in lowered or (
+            "accept" in lowered and "does not support" in lowered)
+        if names_the_header:
+            return "ambiguous", registry_said
+        if any(word in lowered for word in ("manifest unknown", "name unknown", "not found")):
+            return "absent", registry_said
+        return "ambiguous", registry_said
+    if status in (408, 429) or status >= 500:
+        return "transient", f"HTTP {status}: {registry_said}"
+    return "ambiguous", f"HTTP {status}: {registry_said}"
+
+
+def anonymous_pull_token(token_url, timeout=REGISTRY_TIMEOUT_S):
+    """(token, None) or (None, why not). Public packages answer this anonymously.
+
+    A refusal here is deliberately not read as "the package does not exist": a
+    private package refuses an anonymous grant for a tag it publishes, so the
+    only honest answer is that this probe cannot see it and `docker` - which
+    has the host's credential - can.
+    """
+    status, _headers, payload = http_get(
+        token_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}, timeout=timeout)
+    if status is None:
+        return None, payload.decode("utf-8", "replace") if isinstance(payload, bytes) else str(payload)
+    if status not in (200, 201):
+        return None, f"HTTP {status} for the anonymous token grant: " \
+                     f"{payload[:200].decode('utf-8', 'replace')}"
+    try:
+        token = json.loads(payload.decode("utf-8", "replace")).get("token")
+    except ValueError:
+        return None, f"the token grant answered something that is not JSON: {payload[:120]!r}"
+    if not token:
+        return None, f"the token grant carried no token: {payload[:120]!r}"
+    return token, None
+
+
+def exists(root, image, tag=None, repo=None, base=REGISTRY_BASE, timeout=REGISTRY_TIMEOUT_S):
+    """Answer "is this tag published?" and nothing else; returns the exit code.
+
+    Two anonymous GETs, no docker, no credential, nothing downloaded. The asked
+    tag goes to stdout, every diagnostic to stderr, as with --resolve.
+
+    Existence is all it can prove, and the wording below says so on purpose:
+    the caller that wants "we do not need to build this" needs --resolve.
+    """
+    asked = tag or fingerprint(root, image)
+    repo = repo or REGISTRY_REPO[image]
+    ref = f"{repo}:{asked}"
+    token_url, manifest_url = registry_endpoints(repo, asked, base)
+
+    token, problem = anonymous_pull_token(token_url, timeout=timeout)
+    if token is None:
+        _note(f"EXISTS: cannot look at {ref} - {problem}")
+        _note("this says nothing about whether the tag exists: a private package refuses "
+              "an anonymous read exactly like a missing one. If the package is private, ask "
+              "with docker (it uses this host's credential) or make it public; if the "
+              "registry is merely unreachable, retry.")
+        print(asked)
+        return EXIT_TRANSIENT
+
+    status, headers, body = http_get(
+        manifest_url,
+        headers={"User-Agent": USER_AGENT, "Accept": MANIFEST_MEDIA_TYPE,
+                 "Authorization": f"Bearer {token}"},
+        timeout=timeout)
+    kind, said = classify_manifest_answer(
+        status, body, detail="" if status is not None else str(body))
+
+    if kind == "published":
+        digest = headers.get("Docker-Content-Digest") or headers.get("docker-content-digest")
+        _note(f"EXISTS: {ref} is published" + (f" as manifest {digest}" if digest else ""))
+        _note("existence only: no layer was downloaded, so this does not say the content "
+              "arrives intact or runs here. Use --resolve when the image is really wanted.")
+        print(asked)
+        return EXIT_OK
+    if kind == "absent":
+        _note(f"EXISTS: {ref} is not published ({said})")
+        _note("never published is not the same as unimportant: the publish of this "
+              "fingerprint may simply not have run yet. See the --resolve miss message "
+              "for the sanctioned fallbacks.")
+        print(asked)
+        return EXIT_MISS
+    if kind == "denied":
+        _note(f"EXISTS: the registry refuses an anonymous read of {ref} ({said})")
+        _note("refused is not absent. A private package answers like this for a tag it "
+              "publishes; ask with docker, which has this host's credential.")
+        print(asked)
+        return EXIT_TRANSIENT
+    if kind == "ambiguous":
+        _note(f"EXISTS: the registry answered 404 for {ref} but not with \"manifest unknown\" ({said})")
+        _note("that is a difference we cannot resolve from here, so this is NOT read as "
+              "'not published': the request may not be in a language this registry answers "
+              "(ghcr needs the OCI manifest media type, see MANIFEST_MEDIA_TYPE), or the "
+              "package may have become a multi-arch index. --resolve asks with docker and "
+              "is not fooled by either; report the answer shape upstream.")
+        print(asked)
+        return EXIT_TRANSIENT
+    if kind == "malformed":
+        _note(f"EXISTS: {said}")
+        _note("an answer this tool cannot read is not an answer about the tag; retry or use --resolve.")
+    else:
+        _note(f"EXISTS: could not look at {ref} - {said}")
+        _note("the registry or the network did not answer properly. Nothing was learned about "
+              "the tag; retry, or use --resolve to let docker try with this host's credential.")
+    print(asked)
+    return EXIT_TRANSIENT
+
+
+# --------------------------------------------------------------------------
 # self-check (--self-check): offline property tests
 # --------------------------------------------------------------------------
 
@@ -769,10 +1042,72 @@ def self_check(root):
     results.append(("resolver classifies every canned docker failure correctly",
                     all(classify_pull_failure(text) == want for text, want in cases)))
 
-    width = max(len(name) for name, _ in results)
-    failed = [name for name, ok in results if not ok]
-    for name, ok in results:
-        print(f"{'PASS' if ok else 'FAIL'}  {name:<{width}}")
+    # -- existence probe: canned registry answers (the request itself is the
+    #    test file's job, over a stub) --------------------------------------
+    def answer(body, status=200):
+        raw = body.encode("utf-8") if isinstance(body, str) else body
+        return classify_manifest_answer(status, raw)[0]
+
+    ghcr_manifest = json.dumps({
+        "schemaVersion": 2,
+        "mediaType": MANIFEST_MEDIA_TYPE,
+        "config": {"digest": "sha256:aaa"},
+    }).encode()
+    unknown = b'{"errors":[{"code":"MANIFEST_UNKNOWN","message":"manifest unknown"}]}\n'
+    wrong_language = (b'{"errors":[{"code":"MANIFEST_UNKNOWN","message":"OCI manifest '
+                      b'found, but Accept header does not support OCI manifests"}]}')
+    results.append(("canned manifest 200 is published",
+                    classify_manifest_answer(200, ghcr_manifest)[0] == "published"))
+    results.append(("canned 404 'manifest unknown' is absent",
+                    classify_manifest_answer(404, unknown)[0] == "absent"))
+    # The two 404s above look the same by status and code alone; only the
+    # message tells them apart, and mixing them up is the expensive direction.
+    results.append(("canned 404 about the Accept header is NOT absent",
+                    classify_manifest_answer(404, wrong_language)[0] == "ambiguous"))
+    results.append(("canned 404 with no recognised wording is NOT absent",
+                    classify_manifest_answer(404, b"gateway said no")[0] == "ambiguous"))
+    results.append(("canned 200 that is not a manifest is malformed",
+                    answer("<html>502 bad gateway</html>", 200) == "malformed"))
+    results.append(("canned 401 and 403 are denied, never absent",
+                    classify_manifest_answer(401, unknown)[0] == "denied"
+                    and classify_manifest_answer(403, unknown)[0] == "denied"))
+    results.append(("canned 500, 429 and 408 are transient",
+                    answer(b"boom", 500) == "transient" and answer(b"", 429) == "transient"
+                    and answer(b"", 408) == "transient"))
+    results.append(("a transport failure is unreachable, not absent",
+                    classify_manifest_answer(None, b"", "Connection refused")[0] == "unreachable"))
+    results.append(("the probe sends exactly one media type, not a wildcard",
+                    MANIFEST_MEDIA_TYPE == "application/vnd.oci.image.manifest.v1+json"))
+    token_url, manifest_url = registry_endpoints(
+        "ghcr.io/mrmap-community/mrmap-backend-dev", "9aaf0524cd23")
+    token_parts = urllib.parse.parse_qs(urllib.parse.urlparse(token_url).query)
+    results.append(("the token grant asks for pull on this repository only",
+                    urllib.parse.urlparse(token_url).path == "/token"
+                    and token_parts.get("service") == ["ghcr.io"]
+                    and token_parts.get("scope")
+                    == ["repository:mrmap-community/mrmap-backend-dev:pull"],
+                    token_url))
+    results.append(("the manifest request addresses the tag under /v2/",
+                    manifest_url == "https://ghcr.io/v2/mrmap-community/mrmap-backend-dev"
+                    "/manifests/9aaf0524cd23", manifest_url))
+    stub_token, stub_manifest = registry_endpoints(
+        "ghcr.io/mrmap-community/mrmap-backend-dev", "ab", base="http://127.0.0.1:9")
+    stub_scope = urllib.parse.parse_qs(urllib.parse.urlparse(stub_token).query).get("scope")
+    results.append(("a --repo override keeps the reference's host out of the API path",
+                    stub_manifest == "http://127.0.0.1:9/v2/mrmap-community/mrmap-backend-dev"
+                    "/manifests/ab"
+                    and stub_scope == ["repository:mrmap-community/mrmap-backend-dev:pull"],
+                    stub_manifest))
+
+    width = max(len(entry[0]) for entry in results)
+    failed = [entry[0] for entry in results if not entry[1]]
+    for entry in results:
+        # an entry is (name, ok) or (name, ok, detail); the detail is printed for
+        # a failure only, where the raw value read is the useful half of it.
+        line = f"{'PASS' if entry[1] else 'FAIL'}  {entry[0]:<{width}}"
+        if not entry[1] and len(entry) > 2:
+            line += f"   <- {entry[2]}"
+        print(line)
     if failed:
         print(f"self-check FAILED ({len(failed)} of {len(results)} checks)", file=sys.stderr)
         return 1
@@ -802,6 +1137,17 @@ def main(argv=None):
     parser.add_argument("--resolve", action="store_true",
                         help="ensure the fp-tagged image is locally available: "
                         "hit/pull, loud miss, --build for the local fallback")
+    parser.add_argument("--exists", action="store_true",
+                        help="ask the registry whether this tag is published: "
+                        "anonymous token plus one manifest request, no docker, "
+                        "nothing downloaded (existence only)")
+    parser.add_argument("--fp", default=None, metavar="TAG",
+                        help="with --exists: ask about this tag instead of this "
+                             "checkout's fingerprint (any tag works, e.g. main)")
+    parser.add_argument("--timeout", type=float, default=REGISTRY_TIMEOUT_S,
+                        help=argparse.SUPPRESS)  # test hook: cap on both registry reads
+    parser.add_argument("--registry-base", default=REGISTRY_BASE,
+                        help=argparse.SUPPRESS)  # test hook: registry origin for --exists
     parser.add_argument("--build", action="store_true",
                         help="with --resolve: build locally under the "
                         "immutable tag when the pull misses (sanctioned fallback)")
@@ -817,6 +1163,13 @@ def main(argv=None):
     root = args.repo_root.resolve()
     if args.self_check:
         return self_check(root)
+    if args.exists:
+        if args.fp and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,127}", args.fp):
+            raise SystemExit(f"dev_image_id: --exists cannot ask about {args.fp!r}: "
+                             "a registry tag is 128 characters of [A-Za-z0-9._-], "
+                             "starting alphanumeric or _")
+        return exists(root, args.image, tag=args.fp, repo=args.repo,
+                      base=args.registry_base, timeout=args.timeout)
     if args.resolve:
         return resolve(root, args.image, build=args.build, dry_run=args.dry_run,
                        repo=args.repo)

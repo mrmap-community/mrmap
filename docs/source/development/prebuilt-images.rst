@@ -151,19 +151,26 @@ The image contract assumes **anonymous** pulls - agents carry no registry
 credentials. For public GHCR packages that is the default: no ``docker login``
 is needed anywhere.
 
-.. note:: measured 2026-11-04
-   Both fp tags ARE published - the master push runs are green (``Dev Images``
-   reports ``backend-dev-publish`` and ``frontend-dev-publish``, and
-   ``docker buildx`` logs the pushed digest, e.g.
-   ``ghcr.io/mrmap-community/mrmap-backend-dev@sha256:a23abf3e...`` for fp
-   ``09d7b1080a52``) - yet an anonymous token grant for the repositories is
-   refused (``docker pull`` -> ``error from registry: unauthorized``, curl
-   against the ``/token`` endpoint -> ``UNAUTHORIZED``). That is GHCR's default
-   *private* package visibility at first push, not a missing tag. A maintainer
-   must flip ``mrmap-community/mrmap-backend-dev`` and
-   ``mrmap-frontend-dev`` to public - requested via the question on issue #964.
-   Until then, agents simply take the fallback path below, which needs no
-   registry at all.
+Both ``mrmap-community/mrmap-backend-dev`` and ``mrmap-frontend-dev`` have been
+**public since 2026-11-05**, which is the state everything below assumes.
+
+.. note:: measured 2026-11-05, without a credential
+   The anonymous ``/token?scope=repository:<repo>:pull`` grant answers 200 for
+   both repositories, and one manifest ``GET`` for a published fp tag answers
+   200 with the manifest: 1.6 kB of JSON naming 7 layers, 307.7 MB compressed
+   for the backend tag and 141.4 MB for the frontend one. CI confirms it from
+   the other side - on the fresh ``ubuntu-latest`` runner of Actions run
+   ``42109599479`` the gate logged ``... mrmap-backend-dev:9aaf0524cd23 not
+   present locally; pulling`` followed by ``pulled``, and its build steps went
+   ``skipped``.
+
+   For contrast, the same two requests one day earlier: both fp tags already
+   published, the master push runs green, and the anonymous grant still refused
+   (``docker pull`` -> ``error from registry: unauthorized``, a request against
+   the ``/token`` endpoint -> ``UNAUTHORIZED``) - GHCR's default *private*
+   visibility at first push, which is what issue #964 asked a maintainer to
+   flip. The ``unauthorized`` row in the resolver table is still what a private
+   package looks like; it is no longer what these two packages look like.
 
 If an org ever keeps dev packages private, an authenticated pull is
 ``gh auth token | docker login ghcr.io -u <user> --password-stdin`` with a token
@@ -249,7 +256,7 @@ output, ``needs_build``:
      - never published: this branch changed a dependency input, so this build IS the validation
    * - 4
      - true
-     - transient failure, or a private package refusing an anonymous look - "unchanged" and "could not look" are indistinguishable here, so build
+     - transient failure, or a registry that refuses the anonymous look (a package that went private again answers like this): "unchanged" and "could not look" are indistinguishable here, so build
    * - 5, 6, 7
      - true
      - the tag exists but its content proves nothing usable here (wrong platform, a failed build, a retagged foreign image)
@@ -285,13 +292,17 @@ two steps marked skipped and the gate's reason in the log. A required check
 never disappears, which is what the merge queue waits for. The publish jobs are
 untouched and unconditional, ``packages: write`` stays on them, and a
 pull-request run keeps only ``contents: read`` - it cannot publish either way.
-While the two GHCR packages are still private (see "GHCR access: anonymous pull,
-and the current visibility") the probe answers exit 4 and CI builds exactly as
-it did before this gate; the skipping starts with the visibility flip, and an
-unchanged run then pays a checkout plus one anonymous pull of the published tag
-instead of a build. The Actions build cache is written by runs that build, and
-the publish runs on ``master`` still build unconditionally, so a later
-dependency change finds the ``master`` cache as warm as before.
+This is the path CI runs today, not a future one: the packages went public on
+2026-11-05, so an unchanged pull request answers exit 0 on a runner that has no
+images of its own - which is exactly why that 0 can only be a registry hit.
+Measured in Actions run ``42109599479``: the backend gate step took 20.7 s from
+fingerprint to ``needs_build=false``, the anonymous pull of the published 307.7
+MB tag inside that step included, and both optional steps went ``skipped`` while
+the job itself stayed green (31 s and 35 s for the two build jobs, runner setup
+and checkout included). An unchanged run pays a checkout plus that pull instead
+of a build. The Actions build cache is written by runs that build, and the
+publish runs on ``master`` still build unconditionally, so a later dependency
+change finds the ``master`` cache as warm as before.
 
 ``python3 scripts/test_dev_image_gate.py`` checks the decision table, the probe
 invocation and the workflow wiring offline - no docker, no network, no ``gh``.
@@ -336,11 +347,15 @@ Measured startup
 
 All rows were measured on 2026-11-04 on the nightly-runner host (20 cores,
 94 GB RAM, docker 29.8.2 with Compose v5, BuildKit cache already warm from
-prior agent builds of the same content; the GHCR packages were still private,
-see the note in "GHCR access", so the rows time the resolver's sanctioned
-fallback and the registry's refusals rather than an anonymous download). The
-commands are the copy-paste commands above, run as one sequential script with
-teardown traps; the host served a few unrelated containers during the run.
+prior agent builds of the same content). **Visibility during that run: the two
+GHCR packages were still private** (see the GHCR note above), so these rows
+time the resolver's sanctioned fallback build and the registry's refusals, not
+an anonymous download. Most of them are unaffected by the flip - a warm-cache
+fallback build, a stack start, a test run and a teardown never contact ghcr.io.
+The two rows that did depend on it are the two ``resolve`` rows; the anonymous
+path has its own dated table after these. The commands are the copy-paste
+commands above, run as one sequential script with teardown traps; the host
+served a few unrelated containers during the run.
 ``tests_update_candidates`` is the 5-test targeted module of
 ``backend/AGENTS.md``; the Behave row is the targeted
 ``json:api/registry/service/wms`` feature run.
@@ -356,11 +371,13 @@ teardown traps; the host served a few unrelated containers during the run.
        fallback build under the contract tag
      - 1.1 s
      - full warm-cache hit; a cold BuildKit cache pays the ~2.8 GB layer build
-       once per host instead
+       once per host instead. Private-visibility row: the registry could
+       not be read, so this is the fallback path, not the pull path
    * - resolve *without* ``--build`` in the same absent state
      - 0.4 s
      - exit 4, raw docker error and the fallbacks printed - failing fast and
-       loudly, no silent substitution
+       loudly, no silent substitution. That is what a refused or
+       unreachable registry answers; with the packages public this ask exits 0
    * - deps up (``up -d postgis redis mapserver``)
      - 3.6 s
      - -
@@ -446,28 +463,71 @@ BuildKit cache. This run confirms the ``npm ci`` band (24.2-27.3 s) and the
 seed band (~13 s including container start); the two image builds replayed from
 the warm cache in ~1 s each.
 
+The anonymous path, measured 2026-11-05 with both packages public. The first
+row is the pair of registry requests asked by hand (an anonymous pull token,
+then one manifest ``GET``); the ``--resolve`` rows are the documented command
+above, run on a host that already had the tag:
+
+.. list-table:: Anonymous registry reads of a published fp tag (2026-11-05)
+   :header-rows: 1
+   :widths: 44 18 38
+
+   * - Step
+     - Wall clock
+     - Note
+   * - the two anonymous requests: pull-token grant, then one manifest ``GET``
+     - 0.31-0.36 s
+     - two round trips of about 0.15 s and 0.18 s, 1.6 kB of JSON, nothing
+       downloaded. The manifest names every layer, so it is also how to check
+       what an image weighs without pulling it: 307.7 MB compressed for the
+       backend tag, 141.4 MB for the frontend tag
+   * - ``--resolve`` where the tag is already local (backend)
+     - 0.18 s
+     - the common case on a warm host: no registry contact at all, one
+       ``docker image inspect``, which is ``pull_policy: missing`` doing its job
+   * - ``--resolve`` where the tag is already local (frontend)
+     - 1.6 s
+     - same answer, and the extra second is honest work: the frontend resolve
+       starts a throwaway container to read the fingerprint stamped inside the
+       image
+   * - the CI gate step on a fresh runner, fingerprint to decision written
+     - 20.7 s
+     - Actions run ``42109599479``; it contains the anonymous cold pull of the
+       307.7 MB tag, which makes it the cold-pull figure that did not need a
+       shared image deleted to obtain it
+   * - the two gated build jobs of that run, setup and checkout included
+     - 31 s, 35 s
+     - both green with ``needs_build=false`` and their buildx and build steps
+       ``skipped``
+
 Two honest caveats. First, the Django figures sit above the "~18 s cold /
 ~20 s keepdb" figures in ``backend/AGENTS.md`` - unrelated containers shared
 the host during the measurement; treat those documented figures as the quiet
 host and these as the loaded one, the *relative* picture is what matters:
 prebuilt versus local build changes only the per-checkout build step, never
-per-test time. Second, **cold pull versus warm pull is reported as behavior,
-not as a stopwatch number**: with the fp tag absent, compose pulls the pinned
-tag once per host (~307 MB compressed, 1.44 GB unpacked, per ``docker images``)
-and any later stack skips the registry entirely (``pull_policy: missing``,
-verified - the second project's runs and even an explicit unscoped
-``docker compose pull`` made zero ghcr.io requests). The end-to-end anonymous
-download timing against ghcr.io could not be measured in this run because the
-package visibility was still private; re-measure this row after the package is
-public.
+per-test time. Second, **cold pull versus warm pull**: with the fp tag absent,
+compose pulls the pinned tag once per host (307.7 MB compressed, straight from
+the registry's own manifest; 1.44 GB unpacked per ``docker images``) and any
+later stack skips the registry entirely (``pull_policy: missing``, verified -
+the second project's runs and even an explicit unscoped ``docker compose pull``
+made zero ghcr.io requests). The end-to-end download now has a number too, in
+the table above: on a fresh CI runner the gate step that pulls the published tag
+takes 20.7 s from fingerprint to decision. It was deliberately not timed
+interactively on this host, because both fp tags are already present here and
+deleting a shared image to watch it arrive again is not this document's price to
+pay - the next clean figure comes from a clean runner.
 
 Troubleshooting
 ===============
 
-* ``Error response from daemon: ... unauthorized`` / ``denied`` on pull -
-  either the package is not public (see the GHCR note) or the fp tag was never
-  published (exit 3 case). Fix: resolver with ``--build``; ask for the publish
-  or the visibility flip. Never paper over it with ``:main``.
+* ``Error response from daemon: ... unauthorized`` / ``denied`` on pull - with
+  both packages public since 2026-11-05 this is GHCR's answer for a name it
+  does not serve, so read it as the fp tag never being published (the exit 3
+  case) first. A package that has gone private again answers identically, and
+  is the rarer half; a ``ghcr.io/token`` grant that comes back
+  ``UNAUTHORIZED`` for a repository which used to answer 200 is how to tell
+  them apart. Fix: resolver with ``--build``; ask for the publish or for the
+  visibility. Never paper over it with ``:main``.
 * ``required variable DJANGO_SECRET_KEY is missing a value`` - the worktree has
   no ``.env`` (it is ignored, not tracked): copy ``.env`` and
   ``docker/backend/.mrmap.env`` from the main checkout first.

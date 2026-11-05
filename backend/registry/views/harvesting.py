@@ -16,8 +16,8 @@ from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
-                                      ServiceMetadataRecord)
+from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
+                                      Keyword, Language, ServiceMetadataRecord)
 from registry.models.monitoring import CatalogueServiceMonitoringSetting
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
@@ -25,6 +25,16 @@ from registry.serializers.harvesting import (
     HarvestingJobSerializer, HarvestingLogSerializer,
     PeriodicHarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
 from rest_framework_json_api.views import ModelViewSet
+
+# the kinds of records a harvesting distinguishes, by the relation name of
+# HarvestedMetadataRelation and the name the api counts of: one helper drives the
+# sums CTE for all of them, so a fourth record kind is a row here and nothing else
+# (#830 replaces the boolean dataset/service switch of the two copies it was).
+HARVESTED_RECORD_KINDS = {
+    "dataset": "dataset_metadata_record",
+    "service": "service_metadata_record",
+    "application": "application_metadata_record",
+}
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
     Prefetch(
@@ -196,35 +206,25 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         # ],
     }
 
-    def _get_cte_annotation_kwargs(self, for_dataset=True):
+    def _get_cte_annotation_kwargs(self, record_kind):
+        """The count annotations one record kind contributes to the sums CTE.
+
+        The counts a run answers are gated on the sparse fieldsets of the request:
+        a screen which never shows the records of one kind does not pay for their
+        aggregation. The collecting states are the same for every kind, only the
+        relation which guards the count differs - which is why one helper answers
+        all kinds of HARVESTED_RECORD_KINDS instead of a copy per kind (#830).
+        """
+        string = record_kind.capitalize()
+        relation_filter_kwargs = {
+            f"{HARVESTED_RECORD_KINDS[record_kind]}__isnull": False
+        }
         cte_annotation = {}
-        relation_filter_kwargs = {}
-        if for_dataset:
-            string = 'Dataset'
-            relation_filter_kwargs.update({
-                "dataset_metadata_record__isnull": False
-            })
-        else:
-            string = 'Service'
-            relation_filter_kwargs.update({
-                "service_metadata_record__isnull": False
-            })
-        if self.check_sparse_fields_contains(f"new{string}MetadataCount"):
-            cte_annotation.update({
-                f"new_{string.lower()}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum.NEW.value, **relation_filter_kwargs))
-            })
-        if self.check_sparse_fields_contains(f"updated{string}MetadataCount"):
-            cte_annotation.update({
-                f"updated_{string.lower()}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum.UPDATED.value, **relation_filter_kwargs))
-            })
-        if self.check_sparse_fields_contains(f"existing{string}MetadataCount"):
-            cte_annotation.update({
-                f"existing_{string.lower()}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum.EXISTING.value, **relation_filter_kwargs))
-            })
-        if self.check_sparse_fields_contains(f"duplicated{string}MetadataCount"):
-            cte_annotation.update({
-                f"duplicated_{string.lower()}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum.DUPLICATED.value, **relation_filter_kwargs))
-            })
+        for state in ("new", "updated", "existing", "duplicated"):
+            if self.check_sparse_fields_contains(f"{state}{string}MetadataCount"):
+                cte_annotation.update({
+                    f"{state}_{record_kind}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum[state.upper()].value, **relation_filter_kwargs))
+                })
 
         return cte_annotation
 
@@ -235,30 +235,16 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         if self.check_sparse_fields_contains("mdMetadataFileToDbDuration"):
             qs = qs.annotate(
                 md_metadata_file_to_db_duration=sums.col.md_metadata_file_to_db_duration)
-        if self.check_sparse_fields_contains("newDatasetMetadataCount"):
-            qs = qs.annotate(
-                new_dataset_metadata_count=Coalesce(sums.col.new_dataset_metadata_count, 0))
-        if self.check_sparse_fields_contains("updatedDatasetMetadataCount"):
-            qs = qs.annotate(
-                updated_dataset_metadata_count=Coalesce(sums.col.updated_dataset_metadata_count, 0))
-        if self.check_sparse_fields_contains("existingDatasetMetadataCount"):
-            qs = qs.annotate(
-                existing_dataset_metadata_count=Coalesce(sums.col.existing_dataset_metadata_count, 0))
-        if self.check_sparse_fields_contains("duplicatedDatasetMetadataCount"):
-            qs = qs.annotate(
-                duplicated_dataset_metadata_count=Coalesce(sums.col.duplicated_dataset_metadata_count, 0))
-        if self.check_sparse_fields_contains("newServiceMetadataCount"):
-            qs = qs.annotate(
-                new_service_metadata_count=Coalesce(sums.col.new_service_metadata_count, 0))
-        if self.check_sparse_fields_contains("updatedServiceMetadataCount"):
-            qs = qs.annotate(
-                updated_service_metadata_count=Coalesce(sums.col.updated_service_metadata_count, 0))
-        if self.check_sparse_fields_contains("existingServiceMetadataCount"):
-            qs = qs.annotate(
-                existing_service_metadata_count=Coalesce(sums.col.existing_service_metadata_count, 0))
-        if self.check_sparse_fields_contains("duplicatedServiceMetadataCount"):
-            qs = qs.annotate(
-                duplicated_service_metadata_count=Coalesce(sums.col.duplicated_service_metadata_count, 0))
+        for record_kind in HARVESTED_RECORD_KINDS:
+            string = record_kind.capitalize()
+            for state in ("new", "updated", "existing", "duplicated"):
+                if self.check_sparse_fields_contains(f"{state}{string}MetadataCount"):
+                    field = f"{state}_{record_kind}_metadata_count"
+                    # a run which harvested no record of the kind has no row in the
+                    # sums, the answer of the api is zero
+                    qs = qs.annotate(**{
+                        field: Coalesce(getattr(sums.col, field), 0)
+                    })
         if self.check_sparse_fields_contains("recordsPerMinute"):
             qs = qs.annotate(
                 harvested_records=Coalesce(sums.col.harvested_records, 0),
@@ -283,8 +269,9 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         return qs
 
     def with_harvesting_stats(self, qs):
-        dataset_cte_annotation = self._get_cte_annotation_kwargs(True)
-        service_cte_annotation = self._get_cte_annotation_kwargs(False)
+        record_count_annotation = {}
+        for record_kind in HARVESTED_RECORD_KINDS:
+            record_count_annotation.update(self._get_cte_annotation_kwargs(record_kind))
         cte_annotation = {}
         if self.check_sparse_fields_contains("fetchRecordDuration"):
             cte_annotation.update({
@@ -310,10 +297,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                 ),
             })
         sums = None
-        if dataset_cte_annotation or service_cte_annotation or cte_annotation:
+        if record_count_annotation or cte_annotation:
             sums = CTE(
                 queryset=HarvestedMetadataRelation.objects.values('harvesting_job_id').annotate(
-                    **dataset_cte_annotation, **service_cte_annotation, **cte_annotation),
+                    **record_count_annotation, **cte_annotation),
                 name="sums"
             )
 
@@ -545,8 +532,10 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
         "dataset_metadata_record": ["isnull"],
         "service_metadata_record": ["isnull"],
+        "application_metadata_record": ["isnull"],
         "dataset_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
+        "application_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
         "harvesting_job": ["harvesting_job"],
@@ -562,6 +551,14 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
             Prefetch(
                 "service_metadata_record",
                 queryset=ServiceMetadataRecord.objects.only(
+                    "id"
+                ),
+            )
+        ],
+        "application_metadata_record": [
+            Prefetch(
+                "application_metadata_record",
+                queryset=ApplicationMetadataRecord.objects.only(
                     "id"
                 ),
             )

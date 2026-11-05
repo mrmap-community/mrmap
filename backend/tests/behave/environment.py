@@ -3,7 +3,9 @@ from behave_django.testcase import BehaviorDrivenTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from MrMap.settings import BASE_DIR
-from registry.models.metadata import DatasetMetadataRecord
+from registry.models.harvest import HarvestingJob
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord, MetadataContact)
 from rest_framework.test import APIClient
 
 #: Prefix of the feature tag that requests one fixture file, e.g. ``@fixtures:test_wms.json``.
@@ -11,6 +13,15 @@ FIXTURE_TAG_PREFIX = "fixtures:"
 
 #: Tag of a feature that needs no data at all beyond the users ``before_all`` loads.
 NO_FIXTURES_TAG = "no_fixtures"
+
+# rows which only the application record features of #830 declare; the pks belong
+# to test_applicationmetadata.json and test_applicationharvesting.json
+APPLICATION_CONTACT_PKS = [1235, 1236]
+APPLICATION_RECORD_PKS = [
+    "a11c0000-0000-4000-8000-000000000001",
+    "a11c0000-0000-4000-8000-000000000002",
+]
+APPLICATION_HARVESTING_JOB_PKS = [903]
 
 
 def before_all(context):
@@ -73,6 +84,28 @@ def before_feature(context, feature):
             f"happen silently whenever a title did not match the legacy mapping, and a feature "
             f"without data passes on 'meta.pagination.count == 0' without testing anything.")
     load_fixtures(requested)
+
+
+def after_feature(context, feature):
+    """Remove the rows of the application record fixtures of #830.
+
+    The fixtures of a feature are loaded once per feature and not restored, so
+    every row a feature declares stays visible to the features which run after
+    it. The application rows are shared by three of the new features (they all
+    load the same files) and the harvesting rows of them carry statistics whose
+    counts the already green scenarios of the harvesting never saw; the feature
+    which loaded them hands its rows back here. ``loaddata`` is idempotent over
+    the primary keys, so the next of the three features simply loads them again.
+    """
+    requested = requested_fixtures(feature)
+    if "test_applicationharvesting.json" in requested:
+        # deleting the job cascades the harvested relations which hang from it
+        HarvestingJob.objects.filter(pk__in=APPLICATION_HARVESTING_JOB_PKS).delete()
+    if "test_applicationmetadata.json" in requested:
+        # the record cascades its own harvested relations; the contact is what
+        # RESTRICTs a deletion, so it goes last
+        ApplicationMetadataRecord.objects.filter(pk__in=APPLICATION_RECORD_PKS).delete()
+        MetadataContact.objects.filter(pk__in=APPLICATION_CONTACT_PKS).delete()
 
 
 def before_scenario(context, scenario):

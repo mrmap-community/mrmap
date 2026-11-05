@@ -1,6 +1,8 @@
 from django_filters import BooleanFilter, FilterSet
 from rest_framework_gis.filters import GeometryFilter
-from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 
 
 class MetadataQualityFilterSetMixin(FilterSet):
@@ -68,4 +70,23 @@ class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_service_metadata_relation__harvesting_job": ["exact"],
             "harvested_service_metadata_relation__collecting_state": ["exact"],
+        }
+
+
+class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, FilterSet):
+    # see DatasetMetadataRecordSpatialFilterSet; the application record is shaped like the
+    # dataset record (#825) and its harvest relation is named alike (#827)
+    bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
+    bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
+    bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
+
+    class Meta:
+        model = ApplicationMetadataRecord
+        fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
+            "title": ["exact", "icontains", "contains"],
+            "abstract": ["exact", "icontains", "contains"],
+            "keywords__keyword": ["exact", "icontains", "contains"],
+            "harvested_application_metadata_relation__harvesting_job": ["exact"],
+            "harvested_application_metadata_relation__collecting_state": ["exact"],
         }

@@ -75,8 +75,13 @@ describe("harvesting run summary", () => {
       .map((link) => link.getAttribute("href"));
     expect(links).toContain("/HarvestingJob/1/show/DatasetMetadataRecord");
     expect(links).toContain("/HarvestingJob/1/show/ServiceMetadataRecord");
+    expect(links).toContain("/HarvestingJob/1/show/ApplicationMetadataRecord");
     expect(links).toContain("/HarvestingJob/1/show/TemporaryMdMetadataFile");
     expect(links).toContain("/HarvestingJob/1/show/HarvestingLog");
+    expect(
+      screen.getByTestId("ApplicationMetadataRecord"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("harvestRun.applications")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "harvestingActivity.importErrors",
     );

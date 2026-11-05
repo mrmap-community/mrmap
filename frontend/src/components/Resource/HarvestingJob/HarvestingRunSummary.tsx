@@ -50,6 +50,7 @@ const HarvestingRunSummary = () => {
   const counters = [
     { resource: "DatasetMetadataRecord", label: "datasets" },
     { resource: "ServiceMetadataRecord", label: "services" },
+    { resource: "ApplicationMetadataRecord", label: "applications" },
     { resource: "TemporaryMdMetadataFile", label: "unhandled" },
   ];
   return (
@@ -151,7 +152,7 @@ const HarvestingRunSummary = () => {
       </Card>
       <Grid container spacing={2}>
         {counters.map((counter) => (
-          <Grid key={counter.resource} size={{ xs: 6, md: 3 }}>
+          <Grid key={counter.resource} size={{ xs: 6, md: 4 }}>
             <Card variant="outlined">
               <CardActionArea
                 component={Link}
@@ -173,7 +174,7 @@ const HarvestingRunSummary = () => {
             </Card>
           </Grid>
         ))}
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Card variant="outlined">
             <CardActionArea
               component={Link}

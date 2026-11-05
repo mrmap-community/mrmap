@@ -11,12 +11,33 @@ import {
   useTranslate,
 } from "react-admin";
 
-import { Alert, Card, Grid, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Card,
+  Grid,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import HarvestingJobTimingCharts from "./HarvestingJobTimingCharts";
 import HarvestingRunSummary from "./HarvestingRunSummary";
+
+// The run answers these counts of every kind it collects (see
+// registry.serializers.harvesting.HarvestingJobSerializer): the names are the
+// presentation choice of this table, the numbers and their labels stay schema-owned.
+const RESULT_COUNT_STATES = ["new", "updated", "existing", "duplicated"];
+const RESULT_COUNT_KINDS = [
+  { label: "datasets", prefix: "Dataset" },
+  { label: "services", prefix: "Service" },
+  { label: "applications", prefix: "Application" },
+];
 
 const HarvestingJobTabbedShowLayout = () => {
   const { record, isPending, error } = useShowContext();
@@ -47,6 +68,7 @@ const HarvestingJobTabbedShowLayout = () => {
                   />
                   <BooleanField source="harvestDatasets" />
                   <BooleanField source="harvestServices" />
+                  <BooleanField source="harvestApplications" />
                 </SimpleShowLayout>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -60,6 +82,40 @@ const HarvestingJobTabbedShowLayout = () => {
                   <NumberField source="importErrorCount" />
                 </SimpleShowLayout>
               </Grid>
+              <Grid size={12}>
+                <Typography variant="h6">
+                  {translate("harvestRun.resultCounts")}
+                </Typography>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell />
+                      {RESULT_COUNT_STATES.map((state) => (
+                        <TableCell key={state}>
+                          {translate(`harvestRun.${state}Count`)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {RESULT_COUNT_KINDS.map((kind) => (
+                      <TableRow key={kind.prefix}>
+                        <TableCell component="th" scope="row">
+                          {translate(`harvestRun.${kind.label}`)}
+                        </TableCell>
+                        {RESULT_COUNT_STATES.map((state) => (
+                          <TableCell key={state}>
+                            <NumberField
+                              source={`${state}${kind.prefix}MetadataCount`}
+                              label={false}
+                            />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Grid>
             </Grid>
           </TabbedShowLayout.Tab>
           {[
@@ -71,6 +127,11 @@ const HarvestingJobTabbedShowLayout = () => {
             {
               resource: "ServiceMetadataRecord",
               label: "services",
+              columns: ["title"],
+            },
+            {
+              resource: "ApplicationMetadataRecord",
+              label: "applications",
               columns: ["title"],
             },
             {

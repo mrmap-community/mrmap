@@ -39,12 +39,15 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   the host capacity gate described under "Check host capacity before starting another stack".
   `scripts/agent_supervisor` (command: `scripts/agent-supervisor`) is the OpenCode agent supervisor
   described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
-  issue an agent may start and its scheduler decides which of those to start next, against this
-  very claim board and `scripts/agent_capacity`. Three offline checks cover it (`python3
-  scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py` and `..._capacity.py`; each needs
-  neither `gh` nor the network and none of them can write to a repository). The supervisor never
-  claims an issue itself — the worker files `scripts/wip claim` from inside its own worktree, which
-  is the only way that claim's heartbeat can be refreshed. An agent never applies
+  issue an agent may start, its scheduler decides which of those to start next against this very
+  claim board and `scripts/agent_capacity`, and its runner starts that one worker in its own
+  worktree, process group and Compose project and stops it again. Four offline checks cover it
+  (`python3 scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py`, `..._capacity.py` and
+  `..._runner.py`; each needs neither `gh` nor the network nor a container, and none of them can
+  write to a repository). The supervisor never claims an issue from its own checkout — the runner
+  files `scripts/wip claim` from inside the worker's own worktree, which is the only way that
+  claim's heartbeat can be refreshed. What a worker must never do (merge, review, force push) is
+  handed to it as deny permissions, not as prompt wording. An agent never applies
   `agent: approved` itself — a human does.
 
 ## Authoritative sources

@@ -1,18 +1,18 @@
 .. _development-agent-supervisor:
 
-Agent Supervisor: Approval Gate And Scheduler
-=============================================
+Agent Supervisor: Approval Gate, Scheduler And Worker
+=====================================================
 
-.. sidebar:: Epic #1052, issues #1058 and #1059
+.. sidebar:: Epic #1052, issues #1058 to #1060
 
    Code: ``scripts/agent_supervisor/`` (standard library only) with the
    operator command ``scripts/agent-supervisor``. Checks:
-   ``python3 scripts/test_agent_supervisor_approvals.py`` and
-   ``python3 scripts/test_agent_supervisor_scheduler.py`` and
-   ``python3 scripts/test_agent_supervisor_capacity.py`` — none of them needs
-   ``gh``, the network or a repository, and none of them can touch one. This
-   page documents the gate and the scheduler; the worktree runner and the CI and
-   review supervision are the follow-up issues #1060 to #1063 and will extend it.
+   ``python3 scripts/test_agent_supervisor_approvals.py``,
+   ``..._scheduler.py``, ``..._capacity.py`` and ``..._runner.py`` — none of them
+   needs ``gh``, the network, a container or a model, and none of them can touch a
+   repository. This page documents the gate, the scheduler and the worktree
+   runner; the CI and review supervision of the resulting pull requests are the
+   follow-up issues #1061 to #1063 and will extend it.
 
 An OpenCode worker may start work on a MrMap issue when a human has said so.
 That sentence is the whole design; everything below is what "a human has said
@@ -330,14 +330,16 @@ client on any machine. A live claim by another client yields
 but is written to the event log, because it is the one signal that says
 "somebody's machine died with work in progress".
 
-The supervisor therefore never claims an issue itself. ``scripts/wip claim``
-tags a claim by the worktree it runs in, and the tag must be produced by the
-client that is going to do the work — a supervisor in a different checkout
-would otherwise write a claim its worker cannot heartbeat or release. The worker
-claims as its very first act inside its worktree (#1060); the supervisor only
-*reads* the board and refuses to double-book it. When the board cannot be read,
-the tick starts nothing: a late start costs an hour, a start against a human's
-in-progress branch costs their work.
+The supervisor therefore never claims an issue from its own checkout.
+``scripts/wip claim`` tags a claim by the worktree it runs in, and the tag must be
+produced by the client that is going to do the work — a supervisor in a different
+checkout would otherwise write a claim its worker cannot heartbeat or release.
+What the runner (#1060) does instead is run ``scripts/wip claim`` *inside* the new
+worktree, as the first act of that worker and before a file is edited, so the tag,
+the heartbeat and the eventual ``done`` all belong to the process that is doing the
+work. The scheduling code only *reads* the board and refuses to double-book it.
+When the board cannot be read, the tick starts nothing: a late start costs an hour,
+a start against a human's in-progress branch costs their work.
 
 Order, cache and backoff
 ------------------------
@@ -399,6 +401,11 @@ before letting the daemon act on it. ``status`` answers "what is the supervisor
 busy with and what did it decide lately" from the state file alone — it needs no
 GitHub read, which is why it still answers while the network is down.
 
+``plan --start`` is the same tick with the hand attached: it reconciles what a
+crash left behind, then starts what the tick decides to start. It is the command
+to watch when a daemon is not installed yet, and the one an operator can run by
+hand because it prints every decision it makes on the way.
+
 Reason codes in a report
 ------------------------
 
@@ -430,6 +437,162 @@ readable as a sentence about one issue:
    * - ``no-runner``
      - leased and planned, but no runner exists to adopt the plan
 
+Starting a worker
+=================
+
+The scheduler decides; the runner (#1060) is the only part that touches a
+worktree, a process and a container. That separation is not decoration: the
+decision "this issue may start" is a read-only question with a testable answer,
+while starting is the act that can destroy work, so it happens in one place with
+its own checks (``python3 scripts/test_agent_supervisor_runner.py``, 87 of them,
+needing neither a model nor a container nor a repository write).
+
+What one start does
+-------------------
+
+::
+
+    scripts/agent-supervisor plan --start          # reconcile, then start what the tick decides
+
+For each issue the tick chose, in this order:
+
+#. The **lease** is taken first (``claim_lease``), so two supervisors cannot both
+   reach the expensive steps. A lease that is live and whose process is still
+   running refuses the start outright — a second client editing one branch is the
+   accident the whole chapter exists to prevent.
+#. The **worktree** is created from ``origin/master`` on its own branch
+   (``agent/issue-<N>-<topic>``, or the branch the scheduler planned). ``git
+   fetch`` runs *only* when a worktree is created: a job that merged master before
+   every push would race every other job on the host and make each run's base
+   different from the one CI reviews, so master comes in when the worker opens its
+   pull request, which is the repository's own rule.
+#. The **ignored files** a Compose stack needs (``worktree_env_files``: ``.env``
+   and ``docker/backend/.mrmap.env``) are copied from ``repo_root`` with mode
+   ``0600``. They are copied through the file API and never read, so no credential
+   can reach a log line or an exception message — which names paths only.
+#. The **claim** is filed inside that worktree (``scripts/wip claim``), as the
+   first act of the worker, before a single file is edited. This is the supervisor
+   acting *as* the worker, which is the only way the claim's heartbeat belongs to
+   the process that can refresh it and to release it. A refused claim stops the
+   start, the lease goes to ``abandoned`` with the reason, and no branch is
+   touched.
+#. Only then is **OpenCode** started: ``run --standalone --session <id> --auto
+   --format json``, with the model from the configuration, the prompt on stdin
+   (an issue's title and body are text for the model, never parts of a shell
+   command line), and its own private home.
+
+One worker, one home
+--------------------
+
+Each worker gets ``XDG_DATA_HOME``, ``XDG_CONFIG_HOME``, ``XDG_STATE_HOME``,
+``XDG_CACHE_HOME`` and ``OPENCODE_DB`` under ``state_dir/workers/issue-<N>``, with
+mode ``0700``. Two OpenCode clients writing one session database is a corruption
+that shows up as a mysterious failure in whichever client lost the race, and the
+supervisor runs several on purpose.
+
+``COMPOSE_PROJECT_NAME`` is pinned to ``mrmap-agent-<issue>-<run>`` and
+``COMPOSE_FILE`` to the standard files plus ``docker-compose.prebuilt.yml``, which
+is what keeps a stack from rebuilding dependencies per run.
+
+What a worker may not do is a configuration fact, not a prompt. ``--auto``
+approves what a worker asks for, so the deny rules travel in
+``OPENCODE_CONFIG_CONTENT`` — deny wins over allow, so a merge, a review, a force
+push or a ``gh api`` write is refused by the client even when the prompt, the
+issue text or a tool result asks for it in the same breath.
+``worker_permissions`` replaces the list; empty means the built-in
+``WORKER_DENY_PERMISSIONS`` of the package. An operator who weakens it weakens it
+in one place, visibly.
+
+A worker is a process group
+---------------------------
+
+``opencode run --standalone`` starts a child server, and a subagent is a grandchild
+of that. Killing the pid that was spawned leaves the server serving and a subagent
+editing files in a worktree nobody supervises, so every worker is started in its
+own session and stopped with ``kill(-pgid)``. The lease records pid *and* pgid:
+after a restart the pid is gone and the group is the only thing a log line can
+still point at.
+
+Whether a worker is alive is a harder question than ``kill(pid, 0)``, and both
+traps were found by running the thing rather than reading it. A process that has
+exited is a zombie until its parent reaps it, and a zombie answers signal 0 — so
+"the pid is there" is not the question. And the worker is a child of the supervisor
+process, where ``subprocess`` reaps it in the background, so ``waitpid`` reports
+``ECHILD`` for a worker that has only just exited. The runner therefore does not
+reap, does not trust signal 0, and reads the state out of ``/proc``.
+
+Cancellation sends ``TERM`` to the group, waits ``cancel_grace_s`` (30 s by
+default) and then ``KILL``s. A worker that may finish the tool call it is inside
+commits nothing half-written; the window is short because the human who withdrew
+the approval is already waiting. Branch, worktree, logs and claim are left exactly
+as they are — what was withdrawn was permission to act, not the value of the work —
+and the board gets one line saying why the job stopped.
+
+After a crash or a restart
+--------------------------
+
+::
+
+    scripts/agent-supervisor reconcile              # what is unaccounted for, and what was done
+
+A process that is gone took its exit code with it, so reconciliation reads what is
+left: whether the group still answers, whether the session log ends in an end event
+or an error, and how long the lease has been live.
+
+.. list-table:: What reconciliation reads
+   :header-rows: 1
+   :widths: 22 34 44
+
+   * - Reading
+     - Because
+     - What happens
+   * - ``running``
+     - the group still answers
+     - left alone; this is the duplicate-execution guard
+   * - ``timed out``
+     - live past ``worker_timeout_s``
+     - cancelled like a withdrawal, because a stuck worker holds a slot an
+       operator believes usable
+   * - ``failed``
+     - the session log ends in an ``error`` event
+     - lease ``abandoned``; a deterministic failure is not retried forever
+   * - ``finished``
+     - the session log ends cleanly
+     - lease released; the pull request, not the supervisor, is the evidence
+   * - ``resumable``
+     - the log ends mid-event (killed by a restart, host reset)
+     - lease kept, session kept: the next tick continues the *same* OpenCode
+       session in the same worktree
+
+The last row is the reason the session id is recorded at the moment of the start.
+Resuming the same conversation is the difference between "the host rebooted and 40
+minutes of reasoning about this branch is gone" and a worker that continues.
+
+What an operator can ask for
+----------------------------
+
+::
+
+    scripts/agent-supervisor logs 1042 --tail 80    # the worker's own log, newest last
+    scripts/agent-supervisor pause 1042 --reason "operator wants a look"
+    scripts/agent-supervisor resume 1042
+    scripts/agent-supervisor reconcile
+    scripts/agent-supervisor stack-down 1042        # tear down that job's Compose stack
+
+``logs`` reads from the state directory, not from the worktree: a branch that was
+never pushed still has to explain itself, and the log is the only record of a run
+that died before it could comment anywhere. Logs are written with mode ``0600``.
+
+``resume`` asks the gate again. A paused issue, a removed approval or a closed
+issue does not get to continue just because a process used to run for it.
+
+``stack-down`` is the only place that runs ``docker compose down``, and the project
+name is its whole safety argument: the name must have the agent shape *and* carry
+this issue's number, or the command is refused before it is built. There is no
+``--remove-orphans`` and no global prune anywhere in the package — the repository's
+own cleanup rules record that orphans match by compose-file path rather than by
+project, which once wiped a foreign stack despite an exact ``-p``.
+
 What the supervisor does not do
 ===============================
 
@@ -438,12 +601,12 @@ request, never resolves a review thread, never applies ``agent: approved``, and
 never bypasses branch protection — the package contains no code path that could,
 and a test fails if one appears. It changes nothing on the host either: the
 capacity gate it consults is read-only by design, so a supervisor that believes
-it needs more memory has one answer available, which is to wait.
+it needs more memory has one answer available, which is to wait. It never removes
+a worktree, a branch or a volume it did not create, and one test per rule keeps it
+that way.
 
-What is still missing is the part that reaches into a worktree: #1060 runs the
-OpenCode worker and performs the claim, #1061 and #1062 watch the pull requests
-that come out of it, and #1063 adds the daemon, the systemd unit and the
-operator's entry point. Until #1060 lands, a tick that would have started
-something says ``no-runner`` and reports the plan instead — the lease is held so
-the decision is honest, and aged out after ``plan_ttl_s`` so it cannot block the
-issue.
+What is still missing is the part that watches what a worker leaves behind: #1061
+follows the checks of a pull request, #1062 answers review feedback, and #1063
+adds the daemon, the systemd unit and the operator's entry point. Until #1063
+lands, running a tick means running ``plan --start`` — by hand, or under a
+supervisor of one's choosing.

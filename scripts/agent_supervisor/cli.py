@@ -23,6 +23,7 @@ from . import approvals
 from . import config as config_module
 from . import gh
 from .scheduler import Scheduler
+from .runner import Runner, StartError
 from .store import human_age
 
 
@@ -137,12 +138,22 @@ def cmd_plan(args):
         for problem in cfg.problems:
             print(f"config: {problem}", file=sys.stderr)
         return 2
-    scheduler = Scheduler(cfg)
+    runner = Runner(cfg) if args.start else None
+    reconciled = []
+    if runner is not None:
+        # Before starting anything, work out what a crash or a reboot left
+        # behind. Starting a worker into an unreconciled lease is how a host ends
+        # up with two clients on one branch.
+        reconciled = runner.reconcile()
+    scheduler = Scheduler(cfg, runner=runner)
     report = scheduler.tick(plan_only=not args.start)
+    report["reconciled"] = reconciled
     if args.json:
         print(json.dumps(report, indent=2, default=str))
     else:
         _print_report(report, plan_only=not args.start)
+        for row in reconciled:
+            print(f"  reconciled #{row['issue']}: {row['reading']} - {row['action']}")
     return 0 if not report["errors"] else 1
 
 
@@ -200,6 +211,99 @@ def cmd_status(args):
     return 1 if cfg.problems else 0
 
 
+def _runner(args):
+    cfg = _load(args)
+    if not cfg.ok:
+        for problem in cfg.problems:
+            print(f"config: {problem}", file=sys.stderr)
+        return None, None
+    return cfg, Runner(cfg)
+
+
+def cmd_logs(args):
+    """What the worker of one issue wrote, newest lines last.
+
+    Read from the state directory, not from the worktree: a branch that was never
+    pushed still has to explain itself, and the log is the only record of a run
+    that died before it could comment anywhere.
+    """
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    text, path = runner.logs(args.issue, tail=args.tail)
+    if not text:
+        print(f"no worker log for #{args.issue} under {cfg.state_dir}", file=sys.stderr)
+        return 1
+    print(f"# {path}")
+    print(text)
+    return 0
+
+
+def cmd_pause(args):
+    """Stop the worker of one issue and leave its branch standing."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    try:
+        outcome = runner.pause(args.issue, args.reason)
+    except StartError as exc:
+        print(f"not paused: {exc}", file=sys.stderr)
+        return 1
+    print(f"#{args.issue} stopped"
+          + (" (had to be killed)" if outcome.get("forced") else "")
+          + "; branch, worktree and logs are left as they are")
+    return 0
+
+
+def cmd_resume(args):
+    """Continue the recorded session of one issue, if the gate still allows it."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    try:
+        handle = runner.resume(args.issue)
+    except StartError as exc:
+        print(f"not resumed: {exc}", file=sys.stderr)
+        return 1
+    print(f"#{args.issue} resumed on session {handle['session']} "
+          f"(pid {handle['pid']}, log {handle['log']})")
+    return 0
+
+
+def cmd_reconcile(args):
+    """What a crash or a reboot left behind, and what was done about it."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    rows = runner.reconcile()
+    if args.json:
+        print(json.dumps(rows, indent=2, default=str))
+    elif not rows:
+        print("nothing to reconcile: no lease of this supervisor is unaccounted for")
+    for row in rows:
+        print(f"  #{row['issue']}: {row['reading']} - {row['action']} ({row['detail']})")
+    return 0
+
+
+def cmd_stack_down(args):
+    """Tear down one job's Compose stack, by the project its lease recorded."""
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    lease = runner.store.lease(args.issue)
+    if not lease or not lease.get("project"):
+        print(f"#{args.issue} has no recorded Compose project here", file=sys.stderr)
+        return 1
+    try:
+        runner.cleanup_stack(args.issue, lease["project"], volumes=not args.keep_volumes)
+    except StartError as exc:
+        print(f"not torn down: {exc}", file=sys.stderr)
+        return 1
+    print(f"{lease['project']} torn down"
+          + ("" if not args.keep_volumes else " (volumes kept)"))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agent_supervisor",
@@ -241,6 +345,33 @@ def build_parser():
     p.add_argument("--events", type=int, default=15, help="how many events to print")
     p.add_argument("--json", action="store_true", help="leases and events as one JSON object")
     p.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("logs", help="the log one worker wrote, newest lines last")
+    p.add_argument("issue", type=int)
+    p.add_argument("--tail", type=int, default=40, help="how many lines to print")
+    p.set_defaults(func=cmd_logs)
+
+    p = sub.add_parser("pause", help="stop one worker, keep its branch and worktree")
+    p.add_argument("issue", type=int)
+    p.add_argument("--reason", default="", help="what the board should say why it stopped")
+    p.set_defaults(func=cmd_pause)
+
+    p = sub.add_parser("resume", help="continue one worker on its recorded session, "
+                                      "only while the gate still allows the issue")
+    p.add_argument("issue", type=int)
+    p.set_defaults(func=cmd_resume)
+
+    p = sub.add_parser("reconcile", help="what a crash or a reboot left behind, and what "
+                                         "was done about it")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_reconcile)
+
+    p = sub.add_parser("stack-down", help="tear down the Compose stack one lease recorded, "
+                                          "and only that stack")
+    p.add_argument("issue", type=int)
+    p.add_argument("--keep-volumes", action="store_true",
+                   help="remove the containers and network but keep the volumes")
+    p.set_defaults(func=cmd_stack_down)
     return parser
 
 

@@ -219,6 +219,97 @@ Deliberately rejected: ``pull_policy: always`` (a registry round-trip per run
 for zero extra safety - an immutable tag cannot change under its name) and the
 mutable ``:main`` as an agent default (it moves on every master merge).
 
+Two probes: does the tag exist, and is the image here
+=====================================================
+
+The resolver above answers "may I run this stack now?". That is not the same
+question as "has the publish for this fingerprint landed?", and since issue
+#1077 the two have two commands, because the second one is a hundred times
+cheaper and must not be mistaken for the first::
+
+    python3 scripts/dev_image_id.py --exists [--image backend] [--fp TAG]
+
+.. list-table:: What each probe proves
+   :header-rows: 1
+   :widths: 15 24 30 31
+
+   * - Question
+     - Command
+     - What it proves
+     - What it does not prove
+   * - is this tag published?
+     - ``--exists``
+     - the registry serves a manifest under this exact name (and its digest)
+     - nothing about the bytes: no layer is downloaded, so a truncated pull, a
+       tag pointed at foreign content and an image that will not run here all
+       pass
+   * - can I run on it now?
+     - ``--resolve``
+     - published *and* pulled intact, locally usable under the immutable tag
+     - nothing about whether it is the newest build - the tag name is the
+       whole identity, which is the point of a fingerprint
+
+Measured on this host on 2026-11-05, same tag both times: ``--exists`` 0.4 s
+and two small JSON reads (about 1.5 kB); ``--resolve`` on a cold host 38 s and
+308 MB of compressed layers. Both requests are anonymous - the two packages
+were flipped to public on 2026-11-05, which the "GHCR access" note above has
+not caught up with yet - and neither needs docker; only ``--resolve`` can hand
+the image to docker afterwards.
+
+Where the cheap answer is enough, is the question to ask before reaching for a
+pull:
+
+* an agent deciding between ``--resolve`` and ``--build``: a fingerprint that is
+  not published will not be fetched, so ``--exists`` answers it in half a second
+  and ``--build`` is what runs next;
+* a human or a job watching for the publish of a fingerprint it just changed a
+  dependency for;
+* "does anything reference a tag that was never published?" - an audit question
+  about names, not about bytes.
+
+Where it is not enough is everywhere the answer *replaces* the image: the CI
+gate of the next chapter keeps calling ``--resolve``, and swapping ``--exists``
+in underneath it is the mistake this separation exists to prevent. An
+unchanged pull request whose image exists but arrives broken is exactly the
+case the build validates, and a manifest answer cannot see it.
+
+.. list-table:: ``--exists`` exit codes
+   :header-rows: 1
+   :widths: 12 40 48
+
+   * - Code
+     - Meaning
+     - What to do
+   * - 0
+     - the registry serves a manifest under this name (existence, nothing more)
+     - nothing to build; run ``--resolve`` when the image is really wanted
+   * - 3
+     - the registry says this name is not there (``manifest unknown``)
+     - the sanctioned fallback build (``--resolve --build``), or wait for the publish
+   * - 4
+     - could not look: no answer, timeout, 5xx, a refused anonymous read, or a
+       404 that does not say ``manifest unknown``
+     - retry; a refusal usually means a private package, which docker can see
+       with this host's credential
+
+That last row is where the probe's one subtlety lives. GHCR answers *both* "the
+tag is not there" and "I do not serve this kind of manifest to a request that
+did not ask for it" with ``404`` and ``MANIFEST_UNKNOWN``; only the message
+differs. The published tags are OCI manifests, and ghcr serves them only to an
+``Accept`` header naming ``application/vnd.oci.image.manifest.v1+json`` -
+measured 2026-11-05: ``*/*``, an empty header and the docker distribution types
+all answer 404 with ``OCI manifest found, but Accept header does not support
+OCI manifests``. ``--exists`` therefore sends that one type, and treats a 404
+whose message is not ``manifest unknown`` as "could not look" (exit 4) rather
+than "not published" (exit 3). Reading the two the other way round would tell
+an agent to build an image that already exists - and would tell CI the same.
+
+``python3 scripts/test_dev_image_exists.py`` checks all of it against a local
+stub registry - published, absent, denial, timeout, a truncated body, a
+response that is not HTTP, and both 404 messages - with no docker, no network
+and no ``gh``. The three live cases against ghcr.io are opt-in with
+``MRMAP_TEST_LIVE=1``.
+
 What CI builds and what it skips
 ================================
 
@@ -266,6 +357,15 @@ it from a leftover local tag, which is the same fingerprint and therefore the
 same dependency content by construction. The gate also strips
 ``MRMAP_ALLOW_MUTABLE_DEV_IMAGE``, because under that human opt-out the resolver
 exits 0 without ever looking at the registry.
+
+There is now a cheaper probe, and the gate does not use it. ``--exists`` (see
+"Two probes" above) answers "is this tag published?" in about 0.4 s against the
+38 s pull, and it would be a one-word change here. It is not used because the
+gate's question is not about the name: a pull request whose image exists but
+arrives broken is precisely the case that build validates, and a manifest
+answer cannot see a broken build. The measured 38 s and 308 MB are the price of
+asking the question that actually decides - so the gate keeps ``--resolve``, and
+the cheaper command is for the questions that are really only about the name.
 
 Two properties keep the gate on the safe side of its own required check. It always
 exits ``0``, including when the decision itself raises: a failing step reddens

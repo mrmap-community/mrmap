@@ -177,11 +177,28 @@ schema; a kept database is not brought up to date with model edits made after it
 What this loop costs, measured on this checkout:
 
 - Targeted Django tests: ~18 s cold, ~92 s when a stale test database has to be dropped first,
-  ~20 s with `--keepdb`.
-- The full `tests/django` suite (855 tests) reports ~2,400 s for the run itself and needs at least
-  that much wall clock, because most test classes rebuild the PostGIS test database; CI budgets
-  40 min. The number moves with what else the host is doing — three concurrent image builds
-  coincided with the measurement quoted here.
+  ~20 s with `--keepdb`. `--parallel` is worth nothing here and is not used: a documented example
+  module (5 tests) measured 1.44 s with and without `--parallel=4`, same 94 s wall clock including
+  a cold stack — the switch pays for the whole suite, where one process is the bottleneck.
+- The full `tests/django` suite (1312 tests) takes **225 s** with `--parallel=4` where the same
+  run in one process takes 655 s. Both numbers are from the same disposable stack, run
+  back-to-back; the two-worker arm measured 356 s and 355 s on a repeat. Add ~110 s of wall clock
+  for stack and database setup.
+- `--parallel=4` is what `docker-compose.dev.yml` passes, and the number is deliberate rather than
+  the runner's default (`cpu_count`): Django brings up **one PostGIS test database per worker**, so
+  the default would clone the schema twenty times on a big host. Four workers did not cost memory
+  either — peak usage inside the container's memory cgroup was 12.1 GiB against 12.5 GiB for the
+  serial run, so the suite time is not paid for in RAM.
+- Coverage of a parallel run needs two things that nothing enforces on its own: `concurrency =
+  multiprocessing` in `[coverage:run]` (`backend/setup.cfg`), without which coverage does not trace
+  a forked worker at all, and `COVERAGE_FILE` in the environment of the job, because a forked
+  worker inherits the environment but not the `--data-file` argument. Missing either one does not
+  fail the job — it silently uploads a report that lacks every line only a worker executed.
+  `scripts/test_coverage_parallel_data.py` pins all of it, including that Behave's single-process
+  job keeps producing the `.coverage.acceptance` file its upload step names.
+- `--parallel` belongs to `manage.py test`. On `coverage xml` it fails with
+  `no such option: --parallel`, and a series whose arms only read the test summary will happily
+  report four serial runs under four parallel-sounding labels.
 - Run only **one** `django-tests` container per stack. Every run creates the same `test_mrmap`
   database in its own PostgreSQL, so two runs in one stack drop each other's tables and fail with
   unrelated errors such as `relation "django_migrations" does not exist` or

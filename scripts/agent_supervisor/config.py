@@ -110,6 +110,10 @@ DEFAULTS = {
     "ci_repair_attempts": 2,
     "pr_poll_seconds": 300,
     "review_debounce_seconds": 120,
+    # How many answer-a-review cycles one pull request may cost over its whole
+    # life. The per-review dedupe is in the ledger, not here: this is the bound
+    # for a human and an agent going back and forth forever.
+    "review_response_attempts": 3,
 }
 
 # What a worker may not do, whatever --auto grants. The supervisor pushes and
@@ -120,6 +124,13 @@ WORKER_DENY_PERMISSIONS = [
     {"action": "shell", "resource": "gh pr edit *", "effect": "deny"},
     {"action": "shell", "resource": "gh api *merge*", "effect": "deny"},
     {"action": "shell", "resource": "gh api *reviews*", "effect": "deny"},
+    # A review thread is settled by the human who raised it. This is not a
+    # theoretical hole: the worker that #1062 wakes up to answer feedback is the
+    # one process on the host with both the reason and the opportunity to mark
+    # those threads closed. Replying underneath one stays possible - no pattern
+    # here matches the reply route - because "what I changed" is the worker's job
+    # and "settled" is not.
+    {"action": "shell", "resource": "gh api *threads*", "effect": "deny"},
     {"action": "shell", "resource": "git push --force*", "effect": "deny"},
     {"action": "shell", "resource": "docker system prune *", "effect": "deny"},
     {"action": "read", "resource": "*.env", "effect": "deny"},
@@ -296,10 +307,20 @@ def _validate(cfg):
             problems.append(f"{key} must be a label name, not blanks")
     if not isinstance(cfg.data.get("approval_max_age_days"), (int, float)):
         problems.append("approval_max_age_days must be a number")
-    for key in ("max_opencode_processes", "max_test_stacks", "ci_repair_attempts"):
+    for key in ("max_opencode_processes", "max_test_stacks"):
         value = cfg.data.get(key)
         if not isinstance(value, int) or isinstance(value, bool) or value < 1:
             problems.append(f"{key} must be a positive whole number")
+    # A budget of n allows n cycles; a budget of 0 is not a typo for "one", it is
+    # the operator saying "watch and report, never act". A slot count of 0 would
+    # mean "run nothing", which is what `dry_run` is for.
+    for key in ("ci_repair_attempts", "review_response_attempts"):
+        value = cfg.data.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            problems.append(f"{key} must be a whole number, 0 allowed")
+    if not isinstance(cfg.data.get("review_debounce_seconds"), (int, float)) \
+            or cfg.data.get("review_debounce_seconds") < 0:
+        problems.append("review_debounce_seconds must be a number of seconds, 0 allowed")
     if not isinstance(cfg.data.get("require_repo_association"), bool):
         problems.append("require_repo_association must be true or false")
     if not cfg.data.get("repo_root"):

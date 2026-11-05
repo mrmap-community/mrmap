@@ -22,14 +22,17 @@ Modules
 ``scheduler``   one tick: which eligible issue starts next, under a lease
 ``runner``      start, stop and reconcile one worker in its own worktree,
                 process group and Compose project
-``store``       the supervisor's own SQLite state: leases, verdicts, events and
-                the pull requests under CI watch
+``store``       the supervisor's own SQLite state: leases, verdicts, events, the
+                pull requests under CI watch and the review ledger
 ``ci_monitor``  follow the checks of the pull requests those workers opened,
                 repair what names a test, report everything else (#1061)
+``reviews``     read the human review feedback on those pull requests, answer what
+                a trusted reviewer asked for, hand reserved acts to a human and
+                never settle a thread the human raised (#1062)
 ``cli``         the operator's command line
 
-Review feedback (#1062) and the daemon that ties these commands to a timer
-(#1063) are the remaining issues of this epic.
+The daemon that ties these commands to a timer (#1063) is the remaining issue of
+this epic.
 """
 
 VERSION = "0.1.0"

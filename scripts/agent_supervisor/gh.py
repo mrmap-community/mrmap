@@ -77,6 +77,43 @@ def gh_json(path, params=None, method="GET", accept=None, timeout=TIMEOUT_S):
         raise GhError(f"gh api {path} did not answer JSON", "api")
 
 
+def graphql(query, variables=None, timeout=TIMEOUT_S):
+    """One GraphQL *query* through ``gh api graphql``, parsed.
+
+    Needed because review threads - the unit a human's inline feedback actually
+    lives in, and the thing that carries ``isResolved`` - exist only in the GraphQL
+    schema; no REST endpoint answers "is this thread resolved".
+
+    Refuses any text containing ``mutation``. That is a stronger promise than a
+    rule about which helper a module is allowed to call: nothing reachable from
+    this function can change GitHub, and a check can assert it without knowing
+    what a query body looks like. ``errors`` in the answer is an error too: a
+    partial read that looked like an empty result is how a resolved thread gets
+    invented out of a typo in a field name.
+    """
+    if "mutation" in query.lower():
+        raise GhError("graphql() reads: a mutation was refused", "api")
+    cmd = ["gh", "api", "graphql", "-f", f"query={query}"]
+    for key, value in sorted((variables or {}).items()):
+        cmd += ["-f", f"{key}={value}"]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        raise GhError("gh is not installed on this host", "network")
+    except subprocess.TimeoutExpired:
+        raise GhError(f"gh api graphql timed out after {timeout}s", "network")
+    if r.returncode != 0:
+        raise GhError(f"gh api graphql: {(r.stderr or '').strip()[:400]}",
+                      classify(r.stderr))
+    try:
+        answer = json.loads((r.stdout or "").strip() or "{}")
+    except ValueError:
+        raise GhError("gh api graphql did not answer JSON", "api")
+    if answer.get("errors"):
+        raise GhError(f"graphql answered errors: {str(answer['errors'])[:300]}", "api")
+    return answer.get("data")
+
+
 def list_paginated(path, params=None):
     """Every page of a list endpoint, read with explicit page numbers.
 

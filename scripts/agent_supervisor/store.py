@@ -20,11 +20,16 @@ three things live here and nothing else:
 *   **events** - what the supervisor decided and why, in order. A daemon that
     starts agents is audited or it is not trustworthy; this table is also what
     makes `supervisor status` explainable after a restart.
+*   **the watch on what a worker left behind** - which pull request belongs to
+    which issue, which findings and review comments have already been dealt with,
+    and how much of each budget is spent (#1061, #1062). Without these rows a
+    restart reads last night's red check and last week's review as news.
 
 WAL mode and one write transaction per decision: the state is small, and the
 failure mode we design for is a killed process, not a crowd of writers.
 """
 
+import hashlib
 import os
 import sqlite3
 import time
@@ -85,6 +90,40 @@ CREATE TABLE IF NOT EXISTS ci_seen (
     seen_at   REAL NOT NULL,
     PRIMARY KEY (pr, head_sha, name)
 );
+CREATE TABLE IF NOT EXISTS review_items (
+    repo         TEXT NOT NULL,
+    pr           INTEGER NOT NULL,
+    issue        INTEGER,
+    kind         TEXT NOT NULL,
+    github_id    TEXT NOT NULL,
+    thread_id    TEXT,
+    author       TEXT,
+    association  TEXT,
+    trusted      INTEGER NOT NULL DEFAULT 0,
+    path         TEXT,
+    line         INTEGER,
+    state        TEXT,
+    url          TEXT,
+    body         TEXT,
+    body_hash    TEXT,
+    stamped_at   REAL,
+    seen_at      REAL,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    detail       TEXT,
+    PRIMARY KEY (repo, pr, kind, github_id)
+);
+CREATE TABLE IF NOT EXISTS review_state (
+    issue        INTEGER PRIMARY KEY,
+    repo         TEXT NOT NULL,
+    pr           INTEGER NOT NULL,
+    head_sha     TEXT,
+    state        TEXT NOT NULL DEFAULT 'watching',
+    attempts     INTEGER NOT NULL DEFAULT 0,
+    acted_sha    TEXT,
+    acted_at     REAL,
+    last_seen    REAL,
+    detail       TEXT
+);
 """
 
 # A lease in one of these states both occupies the issue and occupies capacity:
@@ -103,6 +142,31 @@ TERMINAL_STATES = ("finished", "failed", "cancelled", "abandoned")
 # closed must not look like one that was never tracked.
 PR_STATES = ("watching", "waiting-ci", "green", "repairing", "waiting-human",
              "unknown", "closed")
+
+# What the review watcher of #1062 knows about one pull request. `responding` is
+# the state while a resumed worker is answering feedback, `responded` that it did
+# and is waiting for the human to look again.
+REVIEW_STATES = ("watching", "responding", "responded", "waiting-human", "closed",
+                 "unknown")
+
+# One piece of feedback, as the ledger knows it. `pending` is work nobody has
+# acted on; `context` is feedback from an account that may not direct the worker
+# (a bot, a stranger) and is therefore recorded but never acted on; `escalated`
+# is feedback that asks for something an agent may not do; `settled` is a thread a
+# human closed themselves; `dropped` and `stale` are the two shapes a deletion
+# takes - never acted on, versus already answered when the human removed it.
+REVIEW_ITEM_STATUSES = ("pending", "acted", "context", "escalated", "settled", "held",
+                        "dropped", "stale")
+
+
+def body_digest(text):
+    """The digest that decides whether a comment is the same text as last time.
+
+    An edit is new instructions, so identity means content: two comments with one
+    GitHub id and different digests are two things to read, not one thing seen
+    twice.
+    """
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()[:16]
 
 
 def utc_stamp(value=None):
@@ -291,7 +355,10 @@ class Store:
                 "SELECT * FROM verdicts ORDER BY issue").fetchall()]
             pulls = [dict(r) for r in db.execute(
                 "SELECT * FROM pull_requests ORDER BY issue").fetchall()]
-        return {"leases": leases, "verdicts": verdicts, "pulls": pulls, "path": self.path}
+            reviews = [dict(r) for r in db.execute(
+                "SELECT * FROM review_state ORDER BY issue").fetchall()]
+        return {"leases": leases, "verdicts": verdicts, "pulls": pulls,
+                "reviews": reviews, "path": self.path}
 
     def waiting_for_human(self):
         """Leases whose detail says the worker stopped to ask a human - the
@@ -385,6 +452,205 @@ class Store:
             rows = db.execute("SELECT name, verdict FROM ci_seen WHERE pr=? AND head_sha=?",
                               (pr, head_sha)).fetchall()
         return {r["name"]: r["verdict"] for r in rows}
+
+    # -- review feedback under supervision (#1062) --------------------------
+
+    def track_reviews(self, issue, repo, pr, head_sha=""):
+        """Record (or refresh) the review watch of an issue's pull request.
+
+        Same rule as ``track_pr``: the budget columns survive a refresh. A pull
+        request whose head moved is a new commit to answer, not a fresh subject
+        with a fresh allowance.
+        """
+        now = utc_stamp()
+        with self._connect() as db:
+            row = db.execute("SELECT pr, state FROM review_state WHERE issue=?",
+                             (issue,)).fetchone()
+            if row is None:
+                db.execute("INSERT INTO review_state (issue, repo, pr, head_sha, state, "
+                           "last_seen) VALUES (?,?,?,?, 'watching', ?)",
+                           (issue, repo, pr, head_sha, now))
+            elif row["pr"] != pr or row["state"] == "closed":
+                db.execute("UPDATE review_state SET repo=?, pr=?, head_sha=?, "
+                           "state='watching', acted_at=NULL, last_seen=? WHERE issue=?",
+                           (repo, pr, head_sha, now, issue))
+            else:
+                db.execute("UPDATE review_state SET repo=?, head_sha=?, last_seen=? "
+                           "WHERE issue=?", (repo, head_sha, now, issue))
+            row = db.execute("SELECT * FROM review_state WHERE issue=?", (issue,)).fetchone()
+        return dict(row)
+
+    def review_row(self, issue):
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM review_state WHERE issue=?", (issue,)).fetchone()
+        return dict(row) if row else None
+
+    def reviewed_prs(self):
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM review_state WHERE state != 'closed' ORDER BY issue").fetchall()
+        return [dict(r) for r in rows]
+
+    def update_review(self, issue, **fields):
+        """Set the given columns of one review watch."""
+        unknown = set(fields) - {"pr", "head_sha", "state", "attempts", "acted_sha",
+                                 "acted_at", "detail"}
+        if unknown:
+            raise ValueError(f"unknown review columns: {', '.join(sorted(unknown))}")
+        if "state" in fields and fields["state"] not in REVIEW_STATES:
+            raise ValueError(f"not a review state: {fields['state']}")
+        if "last_seen" not in fields:
+            fields["last_seen"] = utc_stamp()
+        columns = ", ".join(f"{key}=?" for key in fields)
+        with self._connect() as db:
+            db.execute(f"UPDATE review_state SET {columns} WHERE issue=?",
+                       tuple(fields.values()) + (issue,))
+
+    def record_review_item(self, issue, repo, pr, kind, github_id, status="pending",
+                           detail="", **fields):
+        """Put one piece of feedback in the ledger.
+
+        Returns ``new``, ``changed``, ``promoted`` or ``same``.
+
+        Identity is *(kind, GitHub's own id)* and nothing else: GitHub keeps those
+        ids stable across edits and paging, so de-duplication does not depend on
+        timestamps matching to the second, and a comment that was edited comes
+        back as ``changed`` - new instructions under an id already seen, which is
+        exactly the case a watcher that only looks at new ids misses.
+        ``promoted`` is the fourth shape: the text is unchanged, but the author has
+        become an account that may direct work, so the row that was filed as
+        context becomes work.
+
+        The returned bit is the whole anti-replay mechanism. The rows are the
+        record of what has been answered, so after a restart the answer to "have
+        we already done this review" comes from disk.
+        """
+        allowed = {"thread_id", "author", "association", "trusted", "path", "line",
+                   "state", "url", "body", "stamped_at"}
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"unknown review item columns: {', '.join(sorted(unknown))}")
+        if status not in REVIEW_ITEM_STATUSES:
+            raise ValueError(f"not a review item status: {status}")
+        digest = body_digest(fields.get("body"))
+        now = utc_stamp()
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM review_items WHERE repo=? AND pr=? AND kind=?"
+                             " AND github_id=?", (repo, pr, kind, str(github_id))).fetchone()
+            if row is None:
+                db.execute(
+                    "INSERT INTO review_items (repo, pr, issue, kind, github_id, body_hash,"
+                    " seen_at, status, detail, stamped_at, author, association, trusted,"
+                    " thread_id, path, line, state, url, body)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (repo, pr, issue, kind, str(github_id), digest, now, status, detail,
+                     fields.get("stamped_at"), fields.get("author"),
+                     fields.get("association"), 1 if fields.get("trusted") else 0,
+                     fields.get("thread_id"), fields.get("path"), fields.get("line"),
+                     fields.get("state"), fields.get("url"), fields.get("body")))
+                outcome = "new"
+            elif row["body_hash"] != digest:
+                # Same id, different text: an edit is new instructions, so the row
+                # goes back to pending even if it was answered once.
+                db.execute(
+                    "UPDATE review_items SET body=?, body_hash=?, stamped_at=?, author=?,"
+                    " association=?, trusted=?, thread_id=?, path=?, line=?, state=?, url=?,"
+                    " status='pending', detail='edited on GitHub', seen_at=?"
+                    " WHERE repo=? AND pr=? AND kind=? AND github_id=?",
+                    (fields.get("body"), digest, fields.get("stamped_at"),
+                     fields.get("author"), fields.get("association"),
+                     1 if fields.get("trusted") else 0, fields.get("thread_id"),
+                     fields.get("path"), fields.get("line"), fields.get("state"),
+                     fields.get("url"), now, repo, pr, kind, str(github_id)))
+                outcome = "changed"
+            else:
+                # An account that was a stranger when the comment arrived and holds
+                # a trusted role now must not stay ignored forever: the status is
+                # what encodes "may not direct", so it is what has to change.
+                promote = ", status='pending', detail='author is trusted now'" \
+                    if row["status"] == "context" and fields.get("trusted") else ""
+                db.execute("UPDATE review_items SET seen_at=?, thread_id=?, trusted=?,"
+                           " association=?" + promote +
+                           " WHERE repo=? AND pr=? AND kind=? AND github_id=?",
+                           (now, fields.get("thread_id"), 1 if fields.get("trusted") else 0,
+                            fields.get("association"), repo, pr, kind, str(github_id)))
+                outcome = "promoted" if promote else "same"
+        return outcome
+
+    def review_items(self, pr, statuses=None):
+        """The ledger of one pull request, oldest feedback first."""
+        wanted = tuple(statuses or REVIEW_ITEM_STATUSES)
+        marks = ",".join("?" * len(wanted))
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT * FROM review_items WHERE pr=? AND status IN ({marks}) "
+                "ORDER BY stamped_at", (pr,) + wanted).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_review_items(self, pr, keys, status, detail=""):
+        """Move feedback out of pending, once it has really been dealt with.
+
+        Called only after the action that deals with it succeeded: a refused
+        resume or a question that never reached GitHub must not leave the items
+        marked, or the pull request looks answered and nobody is told.
+        """
+        if status not in REVIEW_ITEM_STATUSES:
+            raise ValueError(f"not a review item status: {status}")
+        moved = 0
+        with self._connect() as db:
+            for kind, github_id in keys:
+                moved += db.execute(
+                    "UPDATE review_items SET status=?, detail=? WHERE pr=? AND kind=?"
+                    " AND github_id=?", (status, detail, pr, kind, str(github_id))).rowcount
+        return moved
+
+    def reopen_review_items(self, pr, keys, detail=""):
+        """Bring back feedback a human has re-opened.
+
+        Un-resolving a thread is GitHub's own way of saying "not settled yet", and
+        nothing else in a payload says it: the comment's id and text are identical.
+        Only ``settled`` rows are touched - an item the worker already answered
+        stays answered, because the reply a human writes after that is a new
+        comment with a new id, and that one arrives as work on its own.
+        """
+        reopened = 0
+        with self._connect() as db:
+            for kind, github_id in keys:
+                reopened += db.execute(
+                    "UPDATE review_items SET status='pending', detail=? WHERE pr=? AND"
+                    " kind=? AND github_id=? AND status='settled'",
+                    (detail, pr, kind, str(github_id))).rowcount
+        return reopened
+
+    def review_items_gone(self, repo, pr, visible):
+        """Notice feedback that is no longer there, and return what dropped.
+
+        A deleted comment is not a request any more. `visible` is the set of
+        *(kind, id)* GitHub still lists for this pull request, so anything the
+        ledger holds and the answer lacks was deleted. The two cases differ in
+        whether a worker had already answered: pending rows drop, answered rows
+        go stale, and neither is ever acted on again.
+        """
+        dropped = []
+        with self._connect() as db:
+            rows = db.execute("SELECT kind, github_id, status FROM review_items "
+                              "WHERE repo=? AND pr=?", (repo, pr)).fetchall()
+            for row in rows:
+                key = (row["kind"], str(row["github_id"]))
+                if key in visible:
+                    continue
+                if row["status"] in ("pending", "held"):
+                    outcome = "dropped"
+                elif row["status"] in ("acted", "escalated"):
+                    outcome = "stale"
+                else:
+                    continue
+                db.execute("UPDATE review_items SET status=?, detail=? WHERE repo=? AND pr=?"
+                           " AND kind=? AND github_id=?",
+                           (outcome, "no longer on GitHub", repo, pr, row["kind"],
+                            row["github_id"]))
+                dropped.append((row["kind"], str(row["github_id"]), outcome))
+        return dropped
 
 
 def human_age(value):

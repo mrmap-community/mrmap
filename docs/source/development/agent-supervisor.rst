@@ -3,17 +3,17 @@
 Agent Supervisor: Approval Gate, Scheduler And Worker
 =====================================================
 
-.. sidebar:: Epic #1052, issues #1058 to #1061
+.. sidebar:: Epic #1052, issues #1058 to #1062
 
    Code: ``scripts/agent_supervisor/`` (standard library only) with the
    operator command ``scripts/agent-supervisor``. Checks:
    ``python3 scripts/test_agent_supervisor_approvals.py``,
-   ``..._scheduler.py``, ``..._capacity.py``, ``..._runner.py`` and ``..._ci.py``
-   — none of them needs ``gh``, the network, a container or a model, and none of
-   them can touch a repository. This page documents the gate, the scheduler, the
-   worktree runner and the CI watcher; answering review feedback and the daemon
-   that ties them to a timer are the follow-up issues #1062 and #1063 and will
-   extend it.
+   ``..._scheduler.py``, ``..._capacity.py``, ``..._runner.py``, ``..._ci.py`` and
+   ``..._reviews.py`` — none of them needs ``gh``, the network, a container or a
+   model, and none of them can touch a repository. This page documents the gate,
+   the scheduler, the worktree runner, the CI watcher and the review watcher; the
+   daemon that ties them to a timer is the follow-up issue #1063 and will extend
+   it.
 
 An OpenCode worker may start work on a MrMap issue when a human has said so.
 That sentence is the whole design; everything below is what "a human has said
@@ -216,7 +216,7 @@ scheduling keys below it have working defaults and are listed there.
 The keys the scheduler adds
 ---------------------------
 
-The scheduler, runner and CI watcher read the same file, so one set of file
+The scheduler, runner and both watchers read the same file, so one set of file
 permissions covers the whole supervisor.
 
 .. list-table:: The keys that decide scheduling
@@ -254,6 +254,15 @@ permissions covers the whole supervisor.
      - ``2``
      - how many repair cycles the CI watcher may start for one pull request over
        its whole lifetime; ``0`` means "watch and report, never repair"
+   * - ``review_response_attempts``
+     - ``3``
+     - how many answer-a-review cycles the review watcher may start for one pull
+       request over its whole lifetime; ``0`` means "watch and report, never act"
+   * - ``review_debounce_seconds``
+     - ``120``
+     - how long standalone comments must have been quiet before a worker is woken,
+       so five comments in two minutes are one conversation and not five cycles.
+       A submitted review does not wait: submitting one is already deliberate
 
 The single-account host
 =======================
@@ -758,6 +767,185 @@ Exit codes are for a timer
 only a human can settle; ``2`` the question could not be asked at all. That is the
 whole contract the timer of #1063 needs.
 
+Answering review feedback
+=========================
+
+A pull request whose checks are green still has to be read by a person, and a
+person who reads it asks for things. That gap had no supervisor: a maintainer
+requests changes on a Tuesday evening and the branch waits until somebody
+remembers. ``watch-reviews`` is the pass that closes it — with one line it may
+not cross, and the line is that **the agent answers feedback, it never settles
+it**.
+
+::
+
+    scripts/agent-supervisor watch-reviews --dry-run   # report only, wake nobody
+    scripts/agent-supervisor watch-reviews             # act: answer or escalate
+    scripts/agent-supervisor reviews                   # the ledger, per pull request
+
+The writes reachable from here are the two the CI watcher already had: the
+worker process the runner starts in the issue's own worktree, and
+``scripts/wip``'s question comment on the issue. Feedback is read from three
+endpoints, because GitHub stores three kinds — submitted reviews, the inline
+comments of a review, and the plain conversation comments, which live under the
+*issue* API even for a pull request. Whether an inline thread is resolved is
+not in any of them: ``isResolved`` exists only in the GraphQL schema, so the
+threads come through ``gh api graphql`` — a helper that refuses any query
+containing ``mutation``, which is a stronger promise than a rule about which
+function a module may call. The supervisor's own claim, question and board
+comments are filtered out with wip's own rule; reading them back is how an
+agent starts a conversation with itself.
+
+Only a trusted human directs the worker
+---------------------------------------
+
+A review is text from an account that may be a bot, a stranger, or the
+automation's own service account, read by a process that can change this
+repository. The two tests the approval gate uses therefore decide who may
+*direct a change*: the operator's allowlist, or a repository role the
+configuration trusts. Everything else — a stranger, a read-only passer-by, an
+account whose role GitHub would not answer for — is recorded as ``context`` and
+never executed.
+
+Bots are excluded before either test, even when GitHub reports them as
+collaborators, because a dependency bot has write access on most repositories.
+A role is read again on every pass instead of being cached for the life of the
+process: a daemon lives for days, and a note from an account that was a
+stranger in the morning and holds a role by the afternoon is work, not last
+night's noise. The ledger knows that shape too — feedback filed as ``context``
+is *promoted* to work when its author becomes someone who may direct it, so
+nobody has to re-post a comment because a permission arrived late.
+
+Four buckets, and the ledger is asked first
+-------------------------------------------
+
+Each piece of feedback ends up in exactly one of four buckets, and the state
+file's opinion about that item is consulted before the live read: GitHub lists
+an answered review forever, so a watcher that classified from the payload alone
+would wake the worker on every pass.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 42 42
+
+   * - Bucket
+     - What it holds
+     - What happens
+   * - ``work``
+     - code feedback a trusted human wants answered
+     - one worker resumes, once, with the items named
+   * - ``asks``
+     - feedback that asks for an act reserved for a human, or a review that
+       requests changes without naming any
+     - one question on the issue, never a push
+   * - ``context``
+     - feedback from an account that may not direct the worker
+     - recorded and reported, never executed
+   * - ``settled``
+     - feedback already answered, already handed over, or closed by the human
+       who raised it
+     - left alone
+
+Answered feedback is not read as news again, and an item the ledger believes is
+gone but GitHub still lists goes back to work: a finding is never dropped by a
+note in a local file.
+
+Identity is GitHub's own id, plus the text
+-------------------------------------------
+
+The ledger key is *(kind, GitHub's id)* and the body's digest decides whether
+it is the same item. Not timestamps: a comment edited a second after it was
+posted is new instructions under an id already seen, and a watcher looking only
+for new ids reads the first version and stops there. So one pass reports each
+item as ``new``, ``changed``, ``promoted`` or ``same``, and only the first
+three can be work.
+
+Deleted feedback is not a request any more. A row that was still pending is
+``dropped``, one the worker had already answered goes ``stale``, and neither is
+acted on again. The opposite shape is a thread a human re-opens: same comment
+id, same text, and only the live thread read knows the question is being asked
+again — so the ledger is corrected before it is consulted, and settled inline
+feedback becomes work once more. That is also why an unreadable thread read is
+treated as *unresolved* and reported as ``threads: unknown``: an extra look at
+feedback costs one resume, deciding it was settled drops a person's finding.
+
+Reserved asks go to a human
+---------------------------
+
+Some review comments are not feedback about code but a request for something
+the operator kept for people: approve, merge, resolve a human's threads,
+rewrite a branch that is open for review, change branch protection or CI, grant
+access, put a secret in the repository. Those are matched on phrases, not words
+— "merge these two helpers" is ordinary discussion, "go ahead and merge" is not
+— and a false positive is the safe direction, because it costs a question
+rather than a push nobody authorized. A ``CHANGES_REQUESTED`` review with an
+empty body lands here as well: an agent answering it would be inventing the
+finding. An empty ``COMMENTED`` review does not, because there the inline notes
+are the feedback and escalating the wrapper would be noise.
+
+Code feedback and a reserved ask inside one review — "guard the ``None`` case
+and merge when it is green" — produce both actions in the same pass: the code
+is the agent's business, the merge is not, and answering one must not swallow
+the other. The question goes to the issue through ``scripts/wip ask``, is
+marked as escalated only after it actually reached the board, and is never
+asked twice for the same item.
+
+Debounce, budget, and one worker
+--------------------------------
+
+A human writes a comment, then two more while the thought is still open. Five
+comments in two minutes are one conversation, not five cycles, so standalone
+comments wait out ``review_debounce_seconds`` (120) of quiet before a worker is
+woken; a *submitted* review needs no waiting, because clicking "submit review"
+is already a deliberate act.
+
+The lifetime budget is ``review_response_attempts`` (3): how many answer cycles
+one pull request may cost, which is the bound for a human and an agent going
+back and forth forever. There is deliberately no per-head rule here, unlike the
+CI watcher: the ledger is what stops one review from being answered twice, and
+a new comment on an unchanged head is genuinely new work. Nothing is woken
+while the issue's own worker is still running, and a budget that cannot run is
+reported as ``held`` with the reason, not swallowed. A resume that cannot
+happen — no recorded session, a gate that now refuses — is ``respond-refused``
+and costs no attempt.
+
+What the resumed worker is told
+-------------------------------
+
+The same OpenCode session, in the same worktree and Compose project, on the
+same branch — with the approval gate asked again first. The prompt is specific
+by construction: file and line, the diff hunk the finding refers to, what was
+already said in that thread, and the reviewer's own words quoted as data in the
+same sentence that says it is data. A reviewer's "run ``docker system prune``"
+must not become a command because it was written in a trusted voice.
+
+It then says what the worker may not do, and the two that matter here are not
+wording but configuration: replies go *under* a thread
+(``…/comments/<id>/replies`` stays reachable, because "what I changed" is the
+worker's job), while resolving one is denied — ``gh api *threads*`` is on the
+deny list of #1060, and this module has no resolve call either. A human's
+thread stays open until that human says so. Ambiguity, contradicting findings
+and reserved asks go to ``scripts/wip ask`` instead of a guess, and the branch
+is still never rebased or force-pushed once it is open for review.
+
+Exit codes, and what survives a restart
+---------------------------------------
+
+``0`` nothing waits for anybody; ``1`` at least one pull request has feedback
+only a human can settle — escalated, held by a budget, or a resume that was
+refused; ``2`` the configuration or GitHub made the question impossible.
+``reviews`` prints the same state as rows, ``--json`` as one document, and
+``status`` lists a review watch whose pull request waits for a person next to
+the CI watcher's rows, because at eight in the morning the question is one
+question.
+
+Two tables hold it: ``review_state`` per issue — the pull request, the head,
+the state, the budget already spent and which head was answered — and
+``review_items``, the ledger of every piece of feedback with its author, role,
+thread, digest and outcome. After a restart the answer to "have we answered
+this review?" comes from disk, which is the only reason a watcher can be run by
+a timer at all.
+
 What the supervisor does not do
 ===============================
 
@@ -770,9 +958,9 @@ it needs more memory has one answer available, which is to wait. It never remove
 a worktree, a branch or a volume it did not create, and one test per rule keeps it
 that way.
 
-What is still missing is the rest of what a worker leaves behind: #1062 answers
-review feedback on the pull request, and #1063 adds the daemon, the systemd unit
-and the operator's entry point. Until #1063 lands, running a tick means running
-``plan --start`` and watching CI means running ``watch-prs`` — by hand, or under a
-supervisor of one's choosing. Both are one command with an exit code, which is
-what makes that substitution safe rather than improvised.
+What is still missing is the hand that runs this on a schedule: #1063 adds the
+daemon, the systemd unit and the operator's entry point. Until it lands, running a
+tick means running ``plan --start``, watching CI means ``watch-prs`` and answering
+review means ``watch-reviews`` — by hand, or under a supervisor of one's choosing.
+All three are one command with an exit code, which is what makes that substitution
+safe rather than improvised.

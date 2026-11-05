@@ -39,9 +39,13 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   the host capacity gate described under "Check host capacity before starting another stack".
   `scripts/agent_supervisor` (command: `scripts/agent-supervisor`) is the OpenCode agent supervisor
   described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
-  issue an agent may start, and `python3 scripts/test_agent_supervisor_approvals.py` checks that
-  gate offline (needs neither `gh` nor the network). An agent never applies `agent: approved`
-  itself — a human does.
+  issue an agent may start and its scheduler decides which of those to start next, against this
+  very claim board and `scripts/agent_capacity`. Three offline checks cover it (`python3
+  scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py` and `..._capacity.py`; each needs
+  neither `gh` nor the network and none of them can write to a repository). The supervisor never
+  claims an issue itself — the worker files `scripts/wip claim` from inside its own worktree, which
+  is the only way that claim's heartbeat can be refreshed. An agent never applies
+  `agent: approved` itself — a human does.
 
 ## Authoritative sources
 

@@ -1,18 +1,18 @@
 .. _development-agent-supervisor:
 
+Agent Supervisor: Approval Gate And Scheduler
+=============================================
 
-====================================
-Agent Supervisor: The Approval Gate
-====================================
-
-.. sidebar:: Epic #1052, issue #1058
+.. sidebar:: Epic #1052, issues #1058 and #1059
 
    Code: ``scripts/agent_supervisor/`` (standard library only) with the
    operator command ``scripts/agent-supervisor``. Checks:
-   ``python3 scripts/test_agent_supervisor_approvals.py`` — no ``gh``, no
-   network, no repository touched. This page documents the gate; the scheduler,
-   the worktree runner and the CI and review supervision are the follow-up
-   issues #1059 to #1063 and will extend this page.
+   ``python3 scripts/test_agent_supervisor_approvals.py`` and
+   ``python3 scripts/test_agent_supervisor_scheduler.py`` and
+   ``python3 scripts/test_agent_supervisor_capacity.py`` — none of them needs
+   ``gh``, the network or a repository, and none of them can touch one. This
+   page documents the gate and the scheduler; the worktree runner and the CI and
+   review supervision are the follow-up issues #1060 to #1063 and will extend it.
 
 An OpenCode worker may start work on a MrMap issue when a human has said so.
 That sentence is the whole design; everything below is what "a human has said
@@ -180,8 +180,8 @@ the automation can rewrite is a suggestion.
 ``scripts/agent-supervisor config`` prints what was actually resolved with the
 problems and warnings attached. Keys that are not in the known set are a
 problem, not a default: a typo in a security setting must not quietly mean
-"unset". The keys the scheduler and runner will use are already listed here so
-one file — and one set of permissions around it — covers the whole supervisor.
+"unset". The example prints only the keys an operator has to decide on; the
+scheduling keys below it have working defaults and are listed there.
 
 .. list-table:: The keys that decide eligibility
    :header-rows: 1
@@ -212,6 +212,44 @@ one file — and one set of permissions around it — covers the whole superviso
      - ``false``
      - the one escape hatch, below
 
+The keys the scheduler adds
+---------------------------
+
+The scheduler and runner read the same file, so one set of file permissions
+covers the whole supervisor.
+
+.. list-table:: The keys that decide scheduling
+   :header-rows: 1
+   :widths: 30 22 48
+
+   * - Key
+     - Default
+     - Effect
+   * - ``priority_labels``
+     - ``priority: critical``, ``priority: high``
+     - these labels are worked before the rest; inside a rank it is oldest first
+   * - ``max_candidates_per_tick``
+     - ``10``
+     - how many issues one tick reads claims and history for. This is the
+       rate-limit bound, not the slot count
+   * - ``verdict_cache_s``
+     - ``600``
+     - how long a *refusal* is reused without re-reading the timeline. Never
+       applied to a refusal that says GitHub could not be reached
+   * - ``retry_backoff_s``
+     - ``900``
+     - how long an issue waits after a start attempt failed
+   * - ``plan_ttl_s``
+     - ``900``
+     - how long a plan nobody adopted is held before the issue is released
+   * - ``max_opencode_processes``
+     - ``2``
+     - the supervisor's own ceiling on workers, on top of the capacity gate
+   * - ``max_test_stacks``
+     - ``1``
+     - the same for Compose stacks. The capacity gate of ``scripts/agent_capacity``
+       still has the last word: these are ceilings, never permissions
+
 The single-account host
 =======================
 
@@ -241,11 +279,171 @@ answer you read is the answer the machine acts on. Exit codes are for scripts �
 configuration). ``--json`` gives the decision with the facts it was based on:
 approver, timestamp, role, the events that were seen.
 
-What this branch does not do
-===========================
+Scheduling a tick
+=================
 
-It starts nothing. The gate answers questions; #1059 schedules against it,
-#1060 runs a worker in a worktree, #1061 and #1062 supervise pull requests,
-#1063 adds the daemon, the systemd unit and the operator entry point. Nothing in
-this branch approves, merges, enqueues, resolves a review thread or bypasses
-branch protection — and, as above, the package has no code path that could.
+A tick is one pass over the queue, and it is a *decision procedure*, not a
+daemon: the daemon of #1063 only calls it on a timer, so the same code answers
+``plan`` in a terminal and runs unattended. The order matters and is fixed:
+
+1. Forget plans that no runner adopted within ``plan_ttl_s``, so an issue is not
+   blocked forever by a supervisor that was killed mid-start.
+2. Re-ask the gate for every live lease and stop what a human withdrew since the
+   last tick (below).
+3. List the open issues that carry the approval label — one listing, filtered by
+   label, never one request per issue.
+4. Order them and keep the first ``max_candidates_per_tick``.
+5. Read the claim board once for that candidate set.
+6. Ask the gate about every candidate, *then* count the slots.
+7. Take a lease and start what fits; report the rest with a reason.
+
+Step 6 is deliberate. Checking the slots first would be cheaper, but it would
+make the report say ``no-slot`` about issues nobody ever approved, and "why did
+*this* wait?" is the question an operator actually asks. What bounds the reading
+is ``max_candidates_per_tick``; the slot count only decides how many of the
+eligible ones start.
+
+Two supervisors, one issue
+--------------------------
+
+State lives in one SQLite file in ``state_dir`` — leases, verdicts and an event
+log, all in WAL mode. The lease table is keyed by issue number, and a lease is
+taken inside a ``BEGIN IMMEDIATE`` transaction: two ticks, two processes or two
+hosts sharing the file cannot both be told they got #1042. The loser gets
+``lease-taken`` in its report and moves on to the next candidate.
+
+A lease carries the identity of the process that took it (host, pid, process
+group, Compose project, OpenCode session) and a state — ``planned``,
+``running``, ``stopping``, ``released``, ``failed``, ``abandoned``. That is what
+makes a restart safe: a supervisor that comes back after a crash reads the same
+leases the old one wrote and sees a running worker with a pid rather than
+remembering nothing. Nothing is decided from memory, so a restart can neither
+lose an issue that is in flight nor resurrect a decision an operator revoked.
+
+Work somebody else started
+--------------------------
+
+The board of ``scripts/wip`` is the authority on who works an issue, and it
+includes the developer in VS Code, a Codex session and any other OpenCode
+client on any machine. A live claim by another client yields
+``claimed-elsewhere`` naming the holder; a stale claim does not stop the tick
+but is written to the event log, because it is the one signal that says
+"somebody's machine died with work in progress".
+
+The supervisor therefore never claims an issue itself. ``scripts/wip claim``
+tags a claim by the worktree it runs in, and the tag must be produced by the
+client that is going to do the work — a supervisor in a different checkout
+would otherwise write a claim its worker cannot heartbeat or release. The worker
+claims as its very first act inside its worktree (#1060); the supervisor only
+*reads* the board and refuses to double-book it. When the board cannot be read,
+the tick starts nothing: a late start costs an hour, a start against a human's
+in-progress branch costs their work.
+
+Order, cache and backoff
+------------------------
+
+Ordering is by the labels in ``priority_labels`` first, then oldest issue, then
+number. It is a pure function of the listing, so two ticks agree on what comes
+next and an operator can predict the queue. Oldest-first inside a rank is the
+fairness rule: without it, a repository that keeps receiving new issues starves
+the old ones forever.
+
+Every answer the gate gives is recorded. A *refusal* whose cause cannot have
+changed — nobody has labelled the issue, the approver is not on the allowlist —
+is repeated from the cache for ``verdict_cache_s`` instead of reading the whole
+label timeline again. A refusal whose cause is GitHub being unreachable or rate
+limiting (``history-unavailable``, ``issue-unavailable``) is never cached,
+because that excuse may be gone in a minute and caching it would turn a network
+blip into a silent freeze of the queue. An *eligibility* is not cached either:
+starting work is the act that must be re-proven. A failed start backs that one
+issue off by ``retry_backoff_s`` and counts the attempt; the queue keeps moving.
+
+Capacity
+--------
+
+Nothing heavy starts without ``scripts/agent_capacity`` agreeing, and the gate's
+answer is read as a contract, not as an opinion: the scheduler asks for the job
+class it intends to launch (``stack`` for a job that brings up Compose) and
+accepts only a verdict that says the class fits. Two ceilings apply on top of
+it — ``max_opencode_processes`` for workers and ``max_test_stacks`` for stacks —
+minus the leases already live, and the slot count is the smallest of the three.
+A capacity gate that cannot be read, or answers in a shape the scheduler cannot
+parse, counts as *zero slots*, not as unlimited. The metrics behind the verdict
+(load per core, ``MemAvailable``, disk, stacks) go into the report so a refusal
+can be read without rerunning anything.
+
+Withdrawal while work is in flight
+----------------------------------
+
+The first thing a tick does is ask the gate again about every live lease. A
+human who adds ``agent: paused`` or removes the approval label while a worker is
+running is answered in the next tick: the lease goes to ``stopping``, the reason
+is logged, and the runner is asked to stop the worker. Stopping keeps the
+branch, the worktree and the logs — what the human withdrew was the automation's
+permission to act, not the value of the work done so far. A runner that cannot
+stop its child leaves the lease ``abandoned`` with the error, rather than
+pretending the work stopped.
+
+Running the scheduler by hand
+-----------------------------
+
+::
+
+    scripts/agent-supervisor plan                  # what a tick would start, starting nothing
+    scripts/agent-supervisor status                # state file, live leases, recent events
+
+``plan`` is the same path a tick takes with ``--plan-only``: it lists, orders,
+checks the gate and the board, asks the capacity gate and prints its verdict,
+but takes no lease and starts nothing. Use it after a configuration change
+before letting the daemon act on it. ``status`` answers "what is the supervisor
+busy with and what did it decide lately" from the state file alone — it needs no
+GitHub read, which is why it still answers while the network is down.
+
+Reason codes in a report
+------------------------
+
+``explain`` prints the gate's codes (above); a tick adds its own, all of them
+readable as a sentence about one issue:
+
+.. list-table:: Why a tick did not start an issue
+   :header-rows: 1
+   :widths: 26 74
+
+   * - Code
+     - Meaning
+   * - ``claimed-elsewhere``
+     - another client holds a live claim on the board; the holder is named
+   * - ``held-here``
+     - this supervisor already has a live lease on it
+   * - ``lease-taken``
+     - a second supervisor process won the lease in this same tick
+   * - ``in-backoff``
+     - an earlier start attempt on it failed within ``retry_backoff_s``
+   * - ``no-slot``
+     - eligible, but this tick's slots are used up
+   * - ``per-tick-limit``
+     - more candidates than ``max_candidates_per_tick``; the tail waits
+   * - ``capacity``
+     - the capacity gate refused the job class, or could not be read
+   * - ``board-unreadable``
+     - the claim board could not be read, so the tick started nothing
+   * - ``no-runner``
+     - leased and planned, but no runner exists to adopt the plan
+
+What the supervisor does not do
+===============================
+
+It never approves anything. It never merges, enqueues or dequeues a pull
+request, never resolves a review thread, never applies ``agent: approved``, and
+never bypasses branch protection — the package contains no code path that could,
+and a test fails if one appears. It changes nothing on the host either: the
+capacity gate it consults is read-only by design, so a supervisor that believes
+it needs more memory has one answer available, which is to wait.
+
+What is still missing is the part that reaches into a worktree: #1060 runs the
+OpenCode worker and performs the claim, #1061 and #1062 watch the pull requests
+that come out of it, and #1063 adds the daemon, the systemd unit and the
+operator's entry point. Until #1060 lands, a tick that would have started
+something says ``no-runner`` and reports the plan instead — the lease is held so
+the decision is honest, and aged out after ``plan_ttl_s`` so it cannot block the
+issue.

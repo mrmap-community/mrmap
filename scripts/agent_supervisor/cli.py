@@ -16,11 +16,14 @@ be asked at all (no gh, unusable configuration). The daemon commands arrive with
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 
 from . import VERSION
 from . import approvals
 from . import config as config_module
 from . import gh
+from .scheduler import Scheduler
+from .store import human_age
 
 
 def _load(args):
@@ -126,6 +129,77 @@ def cmd_config(args):
     return 1 if cfg.problems else 0
 
 
+def cmd_plan(args):
+    """One tick, with nothing started. The command an operator runs to see what
+    the queue would do, and the shape #1063's daemon loop will repeat."""
+    cfg = _load(args)
+    if not cfg.ok:
+        for problem in cfg.problems:
+            print(f"config: {problem}", file=sys.stderr)
+        return 2
+    scheduler = Scheduler(cfg)
+    report = scheduler.tick(plan_only=not args.start)
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        _print_report(report, plan_only=not args.start)
+    return 0 if not report["errors"] else 1
+
+
+def _print_report(report, plan_only):
+    capacity = report.get("capacity") or {}
+    print(f"considered {report.get('considered', 0)} issue(s) carrying the approval label; "
+          f"capacity {capacity.get('verdict', 'not asked')} {capacity.get('explanation', '')}")
+    key = "planned" if plan_only else "started"
+    for number, branch, needs in report.get(key, []):
+        print(f"  {key}: #{number} -> {branch} ({needs})")
+    for number, reason, detail in report.get("skipped", []):
+        print(f"  skipped #{number}: {reason} - {detail}")
+    for number, reason in report.get("stopping", []):
+        print(f"  stopping #{number}: {reason}")
+    for error in report.get("errors", []):
+        print(f"  error: {error}", file=sys.stderr)
+    if plan_only and report.get("planned"):
+        print("planned only: nothing was started; run with --start to hand the work to "
+              "the runner (#1060)")
+
+
+def cmd_status(args):
+    cfg = _load(args)
+    store = Scheduler(cfg).store
+    info = store.status()
+    waiting = store.waiting_for_human()
+    events = store.recent_events(limit=args.events)
+    if args.json:
+        print(json.dumps({"config": cfg.path, "ok": cfg.ok, "problems": cfg.problems,
+                          "warnings": cfg.warnings, "state": info["path"],
+                          "leases": info["leases"],
+                          "waiting_for_human": [lease["issue"] for lease in waiting],
+                          "events": events}, indent=2, default=str))
+        return 1 if cfg.problems else 0
+    print(f"state: {info['path']}")
+    if not info["leases"]:
+        print("leases: none")
+    for lease in info["leases"]:
+        print(f"  #{lease['issue']} {lease['state']:9s} {lease.get('needs') or '-':7s} "
+              f"{lease.get('branch') or ''} pid={lease.get('pid')} "
+              f"since {human_age(lease['started_at'])}"
+              + (f" - {lease['detail']}" if lease.get("detail") else ""))
+    if waiting:
+        print(f"waiting for a human: {', '.join('#%d' % lease['issue'] for lease in waiting)}")
+    print("recent events:" if events else "no events recorded")
+    for event in events:
+        stamp = datetime.fromtimestamp(event["at"], timezone.utc).strftime("%m-%d %H:%M:%S")
+        print(f"  {stamp} {event['kind']}"
+              + (f" #{event['issue']}" if event.get("issue") else "")
+              + (f" - {event['detail']}" if event.get("detail") else ""))
+    for warning in cfg.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    for problem in cfg.problems:
+        print(f"config: {problem}", file=sys.stderr)
+    return 1 if cfg.problems else 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agent_supervisor",
@@ -153,6 +227,20 @@ def build_parser():
     p = sub.add_parser("config", help="print the resolved configuration and its problems")
     p.add_argument("--example", action="store_true", help="print a documented starting file")
     p.set_defaults(func=cmd_config)
+
+    p = sub.add_parser("plan", help="one scheduler tick: what would start, and why the rest "
+                                    "will not (nothing is started without --start)")
+    p.add_argument("--start", action="store_true",
+                   help="hand the planned jobs to the runner; until #1060 lands this "
+                        "only leases them")
+    p.add_argument("--json", action="store_true", help="the whole report as one JSON object")
+    p.set_defaults(func=cmd_plan)
+
+    p = sub.add_parser("status", help="leases, recent decisions and events, as the state "
+                                      "file holds them")
+    p.add_argument("--events", type=int, default=15, help="how many events to print")
+    p.add_argument("--json", action="store_true", help="leases and events as one JSON object")
+    p.set_defaults(func=cmd_status)
     return parser
 
 

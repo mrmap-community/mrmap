@@ -70,10 +70,26 @@ DEFAULTS = {
     "state_dir": "~/.local/share/mrmap-agent-supervisor",
     # Ignored files a Compose stack needs but a fresh worktree does not have.
     "worktree_env_files": [".env", "docker/backend/.mrmap.env"],
-    # Scheduling limits (#1059). The capacity gate has the last word.
+    # Scheduling limits (#1059). The capacity gate has the last word; these are
+    # the supervisor's own ceilings, and a job class the gate cannot measure
+    # never becomes one agent's opinion about what the host can take.
     "max_opencode_processes": 2,
     "max_test_stacks": 1,
     "tick_seconds": 60,
+    # Order: these labels first, then the oldest issue, then the number. Issues
+    # with none of them share the second rank and are worked oldest-first.
+    "priority_labels": ["priority: critical", "priority: high"],
+    # Reading the board and the timeline per candidate is the expensive part of
+    # a tick; both bounds keep one tick from fanning out across the repository.
+    "max_candidates_per_tick": 10,
+    # A refusal whose cause is a human who has not labelled anything yet does not
+    # need a fresh timeline read every minute. A refusal whose cause is GitHub
+    # being unreachable is never cached.
+    "verdict_cache_s": 600,
+    "retry_backoff_s": 900,
+    # A plan whose runner never appeared (a supervisor killed mid-start) is
+    # forgotten after this long so the issue is not blocked forever.
+    "plan_ttl_s": 900,
     # Worker lifecycle (#1060).
     "opencode_command": "opencode",
     "opencode_model": "",

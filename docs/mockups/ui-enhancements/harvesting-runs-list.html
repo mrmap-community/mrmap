@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MrMap · Harvesting runs list · proposed</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* additions for the harvesting run list, on top of the shared mockup styles */
+  .split { display:grid; grid-template-columns:minmax(0,1fr) 262px; gap:14px; align-items:start }
+  .facets { display:flex; gap:7px; flex-wrap:wrap }
+  .facets button { padding:6px 11px; border-radius:16px; font-size:12px }
+  .facets button[aria-pressed="true"] { background:var(--primary); border-color:var(--primary); color:#fff }
+  .run { font-weight:600 }
+  .run small { font-weight:400 }
+  .pbar { height:7px; border-radius:4px; background:var(--line); overflow:hidden; min-width:74px; margin-top:5px }
+  .pbar i { display:block; height:100%; background:var(--primary); border-radius:4px }
+  .pbar.done i { background:var(--green) }
+  .pbar.bad i { background:var(--red) }
+  .pbar.unknown i { width:34%; background:repeating-linear-gradient(115deg,var(--muted) 0 6px,transparent 6px 12px) }
+  .steps { display:flex; gap:4px; margin-top:6px; align-items:center; font-size:10px; color:var(--muted) }
+  .steps b { display:inline-flex; align-items:center; gap:3px; font-weight:400 }
+  .steps b::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--line) }
+  .steps b.hit::before { background:var(--primary) }
+  .steps b.now::before { background:var(--primary); box-shadow:0 0 0 3px var(--tint) }
+  .steps b.hit.done::before { background:var(--green) }
+  .iconbtn { padding:5px 8px; font-size:11px }
+  .iconbtn.stop { color:var(--red); border-color:#e3c6c6 }
+  .iconbtn.stop:hover { background:var(--red-bg) }
+  .actions-col { white-space:nowrap }
+  .bulk { display:flex; align-items:center; gap:12px; padding:9px 12px; margin:0 0 10px; border:1px solid var(--primary); background:var(--tint); border-radius:6px; font-size:12px }
+  .aside-card { position:sticky; top:14px }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:6px 10px; font-size:12px; margin:0 }
+  .kv dt { color:var(--muted) }
+  .kv dd { margin:0; font-variant-numeric:tabular-nums }
+  .tick { width:15px; height:15px }
+  .req { font-size:11px; color:var(--muted) }
+  /* density: this table answers eight questions per row and has to stay readable at 1440 */
+  table { font-size:12.5px }
+  th,td { padding-left:8px; padding-right:8px }
+  td { padding-top:11px; padding-bottom:11px; vertical-align:top }
+  .num { font-variant-numeric:tabular-nums }
+  .num > span { display:block; white-space:nowrap }
+  .num small { margin-top:3px }
+  .chip { white-space:normal }
+  td .chip { margin-top:4px; font-size:10px; padding:2px 7px }
+  .sel { width:22px }
+</style>
+</head>
+<body>
+<header class="appbar">
+  <a href="#" class="brand">▧ <strong>MrMap</strong></a>
+  <span>Registry workspace</span>
+  <button id="theme" aria-label="Toggle dark theme">◐ Theme</button>
+  <span class="avatar">JK</span>
+</header>
+
+<div class="workspace">
+  <aside class="navigation">
+    <div class="eyebrow">CSW</div>
+    <nav aria-label="Screens">
+      <a href="#">Catalogue services</a>
+      <a href="#" aria-current="page"><strong>Harvesting runs</strong></a>
+      <a href="#">Harvesting schedules</a>
+      <a href="#">Metadata records</a>
+      <a href="#">Background activity</a>
+    </nav>
+    <div class="sample-note"><strong>Interactive concept</strong><br>Run numbers, catalogues, counts, timings and estimates are illustrative. No API requests or data changes.</div>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <div class="heading">
+      <div>
+        <div class="proposal">PROPOSED UI · HARVESTING RUN LIST</div>
+        <h1>Harvesting runs</h1>
+        <p>Every run a catalogue has made, and what the running ones are doing right now.</p>
+      </div>
+      <div class="actions">
+        <button class="primary">Start harvest</button>
+        <button>Refresh</button>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <button class="metric active"><span>Running</span><strong>4</strong><span>download · import · discovering</span></button>
+      <button class="metric"><span>Awaiting import</span><strong>1,284</strong><span>stored files not written yet</span></button>
+      <button class="metric"><span>Completed today</span><strong>12</strong><span>of 13 started today</span></button>
+      <button class="metric"><span>Needs attention</span><strong>2</strong><span>aborted · import errors</span></button>
+    </div>
+
+    <div class="split">
+      <section class="panel">
+        <div class="toolbar">
+          <div class="facets">
+            <button aria-pressed="true">All runs</button>
+            <button aria-pressed="false">Running</button>
+            <button aria-pressed="false">Completed</button>
+            <button aria-pressed="false">Needs attention</button>
+          </div>
+          <input type="search" placeholder="Catalogue title" aria-label="Search catalogue" style="flex:1;min-width:130px">
+          <select aria-label="Catalogue"><option>Catalogue: any</option><option>GDI-BW</option><option>Komm.BR</option></select>
+        </div>
+
+        <div class="bulk">
+          <input class="tick" type="checkbox" checked aria-label="Selected">
+          <span><strong>1 selected</strong> · run #41 of GDI-BW</span>
+          <button class="iconbtn stop">Stop selected run</button>
+          <button class="quiet">Clear selection</button>
+        </div>
+        <p class="req">Only running runs are selectable — a run which has ended has nothing to stop.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="sel" aria-label="Select"></th>
+                <th>Catalogue · run</th>
+                <th>Phase</th>
+                <th>Progress</th>
+                <th>Throughput</th>
+                <th>Time</th>
+                <th>Records</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td class="sel"><input class="tick" type="checkbox" checked aria-label="Select run 41"></td>
+                <td class="run"><button class="link">GDI-BW</button><small class="muted">run #41 · size 150</small></td>
+                <td>
+                  <span class="chip info">Records to database</span>
+                  <div class="steps"><b class="hit done">discover</b><b class="hit done">download</b><b class="now">import</b></div>
+                </td>
+                <td class="num"><span>62,4 %</span><div class="pbar"><i style="width:62%"></i></div><small class="muted">1.488 of 2.384 steps</small></td>
+                <td class="num"><span>1.312 rec / min</span></td>
+                <td class="num"><span>1 h 12 min</span><small class="muted">≈ 12 min left · estimate</small></td>
+                <td class="num"><span>411.633 of 411.704</span><small><span class="chip warn">1.284 awaiting import</span></small><small><span class="chip bad">3 import errors</span></small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn stop" title="Stop harvesting">Stop</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="sel"><input class="tick" type="checkbox" aria-label="Select run 40"></td>
+                <td class="run"><button class="link">Komm.BR</button><small class="muted">run #40 · size 100</small></td>
+                <td>
+                  <span class="chip info">Download records</span>
+                  <div class="steps"><b class="hit done">discover</b><b class="now">download</b><b>import</b></div>
+                </td>
+                <td class="num"><span>8,1 %</span><div class="pbar"><i style="width:8%"></i></div><small class="muted">9 of 111 steps</small></td>
+                <td class="num"><span>920 rec / min</span></td>
+                <td class="num"><span>4 min 11 s</span><small class="muted">≈ 6 min left · estimate</small></td>
+                <td class="num"><span>1.020 of 10.980</span><small class="muted">nothing stored yet</small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn stop" title="Stop harvesting">Stop</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="sel"><input class="tick" type="checkbox" aria-label="Select run 39"></td>
+                <td class="run"><button class="link">Sachdaten NRW</button><small class="muted">run #39 · size not probed</small></td>
+                <td>
+                  <span class="chip info">Determining record count</span>
+                  <div class="steps"><b class="now">discover</b><b>download</b><b>import</b></div>
+                </td>
+                <td class="num"><span>—</span><div class="pbar unknown"><i></i></div><small class="muted">total unknown</small></td>
+                <td class="num"><span>—</span></td>
+                <td class="num"><span>22 s</span><small class="muted">no estimate: total unknown</small></td>
+                <td class="num"><span>—</span><small class="muted">counting</small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn stop" title="Stop harvesting">Stop</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="sel"><input class="tick" type="checkbox" aria-label="Select run 38"></td>
+                <td class="run"><button class="link">ALIS Bayern</button><small class="muted">run #38 · size 50</small></td>
+                <td>
+                  <span class="chip">Waiting for a worker</span>
+                  <div class="steps"><b>discover</b><b>download</b><b>import</b></div>
+                </td>
+                <td class="num"><span>0 %</span><div class="pbar"><i style="width:0"></i></div><small class="muted">0 of 61 steps</small></td>
+                <td class="num"><span>—</span></td>
+                <td class="num"><span>0 s</span><small class="muted">not started</small></td>
+                <td class="num"><span>0 of 3.000</span><small class="muted">queued 14:19</small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn stop" title="Stop harvesting">Stop</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="sel"><input class="tick" type="checkbox" disabled aria-label="Run 37 has ended"></td>
+                <td class="run"><button class="link">GDI-BW</button><small class="muted">run #37 · size 200</small></td>
+                <td>
+                  <span class="chip good">Completed</span>
+                  <div class="steps"><b class="hit done">discover</b><b class="hit done">download</b><b class="hit done">import</b></div>
+                </td>
+                <td class="num"><span>100 %</span><div class="pbar done"><i style="width:100%"></i></div><small class="muted">2.062 of 2.062 steps</small></td>
+                <td class="num"><span>1.480 rec / min</span><small class="muted">measured at size 200</small></td>
+                <td class="num"><span>48 min 03 s</span><small class="muted">ended 05.11. 09:14</small></td>
+                <td class="num"><span>411.704</span><small><span class="chip good">no import errors</span></small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn" title="Harvest again">Again</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="sel"><input class="tick" type="checkbox" disabled aria-label="Run 36 has ended"></td>
+                <td class="run"><button class="link">OpenData Hamburg</button><small class="muted">run #36 · size 10</small></td>
+                <td>
+                  <span class="chip bad">Aborted</span>
+                  <div class="steps"><b class="hit done">discover</b><b class="hit">download</b><b>import</b></div>
+                </td>
+                <td class="num"><span>31 %</span><div class="pbar bad"><i style="width:31%"></i></div><small class="muted">stopped by hand</small></td>
+                <td class="num"><span>—</span><small class="muted">an aborted run measured no harvest</small></td>
+                <td class="num"><span>9 min 40 s</span><small class="muted">ended 04.11. 22:07</small></td>
+                <td class="num"><span>1.860 of 5.990</span><small><span class="chip warn">12 records could not be imported</span></small></td>
+                <td class="actions-col">
+                  <button class="iconbtn" title="Show run">Show</button>
+                  <button class="iconbtn" title="Harvest again">Again</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="toolbar" style="margin:14px 0 0;justify-content:space-between">
+          <span class="muted">25 per page · sorted by the end of the run, newest first</span>
+          <span class="muted">Page 1 of 4</span>
+        </div>
+
+        <div class="design-note">
+          <strong>Design intent.</strong> The list answers one question per row: what is this run doing, how far is it, and when will it be through.
+          Everything in it comes from fields the harvesting-jobs endpoint already answers — <code>phaseLabel</code>, <code>progress</code>,
+          <code>doneSteps</code>/<code>totalSteps</code>, <code>totalRecords</code>, <code>unhandledRecordsCount</code>,
+          <code>importErrorCount</code>, <code>doneAt</code> — named in the sparse fieldset of the request, so a screen never pays for a column it does not show.
+          Columns are declared explicitly and the column chooser is switched off, exactly as the registered-services list does it.
+          <br><br>
+          <strong>What the api has to answer first.</strong>
+          <em>Throughput and time left</em> of a <em>running</em> run are #1071 — <code>recordsPerMinute</code> deliberately stays empty for a run which did not finish,
+          and an estimate must not re-aggregate the harvest the screen is polling (#1037).
+          <em>Elapsed time</em> is #1071 as well: <code>dateCreated</code> is empty for a run the harvesting made, so the moment a run was made is read from its change log.
+          <em>Phase facets</em> and the <em>catalogue title</em> search need filters the filterset does not have yet (<code>service__id</code>, <code>id</code>, <code>is_unready</code> are all there is).
+          <br><br>
+          <strong>What stays empty on purpose.</strong> A run which is still counting records, or one which is queued, has measured nothing and answers no time left.
+          An aborted or completed run has nothing left to estimate, is not selectable and has no stop button — only a new harvest.
+          A stop is the mutation the show screen already sends: PATCH <code>phase = 4711</code>, shown only while <code>doneAt</code> is empty and only to a user allowed to change the run.
+        </div>
+      </section>
+
+      <aside class="panel aside-card" aria-label="Selected run">
+        <div class="panel-head"><h3>Run #41 · GDI-BW</h3></div>
+        <dl class="kv">
+          <dt>Phase</dt><dd>Records to database</dd>
+          <dt>Progress</dt><dd>62,4 % · step 1.488 of 2.384</dd>
+          <dt>Throughput</dt><dd>1.312 rec / min</dd>
+          <dt>Time left</dt><dd>≈ 12 min <small class="muted">(est.)</small></dd>
+          <dt>Expected end</dt><dd>05.11. 15:26</dd>
+          <dt>Elapsed</dt><dd>1 h 12 min</dd>
+          <dt>Page size</dt><dd>150 <small class="muted">(1.480 at 200)</small></dd>
+          <dt>Awaiting</dt><dd>1.284</dd>
+          <dt>Errors</dt><dd>3</dd>
+        </dl>
+        <div class="actions">
+          <button class="primary">Open run</button>
+          <button class="iconbtn stop">Stop</button>
+        </div>
+        <div class="summary">
+          <strong>Logs</strong>
+          <p class="muted" style="margin:6px 0 0">3 records refused their schema · the page at 411.500 answered 204 records at size 150, so the run asked its missing range at size 75.</p>
+        </div>
+        <p class="req">Live over the websocket, refetched every 5 s while any run is running — the same mechanism the background-activity list uses.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</body>
+</html>

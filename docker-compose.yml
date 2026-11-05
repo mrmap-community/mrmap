@@ -3,6 +3,14 @@ services:
 
   postgis:
     image: postgis/postgis:18-3.6-alpine
+    # Every service in this file declares the same restart policy (#901): after
+    # a host reboot the docker engine brings the whole stack back and the
+    # backend's readiness wait plus the healthcheck-gated depends_on converge
+    # it by themselves. `unless-stopped` and not `always`, so an operator's
+    # deliberate `docker compose stop`/`down` survives a reboot too; `docker
+    # compose run` one-offs never inherit a service restart policy (verified
+    # against Compose v5), so test/check one-offs never come back on boot.
+    restart: unless-stopped
     # Disable Postgres JIT for the reference deployment (#871). The annotated
     # service-list query carries dozens of correlated SubPlans and its planner
     # cost (~700k at a realistic dataset, ~110k already with a few 10k records)
@@ -55,6 +63,7 @@ services:
 
   redis:
     image: library/redis:8.10.3-alpine
+    restart: unless-stopped
     volumes:
       - type: volume
         source: mem-db-data
@@ -89,6 +98,7 @@ services:
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
+    restart: unless-stopped
     hostname: "backend"
     volumes:
       - type: bind
@@ -127,7 +137,10 @@ services:
       docker-api:
         condition: service_started
       postgis:
-        condition: service_started
+        # gate on the pg_isready healthcheck, not on process start: after an
+        # unclean shutdown the postmaster listens for a while before it
+        # accepts connections (#901)
+        condition: service_healthy
       redis:
         condition: service_healthy
       victoria-logs:
@@ -146,6 +159,7 @@ services:
     # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.
+    restart: unless-stopped
     volumes:
       - type: bind
         source: ./backend
@@ -177,7 +191,8 @@ services:
       - ./docker/backend/.mrmap.env
     depends_on:
       postgis:
-        condition: service_started
+        # see backend: wait for the pg_isready healthcheck, not just the start (#901)
+        condition: service_healthy
       redis:
         condition: service_healthy
     cap_add:
@@ -188,7 +203,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: always
 
   celery-beat:
     build:
@@ -198,6 +212,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/sh -c "celery -A MrMap beat --loglevel INFO --scheduler system.scheduler:HealthcheckScheduler --max-interval 10"
+    restart: unless-stopped
     tty: true # To support colorized log output.
     hostname: "mrmap-celery-beat"
     volumes:
@@ -228,7 +243,8 @@ services:
       - ./docker/backend/.mrmap.env
     depends_on:
       postgis:
-        condition: service_started
+        # see backend: wait for the pg_isready healthcheck, not just the start (#901)
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -257,6 +273,7 @@ services:
         syslog-facility: "local5"
         tag: "{{.Name}}"
     hostname: "nginx"
+    restart: unless-stopped
     environment:
       - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin
       - NO_PROXY=${NO_PROXY:-localhost},backend,flower,pgadmin
@@ -342,6 +359,7 @@ services:
       - mrmap-internal    
   flower:
     image: mher/flower:2.2
+    restart: unless-stopped
     command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
     networks:
       - mrmap-internal

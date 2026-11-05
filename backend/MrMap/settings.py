@@ -117,6 +117,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Below Security, above Session: strips the session marking's Vary: Cookie
+    # from /api/schema responses after SessionMiddleware added it (#946).
+    "extras.schema_views.SchemaVaryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -203,14 +206,57 @@ METADATA_URL = [
 BASE_URL_FOR_ETF = os.environ.get(
     "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
 )
-ALLOWED_HOST_DEFAULTS = os.environ.get(
-    "DJANGO_ALLOWED_HOST_DEFAULTS", "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver"
-).split(";")
-ALLOWED_HOSTS = os.environ.get(
-    "EXTERNAL_BASE_URL", "localhost"
-).split(";")
-ALLOWED_HOSTS.extend(ALLOWED_HOST_DEFAULTS)
-ALLOWED_HOSTS = list(set(ALLOWED_HOSTS))
+# Host allow-list for Django's host validation (#949). Three sources are
+# merged, every one of them optional and ";" and/or "," separated:
+#  * DJANGO_ALLOWED_HOSTS: the deployer knob documented in
+#    docs/source/development/environment.rst; docker-compose.yml passes it
+#    through to backend, celery-worker and celery-beat.
+#  * DJANGO_ALLOWED_HOST_DEFAULTS: replaces the internal preset, which keeps
+#    the callers that reach the backend without a browser Host working: the
+#    ETF validator answers to MRMAP_BASE_URL_FOR_ETF (mrmap-appserver:8001),
+#    the dev stack publishes 8001 on localhost, deployments reached over the
+#    docker bridge still answer to 172.17.0.1, and Django's test client
+#    sends "testserver".
+#  * EXTERNAL_BASE_URL: the name the deployment is served under stays
+#    auto-allowed; it may be written as a host, a host:port or a full URL
+#    and contributes its bare hostname.
+# CSRF_TRUSTED_ORIGINS is derived from the merged list below, so exactly the
+# same hosts may POST.
+ALLOWED_HOSTS_PRESET = "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver"
+
+
+def _split_host_list(raw: str) -> list:
+    """The entries of a ";"/"," separated env value, without surrounding blanks."""
+    return [host.strip() for host in raw.replace(",", ";").split(";") if host.strip()]
+
+
+def _bare_host(entry: str) -> str:
+    """The hostname of a URL or host[:port] value, without scheme and port.
+
+    "http://demo.mrmap.de:8000/x" and "demo.mrmap.de:8000" both yield
+    "demo.mrmap.de"; a bracketed IPv6 literal keeps its brackets.
+    """
+    host = entry.strip()
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    host = host.split("/", 1)[0].rsplit("@", 1)[-1]  # drop path and credentials
+    if host.startswith("["):  # bracketed IPv6, e.g. "[::1]:8000"
+        return host[:host.find("]") + 1] if "]" in host else host
+    return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+
+
+def _allowed_hosts_from_env(environ) -> list:
+    """The merged allow-list for the given environment mapping, sorted."""
+    hosts = _split_host_list(environ.get("DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
+    hosts += _split_host_list(environ.get("DJANGO_ALLOWED_HOSTS", ""))
+    hosts += [_bare_host(entry) for entry in _split_host_list(
+        environ.get("EXTERNAL_BASE_URL", "localhost"))]
+    return sorted(set(hosts))
+
+
+ALLOWED_HOST_DEFAULTS = _split_host_list(os.environ.get(
+    "DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
+ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(

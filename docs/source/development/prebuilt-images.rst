@@ -110,9 +110,9 @@ The separation the agent rules in ``AGENTS.md`` are built on:
   Compose network, the named volumes (database data, ``frontend-node-modules``),
   one-off containers. Two jobs in fp-tagged prebuilt stacks still never share a
   database or a volume, because project scoping is untouched. ``docker compose
-  down --volumes --remove-orphans`` removes exactly this - for your own project
-  - and leaves the images and build caches in place. Never use global prunes;
-  they destroy other jobs' state and everyone's reusable cache alike.
+  -p <exact-project> down --volumes`` removes exactly this - for your own
+  project - and leaves the images and build caches in place. Never use global
+  prunes; they destroy other jobs' state and everyone's reusable cache alike.
 
 The ``node_modules`` volume sits deliberately between the two: it is
 project-scoped (disposable, isolated) yet seeded from the image, so a fresh
@@ -302,7 +302,7 @@ teardown traps; the host served a few unrelated containers during the run.
      - spent entirely on Docker Hub base images of *other* services; the pinned
        tag was not touched (no ghcr line at all) - another reason agents should
        just ``run`` instead of pre-pulling
-   * - teardown (``down --volumes --remove-orphans``)
+   * - teardown (``down --volumes``)
      - 1.5 s
      - -
 

@@ -63,6 +63,28 @@ CREATE TABLE IF NOT EXISTS events (
     detail  TEXT
 );
 CREATE INDEX IF NOT EXISTS events_issue ON events(issue, id);
+CREATE TABLE IF NOT EXISTS pull_requests (
+    issue          INTEGER PRIMARY KEY,
+    repo           TEXT NOT NULL,
+    pr             INTEGER NOT NULL,
+    branch         TEXT,
+    head_sha       TEXT,
+    state          TEXT NOT NULL DEFAULT 'watching',
+    attempts       INTEGER NOT NULL DEFAULT 0,
+    repair_sha     TEXT,
+    escalated_at   REAL,
+    last_seen      REAL,
+    detail         TEXT
+);
+CREATE TABLE IF NOT EXISTS ci_seen (
+    pr        INTEGER NOT NULL,
+    head_sha  TEXT NOT NULL,
+    name      TEXT NOT NULL,
+    verdict   TEXT NOT NULL,
+    run_id    INTEGER,
+    seen_at   REAL NOT NULL,
+    PRIMARY KEY (pr, head_sha, name)
+);
 """
 
 # A lease in one of these states both occupies the issue and occupies capacity:
@@ -72,6 +94,15 @@ CREATE INDEX IF NOT EXISTS events_issue ON events(issue, id);
 # left behind.
 LIVE_STATES = ("planned", "starting", "running", "stopping")
 TERMINAL_STATES = ("finished", "failed", "cancelled", "abandoned")
+
+# What the CI monitor knows about a pull request it follows (#1061). `watching`
+# means "tracked, no verdict recorded yet"; `waiting-ci` and `green` need no
+# action; `repairing` names the head SHA a worker was last woken for, which is
+# what keeps one failure from waking it twice; `waiting-human` is the escalated
+# state, and `closed` is left in the table on purpose - a PR that came back
+# closed must not look like one that was never tracked.
+PR_STATES = ("watching", "waiting-ci", "green", "repairing", "waiting-human",
+             "unknown", "closed")
 
 
 def utc_stamp(value=None):
@@ -258,13 +289,102 @@ class Store:
                 "SELECT * FROM leases ORDER BY issue").fetchall()]
             verdicts = [dict(r) for r in db.execute(
                 "SELECT * FROM verdicts ORDER BY issue").fetchall()]
-        return {"leases": leases, "verdicts": verdicts, "path": self.path}
+            pulls = [dict(r) for r in db.execute(
+                "SELECT * FROM pull_requests ORDER BY issue").fetchall()]
+        return {"leases": leases, "verdicts": verdicts, "pulls": pulls, "path": self.path}
 
     def waiting_for_human(self):
         """Leases whose detail says the worker stopped to ask a human - the
         supervisor's side of `scripts/wip wait`."""
         return [lease for lease in self.active_leases()
                 if (lease.get("detail") or "").startswith("waiting:")]
+
+    # -- pull requests under CI watch (#1061) --------------------------------
+
+    def track_pr(self, issue, repo, pr, branch="", head_sha=""):
+        """Record (or refresh) which pull request belongs to an issue.
+
+        Keyed by the issue, one row per issue: the supervisor's unit of work is
+        the issue, and a branch that gets a second PR after a force push is not
+        two things to watch. `attempts` and `repair_sha` survive a refresh -
+        they are the repair budget, and losing them at the moment the worker
+        pushes a new commit is how a bounded budget becomes an unlimited one.
+        """
+        now = utc_stamp()
+        with self._connect() as db:
+            row = db.execute("SELECT pr, state FROM pull_requests WHERE issue=?",
+                             (issue,)).fetchone()
+            if row is None:
+                db.execute("INSERT INTO pull_requests (issue, repo, pr, branch, head_sha, "
+                           "state, last_seen) VALUES (?,?,?,?,?,'watching',?)",
+                           (issue, repo, pr, branch, head_sha, now))
+            elif row["pr"] != pr or row["state"] == "closed":
+                # A different PR number, or one that was closed and came back: the
+                # previous verdict describes a different object, so the row starts
+                # over. The budget columns do not - see the note above.
+                db.execute("UPDATE pull_requests SET repo=?, pr=?, branch=?, head_sha=?, "
+                           "state='watching', escalated_at=NULL, last_seen=? WHERE issue=?",
+                           (repo, pr, branch, head_sha, now, issue))
+            else:
+                db.execute("UPDATE pull_requests SET repo=?, branch=?, head_sha=?, last_seen=? "
+                           "WHERE issue=?", (repo, branch, head_sha, now, issue))
+            row = db.execute("SELECT * FROM pull_requests WHERE issue=?", (issue,)).fetchone()
+        return dict(row)
+
+    def pr_row(self, issue):
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM pull_requests WHERE issue=?", (issue,)).fetchone()
+        return dict(row) if row else None
+
+    def watched_prs(self):
+        """Every pull request still under watch; a closed one is not watched."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM pull_requests WHERE state != 'closed' ORDER BY issue").fetchall()
+        return [dict(r) for r in rows]
+
+    def update_pr(self, issue, **fields):
+        """Set the given columns of one tracked pull request."""
+        unknown = set(fields) - {"pr", "branch", "head_sha", "state", "attempts",
+                                 "repair_sha", "escalated_at", "detail"}
+        if unknown:
+            raise ValueError(f"unknown pull request columns: {', '.join(sorted(unknown))}")
+        if "state" in fields and fields["state"] not in PR_STATES:
+            raise ValueError(f"not a pull request state: {fields['state']}")
+        if "last_seen" not in fields:
+            fields["last_seen"] = utc_stamp()
+        columns = ", ".join(f"{key}=?" for key in fields)
+        with self._connect() as db:
+            db.execute(f"UPDATE pull_requests SET {columns} WHERE issue=?",
+                       tuple(fields.values()) + (issue,))
+
+    def note_ci_seen(self, pr, head_sha, name, verdict, run_id=None):
+        """Remember one (check, head SHA, conclusion) triple.
+
+        Returns True the first time it is seen and False on a repeat. That single
+        bit is what keeps a restart from reading the same red check as news and
+        waking the worker again: after a crash the rows are still here, so the
+        answer to "have we already dealt with this one" does not depend on
+        anything having been in memory before.
+        """
+        with self._connect() as db:
+            cur = db.execute(
+                "INSERT OR IGNORE INTO ci_seen (pr, head_sha, name, verdict, run_id, seen_at) "
+                "VALUES (?,?,?,?,?,?)", (pr, head_sha, name, verdict, run_id, utc_stamp()))
+            return cur.rowcount > 0
+
+    def ci_seen(self, pr, head_sha):
+        """The recorded findings for one head SHA, as {name: verdict}.
+
+        Rows for other head SHAs stay in the table - they are the audit trail of
+        what the supervisor already decided about this branch - but they answer
+        nothing: a check that failed on a commit nobody pushed any more is not a
+        reason to wake anybody.
+        """
+        with self._connect() as db:
+            rows = db.execute("SELECT name, verdict FROM ci_seen WHERE pr=? AND head_sha=?",
+                              (pr, head_sha)).fetchall()
+        return {r["name"]: r["verdict"] for r in rows}
 
 
 def human_age(value):

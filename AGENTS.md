@@ -37,6 +37,11 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
   scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
   the host capacity gate described under "Check host capacity before starting another stack".
+  `scripts/agent_supervisor` (command: `scripts/agent-supervisor`) is the OpenCode agent supervisor
+  described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
+  issue an agent may start, and `python3 scripts/test_agent_supervisor_approvals.py` checks that
+  gate offline (needs neither `gh` nor the network). An agent never applies `agent: approved`
+  itself — a human does.
 
 ## Authoritative sources
 

@@ -92,7 +92,10 @@ def write_fake_opencode():
     """
     with open(FAKE, "w") as handle:
         handle.write(FAKE_OPENCODE)
-    os.chmod(FAKE, 0o755)
+    # 0700, not 0755: only this user runs the fake, and a check that hands out
+    # world-readable executables would be a strange way to prove that a worker's
+    # own files stay private.
+    os.chmod(FAKE, 0o700)
 
 
 def check(name, condition, note=""):
@@ -603,7 +606,7 @@ def test_cleanup_only_own_stack():
     runner_module.DOCKER_COMMAND = os.path.join(TMP, "dockerfake")
     with open(runner_module.DOCKER_COMMAND, "w") as handle:
         handle.write(FAKE_DOCKER % (log, 0))
-    os.chmod(runner_module.DOCKER_COMMAND, 0o755)
+    os.chmod(runner_module.DOCKER_COMMAND, 0o700)
 
     harness = Harness("cleanup")
     own = f"mrmap-agent-{harness.number}-77"
@@ -628,7 +631,7 @@ def test_cleanup_only_own_stack():
         pass
     with open(runner_module.DOCKER_COMMAND, "w") as handle:
         handle.write(FAKE_DOCKER % (log, 1))
-    os.chmod(runner_module.DOCKER_COMMAND, 0o755)
+    os.chmod(runner_module.DOCKER_COMMAND, 0o700)
     try:
         harness.runner.cleanup_stack(harness.number, f"mrmap-agent-{harness.number}-78")
         check("a failing teardown is reported, not swallowed", False, "it claimed success")

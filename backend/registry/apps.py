@@ -62,7 +62,7 @@ def find_orphan_metadata_objects(sender, **kwargs):
     orphans = DatasetMetadataRecord.objects.filter(
         resource_relation__isnull=True)
     # TODO: move this to a manager as check function
-    logger.info("metadata orphans:", orphans.count())
+    logger.info(f"metadata orphans: {orphans.count()}")
 
 
 class RegistryConfig(AppConfig):

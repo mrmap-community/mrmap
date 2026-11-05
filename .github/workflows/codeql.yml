@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches: [master, develop]
+  merge_group:
+    types: [checks_requested]
+    branches: [master, develop]
   pull_request:
     branches: [master, develop]
   schedule:
     - cron: '30 5 * * 1'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Keep speculative merge-group runs independent from PR and branch runs.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:

@@ -159,13 +159,28 @@ is needed anywhere.
    ``09d7b1080a52``) - yet an anonymous token grant for the repositories is
    refused (``docker pull`` -> ``error from registry: unauthorized``, curl
    against the ``/token`` endpoint -> ``UNAUTHORIZED``). That is GHCR's default
-   *private* package visibility at first push, not a missing tag. A maintainer
-   must flip ``mrmap-community/mrmap-backend-dev`` and
-   ``mrmap-frontend-dev`` to public - requested via the question on issue #964.
-   Until then, agents simply take the fallback path below, which needs no
-   registry at all.
+   *private* package visibility at first push, not a missing tag. Requested
+   via the question on issue #964.
 
-If an org ever keeps dev packages private, an authenticated pull is
+.. note:: measured 2026-11-05, after a maintainer flipped both packages
+   ``mrmap-community/mrmap-backend-dev`` and ``mrmap-frontend-dev`` to public,
+   the anonymous path behaves the way the contract expects: the ``/token``
+   endpoint hands out a pull token with no credentials at all,
+   ``GET /v2/<package>/tags/list`` lists the fp tags, and
+   ``docker pull ghcr.io/mrmap-community/mrmap-backend-dev:09d7b1080a52``
+   finished in 38 s for the 308 MB of compressed layers behind that tag
+   (1.44 GB unpacked). Agents take the registry path now; the fallback below
+   stays available for a host that cannot reach it.
+
+   One quirk for anyone who inspects a manifest by hand instead of pulling:
+   these are single-platform OCI image manifests, so the ``Accept`` header has
+   to name exactly ``application/vnd.oci.image.manifest.v1+json``. A list of
+   accepted types - or ``*/*`` - answers ``404 MANIFEST_UNKNOWN`` ("OCI
+   manifest found, but Accept header does not support OCI manifests") for a tag
+   that exists and pulls fine. ``docker`` never shows this because it names one
+   type per request.
+
+If an org ever keeps dev packages private again, an authenticated pull is
 ``gh auth token | docker login ghcr.io -u <user> --password-stdin`` with a token
 carrying ``read:packages`` - but credential-free pulls are the design goal here,
 so prefer flipping the package to public.
@@ -285,11 +300,14 @@ two steps marked skipped and the gate's reason in the log. A required check
 never disappears, which is what the merge queue waits for. The publish jobs are
 untouched and unconditional, ``packages: write`` stays on them, and a
 pull-request run keeps only ``contents: read`` - it cannot publish either way.
-While the two GHCR packages are still private (see "GHCR access: anonymous pull,
-and the current visibility") the probe answers exit 4 and CI builds exactly as
-it did before this gate; the skipping starts with the visibility flip, and an
-unchanged run then pays a checkout plus one anonymous pull of the published tag
-instead of a build. The Actions build cache is written by runs that build, and
+The two GHCR packages went public on 2026-11-05, so the skip is live rather
+than pending: on an unchanged run the probe finds the published tag, answers
+exit 0 and the two build steps are skipped, which costs the run a checkout plus
+one anonymous pull of that tag - 38 s measured for the backend tag's 308 MB of
+compressed layers - instead of a buildx build. A host that cannot reach the
+registry, or a tag that was never published, keeps building: exit 3 and 4 both
+answer ``needs_build=true`` (see "GHCR access: anonymous pull, and the current
+visibility"). The Actions build cache is written by runs that build, and
 the publish runs on ``master`` still build unconditionally, so a later
 dependency change finds the ``master`` cache as warm as before.
 
@@ -457,9 +475,10 @@ tag once per host (~307 MB compressed, 1.44 GB unpacked, per ``docker images``)
 and any later stack skips the registry entirely (``pull_policy: missing``,
 verified - the second project's runs and even an explicit unscoped
 ``docker compose pull`` made zero ghcr.io requests). The end-to-end anonymous
-download timing against ghcr.io could not be measured in this run because the
-package visibility was still private; re-measure this row after the package is
-public.
+download against ghcr.io was measured on 2026-11-05, after the packages went
+public: a cold ``docker pull`` of the backend fp tag took 38 s for 308 MB of
+compressed layers from this host. Treat that as one host's number, not a
+budget - the layer count (7) and the byte count are the stable part.
 
 Troubleshooting
 ===============

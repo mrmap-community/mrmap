@@ -12,8 +12,17 @@ const state = vi.hoisted(() => ({
   error: null as Error | null,
 }));
 vi.mock("react-admin", () => {
-  const Container = ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
+  const Container = ({
+    children,
+    label,
+  }: {
+    children: ReactNode;
+    label?: string;
+  }) => (
+    <div>
+      {typeof label === "string" ? label : null}
+      {children}
+    </div>
   );
   return {
     useShowContext: () => state,
@@ -24,7 +33,7 @@ vi.mock("react-admin", () => {
     Labeled: Container,
     BooleanField: () => null,
     DateField: () => null,
-    NumberField: () => null,
+    NumberField: ({ source }: { source: string }) => <span>{source}</span>,
     TextField: () => null,
   };
 });
@@ -52,6 +61,20 @@ describe("harvesting run detail layout", () => {
     expect(screen.getByText("harvestRun.configuration")).toBeInTheDocument();
     expect(screen.getAllByText("Timing chart")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("counts every collected kind by collecting state and tabs the application records", () => {
+    render(<HarvestingJobTabbedShowLayout />);
+    expect(screen.getByText("harvestRun.resultCounts")).toBeInTheDocument();
+    for (const kind of ["Dataset", "Service", "Application"]) {
+      for (const stateName of ["new", "updated", "existing", "duplicated"]) {
+        expect(
+          screen.getByText(`${stateName}${kind}MetadataCount`),
+        ).toBeInTheDocument();
+      }
+    }
+    // the applications appear both as a result-count row and as a tab of the
+    // records the run collected
+    expect(screen.getAllByText("harvestRun.applications").length).toBeGreaterThan(1);
   });
   it("shows loading while the request is pending", () => {
     state.isPending = true;

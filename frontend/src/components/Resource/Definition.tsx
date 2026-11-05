@@ -19,8 +19,11 @@ import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import WebAssetIcon from '@mui/icons-material/WebAsset';
 
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
+import ListApplicationMetadataRecord from './ApplicationMetadataRecord/ListApplicationMetadataRecord';
+import ShowApplicationMetadataRecord from './ApplicationMetadataRecord/ShowApplicationMetadataRecord';
 import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
@@ -119,6 +122,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
   {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
   {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
+  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, options: { menu: { group: "Metadata", order: 25 } }},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
   {name: "MetadataRelation"},
   {name: "TimeExtent"},

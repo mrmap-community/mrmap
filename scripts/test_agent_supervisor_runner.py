@@ -49,18 +49,20 @@ FAKE_OPENCODE = r"""#!/bin/sh
 # FAKE_BEHAVIOUR says. It never calls a model, so a test that looks like a running
 # worker still costs milliseconds.
 #
-# The signal behaviour is installed FIRST and only then reported through
-# $FAKE_READY: a process that has not installed its handlers yet dies on TERM like
-# any other process would, so a check about a worker that ignores TERM has to wait
-# for the handler to exist rather than race it.
+# The signal behaviour is installed FIRST and the ready report comes LAST: a
+# process that has not installed its handlers yet dies on TERM like any other
+# process would, so a check about a worker that ignores TERM has to wait for the
+# handler to exist rather than race it - and a check that reads what the worker
+# was asked with waits for the same signal, so it can never read a half-written
+# recording.
 case "$FAKE_BEHAVIOUR" in
   term)  trap 'exit 0' TERM;;
   hang)  trap '' TERM;;
 esac
-[ -n "$FAKE_READY" ] && : > "$FAKE_READY"
 echo "$*" >> "$FAKE_ARGV"
 env | grep -E '^(OPENCODE_DB|OPENCODE_CONFIG_CONTENT|XDG_|COMPOSE_|MRMAP_AGENT)' \
     | sed 's/\\(CONTENT=\\).*/\\1<json>/' | sort >> "$FAKE_ENV"
+[ -n "$FAKE_READY" ] && : > "$FAKE_READY"
 session=""
 while [ $# -gt 0 ]; do
   [ "$1" = "--session" ] && session="$2"
@@ -494,6 +496,11 @@ def test_pause_and_resume():
         resumed = harness.runner.resume(harness.number)
     finally:
         approvals.decide = original
+    # The spawn is a real child process and its recording lands a moment after
+    # the call returns. The ready file is the fake's own "I am up, and I have
+    # written down what I was asked with", so the two checks below wait for that
+    # fact rather than for a moment in time.
+    wait_until_ready()
     check("an eligible issue resumes on its recorded session",
           resumed["session"] == handle["session"], str(resumed))
     check("resuming spawns exactly one worker",

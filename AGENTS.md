@@ -182,16 +182,22 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   for the check itself rather than `up` for test services. `--rm` removes the one-off container when
   it exits; dependencies, project networks and named volumes can remain until the end of the job.
 - Never run `down`, `--remove-orphans` or volume removal against a project this job did not create,
-  in particular the developer's.
+  in particular the developer's. Never run `down` or `up` from a directory whose `.env` or compose
+  file belongs to another project — a copied `.env` still carries the developer's
+  `COMPOSE_PROJECT_NAME`; pass `-p <exact-project>` and make sure the compose files are the ones
+  this job copied.
 - Before creating temporary resources, register shell cleanup with `trap` for normal exit, failure
   and interruption (`EXIT`, `INT`, `TERM`), or use the runner's equivalent `finally` mechanism. Keep
   cleanup active for the full lifetime of background checks and preserve their exit status. For a
-  verified job-owned disposable project, clean up using the same project name and Compose files:
-  `docker compose down --volumes --remove-orphans` with the override still in `COMPOSE_FILE`. This
-  volume removal is only for that disposable project's data; retain shared volumes and reusable
-  images and build caches.
-- After checks and before handing the task back, verify that this job's containers, networks and
-  volumes are gone. Clean up on failed checks too.
+  verified job-owned disposable project, tear down with `docker compose -p <exact-project> down
+  --volumes` using the same project name and Compose files, the override still in `COMPOSE_FILE` —
+  **never add `--remove-orphans`**: it matches orphans by compose-file path, not project, and once
+  wiped a foreign stack despite an exact `-p`. Before the `down`, counter-check the labeling with
+  `docker ps -a --filter label=com.docker.compose.project=<exact-project>`: only own resources may
+  be labeled. This volume removal is only for that disposable project's data; retain shared volumes
+  and reusable images and build caches.
+- After checks and before handing the task back, verify zero leftovers by exact name — containers,
+  networks and volumes. Clean up on failed checks too.
   Report any leftovers with their exact names and the reason they remain. After an interrupted
   session, recover ownership from the job's recorded project/container names before removing
   anything; a stopped container or matching name prefix alone does not establish ownership. Never use

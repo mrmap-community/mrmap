@@ -61,6 +61,13 @@ def write_queries(captured):
     return [q['sql'] for q in captured if WRITE_SQL.match(q['sql'])]
 
 
+def logged_messages(calls):
+    """The messages of logger calls made with the ``msg=`` keyword, as the
+    structured logging of this project calls it."""
+    return [
+        c.kwargs.get('msg', c.args[0] if c.args else '') for c in calls]
+
+
 class CapabilitiesReadHarness:
     """A catalogue with a stored capabilities document on a temp storage.
 
@@ -124,7 +131,7 @@ class StoredCapabilitiesReadTest(CapabilitiesReadHarness, TestCase):
             url = client.get_record_by_id_request(id='some-id').url
         send.assert_not_called()
         self.assertIn('GetRecordById', url)
-        self.assertEqual([], write_queries(queries.captured))
+        self.assertEqual([], write_queries(queries.captured_queries))
         self.catalogue.refresh_from_db()
         self.assertTrue(
             self.catalogue.xml_backup_file.name.endswith('capabilities.xml'),
@@ -196,7 +203,7 @@ class MissingCapabilitiesIntegrityTest(CapabilitiesReadHarness, TestCase):
                 _ = self.catalogue.capabilities
             with self.assertRaises(CapabilitiesBackupMissing):
                 _ = self.catalogue.client
-        self.assertEqual([], write_queries(queries.captured))
+        self.assertEqual([], write_queries(queries.captured_queries))
         self.catalogue.refresh_from_db()
         self.assertEqual(name_before, self.catalogue.xml_backup_file.name)
         self.assertEqual(history_before, self.catalogue.change_log.count())
@@ -216,8 +223,8 @@ class MissingCapabilitiesIntegrityTest(CapabilitiesReadHarness, TestCase):
                 with self.assertRaises(CapabilitiesBackupMissing):
                     _ = self.catalogue.capabilities
             warnings = [
-                c for c in log.warning.call_args_list
-                if "no capabilities file" in c.args[0]]
+                m for m in logged_messages(log.warning.call_args_list)
+                if "no capabilities file" in m]
             self.assertEqual(1, len(warnings),
                              "5 accesses must leave exactly one warning")
 
@@ -226,8 +233,8 @@ class MissingCapabilitiesIntegrityTest(CapabilitiesReadHarness, TestCase):
                 f.write(self.stored)
             self.assertEqual(self.stored, self.catalogue.capabilities)
             clearings = [
-                c for c in log.info.call_args_list
-                if "reads well again" in c.args[0]]
+                m for m in logged_messages(log.info.call_args_list)
+                if "reads well again" in m]
             self.assertEqual(1, len(clearings))
             self.assertNotIn(
                 (self.catalogue._meta.label, str(self.catalogue.pk)),
@@ -238,8 +245,8 @@ class MissingCapabilitiesIntegrityTest(CapabilitiesReadHarness, TestCase):
             with self.assertRaises(CapabilitiesBackupMissing):
                 _ = CatalogueService.objects.get(pk=self.catalogue.pk).capabilities
             warnings = [
-                c for c in log.warning.call_args_list
-                if "no capabilities file" in c.args[0]]
+                m for m in logged_messages(log.warning.call_args_list)
+                if "no capabilities file" in m]
             self.assertEqual(2, len(warnings))
 
 
@@ -284,7 +291,7 @@ class HarvestImportCapabilitiesTest(CapabilitiesReadHarness, TestCase):
                          "one client construction per imported file, "
                          "not one per provenance bucket")
         operation_url_queries = [
-            q['sql'] for q in queries.captured
+            q['sql'] for q in queries.captured_queries
             if 'registry_operationurl' in q['sql']]
         self.assertEqual(
             [], operation_url_queries,
@@ -310,8 +317,8 @@ class HarvestImportCapabilitiesTest(CapabilitiesReadHarness, TestCase):
         send.assert_not_called()
         file.refresh_from_db()
         self.assertFalse(file.has_import_error)
-        DatasetMetadataRecord.objects.filter(
-            file_identifier='de.dwd.geoserver.fach.RBSN_FF').assert_not_exists()
+        self.assertFalse(DatasetMetadataRecord.objects.filter(
+            file_identifier='de.dwd.geoserver.fach.RBSN_FF').exists())
 
     def test_total_records_of_a_broken_catalogue_fails_before_requesting(self):
         """The harvest step which starts a run does not ask the remote either.

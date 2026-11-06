@@ -19,7 +19,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
-| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set (`after_feature`), a fresh API client per scenario (`before_scenario`), failure dump (`after_step`) |
+| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |
 
@@ -60,6 +60,15 @@ Rules that these commands encode:
   in that stack; overlapping runs drop each other's tables and fail with unrelated errors. Behave
   runs of other jobs are unaffected, they run in their own stack (see `../../../AGENTS.md`);
   the stacks share the built image — the isolation is for the database, not for images.
+- **`--simple` is not a style choice.** Without it behave-django runs a scenario in a
+  `TransactionTestCase`, which flushes the whole database when the scenario ends — while this suite
+  loads its fixtures once per feature in `before_feature` and never restores them. So the scenarios
+  after the first ask an empty database and the next feature aborts in `loaddata`, whose natural
+  keys point at the users of `before_all`. `environment.py` refuses such a run by name
+  (`assert_seeded_users`). The flag can not be defaulted in `backend/behave.ini`: it belongs to the
+  `behave` management command rather than to behave itself (see
+  `behave_django/management/commands/behave.py`), which picks the Django test runner before behave
+  reads any config file.
 - **`--keepdb` (`-k`) is Django's**, not behave's, and is the difference between minutes and seconds
   on a repeat run. Drop it after any model or migration change, or when a failure mentions the
   database schema — a kept database is not migrated.
@@ -297,9 +306,14 @@ first scenario with `TypeError: not all arguments converted during string format
 behave captures for a scenario — behave formats the captured records itself when it closes the
 capture scope, so the broken record stopped the run whatever formatter was chosen (`-f plain` alone
 died too; only `--simple`, which does not flush, or `--no-capture` avoided it). The green invocation
-stays `manage.py behave --simple` for a different reason: the default runner flushes the database
-before every scenario, which deletes the rows `before_all` and `before_feature` have committed, so
-fixture-tagged features then fail their loaddata with `HOOK-ERROR in before_feature`.
+stays `manage.py behave --simple` for a different reason: the default runner runs a scenario in a
+`TransactionTestCase` and flushes the whole database when the scenario ends, which deletes the rows
+`before_all` and `before_feature` have committed, so the sibling scenarios of a fixture-tagged
+feature ask an empty database and the next feature aborts in its loaddata with
+`HOOK-ERROR in before_feature`. #1025 turned that trap into a stated refusal: `assert_seeded_users`
+compares the users `before_all` loaded before every feature and scenario and names the `--simple`
+command to run instead, so nobody reads the empty database as broken fixtures (see the `--simple`
+rule under "Running scenarios").
 
 ## Step vocabulary
 

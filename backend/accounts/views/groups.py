@@ -2,6 +2,7 @@ from accounts.filters.groups import OrganizationFilterSet
 from accounts.models.groups import Organization
 from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
+from django.db.models import F
 from extras.viewsets import NestedModelViewSet
 from rest_framework_json_api.views import ModelViewSet
 
@@ -37,10 +38,17 @@ class NestedGroupViewSet(
 
 
 class OrganizationViewSetMixin:
-    queryset = Organization.objects.all()
+    # the pickers of the frontend render and sort by the display string the
+    # serializer answers, which for an organization is its name (#1035)
+    queryset = Organization.objects.annotate(string_representation=F("name"))
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilterSet
     search_fields = ('id', 'name')
+    ordering_fields = [
+        "id", "name", "description", "person_name", "email", "phone",
+        "facsimile", "city", "postal_code", "address_type", "address",
+        "state_or_province", "country", "string_representation",
+    ]
 
 
 class OrganizationViewSet(

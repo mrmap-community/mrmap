@@ -6,7 +6,9 @@ from rest_framework_json_api.views import ModelViewSet
 
 
 class UserViewSetMixin:
-    queryset = User.objects.with_meta()
+    # the annotation carries the display string of the user, so the sort the
+    # generic pickers send can be answered by the database (#1035)
+    queryset = User.objects.with_meta().with_string_representation()
     serializer_classes = {
         "default": UserSerializer,
         "create": UserCreateSerializer,
@@ -18,7 +20,8 @@ class UserViewSetMixin:
     }
     search_fields = ("id", "username", "first_name", "last_name", "email")
     ordering_fields = ["id", "username", "first_name",
-                       "last_name", "email", "is_active", "date_joined"]
+                       "last_name", "email", "is_active", "date_joined",
+                       "string_representation"]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'username': ['exact', 'icontains', 'contains'],

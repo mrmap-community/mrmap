@@ -3,7 +3,7 @@ from django.test import TestCase
 from registry.filters.service import WebMapServiceFilterSet, WebFeatureServiceFilterSet, CatalogueServiceFilterSet
 from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord, MetadataContact
 from registry.models.service import WebMapService, WebFeatureService, CatalogueService, Layer
-from registry.querys.explorer import service_coverage
+from registry.querys.explorer import service_aggregates
 from tests.django.registry.tests_query_performance import QueryMeasurementMixin, SERVICES
 
 
@@ -14,6 +14,10 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
     def setUpTestData(cls):
         super().setUpTestData()
         MetadataContact.objects.get_or_create(pk='1234', defaults={'name': 'Explorer contact'})
+
+    def coverage(self, qs):
+        """The extent of the one service of the given queryset."""
+        return service_aggregates(list(qs), element_count=False)[0].extent
 
     def test_extent_is_opt_in_and_query_budget_is_fixed(self):
         for model, path in [(WebMapService, '/api/registry/wms'), (WebFeatureService, '/api/registry/wfs')]:
@@ -35,14 +39,14 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
         bounds.srid = 4326
         Layer.objects.filter(service=layer.service).update(bbox_lat_lon=None)
         Layer.objects.filter(pk=parent.pk).update(bbox_lat_lon=bounds)
-        extent = service_coverage(WebMapService.objects.filter(pk=layer.service_id)).get().extent
+        extent = self.coverage(WebMapService.objects.filter(pk=layer.service_id))
         self.assertTrue(extent.equals(bounds))
         for lookup in ('contains', 'covers', 'equals', 'intersects'):
             filtered = WebMapServiceFilterSet({f'bbox_lat_lon__{lookup}': bounds.wkt}, queryset=WebMapService.objects.all()).qs
             self.assertIn(layer.service_id, filtered.values_list('pk', flat=True))
         Layer.objects.filter(pk=parent.pk).update(bbox_lat_lon=None)
         Layer.objects.filter(pk=layer.pk).update(bbox_lat_lon=bounds)
-        self.assertTrue(service_coverage(WebMapService.objects.filter(pk=layer.service_id)).get().extent.equals(bounds))
+        self.assertTrue(self.coverage(WebMapService.objects.filter(pk=layer.service_id)).equals(bounds))
 
     def test_spatial_filters_do_not_duplicate_services(self):
         for model, filterset in [(WebMapService, WebMapServiceFilterSet), (WebFeatureService, WebFeatureServiceFilterSet)]:
@@ -64,13 +68,13 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
             record = model.objects.create(title='Harvested record', bounding_geometry=MultiPolygon(geometry), metadata_contact_id='1234', **({'dataset_contact_id': '1234'} if model is DatasetMetadataRecord else {}))
             record.harvested_through.add(catalogue)
             records.append(record)
-        extent = service_coverage(CatalogueService.objects.filter(pk=catalogue.pk)).get().extent
+        extent = self.coverage(CatalogueService.objects.filter(pk=catalogue.pk))
         self.assertTrue(extent.equals(bounds.union(other)))
         for geometry in (bounds, other):
             qs = CatalogueServiceFilterSet({'bbox_lat_lon__intersects': geometry.wkt}, queryset=CatalogueService.objects.all()).qs
             self.assertEqual(list(qs.values_list('pk', flat=True)), [catalogue.pk])
         empty = CatalogueService.objects.create(title='Empty', version=202, metadata_contact_id='1234', service_contact_id='1234')
-        self.assertIsNone(service_coverage(CatalogueService.objects.filter(pk=empty.pk)).get().extent)
+        self.assertIsNone(self.coverage(CatalogueService.objects.filter(pk=empty.pk)))
         fields = {'fields[CatalogueService]': 'id,title,extent,element_count,can_edit'}
         assign_perm('registry.change_catalogueservice', self.user)
         assign_perm('change_catalogueservice', self.user, catalogue)
@@ -87,7 +91,7 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
         self.assertNotIn('isAccessible', plain['data'][0]['attributes'])
         self.assertFalse(any('ST_Union' in query['sql'] for query in queries))
         records[0].harvested_through.clear()
-        self.assertTrue(service_coverage(CatalogueService.objects.filter(pk=catalogue.pk)).get().extent.equals(other))
+        self.assertTrue(self.coverage(CatalogueService.objects.filter(pk=catalogue.pk)).equals(other))
 
     def test_metadata_geometry_filters(self):
         from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet

@@ -31,6 +31,24 @@ Feature: DatasetMetadataRecord List Endpoint
             | filter by title    | filter[title__icontains]             | Relative Feuchte                | 1     |
             | filter by abstract | filter[abstract__icontains]          | Messwerte der relativen Feuchte | 1     |
 
+    # A search word is a word of the record: of its title, of its abstract or of one
+    # of its keywords, which is what the vector of the record holds. A piece of a
+    # word is not a word and finds nothing, which is what makes the search answerable
+    # by the index of that vector instead of a pattern scan over the keyword
+    # relation of the whole catalogue (#1029).
+    Scenario Outline: Can <action>
+        Given I set a queryparam "<param>" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | action                        | param          | value            | count |
+            | search by a word of a keyword | filter[search] | luftfeuchtigkeit | 1     |
+            | search by words of one record | filter[search] | relative feuchte | 1     |
+            | search by a word of both      | filter[search] | messwerte        | 2     |
+            | search a piece of a word      | filter[search] | niederschla      | 0     |
+
     # The generated filterset offers the uuid lookups on the primary key and a case sensitive
     # `contains` next to the `icontains` rows above.
     Scenario Outline: Can <action>

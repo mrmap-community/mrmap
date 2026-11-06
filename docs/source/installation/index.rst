@@ -184,13 +184,16 @@ requests" dashboard pre-provisioned from ``docker/grafana/``; login with
 * To enable Postgres slow statement logging, run (hot, no restart):
   ``ALTER SYSTEM SET log_min_duration_statement = '400ms'; SELECT pg_reload_conf();``
 
-Every record the syslog handler answers leaves the verbose details of that record as
-a JSON file in ``<MEDIA_ROOT>/logs``. Nothing deleted them, so a deployment which ran
-for a few weeks held a few hundred thousand of them (#888). The periodic task
-``system.tasks.delete_old_slow_request_dumps`` takes them back: it is created on
-migrate, beat hands it over hourly, and it deletes the dumps which are older than
-``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the retention of
-VictoriaLogs above) as well as everything beyond
+Only records which carry verbose detail — slow requests, records logged with an
+exception, and warnings which pass structured data — leave those details as a JSON
+file in ``<MEDIA_ROOT>/logs``; the syslog line of such a record carries the pointer
+to the file, while an ordinary record is answered by its syslog line alone (#1033).
+Nothing deleted the dumps while the formatter wrote one for every record, so a
+deployment which ran for a few weeks held a few hundred thousand of them (#888).
+The periodic task ``system.tasks.delete_old_slow_request_dumps`` takes them back:
+it is created on migrate, beat hands it over hourly, and it deletes the dumps which
+are older than ``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the
+retention of VictoriaLogs above) as well as everything beyond
 ``MRMAP_SLOW_REQUEST_DUMP_MAX_FILES`` dumps (default 0, which answers no limit and
 leaves the age bound alone). A dump which is gone costs the per-request SQL detail of
 that one request; the syslog line which pointed at it stays in the log store for its

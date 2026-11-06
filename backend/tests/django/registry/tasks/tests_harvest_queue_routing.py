@@ -9,8 +9,9 @@ tests hold both halves of the fix:
 * the routing map - every task in question resolves, through the celery app
   the workers route with, onto the queue of its role, the beat-scheduled
   tasks onto queues a harvest can not fill, and the worker commands of the
-  deployment consume every queue the settings declare (a queue without a
-  consumer is exactly the starvation this issue is about);
+  deployment keep consuming every queue the settings declare (a queue
+  without a consumer is exactly the starvation this issue is about; #1040
+  took away the hand-copied -Q list which could drift behind a release);
 * the dedup - ``call_chord_md_metadata_file_to_db`` must not be published a
   second time for a job while one of its messages still waits. The question
   is asked of the broker through the same paged reads #972's
@@ -137,8 +138,16 @@ class RoutingMapTest(TestCase):
 
     def test_the_worker_commands_consume_every_declared_queue(self):
         """a queue which no worker consumes is the starvation of #970 seen
-        from the other side: the routing is only real if the -Q list of the
-        celery worker services carries it"""
+        from the other side.
+
+        Since #1040 the guard is the absence of the -Q list: a worker
+        command without it consumes everything the app declares, so these
+        files cannot lag a release which added a queue behind a
+        hand-copied list. A queue list on a worker command of these files
+        is that drift again, whatever names it carries today; a deployment
+        which deliberately splits its workers keeps the list in its own
+        override, where the start-up check of MrMap.celery names what it
+        strands."""
         root = os.path.dirname(settings.BASE_DIR)
         compose = 'docker-compose.yml'
         if not os.path.isfile(os.path.join(root, compose)):
@@ -147,19 +156,27 @@ class RoutingMapTest(TestCase):
             # it runs wherever the repository root is visible, and the
             # pre-submit loop of #970 checked it on the host as well
             self.skipTest(f'{compose} is not visible below {root}')
-        declared = {queue.name for queue in CELERY_TASK_QUEUES}
         for name in (compose, 'docker-compose.dev.yml', 'docker-compose.vscode.yml'):
             with open(os.path.join(root, name)) as file:
-                text = file.read()
-            consumed = set()
-            for match in re.finditer(r'--?(?:Q|queues)[=\s]+([\w,. -]+)', text):
-                consumed.update(
-                    token for token in match.group(1).replace(',', ' ').split() if token)
+                lines = file.read().splitlines()
+            # only the worker's own command lines: a comment may name the
+            # option while explaining why the command does not carry it
+            commands = [line for line in lines
+                        if 'celery -A MrMap worker' in line
+                        and not line.lstrip().startswith('#')]
+            restated = set()
+            for line in commands:
+                for match in re.finditer(r'--?(?:Q|queues)[=\s]+([\w,. -]+)', line):
+                    restated.update(
+                        token for token in
+                        match.group(1).replace(',', ' ').split() if token)
             with self.subTest(compose=name):
-                self.assertTrue(consumed, f'{name} declares a -Q list')
-                self.assertTrue(
-                    declared.issubset(consumed),
-                    f'{name} worker consumes {sorted(declared - consumed)} not at all')
+                self.assertTrue(commands, f'{name} declares no celery worker command')
+                self.assertFalse(
+                    restated,
+                    f'{name} restates {sorted(restated)} on the worker command; '
+                    f'a command without -Q consumes the queues the app declares '
+                    f'and cannot be half-installed (#1040)')
 
 
 class ChordRoutingTest(TestCase):

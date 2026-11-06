@@ -677,9 +677,11 @@ except socket.gaierror:
 LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS = int(
     os.getenv("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
 
-# every record the syslog handler formats leaves a json dump with the details of
-# the record below the media root, see system/logging/formatter.py. Nothing used
-# to take them back, so they grew with every slow request (#888). The sweep which
+# the records which the syslog handler formats and which carry detail beyond
+# their code position leave a json dump with that detail below the media root,
+# see system/logging/formatter.py; an ordinary record is answered by its syslog
+# line alone (#1033). While the formatter wrote one per record, nothing used to
+# take them back, so they grew with every log record (#888). The sweep which
 # system/tasks.py names deletes them after this many days, aligned with the
 # -retentionPeriod of the log store which keeps the syslog line pointing at them:
 # a dropped dump loses the per request sql detail, nothing else. 0 keeps them

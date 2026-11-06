@@ -168,7 +168,13 @@ class DatasetMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # a record is searched by the words its vector holds -- the title, the abstract
+    # and every keyword of it are tokenized into that column -- because matching it
+    # is one probe into its GIN index. Searching the three texts instead asks a
+    # UPPER(...) LIKE per word and joins the keyword relation of the whole
+    # catalogue, which is where a searched list spent its time (#1029); see
+    # registry/filters/search.py
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
@@ -411,7 +417,8 @@ class ServiceMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # see DatasetMetadataViewSetMixin.search_fields
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
 

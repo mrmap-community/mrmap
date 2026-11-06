@@ -766,7 +766,12 @@ REST_FRAMEWORK = {
         "rest_framework_json_api.filters.OrderingFilter",
         # "extras.filter_backend.CustomDjangoFilterBackend",
         "rest_framework_json_api.django_filters.backends.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
+        # DRF's search, but asked of the search vector of a metadata record where a
+        # view names one: the LIKE construction of the base is not indexable and,
+        # joined over the keywords of a record, is the most expensive statement of a
+        # searched list -- including the COUNT(*) of the pagination (#1029). See
+        # registry/filters/search.py.
+        "registry.filters.search.SearchVectorSearchFilter",
     ),
     "SEARCH_PARAM": "filter[search]",
     "TEST_REQUEST_RENDERER_CLASSES": (

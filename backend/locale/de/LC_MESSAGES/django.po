@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 20:40+0100\n"
+"POT-Creation-Date: 2026-11-06 23:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:284
+#: MrMap/settings.py:289
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:285
+#: MrMap/settings.py:290
 msgid "German"
 msgstr "Deutsch"
 
@@ -2175,7 +2175,7 @@ msgstr ""
 "Ein neuer Featuretype kann nur einmal zugeordnet werden. Bitte passen Sie "
 "die Featuretype-Zuordnungen entsprechend an."
 
-#: registry/querys/alerts.py:559
+#: registry/querys/alerts.py:568
 #, python-format
 msgid ""
 "The schedule \"%(schedule)s\" harvests this catalogue more often than a "

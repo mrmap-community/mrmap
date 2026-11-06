@@ -42,7 +42,7 @@ djangorestframework-jsonapi==9.0.0
 # BLOCKING: websockets (channels) are timedout
 redis==8.1.0
 # adds background task processing 
-celery==5.6.3
+celery==5.7.0
 # BLOCKING: django-celery-beat 2.9.0 depends on Django<6.1 and >=2.2
 django-celery-beat==2.9.0
 # adds database results for celery tasks

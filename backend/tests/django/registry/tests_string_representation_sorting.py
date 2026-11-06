@@ -16,7 +16,8 @@ from django.test import TestCase
 from django.urls import reverse
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.models.harvest import HarvestingJob
-from registry.models.metadata import Keyword, TimeExtent
+from registry.models.metadata import Keyword, MetadataContact, TimeExtent
+from registry.models.service import CatalogueService
 
 JSONAPI = "application/vnd.api+json"
 
@@ -147,18 +148,29 @@ class TimeExtentSortTest(StringRepresentationSortTest):
 class HarvestingJobSortTest(StringRepresentationSortTest):
     """The harvesting job list sorts by the display string of the job.
 
-    The serializer answers the plain model string ``HarvestingJob object
-    (pk)`` for a job which has no ``__str__`` of its own - the annotation
-    mirrors that string, so the sort orders the rows the way the rendered
-    list reads.
+    ``HarvestingJob.__str__`` names the catalogue of the run by its title and
+    the run by its id - ``<catalogue title> (harvesting job <pk>)``, or just
+    ``harvesting job <pk>`` for a file import without a catalogue - and the
+    annotation mirrors both branches, so the sort orders the rows the way the
+    rendered list reads (#1035, #1045).
     """
 
     @classmethod
     def setUpTestData(cls):
-        cls.jobs = [
-            HarvestingJob.objects.create(
+        contact = MetadataContact.objects.create(name="Sort contact")
+        cls.catalogue = CatalogueService(
+            id='33333333-3333-3333-3333-333333333333',
+            title="Alpha catalogue", version=202, origin=1,
+            service_url="https://example.com/csw",
+            metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([cls.catalogue])
+        cls.with_catalogue = HarvestingJob(service=cls.catalogue)
+        cls.without_catalogue = [
+            HarvestingJob(
                 phase=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value)
             for _ in range(3)]
+        HarvestingJob.objects.bulk_create(
+            [cls.with_catalogue, *cls.without_catalogue])
 
     def test_sort_ascending_answers_the_jobs_in_display_order(self):
         for sort in ("stringRepresentation", "string_representation"):
@@ -177,9 +189,22 @@ class HarvestingJobSortTest(StringRepresentationSortTest):
             **{"sort": "-stringRepresentation"})
 
     def test_the_annotation_answers_what_the_model_string_answers(self):
-        """Every annotated value is the plain ``str`` of its job"""
+        """Every annotated value is the plain ``str`` of its job - with a
+        catalogue as well as without one"""
         for job in HarvestingJob.objects.with_string_representation():
             self.assertEqual(str(job.string_representation), str(job))
+
+    def test_the_join_over_the_catalogue_keeps_the_file_imports(self):
+        """A job which names no catalogue is no loser of the annotation: the
+        file imports must be ordered and rendered like the catalogue runs, so
+        the join over the catalogue is a left join and not a filter (#1045)"""
+        annotated = HarvestingJob.objects.with_string_representation()
+        self.assertEqual(
+            {job.pk for job in annotated},
+            set(HarvestingJob.objects.values_list("pk", flat=True)))
+        self.assertIsNotNone(
+            annotated.get(pk=self.without_catalogue[0].pk)
+            .string_representation)
 
     def test_an_unknown_sort_is_still_rejected(self):
         response = self.client.get(

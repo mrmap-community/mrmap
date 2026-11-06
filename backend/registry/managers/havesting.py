@@ -91,15 +91,25 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
     def with_string_representation(self):
         """Annotate the display string which the serializer answers for a job.
 
-        ``HarvestingJob`` has no ``__str__`` of its own, so the serializer
-        answers django's plain model string - the annotation mirrors it, so the
-        list can order by the very string its client renders (#1035).
+        ``HarvestingJob.__str__`` answers ``<catalogue title> (harvesting job
+        <pk>)`` and, for a file import without a catalogue, just ``harvesting
+        job <pk>``; the annotation mirrors both branches, so the list orders
+        the rows the way its client renders them (#1035, #1045).
         """
         return self.get_queryset().annotate(
-            string_representation=Concat(
-                Value("HarvestingJob object ("),
-                Cast("pk", TextField()),
-                Value(")"),
+            string_representation=Case(
+                When(
+                    service__isnull=False,
+                    then=Concat(
+                        "service__title",
+                        Value(" (harvesting job "),
+                        Cast("pk", TextField()),
+                        Value(")"),
+                        output_field=TextField())),
+                default=Concat(
+                    Value("harvesting job "),
+                    Cast("pk", TextField()),
+                    output_field=TextField()),
                 output_field=TextField()))
 
     def with_process_info(self):

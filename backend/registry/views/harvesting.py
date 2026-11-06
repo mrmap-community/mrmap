@@ -101,8 +101,12 @@ BACKGROUND_PROCESS_PREFETCHES = [
 
 class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
     # the annotation carries the display string of the serializer, so the sort
-    # the generic pickers send is answered like the list they render (#1035)
-    queryset = HarvestingJob.objects.with_string_representation()
+    # the generic pickers send is answered like the list they render (#1035);
+    # the display string names the catalogue of the run, so the service rides
+    # the select and str(job) answers without a read per row (#1045)
+    queryset = HarvestingJob.objects \
+        .with_string_representation() \
+        .select_related("service")
     serializer_class = HarvestingJobSerializer
     serializer_classes = {
         "default": HarvestingJobSerializer,
@@ -480,7 +484,9 @@ class PeriodicHarvestingJobViewSetMixin:
             Endpoint to remove a registered `PeriodicHarvestingJob` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = PeriodicHarvestingJob.objects.all()
+    # the display string names the catalogue of the schedule, so the service
+    # rides the select instead of one read per row (#1045)
+    queryset = PeriodicHarvestingJob.objects.all().select_related("service")
     serializer_class = PeriodicHarvestingJobSerializer
     select_for_includes = {
         "service": ["service"],

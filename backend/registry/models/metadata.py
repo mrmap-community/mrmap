@@ -1441,6 +1441,12 @@ class ApplicationMetadataRecord(MetadataRecord):
         ] + AbstractMetadata.Meta.indexes
 
 
+#: The keyword side of the three keywords relation models below, named once;
+#: a module constant because a class attribute of a model clashes with the
+#: ``keyword`` field it would sit next to (#1009).
+KEYWORD_TARGET = "registry.Keyword"
+
+
 class DatasetMetadataRecordKeywordsLink(models.Model):
     """The keywords relation of the dataset records as an unmanaged model.
 
@@ -1452,15 +1458,12 @@ class DatasetMetadataRecordKeywordsLink(models.Model):
     Being unmanaged, Django never creates, alters or drops the table through it.
     """
 
-    #: the keyword side of every keywords relation, named once
-    KEYWORD = "registry.Keyword"
-
     datasetmetadatarecord = models.ForeignKey(
         to="registry.DatasetMetadataRecord",
         on_delete=models.CASCADE,
         related_name="d_keywords_link+")
     keyword = models.ForeignKey(
-        to=KEYWORD,
+        to=KEYWORD_TARGET,
         on_delete=models.CASCADE,
         related_name="d_keywords_link+")
 
@@ -1477,7 +1480,7 @@ class ServiceMetadataRecordKeywordsLink(models.Model):
         on_delete=models.CASCADE,
         related_name="s_keywords_link+")
     keyword = models.ForeignKey(
-        to=DatasetMetadataRecordKeywordsLink.KEYWORD,
+        to=KEYWORD_TARGET,
         on_delete=models.CASCADE,
         related_name="s_keywords_link+")
 
@@ -1494,7 +1497,7 @@ class ApplicationMetadataRecordKeywordsLink(models.Model):
         on_delete=models.CASCADE,
         related_name="a_keywords_link+")
     keyword = models.ForeignKey(
-        to=DatasetMetadataRecordKeywordsLink.KEYWORD,
+        to=KEYWORD_TARGET,
         on_delete=models.CASCADE,
         related_name="a_keywords_link+")
 

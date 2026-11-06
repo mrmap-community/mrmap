@@ -7,11 +7,16 @@ to answer one and the same class. See the makemigrations command of this
 directory for the rule by which this command is the one that is found.
 """
 
+from django.core.management.base import BaseCommand
 from django.core.management.commands.migrate import \
     Command as DjangoMigrateCommand
 
 from MrMap.migration_detection import ViewsAndTriggersAutodetector
 
 
-class Command(DjangoMigrateCommand):
+# BaseCommand is already an ancestor of the Django command; it is listed
+# explicitly because static analyzers do not see the inheritance through the
+# imported class. Listing it cannot change anything: the MRO stays
+# (Command, DjangoMigrateCommand, BaseCommand, object).
+class Command(DjangoMigrateCommand, BaseCommand):
     autodetector = ViewsAndTriggersAutodetector

@@ -10,11 +10,16 @@ adds nothing to Django's but its own autodetector, so this builds on the
 Django command directly and names the combined one.
 """
 
+from django.core.management.base import BaseCommand
 from django.core.management.commands.makemigrations import \
     Command as DjangoMakeMigrationsCommand
 
 from MrMap.migration_detection import ViewsAndTriggersAutodetector
 
 
-class Command(DjangoMakeMigrationsCommand):
+# BaseCommand is already an ancestor of the Django command; it is listed
+# explicitly because static analyzers do not see the inheritance through the
+# imported class. Listing it cannot change anything: the MRO stays
+# (Command, DjangoMakeMigrationsCommand, BaseCommand, object).
+class Command(DjangoMakeMigrationsCommand, BaseCommand):
     autodetector = ViewsAndTriggersAutodetector

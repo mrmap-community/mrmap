@@ -20,6 +20,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    code-quality
+   keyword-triggers
    definition_of_done
    vscode-configuration
    

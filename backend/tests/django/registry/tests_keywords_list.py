@@ -278,3 +278,48 @@ class WrittenKeywordsListTest(TestCase):
         self.save_as_fixture(self.application, self.APPLICATION_FIELDS)
 
         self.assertEqual(before, self.keywords_of(self.application))
+
+
+class PgtriggerOwnershipTest(TestCase):
+    """After the transfer of 0035 the package owns the maintenance objects.
+
+    The point of #1009 is that every keyword rule is exactly one trigger which
+    the migrations of pgtrigger know. Both halves are asked here: that nothing
+    of the hand written legacy objects survives, and that no rule is installed
+    twice -- a duplicated keep trigger would answer a write twice and a
+    duplicated sync trigger would pay for the aggregate twice on every harvest
+    write.
+    """
+
+    def catalog(self, predicate):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid'
+                ' WHERE NOT tgisinternal AND ' + predicate + ' ORDER BY tgname')
+            return [row[0] for row in cursor.fetchall()]
+
+    def test_the_maintenance_triggers_are_the_objects_of_the_package(self):
+        own = self.catalog(
+            "(tgname LIKE 'pgtrigger\\_%' AND (tgname LIKE '%\\_keywords\\_list\\_%'"
+            " OR tgname LIKE '%\\_metadatarecords%'))"
+            " OR (tgname NOT LIKE 'pgtrigger\\_%' AND (tgname LIKE '%keywords\\_list%'"
+            " OR tgname = 'registry_keyword_sync_to_metadatarecords'))")
+        self.assertEqual(len(own), 7, own)
+        self.assertTrue(all(name.startswith('pgtrigger_') for name in own), own)
+
+    def test_the_legacy_functions_are_gone(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname FROM pg_proc WHERE proname IN ("
+                "'registry_sync_metadatarecord_keywords_list',"
+                "'registry_keep_metadatarecord_keywords_list',"
+                "'registry_sync_keyword_rename_to_metadatarecords')")
+            self.assertEqual([row[0] for row in cursor.fetchall()], [])
+
+    def test_every_rule_is_installed_exactly_once(self):
+        """One function per trigger, no orphans of earlier installs."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM pg_proc WHERE proname LIKE 'pgtrigger\\_%'"
+                " AND (proname LIKE '%keywords\\_list%' OR proname LIKE '%metadatarecords%')")
+            self.assertEqual(cursor.fetchone()[0], 7)

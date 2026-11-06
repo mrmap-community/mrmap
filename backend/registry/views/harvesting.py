@@ -12,7 +12,8 @@ from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.expressions.durations import DurationSeconds
-from registry.filters.harvesting import HarvestingJobFilterSet
+from registry.filters.harvesting import (HarvestingJobFilterSet,
+                                         HarvestingLogFilterSet)
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
@@ -110,9 +111,11 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     # the runs which finished are ordered by their end: the harvesting never sets the creation of
-    # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
-    # catalogue is measured by the runs which ended last (#692)
-    ordering_fields = ["id", 'date_created', 'done_at', "string_representation"]
+    # a run, so sorting the runs by `date_created` does not group them (a run made last night can
+    # be answered before one made last week); until the harvesting fills the creation (#1079),
+    # the sort offers name only the values which really order the runs (#692, #1080)
+    ordering_fields = ["id", "done_at", "string_representation", "phase",
+                       "total_records"]
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -491,7 +494,10 @@ class PeriodicHarvestingJobViewSetMixin:
         'service__title': ['exact', 'icontains', 'contains'],
     }
     search_fields = ("id", "service", "service__title")
-    ordering_fields = ["id", "name", "service"]
+    # `name` is a uuid the system generates for the uniqueness of the celery
+    # task, not a label an administrator orders schedules by; the readable
+    # ordering of the schedules is by the catalogue they harvest (#1080)
+    ordering_fields = ["id", "service"]
 
 
 class PeriodicHarvestingJobViewSet(
@@ -512,10 +518,14 @@ class TemporaryMdMetadataFileViewSetMixin:
     queryset = TemporaryMdMetadataFile.objects.all()
     serializer_class = TemporaryMdMetadataFileSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
+    ordering_fields = ["id", "request_id"]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'job__id': ['exact', 'icontains', 'contains', 'in'],
+        # the files of one catalogue: the run is only interesting through the
+        # catalogue it belongs to, so the collection answers its service too (#1080)
+        'job__service': ['exact', 'in'],
+        'job__service__id': ['exact', 'in'],
         'has_import_error': ['exact'],
         'import_error': ['exact', 'icontains', 'contains', 'in', 'isnull'],
     }
@@ -589,10 +599,10 @@ class HarvestingLogViewSetMixin(PreloadNotIncludesMixin):
     queryset = HarvestingLog.objects.all()
     serializer_class = HarvestingLogSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-    }
+    # every line really carries the time it was written, so the list answers
+    # both directions of it and the run log reads in the order it happened (#1080)
+    ordering_fields = ["id", "timestamp"]
+    filterset_class = HarvestingLogFilterSet
 
 
 class HarvestingLogViewSet(

@@ -19,7 +19,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
-| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
+| `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set and of the #1080 harvesting set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |
 
@@ -250,12 +250,12 @@ hand written method**, not one row per parameter:
 | Code path | Covered in | Measured detail |
 | --- | --- | --- |
 | auto generated `exact`, `contains`, `icontains`, `in` | `registry/service/wms/list_webmapservices.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | `contains` is case sensitive and `icontains` is not, which is why both are listed next to each other |
-| typed filters (`CharFilter`, `NumberFilter`, `BooleanFilter`, `UUIDFilter`, `DateTimeFilter` with `gte` / `lte` / `range`) | `registry/service/wms/list_webmapservices.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/harvesting/list_harvestingjobs.feature` | `filter[historyDate.range]` takes two ISO 8601 values separated by a comma |
-| collection filters (`NumberInFilter`, `UUIDInFilter`) | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/harvesting/list_harvestingjobs.feature` | the allowed-operations filterset declares its lookups inside the field name (`filter[id.in]`), the others as lookups of a parameter |
+| typed filters (`CharFilter`, `NumberFilter`, `BooleanFilter`, `UUIDFilter`, `DateTimeFilter` with `gte` / `lte` / `range`) | `registry/service/wms/list_webmapservices.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/filter_harvestingjobs.feature`, `registry/harvesting/list_harvestinglogs.feature` | `filter[historyDate.range]` takes two ISO 8601 values separated by a comma |
+| collection filters (`NumberInFilter`, `UUIDInFilter`) | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/filter_harvestingjobs.feature` (`phase__in`), `registry/harvesting/list_harvestinglogs.feature` (`harvesting_job__in`, `kind__in`) | the allowed-operations filterset declares its lookups inside the field name (`filter[id.in]`), the others as lookups of a parameter |
 | GIS lookups `contains`, `covers`, `intersects`, `equals` | `registry/service/wms/layer/list_layers.feature`, `registry/service/wms/list_webmapservices.feature` | one whole-world polygon and one small rectangle is what separates the four; the counts differ per lookup |
 | choice and relation filters | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | a filter whose model field has choices answers `invalid_choice`, not an empty list |
-| hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
-| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
+| hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/harvesting/filter_harvestingjobs.feature` (`is_running`, `has_import_error`, `unhandled_records`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
+| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
 
 Three rules make such a table worth having:
 
@@ -346,7 +346,11 @@ reads like the existing ones is what keeps the scenarios reviewable.
   `Basic` header in `auth/login.feature` encodes.
 - Feature fixtures live in `registry/fixtures/`, `notify/fixtures/` and `accounts/fixtures/`:
   `test_wms.json` (2 WMS, 9 layers, operation urls), `test_wfs.json` (2 WFS, 5 featuretypes),
-  `test_csw.json` (3 CSW, 2 harvesting jobs), `test_mapcontext.json` (2 mapcontexts, 11 layers,
+  `test_csw.json` (3 CSW, 2 harvesting jobs), `test_harvesting_states.json` (2 CSW, 3 harvesting
+  runs in the phases the run facets of #1080 narrow, 4 log lines, 2 temporary files, 2 schedules —
+  its own pks `1080xxx` and uuids `aaaa1080…`/`bbbb1080…` keep every count of the `test_csw.json`
+  features untouched, and `environment.py` removes its rows in `after_feature` for the same
+  reason), `test_mapcontext.json` (2 mapcontexts, 11 layers,
   group object permissions), `test_datasetmetadata.json` (plus the XML files under
   `tests/django/test_data/`), `test_keywords.json` (159 keywords), `test_crs.json`,
   `test_monitoring.json`, `test_allowed_wms_operation.json`, `test_allowed_wfs_operation.json`,
@@ -429,10 +433,13 @@ an `after_feature` hook removes again for the sibling features) and
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort
 fields of the frontend that order those lists — `sort=doneAt` of `ServiceUpdateJobsCard` and
-`sort=dateDone` of `MonitoringRunsCard` — are not asserted anywhere, and neither is
-`sort=dateCreated` of `HarvestingActivityCard`, which would be unstable anyway because the loaded jobs
-have no `date_created`. `periodic-harvesting-jobs` is ordered by id in the frontend and has no feature
-at all. Adding one of them starts with a fixture, not with a scenario.
+`sort=dateDone` of `MonitoringRunsCard` — are not asserted anywhere. The harvesting lists closed their
+gap with #1080: `HarvestingActivityCard` sorts by `doneAt` (the runs' `date_created` left the sort
+offers until #1079 fills it), and `filter_harvestingjobs.feature`,
+`list_harvestinglogs.feature`, `list_temporarymdmetadatafiles.feature` and
+`list_periodicharvestingjobs.feature` assert the facets of the four harvesting collections on the
+`test_harvesting_states.json` fixture. Adding one of the remaining ones starts with a fixture, not
+with a scenario.
 
 To re-check that list without a database:
 

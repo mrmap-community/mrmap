@@ -3,10 +3,13 @@ from behave_django.testcase import BehaviorDrivenTestCase
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap.settings import BASE_DIR
+from registry.models.harvest import PeriodicHarvestingJob
 from registry.models.metadata import (ApplicationMetadataRecord,
-                                      DatasetMetadataRecord,
+                                      DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
+from registry.models.service import CatalogueService
 from rest_framework.test import APIClient
 
 #: Prefix of the feature tag that requests one fixture file, e.g. ``@fixtures:test_wms.json``.
@@ -24,6 +27,22 @@ MIXED_RECORDS_PKS = (
     'f4ac83a9-3d1e-4b2f-9c6a-9f2e7d1c5b0a',
     'c0ffee00-7a11-4c1d-8f2b-3e9d5a2b6c01',
 )
+
+#: Fixture file with the harvesting runs, logs, files and schedules of #1080.
+HARVESTING_STATES_FIXTURE = 'test_harvesting_states.json'
+
+#: The two catalogues whose cascade is everything the file adds beyond the
+#: contact and the crontab; both carry the ``1080`` marker of the file.
+HARVESTING_STATES_SERVICES = (
+    'aaaa1080-0000-4000-8000-00000000000a',
+    'bbbb1080-0000-4000-8000-00000000000b',
+)
+
+#: Pks of the two schedules and their crontab; the child rows of the
+#: multi-table inheritance go before the celery rows they hang on.
+HARVESTING_STATES_PERIODIC_PKS = (1080502, 1080503)
+HARVESTING_STATES_CRONTAB_PK = 1080501
+HARVESTING_STATES_CONTACT_PK = 1080401
 
 
 def before_all(context):
@@ -151,7 +170,7 @@ def before_feature(context, feature):
 
 
 def after_feature(context, feature):
-    """Undo the records which the mixed ``/csw`` fixture set added.
+    """Undo the rows a fixture-tagged feature added for its siblings.
 
     A feature's fixtures are loaded once and not restored for its siblings,
     and the counts which the sibling ``/csw`` features assert name exactly the
@@ -160,11 +179,28 @@ def after_feature(context, feature):
     feature which asked for them is done. Its own scenarios only see them
     while it runs.
     """
-    if MIXED_RECORDS_FIXTURE not in requested_fixtures(feature):
-        return
-    for pk in MIXED_RECORDS_PKS:
-        ServiceMetadataRecord.objects.filter(pk=pk).delete()
-        ApplicationMetadataRecord.objects.filter(pk=pk).delete()
+    fixtures = requested_fixtures(feature)
+    if MIXED_RECORDS_FIXTURE in fixtures:
+        for pk in MIXED_RECORDS_PKS:
+            ServiceMetadataRecord.objects.filter(pk=pk).delete()
+            ApplicationMetadataRecord.objects.filter(pk=pk).delete()
+    if HARVESTING_STATES_FIXTURE in fixtures:
+        # the same rule for the harvesting set of #1080: its three runs are in
+        # the very phases the sibling features' counts of test_csw.json do not
+        # carry, so leaving them behind moves those counts. The catalogues
+        # cascade their runs, and the runs cascade logs and temporary files;
+        # the schedules go by hand because deleting the child row of the
+        # multi-table inheritance leaves its celery parent row where it is.
+        PeriodicHarvestingJob.objects.filter(
+            pk__in=HARVESTING_STATES_PERIODIC_PKS).delete()
+        PeriodicTask.objects.filter(
+            pk__in=HARVESTING_STATES_PERIODIC_PKS).delete()
+        CrontabSchedule.objects.filter(
+            pk=HARVESTING_STATES_CRONTAB_PK).delete()
+        CatalogueService.objects.filter(
+            pk__in=HARVESTING_STATES_SERVICES).delete()
+        MetadataContact.objects.filter(
+            pk=HARVESTING_STATES_CONTACT_PK).delete()
 
 
 def before_scenario(context, scenario):

@@ -175,7 +175,9 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   override above, so backend checks need no job-local override file. The resolver uses a matching
   local image, else pulls the pinned tag, else — with `--build` — runs the sanctioned local fallback
   build under the same immutable tag; it exits `3` when the tag was never published, `4` on a
-  transient registry failure, `0` on a hit.
+  transient registry failure, `0` on a hit. To decide between pulling and building without paying
+  for either, `--exists` answers the publish question in about half a second (no docker, nothing
+  downloaded) — existence only, never a substitute for the resolve when the image is really wanted.
 
 - Frontend checks — layer the dependency image that seeds the project's `node_modules` volume
   instead of running `npm ci` on every start:

@@ -25,6 +25,17 @@ registry logic here::
 WITHOUT ``--build``, so a validation run never builds and never pushes; its
 exit 0 can then only mean "this fp tag is published and pulled intact".
 
+The cheaper probe exists and is deliberately not used here.
+``scripts/dev_image_id.py --exists`` answers "is this tag published?" in about
+0.4 s against the 38 s that one cold pull costs (measured 2026-11-05, issue
+#1077), so it is the right tool for an agent's pre-flight and for anyone
+asking about a name. It is not the right tool for a gate that decides whether a
+build still proves something: an unchanged pull request whose published image
+arrives broken is exactly what this build validates, and a manifest answer
+cannot see broken bytes. Swapping ``--exists`` in here would be a one-word
+change that quietly changes what ``needs_build=false`` means, so if this ever
+changes, the change has to say what the build then validates.
+
 The decision is one-sided on purpose. Only exit 0 skips the build:
 
     0  -> needs_build=false  published and pulled intact, nothing to prove

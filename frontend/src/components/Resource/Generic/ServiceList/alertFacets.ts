@@ -24,6 +24,8 @@ export const ALERT_FILTER_KEYS: string[] = [
   "update_review_required_at",
   "update_failed",
   "update_failed_at",
+  "harvest_aborted",
+  "harvest_incomplete",
 ];
 
 /**
@@ -40,9 +42,12 @@ export interface StatusFacet {
 }
 
 /**
- * The facets the list of services can be narrowed to. Every one of them is
- * answered by a filter on the attributes of the services themselves, which keeps
- * the facet, the tiles and the rows of the list three looks at one query.
+ * The facets which every kind of service answers.
+ *
+ * Every one of them is answered by a filter on the attributes of the services
+ * themselves, which keeps the facet, the tiles and the rows of the list three
+ * looks at one query. The states of the harvesting are answered apart, in
+ * `HARVEST_STATUS_FACETS`, because only a catalogue declares their filters.
  *
  * The facet of the services without an alert is named by what the api answers and
  * never by the health of a service: `has_alert` is false for a service which
@@ -59,6 +64,43 @@ export const STATUS_FACETS: StatusFacet[] = [
   { key: "monitoringFailed", filter: { monitoring_failed: true } },
   { key: "updateFailed", filter: { update_failed: true } },
   { key: "updateReviewRequired", filter: { update_review_required: true } },
+];
+
+/**
+ * The facets which the state of the harvesting answers.
+ *
+ * A catalogue is the only kind of service whose records are pulled by a
+ * harvesting job, so only its filterset declares these filters
+ * (registry/filters/service.py). They are facets of a screen and not of the
+ * kind of service a caller happens to render, which is why they are offered by
+ * `harvestFacetsFor` and not part of `STATUS_FACETS`: a filter the filterset of
+ * the asked resource does not declare is ignored by the api and answers the
+ * whole list - a facet which lights without narrowing anything.
+ */
+export const HARVEST_STATUS_FACETS: StatusFacet[] = [
+  { key: "harvestAborted", filter: { harvest_aborted: true } },
+  { key: "harvestIncomplete", filter: { harvest_incomplete: true } },
+];
+
+/**
+ * The facets of the harvesting which the resource of a screen declares.
+ *
+ * A screen names the filters of the harvesting it asks of its own resource - the
+ * facets, the tiles above the rows and the filter which the filter button offers
+ * for the same state are answered from that one list, so the three can never
+ * contradict each other.
+ */
+export const harvestFacetsFor = (
+  declaredFilters: string[] = [],
+): StatusFacet[] =>
+  HARVEST_STATUS_FACETS.filter((facet) =>
+    declaredFilters.includes(Object.keys(facet.filter ?? {})[0]),
+  );
+
+/** the facets the screen of a resource offers, in the order they are chosen */
+export const facetsFor = (declaredFilters: string[] = []): StatusFacet[] => [
+  ...STATUS_FACETS,
+  ...harvestFacetsFor(declaredFilters),
 ];
 
 /** whether a filter answers a boolean, which a filter from the url does */
@@ -116,8 +158,17 @@ export const withoutFacetKeys = (filter?: FilterPayload): FilterPayload =>
     ),
   );
 
-/** the facet the given filters answer, "all" if none of them does */
-export const facetOf = (filter?: FilterPayload): string => {
+/**
+ * the facet the given filters answer, "all" if none of them does
+ *
+ * The facets of the screen answer, not every facet the application knows: a
+ * filter which no facet of this screen answers leaves all lit, which is the
+ * truth about the list the rows of this screen answer.
+ */
+export const facetOf = (
+  filter?: FilterPayload,
+  facets: StatusFacet[] = STATUS_FACETS,
+): string => {
   const hasAlert = asBoolean(filter?.has_alert);
   if (hasAlert === true) {
     return "needsAttention";
@@ -125,13 +176,12 @@ export const facetOf = (filter?: FilterPayload): string => {
   if (hasAlert === false) {
     return "noAlerts";
   }
-  const facet = STATUS_FACETS.filter(
-    (candidate) => candidate.filter !== undefined,
-  ).find((candidate) =>
-    Object.entries(candidate.filter ?? {}).every(
-      ([key, value]) => asBoolean(filter?.[key]) === value,
-    ),
-  );
+  const facet = facets.filter((candidate) => candidate.filter !== undefined)
+    .find((candidate) =>
+      Object.entries(candidate.filter ?? {}).every(
+        ([key, value]) => asBoolean(filter?.[key]) === value,
+      ),
+    );
   return facet?.key ?? "all";
 };
 
@@ -147,14 +197,19 @@ export const facetOf = (filter?: FilterPayload): string => {
  * stores with the ones it is given and keeps only the filter it applies on its
  * own. The filters of the services which are stored are given to this function -
  * and not the filters of the query, which carry that own filter too.
+ *
+ * Only the facets the screen offers are answered: a key which the resource of
+ * this screen does not answer gives no filter of its own, so a filter the api
+ * would ignore and answer the whole list is never handed to it.
  */
 export const filterForFacet = (
   filter: FilterPayload | undefined,
   key: string,
+  facets: StatusFacet[] = STATUS_FACETS,
 ): FilterPayload => {
   if (key === "all") {
     return {};
   }
-  const facet = STATUS_FACETS.find((candidate) => candidate.key === key);
+  const facet = facets.find((candidate) => candidate.key === key);
   return { ...withoutFacetKeys(filter), ...facet?.filter };
 };

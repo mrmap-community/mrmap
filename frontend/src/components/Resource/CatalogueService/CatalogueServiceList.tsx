@@ -113,6 +113,11 @@ export const CATALOGUE_SERVICE_LIST_CONFIG: ServiceListConfig = {
   protocol: "CSW",
   countLabelKey: "records",
   fields: CATALOGUE_SERVICE_LIST_FIELDS,
+  // the filterset of a catalogue declares the states of the last harvesting as
+  // filters (registry/filters/service.py), so this screen answers them as a
+  // column, as facets and as tiles - the other kinds of service are not
+  // harvested and answer none of them
+  harvestFilters: ["harvest_aborted", "harvest_incomplete"],
   // a catalogue answers the harvesting of a row in its actions, which the
   // screen of services renders inside the record context of the row
   RowAction: CatalogueServiceActions,

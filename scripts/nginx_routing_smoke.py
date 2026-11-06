@@ -40,9 +40,14 @@ One disposable network and two containers on it:
     renders, so nothing has to be compiled.
   * the *backend*: the same image with a three line server that answers 200 with
     `backend-stub <uri>` for every path, on the name and port the conf resolves
-    (`backend:8001`). A proxied URL is then proven by that echo - including the
-    path it was forwarded with - rather than inferred from a 502 that merely says
-    nothing was listening.
+    (`backend`, port 8001). A proxied URL is then proven by that echo - including
+    the path it was forwarded with - rather than inferred from a 502 that merely
+    says nothing was listening.
+
+Everything this harness invents is *staged into* the containers rather than bind
+mounted, so the host tree it draws from stays private: it is the nginx worker, not
+the root owned master, which opens those files, and a bind mount therefore only
+works when the host copy is readable by everybody.
 
 One GET per row of CASES below, read from the published loopback port. The
 shell's body and the stub's echo are compared literally, so a URL that moves from
@@ -60,10 +65,8 @@ without anyone noticing.
 
 import os
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -78,6 +81,7 @@ FRONTEND_DOCKERFILE = ROOT / "docker" / "nginx" / "nginx.Dockerfile"
 # The app shell, as far as this harness is concerned: whichever location serves
 # this file served the SPA fallback.
 SPA_BODY = "<html><body>mrmap-nginx-smoke-spa-shell</body></html>\n"
+SPA_ROOT = "/var/www/mrmap/frontend"
 
 # Answers the conf's proxy target. `$uri` is the decoded path without the query
 # string, so a case states its expectation as the path it requested.
@@ -90,6 +94,10 @@ server {
     }
 }
 """
+
+# A word only this conf defines, to prove the edge really loaded the file under
+# test instead of still serving the image's own default.
+CONF_MARKER = "mrmap_frontend_error"
 
 SPA = "spa"
 BACKEND = "backend"
@@ -149,10 +157,11 @@ class HarnessError(Exception):
     the question the check asks."""
 
 
-def docker(*args, check=True):
+def docker(*args, check=True, stdin=None):
     """Run the docker CLI and return its stdout, or raise with its stderr."""
     try:
-        process = subprocess.run(["docker", *args], capture_output=True, text=True)
+        process = subprocess.run(["docker", *args], capture_output=True,
+                                 text=True, input=stdin)
     except FileNotFoundError:
         raise HarnessError("the docker CLI is not on PATH")
     if check and process.returncode != 0:
@@ -161,6 +170,21 @@ def docker(*args, check=True):
             f"{process.stderr.strip() or process.stdout.strip()}"
         )
     return process.stdout.strip()
+
+
+def stage(container, path, content=None, source=None):
+    """Put one file into a running container.
+
+    Never a bind mount: the nginx *worker* - not the root owned master - is the
+    one which opens these, so a mounted file is only readable when the host copy
+    is readable by everybody. Written into the container it stays private to this
+    run's own filesystem, which is disposable anyway.
+    """
+    docker("exec", container, "mkdir", "-p", str(Path(path).parent))
+    if content is not None:
+        docker("exec", "-i", container, "sh", "-c", f"cat > {path}", stdin=content)
+    else:
+        docker("cp", str(source), f"{container}:{path}")
 
 
 def nginx_image():
@@ -175,21 +199,13 @@ def nginx_image():
 
 
 def labels():
-    """Track what this run started, so the orchestrator can find it (#1036
-    harnesses are disposable and must never outlive their session)."""
+    """Track what this run started, so the orchestrator can find it: this
+    harness is disposable and must never outlive the session running it."""
     out = ["--label", "ao.tool=nginx-routing-smoke"]
     session = os.environ.get("AO_SESSION_ID")
     if session:
         out = [*out, "--label", f"ao.session={session}"]
     return out
-
-
-def readable(*paths):
-    """Hand the bind mounted tree to the container. A temp dir is 0700 for its
-    owner, and inside the container it is the nginx worker - not the root owned
-    master - which opens the files, so everything here has to be world readable."""
-    for path in paths:
-        os.chmod(path, 0o755 if path.is_dir() else 0o644)
 
 
 def fetch(base, path):
@@ -204,25 +220,44 @@ def fetch(base, path):
 
 
 def wait_until_serving(edge, port):
-    """Wait for nginx to bind its published port, then hand out the base URL.
+    """Wait for nginx to serve the staged shell, then hand out the base URL.
 
     Bounded, and it fails with the container's own log: a conf nginx refuses is
     the most likely reason to sit here, and that reason is only in the log."""
+    base = f"http://127.0.0.1:{port}"
     deadline = time.monotonic() + READINESS_TIMEOUT_S
     while True:
         if docker("inspect", "-f", "{{.State.Running}}", edge) != "true":
             raise HarnessError(
                 f"{edge} exited; docker logs:\n{docker('logs', edge, check=False)}")
         try:
-            body = fetch(f"http://127.0.0.1:{port}", "/")
-            if body[0] == 200:
-                return f"http://127.0.0.1:{port}"
+            if fetch(base, "/")[0] == 200:
+                return base
         except HarnessError:
             pass  # nothing listening yet
         if time.monotonic() >= deadline:
             raise HarnessError(
                 f"{edge} did not serve within {READINESS_TIMEOUT_S:.0f}s; "
                 f"docker logs:\n{docker('logs', edge, check=False)}")
+        time.sleep(0.1)
+
+
+def wait_until_proxied(base, backend):
+    """Wait until the reload of the stub upstream is in effect.
+
+    `nginx -s reload` returns once the signal is sent, so the first proxied row
+    could otherwise still meet the image's default server, which does not listen
+    on 8001 at all, and be reported as a routing failure."""
+    deadline = time.monotonic() + READINESS_TIMEOUT_S
+    while True:
+        status, body = fetch(base, "/api/readiness-probe")
+        if status == 200 and body.startswith("backend-stub"):
+            return
+        if time.monotonic() >= deadline:
+            raise HarnessError(
+                f"{backend} never answered as the upstream (last answer {status} "
+                f"{body[:60]!r}); docker logs:\n"
+                f"{docker('logs', backend, check=False)}")
         time.sleep(0.1)
 
 
@@ -246,34 +281,37 @@ def main():
     network = f"mrmap-nginx-smoke-{token}"
     backend = f"{network}-backend"
     edge = f"{network}-edge"
-    workspace = Path(tempfile.mkdtemp(prefix=f"mrmap-nginx-smoke-{token}-"))
 
     try:
-        # The SPA root the conf points at, with a stub shell and the real beacon.
-        spa_root = workspace / "frontend"
-        spa_root.mkdir()
-        (spa_root / "index.html").write_text(SPA_BODY)
-        shutil.copy(BEACON, spa_root / "error-beacon.js")
-        stub_conf = workspace / "backend-stub.conf"
-        stub_conf.write_text(STUB_BACKEND_CONF)
-        readable(workspace, spa_root, spa_root / "index.html",
-                 spa_root / "error-beacon.js", stub_conf)
-
         docker("network", "create", network)
         # The name the conf resolves is "backend" (set $upstream_backend), so the
         # alias is what makes the stub reachable under it.
         docker("run", "-d", "--name", backend, "--network", network,
-               "--network-alias", "backend", *labels(), "-v",
-               f"{stub_conf}:/etc/nginx/conf.d/default.conf:ro", image)
+               "--network-alias", "backend", *labels(), image)
         docker("run", "-d", "--name", edge, "--network", network,
                "-p", "127.0.0.1::80", *labels(),
-               "-v", f"{CONF}:/etc/nginx/conf.d/default.conf:ro",
-               "-v", f"{spa_root}:/var/www/mrmap/frontend:ro", image)
+               "-v", f"{CONF}:/etc/nginx/conf.d/default.conf:ro", image)
+
+        # The SPA root of the edge: a stub shell and the real beacon, so the
+        # beacon's exact location is judged with its file present, as in the image.
+        stage(edge, f"{SPA_ROOT}/index.html", content=SPA_BODY)
+        stage(edge, f"{SPA_ROOT}/error-beacon.js", source=BEACON)
+        # The edge started with the conf under test; prove it kept it rather than
+        # answering these rows from the image's own default server.
+        if CONF_MARKER not in docker("exec", edge, "nginx", "-T"):
+            raise HarnessError(
+                f"{edge} is not running {CONF}; nginx -T says otherwise")
+
+        # The stub upstream: its own conf, then a reload to hand it over.
+        stage(backend, "/etc/nginx/conf.d/default.conf", content=STUB_BACKEND_CONF)
+        docker("exec", backend, "nginx", "-t")
+        docker("exec", backend, "nginx", "-s", "reload")
 
         published = docker("port", edge, "80/tcp")
         if not published:
             raise HarnessError(f"{edge} published no port")
         base = wait_until_serving(edge, published.splitlines()[0].rsplit(":", 1)[1])
+        wait_until_proxied(base, backend)
         print(f"nginx routing smoke on {base} ({image})")
 
         failures = 0
@@ -282,7 +320,8 @@ def main():
             argument = case[2] if len(case) > 2 else None
             status, body = fetch(base, path)
             ok, expected = judge(kind, path, argument, status, body)
-            failures += ok is False
+            if not ok:
+                failures += 1
             print(f"  {'ok  ' if ok else 'FAIL'} {path:<38} expected "
                   f"{expected:<45} got {status} "
                   f"{'' if ok else repr(body[:80])}")
@@ -304,7 +343,6 @@ def main():
         if subprocess.run(["docker", "network", "inspect", network],
                           capture_output=True).returncode == 0:
             print(f"leftover network: {network}")
-        shutil.rmtree(workspace, ignore_errors=True)
 
 
 if __name__ == "__main__":

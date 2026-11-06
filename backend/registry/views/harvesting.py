@@ -100,7 +100,9 @@ BACKGROUND_PROCESS_PREFETCHES = [
 
 
 class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
-    queryset = HarvestingJob.objects.all()
+    # the annotation carries the display string of the serializer, so the sort
+    # the generic pickers send is answered like the list they render (#1035)
+    queryset = HarvestingJob.objects.with_string_representation()
     serializer_class = HarvestingJobSerializer
     serializer_classes = {
         "default": HarvestingJobSerializer,
@@ -110,7 +112,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
     # the runs which finished are ordered by their end: the harvesting never sets the creation of
     # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
     # catalogue is measured by the runs which ended last (#692)
-    ordering_fields = ["id", 'date_created', 'done_at']
+    ordering_fields = ["id", 'date_created', 'done_at', "string_representation"]
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {

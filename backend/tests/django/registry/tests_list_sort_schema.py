@@ -24,12 +24,33 @@ JSONAPI = "application/vnd.api+json"
 #: with the terms their runtime filter accepts (serializer fields, camelized,
 #: each negatable) - one per view family (plain list, nested related list)
 FORMERLY_HIDDEN = {
-    "/api/registry/keywords": ["id", "keyword"],
     "/api/accounts/groups": ["id", "userSet", "name", "permissions"],
     "/api/accounts/users/{UserId}/groups": ["id", "userSet", "name", "permissions"],
     "/api/registry/security/wms-authentication": [
         "id", "username", "password", "authType", "keyFile", "service"],
-    "/api/registry/layers/{LayerId}/keywords": ["id", "keyword"],
+}
+
+#: the list endpoints whose generic pickers render and sort by the display
+#: string of the serializer (#1035); the viewsets whitelist it together with
+#: the model fields, and the schema has to show the very term the pickers
+#: send - the camelized `stringRepresentation`
+DISPLAY_SORTED = {
+    "/api/registry/keywords": ["id", "keyword", "stringRepresentation"],
+    "/api/registry/layers/{LayerId}/keywords":
+        ["id", "keyword", "stringRepresentation"],
+    "/api/registry/time-extents": [
+        "id", "begin", "end", "resolution", "isRelative",
+        "stringRepresentation"],
+    "/api/accounts/users": [
+        "id", "username", "firstName", "lastName", "email", "isActive",
+        "dateJoined", "stringRepresentation"],
+    "/api/accounts/organizations": [
+        "id", "name", "description", "personName", "email", "phone",
+        "facsimile", "city", "postalCode", "addressType", "address",
+        "stateOrProvince", "country", "stringRepresentation"],
+    "/api/registry/harvesting/harvesting-jobs": [
+        "id", "dateCreated", "doneAt", "stringRepresentation"],
+    "/api/notify/background-processes": ["id", "dateCreated", "progress"],
 }
 
 #: list endpoints whose `ordering_fields` tuple stayed an untyped string
@@ -116,6 +137,13 @@ class ListSortSchemaTests(SimpleTestCase):
 
     def test_tuple_ordering_fields_are_documented_as_enum(self):
         for path, fields in FORMERLY_UNTYPED.items():
+            with self.subTest(path=path):
+                enum = _sort_enum(self.schema["paths"][path]["get"])
+                self.assertEqual(sorted(enum), _negated(fields))
+
+    def test_the_display_string_sort_is_documented(self):
+        """The pickers' `sort=stringRepresentation` is on the documented enum"""
+        for path, fields in DISPLAY_SORTED.items():
             with self.subTest(path=path):
                 enum = _sort_enum(self.schema["paths"][path]["get"])
                 self.assertEqual(sorted(enum), _negated(fields))

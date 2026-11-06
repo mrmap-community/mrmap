@@ -116,7 +116,10 @@
             "phase": "waiting for one thread to be executed",
             "status": 1,
             "process_type": "process 1",
-            "description": "description 1"
+            "description": "description 1",
+            "total_steps": 10,
+            "done_steps": 1,
+            "date_created": "2023-01-01T12:00:00+00:00"
         }
     },
     {
@@ -130,7 +133,10 @@
             "phase": "failed",
             "status": 3,
             "process_type": "process 2",
-            "description": "description 2"
+            "description": "description 2",
+            "total_steps": 4,
+            "done_steps": 2,
+            "date_created": "2023-01-02T12:00:00+00:00"
         }
     },
     {
@@ -146,7 +152,10 @@
             "phase": "running",
             "status": 1,
             "process_type": "process 3",
-            "description": "description 3"
+            "description": "description 3",
+            "total_steps": 3,
+            "done_steps": 1,
+            "date_created": "2023-01-03T12:00:00+00:00"
         }
     },
     {
@@ -155,7 +164,8 @@
         "fields": {
             "phase": "empty threads",
             "process_type": "process 4",
-            "description": "description 4"
+            "description": "description 4",
+            "date_created": "2023-01-04T12:00:00+00:00"
         }
     }
 ]

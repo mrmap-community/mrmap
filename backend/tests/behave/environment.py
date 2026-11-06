@@ -1,5 +1,6 @@
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from MrMap.settings import BASE_DIR
@@ -31,6 +32,42 @@ def before_all(context):
 
     fixtures = ['test_users.json']
     call_command("loaddata", *fixtures, verbosity=0)
+    # Remember which users that seeded: ``before_feature`` resolves the natural keys of
+    # every feature fixture against these rows, so their absence names a run that
+    # truncated the database between scenarios (see ``assert_seeded_users``).
+    context.seeded_user_pks = set(get_user_model().objects.values_list("pk", flat=True))
+
+
+def assert_seeded_users(context, where):
+    """Refuse a run whose runner truncated the rows the hooks seeded.
+
+    ``manage.py behave`` without ``--simple`` runs a scenario in behave-django's
+    ``BehaviorDrivenTestCase``, which is a ``TransactionTestCase`` and therefore flushes
+    the whole database when the scenario ends. The fixtures of this suite are loaded once
+    per feature in ``before_feature`` and are not restored, so everything after that flush
+    asks an empty database: the sibling scenarios of the feature fail on missing rows and
+    the next feature aborts with ``HOOK-ERROR in before_feature``, because ``loaddata``
+    resolves its natural keys against the users of ``before_all``.
+
+    The suite is standardized on ``--simple``, whose ``TestCase`` rolls a scenario back
+    instead of flushing; it is an option of the ``behave`` management command rather than
+    of behave itself, so no ``behave.ini`` can carry it as a default. Say so here, where a
+    run that walks into the trap would otherwise read as broken fixtures.
+    """
+    seeded = getattr(context, "seeded_user_pks", None)
+    if not seeded:
+        # ``--dry-run`` skips every environment hook, so there is nothing to compare to
+        return
+    if get_user_model().objects.filter(pk__in=seeded).count() == len(seeded):
+        return
+    raise AssertionError(
+        f"{where}: the users that before_all loaded are gone, so this run truncated the "
+        f"database since they were seeded. That is the flush of the default runner; the "
+        f"fixtures of this suite are loaded once per feature and never restored, so only "
+        f"the runner of --simple, which rolls a scenario back instead of flushing, runs "
+        f"them. The behave service of docker-compose.dev.yml, CI and every command of "
+        f"tests/behave/AGENTS.md pass that flag; a hand written run does too:\n"
+        f"    python manage.py behave --simple --noinput --keepdb <feature path>")
 
 
 def requested_fixtures(feature):
@@ -97,6 +134,7 @@ def before_feature(context, feature):
     The order of the ``@fixtures:`` tags is the order ``loaddata`` reads them in, which is what
     resolves foreign keys between fixture files; keep it if you edit the tags.
     """
+    assert_seeded_users(context, f"before_feature of {feature.filename}")
     requested = requested_fixtures(feature)
     if NO_FIXTURES_TAG in getattr(feature, "tags", []):
         if requested:
@@ -132,6 +170,8 @@ def after_feature(context, feature):
 def before_scenario(context, scenario):
     # https://github.com/behave/behave-django/issues/77
 
+    assert_seeded_users(
+        context, f"before_scenario of {scenario.filename}:{scenario.line}")
     BehaviorDrivenTestCase.port = 8000
     context.client = APIClient()
     context.query_params = {}

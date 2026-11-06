@@ -390,6 +390,55 @@ class CatalogueServiceQueryPerformance(QueryMeasurementMixin, TestCase):
             **{'fields[CatalogueService]': 'lastModifiedBy'})
         self.assertEqual(status, 200)
 
+    def test_the_list_counts_its_rows_once(self):
+        """The permission checker may not paginate the answer a second time.
+
+        ``ObjectPermissionCheckerViewSetMixin`` used to filter and paginate the
+        queryset again to learn which objects the answer shows, so every list
+        answered the COUNT of its paginator twice (#1031).
+        """
+        _status, _body, queries = self.request('/api/registry/csw')
+        counts = [q['sql'] for q in queries if COUNT in q['sql']]
+        self.assertEqual(len(counts), 1,
+                         [sql[:90] for sql in counts])
+
+    def test_the_list_does_not_prefetch_the_harvested_records(self):
+        """A relation no serializer answers must not be prefetched at all.
+
+        The list prefetched the harvested records of every catalogue by their
+        id although no field of the answer reads them - with the records of a
+        big deployment hundreds of thousands of rows loaded for nothing
+        (#1031). Only the page query itself may read them, for the harvesting
+        statistics it answers.
+        """
+        from registry.views.service import CatalogueServiceViewSetMixin
+        relations = [
+            getattr(prefetch, 'prefetch_through', prefetch)
+            for prefetches in CatalogueServiceViewSetMixin.prefetch_for_not_includes.values()
+            for prefetch in prefetches]
+        self.assertNotIn(
+            'registry_datasetmetadatarecord_metadata_records', relations)
+
+    def test_the_extent_is_aggregated_once_for_the_whole_page(self):
+        """The coverage of the page is read by one grouped query per source.
+
+        Aggregated as an annotation of the page query, the ``ST_Union`` and the
+        ``COUNT(DISTINCT)`` of the coverage ran once per catalogue and were
+        repeated by the permission checker a second time per page (#1031).
+        """
+        _status, _body, queries = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]':
+               'id,title,extent,element_count'})
+        unions = [q['sql'] for q in queries if 'ST_Union' in q['sql']]
+        # one grouped query per kind of harvested record, not one per row
+        self.assertLessEqual(len(unions), 2, unions)
+        self.assertFalse([sql for sql in unions if COUNT in sql],
+                         'the count of the rows runs the coverage aggregation')
+        self.assertEqual(
+            1, len([q['sql'] for q in queries if COUNT in q['sql']]),
+            'the page answers one count of its rows')
+
 
 class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
     """The harvesting jobs know the service and the schedule they belong to."""

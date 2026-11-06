@@ -130,20 +130,19 @@ class ServiceAlertAnnotationMixin:
             QuerySet: the queryset, annotated if the request asks for alerts
         """
         kind = SERVICE_KIND_OF.get(qs.model)
-        if kind is None or not alerts_requested(self.request,
-                                                kind.service.__name__,
-                                                kind.attributes):
+        if kind is None or not alerts_requested(
+                self.request,
+                kind.service.__name__,
+                kind.attributes,
+                list_view=getattr(self, 'action', None) == 'list'):
             return qs
         return qs.with_alert_information()
 
     def filter_queryset(self, queryset):
         """Annotate the alerts before the filters and the sort of a request.
 
-        The filters and the sort of a request name the annotations of the alerts,
-        so those have to be annotated before they are applied. A viewset applies
-        them not only to the queryset which answers the request, but as well to
-        the queryset it holds, when it checks the permissions of the services it
-        answers, see `ObjectPermissionCheckerViewSetMixin`.
+        The filters and the sort of a request name the annotations of the
+        alerts, so those have to be annotated before they are applied.
 
         Args:
             queryset: the queryset of one kind of service to filter
@@ -923,11 +922,6 @@ class CatalogueServiceViewSetMixin(
                 "keywords",
                 queryset=Keyword.objects.only("id")
             )
-        ],
-        "harvested_datasets": [
-            Prefetch(
-                "registry_datasetmetadatarecord_metadata_records",
-                queryset=DatasetMetadataRecord.objects.only("id"))
         ],
         "operation_urls": [
             Prefetch(

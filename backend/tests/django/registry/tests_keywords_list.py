@@ -323,3 +323,119 @@ class PgtriggerOwnershipTest(TestCase):
                 "SELECT count(*) FROM pg_proc WHERE proname LIKE 'pgtrigger\\_%'"
                 " AND (proname LIKE '%keywords\\_list%' OR proname LIKE '%metadatarecords%')")
             self.assertEqual(cursor.fetchone()[0], 7)
+
+
+class TooLongKeywordTest(TestCase):
+    """A keyword wider than the old column width is not a reason to refuse a record.
+
+    The 300 characters of the old ``varchar(300)`` were a decision of the storage,
+    not of the catalogue: ``0028`` widened the keyword column and the array after a
+    German catalogue lost records over a 347 character ``gmd:keyword`` (#894). The
+    aggregate which maintains the array must answer no other width than the column
+    it writes -- a fallback literal of the old width lets COALESCE re-cast every
+    aggregated keyword on the way in, which refuses a keyword the relation just
+    accepted *inside the save of the record*: on a deployed cluster one over-long
+    keyword therefore cost the whole record (#1075, migration 0035).
+    """
+
+    #: the shape of the reported keyword -- plan names joined into one element,
+    #: with the tail which a narrow column loses
+    LONG_KEYWORD = ('Flächennutzungsplan WN '
+                    + 'Remshalden,Flächennutzungsplan WN ' * 12 + 'Rudersberg')
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.contact = MetadataContact.objects.create(name='Wide keywords contact')
+        cls.dataset = DatasetMetadataRecord.objects.create(
+            metadata_contact=cls.contact, dataset_contact=cls.contact,
+            file_identifier='holds a wide keyword', title='Dataset')
+        cls.service_metadata = ServiceMetadataRecord.objects.create(
+            metadata_contact=cls.contact, title='Service metadata')
+        cls.application = ApplicationMetadataRecord.objects.create(
+            metadata_contact=cls.contact, application_contact=cls.contact,
+            title='Application')
+        cls.long = Keyword.objects.create(keyword=cls.LONG_KEYWORD)
+        cls.alpha = Keyword.objects.create(keyword='alpha')
+
+    def keywords_of(self, record):
+        """Reads the column back from the database, not from the instance."""
+        return list(
+            record.__class__.objects.values_list('keywords_list', flat=True).get(pk=record.pk))
+
+    def test_the_array_holds_a_keyword_wider_than_the_old_column(self):
+        """The sync trigger writes the whole keyword onto every record type --
+        the statement of the deployed failure was the service record's."""
+        self.assertGreater(len(self.LONG_KEYWORD), 300)
+        for record in (self.dataset, self.service_metadata, self.application):
+            with self.subTest(record=record.__class__.__name__):
+                record.keywords.set([self.long, self.alpha])
+                self.assertEqual(
+                    sorted(self.keywords_of(record)),
+                    sorted([self.LONG_KEYWORD, 'alpha']),
+                    'the array of the record answers another text than the '
+                    'keywords relation of the very same record')
+
+    def test_a_rename_to_a_wider_keyword_still_reaches_the_records_holding_it(self):
+        """The rename fan-out repeats the same aggregate, once per record table;
+        its bodies were re-created together with the sync's (0035)."""
+        self.dataset.keywords.set([self.alpha])
+        self.service_metadata.keywords.set([self.alpha])
+        self.application.keywords.set([self.alpha])
+
+        # a second wide text: the rename must not collide with the keyword the
+        # fixture already holds, it only has to be over the old width
+        renamed = 'Bauleitplan, ' + self.LONG_KEYWORD
+        self.assertGreater(len(renamed), 300)
+
+        self.alpha.keyword = renamed
+        self.alpha.save()
+
+        for record in (self.dataset, self.service_metadata, self.application):
+            with self.subTest(record=record.__class__.__name__):
+                self.assertEqual(self.keywords_of(record), [renamed])
+
+    def test_a_write_which_never_read_the_array_keeps_a_wider_keyword(self):
+        """The guard of 0024 re-derives the array through the very same aggregate,
+        so its function needed the widened fallback too."""
+        self.dataset.keywords.add(self.long)
+        before = self.keywords_of(self.dataset)
+
+        document = serializers.serialize(
+            'json', [self.dataset],
+            fields=('title', 'file_identifier', 'metadata_contact', 'dataset_contact'))
+        next(serializers.deserialize('json', document)).save()
+
+        self.assertEqual(self.keywords_of(self.dataset), before)
+
+
+class MaintainingFunctionsBodyTest(TestCase):
+    """No maintaining body carries a width the columns gave up.
+
+    The maintenance statements are data: the ``ALTER TYPE`` of ``0028`` did not
+    reach into the aggregate written into the function bodies of ``0021``,
+    ``0024`` and ``0033``, and the narrow ``varchar(300)[]`` fallback inside
+    them is what coerced every aggregated keyword on a deployed cluster.
+    Newer clusters resolve the same COALESCE onto the aggregated array and
+    answer nothing -- no behavioural test on this schema can notice the narrow
+    body. Asking the catalog is the one check which fails as long as the
+    narrow literal is installed, whichever postgres reads it (0035). Since
+    #1009 the same statements live in the trigger functions of pgtrigger
+    instead of the three shared legacy functions, and the question is asked
+    of them: the guarantee belongs to the body, not to whoever stores it.
+    """
+
+    def test_no_maintaining_body_narrows_the_keywords_it_aggregates(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname, prosrc FROM pg_proc "
+                "WHERE proname LIKE 'pgtrigger\\_%' "
+                "AND (proname LIKE '%keywords\\_list%' "
+                "OR proname LIKE '%metadatarecords%')")
+            bodies = dict(cursor.fetchall())
+
+        self.assertEqual(len(bodies), 7, sorted(bodies))
+        for name, body in bodies.items():
+            self.assertNotIn(
+                'varchar(300)', body,
+                'the stored body of %s still casts the aggregated keywords to '
+                'the width the columns gave up with 0028' % name)

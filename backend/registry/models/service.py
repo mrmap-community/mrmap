@@ -1,4 +1,5 @@
 from logging import Logger
+from threading import Lock
 from uuid import uuid4
 
 from django.conf import settings
@@ -21,7 +22,8 @@ from lxml import etree
 from mptt2.models import Node
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
-from registry.exceptions.service import (LayerNotQueryable,
+from registry.exceptions.service import (CapabilitiesBackupMissing,
+                                         LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
@@ -45,6 +47,74 @@ from requests import Request, Session
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
+
+# The services whose missing capabilities backup this process has already
+# reported (#1044). The read of such a service raises on every access, and a
+# harvest import asks for the client per record file - the warning behind
+# ~50 % of the log dump pile of #1033. The raise is per access and carries
+# the full report for whoever catches it; the log line stays one per service
+# until a read of it answers the document again, which clears the entry so a
+# later loss is reported again.
+_capabilities_backup_missing: set = set()
+_capabilities_backup_missing_lock = Lock()
+
+
+def _report_capabilities_backup_missing(service, missing_path: str):
+    """Report a service's missing capabilities document once per process.
+
+    The first access of a service whose named backup file is gone logs the
+    structured integrity report; later accesses of the same service stay
+    silent, the exception names the condition again anyway.
+    """
+    key = (service._meta.label, str(service.pk))
+    with _capabilities_backup_missing_lock:
+        if key in _capabilities_backup_missing:
+            return
+        _capabilities_backup_missing.add(key)
+    logger.warning(
+        msg=f"{service} has no capabilities file stored at "
+            f"'{missing_path}'. Reads do not fall back to the remote "
+            "service (#1044).",
+        extra={
+            "structured_data": {
+                "metaSDIS@django": {
+                    "service_type": service.service_type,
+                    "service_id": str(service.pk),
+                    "missing_path": missing_path,
+                    "operation": "capabilities read",
+                    "recovery_status": (
+                        "pending: restore the document on the storage or "
+                        "run the service's update job"),
+                }
+            }
+        })
+
+
+def _clear_capabilities_backup_missing(service):
+    """Clear the report of a service whose document reads well again.
+
+    A successful stored read is the verified resolution of the integrity
+    report: the entry goes, so a later loss of the same service is reported
+    again, and the operator sees the recovery in the log.
+    """
+    key = (service._meta.label, str(service.pk))
+    with _capabilities_backup_missing_lock:
+        reported = key in _capabilities_backup_missing
+        _capabilities_backup_missing.discard(key)
+    if reported:
+        logger.info(
+            msg=f"{service} capabilities file reads well again; the "
+                "integrity report of #1044 is cleared.",
+            extra={
+                "structured_data": {
+                    "metaSDIS@django": {
+                        "service_type": service.service_type,
+                        "service_id": str(service.pk),
+                        "operation": "capabilities read",
+                        "recovery_status": "resolved",
+                    }
+                }
+            })
 
 
 class ServiceHistoricalRecords(HistoricalRecords):
@@ -192,6 +262,14 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
     @property
     def remote_capabilities(self) -> bytes | None:
+        """The capabilities document of the remote service, fetched explicitly.
+
+        The explicit remote counterpart of the stored read below, used by
+        the update jobs: what this answers is untrusted new input which they
+        compare with the stored document and stage as an update candidate;
+        it never becomes the active document here. Reading a service never
+        calls this (#1044).
+        """
         request = Request(method="GET", url=self.get_capabilities_url)
         session = self.get_session_for_request()
         response = session.send(request=request.prepare())
@@ -199,23 +277,38 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             return response.content
 
     @property
-    def capabilities(self) -> str | bytes:
+    def capabilities(self) -> bytes:
+        """The persisted capabilities document of this service, as stored bytes.
+
+        A pure read (#1044): no network access, no writes, no client
+        initialized from a URL. The fallback which answered a missing file
+        with the ``get_capabilities_url`` string made ``OgcClient.__init__``
+        answer that string with a synchronous GetCapabilities round trip on
+        *every* access of a service whose stored document was gone from the
+        storage - measured at up to 3 per imported record file, never
+        healing the state it warned about. What a missing document needs is
+        recovery, which the issue separates from any read: restore the
+        original bytes on the storage, or fetch via ``remote_capabilities``
+        and reconcile through the service's update workflow. Neither
+        happens here.
+
+        :return: the stored capabilities document
+        :rtype: bytes
+        :raises CapabilitiesBackupMissing: if ``xml_backup_file`` names a
+            file which the storage does not hold. The exception names the
+            service, the missing path and the recovery status; the first
+            report per process and service also logs it as a structured
+            warning, so the condition is visible without the per-access
+            flood it used to be. An unset field is no such error:
+            ``xml_backup`` answers ``b""`` for it, as before.
+        """
         try:
             cap = self.xml_backup
         except FileNotFoundError:
-            # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
-
-            cap = self.get_capabilities_url
-
-            logger.warning(
-                msg=f"{self} has no capabilities file stored. Trying fallback by url.",
-                extra={
-                    "structured_data": {
-                        "metaSDIS@django": {
-                            "capabilities_url": cap
-                        }
-                    }
-                })
+            missing_path = self.xml_backup_file.name
+            _report_capabilities_backup_missing(self, missing_path)
+            raise CapabilitiesBackupMissing(self, missing_path)
+        _clear_capabilities_backup_missing(self)
         return cap
 
     @property
@@ -271,8 +364,21 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     def service_type(self) -> str:
         return "WMS"
 
-    @property
+    @cached_property
     def client(self) -> WebMapServiceClient:
+        """A client over this instance's stored capabilities document.
+
+        Built once per service instance (#1044): a caller which needs the
+        client several times - the describe of a feature type, the
+        provenance of an import - shares one construction of the parsed
+        document instead of paying a document read and an auth query per
+        access. The cache never outlives the instance, so it never outlives
+        the request or task which fetched the service: the client holds a
+        requests session which must not be shared across threads. Building
+        it performs no remote request; with the stored document gone from
+        the storage it raises ``CapabilitiesBackupMissing`` instead of
+        fetching the remote service.
+        """
         return WebMapServiceClient(
             capabilities=self.capabilities,
             session=self.get_session_for_request()
@@ -346,8 +452,13 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
     def service_type(self) -> str:
         return "WFS"
 
-    @property
+    @cached_property
     def client(self) -> WebFeatureServiceClient:
+        """A client over this instance's stored capabilities document.
+
+        Built once per service instance, remote requests never while
+        building - see ``WebMapService.client``.
+        """
         return WebFeatureServiceClient(
             capabilities=self.capabilities,
             session=self.get_session_for_request()
@@ -388,8 +499,13 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     def service_type(self) -> str:
         return "CSW"
 
-    @property
+    @cached_property
     def client(self) -> CatalogueServiceClient:
+        """A client over this instance's stored capabilities document.
+
+        Built once per service instance, remote requests never while
+        building - see ``WebMapService.client``.
+        """
         return CatalogueServiceClient(
             capabilities=self.capabilities,
             session=self.get_session_for_request()

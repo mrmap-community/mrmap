@@ -96,7 +96,8 @@ BACKEND = "backend"
 DENY = "deny"
 
 # (kind, path, argument) - SPA: the shell answers; BACKEND: the upstream echoes
-# this path back; DENY: this status answers and it is not the shell.
+# the requested path back, without its query string; DENY: this status answers
+# and it is not the shell.
 CASES = [
     # Application routes belong to the SPA. /csw-client is #1036 itself: it
     # starts with the proxied word "csw" and must still not be proxied.
@@ -117,6 +118,9 @@ CASES = [
     (BACKEND, "/api/auth/login"),
     (BACKEND, "/csw"),
     (BACKEND, "/csw/"),
+    # The way a client actually calls the CSW endpoint. The query string is not
+    # part of a location match, and the upstream is asked for the path alone.
+    (BACKEND, "/csw?service=CSW&request=GetRecords"),
     (BACKEND, "/ws/default/"),
     (BACKEND, "/django-admin/login/"),
     (BACKEND, "/mrmap-proxy/ows/1"),
@@ -227,7 +231,8 @@ def judge(kind, path, argument, status, body):
     if kind == SPA:
         return (status, body) == (200, SPA_BODY), "the SPA shell"
     if kind == BACKEND:
-        wanted = f"backend-stub {path}\n"
+        # The stub echoes the path it was asked for, without the query string.
+        wanted = f"backend-stub {path.split('?')[0]}\n"
         return (status, body) == (200, wanted), f"proxied as {wanted.strip()}"
     return status == argument and body != SPA_BODY, f"status {argument}, not the shell"
 
@@ -278,7 +283,7 @@ def main():
             status, body = fetch(base, path)
             ok, expected = judge(kind, path, argument, status, body)
             failures += ok is False
-            print(f"  {'ok  ' if ok else 'FAIL'} {path:<28} expected "
+            print(f"  {'ok  ' if ok else 'FAIL'} {path:<38} expected "
                   f"{expected:<45} got {status} "
                   f"{'' if ok else repr(body[:80])}")
 

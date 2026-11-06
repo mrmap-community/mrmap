@@ -1,4 +1,4 @@
-import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
+import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
@@ -46,6 +46,16 @@ export interface ListGuesserProps extends Partial<ListProps> {
 
 const defaultFilter = {}
 const defaultLoading = <Loading />
+
+/**
+ * The columns a generic list keeps when its screen declares none. This fallback is a
+ * wish across every resource - a resource answers a part of it - so it is no declared
+ * column list and the schema check below does not run against it.
+ */
+const GENERIC_FALLBACK_COLUMNS = ["stringRepresentation", "title", "abstract", "username", "actions", "id"]
+
+/** The row actions column every list renders beside its fields, named by a screen which wants it kept visible. */
+const ACTIONS_COLUMN = "actions"
 
 const ListWithHeader = (props: ListProps & { header?: ReactNode; realtime?: boolean }) => {
   const {
@@ -111,7 +121,7 @@ const ListGuesserContent = ({
   onRowClick = undefined,
   updateFieldDefinitions,
   refetchInterval=false,
-  defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
+  defaultSelectedColumns = undefined,
   ActionsComponent=ListActions,
   dataGridProps,
   ...props
@@ -190,7 +200,35 @@ const ListGuesserContent = ({
   const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey
   const onError = useOnError(preferenceKey)
  
-  const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
+  const selectedColumns = useMemo(
+    () => defaultSelectedColumns ?? GENERIC_FALLBACK_COLUMNS,
+    [defaultSelectedColumns]
+  )
+  const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !selectedColumns.includes(source)),[fieldDefinitions, selectedColumns])
+
+  /**
+   * A declared column the schema of the operation does not answer renders nowhere:
+   * the list machinery omits nothing for it because it knows no such field, so the
+   * screen silently loses the column (#1078 found a harvesting tab declaring the
+   * creation time of a run as `createdAt`, which no field answers). The sources of
+   * `fieldDefinitions` are exactly what the grid can render for this operation, so
+   * the mismatch is named on the console where a list is developed; production
+   * answers stay as they are.
+   */
+  const warnedColumns = useRef(new Set<string>())
+  useEffect(() => {
+    if (!import.meta.env.DEV || defaultSelectedColumns === undefined || columns !== undefined || fieldDefinitions.length === 0) return
+    const answered = new Set(fieldDefinitions.map(fieldDefinition => fieldDefinition.props.source))
+    defaultSelectedColumns
+      .filter(key => key !== ACTIONS_COLUMN && !answered.has(key))
+      .forEach(key => {
+        const warning = `${operationId}.${key}`
+        if (warnedColumns.current.has(warning)) return
+        warnedColumns.current.add(warning)
+        console.warn(`ListGuesser: the resource "${name}" does not answer the declared column "${key}" of "${operationId}" - the column renders empty for every record.`)
+      })
+  },[defaultSelectedColumns, columns, fieldDefinitions, name, operationId])
+
   const [initOmit, setInitOmit] = useState(false)
   const [_, setOmit] = useStore<string[]>(`preferences.${preferenceKey}.omit`)
   const jsonApiQuery = useJsonApiQuery( {relatedResource: relatedResource?.resource} )

@@ -202,7 +202,13 @@ const HarvestingActivityCard = () => {
       resource="HarvestingJob"
       relatedResource={{ resource: "CatalogueService", id: service.id }}
       disableSyncWithLocation
-      sort={{ field: "dateCreated", order: "DESC" }}
+      // The card answers "what did this catalogue harvest last", so its three rows
+      // have to be the three most recent runs. Ordering by `dateCreated` cannot do
+      // that yet: the column is NULL for every run until #1079 fills it, which is
+      // why #692 had to add `done_at` to the api's ordering_fields for the same
+      // reason. The id counts in the order the runs were made, so it orders until
+      // #1079 lands; switch this back to `dateCreated` then.
+      sort={{ field: "id", order: "DESC" }}
       perPage={3}
       actions={false}
       filters={undefined}
@@ -212,12 +218,19 @@ const HarvestingActivityCard = () => {
       component={HarvestingActivityCardBase}
       dataGridProps={{ component: HarvestingActivityList }}
       storeKey={`CatalogueService.${service.id}.HarvestingJob.activity`}
+      // The written decision of #1078 on what this card asks and how often: the
+      // fieldset names the states and the progress of a run but not the statistics
+      // annotations which #1037 measured at 5.85 s cold and 12.2 s worst while a
+      // large import writes the same table - the counters stay on the run's own
+      // screen, which is the one place that reads them. With the request in the
+      // cheap class #1037 itself measured (progress at 0.13 s), the five second
+      // interval is what lets the card follow a run the catalogue is watching.
       refetchInterval={5000}
       queryOptions={{
         meta: {
           jsonApiParams: {
             "fields[HarvestingJob]":
-              "id,phase,phase_label,progress,date_created,done_at,total_records,unhandled_records_count,import_error_count",
+              "id,phase,phase_label,progress,date_created,done_at,total_records",
           },
         },
       }}
@@ -228,8 +241,6 @@ const HarvestingActivityCard = () => {
         "dateCreated",
         "doneAt",
         "totalRecords",
-        "unhandledRecordsCount",
-        "importErrorCount",
       ]}
     />
   );

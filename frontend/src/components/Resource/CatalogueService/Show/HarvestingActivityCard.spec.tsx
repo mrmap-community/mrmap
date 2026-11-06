@@ -15,16 +15,35 @@ const state = vi.hoisted(() => ({
   isPending: false,
   error: null as Error | null,
 }));
+/** The record the mocked `DateField` of the list below renders, kept by the mocked provider. */
+const runContext = vi.hoisted(() => ({
+  record: undefined as RaRecord | undefined,
+}));
 vi.mock("react-admin", () => ({
   useListContext: () => state,
   useRecordContext: () => ({ id: "csw-1" }),
   useTranslate: () => (key: string, options?: Record<string, unknown>) =>
     options?.count === undefined ? key : `${key}: ${options.count}`,
-  RecordContextProvider: ({ children }: { children: ReactNode }) => children,
+  RecordContextProvider: ({
+    value,
+    children,
+  }: {
+    value: RaRecord;
+    children: ReactNode;
+  }) => {
+    runContext.record = value;
+    return <>{children}</>;
+  },
   Button: ({ to, label }: { to: string; label: string }) => (
     <a href={to}>{label}</a>
   ),
-  DateField: () => <span>Started</span>,
+  DateField: ({
+    source,
+    emptyText,
+  }: {
+    source: string;
+    emptyText?: string;
+  }) => <span>{runContext.record?.[source] ?? emptyText}</span>,
   NumberField: () => null,
   Loading: () => <span>Loading</span>,
 }));
@@ -39,25 +58,29 @@ beforeEach(() => {
   state.data = [];
   state.isPending = false;
   state.error = null;
+  runContext.record = undefined;
 });
 describe("harvesting activity", () => {
-  it("requests current processing fields independently of saved table preferences", () => {
+  it("orders the three shown runs by id and asks cheap fields independently of saved table preferences", () => {
     render(<HarvestingActivityCard />);
     const props = vi.mocked(ListGuesser).mock.calls.at(-1)?.[0];
-    expect(props?.sort).toEqual({ field: "dateCreated", order: "DESC" });
+    // `dateCreated` orders nothing while #1079 has not filled it - the id is the
+    // field which answers the three most recent runs until then
+    expect(props?.sort).toEqual({ field: "id", order: "DESC" });
     expect(props?.refetchInterval).toBe(5000);
-    expect(props?.queryOptions?.meta).toMatchObject({
-      jsonApiParams: {
-        "fields[HarvestingJob]": expect.stringContaining("phase_label"),
-      },
-    });
-    expect(props?.queryOptions?.meta).toMatchObject({
-      jsonApiParams: {
-        "fields[HarvestingJob]": expect.stringContaining(
-          "unhandled_records_count",
-        ),
-      },
-    });
+    const fieldset = String(
+      (
+        props?.queryOptions?.meta as {
+          jsonApiParams: Record<string, string>;
+        }
+      ).jsonApiParams["fields[HarvestingJob]"],
+    );
+    expect(fieldset).toContain("phase_label");
+    expect(fieldset).toContain("progress");
+    expect(fieldset).toContain("date_created");
+    // the statistics annotations #1037 bounds stay off this polled card
+    expect(fieldset).not.toContain("unhandled_records_count");
+    expect(fieldset).not.toContain("import_error_count");
   });
   it("shows active stage and discovery without a misleading zero percent", () => {
     state.data = [
@@ -180,6 +203,21 @@ describe("harvesting workflow stages", () => {
     ];
     render(<HarvestingActivityList />);
     expect(screen.getByText(/harvestingActivity.started/)).toBeInTheDocument();
-    expect(screen.getByText("Started")).toBeInTheDocument();
+    expect(screen.getByText("2026-10-08T10:00:00Z")).toBeInTheDocument();
+  });
+  it("answers the empty text for a start which was never recorded, not a zero", () => {
+    state.data = [
+      {
+        id: "run-2",
+        phase: 1,
+        phaseLabel: "get total records count",
+        dateCreated: null,
+        doneAt: null,
+      },
+    ];
+    render(<HarvestingActivityList />);
+    expect(screen.getByText(/harvestingActivity.started/)).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
 });

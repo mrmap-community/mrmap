@@ -1452,12 +1452,15 @@ class DatasetMetadataRecordKeywordsLink(models.Model):
     Being unmanaged, Django never creates, alters or drops the table through it.
     """
 
+    #: the keyword side of every keywords relation, named once
+    KEYWORD = "registry.Keyword"
+
     datasetmetadatarecord = models.ForeignKey(
         to="registry.DatasetMetadataRecord",
         on_delete=models.CASCADE,
         related_name="d_keywords_link+")
     keyword = models.ForeignKey(
-        to="registry.Keyword",
+        to=KEYWORD,
         on_delete=models.CASCADE,
         related_name="d_keywords_link+")
 
@@ -1474,7 +1477,7 @@ class ServiceMetadataRecordKeywordsLink(models.Model):
         on_delete=models.CASCADE,
         related_name="s_keywords_link+")
     keyword = models.ForeignKey(
-        to="registry.Keyword",
+        to=DatasetMetadataRecordKeywordsLink.KEYWORD,
         on_delete=models.CASCADE,
         related_name="s_keywords_link+")
 
@@ -1491,7 +1494,7 @@ class ApplicationMetadataRecordKeywordsLink(models.Model):
         on_delete=models.CASCADE,
         related_name="a_keywords_link+")
     keyword = models.ForeignKey(
-        to="registry.Keyword",
+        to=DatasetMetadataRecordKeywordsLink.KEYWORD,
         on_delete=models.CASCADE,
         related_name="a_keywords_link+")
 

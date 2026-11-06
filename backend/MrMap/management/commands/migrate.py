@@ -7,11 +7,11 @@ to answer one and the same class. See the makemigrations command of this
 directory for the rule by which this command is the one that is found.
 """
 
-from django_pgviews.management.commands.migrate import \
-    Command as PGViewsMigrateCommand
+from django.core.management.commands.migrate import \
+    Command as DjangoMigrateCommand
 
 from MrMap.migration_detection import ViewsAndTriggersAutodetector
 
 
-class Command(PGViewsMigrateCommand):
+class Command(DjangoMigrateCommand):
     autodetector = ViewsAndTriggersAutodetector

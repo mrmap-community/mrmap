@@ -5,14 +5,16 @@ the triggers of django-pgtrigger together (see
 ``MrMap/migration_detection.py``), and it is the command which is found
 because ``MrMap`` is listed before ``django_pgviews`` in ``INSTALLED_APPS``
 while ``get_commands`` runs the apps in reverse, so the first app which names
-a command wins over the later ones (#1009).
+a command wins over the later ones (#1009). The command of the views package
+adds nothing to Django's but its own autodetector, so this builds on the
+Django command directly and names the combined one.
 """
 
-from django_pgviews.management.commands.makemigrations import \
-    Command as PGViewsMakemigrationsCommand
+from django.core.management.commands.makemigrations import \
+    Command as DjangoMakeMigrationsCommand
 
 from MrMap.migration_detection import ViewsAndTriggersAutodetector
 
 
-class Command(PGViewsMakemigrationsCommand):
+class Command(DjangoMakeMigrationsCommand):
     autodetector = ViewsAndTriggersAutodetector

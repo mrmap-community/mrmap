@@ -1,8 +1,8 @@
 from celery import chord
 from django.db import models, transaction
 from django.db.models import (Case, Count, F, FloatField, OuterRef, Q,
-                              Subquery, Value, When)
-from django.db.models.functions import Ceil, Coalesce, Round
+                              Subquery, TextField, Value, When)
+from django.db.models.functions import Cast, Ceil, Coalesce, Concat, Round
 from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
@@ -87,6 +87,20 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             subqueries[name] = Coalesce(Subquery(
                 files_of_count.annotate(**{name: count}).values(name)), 0)
         return qs.annotate(**subqueries)
+
+    def with_string_representation(self):
+        """Annotate the display string which the serializer answers for a job.
+
+        ``HarvestingJob`` has no ``__str__`` of its own, so the serializer
+        answers django's plain model string - the annotation mirrors it, so the
+        list can order by the very string its client renders (#1035).
+        """
+        return self.get_queryset().annotate(
+            string_representation=Concat(
+                Value("HarvestingJob object ("),
+                Cast("pk", TextField()),
+                Value(")"),
+                output_field=TextField()))
 
     def with_process_info(self):
         """Adds the progress information of a harvesting job to the queryset.

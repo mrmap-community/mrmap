@@ -44,6 +44,9 @@ class TimeExtentManager(models.Manager):
     def with_effective_timerange(self):
         return self.get_queryset().with_effective_timerange()
 
+    def with_string_representation(self):
+        return self.get_queryset().with_string_representation()
+
 
 class MetadataRelationManager(models.Manager):
     """ Manager which exposes the coupling policy of MrMap, see

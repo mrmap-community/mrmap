@@ -50,13 +50,16 @@ class NestedMimeTypeViewSet(
 
 
 class KeywordViewSetMixin:
-    queryset = Keyword.objects.all()
+    # the pickers of the frontend render and sort by the display string the
+    # serializer answers, which for a keyword is its text (#1035)
+    queryset = Keyword.objects.annotate(string_representation=F("keyword"))
     serializer_class = KeywordSerializer
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         "keyword": ["exact", "icontains", "contains"],
     }
     search_fields = ("keyword",)
+    ordering_fields = ["id", "keyword", "string_representation"]
 
 
 class KeywordViewSet(
@@ -502,8 +505,12 @@ class NestedServiceMetadataViewSet(
 
 
 class TimeExtentViewSet(ReadOnlyModelViewSet):
-    queryset = TimeExtent.objects.all()
+    # the annotation makes the display string of the serializer sortable, which
+    # is the sort the generic pickers send when they render this resource (#1035)
+    queryset = TimeExtent.objects.with_string_representation()
     serializer_class = TimeExtentSerializer
+    ordering_fields = ["id", "begin", "end", "resolution", "is_relative",
+                       "string_representation"]
 
 
 class LanguageViewSet(ReadOnlyModelViewSet):

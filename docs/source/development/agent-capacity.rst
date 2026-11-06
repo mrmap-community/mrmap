@@ -516,14 +516,17 @@ trade is a human's to reverse, and this runbook is what makes reversing it an
 informed decision: the acceptance of #1054 stays open until someone applies the
 change on the host and reads the protocol above back.
 
-OpenCode supervisor integration
-===============================
+Who asks the gate
+=================
 
-The supervisor of epic #1052 calls the same gate rather than re-implementing a
-policy: ``scripts/agent_capacity --json`` for a decision it can branch on
-(``fits`` and ``reasons``, plus the metrics it reports to its own operators), and
-``--stacks``/``--processes`` to pass the counts it already tracks in its own
-state, so the number that decides is the number of jobs the supervisor actually
-has. ``evaluate()`` is importable for a caller that would rather not fork.
-Import it with ``importlib`` - the file has no ``.py`` suffix, like
-``scripts/wip``.
+Nothing in this repository starts an agent any more: development orchestration is done
+by Agent Orchestrator, an external tool whose worker sessions run against a checkout
+like any human's. The in-repository supervisor of epic #1052 which first called this
+gate is retired and removed with it (#1102). Whoever asks - AO, a nightly runner or a
+person at a shell - asks the same gate rather than re-implementing a policy:
+``scripts/agent_capacity --json`` for a decision that can be branched on (``fits`` and
+``reasons``, plus the metrics it reports to its operators), and
+``--stacks``/``--processes`` to pass the counts a caller already tracks in its own
+state, so the number that decides is the number of jobs it actually has.
+``evaluate()`` is importable for a caller that would rather not fork. Import it with
+``importlib`` - the file has no ``.py`` suffix, like ``scripts/wip``.

@@ -189,6 +189,50 @@ class Scheduler:
             parts.append(f"errors {len(report['errors'])}")
         return ", ".join(parts)
 
+    def start_one(self, number, plan_only=False):
+        """The tick's own path for the one issue an operator named by hand.
+
+        Same gate, same board read, same lease and runner hand-over - what it
+        skips is the *slot arithmetic*: an operator naming one issue has already
+        made the decision the slot limit normally makes. The capacity gate is
+        still asked, because that one is about the host rather than about
+        priorities, and #1053's rule ("refuse newcomers") outranks a wish.
+        """
+        report = {"started": [], "planned": [], "skipped": [], "stopping": [],
+                  "errors": [], "capacity": None, "considered": 1}
+        if not self.cfg.ok:
+            report["errors"].extend(self.cfg.problems)
+            self.store.event("config-invalid", "; ".join(self.cfg.problems))
+            return report
+        try:
+            issue = approvals.issue_of(self.cfg.repo, number)
+        except GhError as exc:
+            report["errors"].append(f"#{number}: {exc}")
+            self.store.event("start-refused", f"unreadable: {exc}", issue=number)
+            return report
+        if issue.get("pull_request"):
+            report["skipped"].append((number, "not-an-issue", "it is a pull request"))
+            return report
+        board = self._claims_on([number])
+        if board is None:
+            report["errors"].append("the claim board could not be read; starting without "
+                                    "knowing who holds the issue is not offered")
+            return report
+        blocked = self._reason_not_started(number, issue, board.get(number))
+        if blocked:
+            report["skipped"].append((number,) + blocked)
+            self.store.event("start-refused", f"{blocked[0]}: {blocked[1]}", issue=number)
+            return report
+        verdict = self.capacity.evaluate(NEED_STACK)
+        report["capacity"] = verdict
+        if not verdict["fits"]:
+            self.store.event("capacity", verdict["explanation"])
+            report["skipped"].append((number, "capacity", verdict["explanation"]))
+            return report
+        self._start(issue, report, plan_only=plan_only)
+        self.store.event("manual-start", self._summary_line(report), issue=number)
+        return report
+
     # -- what keeps an issue from starting ------------------------------------
 
     def _reason_not_started(self, number, issue, payloads):

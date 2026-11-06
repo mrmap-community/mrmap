@@ -76,6 +76,17 @@ DEFAULTS = {
     "max_opencode_processes": 2,
     "max_test_stacks": 1,
     "tick_seconds": 60,
+    # Daemon loop (#1063). A random part of this is added to and subtracted from
+    # the tick, so several supervisors started together do not align their GitHub
+    # reads into one spike every minute. 0 means "exactly every tick_seconds".
+    "tick_jitter_s": 0,
+    # The rotating log next to the state file. maxBytes of 0 means "do not
+    # rotate" - on a host that ships logs itself, not a mistake.
+    "log_max_bytes": 5242880,
+    "log_backups": 3,
+    # One heartbeat event per this many quiet ticks: enough to answer "was it
+    # alive at 3 am" without an event per minute.
+    "heartbeat_ticks": 30,
     # Order: these labels first, then the oldest issue, then the number. Issues
     # with none of them share the second rank and are worked oldest-first.
     "priority_labels": ["priority: critical", "priority: high"],
@@ -323,6 +334,22 @@ def _validate(cfg):
         problems.append("review_debounce_seconds must be a number of seconds, 0 allowed")
     if not isinstance(cfg.data.get("require_repo_association"), bool):
         problems.append("require_repo_association must be true or false")
+    # The daemon's own bounds (#1063). A negative tick or jitter would make the
+    # loop spin; a heartbeat below 1 would log an event every tick.
+    for key in ("tick_seconds", "tick_jitter_s"):
+        value = cfg.data.get(key)
+        if not isinstance(value, (int, float)) or value < 0:
+            problems.append(f"{key} must be a number of seconds, 0 allowed")
+    if cfg.data.get("tick_seconds") == 0:
+        problems.append("tick_seconds of 0 would spin the loop; the smallest honest "
+                        "interval is one second")
+    for key in ("log_max_bytes", "log_backups", "heartbeat_ticks"):
+        value = cfg.data.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            problems.append(f"{key} must be a whole number, 0 allowed")
+    if cfg.data.get("heartbeat_ticks") == 0:
+        problems.append("heartbeat_ticks of 0 would log a heartbeat every tick; "
+                        "1 means one per tick already")
     if not cfg.data.get("repo_root"):
         warnings.append("repo_root is not set: the supervisor cannot branch or open a "
                         "worktree, so nothing can be started even when it is eligible")

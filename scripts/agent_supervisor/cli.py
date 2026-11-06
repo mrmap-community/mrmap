@@ -1,20 +1,23 @@
-"""The operator's command line, part 1: asking the gate.
+"""The operator's command line.
 
-Everything a human needs to check the authorization contract without reading
-code: what the configuration says, whether the labels exist, and - the one that
-matters - why a specific issue may or may not be started. The gate is a
-black box only from the outside; `explain` is what makes it inspectable, and it
-is the same code path the scheduler will use in #1059, so an answer here is the
-answer there.
+Everything a human needs to run and check the supervisor without reading code:
+what the configuration says, whether the labels exist, why a specific issue may
+or may not be started, the loop itself (`run`, `daemon`), per-issue hands
+(`start`, `stop`, `pause`, `resume`, `logs`, `retry`), what the watchers know,
+and the host numbers (`metrics`, `doctor`). The gate is a black box only from
+the outside; `explain` is what makes it inspectable, and it is the same code
+path the scheduler uses in every tick, so an answer here is the answer there.
 
-Exit codes are for scripts: 0 means "yes" (every issue asked about is eligible,
-or at least one is when listing), 1 means "no", 2 means the question could not
-be asked at all (no gh, unusable configuration). The daemon commands arrive with
-#1063; this file grows rather than forks.
+Exit codes are for scripts and timers: usually 0 for "yes" or "done", 1 for
+"no" or "something waits for a human", 2 for "the question could not be asked"
+(no gh, unusable configuration). `run` adds 3 ("another daemon holds this state
+directory") and 4 ("the configuration refuses everything"); see its own help.
 """
 
 import argparse
 import json
+import os
+import shutil
 import sys
 from datetime import datetime, timezone
 
@@ -24,7 +27,7 @@ from . import config as config_module
 from . import gh
 from .scheduler import Scheduler
 from .runner import Runner, StartError
-from .store import human_age
+from .store import Store, human_age
 
 
 def _load(args):
@@ -448,6 +451,256 @@ def cmd_watch_reviews(args):
     return 1 if waiting else 0
 
 
+# ---------------------------------------------------------------------------
+# the loop and its controls (#1063)
+
+def cmd_run(args):
+    """The supervisor loop: plan, follow CI, follow review feedback, sleep.
+
+    This is what systemd starts and what a human runs to watch one tick. The
+    exit codes are the timer's contract, continued from the watchers: 0 nothing
+    waits, 1 something needs a human, 3 another daemon holds this state
+    directory, 4 the configuration refuses everything.
+    """
+    from .daemon import Daemon, setup_logging
+    cfg = _load(args)
+    if args.json and not args.once:
+        print("--json belongs to --once: a stream of JSON documents is not JSON",
+              file=sys.stderr)
+        return 2
+    # Foreground means stderr too: under systemd that is how the journal gets
+    # its copy, and beside the rotated file it costs nothing.
+    daemon = Daemon(cfg, log=setup_logging(cfg, foreground=True))
+    code = daemon.run(once=args.once, dry_run=args.dry_run)
+    if args.json and daemon.last_report is not None:
+        print(json.dumps(daemon.last_report, indent=2, default=str))
+    return code
+
+
+def cmd_daemon(args):
+    """Start, stop, pause, resume or read the background supervisor."""
+    from . import daemon as daemon_module
+    cfg = _load(args)
+    action = args.daemon_action
+    if action == "start":
+        if not cfg.ok:
+            for problem in cfg.problems:
+                print(f"config: {problem}", file=sys.stderr)
+            return 4
+        outcome = daemon_module.spawn(cfg)
+        if outcome.get("started"):
+            print(f"supervisor started detached: pid {outcome['pid']}, log "
+                  f"{outcome['log']}")
+            return 0
+        print(f"not started: {outcome['reason']}", file=sys.stderr)
+        return 1
+    if action == "stop":
+        outcome = daemon_module.stop(cfg, timeout_s=args.timeout)
+        if outcome.get("stopped"):
+            print(f"supervisor stopped ({outcome['reason']}); any worker it was "
+                  "watching keeps running and the next start adopts it")
+            return 0
+        print(f"not stopped: {outcome['reason']}", file=sys.stderr)
+        return 1
+    if action == "pause":
+        payload = daemon_module.pause(cfg, args.reason)
+        Store.for_config(cfg).event("daemon-paused", args.reason)
+        print("supervisor paused: watchers and starts are report-only now, and "
+              "stay so across a restart until `daemon resume`")
+        print(f"  reason: {payload['reason']}")
+        return 0
+    if action == "resume":
+        if not daemon_module.resume(cfg):
+            print("nothing was paused")
+            return 0
+        Store.for_config(cfg).event("daemon-resumed", "watchers and starts are active again")
+        print("supervisor resumed: the next tick acts again")
+        return 0
+    info = daemon_module.status(cfg)
+    if args.json:
+        print(json.dumps(info, indent=2, default=str))
+    else:
+        print(f"daemon: {'running' if info['running'] else 'not running'}"
+              + (f", pid {info['pid']}" if info.get("pid") else ""))
+        print(f"state: {info['state_dir']}, log {info['log']}")
+        if info["paused"]:
+            print(f"paused: {(info['paused'] or {}).get('reason', '')}")
+        unit = info["systemd"]
+        print(f"systemd unit: {'installed' if unit['installed'] else 'not installed'}"
+              f", {unit['active']}"
+              + (f" (shipped at {unit['shipped_at']})" if unit.get("shipped_at") else ""))
+        print(f"config: {info['config']}"
+              + ("" if info["config_ok"] else " - refusing: " + "; ".join(info["problems"])))
+    return 0 if info["running"] and info["config_ok"] else 1
+
+
+def cmd_start(args):
+    """Run the tick's whole path for exactly one issue the operator named.
+
+    The gate first, then the board, then the host's capacity - the same order
+    every tick keeps. What is skipped is the slot arithmetic: naming one issue
+    is the operator making that decision by hand.
+    """
+    cfg = _load(args)
+    if not cfg.ok:
+        for problem in cfg.problems:
+            print(f"config: {problem}", file=sys.stderr)
+        return 2
+    runner = Runner(cfg)
+    runner.reconcile()  # the same precondition `plan --start` insists on
+    scheduler = Scheduler(cfg, runner=runner)
+    report = scheduler.start_one(args.issue, plan_only=args.plan)
+    if args.json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        _print_report(report, plan_only=args.plan)
+    if report["errors"]:
+        return 2
+    if report["started"] or (args.plan and report["planned"]):
+        return 0
+    return 1
+
+
+def cmd_stop(args):
+    """Stop one issue's worker and tear down the stack its lease recorded.
+
+    The difference from `pause` is the Compose project: `pause` leaves the job's
+    stack standing because a resume may want it back; `stop` takes the whole job
+    down. The branch, the worktree, the claim and the logs stay either way.
+    """
+    cfg, runner = _runner(args)
+    if runner is None:
+        return 2
+    lease = runner.store.lease(args.issue)
+    if not lease:
+        print(f"#{args.issue} has no lease here - nothing to stop", file=sys.stderr)
+        return 1
+    project = lease.get("project") or ""
+    outcome = runner.pause(args.issue, args.reason or "stopped by an operator")
+    print(f"#{args.issue} stopped"
+          + (" (had to be killed)" if outcome.get("forced") else ""))
+    if not project:
+        print("no Compose project was recorded, so there is no stack to tear down")
+        return 0
+    try:
+        runner.cleanup_stack(args.issue, project, volumes=not args.keep_volumes)
+    except StartError as exc:
+        print(f"stack {project} was NOT torn down: {exc}", file=sys.stderr)
+        return 1
+    print(f"{project} torn down" + ("" if not args.keep_volumes else " (volumes kept)"))
+    return 0
+
+
+def cmd_retry(args):
+    """Forget an issue's failed attempts so the next tick may try it again."""
+    cfg = _load(args)
+    if not cfg.ok:
+        for problem in cfg.problems:
+            print(f"config: {problem}", file=sys.stderr)
+        return 2
+    Store.for_config(cfg).reset_attempts(args.issue)
+    decision = approvals.explain(cfg, args.issue)
+    print(decision.line())
+    print(f"#{args.issue}: backoff cleared - the next tick will try it again"
+          if decision.eligible else
+          f"#{args.issue}: backoff cleared, but the gate still refuses - "
+          "the reason above has to change first")
+    return 0 if decision.eligible else 1
+
+
+def cmd_metrics(args):
+    """What the supervisor has run, waited for and cost - host numbers included."""
+    from . import metrics as metrics_module
+    cfg = _load(args)
+    report = metrics_module.collect(cfg)
+    print(metrics_module.as_json(report) if args.json else metrics_module.as_text(report))
+    return 0
+
+
+def cmd_doctor(args):
+    """The readiness check a fresh host runs first: every precondition answered
+    with what was actually found, and never with a guess.
+
+    Failing checks are things that stop the supervisor from working at all;
+    warnings are postures an operator chose but should see every time.
+    """
+    cfg = _load(args)
+    rows = []
+
+    def report(name, ok, detail, warn=False):
+        rows.append((name, "ok" if ok else ("warn" if warn else "fail"), detail))
+
+    report("config", cfg.ok,
+           f"{cfg.path}: " + ("; ".join(cfg.problems) if cfg.problems else "usable"))
+    for warning in cfg.warnings:
+        rows.append(("config note", "warn", warning))
+    who = gh.whoami()
+    if who:
+        report("gh authentication", True, f"logged in as {who}")
+        if who.lower() in [str(x).lower() for x in cfg.authorized_humans]:
+            rows.append(("account roles", "warn",
+                         f"{who} is both reading the approvals and the account the "
+                         "supervisor acts as; the gate may read an approval as "
+                         "self-approval - see allow_same_account"))
+    else:
+        report("gh authentication", False,
+               "gh cannot be asked - is it installed and `gh auth login`-ed?")
+    if cfg.ok and who:
+        for label in (cfg.data["approved_label"], cfg.data["paused_label"]):
+            exists = False
+            why = ""
+            try:
+                exists = gh.label_exists(cfg.repo, label)
+            except gh.GhError as exc:
+                why = str(exc)
+            report(f"label '{label}'", exists,
+                   "present" if exists else f"missing - create it with `labels --create` {why}")
+    binary = cfg.data.get("opencode_command") or "opencode"
+    found = shutil.which(binary)
+    report("opencode binary", bool(found),
+           f"{binary}: {found or 'not on PATH - workers cannot be started'}")
+    try:
+        probe = Store.for_config(cfg)
+        probe.event("doctor", "state directory writable", issue=None)
+        report("state directory", True, f"{cfg.state_dir} holds the SQLite file")
+    except OSError as exc:
+        report("state directory", False, f"{cfg.state_dir}: {exc}")
+    from .daemon import paths as daemon_paths
+    log_path = daemon_paths(cfg)["log"]
+    if os.path.exists(log_path):
+        mode = oct(os.stat(log_path).st_mode & 0o777)
+        world = ", readable by others - 0600 is the promise" if mode[-1] != "0" else ""
+        report("log file", True, f"{log_path} (mode {mode}{world})")
+    else:
+        report("log file", True, f"{log_path} not written yet (created on first run)")
+    wip = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "wip")
+    report("claim board tool", os.access(wip, os.X_OK), wip)
+    if cfg.repo_root:
+        present = os.path.isdir(cfg.repo_root)
+        report("repo_root", present,
+               f"{cfg.repo_root} exists" if present else
+               f"{cfg.repo_root} is missing - worktrees cannot be branched")
+    from .capacity import Capacity
+    verdict = Capacity(cfg).evaluate()
+    report("capacity gate", verdict["verdict"] != "unknown",
+           f"{verdict['verdict']}: {verdict['explanation']}", warn=True)
+    from . import daemon as daemon_module
+    info = daemon_module.status(cfg)
+    if info["running"]:
+        rows.append(("daemon", "ok", f"running, pid {info.get('pid') or '?'}"))
+    else:
+        rows.append(("daemon", "warn",
+                     "not running - `daemon start`, or the systemd unit under "
+                     f"{info['systemd']['shipped_at']}"))
+    if info["paused"]:
+        rows.append(("daemon", "warn", f"paused: {(info['paused'] or {}).get('reason', '')}"))
+    fails = [one for one in rows if one[1] == "fail"]
+    for name, state, detail in rows:
+        print(f"  {state:4s} {name}: {detail}")
+    print(f"{len(rows) - len(fails)} check(s) passed, {len(fails)} failing")
+    return 1 if fails else 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agent_supervisor",
@@ -549,6 +802,70 @@ def build_parser():
                    help="report what would happen, resume and ask nobody")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_watch_reviews)
+
+    p = sub.add_parser("run", help="the supervisor loop: plan, follow CI, follow review "
+                                   "feedback, sleep, repeat - until a TERM arrives")
+    p.add_argument("--once", action="store_true",
+                   help="one tick and exit; what a timer without a resident process runs")
+    p.add_argument("--dry-run", action="store_true",
+                   help="every stage reads and reports and nothing is written anywhere")
+    p.add_argument("--json", action="store_true",
+                   help="with --once: the tick report as exactly one JSON document")
+    p.set_defaults(func=cmd_run)
+
+    p = sub.add_parser("daemon", help="control the background supervisor of this state "
+                                      "directory: one daemon at a time, workers survive "
+                                      "every stop")
+    dsub = p.add_subparsers(dest="daemon_action", required=True)
+    d = dsub.add_parser("start", help="start `run` detached, for a host without systemd")
+    d.set_defaults(func=cmd_daemon)
+    d = dsub.add_parser("stop", help="ask the daemon to finish its tick and leave; "
+                                     "running workers are left alone on purpose")
+    d.add_argument("--timeout", type=float, default=120.0,
+                   help="how long to wait for the current tick to finish")
+    d.set_defaults(func=cmd_daemon)
+    d = dsub.add_parser("pause", help="every watcher and every start becomes report-only, "
+                                      "until resume - and across a restart")
+    d.add_argument("--reason", default="operator paused the supervisor")
+    d.set_defaults(func=cmd_daemon)
+    d = dsub.add_parser("resume", help="undo daemon pause")
+    d.set_defaults(func=cmd_daemon)
+    d = dsub.add_parser("status", help="is it running, is it paused, is it under systemd, "
+                                       "is the config usable")
+    d.add_argument("--json", action="store_true")
+    d.set_defaults(func=cmd_daemon)
+
+    p = sub.add_parser("start", help="run the tick's whole path for one issue the operator "
+                                     "names: gate, board, capacity, lease, runner")
+    p.add_argument("issue", type=int)
+    p.add_argument("--plan", action="store_true",
+                   help="walk the path and lease, but start no process")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_start)
+
+    p = sub.add_parser("stop",
+                       help="stop one issue's worker and tear down the Compose stack its "
+                            "lease recorded; branch, worktree, claim and logs stay")
+    p.add_argument("issue", type=int)
+    p.add_argument("--reason", default="", help="what the board should say why it stopped")
+    p.add_argument("--keep-volumes", action="store_true",
+                   help="remove the containers and network but keep the volumes")
+    p.set_defaults(func=cmd_stop)
+
+    p = sub.add_parser("retry", help="forget an issue's failed attempts and backoff, so "
+                                     "the next tick may try it again")
+    p.add_argument("issue", type=int)
+    p.set_defaults(func=cmd_retry)
+
+    p = sub.add_parser("metrics", help="queue wait, active slots, run durations, PR CI "
+                                       "findings, retries, host and OOM numbers, leftovers")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("doctor", help="the readiness check a fresh host starts with: "
+                                      "config, gh, labels, OpenCode, state directory, "
+                                      "capacity gate, daemon")
+    p.set_defaults(func=cmd_doctor)
     return parser
 
 

@@ -37,42 +37,19 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
   scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
   the host capacity gate described under "Check host capacity before starting another stack".
-  `scripts/agent_supervisor` (command: `scripts/agent-supervisor`) is the OpenCode agent supervisor
-  described in `docs/source/development/agent-supervisor.rst`; its approval gate decides which
-  issue an agent may start, its scheduler decides which of those to start next against this very
-  claim board and `scripts/agent_capacity`, its runner starts that one worker in its own worktree,
-  process group and Compose project and stops it again, `watch-prs` follows the CI of the pull
-  requests those workers opened, and `watch-reviews` answers the human review feedback on them.
-  `run` ties those to a timer — in the foreground, detached by `daemon start`, or under
-  `scripts/systemd/mrmap-agent-supervisor.service`, which is a **user** unit on purpose because the
-  workers inherit the operator's `gh` and OpenCode authentication and starting agents must not be a
-  root privilege. One daemon holds one state directory through `flock` (a second one exits `3`, so a
-  double enablement cannot schedule an issue twice); stopping it never signals a worker — the current
-  tick finishes, running workers keep going and the next start adopts them through `reconcile`,
-  which is why the unit ships `KillMode=process`. `daemon pause` makes every watcher and every start
-  report-only until `resume`, and it survives a restart because the pause is a marker file rather
-  than a signal; `start <issue>` and `stop <issue>` are the tick's whole path for one issue an
-  operator named, `metrics`
-  reports the operational numbers as measured or as unknown but never as zero, and `doctor` answers
-  every precondition of a fresh host from the host itself.
-  The CI watcher resumes the same session for a failure that names a test, a lint rule or a build
-  — once per head SHA, within `ci_repair_attempts` — and hands everything else to a human through
-  `scripts/wip ask`. The review watcher acts on feedback only from an account that may direct it
-  — the operator's allowlist or a trusted repository role, never a bot — answers each item once
-  from a ledger keyed by GitHub's own ids, and turns any ask for an act an agent may not do
-  (approve, merge, resolve threads, rewrite an open branch, change branch protection or CI,
-  grant access, commit a secret) into a question on the issue instead of a try. A thread a human
-  raised stays open: the worker replies underneath it, `gh api *threads*` is on the deny list and
-  there is no resolve call to find. Seven offline checks cover the supervisor (`python3
-  scripts/test_agent_supervisor_approvals.py`, `..._scheduler.py`, `..._capacity.py`,
-  `..._runner.py`, `..._ci.py`, `..._reviews.py` and `..._daemon.py`; each needs neither `gh` nor the
-  network nor a container, and none of them can write to a repository). The supervisor never
-  claims an issue from its own checkout — the runner files `scripts/wip claim` from inside the
-  worker's own worktree, which is
-  the only way that claim's heartbeat can be refreshed. What a worker must never do (merge,
-  review, force push) is handed to it as deny permissions, not as prompt wording, and that applies
-  to a resumed worker as much as to a started one. An agent never applies
-  `agent: approved` itself — a human does.
+  An orchestrator that already tracks its own jobs asks the gate with `--stacks` and
+  `--processes`, so the count that decides is the count of jobs it actually runs.
+  Nothing in this repository starts, schedules or supervises an agent: development
+  orchestration is external, done by Agent Orchestrator (AO), whose worker sessions run
+  against a checkout of this repository the way a human's session does. The in-repository
+  supervisor that did this before the migration is retired and removed (#1052 retired by
+  #1102); do not bring back a scheduler, a daemon, a systemd unit or a CI watcher here.
+  What the migration leaves untouched is who holds the authority: only a person applies
+  `agent: approved` to an issue, only a person reviews a pull request and decides its
+  merge, and a thread a human raised stays open until that human resolves it. An agent
+  asked for an act it may not do (approve, merge, resolve threads, rewrite an open branch,
+  change branch protection or CI, grant access, commit a secret) hands that ask to a
+  person as a question on the issue through `scripts/wip ask` instead of trying it.
 
 ## Authoritative sources
 

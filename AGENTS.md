@@ -50,6 +50,10 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   asked for an act it may not do (approve, merge, resolve threads, rewrite an open branch,
   change branch protection or CI, grant access, commit a secret) hands that ask to a
   person as a question on the issue through `scripts/wip ask` instead of trying it.
+  `scripts/nginx_routing_smoke.py` asserts which URLs the nginx of the frontend answers with the
+  SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
+  of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
+  with a proxied prefix belongs in its table, which is how #1036 would have been caught.
 
 ## Authoritative sources
 

@@ -414,7 +414,8 @@ def alert_records(services: list) -> dict:
     }
 
 
-def alerts_requested(request, resource: str, attributes: tuple) -> bool:
+def alerts_requested(request, resource: str, attributes: tuple,
+                     list_view: bool = False) -> bool:
     """Whether a request wants, filters or sorts the alerts of a service.
 
     The alerts of a service are answered by a subquery per attribute, so they are
@@ -426,6 +427,9 @@ def alerts_requested(request, resource: str, attributes: tuple) -> bool:
         request: the request which is answered
         resource (str): name of the resource the request answers
         attributes (tuple): the names of the attributes which answer the alerts
+        list_view (bool): whether the request answers a list of the resource;
+            a list without sparse fields shows nothing of its attributes, while
+            a detail answer without them answers all of them
 
     Returns:
         bool: True if the alerts have to be annotated to answer the request
@@ -444,7 +448,12 @@ def alerts_requested(request, resource: str, attributes: tuple) -> bool:
     sparse_fields = [
         field.strip() for field in request.GET.get(
             f'fields[{resource}]', '').split(',') if field.strip()]
-    return not sparse_fields or any(name in sparse_fields for name in names)
+    if not sparse_fields:
+        # only the detail of a resource answers the attributes nobody named;
+        # the list of a resource shows what it names, and a list which names
+        # nothing of the alerts does not want the subqueries behind them
+        return not list_view
+    return any(name in sparse_fields for name in names)
 
 
 # Cross-service projections deliberately reuse the annotations above. No alert

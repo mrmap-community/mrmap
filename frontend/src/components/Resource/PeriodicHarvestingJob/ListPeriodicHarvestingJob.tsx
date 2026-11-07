@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   FunctionField,
   TextField,
@@ -171,11 +171,7 @@ const ListPeriodicHarvestingJob = (): ReactNode => {
           label="resources.PeriodicHarvestingJob.fields.totalRunCount"
         />,
       ]}
-      additionalActions={
-        <Fragment>
-          <ScheduleRowActions />
-        </Fragment>
-      }
+      additionalActions={<ScheduleRowActions />}
       empty={<EmptyList />}
       {...relatedProps}
     />

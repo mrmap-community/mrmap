@@ -57,20 +57,26 @@ const ScheduleAttentionCounts = () => {
       <Typography variant="subtitle2">
         {translate("harvestingSchedules.attentionTitle")}
       </Typography>
-      {counts.map(({ category, total, color, icon }) => (
-        <Button
-          key={category}
-          component={Link}
-          size="small"
-          color={color}
-          startIcon={icon}
-          to={`${createPath({ resource: "ServiceAlert", type: "list" })}?filter=${encodeURIComponent(
-            JSON.stringify({ category, serviceType: "CatalogueService" }),
-          )}`}
-        >
-          {`${translate(`serviceAlerts.categories.${category}`)} ${total}`}
-        </Button>
-      ))}
+      {counts.map(({ category, total, color, icon }) => {
+        const categoryKey = "serviceAlerts.categories." + category;
+        const label = `${translate(categoryKey)} ${total}`;
+        const filter = encodeURIComponent(
+          JSON.stringify({ category, serviceType: "CatalogueService" }),
+        );
+        const alertsList = createPath({ resource: "ServiceAlert", type: "list" });
+        return (
+          <Button
+            key={category}
+            component={Link}
+            size="small"
+            color={color}
+            startIcon={icon}
+            to={`${alertsList}?filter=${filter}`}
+          >
+            {label}
+          </Button>
+        );
+      })}
     </Stack>
   );
 };

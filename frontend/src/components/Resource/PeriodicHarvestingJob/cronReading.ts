@@ -49,7 +49,7 @@ const numbers = (
   minimum: number,
   maximum: number,
 ): number[] | undefined => {
-  const values = field.split(",").map((part) => Number(part));
+  const values = field.split(",").map(Number);
   if (
     field.length === 0 ||
     values.some(
@@ -92,29 +92,21 @@ const MONTH = [1, 12] as const;
 const WEEKDAY = [0, 6] as const;
 
 /**
- * The rhythm a crontab expression schedules, or nothing for an expression this
- * reading does not know.
- *
- * @param expression the crontab as the api answers it
+ * The rhythms a step or a `*` answers, which all demand that the rest of the
+ * expression lets everything through.
  */
-export const readCron = (
-  expression?: string | null,
+const stepRhythm = (
+  minute: string,
+  hour: string,
+  everyRest: boolean,
 ): CronReading | undefined => {
-  const fields = (expression ?? "").trim().split(/\s+/);
-  if (fields.length !== FIELD_COUNT) return undefined;
-  const [minute, hour, dayOfMonth, month, weekday] = fields;
-  const rest = [dayOfMonth, month, weekday];
-  const everyRest = rest.every(isEvery);
-
-  if (isEvery(minute) && isEvery(hour) && everyRest) {
-    return { key: "everyMinute" };
-  }
+  if (!everyRest) return undefined;
+  if (isEvery(minute) && isEvery(hour)) return { key: "everyMinute" };
   const minuteStep = step(minute);
   if (
     minuteStep !== undefined &&
     minuteStep <= MINUTE[1] &&
-    isEvery(hour) &&
-    everyRest
+    isEvery(hour)
   ) {
     return { key: "everyNMinutes", every: minuteStep };
   }
@@ -123,8 +115,7 @@ export const readCron = (
   if (
     hourStep !== undefined &&
     hourStep <= HOUR[1] &&
-    minuteOfStep !== undefined &&
-    everyRest
+    minuteOfStep !== undefined
   ) {
     return {
       key: "everyNHours",
@@ -133,13 +124,29 @@ export const readCron = (
     };
   }
   const minuteOfHour = single(minute, ...MINUTE);
-  if (minuteOfHour !== undefined && isEvery(hour) && everyRest) {
+  if (minuteOfHour !== undefined && isEvery(hour)) {
     return { key: "hourly", minute: minuteOfHour };
   }
+  return undefined;
+};
+
+/**
+ * The rhythms which name a moment of the day and say on which days: every day,
+ * the named weekdays, the day of the month, or the day of one month.
+ */
+const calendarRhythm = (
+  minute: string,
+  hour: string,
+  dayOfMonth: string,
+  month: string,
+  weekday: string,
+): CronReading | undefined => {
+  const minuteOfHour = single(minute, ...MINUTE);
   const hourOfDay = single(hour, ...HOUR);
   if (minuteOfHour === undefined || hourOfDay === undefined) return undefined;
   const time = timeOfDay(minuteOfHour, hourOfDay);
 
+  const everyRest = [dayOfMonth, month, weekday].every(isEvery);
   if (everyRest) return { key: "daily", time };
   const weekdays = numbers(weekday, ...WEEKDAY);
   if (isEvery(dayOfMonth) && isEvery(month) && weekdays !== undefined) {
@@ -153,6 +160,25 @@ export const readCron = (
     return { key: "yearly", dayOfMonth: day, month: monthOfYear, time };
   }
   return undefined;
+};
+
+/**
+ * The rhythm a crontab expression schedules, or nothing for an expression this
+ * reading does not know.
+ *
+ * @param expression the crontab as the api answers it
+ */
+export const readCron = (
+  expression?: string | null,
+): CronReading | undefined => {
+  const fields = (expression ?? "").trim().split(/\s+/);
+  if (fields.length !== FIELD_COUNT) return undefined;
+  const [minute, hour, dayOfMonth, month, weekday] = fields;
+  const everyRest = [dayOfMonth, month, weekday].every(isEvery);
+  return (
+    stepRhythm(minute, hour, everyRest) ??
+    calendarRhythm(minute, hour, dayOfMonth, month, weekday)
+  );
 };
 
 export default readCron;

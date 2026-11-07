@@ -26,7 +26,8 @@ from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
 from registry.exceptions.service import CapabilitiesBackupMissing
-from registry.ows_lib.client.exceptions import InitialError
+from registry.ows_lib.client.exceptions import (InitialError,
+                                                RedirectChainError)
 from requests.exceptions import RequestException
 
 logger = get_task_logger(__name__)
@@ -763,7 +764,12 @@ def call_fetch_total_records(*args, **kwargs):
             harvesting_job.handle_total_records_defined(recovering=recovering)
             harvesting_job.save(skip_history_when_saving=False)
             return harvesting_job.total_records
-    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError):
+    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError,
+            RedirectChainError):
+        # the redirect chain of the endpoint is as explained as the remote errors above: its
+        # own error names the URL asked and the target it stopped at, so the report below of
+        # a something-which-went-wrong would read like a crash of MrMap instead of a
+        # catalogue which does not answer (#1100, read together with #1088)
         raise
     except Exception:
         from registry.enums.harvesting import LogLevelEnum

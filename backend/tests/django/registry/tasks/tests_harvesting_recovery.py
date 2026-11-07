@@ -17,7 +17,8 @@ from registry.models.harvest import (HarvestingJob, HarvestingJobTaskId,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
 from registry.models.metadata import MetadataContact
-from registry.ows_lib.client.exceptions import InitialError
+from registry.ows_lib.client.exceptions import (InitialError,
+                                                RedirectChainError)
 from registry.querys.harvest_history import complete_harvest
 from registry.serializers.harvesting import HarvestingJobSerializer
 from requests.exceptions import (ChunkedEncodingError, ConnectionError,
@@ -278,6 +279,21 @@ class HarvestingRecoveryTest(TestCase):
         self.assertIsNone(self.job.total_records)
         self.assertIsNone(self.job.done_at)
 
+    def test_a_redirect_chain_of_the_count_is_no_generic_crash_report(self):
+        """the count of records asks the catalogue for its own document; a redirect chain of
+        that request explains itself with the URL it asked and the target it stopped at, so it
+        must not add the generic report of a something-which-went-wrong to the run (#1100)"""
+        HarvestingJob.objects.filter(pk=self.job.pk).update(
+            phase=Phase.PENDING, total_records=None)
+        with patch.object(HarvestingJob, 'fetch_total_records', side_effect=RedirectChainError(
+                'the endpoint https://cat.example.de/csw answered 6 redirects in a row; '
+                'the last of them names https://cat.example.de/csw/login.html')):
+            with self.assertRaises(RedirectChainError):
+                call_fetch_total_records.run(harvesting_job_id=self.job.pk)
+
+        self.assertEqual(self.job.logs.count(), 0,
+                         'the abort of the run is the report of the chain, not a second one')
+
     def test_reschedule_clears_documented_error_and_publishes_once_after_commit(self):
         self.record.has_import_error = True
         self.record.import_error = 'invalid metadata'
@@ -371,6 +387,45 @@ class HarvestingRecoveryTest(TestCase):
         logged = log.extented_description.read().decode('UTF-8')
         self.assertIn('after 10 retries', logged)
         self.assertIn('Timeout: the catalogue is offline', logged)
+
+    def test_a_redirect_chain_of_the_endpoint_is_not_retried(self):
+        """a redirect chain is decided by the endpoint and answers identically on every retry,
+        so no task of the harvest may spend a retry walking it again (#1100)"""
+        for task in (call_fetch_total_records, call_fetch_records,
+                     call_md_metadata_files_to_db, finish_harvesting_job):
+            with self.subTest(task=task.name):
+                self.assertFalse(
+                    any(issubclass(RedirectChainError, retried)
+                        for retried in task.autoretry_for),
+                    f'{task.name} would retry a redirect chain')
+
+    def test_a_redirect_chain_ends_the_run_naming_the_url_and_the_target(self):
+        """the run of a catalogue which redirects back at itself gives up on its first round,
+        and what the operator reads names the URL the harvest asked and the target the chain
+        ended at - the two together are what tells a refusing provider from a looping
+        endpoint (#1100)"""
+        HarvestingJob.objects.filter(pk=self.job.pk).update(
+            phase=Phase.DOWNLOAD_RECORDS)
+        HarvestingJobTaskId.objects.create(job=self.job, task_id=uuid4())
+        call_fetch_records.push_request(retries=0)
+        self.addCleanup(call_fetch_records.pop_request)
+        error = RedirectChainError(
+            'the endpoint https://cat.example.de/csw?SERVICE=CSW answered 6 redirects in a '
+            'row; the last of them names https://cat.example.de/csw/login.html')
+
+        with patch('celery.app.control.Control.revoke'):
+            call_fetch_records.on_failure(
+                error, str(uuid4()), (), {'harvesting_job_id': self.job.pk}, None)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.phase, Phase.ABORTED)
+        log = self.job.logs.first()
+        self.assertEqual(log.kind, LogKindEnum.REMOTE_ERROR.value)
+        logged = log.extented_description.read().decode('UTF-8')
+        self.assertIn('after 0 retries', logged,
+                      'the chain ends the run without spending a retry on it')
+        self.assertIn('https://cat.example.de/csw?SERVICE=CSW', logged)
+        self.assertIn('https://cat.example.de/csw/login.html', logged)
 
     def test_a_late_failure_does_not_rewrite_a_job_which_is_already_done(self):
         """the callback which completed the job decided about it; a task of it which reports a

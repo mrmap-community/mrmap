@@ -834,6 +834,21 @@ const en = lodashMerge(
       loadError: "Unable to load configuration.",
       readOnly: "This configuration is read-only.",
     },
+    // Human labels for filter options whose schema parameter carries no lookup
+    // expression label and no description (#945); the keys are the filter names
+    // as they appear in the `filter[...]` query parameter, with "." replaced by
+    // "_filter_lookup_". Without an entry here a filter still renders, but with
+    // the humanised field name instead (see humaniseFilterName).
+    filterFields: {
+      has_coverage: "Has geographic coverage",
+      has_insufficient_quality: "Has insufficient quality",
+      has_licence: "Has licence",
+      harvested_dataset_metadata_relation__harvesting_job: "Harvested by harvesting job",
+      bbox_lat_lon__intersects: "Bounding box intersects",
+      bbox_lat_lon__contains: "Bounding box is contained by",
+      bbox_lat_lon__covers: "Bounding box covers",
+      bbox_lat_lon__equals: "Bounding box equals",
+    },
     systemInfo: {
       "title": "System information",
       "unavailable": "System information is unavailable.",

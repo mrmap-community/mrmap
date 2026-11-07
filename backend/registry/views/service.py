@@ -51,6 +51,9 @@ from registry.serializers.service import (
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from registry.helper.preview import PreviewError, feature_preview_image, preview
+from registry.helper.monitoring_generation import (
+    COMPREHENSIVE_OPERATIONS, IMPLEMENTED_PRESETS,
+    generate_probe_preview)
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -227,9 +230,58 @@ class PreviewImageRenderer(JSONRenderer):
         return super().render(data, accepted_media_type, renderer_context)
 
 
+class ServiceMonitoringProbePreviewMixin:
+    """Read-only preview of monitoring probes generated from stored capabilities."""
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("preset", OpenApiTypes.STR, description="Generation preset 'basic' or 'standard'. 'comprehensive' is answered with an explicit 'presetNotImplemented' error; its operations are listed in that answer."),
+            OpenApiParameter("layer", OpenApiTypes.STR, many=True, description="Repeatable explicit selection of layers by identifier or layer id. Large services require selection or offset/limit paging instead of an unbounded preview."),
+            OpenApiParameter("offset", OpenApiTypes.INT, description="0-based offset into the deterministic GetMap candidate list."),
+            OpenApiParameter("limit", OpenApiTypes.INT, description="Maximum number of GetMap probes on this page, at most 100."),
+            OpenApiParameter("width", OpenApiTypes.INT, description="Proposed image width, at most 2048 pixels."),
+            OpenApiParameter("height", OpenApiTypes.INT, description="Proposed image height, at most 2048 pixels."),
+            OpenApiParameter("timeout", OpenApiTypes.INT, description="Proposed probe timeout in seconds, at most 120."),
+            OpenApiParameter("imageFormat", OpenApiTypes.STR, description="Proposed GetMap response format; must be an advertised image format. Named imageFormat because 'format' is reserved by content negotiation."),
+            OpenApiParameter("crs", OpenApiTypes.STR, description="Proposed CRS; must be advertised for the layer and serializable.")],
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT,
+                   403: OpenApiTypes.OBJECT, 422: OpenApiTypes.OBJECT,
+                   423: OpenApiTypes.OBJECT},
+        description="Preview of proposed WMS monitoring probes from the stored "
+                    "capabilities: presets basic and standard, deterministic "
+                    "candidate ordering with stable candidate identities, BBOX "
+                    "and axis order serialized per WMS version and CRS, explicit "
+                    "skip reasons for layers which do not become probes. "
+                    "Answers generatorVersion, bounds, pagination and the not "
+                    "yet implemented comprehensive operations. Writes no "
+                    "settings and executes no request against the service; "
+                    "request summaries never contain credentials.",
+    )
+    @action(detail=True, methods=["get"], url_path="monitoring-probe-preview",
+            renderer_classes=[JSONRenderer], filter_backends=[])
+    def monitoring_probe_preview(self, request, *args, **kwargs):
+        service = self.get_object()
+        # the same explicit object permission as the live preview: generating
+        # monitoring proposals requires view on the registered service
+        if not ObjectPermissionChecker(request.user).has_perm(
+                f"view_{service.__class__.__name__.lower()}", service):
+            raise PermissionDenied
+        try:
+            result = generate_probe_preview(service, request.query_params)
+            return JsonResponse(result, headers={"Cache-Control": "no-store"})
+        except PreviewError as error:
+            payload = {"error": error.code}
+            if error.code == "presetNotImplemented":
+                payload["implementedPresets"] = list(IMPLEMENTED_PRESETS)
+                payload["operations"] = list(COMPREHENSIVE_OPERATIONS)
+            return JsonResponse(payload, status=error.status,
+                                headers={"Cache-Control": "no-store"})
+
+
 @extend_schema_view(preview=extend_schema(operation_id="preview_WebMapService"))
 class WebMapServiceViewSet(
     ServicePreviewMixin,
+    ServiceMonitoringProbePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
     SerializerClassesMixin,

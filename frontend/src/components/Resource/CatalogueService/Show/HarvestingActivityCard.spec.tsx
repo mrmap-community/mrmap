@@ -44,7 +44,7 @@ describe("harvesting activity", () => {
   it("requests current processing fields independently of saved table preferences", () => {
     render(<HarvestingActivityCard />);
     const props = vi.mocked(ListGuesser).mock.calls.at(-1)?.[0];
-    expect(props?.sort).toEqual({ field: "dateCreated", order: "DESC" });
+    expect(props?.sort).toEqual({ field: "doneAt", order: "DESC" });
     expect(props?.refetchInterval).toBe(5000);
     expect(props?.queryOptions?.meta).toMatchObject({
       jsonApiParams: {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useListContext } from 'react-admin';
+import { useListContext, useTranslate } from 'react-admin';
 
 import { useTheme } from '@mui/material/styles';
 import { AllSeriesType, ChartsContainerProps } from '@mui/x-charts';
@@ -25,6 +25,7 @@ const HarvestingDailyStatsCore = (
   const { data } = useListContext();
 
   const theme = useTheme();
+  const translate = useTranslate();
 
   const monthlyStats = useMemo(()=>{
     if (!data || data.length === 0) return [];
@@ -70,31 +71,18 @@ const HarvestingDailyStatsCore = (
   },[data])
 
   const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
-    const newDataSeries: number[] = []
-    const deletedDataSeries: number[] = []
-    const updatedDataSeries: number[] = []
-    const existedDataSeries: number[] = []
-
     const dailyTotal: number[] = []
-    
+
     const series = [
-      { type: 'line' as const, data: dailyTotal, label: 'Records', connectNulls: true, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
-      //{ type: 'line' as const, data: newDataSeries, label:'new' ,},
-      //{ type: 'line' as const, data: deletedDataSeries, label:'deleted'},
-      //{ type: 'line' as const, data: updatedDataSeries, label:'updated'},
-      //{ type: 'line' as const, data: existedDataSeries, label:'existed'},
+      { type: 'line' as const, data: dailyTotal, label: translate('harvestingStats.records'), connectNulls: true, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
     ]
-  
+
     monthlyStats?.forEach(data => {
       dailyTotal.push(data.total ?? 0)
-      newDataSeries.push(data.new ?? 0)
-      deletedDataSeries.push(data.deleted ?? 0)
-      updatedDataSeries.push(data.updated ?? 0)
-      existedDataSeries.push(data.existed ?? 0)
     })
 
     return series
-  }, [monthlyStats])
+  }, [monthlyStats, theme, translate])
 
 
   const xAxis = useMemo(()=>(
@@ -104,9 +92,9 @@ const HarvestingDailyStatsCore = (
       id: 'x-axis-id',
       height: 45,
       yAxisId: 'y-axis-id',
-      label: 'Day',
+      label: translate('harvestingStats.day'),
     }]
-  ),[monthlyStats])
+  ),[monthlyStats, translate])
   
   return (
     <GradientChartsContainer
@@ -116,7 +104,7 @@ const HarvestingDailyStatsCore = (
           id: 'y-axis-id',
           scaleType: 'linear',
           position: 'left',
-          label: 'Records'
+          label: translate('harvestingStats.records')
         }]}
       {...props}
     />

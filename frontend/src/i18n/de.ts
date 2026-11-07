@@ -4,6 +4,15 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   cronInput: {
     openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
     minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
+    editorTitle: "Cron-Ausdruck bearbeiten",
+    minute: "Minute",
+    hour: "Stunde",
+    dayOfMonth: "Monatstag",
+    month: "Monat",
+    weekday: "Wochentag (0=So)",
+    every: "* (alle)",
+    preview: "Vorschau / manuelle Eingabe",
+    apply: "Anwenden",
   },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
@@ -353,6 +362,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "services": "Dienste",
     "unhandled": "Unverarbeitete Einträge",
     "errors": "Importfehler",
+    "importStalled": "Der Import dieses Laufs steht still seit",
     "viewLogs": "Protokoll anzeigen",
     "overview": "Übersicht",
     "configuration": "Konfiguration",
@@ -412,6 +422,10 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     disabledMessage: "Die Zeitpläne sind deaktiviert. Aktivieren Sie einen Zeitplan für die automatische Datenübernahme.",
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
+  },
+  harvestingStats: {
+    records: "Datensätze",
+    day: "Tag",
   },
   harvestThroughput: {
     basis: "Gemessen an den %{count} abgeschlossenen Datenübernahmen dieses Katalogs:",
@@ -555,6 +569,75 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         occurredAt: "Zeitpunkt",
       },
     },
+    // The changelog labels lived in a `resources` block nested under `ra`, where
+    // no translation lookup ever reached them; they live here now (#1085).
+    ChangeLog: {
+      historyDate: "Zeitstempel",
+      historyUser: "Nutzer",
+      historyType: "Aktion",
+      historyRelation: "Objekt",
+      lastChanges: "Letzte Änderungen",
+    },
+    CatalogueService: {
+      singular: "Katalogdienst",
+      plural: "Katalogdienste",
+      listSubheader: "Registrierte Katalogdienste (CSW) verwalten",
+    },
+    CatalogueServiceMonitoringSetting: {
+      singular: "Monitoringeinstellung des Katalogdiensts",
+      plural: "Monitoringeinstellungen der Katalogdienste",
+    },
+    HarvestingJob: {
+      singular: "Datenübernahme",
+      plural: "Datenübernahmen",
+      listSubheader: "Läufe, die die Kataloge übernommen haben, laufende und beendete",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Gestartet",
+        doneAt: "Beendet",
+        phase: "Phase",
+        phaseLabel: "Status",
+        progress: "Fortschritt",
+        totalRecords: "Datensätze",
+        unhandledRecordsCount: "Warten auf Import",
+        importErrorCount: "Importfehler",
+        maxStepSize: "Schrittgröße",
+        recordsPerMinute: "Datensätze pro Minute",
+      },
+    },
+    PeriodicHarvestingJob: {
+      singular: "Zeitplan für Datenübernahme",
+      plural: "Zeitpläne für Datenübernahme",
+      listSubheader: "Zeitpläne, die festlegen, wann welcher Katalog übernommen wird",
+      fields: {
+        service: "Katalog",
+        enabled: "Aktiviert",
+        scheduling: "Zeitplan",
+        timeUntilNextRun: "Zeit bis zum nächsten Lauf",
+      },
+    },
+    HarvestingLog: {
+      singular: "Protokolleintrag der Datenübernahme",
+      plural: "Protokolleinträge der Datenübernahme",
+      listSubheader: "Was die Läufe bei der Datenübernahme gemeldet haben",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        timestamp: "Zeit",
+        level: "Stufe",
+        kind: "Art",
+        description: "Beschreibung",
+      },
+    },
+    TemporaryMdMetadataFile: {
+      singular: "Heruntergeladene Metadatendatei",
+      plural: "Heruntergeladene Metadatendateien",
+      fields: {
+        job: "Datenübernahme",
+        reSchedule: "Neu eingeplant",
+        hasImportError: "Hat Importfehler",
+        importError: "Importfehler",
+      },
+    },
     CatalogueServiceUpdateJob: {
       name: "Katalog-Aktualisierungen",
       singular: "Aktualisierungslauf eines Katalogdiensts",
@@ -564,7 +647,39 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       updateCandidate: "Aktualisierungskandidat",
       notEndedMessage: "Diese Aktualisierung ist noch nicht beendet. Ihr Ergebnis steht noch nicht fest.",
       reviewRequiredMessage: "Diese Aktualisierung wartet auf eine Entscheidung über sie. Was der Katalog meldet, wird erst mit dieser Entscheidung übernommen.",
+      listSubheader: "Aktualisierungsaufträge der registrierten Katalogdienste",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Erstellt",
+        doneAt: "Abgeschlossen",
+        statusCode: "Statuscode",
+      },
     },
+    HarvestedMetadataRelation: {
+      singular: "Übernommener Metadatensatz",
+      plural: "Übernommene Metadatensätze",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        datasetMetadataRecord: "Datensatz",
+        serviceMetadataRecord: "Dienst",
+        applicationMetadataRecord: "Anwendung",
+        collectingState: "Sammlungsstatus",
+        downloadDuration: "Download-Dauer",
+      },
+    },
+    BackgroundProcess: {
+      titles: {
+        registering: "Neuen Dienst registrieren",
+        harvesting: "Datenübernahme",
+        harvestingOf: "Datenübernahme von %{id}",
+        monitoring: "Monitoring",
+        runningTask: "Laufende Aufgabe",
+      },
+      states: {
+        completed: "abgeschlossen",
+        waitingForSchedule: "wartet auf den Zeitplan",
+      },
+      stepsDone: "%{done} von %{total} Schritten abgeschlossen.",    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",
@@ -1086,15 +1201,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         secondaryText: "Sekundärtext",
         tertiaryText: "Tertiärtext"
       },
-    },
-    resources: {
-      ChangeLog: {
-        historyDate: "Zeitstempel",
-        historyUser: "Nutzer",
-        historyType: "Aktion",
-        historyRelation: "Objekt",
-        lastChanges: "Letzte Änderungen",
-      }
     }
   }
 }

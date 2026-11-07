@@ -731,6 +731,17 @@ HARVEST_IMPORT_PROGRESS_STEPS = int(
     os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_STEPS", "200"))
 HARVEST_IMPORT_PROGRESS_SECONDS = int(
     os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS", "30"))
+# The interval of the beat task which watches the harvests whose import backlog
+# does not drain, in minutes (``registry.tasks.harvest.watch_import_backlogs``).
+# The wait for an import chord is bounded by the retry budget this project hands
+# celery, and when that budget runs out the chord's callback is dropped without
+# any mrmap code being able to see it: the job stays open, its records unimported,
+# and the only trace is a line in the worker log (#1038). The watchdog asks its
+# question on this interval instead, and a backlog which stands still for one of
+# them is reported on the job itself. The beat row of the task fires on the same
+# value (see ``registry/apps.py``).
+HARVEST_IMPORT_WATCH_INTERVAL_MINUTES = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_WATCH_INTERVAL_MINUTES", "5"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True

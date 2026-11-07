@@ -4,8 +4,9 @@ from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import CharField, ForeignKey
+from django.db.models import ForeignKey, JSONField
 from lxml import etree
 from registry import models
 from registry.mappers.cache import GlobalXmlCache
@@ -29,6 +30,12 @@ def is_value_spec(entry):
     no second pass over the XML.
     """
     return isinstance(entry, dict) and entry.get("_values") is True
+
+
+# The concrete fields whose column holds a list itself. For those the list which
+# a multi-valued xpath answered IS the value; every other concrete field is
+# single valued and has to be answered by exactly one value (#990).
+MANY_VALUE_FIELDS = (JSONField, ArrayField)
 
 
 class XmlMapper:
@@ -211,22 +218,46 @@ class XmlMapper:
                         for v in values]
 
     def handle_flat_field(self, field_name, instance, xml_element, xpath_or_spec, namespaces):
-        # handle flat model fields
+        """Sets the value of one concrete field on the parsed instance.
+
+        The xpath of the config may answer any number of nodes: ISO 19139 allows
+        one resolution block per part of a dataset and catalogues repeat titles,
+        dates and denominators all over their records. A single valued field can
+        not be answered with the list of all matches - the ORM refuses the list
+        on save() and the whole record ends up in the import error ledger, which
+        is how #990 lost records of the GDI-BW catalogue. So the value the
+        document names first is kept, as it always was for a CharField, and the
+        dropped ones are named in the warnings of this mapper - which the
+        harvesting job logs next to the record it imported.
+        """
         parsed_value = self.parse_field(
             xml_element, xpath_or_spec, namespaces)
-        if parsed_value is not None:
-            # If XPath returns multiple values but the field is a CharField,
-            # use only the first match
-            if isinstance(parsed_value, list):
-                try:
-                    field = instance._meta.get_field(field_name)
-                    if isinstance(field, CharField):
-                        parsed_value = parsed_value[0] if parsed_value else None
-                except Exception:
-                    pass  # Field doesn't exist or other error, keep list as-is
+        if isinstance(parsed_value, list):
+            parsed_value = self.single_value_for_field(
+                field_name, instance, parsed_value)
 
-            if parsed_value is not None:
-                setattr(instance, field_name, parsed_value)
+        if parsed_value is not None:
+            setattr(instance, field_name, parsed_value)
+
+    def single_value_for_field(self, field_name, instance, values):
+        """The one value a field is answered with out of all its matches.
+
+        A field whose column holds a list keeps the list. Any other field is
+        answered by the first value in document order and says which of the
+        matched values were dropped; answering the list would cost the record.
+        """
+        if isinstance(instance._meta.get_field(field_name), MANY_VALUE_FIELDS):
+            return values
+        if not values:
+            return None
+
+        kept, *dropped = values
+        warning = (
+            f"Mapped {len(values)} values for the single valued field "
+            f"'{field_name}'; kept {kept!r} and dropped {dropped!r}.")
+        logging.warning(warning)
+        self.warnings.append(warning)
+        return kept
 
     def handle_flat_fields(self, instance, xml_element, spec, namespaces):
         for field_name, xpath_or_spec in self._get_flat_fields(spec).items():
@@ -457,7 +488,9 @@ class XmlMapper:
         every mapped field: the value a flat field was parsed to, the parsed
         related instances projected field by field, and the list of value
         specs (_values) as extracted. Multiple values stay lists, the order is
-        document order and the values are the ones the document carries.
+        document order and the values are the ones the document carries; a
+        single valued field answers the one value the mapper kept for it
+        (#990).
 
         This is the read side of the single forward traversal xml_to_django()
         performs - persistence reads the very same parsed instances - so an

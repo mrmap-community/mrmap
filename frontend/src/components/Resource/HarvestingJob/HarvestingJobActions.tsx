@@ -85,7 +85,7 @@ const HarvestingJobActions = () => {
       <PrevNextButtons
         linkType="show"
         limit={10}
-        sort={{ field: "dateCreated", order: "DESC" }}
+        sort={{ field: "doneAt", order: "DESC" }}
         queryOptions={{
           meta: { jsonApiParams: { "fields[HarvestingJob]": "id" } },
         }}

@@ -411,6 +411,20 @@ CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# the number of slots a celery worker process runs; docker-compose.yml hands
+# the variable of the same name from the .env of the deployment to
+# celery-worker. Unset keeps celery's own default of one slot per core;
+# "auto" lets celery size the prefork pool by the cgroup quota of the
+# container. It is the knob for a bigger worker, so that changing worker
+# concurrency never makes a deployment restate the queue list of the
+# release and thereby half-install it (#1040).
+_CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
+if _CELERY_WORKER_CONCURRENCY == "auto":
+    CELERY_WORKER_CONCURRENCY = "auto"
+elif _CELERY_WORKER_CONCURRENCY:
+    CELERY_WORKER_CONCURRENCY = int(_CELERY_WORKER_CONCURRENCY)
+else:
+    CELERY_WORKER_CONCURRENCY = None
 CELERY_TASK_QUEUES = (
     Queue(
         name=celery_queues.DEFAULT,

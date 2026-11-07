@@ -788,6 +788,49 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
         review = next(row for row in response['data'] if row['attributes']['category'] == 'update_review_required')
         self.assertIn('/WebFeatureServiceUpdateJob/', review['attributes']['targetPath'])
 
+    def test_csw_review_alert_answers_the_waiting_job(self):
+        """The review of a catalogue asks about its job, like a WMS and a WFS do
+
+        The alert of a review which waits is decided about at the job which
+        waits, and the screen of a CSW update job answers that job - the alert
+        has to name it, otherwise an administrator is led to the catalogue
+        instead of the decision which is asked for (issue #1084).
+        """
+        from registry.models.update import CatalogueServiceUpdateJob
+        job = CatalogueServiceUpdateJob.objects.create(
+            service=self.csw, status=JobState.REVIEW_REQUIRED.value)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['service'], CSW_ONE)
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueServiceUpdateJob')
+        self.assertEqual(review['attributes']['resourceId'], str(job.pk))
+        self.assertEqual(review['attributes']['targetPath'],
+                         f'/CatalogueServiceUpdateJob/{job.pk}/show')
+
+    def test_csw_review_without_a_waiting_job_asks_about_the_catalogue(self):
+        """A dangling candidate is asked about at the catalogue itself
+
+        Nothing waits at a job then, so the alert of a catalogue keeps the
+        target it has for every other category - the screen of the catalogue.
+        """
+        candidate = CatalogueService.objects.create(
+            title='Candidate', service_url=self.csw.service_url,
+            version=self.csw.version, origin=self.csw.origin,
+            update_candidate_of=self.csw,
+            metadata_contact=self.csw.metadata_contact,
+            service_contact=self.csw.service_contact)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueService')
+        self.assertEqual(review['attributes']['resourceId'], str(self.csw.pk))
+        self.assertIn('/CatalogueService/', review['attributes']['targetPath'])
+        candidate.delete()
+        self.assertEqual(self.response()['data'], [])
+
     def test_update_candidate_and_job_are_one_problem(self):
         candidate = WebMapService.objects.create(
             title='Candidate', service_url=self.wms_one.service_url,

@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import {
   BooleanField,
   DateField,
+  FunctionField,
   Labeled,
   Loading,
   NumberField,
@@ -17,10 +19,22 @@ import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import HarvestingJobTimingCharts from "./HarvestingJobTimingCharts";
 import HarvestingRunSummary from "./HarvestingRunSummary";
+import { formatMeasuredDuration, formatSeconds } from "./runDurations";
 
 const HarvestingJobTabbedShowLayout = () => {
   const { record, isPending, error } = useShowContext();
   const translate = useTranslate();
+  // the websocket payload of a run carries its progress and its measurements,
+  // but not the statistics of its records: the push would blank the measured
+  // durations until the next poll. A measured duration never gets smaller, so
+  // the value this screen has last read stays true until a poll refreshes it
+  // (#1071)
+  const carriedDurations = useRef<Record<string, string>>({});
+  if (record?.fetchRecordDuration)
+    carriedDurations.current.fetchRecordDuration = record.fetchRecordDuration;
+  if (record?.mdMetadataFileToDbDuration)
+    carriedDurations.current.mdMetadataFileToDbDuration =
+      record.mdMetadataFileToDbDuration;
   if (error) {
     return (
       <Alert severity="error">
@@ -105,6 +119,73 @@ const HarvestingJobTabbedShowLayout = () => {
               <DateField source="dateCreated" showTime emptyText="—" />
               <DateField source="doneAt" showTime emptyText="—" />
             </SimpleShowLayout>
+            {/* what this run measures about its own work: the durations its
+                records carried, the elapsed time, the throughput so far and
+                the estimate of what is left - which stays worded as an
+                estimate and is answered for no closed run (#1071) */}
+            <Typography variant="h6">
+              {translate("harvestRun.measurements")}
+            </Typography>
+            <SimpleShowLayout>
+              <FunctionField
+                source="elapsedSeconds"
+                label="harvestRun.elapsed"
+                render={(r) =>
+                  r.elapsedSeconds != null
+                    ? formatSeconds(r.elapsedSeconds)
+                    : translate("harvestRun.notRecorded")
+                }
+              />
+              <FunctionField
+                source="fetchRecordDuration"
+                label="harvestRun.measuredDownload"
+                render={() =>
+                  carriedDurations.current.fetchRecordDuration
+                    ? formatMeasuredDuration(
+                        carriedDurations.current.fetchRecordDuration,
+                      )
+                    : translate("harvestRun.notRecorded")
+                }
+              />
+              <FunctionField
+                source="mdMetadataFileToDbDuration"
+                label="harvestRun.measuredDatabase"
+                render={() =>
+                  carriedDurations.current.mdMetadataFileToDbDuration
+                    ? formatMeasuredDuration(
+                        carriedDurations.current.mdMetadataFileToDbDuration,
+                      )
+                    : translate("harvestRun.notRecorded")
+                }
+              />
+              <FunctionField
+                source="recordsPerMinuteRunning"
+                label="harvestRun.throughputRunning"
+                render={(r) =>
+                  r.recordsPerMinuteRunning != null
+                    ? Math.round(r.recordsPerMinuteRunning)
+                    : translate("harvestRun.notRecorded")
+                }
+              />
+              <FunctionField
+                source="estimatedSecondsRemaining"
+                label="harvestRun.estimateRemaining"
+                render={(r) =>
+                  r.estimatedSecondsRemaining != null
+                    ? formatSeconds(r.estimatedSecondsRemaining)
+                    : translate("harvestRun.estimateUnknown")
+                }
+              />
+              <DateField
+                source="expectedDoneAt"
+                label="harvestRun.expectedEnd"
+                showTime
+                emptyText={translate("harvestRun.estimateUnknown")}
+              />
+            </SimpleShowLayout>
+            <Typography variant="caption" color="text.secondary">
+              {translate("harvestRun.estimateNote")}
+            </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Labeled label="harvestRun.downloadTimings">

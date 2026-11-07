@@ -17,6 +17,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    getting-started
    project-structure
    environment
+   celery-queues
    prebuilt-images
    agent-capacity
    code-quality

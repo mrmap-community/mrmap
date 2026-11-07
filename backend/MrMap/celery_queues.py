@@ -5,10 +5,14 @@ declarations of ``MrMap/settings.py``, the ``queue=`` of the task
 declarations (this project routes through the task declarations, there are
 no ``CELERY_TASK_ROUTES``) and the broker introspection of the harvest
 (``registry.tasks.harvest.HARVEST_BROKER_QUEUES``). What the workers
-actually consume is the ``-Q`` list of their celery command in the
-docker-compose files; a queue declared here must be in that list or its
-messages are never read - the starvation of #970 is what a queue without a
-consumer on the other end turns into.
+consume is, by default, everything declared here: the celery command of
+the docker-compose files passes no ``-Q``, so a release which adds a
+queue cannot be half-installed by an override that restates an old list
+(#1040). A worker started with a narrower ``-Q`` logs an ERROR naming the
+queues it cannot deliver from and the tasks bound to them at every start
+(``MrMap.celery.check_consumed_queues``) - the starvation of #970 is what a
+queue without a consumer on the other end turns into, and it must not
+stay silent.
 """
 
 # Everything which is neither bulk work nor bound to a protocol step.

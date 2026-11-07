@@ -420,3 +420,70 @@ describe("ServiceListExplorer", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("the facets of the harvesting", () => {
+  it("narrows the catalogue list by the facet of a bad harvesting", async () => {
+    renderExplorer(CATALOGUE_SERVICE_LIST_CONFIG, { search: "soil" });
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "serviceList.facets.harvestAborted",
+      }),
+    );
+    // the facet is named as the filterset of a catalogue filters it - a filter
+    // no other resource declares, which is why the facet belongs to catalogues
+    expect(setFilters).toHaveBeenCalledWith(
+      { search: "soil", harvest_aborted: true },
+      {},
+    );
+  });
+
+  it("lights the facet which the query of the list answers", async () => {
+    renderExplorer(CATALOGUE_SERVICE_LIST_CONFIG, { harvest_incomplete: true });
+    expect(
+      await screen.findByRole("button", {
+        name: "serviceList.facets.harvestIncomplete",
+      }),
+    ).toHaveClass("Mui-selected");
+  });
+
+  it("offers no facet of the harvesting to a kind of service which is not harvested", async () => {
+    renderExplorer(WMS_SERVICE_LIST_CONFIG);
+    await screen.findByText("Soil data");
+    // a filter the filterset of web map services does not declare is ignored by
+    // the api - a facet which lights without narrowing anything
+    expect(
+      screen.queryByRole("button", { name: /serviceList\.facets\.harvest/ }),
+    ).toBeNull();
+  });
+
+  it("counts the harvestings which work right now for the whole registry", async () => {
+    renderExplorer(CATALOGUE_SERVICE_LIST_CONFIG);
+    expect(
+      await screen.findByText("serviceList.tiles.runningHarvests"),
+    ).toBeInTheDocument();
+    // a harvesting process names no catalogue, so the tile cannot narrow by the
+    // services of the view and counts the registry instead - same as the updates
+    expect(getList).toHaveBeenCalledWith(
+      "BackgroundProcess",
+      expect.objectContaining({
+        filter: { status: "pending,running", process_type: "harvesting" },
+      }),
+    );
+  });
+
+  it("counts no running harvesting where no service is harvested", async () => {
+    renderExplorer(WMS_SERVICE_LIST_CONFIG);
+    await screen.findByText("serviceList.tiles.runningUpdates");
+    expect(
+      getList.mock.calls.filter(
+        ([resource, params]) =>
+          resource === "BackgroundProcess" &&
+          (params as { filter: Record<string, unknown> }).filter
+            ?.process_type === "harvesting",
+      ),
+    ).toEqual([]);
+    expect(
+      screen.queryByText("serviceList.tiles.runningHarvests"),
+    ).toBeNull();
+  });
+});

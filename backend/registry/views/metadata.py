@@ -160,6 +160,31 @@ class NestedStyleViewSet(
     pass
 
 
+# Non-included record relations only need their identifiers for JSON:API linkage.
+METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES = {
+    "harvested_through": [
+        Prefetch(
+            "harvested_through",
+            queryset=CatalogueService.objects.only("id"),
+        )
+    ],
+    "keywords": [
+        Prefetch("keywords", queryset=Keyword.objects.only("id"))
+    ],
+    "reference_systems": [
+        Prefetch(
+            "reference_systems", queryset=ReferenceSystem.objects.only("id")
+        )
+    ],
+    "time_extents": [
+        Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+    ],
+    "languages": [
+        Prefetch("languages", queryset=Language.objects.only("value"))
+    ],
+}
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
@@ -285,26 +310,7 @@ class DatasetMetadataViewSetMixin(
                 queryset=FeatureType.objects.only("id", "service_id"),
             )
         ],
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -442,26 +448,7 @@ class ServiceMetadataViewSetMixin(
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
         "self_pointing_wms": [
             Prefetch(
                 "self_pointing_wms",
@@ -550,26 +537,7 @@ class ApplicationMetadataViewSetMixin(
         "categories": [
             Prefetch("categories", queryset=IsoCategory.objects.only("value"))
         ],
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 

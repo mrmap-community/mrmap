@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import type { RaRecord } from "react-admin";
 
-import { render, type RenderResult } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ListWithDialogs from "../../../jsonapi/components/ListWithDialogs";
@@ -27,16 +26,6 @@ vi.mock("react-admin", () => ({
 
 const listProps = () =>
   vi.mocked(ListWithDialogs).mock.calls.at(-1)?.[0].listGuesserProps;
-
-/** the cell of the named column of a job row */
-const renderColumn = (key: string, record: RaRecord): RenderResult => {
-  const columns = listProps()?.columns ?? [];
-  const column = columns.find((element) => element.key === key);
-  const renderCell = (
-    column?.props as unknown as { render: (record: RaRecord) => ReactNode }
-  ).render;
-  return render(<>{renderCell(record)}</>);
-};
 
 describe("ListCatalogueServiceUpdateJob", () => {
   it("lists the jobs newest first and opens the job it shows a row of", () => {
@@ -68,26 +57,15 @@ describe("ListCatalogueServiceUpdateJob", () => {
     ).toBe("CatalogueService");
   });
 
-  it("says what a job which waits for a decision waits for", () => {
+  it("renders the chip which names the state in the status column", () => {
     render(<ListCatalogueServiceUpdateJob />);
-    const { getByText } = renderColumn("waitsFor", {
-      id: 7,
-      statusCode: 2,
-      status: "Review required",
-    });
-    expect(
-      getByText("resources.CatalogueServiceUpdateJob.waitsFor.reviewRequired"),
-    ).toBeInTheDocument();
-  });
-
-  it("answers nothing to wait for at a job which ended", () => {
-    render(<ListCatalogueServiceUpdateJob />);
-    const { getByText } = renderColumn("waitsFor", {
-      id: 8,
-      statusCode: 5,
-      status: "Updated",
-      doneAt: "2026-11-01T00:00:00Z",
-    });
+    const columns = listProps()?.columns ?? [];
+    const status = columns.find((element) => element.key === "status");
+    const renderCell = (
+      status?.props as unknown as { render: () => ReactNode }
+    ).render;
+    const { getByText } = render(<>{renderCell()}</>);
+    // no record on hand: the chip stays silent rather than guessing a state
     expect(getByText("—")).toBeInTheDocument();
   });
 });

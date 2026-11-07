@@ -38,7 +38,7 @@ describe("ShowCatalogueServiceUpdateJob", () => {
     renderJob(cswJob);
     expect(
       await screen.findByText(
-        "resources.CatalogueServiceUpdateJob.messages.reviewRequired",
+        "resources.CatalogueServiceUpdateJob.reviewRequiredMessage",
       ),
     ).toBeInTheDocument();
     // the chip above the details and the state line of the details both name it
@@ -67,9 +67,7 @@ describe("ShowCatalogueServiceUpdateJob", () => {
       statusCode: 3,
       doneAt: "2026-11-01T08:05:00Z",
     });
-    await screen.findByText(
-      "resources.CatalogueServiceUpdateJob.messages.error",
-    );
+    await screen.findByText("updateReview.failedMessage");
     expect(screen.getByRole("alert").className).toContain(
       "MuiAlert-colorError",
     );
@@ -85,9 +83,7 @@ describe("ShowCatalogueServiceUpdateJob", () => {
   it("reads the changes of the job from the history of the catalogue", async () => {
     const getList = vi.fn().mockResolvedValue({ data: [], total: 0 });
     renderJob({ ...cswJob, status: "Updated", statusCode: 5 }, { getList });
-    await screen.findByText(
-      "resources.CatalogueServiceUpdateJob.changesTitle",
-    );
+    await screen.findByText("updateReview.changesMade");
     await waitFor(() => expect(getList).toHaveBeenCalled());
     const [resource, params] = getList.mock.calls.at(-1) as [
       string,
@@ -97,7 +93,7 @@ describe("ShowCatalogueServiceUpdateJob", () => {
     // the reason with which an update writes the history of its catalogue
     expect(params.filter.history_change_reason).toBe("updatejob_id: 17");
     expect(
-      screen.getByText("resources.CatalogueServiceUpdateJob.noChanges"),
+      screen.getByText("updateReview.noRecordedChanges"),
     ).toBeInTheDocument();
   });
 });

@@ -4,13 +4,11 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
+  messageKeyOf,
   stateColorOf,
   stateKeyOf,
   UpdateJobStatusChip,
-  waitsFor,
 } from "./UpdateJobState";
-
-const translate = (key: string) => key;
 
 describe("UpdateJobState", () => {
   it("names every state the api can answer, by its code", () => {
@@ -29,19 +27,22 @@ describe("UpdateJobState", () => {
     expect(stateColorOf(undefined)).toBe("info");
   });
 
-  it("says what a job which did not end waits for, and nothing for one which ended", () => {
-    expect(waitsFor({ statusCode: 2 }, translate)).toBe(
-      "resources.CatalogueServiceUpdateJob.waitsFor.reviewRequired",
+  it("explains the states with sentences, reusing the review wording where it fits", () => {
+    expect(messageKeyOf(2)).toBe(
+      "resources.CatalogueServiceUpdateJob.reviewRequiredMessage",
     );
-    expect(waitsFor({ statusCode: 4 }, translate)).toBe(
-      "resources.CatalogueServiceUpdateJob.waitsFor.waitingForProcessing",
+    // every state which did not end shares the one sentence
+    expect(messageKeyOf(1)).toBe(
+      "resources.CatalogueServiceUpdateJob.notEndedMessage",
     );
-    // an ended job waits for nothing, whatever state it ended in
-    expect(
-      waitsFor({ statusCode: 2, doneAt: "2026-11-01T00:00:00Z" }, translate),
-    ).toBeNull();
-    // a decided state asks for no wait either
-    expect(waitsFor({ statusCode: 5 }, translate)).toBeNull();
+    expect(messageKeyOf(4)).toBe(
+      "resources.CatalogueServiceUpdateJob.notEndedMessage",
+    );
+    // the ended states reuse the wording of a web map service update review
+    expect(messageKeyOf(3)).toBe("updateReview.failedMessage");
+    expect(messageKeyOf(5)).toBe("updateReview.completedMessage");
+    expect(messageKeyOf(42)).toBeNull();
+    expect(messageKeyOf(undefined)).toBeNull();
   });
 
   it("shows the state of the job, as the api names it", () => {

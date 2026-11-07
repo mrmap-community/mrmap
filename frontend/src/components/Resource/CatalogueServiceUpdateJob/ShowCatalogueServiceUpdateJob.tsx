@@ -25,18 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { stateColorOf, UpdateJobStatusChip } from "./UpdateJobState";
-
-/** the message which explains a state of a job, by the code which answers it */
-const STATE_MESSAGE = {
-  0: "noUpdateNeeded",
-  1: "updating",
-  2: "reviewRequired",
-  3: "error",
-  4: "waitingForProcessing",
-  5: "updated",
-  6: "resume",
-} as const;
+import { messageKeyOf, stateColorOf, UpdateJobStatusChip } from "./UpdateJobState";
 
 /** the way back to the catalogue this job was made for */
 const CatalogueLink = ({
@@ -69,7 +58,7 @@ const ChangesOfTheJob = ({ jobId }: { jobId: RaRecord["id"] }) => {
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        {translate("resources.CatalogueServiceUpdateJob.changesTitle")}
+        {translate("updateReview.changesMade")}
       </Typography>
       <ListBase
         resource="HistoricalCatalogueService"
@@ -97,7 +86,7 @@ const ChangesTable = () => {
   if (!isPending && !data?.length)
     return (
       <Typography color="text.secondary">
-        {translate("resources.CatalogueServiceUpdateJob.noChanges")}
+        {translate("updateReview.noRecordedChanges")}
       </Typography>
     );
   return (
@@ -134,12 +123,8 @@ const JobBody = () => {
   const createPath = useCreatePath();
   if (!job) return null;
   const code = job.statusCode as number | undefined;
-  const messageKey =
-    code !== undefined && code in STATE_MESSAGE
-      ? STATE_MESSAGE[code as keyof typeof STATE_MESSAGE]
-      : "unknown";
+  const messageKey = messageKeyOf(code);
   const ended = Boolean(job.doneAt);
-  const fields = "resources.CatalogueServiceUpdateJob.fields";
   const catalogueName =
     job.service?.title ??
     job.service?.stringRepresentation ??
@@ -149,7 +134,7 @@ const JobBody = () => {
       <Breadcrumbs>
         <CatalogueLink catalogue={job.service}>{catalogueName}</CatalogueLink>
         <Typography variant="body2">
-          {translate("resources.CatalogueServiceUpdateJob.job", { id: job.id })}
+          {translate("updateReview.job", { id: job.id })}
         </Typography>
       </Breadcrumbs>
       <Box>
@@ -170,26 +155,22 @@ const JobBody = () => {
         </Typography>
       </Box>
       <Alert severity={stateColorOf(code)}>
-        {translate(
-          `resources.CatalogueServiceUpdateJob.messages.${messageKey}`,
-        )}
+        {messageKey ? translate(messageKey) : (job.status ?? "—")}
       </Alert>
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
-          {translate("resources.CatalogueServiceUpdateJob.jobDetails")}
+          {translate("updateReview.jobDetails")}
         </Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={4}>
           <DetailField
-            label={translate("resources.CatalogueServiceUpdateJob.job", {
-              id: job.id,
-            })}
+            label={translate("updateReview.job", { id: job.id })}
           >
             <Typography>{job.status ?? "—"}</Typography>
           </DetailField>
-          <DetailField label={translate(`${fields}.dateCreated`)}>
+          <DetailField label={translate("updateReview.createdAt")}>
             <DateField source="dateCreated" record={job} showTime />
           </DetailField>
-          <DetailField label={translate(`${fields}.doneAt`)}>
+          <DetailField label={translate("updateReview.finishedAt")}>
             {ended ? (
               <DateField source="doneAt" record={job} showTime />
             ) : (
@@ -199,14 +180,16 @@ const JobBody = () => {
             )}
           </DetailField>
           {job.updateCandidate?.id && (
-            <DetailField label={translate(`${fields}.updateCandidate`)}>
+            <DetailField
+              label={translate(
+                "resources.CatalogueServiceUpdateJob.updateCandidate",
+              )}
+            >
               <Typography>
                 <CatalogueLink catalogue={job.updateCandidate}>
                   {job.updateCandidate?.title ??
                     job.updateCandidate?.stringRepresentation ??
-                    translate(
-                      "resources.CatalogueServiceUpdateJob.candidate",
-                    )}
+                    translate("resources.CatalogueService.singular")}
                 </CatalogueLink>
               </Typography>
             </DetailField>
@@ -224,7 +207,7 @@ const JobBody = () => {
             type: "show",
           })}
         >
-          {translate("resources.CatalogueServiceUpdateJob.viewCatalogue")}
+          {translate("updateReview.viewService")}
         </Button>
         <Button
           component={RouterLink}
@@ -233,7 +216,7 @@ const JobBody = () => {
             type: "list",
           })}
         >
-          {translate("resources.CatalogueServiceUpdateJob.viewJobs")}
+          {translate("updateReview.backToJobs")}
         </Button>
       </Stack>
     </Stack>

@@ -646,9 +646,12 @@ def alert_branch(model, category: str, severity: str, at: str, target: str):
         alert_service_path=Concat(
             Value(f'/{resource}/'), Cast('pk', CharField()),
             Value(f'/show/{tab}'), output_field=CharField()))
-    if category == 'update_review_required' and model is not CatalogueService:
+    if category == 'update_review_required':
         # a review is decided about at the job which waits for it - unless
-        # only a candidate is dangling, which asks about the service itself
+        # only a candidate is dangling, which asks about the service itself.
+        # This holds for a catalogue too: its update job has a screen of its
+        # own, so the alert of a waiting job answers that job and not the
+        # catalogue the job belongs to
         waiting = Q(alert_review_job_id__isnull=False)
         rows = rows.annotate(
             alert_resource_type=Case(

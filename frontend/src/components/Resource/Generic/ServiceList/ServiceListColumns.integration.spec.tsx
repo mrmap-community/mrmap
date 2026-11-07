@@ -1,6 +1,5 @@
 import {
   AdminContext,
-  type GetManyReferenceParams,
   RecordContextProvider,
   ResourceDefinitionContextProvider,
   TextField,
@@ -61,17 +60,18 @@ const records = [
 describe("service columns in ListGuesser", () => {
   it("offers immediate harvesting and service-scoped schedule actions in CSW rows", async () => {
     const create = vi.fn().mockResolvedValue({ data: { id: "harvest-1" } });
+    const getList = vi.fn().mockResolvedValue({ data: [
+      { id: "new", title: "New catalogue", isHarvestable: true, periodicHarvestingJobs: [] },
+      { id: "scheduled", title: "Scheduled catalogue", isHarvestable: true, periodicHarvestingJobs: [{ id: "schedule-1" }] },
+      { id: "running", title: "Running catalogue", isHarvestable: true, periodicHarvestingJobs: [], runningHarvestingJob: { id: "active-harvest" } },
+      { id: "internal", title: "Internal catalogue", isHarvestable: false },
+    ], total: 4 });
     render(
       <AdminContext
         i18nProvider={polyglotI18nProvider(() => en, "en")}
         store={memoryStore()}
         dataProvider={testDataProvider({
-          getList: vi.fn().mockResolvedValue({ data: [
-            { id: "new", title: "New catalogue", isHarvestable: true, periodicHarvestingJobs: [] },
-            { id: "scheduled", title: "Scheduled catalogue", isHarvestable: true, periodicHarvestingJobs: [{ id: "schedule-1" }] },
-            { id: "running", title: "Running catalogue", isHarvestable: true, periodicHarvestingJobs: [], runningHarvestingJob: { id: "active-harvest" } },
-            { id: "internal", title: "Internal catalogue", isHarvestable: false },
-          ], total: 4 }),
+          getList,
           getManyReference: vi.fn().mockResolvedValue({ data: [], total: 0 }),
           create,
         })}
@@ -119,6 +119,12 @@ describe("service columns in ListGuesser", () => {
     expect(screen.getByRole("complementary")).toHaveTextContent("No selection");
     fireEvent.click(within(newRow).getByRole("checkbox"));
     expect(await screen.findByRole("button", { name: "Add harvesting schedule to selected CSWs" })).toBeInTheDocument();
+    // the column of the harvesting orders the api by the moment its last
+    // harvesting ended badly, which is an ordering field of the catalogue view
+    fireEvent.click(document.querySelector('span[data-field="harvestFailedAt"]')!);
+    await waitFor(() => expect(getList).toHaveBeenLastCalledWith("CatalogueService", expect.objectContaining({
+      sort: { field: "harvestFailedAt", order: "ASC" },
+    })));
   });
 
   it.each(["anonymous", "unavailable"])("hides schedule creation when %s", reason => {
@@ -140,6 +146,8 @@ describe("service columns in ListGuesser", () => {
 
   it("keeps the configured columns and row selection despite stored generated-column preferences", async () => {
     const props = serviceListProps({ resource: "WebMapService", protocol: "WMS", countLabelKey: "layers", fields: ["title", "abstract", "element_count"] });
+    const getList = vi.fn().mockResolvedValue({ data: records, total: records.length });
+    const getManyReference = vi.fn().mockResolvedValue({ data: [], total: 0 });
     render(
       <AdminContext
         i18nProvider={polyglotI18nProvider(() => en, "en")}
@@ -147,13 +155,7 @@ describe("service columns in ListGuesser", () => {
           "preferences.list_WebMapService.datagrid.columns": ["0"],
           "preferences.list_WebMapService.datagrid.omit": ["elementCount"],
         })}
-        dataProvider={testDataProvider({
-          getList: vi.fn().mockResolvedValue({ data: records, total: records.length }),
-          getManyReference: vi.fn().mockImplementation(async (_resource: string, params: GetManyReferenceParams) => ({
-            data: [{ id: `job-${params.id}`, doneAt: "2026-10-07T12:15:00Z", status: params.id === records[0].id ? "Succeeded" : "Failed" }],
-            total: 1,
-          })),
-        })}
+        dataProvider={testDataProvider({ getList, getManyReference })}
       >
         <ResourceDefinitionContextProvider definitions={{
           WebMapService: { name: "WebMapService", hasList: true, hasShow: true, hasEdit: true, hasCreate: false },
@@ -176,14 +178,34 @@ describe("service columns in ListGuesser", () => {
     await waitFor(() => expect(screen.getAllByRole("columnheader").map(cell => cell.textContent)).toEqual([
       "Title", "Abstract", "ID", "Status", "Layers", "Last update", "Actions",
     ]));
+    // a web map service is not harvested, so its rows carry no column of the
+    // harvesting - the same columns and order the screen has always answered
+    expect(screen.getAllByRole("columnheader").map(cell => cell.textContent)).not.toContain("Harvesting");
     expect(screen.queryByText("Generated field must be replaced")).not.toBeInTheDocument();
-    expect(await screen.findByText("Succeeded")).toBeInTheDocument();
-    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    // the states of a row are answered by the row itself: no column asks a
+    // moment per service which the page already names by its annotations
+    expect(getManyReference).not.toHaveBeenCalled();
+    const headers = screen.getAllByRole("columnheader");
+    const cellOf = (label: string, row: HTMLElement) =>
+      within(row).getAllByRole("cell")[headers.findIndex(cell => cell.textContent === label)];
+    const dwd = screen.getByText("DWD GeoServer WMS").closest("tr")!;
+    expect(within(cellOf("Last update", dwd)).getByText("Nothing reported")).toBeInTheDocument();
+    const dop = screen.getByText("WMS RP DOP20").closest("tr")!;
+    expect(within(cellOf("Last update", dop)).getByText("Review required")).toBeInTheDocument();
     expect(screen.getByText("24")).toBeInTheDocument();
-    const row = screen.getByText("DWD GeoServer WMS").closest("tr")!;
-    expect(within(row).getByRole("link", { name: "Show" })).toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "Edit" })).toBeInTheDocument();
+    expect(within(dwd).getByRole("link", { name: "Show" })).toBeInTheDocument();
+    expect(within(dwd).getByRole("link", { name: "Edit" })).toBeInTheDocument();
     fireEvent.click(screen.getByText("DWD GeoServer WMS"));
     expect(screen.getByRole("complementary")).toHaveTextContent("DWD GeoServer WMS");
+    // the column of the status orders the api by the flag which answers the
+    // attention of a service, which is an ordering field of the view; the
+    // sortable header answers the attribute it sends by its data-field
+    fireEvent.click(document.querySelector('span[data-field="hasAlert"]')!);
+    await waitFor(() => expect(getList).toHaveBeenLastCalledWith("WebMapService", expect.objectContaining({
+      sort: { field: "hasAlert", order: "ASC" },
+    })));
+    // the count of the elements and the column of the updates offer no ordering,
+    // because the api does not order services by them
+    expect(document.querySelector('span[data-field="elementCount"], span[data-field="updateFailedAt"]')).toBeNull();
   });
 });

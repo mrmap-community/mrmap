@@ -1,7 +1,7 @@
 import type { AnchorHTMLAttributes } from "react";
 import type { RaRecord } from "react-admin";
 
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import HarvestingRunSummary from "./HarvestingRunSummary";
@@ -55,6 +55,7 @@ beforeEach(() => {
     progress: 60,
     dateCreated: "2026-10-08T10:00:00Z",
     doneAt: null,
+    elapsedSeconds: 180,
   };
 });
 afterEach(() => vi.useRealTimers());
@@ -81,13 +82,20 @@ describe("harvesting run summary", () => {
       "harvestingActivity.importErrors",
     );
   });
-  it("updates elapsed time for active runs", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-08T10:01:00Z"));
+  it("shows the elapsed time the api measured, not the browser clock", () => {
+    state.run.elapsedSeconds = 61;
     render(<HarvestingRunSummary />);
-    expect(screen.getByText("0h 1m 0s")).toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(2000));
-    expect(screen.getByText("0h 1m 2s")).toBeInTheDocument();
+    expect(screen.getByText("0h 1m 1s")).toBeInTheDocument();
+  });
+  it("shows an elapsed time although the harvesting never wrote a creation date", () => {
+    // the run reads its own creation from its change log, which is what the
+    // summary card shows instead of the browser deriving it from a column
+    // that is never set (#1071)
+    state.run.dateCreated = null;
+    state.run.elapsedSeconds = 61;
+    render(<HarvestingRunSummary />);
+    expect(screen.getByText("0h 1m 1s")).toBeInTheDocument();
+    expect(screen.getAllByText("harvestRun.notRecorded")).toHaveLength(1);
   });
   it("freezes elapsed time and counter polling when a run ends", () => {
     state.run.doneAt = "2026-10-08T10:03:00Z";
@@ -100,6 +108,7 @@ describe("harvesting run summary", () => {
   });
   it("does not invent a missing start time or duration", () => {
     state.run.dateCreated = null;
+    state.run.elapsedSeconds = null;
     render(<HarvestingRunSummary />);
     expect(screen.getAllByText("harvestRun.notRecorded")).toHaveLength(2);
   });

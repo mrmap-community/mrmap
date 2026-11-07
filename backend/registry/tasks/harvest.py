@@ -25,7 +25,9 @@ from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
-from registry.ows_lib.client.exceptions import InitialError
+from registry.exceptions.service import CapabilitiesBackupMissing
+from registry.ows_lib.client.exceptions import (InitialError,
+                                                RedirectChainError)
 from requests.exceptions import RequestException
 
 logger = get_task_logger(__name__)
@@ -73,7 +75,13 @@ class HarvestingTask(Task):
                         f"{getattr(self.request, 'retries', 0)} retries\n"
                         f"{type(exc).__name__}: {exc}"),
                     level=LogLevelEnum.ERROR.value,
-                    kind=LogKindEnum.REMOTE_ERROR.value,
+                    # the loss of a stored document is an integrity error of
+                    # the deployment, not an error of the remote (#1044); the
+                    # uncategorized kind keeps it out of the remote-error
+                    # reading of the harvest history
+                    kind=(
+                        None if isinstance(exc, CapabilitiesBackupMissing)
+                        else LogKindEnum.REMOTE_ERROR.value),
                 )
                 job.phase = HarvestingPhaseEnum.ABORT.value
                 job.fail_process(f"{type(exc).__name__}: {exc}")
@@ -116,14 +124,15 @@ class HarvestingTask(Task):
 class MetadataFileImportTask(HarvestingTask):
     """Base of the tasks which write stored metadata files to the database (#895).
 
-    Building the client of the catalogue answers the request of the constructor with
-    a live round trip of the stored capabilities URL, so importing a record can end
-    in a read timeout or a 5xx of the remote - a failure of the infrastructure, not
-    of the record. These tasks retry those errors too: what the harvest retries is
-    extended by the InitialError which a 5xx or a non-xml answer of that round trip
-    raises, so a catalogue hiccup redelivers the file with the existing backoff
-    instead of the per-file catch of `import_md_metadata_file` ending it and silently
-    losing the records it carries.
+    Building the client of the catalogue reads the stored capabilities
+    document only (#1044), so a running import asks the remote nothing at
+    all; the ``InitialError`` which a broken stored document can still raise
+    when an advertised operation is missing stays retried here the way #895
+    decided, so a file is redelivered with the backoff of the harvest
+    instead of being lost to the marking below. A service whose stored
+    document is gone from the storage is no catalogue hiccup: the
+    ``CapabilitiesBackupMissing`` of its reads ends the run visibly instead
+    of being paid per record.
     """
 
     autoretry_for = HarvestingTask.autoretry_for + (InitialError,)
@@ -755,7 +764,12 @@ def call_fetch_total_records(*args, **kwargs):
             harvesting_job.handle_total_records_defined(recovering=recovering)
             harvesting_job.save(skip_history_when_saving=False)
             return harvesting_job.total_records
-    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError):
+    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError,
+            RedirectChainError):
+        # the redirect chain of the endpoint is as explained as the remote errors above: its
+        # own error names the URL asked and the target it stopped at, so the report below of
+        # a something-which-went-wrong would read like a crash of MrMap instead of a
+        # catalogue which does not answer (#1100, read together with #1088)
         raise
     except Exception:
         from registry.enums.harvesting import LogLevelEnum
@@ -934,7 +948,10 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
 
     Only errors of the record itself are terminal and documented on the file. Everything the
     task base of the importing tasks retries is re-raised, so the file is redelivered with the
-    backoff of the harvest instead of being lost to a remote or storage outage (#895).
+    backoff of the harvest instead of being lost to a remote or storage outage (#895). The
+    integrity error of a service whose stored capabilities document is gone (#1044) is
+    re-raised too: it is one broken service, not a broken record, and it must end the run
+    once instead of marking every file of the backlog.
 
     `on_handled` is called once the file left the backlog for good - imported and committed, or
     documented as an import error and kept for inspection (#958). It names a transition which
@@ -965,6 +982,15 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
         # Infrastructure outages and remote failures are retryable, not record import
         # errors: what the task base promises to retry must reach it, or its autoretry
         # is laundered into a terminal has_import_error by the marking below (#895).
+        raise
+    except CapabilitiesBackupMissing:
+        # The catalogue's stored capabilities document is gone from the
+        # storage: an integrity error of the service, not of this record.
+        # Marking every file of such a run with the same traceback would
+        # repeat the per-record multiplication of #1044 as error rows
+        # instead of warnings - let the task give up, so the job ends with
+        # one loud report naming the missing document and the recovery
+        # status, and the backlog stays unflagged for the resumed run.
         raise
     except Exception as e:
         TemporaryMdMetadataFile.objects.filter(pk=md_metadata_file_id).update(

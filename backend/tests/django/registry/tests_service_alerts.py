@@ -368,13 +368,40 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
 
     def test_the_attributes_of_a_service_answer_its_alerts(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        answered = self.services(WebMapService)
+        answered = self.services(
+            WebMapService,
+            **{"fields[WebMapService]":
+               "title,has_alert,monitoring_failed,monitoring_failed_at,"
+               "update_review_required"})
         self.assertTrue(answered[WMS_ONE]["hasAlert"])
         self.assertTrue(answered[WMS_ONE]["monitoringFailed"])
         self.assertIsNotNone(answered[WMS_ONE]["monitoringFailedAt"])
         self.assertFalse(answered[WMS_ONE]["updateReviewRequired"])
         # the service which needs nothing to do answers nothing as an alert
         self.assertFalse(answered[WMS_TWO]["hasAlert"])
+
+    def test_a_list_which_names_nothing_does_not_answer_the_alerts(self):
+        """The list of a kind does not pay for alerts nobody reads
+
+        The alerts are answered by a subquery per attribute, so a list which
+        names none of them - and filters and sorts by none - must not pay for
+        them, while the detail of a service still answers all of its
+        attributes to a client which names none.
+        """
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        answered = self.services(WebMapService)
+        self.assertNotIn("hasAlert", answered[WMS_ONE])
+        self.assertNotIn("monitoringFailed", answered[WMS_ONE])
+        # the list still answers the alerts which it names, filters or sorts
+        named = self.services(
+            WebMapService, **{"fields[WebMapService]": "title,has_alert"})
+        self.assertTrue(named[WMS_ONE]["hasAlert"])
+        detail = self.client.get(
+            reverse("registry:wms-detail", kwargs={"pk": WMS_ONE}),
+            HTTP_ACCEPT=JSONAPI)
+        self.assertEqual(detail.status_code, 200, detail.content)
+        self.assertTrue(
+            detail.json()["data"]["attributes"]["hasAlert"])
 
     def test_the_alerts_of_a_service_are_answered_with_its_other_attributes(
             self):
@@ -412,11 +439,15 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
 
     def test_a_catalogue_answers_the_state_of_its_harvesting(self):
         self.harvesting_job(import_errors=1)
-        answered = self.services(CatalogueService)
+        answered = self.services(
+            CatalogueService,
+            **{"fields[CatalogueService]": "title,has_alert,harvest_incomplete"})
         self.assertTrue(answered[CSW_ONE]["harvestIncomplete"])
         self.assertTrue(answered[CSW_ONE]["hasAlert"])
-        self.assertIsNotNone(
-            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"])
+        self.assertIsNotNone(self.references(
+            CatalogueService,
+            **{"fields[CatalogueService]": "harvest_job"}
+        )[CSW_ONE]["harvestJob"]["data"])
 
     def test_the_alerts_answer_the_record_which_decided_them(self):
         """An alert names the run or job a client has to look at
@@ -428,7 +459,10 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         """
         run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
         waiting = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        references = self.references(WebMapService)
+        references = self.references(
+            WebMapService,
+            **{"fields[WebMapService]":
+               "monitoring_failed_run,update_review_job,update_failed_job"})
         self.assertEqual(
             references[WMS_ONE]["monitoringFailedRun"]["data"],
             {"type": "WebMapServiceMonitoringRun", "id": str(run.pk)})
@@ -443,7 +477,10 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
     def test_a_catalogue_answers_the_harvesting_behind_its_alert(self):
         job = self.harvesting_job(import_errors=1)
         self.assertEqual(
-            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"],
+            self.references(
+                CatalogueService,
+                **{"fields[CatalogueService]": "harvest_job"}
+            )[CSW_ONE]["harvestJob"]["data"],
             {"type": "HarvestingJob", "id": str(job.pk)})
 
     def test_the_alerts_of_a_service_cannot_be_written(self):
@@ -451,7 +488,9 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         # an alert always tells about the service it belongs to, so it is answered
         # read only to every client which may read that service - and no client
         # writes an alert, because the queries of the service answer it
-        answered = self.services(WebMapService, client=self.user_client)
+        answered = self.services(
+            WebMapService, client=self.user_client,
+            **{"fields[WebMapService]": "title,has_alert"})
         self.assertEqual(sorted(answered), sorted([WMS_ONE, WMS_TWO]))
         self.assertTrue(answered[WMS_ONE]["hasAlert"])
         self.assertFalse(answered[WMS_TWO]["hasAlert"])
@@ -474,25 +513,39 @@ class AlertsRequestedTest(SimpleTestCase):
     must not pay for them.
     """
 
-    def requested(self, **query):
+    def requested(self, list_view=False, **query):
         """Whether the alerts of a map service have to be annotated
 
         Args:
+            list_view (bool): whether the request answers a list of services
             **query: the query parameters of the request
 
         Returns:
             bool: True if the request asks for the alerts
         """
         request = RequestFactory().get("/api/registry/wms/", query)
-        return alerts_requested(request, "WebMapService", ALERT_ATTRIBUTES)
+        return alerts_requested(
+            request, "WebMapService", ALERT_ATTRIBUTES, list_view=list_view)
 
-    def test_a_request_which_wants_everything_wants_the_alerts(self):
+    def test_the_detail_of_a_service_wants_the_alerts(self):
         self.assertTrue(self.requested())
         self.assertTrue(self.requested(**{"sort": "title"}))
+
+    def test_a_list_which_names_nothing_does_not_want_the_alerts(self):
+        """The list of a resource answers what it names, not everything"""
+        self.assertFalse(self.requested(list_view=True))
+        # filters and sorts name the alerts regardless of the sparse fields
+        self.assertTrue(
+            self.requested(list_view=True, **{"filter[hasAlert]": "true"}))
+        self.assertTrue(
+            self.requested(list_view=True, **{"sort": "-monitoringFailedAt"}))
 
     def test_a_sparse_fieldset_without_alerts_does_not_want_them(self):
         self.assertFalse(
             self.requested(**{"fields[WebMapService]": "title,hits"}))
+        self.assertFalse(
+            self.requested(list_view=True,
+                           **{"fields[WebMapService]": "title,hits"}))
 
     def test_a_sparse_fieldset_with_an_alert_wants_them(self):
         self.assertTrue(
@@ -734,6 +787,49 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
                          {'WebFeatureService', 'CatalogueService'})
         review = next(row for row in response['data'] if row['attributes']['category'] == 'update_review_required')
         self.assertIn('/WebFeatureServiceUpdateJob/', review['attributes']['targetPath'])
+
+    def test_csw_review_alert_answers_the_waiting_job(self):
+        """The review of a catalogue asks about its job, like a WMS and a WFS do
+
+        The alert of a review which waits is decided about at the job which
+        waits, and the screen of a CSW update job answers that job - the alert
+        has to name it, otherwise an administrator is led to the catalogue
+        instead of the decision which is asked for (issue #1084).
+        """
+        from registry.models.update import CatalogueServiceUpdateJob
+        job = CatalogueServiceUpdateJob.objects.create(
+            service=self.csw, status=JobState.REVIEW_REQUIRED.value)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['service'], CSW_ONE)
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueServiceUpdateJob')
+        self.assertEqual(review['attributes']['resourceId'], str(job.pk))
+        self.assertEqual(review['attributes']['targetPath'],
+                         f'/CatalogueServiceUpdateJob/{job.pk}/show')
+
+    def test_csw_review_without_a_waiting_job_asks_about_the_catalogue(self):
+        """A dangling candidate is asked about at the catalogue itself
+
+        Nothing waits at a job then, so the alert of a catalogue keeps the
+        target it has for every other category - the screen of the catalogue.
+        """
+        candidate = CatalogueService.objects.create(
+            title='Candidate', service_url=self.csw.service_url,
+            version=self.csw.version, origin=self.csw.origin,
+            update_candidate_of=self.csw,
+            metadata_contact=self.csw.metadata_contact,
+            service_contact=self.csw.service_contact)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueService')
+        self.assertEqual(review['attributes']['resourceId'], str(self.csw.pk))
+        self.assertIn('/CatalogueService/', review['attributes']['targetPath'])
+        candidate.delete()
+        self.assertEqual(self.response()['data'], [])
 
     def test_update_candidate_and_job_are_one_problem(self):
         candidate = WebMapService.objects.create(

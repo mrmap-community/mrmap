@@ -145,3 +145,8 @@ Used to configure how many stored metadata files a single import task writes to 
 **************************************************************************************
 
 Used to configure how the draining import backlog reports its progress to the background process of the harvest (#958). A worker coalesces the files it has committed and answers them as one bulk increment of the progress once it has piled up this many steps or this many seconds have passed since its last report - whichever comes first. The defaults are 200 steps and 30 seconds, which keep a catalogue of 400k+ records to a few thousand single-row updates instead of one contended row-lock per imported file. ``MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS=0`` disables the time trigger alone; the step threshold then coalesces alone too.
+
+``CELERY_WORKER_CONCURRENCY``
+*****************************
+
+Used to configure how many slots a celery worker process runs with. docker-compose.yml passes it to ``celery-worker``; empty keeps celery's own default of one slot per CPU core and ``auto`` sizes the prefork pool by the cgroup quota of the container. It is the knob for a bigger worker, so that changing worker concurrency never makes a deployment override the worker command and thereby restate - and freeze - the queue list of the release the override was written for; see :ref:`celery-queues` (#1040).

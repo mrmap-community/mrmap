@@ -5,7 +5,7 @@ import { type CustomContentProps, SnackbarContent } from 'notistack'
 
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider'
 import BackgroundProcessAlert from './BackgroundProcessAlert'
-import { IS_STALE_CHECK_INTERVAL, isStale } from './ShowBackgroundProcess'
+import { IS_STALE_CHECK_INTERVAL_SECONDS, isStale } from './ShowBackgroundProcess'
 
 export interface TaskShortInfoLiveProps extends CustomContentProps {
   taskId: Identifier
@@ -23,7 +23,7 @@ const SnackbarContentBackgroundProcess = React.forwardRef<HTMLDivElement, TaskSh
         ref={ref}
       >
         <RealtimeShowContextProvider
-          isStaleCheckInterval={IS_STALE_CHECK_INTERVAL}
+          isStaleCheckInterval={IS_STALE_CHECK_INTERVAL_SECONDS}
           isStale={isStale}
           id={taskId}
           resource='BackgroundProcess'

@@ -43,7 +43,6 @@ export const WFS_SERVICE_LIST_CONFIG: ServiceListConfig = {
   resource: "WebFeatureService",
   protocol: "WFS",
   countLabelKey: "featureTypes",
-  countRelation: "featuretypes",
   fields: WEB_FEATURE_SERVICE_LIST_FIELDS,
 };
 

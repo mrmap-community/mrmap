@@ -475,7 +475,9 @@ const en = lodashMerge(
         scope: "Counted over everything you are allowed to see",
         alerts: "Services with an alert",
         updateReviews: "Updates awaiting review",
+        harvestAlerts: "Catalogues with harvesting alerts",
         runningWork: "Background work running",
+        runningHarvests: "Harvestings running",
         failedWork: "Background work failed",
       },
     },
@@ -581,6 +583,7 @@ const en = lodashMerge(
       title: "Attention required",
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
+      viewCatalogueAlerts: "View catalogue alerts",
       error: "Error",
       warning: "Warning",
       categories: {

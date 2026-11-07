@@ -72,7 +72,13 @@ describe("WorkQueueCard", () => {
       screen.getByText("dashboard.workQueue.updateReviews"),
     ).toBeInTheDocument();
     expect(
+      screen.getByText("dashboard.workQueue.harvestAlerts"),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText("dashboard.workQueue.runningWork"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("dashboard.workQueue.runningHarvests"),
     ).toBeInTheDocument();
     expect(
       screen.getByText("dashboard.workQueue.failedWork"),
@@ -93,8 +99,24 @@ describe("WorkQueueCard", () => {
         sort: { field: "severity,-occurredAt", order: "ASC" },
       },
       {
+        resource: "ServiceAlert",
+        // the states of the harvesting with one request, of the kind of
+        // service which is harvested at all (#1086)
+        filter: {
+          category:
+            "harvest_aborted,harvest_incomplete,harvest_overdue,harvest_schedule_too_tight",
+          serviceType: "CatalogueService",
+        },
+        sort: { field: "severity,-occurredAt", order: "ASC" },
+      },
+      {
         resource: "BackgroundProcess",
         filter: { status: "pending,running" },
+        sort: undefined,
+      },
+      {
+        resource: "BackgroundProcess",
+        filter: { status: "pending,running", process_type: "harvesting" },
         sort: undefined,
       },
       {
@@ -108,20 +130,27 @@ describe("WorkQueueCard", () => {
   it("answers the total of the api and not the records of a page", () => {
     state.totals = { ServiceAlert: 42, BackgroundProcess: 5 };
     render(<WorkQueueCard />);
-    expect(screen.getAllByText("42")).toHaveLength(2);
-    expect(screen.getAllByText("5")).toHaveLength(2);
+    expect(screen.getAllByText("42")).toHaveLength(3);
+    expect(screen.getAllByText("5")).toHaveLength(3);
   });
 
   it("asks the alerts of all categories and the reviews of one category", () => {
-    const [alerts, reviews] = workQueues();
+    const [alerts, reviews, harvestAlerts] = workQueues();
     expect(alerts.filter).toBeUndefined();
     expect(reviews.resource).toBe(alerts.resource);
     expect(reviews.filter).not.toEqual(alerts.filter);
+    // the harvesting queue counts a narrower scope than the alert queue
+    // above it and says so in its filter: only catalogues, only the states
+    // of the harvesting (#1086)
+    expect(harvestAlerts.filter).not.toEqual(alerts.filter);
+    expect(harvestAlerts.filter).toMatchObject({
+      serviceType: "CatalogueService",
+    });
   });
 
   it("counts a queue which answers nothing at zero", () => {
     state.totals = {};
     render(<WorkQueueCard />);
-    expect(screen.getAllByText("0")).toHaveLength(4);
+    expect(screen.getAllByText("0")).toHaveLength(6);
   });
 });

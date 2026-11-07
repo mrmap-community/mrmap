@@ -48,7 +48,7 @@ describe.each([
     locale: "de",
     catalogue: "Katalogdienste",
     harvesting: "Datenübernahmen",
-    updateJobs: "Aktualisierungsaufträge der Katalogdienste",
+    updateJobs: "Aktualisierungsläufe der Katalogdienste",
     alerts: "Handlungsbedarf",
   },
   {

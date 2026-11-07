@@ -28,7 +28,7 @@ const HarvestingJobTimingCharts = (
         perPage: 5,
       },
       sort: {
-        field: 'dateCreated',
+        field: 'doneAt',
         order: 'DESC',
       },
       filter: {

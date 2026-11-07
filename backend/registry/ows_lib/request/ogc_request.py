@@ -31,6 +31,26 @@ from requests import Request
 _ABSENT = object()
 
 
+def _named_param_value(params, key):
+    """The value a request names for a key, or ``_ABSENT``.
+
+    A key carried as multiple queryparams hands its first value, as the
+    request analysis always did; a missing key, a ``None`` value and an
+    empty list -- the requests idioms for a parameter left without value --
+    all answer ``_ABSENT``, while an empty string is a value the caller
+    named and stays (#1154).
+    """
+    value = next(
+        (value for name, value in params.items()
+         if name.lower() == key.lower()), _ABSENT)
+    if isinstance(value, list):
+        value = value[0] if value else _ABSENT
+    if value is None:
+        # no value among the repeats either
+        return _ABSENT
+    return value
+
+
 def merged_query_params(*query_dicts) -> dict:
     """The query parameters of one request as a plain dict, repeats included.
 
@@ -417,23 +437,12 @@ class OGCRequest(Request):
             for key in query_keys:
                 if any(name.lower() == key.lower() for name in self._ogc_query_params):
                     continue
-                value = next((value for name, value in self.params.items() if name.lower() == key.lower()), _ABSENT)
+                value = _named_param_value(self.params, key)
 
-                if value is _ABSENT or value is None:
-                    # the request names no value for this key at all -- a None
-                    # value is the requests idiom for the parameter left out;
-                    # an empty value it does name stays in the result (#1154)
+                if value is _ABSENT:
+                    # the request names no value for this key at all; an
+                    # empty value it does name stays in the result (#1154)
                     continue
-
-                if isinstance(value, list):
-                    if not value:
-                        # a key carried as an empty list hands no value either
-                        continue
-                    if value[0] is None:
-                        # no value among the repeats either
-                        continue
-                    # if multiple values are passed in multiple queryparams, we pick the first item
-                    value = value[0]
 
                 self._ogc_query_params.update({
                     key: value

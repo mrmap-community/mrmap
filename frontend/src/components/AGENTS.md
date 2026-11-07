@@ -109,14 +109,14 @@ cheap and correct option; shrinking or copying the card to avoid the field is th
 | Folder | Holds | Do not write |
 | --- | --- | --- |
 | `Resource/Generic/ServiceShow/` | per-service cards and actions: `ServiceDetailsCard`, `SelectedServiceDetailsCard`, `ServiceOverview`, `ServicePreviewImage`, `ServiceAlertChips`, `ServiceOutcomes`, `ServiceUpdateJobsCard`, `ServiceHistoryCard`, `ServiceAttentionTab`, `ElementInspection`, `ElementHistory`, `SelectedElementViewerCard` for the aside of a screen of elements, `LivePreview/` for the preview of a whole service, `ActivateServiceButton`, `RunServiceUpdateButton` | a card with one service's metadata, alerts, preview, update runs or history, the inspection of one layer or feature type of a service or the map viewer button of the element a screen of elements selected |
-| `Resource/Generic/ServiceList/` | the shared WMS/WFS/CSW list: `ServiceList`, `ServiceListExplorer`, `ServiceListAside`, `ServiceSummaryTiles`, `ServiceElementCount`, `alertFacets`, `serviceListProps`, `config` | a second service list layout, facet or summary tile |
+| `Resource/Generic/ServiceList/` | the shared WMS/WFS/CSW list: `ServiceList`, `ServiceListExplorer`, `ServiceListAside`, `ServiceSummaryTiles`, `ServiceElementCount`, `ServiceRunState`, `alertFacets`, `serviceListProps`, `config` | a second service list layout, facet or summary tile |
 | `Resource/Generic/RecordShow/` | `RecordShow`, `RecordHeader`, `RecordFields`, `RecordContacts`, `RecordRelations`, `RecordOverview`, `RecordSpatial`, `RecordHistory` | a label/value stack for record attributes |
 | `Resource/Generic/History/` | `HistoryList` (one entry, variants `table`, `compact`, `timeline`), its private presentations `HistoryChangelog`, `HistoryCompactFeed`, `HistorySourcesCard`, plus `HistoryListBase`, `HistoryTimeline`, `HistoryChart`, `historySources` | a timeline, changelog or event list |
 | `Dashboard/Cards/` | `ResourceListCard`, `CardWithIcon`, `ServiceAttentionCard`, `WorkQueueCard`, `ChangeLogList` | a second card which counts a resource, an alert or a queue of work |
 | `Resource/Generic/{List,Update,Explorer}/` | `SimpleList`, the update setting screens and their field definitions, the coverage explorer | another wrapper around `ListGuesser`, another update settings form |
 | `MUI/` | `SimpleCard`, `GradientChartsContainer` | a `Card` with its own header, footer or padding |
 | `Lists/` | `CustomListActions`, `Empty`, `EmptyWithFilter` | a list action bar or an empty state |
-| `Field/`, `Input/` | `TruncatedTextField`, `ProgressField`, `GeoJsonField`, `RelatedResourceField`, `MouseOverPopover`, `CronInput`, `TreeSelectInput`, `GeoJsonInput` | a one-off field or input renderer |
+| `Field/`, `Input/` | `TruncatedTextField`, `ProgressField`, `GeoJsonField`, `RelatedResourceField`, `MouseOverPopover`, `RelativeDateField`, `CronInput`, `TreeSelectInput`, `GeoJsonInput` | a one-off field or input renderer |
 | `Dialog/`, `Drawer/`, `Tab/` | `Dialog`, `DialogContextBase`, `CreateDialogButton`, `Drawer`, `Tabs`, `TabListContext` | MUI dialog, drawer or tab scaffolding |
 | `jsonapi/components/` | guessers, `SchemaFormFields`, `SchemaAutocompleteInput`, `Reference*Field`, `Count`, `ListWithDialogs`, `PaginatedSingleFieldList`, `Realtime/*`, `SelectedRecordContext` | manual fetching, counts or a hardcoded copy of schema fields |
 

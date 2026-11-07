@@ -2,7 +2,10 @@ import { useMemo, type ComponentType } from "react";
 import { useListContext, useTranslate } from "react-admin";
 
 import DnsIcon from "@mui/icons-material/Dns";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import SyncIcon from "@mui/icons-material/Sync";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
@@ -14,7 +17,11 @@ import {
 } from "@mui/material";
 
 import { Count } from "../../../../jsonapi/components/Count";
-import { queryOfList, withoutAlertKeys } from "./alertFacets";
+import {
+  type StatusFacet,
+  queryOfList,
+  withoutAlertKeys,
+} from "./alertFacets";
 
 /** what a tile above the list of services counts */
 export interface SummaryTile {
@@ -36,25 +43,40 @@ export interface SummaryTile {
   color: "primary" | "success" | "info" | "warning";
 }
 
+/** the icon and the color of the tile which counts a facet of the harvesting */
+const HARVEST_TILE_STATE: Record<
+  string,
+  { icon: ComponentType<SvgIconProps>; color: SummaryTile["color"] }
+> = {
+  harvestAborted: { icon: ReportProblemIcon, color: "warning" },
+  harvestIncomplete: { icon: ErrorOutlineIcon, color: "warning" },
+};
+
 /**
  * The states the tiles above the list of services count.
  *
- * Three of them count the resource of the list itself and the query which is
+ * Some of them count the resource of the list itself and the query which is
  * asked of it, so a screen of catalogues counts catalogues and a screen of web
  * feature services counts web feature services - the search and the chosen
- * filters included. The running updates are not answered by the services: a
- * background process does not name the kind of the service it updates, so this
- * tile counts the whole registry and asks no filter of the services on it. Its
- * label says so, because a number of another scope is not comparable to the rows
- * below it.
+ * filters included. The processes which work right now are not answered by the
+ * services: a background process does not name the kind of the service it works
+ * on, so those tiles count the whole registry and ask no filter of the services
+ * on it. Their labels say so, because a number of another scope is not
+ * comparable to the rows below it.
  *
  * The tile of the services without an alert counts the state the api answers and
  * not a health: `has_alert` is false for a service whose monitoring never ran as
- * it is for a service which passed its last run. A state which proves that a
- * service was checked recently, and the schedules a service did not keep, are not
- * answered by these attributes and are the subject of the follow-up issue.
+ * it is for a service which passed its last run, and a catalogue which was never
+ * harvested is in that count too. A state which proves that a service was
+ * checked recently is not answered by these attributes, and neither are the
+ * schedules a service did not keep (#1082); what the harvesting of a catalogue
+ * left behind is answered by the facets of the harvesting, which a screen which
+ * declares them gets tiles of by the same answer.
  */
-export const summaryTiles = (resource: string): SummaryTile[] => [
+export const summaryTiles = (
+  resource: string,
+  harvestFacets: StatusFacet[] = [],
+): SummaryTile[] => [
   {
     key: "total",
     resource,
@@ -78,6 +100,30 @@ export const summaryTiles = (resource: string): SummaryTile[] => [
     icon: PendingActionsIcon,
     color: "info",
   },
+  // the harvestings which work right now are asked of the same resource and by
+  // the same shape as the updates, because a harvesting process names no catalogue
+  ...(harvestFacets.length > 0
+    ? [
+        {
+          key: "runningHarvests",
+          resource: "BackgroundProcess",
+          scope: "registry",
+          filter: { status: "pending,running", process_type: "harvesting" },
+          icon: SyncIcon,
+          color: "info",
+        } satisfies SummaryTile,
+      ]
+    : []),
+  // one tile per facet of the harvesting: the same key and the same filter, so a
+  // tile counts exactly what the facet narrows the rows to
+  ...harvestFacets.map((facet): SummaryTile => ({
+    key: facet.key,
+    resource,
+    scope: "list",
+    filter: facet.filter,
+    icon: HARVEST_TILE_STATE[facet.key].icon,
+    color: HARVEST_TILE_STATE[facet.key].color,
+  })),
   {
     key: "needsAttention",
     resource,
@@ -107,12 +153,20 @@ export const filterOfTile = (
  * Every tile is a count of the resource which answers it and nothing else: the
  * services are counted by the query of the list - the filters a user chose and the
  * filter the list applies on its own - narrowed to the state of the tile, and the
- * running updates are counted by the background processes which update anything
- * and do not have an end yet. Because a count is asked from the api, a tile
- * answers the same number of services as the rows of the list do, and a count the
- * api refuses is marked instead of answered as none.
+ * processes which work right now are counted by the background processes which
+ * do anything and do not have an end yet. Because a count is asked from the api, a
+ * tile answers the same number of services as the rows of the list do, and a count
+ * the api refuses is marked instead of answered as none.
+ *
+ * The screen gives the facets of the harvesting it declares: the tiles of those
+ * states are there where the facets are, and nowhere else.
  */
-const ServiceSummaryTiles = () => {
+const ServiceSummaryTiles = ({
+  harvestFacets = [],
+}: {
+  /** the facets of the harvesting which the resource of the screen declares */
+  harvestFacets?: StatusFacet[];
+}) => {
   const { filter, filterValues, resource } = useListContext();
   const translate = useTranslate();
 
@@ -123,7 +177,13 @@ const ServiceSummaryTiles = () => {
     () => withoutAlertKeys(queryOfList(filter, filterValues)),
     [filter, filterValues],
   );
-  const tiles = useMemo(() => resource !== undefined ? summaryTiles(resource): [], [resource]);
+  const tiles = useMemo(
+    () =>
+      resource !== undefined
+        ? summaryTiles(resource, harvestFacets)
+        : [],
+    [resource, harvestFacets],
+  );
 
   return (
     <Stack

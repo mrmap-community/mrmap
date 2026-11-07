@@ -1,0 +1,202 @@
+[
+    {
+        "model": "registry.metadatacontact",
+        "pk": 1080401,
+        "fields": {
+            "name": "Harvesting Fixture Organisation",
+            "person_name": "",
+            "email": "harvesting@example.com",
+            "phone": "",
+            "facsimile": "",
+            "city": "",
+            "postal_code": "",
+            "address_type": "",
+            "address": "",
+            "state_or_province": "",
+            "country": ""
+        }
+    },
+    {
+        "model": "registry.Catalogueservice",
+        "pk": "aaaa1080-0000-4000-8000-00000000000a",
+        "fields": {
+            "date_stamp": "2026-11-01T10:00:00+00:00",
+            "is_active": true,
+            "origin": 1,
+            "origin_url": "https://example.com/csw-alpha?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "Harvesting Catalogue Alpha",
+            "abstract": "the catalogue with a completed and a working run",
+            "version": 202,
+            "service_url": "",
+            "service_contact": 1080401,
+            "metadata_contact": 1080401
+        }
+    },
+    {
+        "model": "registry.Catalogueservice",
+        "pk": "bbbb1080-0000-4000-8000-00000000000b",
+        "fields": {
+            "date_stamp": "2026-11-01T10:00:00+00:00",
+            "is_active": true,
+            "origin": 1,
+            "origin_url": "https://example.com/csw-beta?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "Harvesting Catalogue Beta",
+            "abstract": "the catalogue with a single aborted run",
+            "version": 202,
+            "service_url": "",
+            "service_contact": 1080401,
+            "metadata_contact": 1080401
+        }
+    },
+    {
+        "model": "django_celery_beat.crontabschedule",
+        "pk": 1080501,
+        "fields": {
+            "minute": "0",
+            "hour": "3",
+            "day_of_week": "*",
+            "day_of_month": "*",
+            "month_of_year": "*"
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 1080502,
+        "fields": {
+            "name": "harvest-catalogue-alpha-nightly",
+            "task": "registry.tasks.harvest.create_harvesting_job",
+            "kwargs": "{\"service_id\": \"aaaa1080-0000-4000-8000-00000000000a\"}",
+            "queue": "default",
+            "enabled": true,
+            "crontab": 1080501,
+            "last_run_at": "2026-11-05T02:00:00Z",
+            "date_changed": "2026-11-01T10:00:00Z",
+            "total_run_count": 0
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 1080503,
+        "fields": {
+            "name": "harvest-catalogue-beta-nightly",
+            "task": "registry.tasks.harvest.create_harvesting_job",
+            "kwargs": "{\"service_id\": \"bbbb1080-0000-4000-8000-00000000000b\"}",
+            "queue": "default",
+            "enabled": false,
+            "crontab": 1080501,
+            "last_run_at": "2026-11-05T02:00:00Z",
+            "date_changed": "2026-11-01T10:00:00Z",
+            "total_run_count": 0
+        }
+    },
+    {
+        "model": "registry.periodicharvestingjob",
+        "pk": 1080502,
+        "fields": {
+            "service": "aaaa1080-0000-4000-8000-00000000000a"
+        }
+    },
+    {
+        "model": "registry.periodicharvestingjob",
+        "pk": 1080503,
+        "fields": {
+            "service": "bbbb1080-0000-4000-8000-00000000000b"
+        }
+    },
+    {
+        "model": "registry.harvestingjob",
+        "pk": 1080101,
+        "fields": {
+            "service": "aaaa1080-0000-4000-8000-00000000000a",
+            "total_records": 5,
+            "phase": 4,
+            "date_created": "2026-11-05T01:00:00Z",
+            "done_at": "2026-11-05T02:00:00Z"
+        }
+    },
+    {
+        "model": "registry.harvestingjob",
+        "pk": 1080102,
+        "fields": {
+            "service": "aaaa1080-0000-4000-8000-00000000000a",
+            "total_records": 10,
+            "phase": 2,
+            "date_created": "2026-11-05T03:00:00Z"
+        }
+    },
+    {
+        "model": "registry.harvestingjob",
+        "pk": 1080103,
+        "fields": {
+            "service": "bbbb1080-0000-4000-8000-00000000000b",
+            "total_records": 7,
+            "phase": 5,
+            "date_created": "2026-11-04T23:00:00Z",
+            "done_at": "2026-11-05T04:00:00Z"
+        }
+    },
+    {
+        "model": "registry.harvestinglog",
+        "pk": 1080201,
+        "fields": {
+            "harvesting_job": 1080101,
+            "timestamp": "2026-11-05T01:10:00Z",
+            "level": 3,
+            "description": "harvest started"
+        }
+    },
+    {
+        "model": "registry.harvestinglog",
+        "pk": 1080202,
+        "fields": {
+            "harvesting_job": 1080101,
+            "timestamp": "2026-11-05T01:20:00Z",
+            "level": 2,
+            "kind": 0,
+            "description": "record response was incomplete",
+            "extented_description": "harvesting/1080101/incomplete-page.xml"
+        }
+    },
+    {
+        "model": "registry.harvestinglog",
+        "pk": 1080203,
+        "fields": {
+            "harvesting_job": 1080101,
+            "timestamp": "2026-11-05T01:30:00Z",
+            "level": 1,
+            "description": "could not store a response"
+        }
+    },
+    {
+        "model": "registry.harvestinglog",
+        "pk": 1080204,
+        "fields": {
+            "harvesting_job": 1080102,
+            "timestamp": "2026-11-05T03:10:00Z",
+            "level": 3,
+            "description": "downloading records"
+        }
+    },
+    {
+        "model": "registry.temporarymdmetadatafile",
+        "pk": 1080301,
+        "fields": {
+            "job": 1080102,
+            "md_metadata_file": "",
+            "has_import_error": true,
+            "import_error": "the response was not xml",
+            "request_id": "2026-11-05T03:01:00Z"
+        }
+    },
+    {
+        "model": "registry.temporarymdmetadatafile",
+        "pk": 1080302,
+        "fields": {
+            "job": 1080102,
+            "md_metadata_file": "",
+            "has_import_error": false,
+            "import_error": "",
+            "request_id": "2026-11-05T03:02:00Z"
+        }
+    }
+]

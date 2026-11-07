@@ -54,6 +54,48 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
   of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
   with a proxied prefix belongs in its table, which is how #1036 would have been caught.
+  `scripts/static_mounts_smoke.py` asserts that no compose mount shadows the static roots the
+  frontend image serves (`python3 scripts/static_mounts_smoke.py`; it reads `docker compose
+  config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
+  removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
+  stop reaching the browser.
+  `scripts/decisions` is the decision-request protocol described under "Asking for human
+  decisions": numbered questions, `Q7: C` answers verified against GitHub's
+  `author_association`, append-only audit-trail comments and a generated view of the issue's
+  Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
+  GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
+  hand when touching either tool.
+
+### Asking for human decisions
+
+Design questions an agent cannot answer itself — normative ISO/OGC readings,
+product scope, migration risk appetite — are asked with `scripts/decisions`, not
+as prose, so the answers stay findable. A human answers `Q7: C`; `record` verifies
+via GitHub's `author_association` that the answer came from an OWNER, MEMBER or
+COLLABORATOR and not a Bot, appends audit-trail comments, and `register` syncs the
+issue's "Decision register" table from that trail.
+
+- Answering a design question is a design decision. It is not the `agent: approved`
+  label and not a pull-request review; those stay with people, and no recorded answer
+  may be presented as if it granted either.
+- Ask with a stated recommendation and only a handful of questions at a time (the tool
+  refuses more). Requests posted through the tool carry a machine marker; a hand-written
+  request in the same shape is still read, but the tool warns that its provenance cannot
+  be verified.
+- After answers arrive: `scripts/decisions --issue N record --write` (idempotent —
+  re-running records nothing twice), then `scripts/decisions --issue N register --write`.
+  A body a human edited while the write was prepared stops the write; rerun.
+- When a named owner keeps the decision (e.g. @armin11 for standards reviews), record
+  with `--gate 'Q1-Q6=@armin11:reason'`: answers are kept as preferences and the row
+  reads `Awaiting @armin11`, never `Accepted`, until that owner answers or overrides.
+- Silence records nothing; a row never reads `Accepted` while its evidence names an
+  unanswered question; prose run together or naming two options is flagged for
+  clarification, never guessed. A human can undo a recorded outcome with `reopen` or
+  `override --outcome ... --source <comment-url>`, which verify the cited comment the
+  same way answers are.
+- After a context loss an agent resumes from the issue alone:
+  `scripts/decisions --issue N scan` says what is asked, answered and open. Schema,
+  reaction rules and the offline checks: `docs/source/development/decision-requests.rst`.
 
 ## Authoritative sources
 
@@ -240,13 +282,17 @@ single verdict line and exits `0` when the job still fits or `1` when it does
 not. It refuses newcomers; it never pauses, renices or kills a running job.
 
 Ask for the class of work you are about to start: `scripts/agent_capacity`
-decides about a heavy Compose test stack (the default), `--need process` about
-one more agent worker without a stack, `--json` answers for a program, and
-`--stacks`/`--processes` pass counts a caller already keeps. The counts are
+decides about a heavy Compose test stack (the default), `--need suite` about a
+stack that runs the full unit suite (measured heavier than a targeted check),
+`--need process` about one more agent worker without a stack, `--json` answers
+for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
+`--wait N` queues up to N seconds for a refusal to clear instead of exiting
+busy; it never displaces a running job. The counts are
 prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
 and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
 job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE` (1.5),
-`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
+`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
+`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
 (16, the floor when no memory limit of this cgroup is visible),
 `AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
 `AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)

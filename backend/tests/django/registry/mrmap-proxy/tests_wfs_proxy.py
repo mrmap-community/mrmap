@@ -54,6 +54,28 @@ class WebMapServiceProxyTest(XpathTestCase):
             "TYPENAMES": "ms:Countries"
         }
 
+    def test_get_capabilities_of_an_inactive_service_is_answered_with_the_disabled_report(self):
+        # a deactivated service refuses every operation with the Disabled
+        # report, its capabilities included (#1147). WFS 2.0.0 profiles
+        # against OWS Common, so the report is the common ExceptionReport
+        WebFeatureService.objects.filter(
+            pk="73cf78c9-6605-47fd-ac4f-1be59265df65"
+        ).update(is_active=False)
+
+        response = self.client.get(
+            self.wfs_url,
+            {"SERVICE": "WFS", "REQUEST": "GetCapabilities", "VERSION": "2.0.0"}
+        )
+
+        self.assertEqual(400, response.status_code)
+        root = etree.fromstring(response.content)
+        self.assertEqual("ExceptionReport", etree.QName(root).localname)
+        exception = root.find(".//{*}Exception")
+        self.assertIsNotNone(exception, response.content)
+        self.assertEqual("Disabled", exception.get("exceptionCode"))
+        # the capabilities document itself is not part of the answer
+        self.assertNotIn(b"WFS_Capabilities", response.content)
+
     def test_matching_secured_get_feature_response_for_wfs_200(self):
         self.client.login(username="User1", password="User1")
 

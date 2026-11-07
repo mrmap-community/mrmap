@@ -15,6 +15,7 @@ import {
 import polyglotI18nProvider from "ra-i18n-polyglot";
 import { describe, expect, it, vi } from "vitest";
 
+import de from "../../i18n/de";
 import en from "../../i18n/en";
 import CronInput from "./CronInput";
 
@@ -30,12 +31,12 @@ const Harness = ({ initialValue }: { initialValue?: string }) => {
   );
 };
 
-const renderInput = (initialValue?: string) =>
+const renderInput = (initialValue?: string, locale: "en" | "de" = "en") =>
   render(
     <AdminContext
       dataProvider={testDataProvider()}
 
-      i18nProvider={polyglotI18nProvider(() => en, "en")}
+      i18nProvider={polyglotI18nProvider(() => (locale === "de" ? de : en), locale)}
     >
       <ResourceContextProvider value="PeriodicTask">
         <Harness initialValue={initialValue} />
@@ -186,5 +187,44 @@ describe("CronInput", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+  });
+
+  it("renders the whole editor in German when the user works in German", async () => {
+    renderInput("0 11 * * * Europe/Berlin", "de");
+    fireEvent.click(screen.getByRole("textbox"));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(dialog).toHaveAccessibleName("Cron-Ausdruck bearbeiten");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Minute" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("combobox", { name: "Stunde" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("combobox", { name: "Monatstag" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("combobox", { name: "Monat" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("combobox", { name: "Wochentag (0=So)" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Abbrechen" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Anwenden" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByLabelText("Vorschau / manuelle Eingabe"),
+    ).toBeInTheDocument();
+    // the editor speaks one language at a time
+    expect(
+      within(dialog).queryByRole("combobox", { name: "Hour" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("Day of Month"),
+    ).not.toBeInTheDocument();
   });
 });

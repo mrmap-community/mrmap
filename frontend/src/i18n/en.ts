@@ -7,6 +7,15 @@ const en = lodashMerge(
     cronInput: {
       openEditor: "Click to edit the cron schedule.",
       minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
+      editorTitle: "Edit Cron Expression",
+      minute: "Minute",
+      hour: "Hour",
+      dayOfMonth: "Day of Month",
+      month: "Month",
+      weekday: "Weekday (0=Sun)",
+      every: "* (every)",
+      preview: "Preview / manual edit",
+      apply: "Apply",
     },
     viewerAdd: {
       title: "Add map service",
@@ -373,6 +382,7 @@ const en = lodashMerge(
       "services": "Services",
       "unhandled": "Unhandled records",
       "errors": "Import errors",
+      "importStalled": "The import of this run has stood still since",
       "viewLogs": "View logs",
       "overview": "Overview",
       "configuration": "Run configuration",
@@ -430,6 +440,49 @@ const en = lodashMerge(
         bulkStopContent: "Stop %{smart_count} run? Runs which ended in the meantime are left untouched. |||| Stop %{smart_count} runs? Runs which ended in the meantime are left untouched.",
         bulkStopped: "%{count} harvesting run stopped. |||| %{count} harvesting runs stopped.",
         bulkStopRefused: "The api did not accept the stop for: %{ids}."
+      },
+      "failedRecords": "Records it could not store",
+      "refusedByImport": "What the import refused",
+      "collectedStates": "What became of the records it read",
+      "collectedRecord": "Record",
+      "collectedState": "State",
+      "collectedAt": "Stored at",
+      "collectingStates": {
+        "duplicated": "Duplicated",
+        "new": "New",
+        "updated": "Updated",
+        "existing": "Already there",
+        "removed": "Gone"
+      },
+      "failing": {
+        "request": "Requested at",
+        "page": "Page",
+        "refusedWith": "Refused with",
+        "downloadDuration": "Download duration"
+      },
+      "logLine": "Line",
+      "logTimestamp": "Timestamp",
+      "logLevelLabel": "Level",
+      "logKind": "Kind",
+      "logDescription": "Message",
+      "storedResponse": "Stored response",
+      "logLevelFacets": "Log level",
+      "logFacets": {
+        "all": "All",
+        "infoAndAbove": "Info and above",
+        "warningsAndAbove": "Warnings and above"
+      },
+      "runLogLevel": "This run logs at %{level}",
+      "logLevels": {
+        "fatal": "fatal",
+        "error": "error",
+        "warning": "warning",
+        "info": "info",
+        "debug": "debug"
+      },
+      "logKinds": {
+        "remoteError": "Remote error",
+        "countMismatch": "Count mismatch"
       }
     },
     harvestingActivity: {
@@ -472,6 +525,10 @@ const en = lodashMerge(
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
     },
+    harvestingStats: {
+      records: "Records",
+      day: "Day",
+    },
     harvestThroughput: {
       basis: "Measured by the %{count} harvests of this catalogue which finished:",
       perPage: "%{size} records per page: %{throughput} records per minute",
@@ -500,7 +557,9 @@ const en = lodashMerge(
         scope: "Counted over everything you are allowed to see",
         alerts: "Services with an alert",
         updateReviews: "Updates awaiting review",
+        harvestAlerts: "Catalogues with harvesting alerts",
         runningWork: "Background work running",
+        runningHarvests: "Harvestings running (all catalogues)",
         failedWork: "Background work failed",
       },
     },
@@ -606,6 +665,7 @@ const en = lodashMerge(
       title: "Attention required",
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
+      viewCatalogueAlerts: "View catalogue alerts",
       error: "Error",
       warning: "Warning",
       categories: {
@@ -910,10 +970,6 @@ const en = lodashMerge(
       },
     },
     resources: {
-      HarvestingJob: {
-        name: "Harvesting run",
-        name_plural: "Harvesting runs",
-      },
       ServiceAlert: {
         name: "Attention required",
         fields: {
@@ -973,6 +1029,63 @@ const en = lodashMerge(
         plural: "Catalogue Service",
         listSubheader: "Manage registered Catalogue Services (CSW)",
       },
+      CatalogueServiceMonitoringSetting: {
+        singular: "Catalogue service monitoring setting",
+        plural: "Catalogue service monitoring settings",
+      },
+      HarvestingJob: {
+        name: "Harvesting run",
+        name_plural: "Harvesting runs",
+        singular: "Harvesting run",
+        plural: "Harvesting runs",
+        listSubheader: "Runs which harvested the catalogues, running and finished",
+        fields: {
+          service: "Catalogue",
+          dateCreated: "Started",
+          doneAt: "Finished",
+          phase: "Phase",
+          phaseLabel: "Status",
+          progress: "Progress",
+          totalRecords: "Records",
+          unhandledRecordsCount: "Awaiting import",
+          importErrorCount: "Import errors",
+          maxStepSize: "Step size",
+          recordsPerMinute: "Records per minute",
+        },
+      },
+      PeriodicHarvestingJob: {
+        singular: "Harvesting schedule",
+        plural: "Harvesting schedules",
+        listSubheader: "Schedules which determine when each catalogue is harvested",
+        fields: {
+          service: "Catalogue",
+          enabled: "Enabled",
+          scheduling: "Schedule",
+          timeUntilNextRun: "Time until next run",
+        },
+      },
+      HarvestingLog: {
+        singular: "Harvesting log entry",
+        plural: "Harvesting log entries",
+        listSubheader: "What the harvesting runs reported",
+        fields: {
+          harvestingJob: "Harvesting run",
+          timestamp: "Time",
+          level: "Level",
+          kind: "Kind",
+          description: "Description",
+        },
+      },
+      TemporaryMdMetadataFile: {
+        singular: "Downloaded metadata file",
+        plural: "Downloaded metadata files",
+        fields: {
+          job: "Harvesting run",
+          reSchedule: "Re-scheduled",
+          hasImportError: "Has import error",
+          importError: "Import error",
+        },
+      },
       CatalogueServiceUpdateJob: {
         name: "Catalogue update jobs",
         singular: "Catalogue service update job",
@@ -982,7 +1095,39 @@ const en = lodashMerge(
         updateCandidate: "Update candidate",
         notEndedMessage: "This update has not ended yet. Its result is not decided.",
         reviewRequiredMessage: "This update waits for a decision about it. What the catalogue reports is not applied until that decision happened.",
+        listSubheader: "Update jobs of the registered Catalogue Services",
+        fields: {
+          service: "Catalogue",
+          dateCreated: "Created",
+          doneAt: "Done",
+          statusCode: "Status code",
+        },
       },
+      HarvestedMetadataRelation: {
+        singular: "Harvested metadata",
+        plural: "Harvested metadata",
+        fields: {
+          harvestingJob: "Harvesting run",
+          datasetMetadataRecord: "Dataset",
+          serviceMetadataRecord: "Service",
+          applicationMetadataRecord: "Application",
+          collectingState: "Collecting state",
+          downloadDuration: "Download duration",
+        },
+      },
+      BackgroundProcess: {
+        titles: {
+          registering: "Register new Service",
+          harvesting: "Harvesting",
+          harvestingOf: "Harvesting of %{id}",
+          monitoring: "Monitoring",
+          runningTask: "Running Task",
+        },
+        states: {
+          completed: "completed",
+          waitingForSchedule: "waiting for schedule",
+        },
+        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

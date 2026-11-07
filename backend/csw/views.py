@@ -1,17 +1,17 @@
 import datetime
+import logging
 from itertools import chain
 
 from csw.describe_record import (CSWDescribeRecordBuilder,
                                  SUPPORTED_RECORD_TYPE_NAMES)
-from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
-                             apply_sort, loaded_fields, merge_sorted,
+from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS, merged_page,
                              project_gmd_record, requested_element_set,
                              requested_sort_by, sortable_field,
                              sortable_properties)
 from csw.exceptions import (DocumentUnavailable, InvalidQuery,
                             MissingIdParameterException, NotSupported)
 from csw.queryables import (FIELD_MAP, application_records, dataset_records,
-                            search_filter, service_records)
+                            page_records, search_filter, service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models.aggregates import Count
@@ -35,6 +35,8 @@ from registry.ows_lib.response.exceptions import (
     MissingServiceParameterException, ParsingErrorException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
+
+logger = logging.getLogger(__name__)
 
 # Table 65 note a of OGC 07-006r1: the KVP binding compares the value of the
 # REQUEST parameter case-insensitively. Dispatch -- and the request analysis in
@@ -76,6 +78,18 @@ CAPABILITIES_SECTIONS = (
 # an AcceptFormats list without this type names a document this endpoint does
 # not have.
 CAPABILITIES_FORMATS = ("application/xml",)
+
+# The paging attributes of a GetRecords (Table 65): the name of the attribute,
+# the value an absent attribute answers, and the bounds of the type of the
+# attribute -- a position of a result set is a positiveInteger (the first
+# position is 1), the size of a page a nonNegativeInteger. Both derive from
+# xsd:integer, which bounds its value space at 10^18; a page within that bound
+# also keeps the LIMIT the record sources are sliced with within the 64-bit
+# integer the database carries.
+PAGING_ATTRIBUTES = (
+    ("startPosition", "1", 1, 10 ** 18 - 1),
+    ("maxRecords", "10", 0, 10 ** 18 - 1),
+)
 
 
 def parse_kvp_list(value):
@@ -245,6 +259,13 @@ class CswServiceView(View):
         cannot be served is what a client -- and the operator who has to restore
         it -- needs to know.
 
+        The report names the record and nothing else (#1150): the detail of the
+        failed read carries the absolute path of the media storage, which is
+        deployment-internal information an anonymous OGC caller must not
+        receive. The detail belongs to the server log, where the operator
+        restoring the file reads it; the standing answer to the damage itself
+        is the ``check_xml_backups`` management command.
+
         :return: the parsed documents, or the refusal naming the record of the
             one which cannot be served
         :rtype: list | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
@@ -254,11 +275,14 @@ class CswServiceView(View):
             try:
                 documents.append(etree.fromstring(record.xml_backup))
             except (OSError, ValueError, SyntaxError) as e:
+                logger.error(
+                    "the stored document of the record '%s' cannot be served: "
+                    "%s", record.file_identifier, e)
                 return DocumentUnavailable(
                     ogc_request=self.ogc_request,
                     message=(
                         "The stored document of the record "
-                        f"'{record.file_identifier}' cannot be served: {e}"))
+                        f"'{record.file_identifier}' cannot be served."))
         return documents
 
     def get_filter_constraint(self):
@@ -563,6 +587,48 @@ class CswServiceView(View):
             content_type="application/xml"
         )
 
+    def requested_paging(self):
+        """The page of the request, or the refusal which names its attribute.
+
+        ``startPosition`` and ``maxRecords`` are read from the request element
+        -- both bindings carry them as its attributes (the KVP binding embeds
+        the query parameters into the request it synthesizes, see
+        :meth:`registry.ows_lib.request.ogc_request.OGCRequest
+        .build_get_records_from_get`) -- so one read answers both bindings. An
+        absent attribute answers its default of Table 65; a value which is no
+        value of the attribute's type (:data:`PAGING_ATTRIBUTES`) names no page
+        and is refused with the ``InvalidParameterValue`` of OWS Common
+        (#1149; a non-numeric value used to reach a bare ``int()`` whose
+        ``ValueError`` raised out of the handler and answered a raw HTTP 500
+        with an HTML error page). A negative value would reach the record
+        sources as a negative slice and a position beyond the value space of
+        xsd:integer as a ``LIMIT`` the database can not carry -- both are the
+        same client error as a value which is no integer at all.
+
+        :return: ``(start_position, max_records)`` as the request spells them
+            (positions count from 1), or the refusal
+        :rtype: tuple | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
+        """
+        paging = []
+        for attribute, default, minimum, maximum in PAGING_ATTRIBUTES:
+            raw = (self.ogc_request.xml_request.xpath(
+                f"/csw:GetRecords/@{attribute}",
+                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+            ) or [default])[0]
+            try:
+                value = int(raw)
+            except ValueError:
+                value = None
+            if value is None or not minimum <= value <= maximum:
+                return InvalidParameterValueException(
+                    ogc_request=self.ogc_request,
+                    locator=attribute,
+                    message=(
+                        f"Invalid {attribute}: '{raw}'. {attribute} must be "
+                        f"an integer from {minimum} to {maximum}."))
+            paging.append(value)
+        return paging[0], paging[1]
+
     def get_records(self, request):
         field_mapping = self.get_field_map()
 
@@ -601,26 +667,33 @@ class CswServiceView(View):
                         f"{', '.join(sortable_properties())}."))
             sort_specs.append((field, descending))
 
+        # The page the response ships is read the same way -- both bindings
+        # carry the paging attributes on the request element -- and a value
+        # which names no page is refused here, before anything of the result
+        # set is counted or sliced (#1149).
+        paging = self.requested_paging()
+        if isinstance(paging, OGCServiceException):
+            return paging
+        # Table 65 counts the positions of a result set from 1, the page of the
+        # record sources from 0
+        start_position, max_records = paging
+        start_position -= 1
+
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         constraint = search_filter(q)
 
         try:
-            # a GetRecords answers the stored document of a record and nothing else
-            # of it, so nothing else of it is read -- save for the fields it is
-            # sorted by, which the merge of the sources compares
-            dataset_metadata_records_result = apply_sort(
-                dataset_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
-            service_metadata_records_result = apply_sort(
-                service_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
-            application_metadata_records_result = apply_sort(
-                application_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
+            # a GetRecords answers the stored document of a record and nothing
+            # else of it: the three sources stay whole querysets here -- the
+            # page query projects the few fields it reads of its own accord
+            # (see csw/elementsets.merged_page)
+            dataset_metadata_records_result = dataset_records().filter(
+                constraint)
+            service_metadata_records_result = service_records().filter(
+                constraint)
+            application_metadata_records_result = application_records().filter(
+                constraint)
         except FieldError as e:
             requested_field = str(e).split(":")[0].split("'")[1]
             available_fields = field_mapping.keys()
@@ -634,22 +707,12 @@ class CswServiceView(View):
                          + service_metadata_records_result.count()
                          + application_metadata_records_result.count())
 
-        start_position = int(
-            (self.ogc_request.xml_request.xpath(
-                "/csw:GetRecords/@startPosition",
-                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
-            ) or ["1"])[0]
-        ) - 1
-        max_records = int(
-            (self.ogc_request.xml_request.xpath(
-                "/csw:GetRecords/@maxRecords",
-                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
-            ) or ["10"])[0]
-        )
-
+        # the paging attributes were refused or read above, before the result
+        # set was asked of the database (#1149); the maximum page size this
+        # endpoint ships stays capped
         max_records = max_records if max_records <= 1000 else 1000
 
-        heap_count = start_position + max_records
+        page_stop = start_position + max_records
 
         result_type = (self.ogc_request.xml_request.xpath(
             "/csw:GetRecords/@resultType",
@@ -677,24 +740,29 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
-            # All sources are ordered by the same total order -- the requested
-            # sorting over the primary key -- which means that a record which is
-            # among the first `heap_count` records of the merged result is among
-            # the first `heap_count` records of *its own* source too: every record
-            # standing in front of it in the merged order stands in front of it in
-            # its own source as well. So taking that many records from all of them
-            # and merging them by that order answers the requested page, for the
-            # price of one limited query per source.
-            merged_records = merge_sorted(
-                chain(dataset_metadata_records_result[:heap_count],
-                      service_metadata_records_result[:heap_count],
-                      application_metadata_records_result[:heap_count]),
-                sort_specs
-            )
+            # The merged result set is paged in the database: the order every
+            # source answered its own records in is a total order over
+            # (sort criteria, pk, source), so ordering the union of the three
+            # projections by that order and slicing it answers the page with
+            # one query -- whose OFFSET the database skips without reading the
+            # records in front of the page. Merging the sources on this side
+            # could not: it had to materialise every record in front of the
+            # page from every source first, which is what made the cost of a
+            # page grow with its position (#1151).
+            if start_position >= total_records:
+                # the page starts past the end of the result set, which is
+                # known from the numberOfRecordsMatched counted above: the page
+                # is empty whatever the database would answer for it, and the
+                # empty page is answered without asking
+                result = []
+            else:
+                result = page_records(merged_page(
+                    (dataset_metadata_records_result,
+                     service_metadata_records_result,
+                     application_metadata_records_result),
+                    sort_specs, start_position, page_stop))
 
-            result = merged_records[start_position: heap_count]
-
-            next_record = heap_count + 1
+            next_record = page_stop + 1
             next_record = next_record if next_record < total_records else total_records
 
             records_returned = len(result)

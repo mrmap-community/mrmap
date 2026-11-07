@@ -291,6 +291,23 @@ class RuntimeError(OGCServiceException):
     message = "Something unexpected did occur. Please contact the service provider."
 
 
+class NoApplicableCodeException(OGCServiceException):
+    """Report of a request the server could not complete on its own.
+
+    The code OGC 05-008, Table 4 leaves for an error which codes itself none, and
+    which ``OGCServiceException`` already answers with when nothing else fits. The
+    report is answered with the 500 of the failure instead of the 200 the WMS style
+    reports of the security proxy keep: a request which broke inside the server is
+    not a completed request, and it is not a permissions problem either. Telling a
+    caller that it lacks permissions it has sends the operator after a permission
+    which was never the cause (#1153).
+    """
+
+    code = "NoApplicableCode"
+    status_code = 500
+    message = "The server was unable to complete the request."
+
+
 class NotImplementedError(OGCServiceException):
     code = "NotImplementedError"
     message = "MrMap has not implemented the functionality you need."

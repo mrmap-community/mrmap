@@ -194,6 +194,44 @@ def step_impl(context, attribute, expected_value=None):
                 context.test.assertEqual(str(value), expected_value)
 
 
+@then('I expect that response json does not have an attribute "{attribute}"')
+def step_impl(context, attribute):
+    """The named key path is absent from the answer.
+
+    Absence, not ``null``: a serialized FileField answered as ``null`` still
+    tells every reader that the field is part of the representation, while a
+    list which does not answer the attribute at all cannot tempt a screen to
+    fetch the file per row (#1083). The intermediate keys must exist - a
+    missing path proves nothing about the field it ends in.
+    """
+    keys = attribute.split('.')
+    node = context.response.json()
+    for key in keys[:-1]:
+        if '[' in key and ']' in key:
+            index = int(key.split('[')[-1].split(']')[0])
+            context.test.assertIsInstance(
+                node, list,
+                f'"{key}" of "{attribute}" asks a list which is not one')
+            context.test.assertLess(
+                index, len(node),
+                f'"{key}" of "{attribute}" is not in the answer')
+            node = node[index]
+        else:
+            context.test.assertIsInstance(
+                node, dict,
+                f'"{key}" of "{attribute}" cannot be reached')
+            if key not in node:
+                context.test.fail(
+                    f'"{key}" of "{attribute}" is absent, so the answer '
+                    f'tells nothing about the key the scenario asks')
+            node = node[key]
+    last = keys[-1]
+    context.test.assertNotIn(
+        last, node,
+        f'"{last}" is answered but must not be: '
+        f'{node.get(last)!r}')
+
+
 @then('I expect the openapi schema operation "{method}" on "{path}" documents a sort enum')
 def step_impl(context, method, path):
     """The list operation documents `sort` with the enum of its valid terms.

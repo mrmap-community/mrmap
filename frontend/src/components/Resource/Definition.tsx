@@ -34,6 +34,7 @@ import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementView
 import HarvestingJobRowActions from './HarvestingJob/HarvestingJobRowActions';
 import ListHarvestingJob from './HarvestingJob/ListHarvestingJob';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
+import ListHarvestingLog from './HarvestingLog/ListHarvestingLog';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
 import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
@@ -45,6 +46,7 @@ import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
+import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -123,8 +125,11 @@ const RESOURCES: Array<ResourceProps> = [
       list: { additionalActions: HarvestingJobRowActions }
     }
   },
-  {name: "TemporaryMdMetadataFile"},
-  {name: "HarvestingLog"},
+  // the declared lists of the run's leftovers have no menu entries on purpose:
+  // an administrator reaches them from a run, not from a pile of every log
+  // line of every catalogue (#1083, #888)
+  {name: "TemporaryMdMetadataFile", list: ListTemporaryMdMetadataFile},
+  {name: "HarvestingLog", list: ListHarvestingLog},
   {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
 
   {name: "MetadataContact", icon: ContactsIcon},

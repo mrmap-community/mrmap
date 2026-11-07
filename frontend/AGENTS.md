@@ -57,6 +57,12 @@ When implementing frontend changes:
   as column selection, ordering, and custom widgets. Reuse schema-derived
   field definitions and existing override mechanisms instead of
   redeclaring their API structure or constraints.
+- A `sort` or `filter[...]` a screen sends is an API contract, not a display
+  choice: drf-jsonapi answers a term the endpoint does not declare with a 400
+  (`code: invalid`), never with an ignored parameter. Declare every facet in the
+  backend filterset or `ordering_fields` and pin it with a behave scenario in
+  `backend/tests/behave/features/json:api/` before the screen asks for it
+  (#1080).
 
 
 ## Folder responsibilities

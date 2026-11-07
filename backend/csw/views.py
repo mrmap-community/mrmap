@@ -77,6 +77,18 @@ CAPABILITIES_SECTIONS = (
 # not have.
 CAPABILITIES_FORMATS = ("application/xml",)
 
+# The paging attributes of a GetRecords (Table 65): the name of the attribute,
+# the value an absent attribute answers, and the bounds of the type of the
+# attribute -- a position of a result set is a positiveInteger (the first
+# position is 1), the size of a page a nonNegativeInteger. Both derive from
+# xsd:integer, which bounds its value space at 10^18; a page within that bound
+# also keeps the LIMIT the record sources are sliced with within the 64-bit
+# integer the database carries.
+PAGING_ATTRIBUTES = (
+    ("startPosition", "1", 1, 10 ** 18 - 1),
+    ("maxRecords", "10", 0, 10 ** 18 - 1),
+)
+
 
 def parse_kvp_list(value):
     """The values of a KVP parameter which carries a comma separated list.
@@ -563,6 +575,48 @@ class CswServiceView(View):
             content_type="application/xml"
         )
 
+    def requested_paging(self):
+        """The page of the request, or the refusal which names its attribute.
+
+        ``startPosition`` and ``maxRecords`` are read from the request element
+        -- both bindings carry them as its attributes (the KVP binding embeds
+        the query parameters into the request it synthesizes, see
+        :meth:`registry.ows_lib.request.ogc_request.OGCRequest
+        .build_get_records_from_get`) -- so one read answers both bindings. An
+        absent attribute answers its default of Table 65; a value which is no
+        value of the attribute's type (:data:`PAGING_ATTRIBUTES`) names no page
+        and is refused with the ``InvalidParameterValue`` of OWS Common
+        (#1149; a non-numeric value used to reach a bare ``int()`` whose
+        ``ValueError`` raised out of the handler and answered a raw HTTP 500
+        with an HTML error page). A negative value would reach the record
+        sources as a negative slice and a position beyond the value space of
+        xsd:integer as a ``LIMIT`` the database can not carry -- both are the
+        same client error as a value which is no integer at all.
+
+        :return: ``(start_position, max_records)`` as the request spells them
+            (positions count from 1), or the refusal
+        :rtype: tuple | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
+        """
+        paging = []
+        for attribute, default, minimum, maximum in PAGING_ATTRIBUTES:
+            raw = (self.ogc_request.xml_request.xpath(
+                f"/csw:GetRecords/@{attribute}",
+                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+            ) or [default])[0]
+            try:
+                value = int(raw)
+            except ValueError:
+                value = None
+            if value is None or not minimum <= value <= maximum:
+                return InvalidParameterValueException(
+                    ogc_request=self.ogc_request,
+                    locator=attribute,
+                    message=(
+                        f"Invalid {attribute}: '{raw}'. {attribute} must be "
+                        f"an integer from {minimum} to {maximum}."))
+            paging.append(value)
+        return paging[0], paging[1]
+
     def get_records(self, request):
         field_mapping = self.get_field_map()
 
@@ -601,6 +655,18 @@ class CswServiceView(View):
                         f"{', '.join(sortable_properties())}."))
             sort_specs.append((field, descending))
 
+        # The page the response ships is read the same way -- both bindings
+        # carry the paging attributes on the request element -- and a value
+        # which names no page is refused here, before anything of the result
+        # set is counted or sliced (#1149).
+        paging = self.requested_paging()
+        if isinstance(paging, OGCServiceException):
+            return paging
+        # Table 65 counts the positions of a result set from 1, the page of the
+        # record sources from 0
+        start_position, max_records = paging
+        start_position -= 1
+
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         constraint = search_filter(q)
@@ -634,19 +700,9 @@ class CswServiceView(View):
                          + service_metadata_records_result.count()
                          + application_metadata_records_result.count())
 
-        start_position = int(
-            (self.ogc_request.xml_request.xpath(
-                "/csw:GetRecords/@startPosition",
-                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
-            ) or ["1"])[0]
-        ) - 1
-        max_records = int(
-            (self.ogc_request.xml_request.xpath(
-                "/csw:GetRecords/@maxRecords",
-                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
-            ) or ["10"])[0]
-        )
-
+        # the paging attributes were refused or read above, before the result
+        # set was asked of the database (#1149); the maximum page size this
+        # endpoint ships stays capped
         max_records = max_records if max_records <= 1000 else 1000
 
         heap_count = start_position + max_records

@@ -157,6 +157,25 @@ Feature: MrMap CatalogueService POST Binding Endpoint
         Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
         Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "csw:Constraint"
 
+    # The paging attributes belong to the request element of either binding;
+    # #1149 refuses a value which is no value of their type with the report
+    # naming the attribute, where the bare int() of the read answered a raw
+    # HTTP 500. The refusals of the same attributes on the KVP binding are in
+    # get_records.feature.
+    Scenario: Posted GetRecords with a non-numeric maxRecords is refused
+        Given I set the request payload to:
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <csw:GetRecords xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+                        service="CSW" version="2.0.2" resultType="hits" maxRecords="abc">
+          <csw:Query typeNames="gmd:MD_Metadata"/>
+        </csw:GetRecords>
+        """
+        When I send the request with POST method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "maxRecords"
+
     Scenario: Posted request document which is not well-formed XML is refused
         Given I set the request payload to:
         """

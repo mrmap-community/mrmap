@@ -280,6 +280,25 @@ class CswPostTests(AssertsExceptionReport, TestCase):
         self.assertExceptionReport(
             response, "InvalidParameterValue", "csw:Constraint")
 
+    def test_a_posted_get_records_refuses_a_non_numeric_max_records(self):
+        # #1149: the paging attributes are read off the request element by
+        # both bindings and the bare int() raised its ValueError out of the
+        # handler -- the refusals of the same attributes on the KVP binding
+        # are pinned in tests/django/test_csw_exception_reports.py
+        response = self.post(get_records(maxRecords="abc"))
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "maxRecords")
+
+    def test_a_posted_get_records_refuses_an_empty_start_position(self):
+        # the XML binding can spell an attribute present but empty, which the
+        # KVP binding can not (its empty parameter never reaches the request
+        # element); an empty value is no integer either
+        response = self.post(get_records(startPosition=""))
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "startPosition")
+
     def test_a_post_without_the_service_attribute_names_the_service(self):
         # the XML binding requires the service attribute (Table 65); reading
         # the never-existing service_type attribute answered every posted

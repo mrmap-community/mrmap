@@ -35,9 +35,10 @@ One disposable network and two containers on it:
 
   * the *edge*: this checkout's `docker/nginx/mrmap.conf`, mounted at the path
     `docker-compose.yml` mounts it at, on the nginx base image of the frontend
-    image. Its SPA root holds a stub `index.html` and the real `error-beacon.js`
-    - what is under test is which `location` answers, not what the built app
-    renders, so nothing has to be compiled.
+    image. Its SPA root holds a stub `index.html` and the real `error-beacon.js`,
+    and its collectstatic root one stub file - what is under test is which
+    `location` answers, not what the built app renders, so nothing has to be
+    compiled.
   * the *backend*: the same image with a three line server that answers 200 with
     `backend-stub <uri>` for every path, on the name and port the conf resolves
     (`backend`, port 8001). A proxied URL is then proven by that echo - including
@@ -61,6 +62,12 @@ from the schema and any one of those may one day start with a proxied prefix. A
 new frontend route whose name begins with one of them - the shape of #1036 -
 belongs in this table, because that is precisely the case nginx gets wrong
 without anyone noticing.
+
+A new backend mount belongs here as well, and with one asset-shaped url of its
+own: #1110 is the other class of failure this table exists for, where a url of a
+mount is answered by a rule which nginx judges at a *deeper* level than the
+mount's own location, so the mount never sees the request. Nothing but the edge
+can show that - behind it django answers the url happily.
 """
 
 import os
@@ -83,6 +90,17 @@ FRONTEND_DOCKERFILE = ROOT / "docker" / "nginx" / "nginx.Dockerfile"
 SPA_BODY = "<html><body>mrmap-nginx-smoke-spa-shell</body></html>\n"
 SPA_ROOT = "/var/www/mrmap/frontend"
 
+# The collectstatic root the conf aliases at /backend/static/. One file of it is
+# staged, so a row can ask for a url that location really owns.
+BACKEND_STATIC_ROOT = "/var/www/mrmap/backend"
+BACKEND_STATIC_PATH = "/backend/static/admin/css/base.css"
+BACKEND_STATIC_ON_DISK = f"{BACKEND_STATIC_ROOT}/admin/css/base.css"
+BACKEND_STATIC_BODY = "collectstatic-stub\n"
+
+# The beacon the image copies into its SPA root, read here as the body its own
+# exact location owes.
+BEACON_BODY = BEACON.read_text()
+
 # Answers the conf's proxy target. `$uri` is the decoded path without the query
 # string, so a case states its expectation as the path it requested.
 STUB_BACKEND_CONF = """
@@ -102,10 +120,11 @@ CONF_MARKER = "mrmap_frontend_error"
 SPA = "spa"
 BACKEND = "backend"
 DENY = "deny"
+FILE = "file"
 
 # (kind, path, argument) - SPA: the shell answers; BACKEND: the upstream echoes
 # the requested path back, without its query string; DENY: this status answers
-# and it is not the shell.
+# and it is not the shell; FILE: this body is served from a root of nginx itself.
 CASES = [
     # Application routes belong to the SPA. /csw-client is #1036 itself: it
     # starts with the proxied word "csw" and must still not be proxied.
@@ -134,18 +153,57 @@ CASES = [
     (BACKEND, "/mrmap-proxy/ows/1"),
     (BACKEND, "/media/some-upload"),
 
+    # The same urls with an asset extension on the last segment - the shape
+    # #1110 is about. While the asset rule of #942 sat nested inside `location /`
+    # it was judged at that deeper level, before the proxy regex below was
+    # consulted at all, and answered every one of them with nginx's own 404. The
+    # two media names are the ones a deployment really answers: a stored
+    # preview_image (registry/models/mapcontext.py names it
+    # preview_images/<pk>/<filename>) and the body of one security proxy log row,
+    # which an operator opens through the link of that row. They are the two 200
+    # cases of backend/tests/django/test_media_serving.py, and that suite runs
+    # behind this nginx with django's own test client - which is why it never
+    # noticed what the edge in front of it answered.
+    (BACKEND, "/media/preview_images/42/logo.png"),
+    (BACKEND, "/media/security_proxy/logs/requests/"
+              "1b4d0e0a-2c3d-4e5f-8a9b-000000000000.json"),
+    # The other mounts carry the same shape, and none of them is about media:
+    # whatever a mount answers, an asset extension on the last segment belongs
+    # to that mount and not to the asset rule.
+    (BACKEND, "/api/x.js"),
+    (BACKEND, "/csw/x.png"),
+    (BACKEND, "/ws/x.js"),
+    (BACKEND, "/django-admin/x.css"),
+    (BACKEND, "/mrmap-proxy/x.map"),
+
     # Answered by nginx itself, before both of the two above.
     (DENY, "/api/system/error", 204),   # the error beacon of #942, exact match
     (DENY, "/media/logs/a-dump.sql", 404),   # slow request dumps, #888
     (DENY, "/assets/does-not-exist.js", 404),  # hashed bundles, #942
 
-    # The answer of today, not the wanted one: the nested asset rule of
-    # `location /` is judged at a deeper level than the proxy regex above, so it
-    # intercepts every proxied URL whose last segment ends in .png, .json, .js or
-    # another asset extension, before that regex is consulted at all. Measured
-    # identically on the conf this change replaces, so nothing here causes or
-    # cures it - #1110 is about it, and this row moves to BACKEND with that fix.
-    (DENY, "/media/some-upload.png", 404),
+    # A missing file with an asset extension below the SPA root stays a real 404
+    # and never the app shell: what the asset rule of #942 was written for, and
+    # what the fix of #1110 must not undo by moving that rule up a level.
+    (DENY, "/missing-image.png", 404),
+
+    # The files of nginx's own two roots, asked for through the location which
+    # owns them. Both names carry an asset extension, so both would answer 404 if
+    # a location of this server ever let the asset rule judge the url instead of
+    # its own file: the beacon through its exact location (#942), the collectstatic
+    # file through the alias of /backend/static/.
+    (FILE, "/error-beacon.js", BEACON_BODY),
+    (FILE, BACKEND_STATIC_PATH, BACKEND_STATIC_BODY),
+
+    # The asset-shaped urls of the three tool proxies stay with their own proxy.
+    # This harness runs no grafana, no pgadmin and no flower, so the 502 of the
+    # proxy which could not resolve its upstream is the proof that *that* location
+    # judged the url: with the asset rule of #942 in reach of these urls, the answer
+    # would be its 404 instead. That reach is what the `^~` of those locations takes
+    # away, and it is what #942 avoided by nesting its rule; #1110 moves the rule to
+    # the server level, where a plain prefix would not survive it.
+    (DENY, "/grafana/public/build/grafana.dark.json", 502),
+    (DENY, "/pgadmin/static/grappelli/styles/screen.css", 502),
+    (DENY, "/flower/static/imgs/favicon.png", 502),
 ]
 
 READINESS_TIMEOUT_S = 25.0
@@ -269,6 +327,9 @@ def judge(kind, path, argument, status, body):
         # The stub echoes the path it was asked for, without the query string.
         wanted = f"backend-stub {path.split('?')[0]}\n"
         return (status, body) == (200, wanted), f"proxied as {wanted.strip()}"
+    if kind == FILE:
+        return ((status, body) == (200, argument),
+                "the file of this url, not the shell")
     return status == argument and body != SPA_BODY, f"status {argument}, not the shell"
 
 
@@ -296,6 +357,9 @@ def main():
         # beacon's exact location is judged with its file present, as in the image.
         stage(edge, f"{SPA_ROOT}/index.html", content=SPA_BODY)
         stage(edge, f"{SPA_ROOT}/error-beacon.js", source=BEACON)
+        # And one file of the collectstatic root, so the alias of
+        # /backend/static/ has something of its own to answer with.
+        stage(edge, BACKEND_STATIC_ON_DISK, content=BACKEND_STATIC_BODY)
         # The edge started with the conf under test; prove it kept it rather than
         # answering these rows from the image's own default server.
         if CONF_MARKER not in docker("exec", edge, "nginx", "-T"):

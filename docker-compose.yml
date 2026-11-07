@@ -299,7 +299,9 @@ services:
       # while empty, so `up -d --build` after an upgrade kept serving the
       # previous version's assets from the volume - and stale hashed files
       # never disappeared, which #942's 404s and #946's immutable caching
-      # both depend on. (#922)
+      # both depend on. (#922) That no mount ever returns to those paths is
+      # what scripts/static_mounts_smoke.py checks; #1027 is the invisible
+      # stale rebuild a mount caused again on an older checkout.
     ports:
       - "${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}:80"
     depends_on:

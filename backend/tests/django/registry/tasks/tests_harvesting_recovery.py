@@ -32,6 +32,10 @@ from registry.tasks.harvest import (
     recover_harvests_after_restart,
 )
 
+# the ISO 19139 namespaces a test which shapes a record of its own needs
+GMD = '{http://www.isotc211.org/2005/gmd}'
+GCO = '{http://www.isotc211.org/2005/gco}'
+
 
 class HarvestingRecoveryTest(TestCase):
     def setUp(self):
@@ -91,6 +95,51 @@ class HarvestingRecoveryTest(TestCase):
 
         self.assertTrue(results[0][0].time_extents.exists())
         self.assertFalse(self.job.logs.exists())
+
+    def test_record_with_several_representative_fractions_is_imported_and_reported(self):
+        """#990: a record which maps several scales names one denominator per
+        resolution block. Two of them answered the scalar equivalent_scale with
+        the list of both, which the field refused on save - the record was lost
+        and the harvesting run answered nothing but the count of lost records.
+        It is imported with the fraction the document names first, and the log
+        of the run names the one which was dropped."""
+        xml = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+        root = etree.parse(str(xml)).getroot()
+        identification = root.xpath('//*[local-name()="identificationInfo"]/*')[0]
+        for denominator in ('30000', '75000'):
+            resolution = etree.SubElement(identification, f'{GMD}spatialResolution')
+            md_resolution = etree.SubElement(resolution, f'{GMD}MD_Resolution')
+            equivalent_scale = etree.SubElement(md_resolution, f'{GMD}equivalentScale')
+            fraction = etree.SubElement(
+                equivalent_scale, f'{GMD}MD_RepresentativeFraction')
+            denominator_element = etree.SubElement(
+                fraction, f'{GMD}denominator')
+            etree.SubElement(denominator_element, f'{GCO}Integer').text = denominator
+
+        record = TemporaryMdMetadataFile(job=self.job)
+        record.md_metadata_file.save('dataset.xml', ContentFile(etree.tostring(root)), save=False)
+        TemporaryMdMetadataFile.objects.bulk_create([record])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            results = record.md_metadata_file_to_db()
+
+        imported = results[0][0]
+        self.assertEqual(imported.equivalent_scale, 30000.0)
+        # an import which died on the field leaves its source file behind with
+        # the traceback in the import error ledger
+        self.assertFalse(TemporaryMdMetadataFile.objects.filter(pk=record.pk).exists())
+
+        self.assertEqual(self.job.logs.count(), 1)
+        log = self.job.logs.latest('pk')
+        self.assertEqual(log.level, LogLevelEnum.WARNING)
+        self.assertEqual(
+            log.description,
+            "Mapped 2 values for the single valued field "
+            "'equivalent_scale'; kept '30000' and dropped ['75000'].")
+        with log.extented_description.open('rb') as details_file:
+            details = details_file.read().decode()
+        self.assertIn(imported.file_identifier, details)
+        self.assertIn('dataset.xml', details)
 
     def test_crashed_import_rolls_back_and_preserves_source_file(self):
         path = Path(self.record.md_metadata_file.path)

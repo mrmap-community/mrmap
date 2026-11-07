@@ -33,7 +33,14 @@ def serialize_reference_system(mapper, instance: ReferenceSystem):
 
 
 def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResult):
-    category_str = el.text.strip() if isinstance(
+    # An element without character content is a missing value, not an import
+    # error: lxml answers None for the text of an empty
+    # <gmd:MD_TopicCategoryCode/>, which is the ordinary shape of an optional
+    # element a publisher leaves in the record. It is read as the empty text
+    # the character branch already answers - CategoryChoices('') is no
+    # choice, so the parser answers None and the record imports without that
+    # category (#989).
+    category_str = (el.text or "").strip() if isinstance(
         el, etree._Element) else el.strip()
     value = CategoryChoices(category_str)
     if value:

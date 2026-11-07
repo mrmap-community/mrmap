@@ -101,3 +101,12 @@ Feature: HarvestingJob List Endpoint
         Then I expect that response json has an attribute "data.[0].attributes.expectedDoneAt" with value "None"
         Then I expect that response json has an attribute "data.[1].attributes.estimatedSecondsRemaining" with value "None"
         Then I expect that response json has an attribute "data.[1].attributes.expectedDoneAt" with value "None"
+
+    # The display string of a job names the catalogue it runs for and the id of the run, the
+    # shape every registry resource uses - it is what the frontend renders wherever it shows a
+    # record generically. The model repr it replaced read "HarvestingJob object (1)" (#1045).
+    Scenario: Answers the display string of a job
+        Given I set a queryparam "filter[id]" with value "1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.stringRepresentation" with value "CSW2 (harvesting job 1)"

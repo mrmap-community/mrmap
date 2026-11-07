@@ -19,6 +19,12 @@ FILTERS = {
     'service': None,
 }
 
+#: filters whose value may name more than one of its choices at once, comma
+#: separated; the queues of the dashboard count the states of the harvesting
+#: with one request and the schedules tab of a catalogue asks its two schedule
+#: states the same way (#1086)
+MULTI_VALUE_FILTERS = ('category',)
+
 #: sort fields the hand-written ordering in filter_queryset accepts; the
 #: schema documents exactly these terms, so enum and whitelist cannot drift
 SORT_FIELDS = ('id', 'severity', 'occurred_at')
@@ -77,7 +83,12 @@ class ServiceAlertListView(generics.ListAPIView):
     filter_backends = []
 
     @extend_schema(parameters=[
-        OpenApiParameter(f'filter[{name}]', str, enum=choices)
+        OpenApiParameter(
+            f'filter[{name}]', str, enum=choices,
+            description=(
+                'Multiple categories may be separated by commas; the answer '
+                'holds the alerts of every one of them.'
+                if name in MULTI_VALUE_FILTERS else None))
         for name, choices in FILTERS.items()
     ] + [OpenApiParameter(
         OrderingFilter.ordering_param, str,
@@ -99,9 +110,22 @@ class ServiceAlertListView(generics.ListAPIView):
             if name not in FILTERS:
                 raise ValidationError('Unknown alert filter.')
             choices = FILTERS[name]
-            if choices and value not in choices:
+            lookup = to_snake(name)
+            if not choices:
+                queryset = queryset.filter(**{lookup: value})
+                continue
+            # the value of a multi value filter names more than one of the
+            # choices comma separated; the answer holds the alerts which are
+            # in any one of them - one request per queue of the dashboard
+            # (#1086)
+            values = (value.split(',') if name in MULTI_VALUE_FILTERS
+                      else [value])
+            if any(choice not in choices for choice in values):
                 raise ValidationError('Invalid alert filter value.')
-            queryset = queryset.filter(**{to_snake(name): value})
+            if len(values) > 1:
+                queryset = queryset.filter(**{f'{lookup}__in': values})
+            else:
+                queryset = queryset.filter(**{lookup: values[0]})
         fields = self.request.query_params.get(
             'sort', 'severity,-occurredAt').split(',')
         return queryset.order_by(*ordering(fields))

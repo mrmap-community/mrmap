@@ -455,7 +455,9 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       scope: "Gezählt über alles, was Sie sehen dürfen",
       alerts: "Dienste mit einer Meldung",
       updateReviews: "Aktualisierungen zur Prüfung",
+      harvestAlerts: "Kataloge mit Harvesting-Meldungen",
       runningWork: "Laufende Hintergrundarbeit",
+      runningHarvests: "Laufende Harvestings (alle Kataloge)",
       failedWork: "Fehlgeschlagene Hintergrundarbeit",
     },
   },
@@ -685,6 +687,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     title: "Handlungsbedarf",
     count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
     viewAll: "Alle Hinweise anzeigen",
+    viewCatalogueAlerts: "Hinweise der Kataloge anzeigen",
     error: "Fehler",
     warning: "Warnung",
     categories: {

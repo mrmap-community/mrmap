@@ -21,8 +21,8 @@ export type HarvestFilter = "harvest_aborted" | "harvest_incomplete";
  * What differs between the lists of the registered services.
  *
  * The lists themselves are one screen: only the resource the api is asked for,
- * the protocol the details panel shows a service with, the label and the source
- * of the count of the elements of a service, the attributes a request names in
+ * the protocol the details panel shows a service with, the label of the column
+ * which counts the elements of a service, the attributes a request names in
  * its sparse fieldset, the states of the harvesting which its resource declares
  * and the action which the rows of one kind of service answer apart are
  * configured per resource.
@@ -35,11 +35,6 @@ export interface ServiceListConfig {
   /** the key of the label of the column which counts the elements of a service,
    *  below "serviceList.columns" */
   countLabelKey: "layers" | "featureTypes" | "records";
-  /** the property of a record which answers the elements of a service as a
-   *  relationship, which counts them when the page does not carry the count of
-   *  them - unset for a resource which does not answer the elements of a service
-   *  within its records */
-  countRelation?: string;
   /** the attributes the list asks for, as the api names them in a sparse fieldset */
   fields: string[];
   /**

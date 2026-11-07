@@ -49,7 +49,10 @@ DISPLAY_SORTED = {
         "facsimile", "city", "postalCode", "addressType", "address",
         "stateOrProvince", "country", "stringRepresentation"],
     "/api/registry/harvesting/harvesting-jobs": [
-        "id", "dateCreated", "doneAt", "stringRepresentation"],
+        # #1080: phase and total_records joined the offer; date_created is
+        # offered only after #1079 fills it - a sort that cannot sort shows a
+        # false arrow in the table
+        "id", "doneAt", "stringRepresentation", "phase", "totalRecords"],
     "/api/notify/background-processes": ["id", "dateCreated", "progress"],
 }
 

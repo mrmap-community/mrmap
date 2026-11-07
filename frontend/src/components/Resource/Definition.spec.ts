@@ -33,3 +33,26 @@ describe("the resource definitions of the screens which offer their selection in
     }
   });
 });
+
+/**
+ * The screen of all harvesting schedules is reachable from the menu (#1082), and its rows answer
+ * the last and the next run - which the backend only calculates for a request that asks for
+ * them. The declared columns of the screen register no column with the grid before the first
+ * request, so the fieldset must name them itself.
+ */
+describe("the resource definition of the schedules screen", () => {
+  it("is in the CSW group of the menu", () => {
+    const options = RESOURCES.find((resource) => resource.name === "PeriodicHarvestingJob")
+      ?.options as { menu?: { group: string; order: number } } | undefined;
+    expect(options?.menu).toEqual({ group: "CSW", order: 30 });
+  });
+
+  it("asks for the runs of a schedule in its sparse fieldset", () => {
+    const fields = listOptionsOf("PeriodicHarvestingJob")?.sparseFieldsets?.find(
+      (set) => set.type === "PeriodicHarvestingJob",
+    )?.fields;
+    expect(fields).toEqual(
+      expect.arrayContaining(["last_run_at", "next_run_at", "total_run_count"]),
+    );
+  });
+});

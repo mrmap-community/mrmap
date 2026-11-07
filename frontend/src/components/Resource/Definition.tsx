@@ -39,7 +39,7 @@ import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServi
 import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
 import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
-import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListPeriodicHarvestingJob, { SCHEDULE_LIST_FIELDS } from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
@@ -120,7 +120,19 @@ const RESOURCES: Array<ResourceProps> = [
   // line of every catalogue (#1083, #888)
   {name: "TemporaryMdMetadataFile", list: ListTemporaryMdMetadataFile},
   {name: "HarvestingLog", list: ListHarvestingLog},
-  {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
+  // the screen of all schedules: the question which catalogue has one, and when
+  // it next runs, is answered here and not on the tab of a single catalogue
+  // (#1082). The fieldset names its columns, because the grid of declared
+  // columns registers none of them before the first request goes out.
+  {
+    name: "PeriodicHarvestingJob",
+    icon: UpdateIcon,
+    list: ListPeriodicHarvestingJob,
+    options: {
+      menu: { group: "CSW", order: 30 },
+      list: { sparseFieldsets: [{ type: "PeriodicHarvestingJob", fields: SCHEDULE_LIST_FIELDS }] }
+    }
+  },
 
   {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},

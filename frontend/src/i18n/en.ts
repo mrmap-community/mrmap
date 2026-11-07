@@ -17,6 +17,19 @@ const en = lodashMerge(
       preview: "Preview / manual edit",
       apply: "Apply",
     },
+    // what a crontab of a harvesting schedule says in words; the expression
+    // itself stays beside it, and an expression these sentences do not cover is
+    // answered by the expression alone (#1082)
+    cronReading: {
+      everyMinute: "Every minute",
+      everyNMinutes: "Every %{every} minutes",
+      everyNHours: "Every %{every} hours at minute %{minute}",
+      hourly: "Once an hour, at minute %{minute}",
+      daily: "Every day at %{time}",
+      weekly: "Every %{days} at %{time}",
+      monthly: "Every month on day %{day} at %{time}",
+      yearly: "Every year on %{month} %{day} at %{time}",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",
@@ -442,6 +455,10 @@ const en = lodashMerge(
       disabledMessage: "Harvesting schedules are disabled. Enable a schedule to harvest automatically.",
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
+      runs: "View runs",
+      neverRan: "Never ran",
+      noNextRun: "No next run",
+      attentionTitle: "Schedules which need attention",
     },
     harvestingStats: {
       records: "Records",
@@ -975,6 +992,9 @@ const en = lodashMerge(
           enabled: "Enabled",
           scheduling: "Schedule",
           timeUntilNextRun: "Time until next run",
+          lastRunAt: "Last run",
+          nextRunAt: "Next run",
+          totalRunCount: "Runs",
         },
       },
       HarvestingLog: {

@@ -10,6 +10,8 @@ export interface RelativeDateFieldProps {
   record?: RaRecord;
   /** the locale the distance and the absolute moment are formatted with */
   locales?: string;
+  /** what to answer for a record which names no moment, which is nothing by default */
+  emptyText?: ReactNode;
   /** the style of the text */
   sx?: SxProps<Theme>;
 }
@@ -65,17 +67,22 @@ const distanceToNow = (date: Date, locales?: string): string => {
  *
  * Nothing is shown for a record which answers no moment: whether that is an
  * absence is a question of the screen around the field, which says it in its own
- * words.
+ * words - and names them in `emptyText` when the row should say so.
  */
 const RelativeDateField = ({
   source,
   record,
   locales,
+  emptyText,
   sx,
 }: RelativeDateFieldProps): ReactNode => {
   const date = asDate(useFieldValue({ source, record }));
   if (date === undefined) {
-    return null;
+    return emptyText === undefined ? null : (
+      <Typography variant="body2" color="text.secondary" sx={sx}>
+        {emptyText}
+      </Typography>
+    );
   }
 
   return (

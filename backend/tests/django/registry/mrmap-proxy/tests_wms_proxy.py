@@ -1,6 +1,7 @@
 from importlib import resources
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qsl, urlparse
 from unittest.mock import patch
 
 from accounts.models.users import User
@@ -16,6 +17,7 @@ from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import WebMapService
 from registry.ows_lib.request.ogc_request import OGCRequest
+from registry.ows_lib.wms.wms import WebMapServiceClient
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -62,6 +64,16 @@ def epsg_side_effect(*args, **kwargs):
 
 
 def remote_effect(*args, **kwargs):
+    return REMOTE_RESPONSE
+
+
+# the upstream requests the patched client below was asked to send
+FORWARDED_REQUESTS = []
+
+
+def capture_remote_request(*args, **kwargs):
+    """Answer as the remote WMS does, after recording the request it is sent."""
+    FORWARDED_REQUESTS.append(args[0])
     return REMOTE_RESPONSE
 
 
@@ -317,6 +329,40 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertEqual(200, response.status_code)
         # TODO: check the response picture
+
+    @patch.object(
+        target=WebMapServiceClient,
+        attribute="send_request",
+        side_effect=capture_remote_request,
+    )
+    @patch.object(
+        target=Registry,
+        attribute="_fetch_coord_ref_system",
+        side_effect=epsg_side_effect,
+    )
+    def test_empty_styled_param_is_forwarded_to_the_upstream_request(
+        self, mocked_registry, mocked_send
+    ):
+        # every standard WMS client sends STYLES= -- the empty value is the
+        # default style (OGC 05-008, 7.2.2). The proxy used to rebuild the
+        # upstream request from a parameter set which kept only non-empty
+        # values, so upstream never read STYLES and refused with
+        # "missing parameters ['styles']" (#1154)
+        FORWARDED_REQUESTS.clear()
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
+
+        response = self.client.get(self.wms_url, self.query_params)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, len(FORWARDED_REQUESTS))
+        forwarded_url = FORWARDED_REQUESTS[0].url
+        pairs = parse_qsl(urlparse(forwarded_url).query, keep_blank_values=True)
+        self.assertIn(("STYLES", ""), pairs)
+        # the parameter is present-with-empty-value, not absent and not filled
+        self.assertNotIn(
+            "STYLES", [name for name, _ in parse_qsl(urlparse(forwarded_url).query)]
+        )
 
 
 class WebMapServiceProxyFontTest(SimpleTestCase):

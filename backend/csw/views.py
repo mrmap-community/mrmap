@@ -212,7 +212,10 @@ class CswServiceView(View):
         # covered: these KVP checks can not cover it (FIXME: if post method, this
         # will not cover the check)
 
-        elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
+        # an empty parameter is the parameter left to its default, as it was
+        # while the request analysis dropped empty values wholesale (#1154)
+        elif (self.ogc_request.ogc_query_params.get("outputSchema")
+              or "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
             # every refusal of this view hands the exception the request it
             # answers and lets the exception read the identity of the report
             # out of it (#908; the #866 audit removed the sites which spelled
@@ -221,7 +224,8 @@ class CswServiceView(View):
                 ogc_request=self.ogc_request,
                 locator="outputSchema",
                 message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
-        elif self.ogc_request.ogc_query_params.get("typeNames", "gmd:MD_Metadata") != "gmd:MD_Metadata":
+        elif (self.ogc_request.ogc_query_params.get("typeNames")
+              or "gmd:MD_Metadata") != "gmd:MD_Metadata":
             return NotSupported(
                 ogc_request=self.ogc_request,
                 locator="typeNames",

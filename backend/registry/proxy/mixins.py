@@ -211,7 +211,9 @@ class OgcServiceProxyView(APIView):
         """Http get/post method with security case decisioning.
         **Principle constraints**:
             * service is found by the given primary key. If not return ``404 - Service not found.``
-            * service is active. If not return ``423 - Service is disabled.``
+            * service is active. If not return ``423 - Service is disabled.``, also for
+              ``GetCapabilities``: an inactive service does not answer its capabilities,
+              the metadata of a deactivated service stays unreadable.
             * request query parameter is provided. If not return ``400 - Request param is missing``
         **Service is not secured condition**:
             * is_secured == False ``OR``
@@ -231,10 +233,10 @@ class OgcServiceProxyView(APIView):
         :rtype: dict or :class:`requests.models.Request`
         """
 
-        if self.ogc_request.is_get_capabilities_request:
-            return self.get_capabilities()
-        elif not self.service.is_active:
+        if not self.service.is_active:
             raise Http423
+        elif self.ogc_request.is_get_capabilities_request:
+            return self.get_capabilities()
         elif (
             self.ogc_request.operation.lower() not in SECURE_ABLE_OPERATIONS_LOWER
         ):

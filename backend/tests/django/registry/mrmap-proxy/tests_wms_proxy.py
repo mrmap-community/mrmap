@@ -199,6 +199,52 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertTrue(self.are_images_equal(received_image, expected_image))
 
+    def test_get_capabilities_of_an_active_service_is_answered(self):
+        # the proxy answers capabilities unauthenticated as long as the
+        # service is active
+        response = self.client.get(
+            self.wms_url,
+            {"SERVICE": "WMS", "REQUEST": "GetCapabilities", "VERSION": "1.3.0"}
+        )
+
+        self.assertEqual(200, response.status_code)
+        root = etree.fromstring(response.content)
+        self.assertEqual("WMS_Capabilities", etree.QName(root).localname)
+
+    def test_get_capabilities_of_an_inactive_service_is_answered_with_the_disabled_report(self):
+        # a deactivated service refuses every operation with the Disabled
+        # report, its capabilities included (#1147): deactivation shall not
+        # leave the metadata of the service readable
+        WebMapService.objects.filter(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+        ).update(is_active=False)
+
+        response = self.client.get(
+            self.wms_url,
+            {"SERVICE": "WMS", "REQUEST": "GetCapabilities", "VERSION": "1.3.0"}
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        got_xml = response.content
+        expected_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<ogc:ServiceExceptionReport xmlns:ogc="http://www.opengis.net/ogc" version="1.3.0">'
+            '<ogc:ServiceException code="Disabled">'
+            'The requested service is temporaly disabled.'
+            '</ogc:ServiceException>'
+            '</ogc:ServiceExceptionReport>'
+        ).encode()
+
+        self.assertXmlSchema(
+            got_xml,
+            "registry.ows_lib.xml.schemas",
+            "wmsExceptionReport130.xsd"
+        )
+        self.assertXmlEquals(got_xml, expected_xml)
+        # the capabilities document itself is not part of the answer
+        self.assertNotIn(b"WMS_Capabilities", got_xml)
+
     def test_unknown_layer_exception(self):
         self.client.login(username="User1", password="User1")
         self.query_params.update({"LAYERS": "qwertz"})

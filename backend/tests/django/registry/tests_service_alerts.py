@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connections
 from django.test import RequestFactory, SimpleTestCase, TestCase
-from django.test.utils import CaptureQueriesContext
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule
@@ -1099,6 +1099,40 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
             with self.captureOnCommitCallbacks(execute=True):
                 self.update_job(self.wms_one, JobState.ERROR)
         self.assertTrue(refresh.apply_async.called)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_an_invalidation_under_eager_tasks_rewrites_nothing_itself(self):
+        """The enqueue is a hand over to a worker, never a call of the refresh.
+
+        An app which runs its tasks eagerly would execute the whole rewrite of
+        the table here, inside the transaction which is committing, and the
+        postrun of the task closes the connections of the process - which took
+        the connection of the harvesting tests with it and killed the unit
+        tests pool of #1140. So the invalidation answers no rows there, and the
+        read which asserts that is the second half of the test: a closed
+        connection answers it with an error instead of an answer.
+        """
+        from unittest.mock import patch
+
+        from registry.models.alerts import ServiceAlert
+
+        refresh_service_alerts()
+        before = list(
+            ServiceAlert.objects.values_list('id', flat=True).order_by('id'))
+        # the job of the service enqueues its own update task on commit, which
+        # is not under test here - only the invalidation of the alerts is
+        with patch('notify.utils.send_msg'), patch(
+                'registry.tasks.update.run_wms_update.apply_async'):
+            with self.captureOnCommitCallbacks(execute=True):
+                # an update job which is an error is a row the refresh of the
+                # new state would have added to the table
+                self.update_job(self.wms_one, JobState.ERROR)
+        self.assertEqual(
+            list(ServiceAlert.objects.values_list(
+                'id', flat=True).order_by('id')),
+            before,
+            'the invalidation of an app with eager tasks must not refresh the '
+            'rows itself')
 
 
 class ServiceAlertRefreshScheduleTest(TestCase):

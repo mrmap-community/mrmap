@@ -132,6 +132,15 @@ def invalidate_service_alerts():
     so the fires which a burst of invalidations enqueues collapse into the
     refreshes which really run, and one which finds another running is
     skipped - its state is answered by the next beat fire at the latest.
+
+    The enqueue is a hand over to a worker, never a call of the refresh: an
+    app which runs its tasks eagerly executes the whole rewrite of the table
+    here, inside the transaction which is committing, and the postrun of the
+    task closes every connection of the process
+    (`MrMap.celery.close_connections_after_task`) - which takes the caller's
+    connection with it and breaks every query which follows in the same
+    process. Tests which need the rows call `refresh_service_alerts()`
+    themselves, like the behave step of the alerts does.
     """
     def publish():
         try:
@@ -141,6 +150,11 @@ def invalidate_service_alerts():
             })
         except Exception:
             logger.exception("can't invalidate service alerts")
+        from MrMap.celery import app
+        if app.conf.task_always_eager:
+            # nothing consumes a queue here, so the enqueue would be a call -
+            # see the docstring of `invalidate_service_alerts` (#1030)
+            return
         try:
             from registry.tasks.alerts import refresh_service_alerts
             refresh_service_alerts.apply_async(

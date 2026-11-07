@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 12:07+0100\n"
+"POT-Creation-Date: 2026-11-07 13:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -313,8 +313,8 @@ msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:69
-#: registry/models/harvest.py:127 registry/models/harvest.py:1412
-#: registry/models/monitoring.py:110 registry/models/monitoring.py:340
+#: registry/models/harvest.py:127 registry/models/harvest.py:1417
+#: registry/models/monitoring.py:110 registry/models/monitoring.py:358
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
@@ -323,7 +323,7 @@ msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
 #: notify/models.py:40 registry/models/harvest.py:74
-#: registry/models/monitoring.py:345
+#: registry/models/monitoring.py:363
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
@@ -377,20 +377,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1428
+#: notify/models.py:159 registry/models/harvest.py:1433
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:1413
-#: registry/models/monitoring.py:341
+#: notify/models.py:171 registry/models/harvest.py:1418
+#: registry/models/monitoring.py:359
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1433
+#: notify/models.py:175 registry/models/harvest.py:1438
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1434
+#: notify/models.py:176 registry/models/harvest.py:1439
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -456,7 +456,7 @@ msgstr "unbekannt"
 msgid "kind of error"
 msgstr "Art des Fehlers"
 
-#: registry/apps.py:107
+#: registry/apps.py:140
 msgid "Registry"
 msgstr "Registrierung"
 
@@ -881,7 +881,7 @@ msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 #: registry/models/service.py:773 registry/models/service.py:1026
 #: registry/models/update.py:120 registry/models/update.py:163
 #: registry/models/update.py:206 registry/models/update.py:464
-#: registry/models/update.py:703 registry/models/update.py:891
+#: registry/models/update.py:708 registry/models/update.py:901
 msgid "service"
 msgstr "Dienst"
 
@@ -924,7 +924,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:117 registry/models/harvest.py:1111
+#: registry/models/harvest.py:117 registry/models/harvest.py:1116
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -1038,40 +1038,40 @@ msgstr "Ernteaufgabe"
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:337 registry/models/update.py:262
+#: registry/models/harvest.py:342 registry/models/update.py:262
 #: registry/serializers/update.py:123 registry/serializers/update.py:143
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:1082
+#: registry/models/harvest.py:1087
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:1087
+#: registry/models/harvest.py:1092
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:1089
+#: registry/models/harvest.py:1094
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:1093
+#: registry/models/harvest.py:1098
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:1097
+#: registry/models/harvest.py:1102
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:1100
+#: registry/models/harvest.py:1105
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:1101
+#: registry/models/harvest.py:1106
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:1112
+#: registry/models/harvest.py:1117
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -1081,22 +1081,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1454 registry/models/metadata.py:613
+#: registry/models/harvest.py:1459 registry/models/metadata.py:613
 #: registry/models/monitoring.py:90 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
 #: registry/serializers/service.py:987 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1455
+#: registry/models/harvest.py:1460
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1482
+#: registry/models/harvest.py:1487
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1483
+#: registry/models/harvest.py:1488
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -1709,115 +1709,115 @@ msgstr "Der Zeitpunkt des Abschlusses des Laufs in UTC"
 msgid "the background process which reports this run"
 msgstr "der Hintergrundprozess, der diesen Lauf meldet"
 
-#: registry/models/monitoring.py:318
+#: registry/models/monitoring.py:336
 msgid "HTTP status code"
 msgstr "Gesundheitszustand"
 
-#: registry/models/monitoring.py:319
+#: registry/models/monitoring.py:337
 msgid "The http status code of the response"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
-#: registry/models/monitoring.py:323
+#: registry/models/monitoring.py:341
 msgid "monitored uri"
 msgstr "Überwachte Ressource"
 
-#: registry/models/monitoring.py:324
+#: registry/models/monitoring.py:342
 msgid "This is the url which was monitored"
 msgstr "Die url die überwacht wurde"
 
-#: registry/models/monitoring.py:329
+#: registry/models/monitoring.py:347
 msgid "request duration"
 msgstr "Organisation entfernen"
 
-#: registry/models/monitoring.py:330
+#: registry/models/monitoring.py:348
 msgid "elapsed time of the request"
 msgstr "Gesundheitszustand der Ressource"
 
-#: registry/models/monitoring.py:346
+#: registry/models/monitoring.py:364
 msgid "Datetime field when the task was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses der Aufgabe in UTC"
 
-#: registry/models/monitoring.py:389 registry/models/monitoring.py:425
-#: registry/models/monitoring.py:458
+#: registry/models/monitoring.py:407 registry/models/monitoring.py:443
+#: registry/models/monitoring.py:476
 msgid "Run"
 msgstr "Lauf"
 
-#: registry/models/monitoring.py:501
+#: registry/models/monitoring.py:519
 msgid "Check response does not contain"
 msgstr "Antwort enthält nicht"
 
-#: registry/models/monitoring.py:503
+#: registry/models/monitoring.py:521
 msgid "comma seperated search strings like: ExceptionReport>,ServiceException>"
 msgstr "kommagetrennte Suchbegriffe wie: ExceptionReport>,ServiceException>"
 
-#: registry/models/monitoring.py:605 registry/models/monitoring.py:753
-#: registry/models/monitoring.py:834
+#: registry/models/monitoring.py:623 registry/models/monitoring.py:771
+#: registry/models/monitoring.py:852
 msgid "Check response does contain"
 msgstr "Antwort enthält"
 
-#: registry/models/monitoring.py:606
+#: registry/models/monitoring.py:624
 msgid "comma seperated search strings like: Title>,Abstract>"
 msgstr "kommagetrennte Suchbegriffe wie: Title>,Abstract>"
 
-#: registry/models/monitoring.py:632 registry/models/monitoring.py:716
-#: registry/models/monitoring.py:785
+#: registry/models/monitoring.py:650 registry/models/monitoring.py:734
+#: registry/models/monitoring.py:803
 msgid "Setting"
 msgstr "Einstellung"
 
-#: registry/models/monitoring.py:633 registry/models/monitoring.py:717
-#: registry/models/monitoring.py:786
+#: registry/models/monitoring.py:651 registry/models/monitoring.py:735
+#: registry/models/monitoring.py:804
 msgid "The related setting object"
 msgstr "Das zugehörige Einstellungsobjekt"
 
-#: registry/models/monitoring.py:664 registry/models/service.py:648
+#: registry/models/monitoring.py:682 registry/models/service.py:648
 msgid "bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: registry/models/monitoring.py:736
+#: registry/models/monitoring.py:754
 msgid "max features"
 msgstr "maximale Anzahl an Features"
 
-#: registry/models/monitoring.py:738
+#: registry/models/monitoring.py:756
 msgid "the maximum number of features the request shall return"
 msgstr "die maximale Anzahl an Features, die die Anfrage zurückgeben soll"
 
-#: registry/models/monitoring.py:754
+#: registry/models/monitoring.py:772
 msgid "comma seperated search strings like: FeatureCollection"
 msgstr "kommagetrennte Suchbegriffe wie: FeatureCollection"
 
-#: registry/models/monitoring.py:805
+#: registry/models/monitoring.py:823
 msgid "type names"
 msgstr "Typnamen"
 
-#: registry/models/monitoring.py:807
+#: registry/models/monitoring.py:825
 msgid "the type names of the records which shall be requested"
 msgstr "die Typnamen der Datensätze, die angefragt werden sollen"
 
-#: registry/models/monitoring.py:812
+#: registry/models/monitoring.py:830
 msgid "result type"
 msgstr "Ergebnistyp"
 
-#: registry/models/monitoring.py:813
+#: registry/models/monitoring.py:831
 msgid "the result type of the get records request"
 msgstr "der Ergebnistyp der GetRecords-Anfrage"
 
-#: registry/models/monitoring.py:818
+#: registry/models/monitoring.py:836
 msgid "element set name"
 msgstr "Name des Elementsatzes"
 
-#: registry/models/monitoring.py:820
+#: registry/models/monitoring.py:838
 msgid "the element set name of the records which shall be returned"
 msgstr "der Name des Elementsatzes der zurückzugebenden Datensätze"
 
-#: registry/models/monitoring.py:824
+#: registry/models/monitoring.py:842
 msgid "max records"
 msgstr "maximale Anzahl an Datensätzen"
 
-#: registry/models/monitoring.py:826
+#: registry/models/monitoring.py:844
 msgid "the maximum number of records the request shall return"
 msgstr "die maximale Anzahl an Datensätzen, die die Anfrage zurückgeben soll"
 
-#: registry/models/monitoring.py:835
+#: registry/models/monitoring.py:853
 msgid "comma seperated search strings like: GetRecordsResponse"
 msgstr "kommagetrennte Suchbegriffe wie: GetRecordsResponse"
 
@@ -2223,13 +2223,13 @@ msgstr "Aktualisierungsaufgabe Web Map Service"
 msgid "Web Map Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Map Service"
 
-#: registry/models/update.py:681 registry/models/update.py:869
-#: registry/models/update.py:960
+#: registry/models/update.py:686 registry/models/update.py:879
+#: registry/models/update.py:975
 msgid "Can only resume a job with status REVIEW_REQUIRED"
 msgstr ""
 "Nur eine Aufgabe mit dem Status REVIEW_REQUIRED kann fortgesetzt werden"
 
-#: registry/models/update.py:685
+#: registry/models/update.py:690
 msgid ""
 "Cannot resume the job, because not all layers are updateable. Please review "
 "the layer mappings first."
@@ -2237,19 +2237,19 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Ebenen "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Ebenen-Zuordnungen."
 
-#: registry/models/update.py:704
+#: registry/models/update.py:709
 msgid "the WFS this job is running for"
 msgstr "der WFS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:710
+#: registry/models/update.py:715
 msgid "Web Feature Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Feature Service"
 
-#: registry/models/update.py:711
+#: registry/models/update.py:716
 msgid "Web Feature Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Feature Service"
 
-#: registry/models/update.py:873
+#: registry/models/update.py:883
 msgid ""
 "Cannot resume the job, because not all featuretypes are updateable. Please "
 "review the featuretype mappings first."
@@ -2257,27 +2257,27 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Featuretypes "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Featuretype-Zuordnungen."
 
-#: registry/models/update.py:892
+#: registry/models/update.py:902
 msgid "the CSW this job is running for"
 msgstr "der CSW, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:898
+#: registry/models/update.py:908
 msgid "Web Catalogue Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Catalogue Service"
 
-#: registry/models/update.py:899
+#: registry/models/update.py:909
 msgid "Web Catalogue Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Catalogue Service"
 
-#: registry/models/update.py:1025
+#: registry/models/update.py:1040
 msgid "Layer Mapping"
 msgstr "Ebenen-Zuordnung"
 
-#: registry/models/update.py:1026
+#: registry/models/update.py:1041
 msgid "Layer Mappings"
 msgstr "Ebenen-Zuordnungen"
 
-#: registry/models/update.py:1032
+#: registry/models/update.py:1047
 msgid ""
 "A new layer can only be mapped once. Please adjust the layer mappings "
 "accordingly."
@@ -2285,15 +2285,15 @@ msgstr ""
 "Eine neue Ebene kann nur einmal zugeordnet werden. Bitte passen Sie die "
 "Ebenen-Zuordnungen entsprechend an."
 
-#: registry/models/update.py:1066
+#: registry/models/update.py:1081
 msgid "Feature Type Mapping"
 msgstr "Featuretype-Zuordnung"
 
-#: registry/models/update.py:1067
+#: registry/models/update.py:1082
 msgid "Feature Type Mappings"
 msgstr "Featuretype-Zuordnungen"
 
-#: registry/models/update.py:1073
+#: registry/models/update.py:1088
 msgid ""
 "A new feature type can only be mapped once. Please adjust the feature type "
 "mappings accordingly."
@@ -2301,7 +2301,7 @@ msgstr ""
 "Ein neuer Featuretype kann nur einmal zugeordnet werden. Bitte passen Sie "
 "die Featuretype-Zuordnungen entsprechend an."
 
-#: registry/querys/alerts.py:568
+#: registry/querys/alerts.py:629
 #, python-format
 msgid ""
 "The schedule \"%(schedule)s\" harvests this catalogue more often than a "
@@ -3268,6 +3268,9 @@ msgstr "System"
 #~ msgstr ""
 #~ "Die Aktualisierung des Dienstes wartet auf die Bestätigung ihrer "
 #~ "Zuordnungen."
+
+#~ msgid "The last harvesting run of the service was aborted."
+#~ msgstr "Der letzte Harvesting-Lauf des Dienstes wurde abgebrochen."
 
 #~ msgid ""
 #~ "The last harvesting run of the service left %(count)s records behind "

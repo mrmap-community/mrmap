@@ -929,7 +929,17 @@ const en = lodashMerge(
         singular: "Catalogue Service",
         plural: "Catalogue Service",
         listSubheader: "Manage registered Catalogue Services (CSW)",
-      }
+      },
+      CatalogueServiceUpdateJob: {
+        name: "Catalogue update jobs",
+        singular: "Catalogue service update job",
+        plural: "Catalogue service update jobs",
+        running: "Not ended yet",
+        status: "State",
+        updateCandidate: "Update candidate",
+        notEndedMessage: "This update has not ended yet. Its result is not decided.",
+        reviewRequiredMessage: "This update waits for a decision about it. What the catalogue reports is not applied until that decision happened.",
+      },
     }
   }
 );

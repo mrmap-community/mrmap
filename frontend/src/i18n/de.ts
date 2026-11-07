@@ -555,6 +555,16 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         occurredAt: "Zeitpunkt",
       },
     },
+    CatalogueServiceUpdateJob: {
+      name: "Katalog-Aktualisierungen",
+      singular: "Aktualisierungslauf eines Katalogdiensts",
+      plural: "Aktualisierungsläufe der Katalogdienste",
+      running: "Noch nicht beendet",
+      status: "Zustand",
+      updateCandidate: "Aktualisierungskandidat",
+      notEndedMessage: "Diese Aktualisierung ist noch nicht beendet. Ihr Ergebnis steht noch nicht fest.",
+      reviewRequiredMessage: "Diese Aktualisierung wartet auf eine Entscheidung über sie. Was der Katalog meldet, wird erst mit dieser Entscheidung übernommen.",
+    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",

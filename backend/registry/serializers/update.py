@@ -425,4 +425,4 @@ class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializ
     class Meta:
         model = CatalogueServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at",
-                  "status", "update_candidate")
+                  "status", "status_code", "update_candidate")

@@ -200,7 +200,7 @@ LEGACY_DROP_SQL = legacy_drop()
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0037_store_the_rows_of_the_alerts'),
+        ('registry', '0038_a_harvesting_run_knows_when_it_was_made'),
     ]
 
     operations = [

@@ -180,12 +180,20 @@ class AsyncCreateMixin:
         serializer.is_valid(raise_exception=True)
 
         task_function = self.get_task_function()
-        task = self.get_task_function().delay(
-            **self.get_task_kwargs(request=request, serializer=serializer))
+        task_kwargs = self.get_task_kwargs(
+            request=request, serializer=serializer)
+        # The id of the task is chosen here and its row is written before the
+        # message goes out: the worker answering the task mirrors its state into
+        # this very row (see `mirror_task_result` in notify/tasks.py) and has to
+        # find it there. A task which answers quickly, or one which a deployment
+        # runs eagerly, would otherwise always be answered before its row exists
+        # and the outcome of the registration would be lost (#1146).
+        task_id = str(uuid.uuid4())
         task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id, task_name=f"{task_function.__class__.__module__}.{
+            task_id=task_id, task_name=f"{task_function.__class__.__module__}.{
                 task_function.__class__.__name__}"
         )
+        task_function.apply_async(kwargs=task_kwargs, task_id=task_id)
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(

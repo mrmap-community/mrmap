@@ -59,6 +59,14 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
   removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
   stop reaching the browser.
+  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ master) still
+  has one leaf per app (`python3 scripts/migration_graph_smoke.py`; host Python plus the `git`
+  CLI, no docker, no `gh`, no network, a fifth of a second). Two branches which each add a
+  `0038` are green alone and red in the merge queue, because two leaf nodes of one app is what
+  `makemigrations` refuses with "Conflicting migrations detected"; run it before pushing a branch
+  that adds a migration and it names both leaves, the file of each and the number to renumber to.
+  Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
+  one throw-away git repository; needs neither docker nor the network).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's

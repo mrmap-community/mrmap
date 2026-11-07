@@ -60,25 +60,12 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
     helperText: schema.description
   }
 
-  if (filterRelatedResourceType && filterRelatedResourceField && filterLookupExpression == "exact"){
+  if (filterRelatedResourceType && filterRelatedResourceField && ['exact', 'in'].includes(filterLookupExpression ?? '')){
     const props = {
         ...commonProps,
         reference: filterRelatedResourceType,
         relatedResourceType: resource,
-        multiple: false,
-        parse: undefined, // resets the default behaviour to react-admins default
-        format: undefined, // resets the default behaviour to react-admins default
-    }
-    return {
-      component: SchemaAutocompleteInput,
-      props: props
-    }
-  } else if (filterRelatedResourceType && filterRelatedResourceField && filterLookupExpression == "in"){
-    const props = {
-        ...commonProps,
-        reference: filterRelatedResourceType,
-        relatedResourceType: resource,
-        multiple: true,
+        multiple: filterLookupExpression === 'in',
         parse: undefined, // resets the default behaviour to react-admins default
         format: undefined, // resets the default behaviour to react-admins default
     }

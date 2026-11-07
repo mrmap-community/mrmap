@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import de from '../../i18n/de';
 import en from '../../i18n/en';
+import SchemaAutocompleteInput from '../components/SchemaAutocompleteInput';
 import { getFilterInputDefinitions, humaniseFilterName } from './useFilterInputForOperation';
 
 // the live schema answers filter parameters without any x-jsonapi-* extension
@@ -50,6 +51,31 @@ describe('humaniseFilterName', () => {
 });
 
 describe('getFilterInputDefinitions', () => {
+  it.each([
+    ['exact', false],
+    ['in', true],
+  ] as const)('preserves the reference input for the %s lookup', (lookup, multiple) => {
+    const definition = getFilterInputDefinitions(
+      {
+        ...extendedParameter('keywords.keyword', 'is exactly'),
+        'x-jsonapi-related-resource-type': 'Keyword',
+        'x-jsonapi-related-resource-field': 'keyword',
+        'x-jsonapi-filter-lookup-expression': lookup,
+      } as never,
+      'DatasetMetadataRecord',
+      translate,
+    );
+    expect(definition?.component).toBe(SchemaAutocompleteInput);
+    expect(definition?.props).toMatchObject({
+      source: 'keywords_filter_lookup_keyword',
+      reference: 'Keyword',
+      relatedResourceType: 'DatasetMetadataRecord',
+      multiple,
+      parse: undefined,
+      format: undefined,
+    });
+  });
+
   it('keeps the lookup expression label of documented filters', () => {
     const definition = getFilterInputDefinitions(
       extendedParameter('abstract', 'is exactly') as never,

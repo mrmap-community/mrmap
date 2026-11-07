@@ -99,8 +99,8 @@ class HarvestDurationEstimateTest(TestCase):
 
         Args:
             phase: the phase the run is in
-            made: the creation date of the run, None when the run has none -
-                which is the case of every run a deployment made itself
+            made: the moment to hand to the run; None for a run which answers no creation, which
+                is the row #1079 leaves the change log to measure it by
             ended: the moment the run ended, None while it did not
         """
         return HarvestingJob.objects.create(
@@ -118,13 +118,15 @@ class HarvestDurationEstimateTest(TestCase):
         self.assertEqual(estimate['last_done'], newer)
 
     def test_a_harvest_without_a_creation_date_is_measured_by_its_changes(self):
-        """the harvesting itself never sets the creation date of a run (#693)
+        """the change log stays the fallback for a run which answers no creation (#1071)
 
-        The moment such a run began is only known by the first row of its change
-        log, so that row is what the duration of a real run is measured by.
+        A run answers the moment it was made since #1079, and `null` stays: a deployment keeps the
+        rows whose creation nobody knew - the migration of that issue filled only what a change log
+        recorded. The moment such a run began is known by the first row of its change log alone, so
+        that row is still what measures its duration.
         """
         job = HarvestingJob.objects.create(
-            service=self.csw, phase=Phase.COMPLETED)
+            service=self.csw, phase=Phase.COMPLETED, date_created=None)
         started = job.change_log.order_by('history_date', 'history_id').first()
         HarvestingJob.objects.filter(pk=job.pk).update(
             done_at=started.history_date + timedelta(hours=1))

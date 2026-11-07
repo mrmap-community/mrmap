@@ -12,6 +12,7 @@ Paths in this file are relative to `backend/registry/`. Backend-wide rules and c
 | Path | Responsibility |
 | --- | --- |
 | `models/` | Models and their lifecycle behaviour. `service.py` holds the OGC service aggregate. |
+| `management/commands/` | Operator commands over registry data, e.g. `check_xml_backups` (#1150). |
 | `managers/` | Default managers, one module per aggregate. |
 | `querys/` | QuerySet classes. The folder is spelled `querys/`, not `querysets/`; keep the name. |
 | `filters/` | `django-filter` FilterSets exposed through the API. |

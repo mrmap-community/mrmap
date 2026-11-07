@@ -25,6 +25,23 @@ from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 class ObjectPermissionCheckerViewSetMixin:
     """add a ObjectPermissionChecker based on the accessing user to the serializer context."""
 
+    # the objects the answer was already selected with, remembered by
+    # `paginate_queryset` so that the permissions are prefetched for exactly
+    # the objects the answer shows, without asking the database again
+    page_for_permissions = None
+
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Remember the objects of the page the answer shows.
+
+        A list action already filters and slices the queryset to read its
+        page. The permissions are prefetched for these very objects instead
+        of filtering and paginating the queryset a second time, which would
+        answer a second COUNT and select the page a second time.
+        """
+        page = super().paginate_queryset(queryset, *args, **kwargs)
+        self.page_for_permissions = page if page is not None else queryset
+        return page
+
     def get_serializer_context(self):
         """adds perm checker with prefetched permissions for objects of the current page to the serializer context."""
         context = super().get_serializer_context()
@@ -42,14 +59,22 @@ class ObjectPermissionCheckerViewSetMixin:
             perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:
-
-                # Include filters may add prefetches; permission checks only need ids.
-                objects = self.filter_queryset(queryset).select_related(
-                    None).prefetch_related(None).only("pk")
-                # if self.request.method == "GET":
-                if self.action == 'list':
-
-                    objects = self.paginate_queryset(objects)
+                if self.action == 'list' and \
+                        self.page_for_permissions is not None:
+                    # `paginate_queryset` already selected and read the page
+                    objects = self.page_for_permissions
+                elif getattr(self, 'object', None) is not None:
+                    # a detail action answers one object which it has read
+                    # into self.object
+                    objects = [self.object]
+                elif self.action == 'create':
+                    # the object a create answers did not exist when the
+                    # serializer was built, nothing can be prefetched for it
+                    objects = []
+                else:
+                    # Include filters may add prefetches; permission checks only need ids.
+                    objects = self.filter_queryset(queryset).select_related(
+                        None).prefetch_related(None).only("pk")
                 if objects:
                     perm_checker.prefetch_perms(objects)
             # the json:api renderer does not hand the serializer context to the
@@ -155,12 +180,20 @@ class AsyncCreateMixin:
         serializer.is_valid(raise_exception=True)
 
         task_function = self.get_task_function()
-        task = self.get_task_function().delay(
-            **self.get_task_kwargs(request=request, serializer=serializer))
+        task_kwargs = self.get_task_kwargs(
+            request=request, serializer=serializer)
+        # The id of the task is chosen here and its row is written before the
+        # message goes out: the worker answering the task mirrors its state into
+        # this very row (see `mirror_task_result` in notify/tasks.py) and has to
+        # find it there. A task which answers quickly, or one which a deployment
+        # runs eagerly, would otherwise always be answered before its row exists
+        # and the outcome of the registration would be lost (#1146).
+        task_id = str(uuid.uuid4())
         task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id, task_name=f"{task_function.__class__.__module__}.{
+            task_id=task_id, task_name=f"{task_function.__class__.__module__}.{
                 task_function.__class__.__name__}"
         )
+        task_function.apply_async(kwargs=task_kwargs, task_id=task_id)
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(

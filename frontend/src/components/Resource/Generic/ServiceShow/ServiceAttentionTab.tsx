@@ -120,8 +120,9 @@ const ServiceAlertRecord = ({
   const definitions = useResourceDefinitions();
   const resource = alert.target && alertResource(service, alert.target);
   // a record named by a relationship is read at the screen of its own kind,
-  // which this deployment does not have for every kind of record: the update of a
-  // catalogue has none
+  // which not every kind of record has: the update jobs of all three kinds
+  // have one now, but a kind without a registered screen is still asked
+  // about at the service itself
   const shown = resource ? definitions[resource]?.hasShow : undefined;
   if (
     !resource ||

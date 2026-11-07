@@ -65,7 +65,12 @@ class ProcessingData(models.Model):
         # it’s not just a default value that you can override.
         # So even if you set a value for this field when creating the object, it will be ignored.
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
-        # auto_now_add=True,
+        default=now,
+        # A default and not auto_now_add: the harvesting, the migration of 0038 and the tests of
+        # #870 all hand a moment of their own to a run, and auto_now_add would ignore every one of
+        # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
+        # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
+        # "not recorded" instead of inventing a moment.
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
@@ -278,6 +283,39 @@ class HarvestingJob(ProcessingData):
         related_query_name="harvesting_job_process",
         verbose_name=_('background process'),
         help_text=_('the background process which reports this job'))
+    # The bookkeeping of the import watchdog (``registry.tasks.harvest``). An open
+    # job which reports "records to db" can mean either that its import works or
+    # that nothing imports its records anymore, and the api answered both the same
+    # while the chord which was supposed to end the run had given up quietly
+    # (#1038). Only the watchdog writes these three; they are its memory and its
+    # verdict, not something a client hands in.
+    import_backlog_seen = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen"),
+        help_text=_(
+            "how many records of this job the import watchdog last counted "
+            "as waiting for their import"))
+    import_backlog_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen at"),
+        help_text=_(
+            "the moment the import watchdog counted that many records "
+            "waiting; the same count at the next look is a backlog which "
+            "did not move"))
+    import_stalled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import stalled at"),
+        help_text=_(
+            "since when the import watchdog sees the import backlog of this "
+            "job untouched; the run is not waiting on work which somebody is "
+            "doing. What the watchdog could do about it is on its harvesting "
+            "log"))
     change_log = HistoricalRecords(
         related_name="change_logs",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -290,7 +328,12 @@ class HarvestingJob(ProcessingData):
         verbose_name_plural = _("Harvesting Jobs")
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
-        indexes = ProcessingData.Meta.indexes
+        # the newest job of one service answers its harvesting alerts - with
+        # this composite, the `ORDER BY date_created DESC LIMIT 1` of the top-N
+        # is an index read and not a sort over the jobs of the service (#1030)
+        indexes = ProcessingData.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
         constraints = ProcessingData.Meta.constraints + [
             models.CheckConstraint(
                 condition=Q(service__isnull=True) | ~Q(service=MRMAP_CSW_PK),
@@ -304,6 +347,19 @@ class HarvestingJob(ProcessingData):
                     "There is an existing noncompleted job for this service.")
             )
         ]
+
+    def __str__(self):
+        """The catalogue this run harvested, named by the run's own id.
+
+        The registry renders every resource as ``<meaningful> (<pk>)``; the
+        meaningful part of a run is the title of its catalogue and the
+        parenthesized part names what the number is the id of, so it is never
+        read as the catalogue's own pk. A run without a catalogue is a file
+        import - it has no title to lead with (#1045).
+        """
+        if self.service_id:
+            return f"{self.service.title} (harvesting job {self.pk})"
+        return f"harvesting job {self.pk}"
 
     def append_celery_task_ids(self, ids, creation=False):
         """Register the ids of the tasks this job is publishing.
@@ -1098,6 +1154,7 @@ class TemporaryMdMetadataFile(models.Model):
             task = call_md_metadata_file_to_db.s(
                 md_metadata_file_id=self.pk,
                 harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                background_process_pk=self.job.background_process_id,
                 http_request=self.job._http_request(),
             )
             task.set(task_id=str(task_id))
@@ -1181,6 +1238,15 @@ class TemporaryMdMetadataFile(models.Model):
         return True
 
     def md_metadata_file_to_db(self):
+        """Import the stored document, answering one (record, updated, existed) per instance.
+
+        The answer is always a list - also on the DUPLICATED path - because the
+        import task iterates it: a bare tuple is iterated as its own elements,
+        handing the record out as an "entry", and the TypeError that raises
+        rolls the duplicated diagnosis and its relation back while the task's
+        handler overwrites the diagnosis with the traceback (#1039). The error
+        of the document itself is documented on the file and re-raised.
+        """
         with self.md_metadata_file.open('rb') as _file:
             try:
                 with transaction.atomic():
@@ -1192,21 +1258,46 @@ class TemporaryMdMetadataFile(models.Model):
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
+                        # #919: the keyword quality indicator is evaluated on the
+                        # keywords which this document just mapped - no second
+                        # XML parse - so its answer rides the one write which the
+                        # record costs anyway (#858). The keyword rows themselves
+                        # stay exactly as the catalogue published them.
+                        mapped_keywords = [
+                            keyword.keyword
+                            for keyword in getattr(instance, "_keywords_parsed", None) or []
+                        ]
+                        instance.refresh_quality_indicators(mapped_keywords)
+                        # the provenance of the record, computed once per
+                        # record file: the three buckets below name the same
+                        # url, so asking the client three times only paid
+                        # three document reads and parses per imported
+                        # record (#1044). The client reads the catalogue's
+                        # stored capabilities document only - a document
+                        # which is gone from the storage raises
+                        # CapabilitiesBackupMissing for the run instead of
+                        # the import working around a broken service per
+                        # record.
+                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
+                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
+                        origin_url = self.job.service.client.get_record_by_id_request(
+                            id=instance.file_identifier).url if self.job.service_id \
+                            else "http://localhost"
                         handler = PersistenceHandler(
                             mapper=mappers[0],
                             change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "service": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "application": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 }
                             }
                         )
@@ -1219,6 +1310,19 @@ class TemporaryMdMetadataFile(models.Model):
 
                         if created_instance:
                             created, update = created_instance._custom_state
+                            # #919: the answer of the rule belongs to the stored
+                            # record even when the row was not written at all -
+                            # a record which a run re-harvests unchanged is
+                            # evaluated too, which is what flags the records
+                            # that entered the registry before the rule
+                            # existed and clears the flag once the catalogue
+                            # has fixed its keyword. Only a difference is
+                            # written.
+                            quality_changed = created_instance.refresh_quality_indicators(
+                                mapped_keywords)
+                            if quality_changed:
+                                created_instance._change_reason = "quality"
+                                created_instance.save(mark_customized=False)
                             if self.job:
                                 end_db_processing = now()
                                 relation = self.update_relations(
@@ -1242,8 +1346,12 @@ class TemporaryMdMetadataFile(models.Model):
                                     # the whole method answers a list of (record, updated,
                                     # existed) - the duplicated entry is one such row, so the
                                     # import task which iterates the result does not crash and
-                                    # the DUPLICATED relation of #827 stays committed
-                                    return [(created_instance, update, not created)]
+                                    # the DUPLICATED relation of #827 stays committed. The rows
+                                    # the earlier instances of this file collected stay in the
+                                    # answer too: they were imported by this very call and the
+                                    # task has to be told about them (#1039).
+                                    return result + [
+                                        (created_instance, update, not created)]
                             result.append(
                                 (created_instance, update, not created))
                             if self.job:
@@ -1256,6 +1364,21 @@ class TemporaryMdMetadataFile(models.Model):
                                             f"Source file: {self.md_metadata_file.name}\n"
                                             f"{warning}\n"
                                             "The remaining metadata was imported."
+                                        ),
+                                    )
+                                if created_instance.insufficient_quality and (
+                                        created or update or quality_changed):
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=(
+                                            "Keyword quality: "
+                                            f"{created_instance.insufficient_quality}")[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{created_instance.insufficient_quality}\n"
+                                            "The record was imported; the keyword list rule "
+                                            "flags it as of insufficient quality."
                                         ),
                                     )
                             self.delete()
@@ -1286,8 +1409,11 @@ class TemporaryMdMetadataFile(models.Model):
 
 
 def extented_description_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
-    return f'HarvestingLog/{instance.harvesting_job}/{filename}'
+    # file will be uploaded to MEDIA_ROOT/HarvestingLog/<job pk>/<filename>;
+    # the path is built from the id of the job, never from str(instance): a
+    # display string is no stable identifier and would carry spaces and
+    # parentheses into MEDIA_ROOT and into the url of the attachment (#1045)
+    return f'HarvestingLog/{instance.harvesting_job_id}/{filename}'
 
 
 class HarvestingLog(models.Model):
@@ -1330,6 +1456,16 @@ class HarvestingLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+    def __str__(self):
+        """The message of the log, named by the log's own id.
+
+        The description is what a log line says and answers without reading
+        over the job to its catalogue; the id in parentheses tells the rows
+        which repeat one message apart. A log without a message - the column
+        is blankable - falls back to the name of its kind (#1045).
+        """
+        return f"{self.description or self._meta.verbose_name} ({self.pk})"
 
 
 class PeriodicHarvestingJob(PeriodicTask):
@@ -1374,3 +1510,11 @@ class PeriodicHarvestingJob(PeriodicTask):
                 name="periodic_harvesting_excludes_internal_csw",
             ),
         ]
+
+    def __str__(self):
+        """The catalogue this schedule harvests, named by the schedule's id.
+
+        Same shape as the run it starts: the title leads and the parenthesis
+        says what the number is the id of (#1045).
+        """
+        return f"{self.service.title} (periodic harvesting job {self.pk})"

@@ -1,8 +1,9 @@
 """The bounded life of the slow request dumps (#888).
 
-Every record the syslog handler formats leaves a json dump below the media root and
-nothing used to take them back, so a deployment which ran for a few weeks held a few
-hundred thousand files in one directory. The sweep of ``system.tasks`` deletes them
+Records which carry verbose detail leave a json dump below the media root
+and nothing used to take them back, so a deployment which ran for a few weeks
+held a few hundred thousand files in one directory while the formatter still
+wrote one per record (#1033). The sweep of ``system.tasks`` deletes them
 by age and by count, and beat hands it over hourly through a ``PeriodicTask`` row
 which the application creates on migrate.
 

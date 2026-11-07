@@ -170,13 +170,24 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='Acknowledgement']"
         Then I expect that there is a xpath ".//*[local-name()='EchoedRequest']/*[local-name()='GetRecords']/@resultType" with value "validate"
 
-    Scenario: GetRecordById results response
-        Given I set a queryparam "REQUEST" with value "GetRecords"
+    # This scenario used to send REQUEST=GetRecords beside an Id parameter --
+    # it never reached the operation its name names. #909 makes it a real
+    # GetRecordById probe: the operation which retrieves "the default
+    # representation of catalogue records using their identifier" (10.9) used
+    # to answer 200 with a childless response for every identifier; now the
+    # stored document of the record names it in the response. The refusals of
+    # the mandatory Id of Table 67 are pinned in operation_dispatch.feature,
+    # the identifier-list shapes of the audit (comma separated, repeated id=
+    # parameters) in tests/django/test_csw_get_record_by_id.py.
+    Scenario: GetRecordById answers the stored document of the identifier
+        Given I set a queryparam "REQUEST" with value "GetRecordById"
         Given I set a queryparam "version" with value "2.0.2"
         Given I set a queryparam "service" with value "CSW"
-        Given I set a queryparam "Id" with value "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4"
+        Given I set a queryparam "Id" with value "de.dwd.geoserver.fach.RBSN_RR"
         When I send the request with GET method
         Then I expect the response status is 200
+        Then I expect that there is a xpath "/*[local-name()='GetRecordByIdResponse']/@version" with value "2.0.2"
+        Then I expect that there is a xpath ".//*[local-name()='fileIdentifier']/*[local-name()='CharacterString']/text()" with value "de.dwd.geoserver.fach.RBSN_RR"
 
     # AnyText is the searchable representation of a record: a word of its title, its
     # abstract, its identifiers or one of its keywords. A wildcarded AnyText cannot be a
@@ -272,6 +283,32 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect the response status is 200
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsMatched" with value "2"
         Then I expect that there is a xpath ".//*[local-name()='SearchResults']/@numberOfRecordsReturned" with value "0"
+
+    # Table 65 hands the page as attributes of the request element: a position
+    # of a result set is a positiveInteger (the first position is 1), the size
+    # of a page a nonNegativeInteger. A value which is neither is a value the
+    # client chose and is refused with InvalidParameterValue naming the
+    # attribute (#1149; the bare int() of these reads raised its ValueError out
+    # of the handler and answered a raw HTTP 500 with an HTML error page -- the
+    # probe `maxrecords=abc` of the issue is the first row).
+    Scenario Outline: GetRecords refuses <param> which is no page value -- <value>
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "<param>" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@exceptionCode" with value "InvalidParameterValue"
+        Then I expect that there is a xpath ".//*[local-name()='Exception']/@locator" with value "<param>"
+
+        Examples: values which name no page
+            | param         | value               |
+            | maxRecords    | abc               |
+            | maxRecords    | -1                |
+            | startPosition | abc               |
+            | startPosition | 0                 |
+            | startPosition | 1000000000000000000 |
 
     # ElementSetName and SortBy, ignored by the endpoint until #911 (the view said
     # so itself: "TODO: HAndle ELEMENTSETNAME parameter"). Table 66 names the

@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo } from 'react'
-import { Link, useCreatePath, useRecordContext } from 'react-admin'
+import { Link, useCreatePath, useRecordContext, useTranslate } from 'react-admin'
 
 import Alert, { type AlertColor } from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
@@ -48,38 +48,38 @@ const BackgroundProcessAlert = (
   const createPath = useCreatePath();
   const { closeSnackbar } = useSnackbar()
   const record = useRecordContext()
+  const translate = useTranslate()
 
   const title = useMemo(()=> {
     switch(record?.processType){
       case "registering":
-        return "Register new Service"
+        return translate("resources.BackgroundProcess.titles.registering")
       case "harvesting": {
-        const link = record.relatedId && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.relatedId})}>Harvesting of {record.relatedId}</Link>
-        return link !== undefined ? link: 'Harvesting'
+        const label = translate("resources.BackgroundProcess.titles.harvesting")
+        const link = record.relatedId && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.relatedId})}>{translate("resources.BackgroundProcess.titles.harvestingOf", { id: record.relatedId })}</Link>
+        return link !== undefined ? link: label
       }
       case "monitoring":
-        return "Monitoring"
+        return translate("resources.BackgroundProcess.titles.monitoring")
       default:
-        return "Running Task"
+        return translate("resources.BackgroundProcess.titles.runningTask")
     }
-  },[record])
+  },[record, translate, createPath])
 
   const info = useMemo(()=>{
     switch(record?.status){
       case "completed":
-        // TODO: translate
-        return "completed"
+        return translate("resources.BackgroundProcess.states.completed")
       case "pending":
-        // TODO: translate
-        return "wating for schedule"
+        return translate("resources.BackgroundProcess.states.waitingForSchedule")
       default:
         return record?.phase
     }
-  },[record?.status, record?.phase])
+  },[record?.status, record?.phase, translate])
 
   const stepInfo = useMemo(()=>{
-    return record?.doneSteps && record?.totalSteps && `${record?.doneSteps ?? 0} of ${record?.totalSteps ?? 0} steps done.`
-  }, [record])
+    return record?.doneSteps && record?.totalSteps && translate("resources.BackgroundProcess.stepsDone", { done: record?.doneSteps ?? 0, total: record?.totalSteps ?? 0 })
+  }, [record, translate])
 
   return (
     <Alert

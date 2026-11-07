@@ -16,6 +16,7 @@ import io
 import os
 import sys
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta, timezone
 
 spec = importlib.util.spec_from_loader(
     "wip", importlib.machinery.SourceFileLoader(
@@ -273,6 +274,20 @@ results.append(check("a newer claim, question or board comment is still not an a
                      code == 0 and "still waiting" in out and "another client" not in out
                      and not [c for c in calls if "PATCH" in c[0]],
                      f"code={code} out={out} writes={calls} err={err}"))
+
+# 7. guard_others honors --force: the documented takeover of a foreign fresh
+# claim passes silently, and without it the refusal stands and names --force.
+FRESH = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+foreign_fresh = [(1, {"v": 1, "client": "other:wt", "issue": 930, "branch": "feature/x",
+                     "worktree": "/x", "state": "wip", "since": FRESH,
+                     "heartbeat": FRESH, "released": None})]
+code, out, err = run(m.guard_others, foreign_fresh, CID, 930, "claim", True)
+results.append(check("--force takes a foreign fresh claim over instead of dying",
+                     code == 0 and not err, f"code={code} err={err}"))
+code, out, err = run(m.guard_others, foreign_fresh, CID, 930, "claim", False)
+results.append(check("without --force the refusal on a foreign fresh claim stands",
+                     code == 1 and "claimed by `other:wt`" in err and "--force" in err,
+                     f"code={code} err={err}"))
 
 print("\n%d/%d passed" % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

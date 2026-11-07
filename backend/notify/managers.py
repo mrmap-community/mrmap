@@ -2,7 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Case, F, Q, Value, When
 from django.db.models.fields import FloatField
-from django.db.models.functions import Round
+from django.db.models.functions import Coalesce, Greatest, Least, Round
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from guardian.shortcuts import get_objects_for_user
@@ -48,7 +48,8 @@ class BackgroundProcessManager(models.Manager):
         ).order_by('-date_created')
         return qs
 
-    def report(self, pk, status, phase=None, total_steps=None, step_done=False):
+    def report(self, pk, status, phase=None, total_steps=None, step_done=False,
+               steps_done=0):
         """Mirror the state of a job in the background process which reports it.
 
         A background process is only a report about work which happens
@@ -63,6 +64,18 @@ class BackgroundProcessManager(models.Manager):
             phase (str): current phase of the process, optional
             total_steps (int): amount of steps the process is made of, optional
             step_done (bool): whether a step of the process was done, optional
+            steps_done (int): amount of steps which were done since the last
+                report, for the reporter which coalesces its work into one
+                bulk increment instead of writing one row update per step (#958)
+
+        The done steps are only ever moved up and are capped at the total: a
+        reporter which counts too eagerly inflates a process towards its end,
+        it never pulls a reported progress back. A total of None caps nothing
+        - a process which does not know its total cannot exceed it.
+
+        A process which reports itself COMPLETED is written as done: the
+        completion of the work is the proof that its steps are over, and the
+        overview of the background activity renders exactly these numbers.
 
         Returns:
             int: amount of processes which were updated
@@ -75,11 +88,50 @@ class BackgroundProcessManager(models.Manager):
             values["phase"] = str(phase)[:512]
         if total_steps is not None:
             values["total_steps"] = total_steps
-        if step_done:
-            values["done_steps"] = F("done_steps") + 1
+        steps = (1 if step_done else 0) + max(int(steps_done or 0), 0)
+        if steps:
+            # GREATEST keeps a report which would count past the total from
+            # pulling a further done process back, and Coalesce answers the
+            # NULL which Least leaves behind when there is no total to cap at.
+            values["done_steps"] = Coalesce(
+                Greatest(
+                    F("done_steps"),
+                    Least(F("done_steps") + steps, F("total_steps"))),
+                F("done_steps") + steps)
+        if status == ProcessStatusEnum.COMPLETED:
+            values["done_steps"] = Coalesce(
+                F("total_steps"), F("done_steps"))
         if status in self.TERMINAL_STATUS:
             values["done_at"] = now()
 
+        return self._apply(pk, values)
+
+    def raise_steps(self, pk, done_steps):
+        """Move the reported steps of a process up to the durable state of its
+        work, never down.
+
+        This is the reconciliation of a reporter whose own increments were lost
+        - by a worker which died with counts it had not reported yet, or by a
+        backlog which is published anew after a restart (#958). The caller
+        derives `done_steps` from durable bookkeeping; this method only lets
+        that answer raise the progress, so a reconciliation racing with a
+        worker's own report cannot lower what both of them have seen.
+
+        Args:
+            pk: primary key of the process or None when it has none
+            done_steps (int): the steps which provably are done by now
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        if pk is None:
+            return 0
+        return self._apply(pk, {"done_steps": Greatest(
+            Coalesce(F("done_steps"), 0), max(int(done_steps), 0))})
+
+    def _apply(self, pk, values):
+        """Write the reported values to an active process and let its
+        listeners learn about the new state."""
         updated = self.get_queryset().filter(
             pk=pk,
             done_at__isnull=True,

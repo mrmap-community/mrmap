@@ -20,6 +20,8 @@ class XSDSkeletonBuilder:
         except KeyError:
             raise ValueError(f"Unsupported schema lookup: {schema_key}")
 
+        self.schema_key = schema_key
+        self.xsd_filename = xsd_filename
         schema_dir = resources.files("registry.ows_lib.xml.schemas")
         with schema_dir.joinpath(xsd_filename).open("rb") as f:
             xsd_bytes = f.read()
@@ -94,10 +96,33 @@ class XSDSkeletonBuilder:
     # Public builder API
     # ============================================================
 
+    def declares_element(self, local_name):
+        """Whether the looked-up schema declares this global element of its
+        target namespace.
+
+        The caller which picks the element name out of the lookup key rather
+        than out of the schema asks here whether the skeleton can answer it at
+        all: a key may register an ExceptionReport schema under an
+        ``Exception`` operation while its consumer spells the root
+        ``ServiceExceptionReport`` -- the mismatch whose document this reports
+        instead of answering empty (#866).
+        """
+        return (self.root.get("targetNamespace"), local_name) in self.elements
+
     def build_element(self, element_name, nsmap=None,
                       attributes=None, children_attributes=None):
 
         tns = self.root.get("targetNamespace")
+
+        # An element the schema declares nothing about has no type to apply,
+        # and building it answered a childless root carrying only the schema's
+        # namespace -- the empty document of the never-rendered exception
+        # report (#866). A key which resolves to a schema without the element
+        # is a wiring error and says so like the unsupported key of __init__.
+        if (tns, element_name) not in self.elements:
+            raise ValueError(
+                f"Schema {self.xsd_filename} of lookup {self.schema_key} "
+                f"declares no element '{element_name}'")
 
         if nsmap is None:
             nsmap = {k: v for k, v in (self.root.nsmap or {}).items()

@@ -2,14 +2,9 @@ import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesse
 
 import {
   BooleanInput,
-  DateField,
-  FunctionField,
   type ListProps,
   NumberField,
-  type RaRecord,
-  ReferenceManyField,
   SearchInput,
-  SingleFieldList,
   TextField,
   WrapperField,
 } from "react-admin";
@@ -20,6 +15,7 @@ import CustomListActions, {
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import { type ServiceListConfig } from "./config";
 import ServiceListAside from "./ServiceListAside";
+import ServiceRunState from "./ServiceRunState";
 
 /** the rows of a screen of services are navigated page by page */
 export const SERVICE_LIST_PER_PAGE = 25;
@@ -30,6 +26,12 @@ export const SERVICE_LIST_SORT: NonNullable<Partial<ListProps>["sort"]> = {
   field: "title",
   order: "ASC",
 };
+
+/** the states of attention which the column of the harvesting answers */
+const HARVEST_STATE_FLAGS = ["harvestAborted", "harvestIncomplete"];
+
+/** the states of attention which the column of the updates answers */
+const UPDATE_STATE_FLAGS = ["updateFailed", "updateReviewRequired"];
 
 /** the columns of these lists are fixed by the rows, so none of them is chosen */
 const ServiceListActions = (props: CustomListActionsProps) => (
@@ -51,6 +53,27 @@ const ServiceListActions = (props: CustomListActionsProps) => (
  * filter and count, and the count of the elements of a service which the api
  * annotates for a request which names it - so no row asks anything of itself.
  *
+ * A column which shows a state of a service shows the moment the run which
+ * decided that state ended at, which the same annotation answers: a page of
+ * twenty five services costs no request per row for a moment the page already
+ * names. The columns of the updates and of the harvesting are therefore read
+ * from the row (`ServiceRunState`), and the way to a single record behind a
+ * state is the attention tab of that service, which has the one service in hand.
+ *
+ * A column is sorted only where the view of the api orders by its attribute
+ * (`ordering_fields`, registry/views/service.py): the flag which answers the
+ * attention of a service and the moment the harvesting failed are ordered, the
+ * count of the elements of a service is not - and a column which answers two
+ * annotations, as the column of the updates does, is not ordered by only one of
+ * them.
+ *
+ * The rows of the table are the answer of this screen and nothing aggregates
+ * over them: the states above the rows are counted by the tiles of the header
+ * (`ServiceSummaryTiles`), whose links narrow these very rows. A second,
+ * aggregate view of the same registry was built beside the table and removed
+ * again - two tables of one query drift and the tiles already answer the
+ * question an aggregate would ask (#1086).
+ *
  * The caller renders these props on the ListGuesser directly or through the
  * ListWithDialogs, which keeps the routes of the create and edit dialogs of the
  * resource alive beside the list.
@@ -69,9 +92,31 @@ export const serviceListProps = (
       sx={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}
     />,
     <TextField key="id" source="id" label="serviceList.columns.id" sx={{ overflowWrap: "anywhere" }} />,
-    <WrapperField key="status" source="hasAlert" label="serviceList.columns.status" sortable={false}>
+    <WrapperField key="status" source="hasAlert" label="serviceList.columns.status" sortable>
       <ServiceAlertChips />
     </WrapperField>,
+    // the states of the harvesting are answered by a catalogue only, so the
+    // column is there where the config names the filters of the harvesting
+    ...(config.harvestFilters
+      ? [
+          <WrapperField
+            key="harvest"
+            source="harvestFailedAt"
+            label="serviceList.columns.harvest"
+            sortable
+          >
+            <ServiceRunState
+              flags={HARVEST_STATE_FLAGS}
+              running={{
+                source: "runningHarvestingJob",
+                resource: "HarvestingJob",
+                label: "serviceAttention.records.HarvestingJob",
+              }}
+              locales={locale}
+            />
+          </WrapperField>,
+        ]
+      : []),
     <NumberField
       key="count"
       source="elementCount"
@@ -79,46 +124,14 @@ export const serviceListProps = (
       sortable={false}
       emptyText="—"
     />,
-    <FunctionField<RaRecord>
+    <WrapperField
       key="lastUpdate"
+      source="updateFailedAt"
       label="serviceList.columns.lastUpdate"
       sortable={false}
-      render={record => (
-        <ReferenceManyField
-          reference={`${config.resource}UpdateJob`}
-          target="service"
-          source="id"
-          filter={{ service: record.id, done_at__isnull: false }}
-          sort={{ field: "doneAt", order: "DESC" }}
-          perPage={1}
-          queryOptions={{
-            meta: {
-              jsonApiParams: {
-                [`fields[${config.resource}UpdateJob]`]: "id,done_at,status",
-              },
-            },
-          }}
-        >
-          <SingleFieldList
-            linkType={false}
-            direction="column"
-            sx={{ gap: 0 }}
-            empty={<TextField source="doneAt" record={{ id: record.id, doneAt: undefined }} emptyText="serviceList.noUpdates" />}
-          >
-            <WrapperField>
-              <DateField
-                source="doneAt"
-                showTime
-                locales={locale === "en" ? "en-GB" : locale}
-                options={{ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }}
-                sx={{ display: "block", whiteSpace: "nowrap" }}
-              />
-              <TextField source="status" sx={{ display: "block", color: "text.secondary" }} />
-            </WrapperField>
-          </SingleFieldList>
-        </ReferenceManyField>
-      )}
-    />,
+    >
+      <ServiceRunState flags={UPDATE_STATE_FLAGS} locales={locale} />
+    </WrapperField>,
   ],
   dataGridProps: {
     bulkActionButtons: config.BulkActions ? <config.BulkActions /> : false,
@@ -150,9 +163,6 @@ export const serviceListProps = (
       },
     },
   },
-  //empty: <ServiceListExplorer config={config} />,
   ActionsComponent: ServiceListActions,
-  aside: <ServiceListAside protocol={config.protocol} />
-        
-  //listContent: <ServiceListExplorer config={config} />,
+  aside: <ServiceListAside protocol={config.protocol} />,
 });

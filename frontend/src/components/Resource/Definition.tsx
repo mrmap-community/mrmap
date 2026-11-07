@@ -26,10 +26,13 @@ import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
+import ListCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ListCatalogueServiceUpdateJob';
+import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatalogueServiceUpdateJob';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
+import ListHarvestingLog from './HarvestingLog/ListHarvestingLog';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
 import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
@@ -41,6 +44,7 @@ import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
+import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -111,8 +115,11 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},
-  {name: "TemporaryMdMetadataFile"},
-  {name: "HarvestingLog"},
+  // the declared lists of the run's leftovers have no menu entries on purpose:
+  // an administrator reaches them from a run, not from a pile of every log
+  // line of every catalogue (#1083, #888)
+  {name: "TemporaryMdMetadataFile", list: ListTemporaryMdMetadataFile},
+  {name: "HarvestingLog", list: ListHarvestingLog},
   {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
 
   {name: "MetadataContact", icon: ContactsIcon},
@@ -140,7 +147,7 @@ const RESOURCES: Array<ResourceProps> = [
   
 
   {name: "CatalogueServiceUpdateSetting", icon: UpdateIcon},
-  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "CSW", order: 40 } }},
+  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, list: ListCatalogueServiceUpdateJob, show: ShowCatalogueServiceUpdateJob, options: { label: "resources.CatalogueServiceUpdateJob.name", menu: { group: "CSW", order: 40 } }},
   
 
   // monitoring

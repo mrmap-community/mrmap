@@ -160,3 +160,64 @@ class BackgroundProcessApiTests(TestCase):
 
         self.assertEqual(
             self.abort(self.pending, client=anonymous).status_code, 403)
+
+
+class BackgroundProcessProgressSortTests(TestCase):
+    """The overview sorts by the progress it renders.
+
+    ``progress`` is no model field but an annotation of ``process_info()`` -
+    completed processes at 100, processes which do not know their steps at 0
+    and the rest at the share of their done steps. The failed-jobs view of the
+    frontend asks for exactly this sort, which the viewset answered with a 400
+    until the annotation entered its whitelist (issue #1035).
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.none = cls.create("none", ProcessStatusEnum.RUNNING, seconds_ago=3)
+        cls.half = cls.create("half", ProcessStatusEnum.RUNNING,
+                              total_steps=8, done_steps=2, seconds_ago=2)
+        cls.done = cls.create("done", ProcessStatusEnum.COMPLETED,
+                              total_steps=8, done_steps=8, seconds_ago=1)
+
+    def setUp(self):
+        # a superuser sees every process, so the overview is asked with him
+        self.client = APIClient()
+        self.client.force_authenticate(get_user_model().objects.create_superuser(
+            username="progress", password="test"))
+        self.client.credentials(HTTP_ACCEPT=JSONAPI)
+
+    @staticmethod
+    def create(name, status, total_steps=None, done_steps=0, seconds_ago=0):
+        return BackgroundProcess.objects.create(
+            phase=f"process {name}",
+            process_type=ProcessNameEnum.MONITORING.value,
+            description=f"a process {name}",
+            status=status,
+            total_steps=total_steps,
+            done_steps=done_steps,
+            date_created=now() - timedelta(seconds=seconds_ago))
+
+    def listed(self, **query_params):
+        response = self.client.get(
+            reverse("notify:backgroundprocess-list"), query_params)
+        self.assertEqual(response.status_code, 200)
+        return [process["id"] for process in
+                response.json()["data"]]
+
+    def test_sorts_the_processes_by_their_progress(self):
+        self.assertEqual(
+            [str(self.none.pk), str(self.half.pk), str(self.done.pk)],
+            self.listed(sort="progress"))
+
+    def test_sorts_the_processes_by_their_progress_descending(self):
+        self.assertEqual(
+            [str(self.done.pk), str(self.half.pk), str(self.none.pk)],
+            self.listed(sort="-progress"))
+
+    def test_a_sort_the_process_does_not_have_is_still_rejected(self):
+        response = self.client.get(
+            reverse("notify:backgroundprocess-list"),
+            {"sort": "not_a_field"}, HTTP_ACCEPT=JSONAPI)
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertEqual(response.json()["errors"][0]["code"], "invalid")

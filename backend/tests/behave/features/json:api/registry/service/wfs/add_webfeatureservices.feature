@@ -1,4 +1,4 @@
-@fixtures:test_crs.json @fixtures:test_wfs.json @fixtures:test_keywords.json
+@fixtures:test_crs.json @fixtures:test_wfs.json @fixtures:test_keywords.json @fixtures:test_organizations.json
 Feature: WebFeatureService Add Endpoint
     As an API client,
     I want to add web feature services,
@@ -25,7 +25,7 @@ Feature: WebFeatureService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }
@@ -59,7 +59,7 @@ Feature: WebFeatureService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }

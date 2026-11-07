@@ -1,9 +1,44 @@
 from django.db import models
+from django.db.models import Case, F, TextField, Value, When
+from django.db.models.functions import Cast, Concat, Now
 from django.utils.timezone import now
 from registry.enums.metadata import MetadataOriginEnum
 
 
 class TimeExtentQuerySet(models.QuerySet):
+
+    def with_string_representation(self):
+        """Annotate the display string which ``TimeExtent.__str__`` answers.
+
+        The list endpoint offers ``sort=string_representation`` to the pickers
+        which render exactly that string, so the annotation has to order rows
+        the way the rendered value sorts: single values and intervals begin
+        with their begin, a rolling extent with the time its window opens.
+        The kind conditions are the ones of the model; importing them at
+        module level would close the cycle model -> manager -> queryset ->
+        model, so they are imported here (#1035).
+        """
+        from registry.models.metadata import IS_ROLLING, IS_SINGLE_VALUE
+
+        return self.annotate(
+            string_representation=Case(
+                When(IS_SINGLE_VALUE,
+                     then=Cast("begin", TextField())),
+                When(IS_ROLLING,
+                     then=Concat(
+                         Cast(Now() - F("resolution"), TextField()),
+                         Value(";"),
+                         Cast(Now(), TextField()),
+                         Value(";0"),
+                         output_field=TextField())),
+                default=Concat(
+                    Cast("begin", TextField()),
+                    Value(";"),
+                    Cast("end", TextField()),
+                    Value(";"),
+                    Cast("resolution", TextField()),
+                    output_field=TextField()),
+                output_field=TextField()))
 
     def relevant_in(self, duration):
         """

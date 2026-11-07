@@ -9,7 +9,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (CharField, ChoiceField, DurationField,
+from rest_framework_json_api.serializers import (CharField, ChoiceField,
+                                                 DateTimeField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
@@ -138,9 +139,54 @@ class HarvestingJobSerializer(
             "single run."),
         read_only=True)
 
+    elapsed_seconds = FloatField(
+        label=_("elapsed seconds"),
+        help_text=_(
+            "how long this run has been working, in seconds: from the moment the run was made "
+            "to its end, or to the moment of the request while it still works. The moment the "
+            "run was made is its `dateCreated`, or - where the harvesting never set one - the "
+            "first row of its change log; a run which was made at no answerable moment answers "
+            "nothing."),
+        read_only=True)
+    records_per_minute_running = FloatField(
+        label=_("records per minute so far"),
+        help_text=_(
+            "how many records per minute this run has stored so far, against the time it has "
+            "worked: the records it downloaded while it downloads, the records it wrote to the "
+            "database while it imports. Named apart from `recordsPerMinute`, because it answers "
+            "a run which is still working; what it measures is the run which is watched, not the "
+            "size of the pages a harvest asks with."),
+        read_only=True)
+    estimated_seconds_remaining = FloatField(
+        label=_("estimated seconds remaining"),
+        help_text=_(
+            "how long this run estimates itself to still take, in seconds: its elapsed time "
+            "against the progress its steps already answer, scaled to the part which is left. An "
+            "estimate and no measured duration: a run whose records are not known yet, which has "
+            "done nothing yet, or which is closed answers nothing, because nothing is known or "
+            "nothing is left then."),
+        read_only=True)
+    expected_done_at = DateTimeField(
+        label=_("expected done at"),
+        help_text=_(
+            "the moment this run is expected to end: its `estimatedSecondsRemaining` added to "
+            "the moment of the request. Where no estimate is answered, no end is answered "
+            "either."),
+        read_only=True)
+
     total_steps = IntegerField(read_only=True)
     done_steps = IntegerField(read_only=True)
     progress = FloatField(read_only=True)
+
+    import_stalled_at = DateTimeField(
+        label=_("import stalled at"),
+        help_text=_(
+            "since when the import watchdog sees the backlog of this run "
+            "untouched: as many records are waiting for their import as on the "
+            "watchdog's look before. A run which imports answers nothing, and what "
+            "the watchdog did about the standstill is on the harvesting log of the "
+            "run."),
+        read_only=True)
 
     phase_label = CharField(source="get_phase_display", read_only=True)
     phase = IntegerField(required=False)
@@ -163,11 +209,16 @@ class HarvestingJobSerializer(
         # The harvested relations go the same way: the records a run collected
         # are explored as harvested-metadata-records, so the job answers their
         # counts but never the records themselves (#827 adds the third of them)
+        # The watchdog's two counting fields are its memory, answered by
+        # nothing: only its verdict, the re-declared `import_stalled_at` above,
+        # reaches the api (#1038).
         exclude = (
             "harvested_dataset_metadata",
             "harvested_service_metadata",
             "harvested_application_metadata",
             "background_process",
+            "import_backlog_seen",
+            "import_backlog_seen_at",
         )
 
     def validate_service(self, value):
@@ -211,15 +262,48 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
         return attrs
 
 
-class HarvestingLogSerializer(
+class HarvestingLogListSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
 ):
+    """The rows of a log list: the message of the line and whether an
+    extended description is stored behind it.
+
+    The detail of a failed page - the response content - sits in
+    ``extented_description``, a FileField: a list which shows it answers a
+    download per row, a list which hides it shows nothing. So the list
+    answers the existence of the file and the content is read per log line,
+    by a caller allowed to read the run; these files are the pile #888
+    bounds and the list must not widen their read access (#1083).
+    """
     url = HyperlinkedIdentityField(
         view_name="registry:harvestinglog-detail",)
+    has_extended_description = SerializerMethodField(
+        label=_("has extended description"),
+        help_text=_(
+            "whether this log line has a stored response behind it; the "
+            "content of the file is answered on the line itself, never in "
+            "a list"),
+        read_only=True)
 
     class Meta:
         model = HarvestingLog
-        fields = "__all__"
+        exclude = ("extented_description",)
+
+    def get_has_extended_description(self, obj) -> bool:
+        return bool(obj.extented_description)
+
+
+class HarvestingLogSerializer(HarvestingLogListSerializer):
+    """One log line, read on its own: it answers its stored response too.
+
+    Reading one line is the act of a caller who reads the run; the list
+    above is not that act and keeps the file out of its rows (#1083).
+    """
+
+    # a fresh Meta rather than an inherited one: DRF refuses a serializer
+    # which sets `fields` while a parent's `exclude` still applies
+    class Meta:
+        model = HarvestingLog
         fields = "__all__"

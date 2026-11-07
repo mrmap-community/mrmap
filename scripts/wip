@@ -320,10 +320,11 @@ def worktrees():
 # ---------- commands ----------
 
 def guard_others(payloads, cid, n, cmd, force):
-    """Refuse to join an issue a live other client works on; warn past stale ones."""
+    """Refuse to join an issue a live other client works on unless `force` takes
+    it over deliberately; warn past stale ones."""
     others = [c for c in active_claims(payloads) if c.get("client") != cid]
     fresh = [c for c in others if not is_stale(c)]
-    if fresh:
+    if fresh and not force:
         h = fresh[0]
         waiting = f" and waits for user input: {h.get('question', 'input')}" if h.get("state") == "waiting" else ""
         die(f"issue #{n} is claimed by `{h['client']}` on branch `{h['branch']}` "

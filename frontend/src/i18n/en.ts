@@ -7,6 +7,15 @@ const en = lodashMerge(
     cronInput: {
       openEditor: "Click to edit the cron schedule.",
       minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
+      editorTitle: "Edit Cron Expression",
+      minute: "Minute",
+      hour: "Hour",
+      dayOfMonth: "Day of Month",
+      month: "Month",
+      weekday: "Weekday (0=Sun)",
+      every: "* (every)",
+      preview: "Preview / manual edit",
+      apply: "Apply",
     },
     viewerAdd: {
       title: "Add map service",
@@ -432,6 +441,10 @@ const en = lodashMerge(
       disabledMessage: "Harvesting schedules are disabled. Enable a schedule to harvest automatically.",
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
+    },
+    harvestingStats: {
+      records: "Records",
+      day: "Day",
     },
     harvestThroughput: {
       basis: "Measured by the %{count} harvests of this catalogue which finished:",
@@ -930,6 +943,61 @@ const en = lodashMerge(
         plural: "Catalogue Service",
         listSubheader: "Manage registered Catalogue Services (CSW)",
       },
+      CatalogueServiceMonitoringSetting: {
+        singular: "Catalogue service monitoring setting",
+        plural: "Catalogue service monitoring settings",
+      },
+      HarvestingJob: {
+        singular: "Harvesting run",
+        plural: "Harvesting runs",
+        listSubheader: "Runs which harvested the catalogues, running and finished",
+        fields: {
+          service: "Catalogue",
+          dateCreated: "Started",
+          doneAt: "Finished",
+          phase: "Phase",
+          phaseLabel: "Status",
+          progress: "Progress",
+          totalRecords: "Records",
+          unhandledRecordsCount: "Awaiting import",
+          importErrorCount: "Import errors",
+          maxStepSize: "Step size",
+          recordsPerMinute: "Records per minute",
+        },
+      },
+      PeriodicHarvestingJob: {
+        singular: "Harvesting schedule",
+        plural: "Harvesting schedules",
+        listSubheader: "Schedules which determine when each catalogue is harvested",
+        fields: {
+          service: "Catalogue",
+          enabled: "Enabled",
+          scheduling: "Schedule",
+          timeUntilNextRun: "Time until next run",
+        },
+      },
+      HarvestingLog: {
+        singular: "Harvesting log entry",
+        plural: "Harvesting log entries",
+        listSubheader: "What the harvesting runs reported",
+        fields: {
+          harvestingJob: "Harvesting run",
+          timestamp: "Time",
+          level: "Level",
+          kind: "Kind",
+          description: "Description",
+        },
+      },
+      TemporaryMdMetadataFile: {
+        singular: "Downloaded metadata file",
+        plural: "Downloaded metadata files",
+        fields: {
+          job: "Harvesting run",
+          reSchedule: "Re-scheduled",
+          hasImportError: "Has import error",
+          importError: "Import error",
+        },
+      },
       CatalogueServiceUpdateJob: {
         name: "Catalogue update jobs",
         singular: "Catalogue service update job",
@@ -939,7 +1007,39 @@ const en = lodashMerge(
         updateCandidate: "Update candidate",
         notEndedMessage: "This update has not ended yet. Its result is not decided.",
         reviewRequiredMessage: "This update waits for a decision about it. What the catalogue reports is not applied until that decision happened.",
+        listSubheader: "Update jobs of the registered Catalogue Services",
+        fields: {
+          service: "Catalogue",
+          dateCreated: "Created",
+          doneAt: "Done",
+          statusCode: "Status code",
+        },
       },
+      HarvestedMetadataRelation: {
+        singular: "Harvested metadata",
+        plural: "Harvested metadata",
+        fields: {
+          harvestingJob: "Harvesting run",
+          datasetMetadataRecord: "Dataset",
+          serviceMetadataRecord: "Service",
+          applicationMetadataRecord: "Application",
+          collectingState: "Collecting state",
+          downloadDuration: "Download duration",
+        },
+      },
+      BackgroundProcess: {
+        titles: {
+          registering: "Register new Service",
+          harvesting: "Harvesting",
+          harvestingOf: "Harvesting of %{id}",
+          monitoring: "Monitoring",
+          runningTask: "Running Task",
+        },
+        states: {
+          completed: "completed",
+          waitingForSchedule: "waiting for schedule",
+        },
+        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

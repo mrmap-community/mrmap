@@ -91,7 +91,7 @@ const CronInput = ({
         >
           <MenuItem value="*">
             <Checkbox checked={valueState.includes("*")} />
-            <ListItemText primary="* (every)" />
+            <ListItemText primary={translate("cronInput.every")} />
           </MenuItem>
           {options.map((opt) => (
             <MenuItem key={opt} value={opt}>
@@ -128,12 +128,14 @@ const CronInput = ({
         contentDividers={false}
         title={
           <DialogHeader onClose={() => setOpen(false)}>
-            Edit Cron Expression
+            {translate("cronInput.editorTitle")}
           </DialogHeader>
         }
         actions={
           <>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => setOpen(false)}>
+              {translate("ra.action.cancel")}
+            </Button>
             <Button
               onClick={() => {
                 // update the form field
@@ -142,7 +144,7 @@ const CronInput = ({
               }}
               variant="contained"
             >
-              Apply
+              {translate("cronInput.apply")}
             </Button>
           </>
         }
@@ -150,14 +152,14 @@ const CronInput = ({
       >
         <>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid>{renderSelect("Minute", 0, minuteOptions)}</Grid>
-            <Grid>{renderSelect("Hour", 1, hourOptions)}</Grid>
-            <Grid>{renderSelect("Day of Month", 2, dayOptions)}</Grid>
-            <Grid>{renderSelect("Month", 3, monthOptions)}</Grid>
-            <Grid>{renderSelect("Weekday (0=Sun)", 4, weekdayOptions)}</Grid>
+            <Grid>{renderSelect(translate("cronInput.minute"), 0, minuteOptions)}</Grid>
+            <Grid>{renderSelect(translate("cronInput.hour"), 1, hourOptions)}</Grid>
+            <Grid>{renderSelect(translate("cronInput.dayOfMonth"), 2, dayOptions)}</Grid>
+            <Grid>{renderSelect(translate("cronInput.month"), 3, monthOptions)}</Grid>
+            <Grid>{renderSelect(translate("cronInput.weekday"), 4, weekdayOptions)}</Grid>
             <Grid>
               <TextField
-                label="Preview / manual edit"
+                label={translate("cronInput.preview")}
                 value={preview}
                 onChange={(e) => setPreview(e.target.value)}
                 fullWidth

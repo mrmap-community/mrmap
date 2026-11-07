@@ -12,11 +12,17 @@ The gate is read-only and stateless: it never starts, pauses, renices or kills
 anything. Admission control means refusing to *add* work; a job that is
 already running keeps its resources.
 
-Two workload classes
---------------------
+Classes of job
+--------------
 `--need stack` (default) one heavy Docker Compose test stack: postgis, redis,
     mapserver plus a one-off test container. Default, because every check
     AGENTS.md documents is a stack check.
+`--need suite` one stack that runs the *full* Django suite (--parallel=4, the
+    command docker-compose.dev.yml defines). Same stack shape, measurably
+    heavier: #1055 saw the container cgroup peak at 12.1 GiB for such a run,
+    far above what a targeted check charges. A caller that means to run the
+    whole suite asks this class, so the gate refuses a second heavy job while
+    the suite is charging instead of admitting it against the lighter rule.
 `--need process` one more agent process (an OpenCode worker that runs no
     stack). Light, so it needs far less memory than a stack.
 `--need none` report the metrics and the host-wide checks, no class need.
@@ -47,6 +53,9 @@ editing the file:
 
   AGENT_MAX_LOAD_PER_CORE      most 15-minute load average per core   (default 1.5)
   AGENT_STACK_MIN_MEM_GB       effective GiB one heavy stack needs    (default 6)
+  AGENT_SUITE_MIN_MEM_GB       effective GiB a `--need suite` stack   (default 8)
+                               needs: the full-suite arm of #1055, heavier
+                               than a targeted check
   AGENT_PROCESS_MIN_MEM_GB     effective GiB one agent process needs  (default 2)
   AGENT_MIN_MEM_GB             floor for a stack when no memory limit (default 16)
                                of this cgroup is visible (the host case)
@@ -57,7 +66,8 @@ editing the file:
   AGENT_MAX_MEM_PRESSURE       most memory PSI "some avg10" percent   (default 10)
                                for a new stack
   AGENT_MIN_DISK_GB            least free disk on /, in GiB           (default 100)
-  AGENT_MAX_STACKS             most running mrmap-agent-* stacks      (default 3)
+  AGENT_MAX_STACKS             most running mrmap-agent-*/mrmap-ao-*  (default 3)
+                               stacks
   AGENT_MAX_PROCESSES          most running agent processes           (default 6)
   AGENT_PROCESS_MATCH          process name to count as an agent      (default opencode)
 
@@ -65,7 +75,11 @@ Test and integration seams: `AGENT_CGROUP_ROOT` and `AGENT_PROC_ROOT` point the
 metrics at another filesystem root (offline tests fabricate a cgroup),
 `--stacks` and `--processes` pass counts a caller already knows (a supervisor
 that tracks its own jobs), `--json` gives the machine-readable form and
-`evaluate()` is importable for callers that would rather not fork.
+`evaluate()` is importable for callers that would rather not fork. `--wait N`
+turns a refusal into a queue: the gate re-reads its metrics for up to N seconds
+and exits when a verdict says fits, so a caller that can afford to be late does
+not have to poll the gate itself - waiting is still admission control, a running
+job is never displaced for the newcomer.
 
 Counting is *prospective*: the reported stack and process counts are the ones
 already running, and the job being decided about is added before comparing with
@@ -79,9 +93,16 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 GB = 1024 ** 3
-STACK_PREFIX = "mrmap-agent-"
+# An agent Compose stack is named after its job. The repository convention is
+# mrmap-agent-<issue>-<run>; an Agent Orchestrator host generates
+# mrmap-ao-<worktree-hash> per worktree (its wrapper pins it in .env and checks
+# it before every run). Both name agent stacks, so both are counted; anything
+# else - a developer's own project among them - is not an agent stack and the
+# caller that knows better passes --stacks.
+STACK_PREFIXES = ("mrmap-agent-", "mrmap-ao-")
 PROJECT_LABEL = "com.docker.compose.project"
 CGROUP_ROOT = os.environ.get("AGENT_CGROUP_ROOT", "/sys/fs/cgroup")
 PROC_ROOT = os.environ.get("AGENT_PROC_ROOT", "/proc")
@@ -335,8 +356,14 @@ def _nested_docker(out, cgroup_root):
     return out
 
 
+def count_stacks(projects):
+    """How many of the compose project names belong to agent stacks."""
+    return len([p for p in projects
+                if any(p.startswith(prefix) for prefix in STACK_PREFIXES)])
+
+
 def agent_stacks():
-    """Running mrmap-agent-* Compose stacks, or None if docker is unusable.
+    """Running agent Compose stacks, or None if docker is unusable.
 
     Counted by compose project (one per agent job), not per container, so the
     limit reads in stacks the way AGENT_MAX_STACKS says. A fixed timeout keeps a
@@ -351,7 +378,7 @@ def agent_stacks():
     if r.returncode != 0:
         return None
     projects = {ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()}
-    return len([p for p in projects if p.startswith(STACK_PREFIX)])
+    return count_stacks(projects)
 
 
 def agent_processes(proc_root=PROC_ROOT, match=None):
@@ -423,6 +450,7 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
     max_stacks = threshold("AGENT_MAX_STACKS", 3)
     max_processes = threshold("AGENT_MAX_PROCESSES", 6)
     stack_need = threshold("AGENT_STACK_MIN_MEM_GB", 6)
+    suite_need = threshold("AGENT_SUITE_MIN_MEM_GB", 8)
     process_need = threshold("AGENT_PROCESS_MIN_MEM_GB", 2)
     host_floor = threshold("AGENT_MIN_MEM_GB", 16)
     reserve = threshold("AGENT_MEM_RESERVE_GB", 2)
@@ -445,6 +473,8 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
 
     if need == "stack":
         required = stack_need if cg["limited"] else max(stack_need, host_floor)
+    elif need == "suite":
+        required = suite_need if cg["limited"] else max(suite_need, host_floor)
     elif need == "process":
         required = process_need
     else:
@@ -457,7 +487,7 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
         problems.append("mem")
     if disk is not None and disk < min_disk:
         problems.append("disk")
-    if need == "stack":
+    if need in ("stack", "suite"):
         # Under pressure or at the ceiling the cgroup is already thrashing;
         # a new stack would be the one that OOMs. Recovery is automatic: as
         # soon as the charge or the pressure drops the verdict flips.
@@ -540,16 +570,34 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="agent_capacity", description=__doc__.splitlines()[0],
         epilog="exit 0 fits, 1 busy, 2 usage")
-    ap.add_argument("--need", choices=("stack", "process", "none"), default="stack",
+    ap.add_argument("--need", choices=("stack", "suite", "process", "none"),
+                    default="stack",
                     help="class of the job about to start (default stack)")
     ap.add_argument("--json", action="store_true", help="print the verdict as one JSON object")
     ap.add_argument("--stacks", type=int, default=None,
                     help="stacks already running, instead of counting with docker ps")
     ap.add_argument("--processes", type=int, default=None,
                     help="agent processes already running, instead of scanning /proc")
+    ap.add_argument("--wait", type=int, default=0, metavar="SECONDS",
+                    help="queue for up to SECONDS seconds for a refusal to clear "
+                         "before exiting busy; progress goes to stderr")
     args = ap.parse_args(argv)
 
-    result = evaluate(need=args.need, stacks=args.stacks, processes=args.processes)
+    def ask():
+        return evaluate(need=args.need, stacks=args.stacks, processes=args.processes)
+
+    result = ask()
+    deadline = time.monotonic() + max(0, args.wait)
+    while not result["fits"] and time.monotonic() < deadline:
+        # A refusal clears on its own - another job finishing, a charge being
+        # reclaimed - so queueing for room is legitimate waiting, while
+        # displacing a running job is not. Progress goes to stderr, so a
+        # --json caller still reads exactly one object on stdout.
+        left = deadline - time.monotonic()
+        print(f"agent_capacity: waiting {int(left)}s for "
+              + ",".join(result["reasons"]), file=sys.stderr, flush=True)
+        time.sleep(min(15.0, max(0.0, left)))
+        result = ask()
     if args.json:
         print(json.dumps(result))
     else:

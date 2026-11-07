@@ -59,8 +59,10 @@ What the gate measures
      - is the cgroup at its ceiling
    * - stacks
      - ``docker ps`` labels ``com.docker.compose.project`` starting with
-       ``mrmap-agent-``
-     - how many disposable test stacks are already up
+       ``mrmap-agent-`` or ``mrmap-ao-``
+     - how many disposable test stacks are already up - both prefixes agent
+       stacks actually carry in the field: the repository naming convention
+       and the Agent Orchestrator worktree name this host's wrapper pins
    * - processes
      - ``/proc/<pid>/cmdline`` of the agent executable (``opencode`` by default)
      - how many workers are already running
@@ -89,21 +91,32 @@ measured and a test stack can never be handed memory the container does not
 have. Swap is deliberately not counted - a stack that has reached swap misses
 its own timeouts.
 
-Two classes of job
-==================
+Three classes of job
+====================
 
 The gate decides about one *prospective* job at a time, and the job matters:
 
 .. code-block:: console
 
    $ scripts/agent_capacity                  # a heavy Compose test stack
+   $ scripts/agent_capacity --need suite     # a stack running the FULL suite
    $ scripts/agent_capacity --need process   # another agent worker, no stack
    $ scripts/agent_capacity --need none      # report only, no class need
    $ scripts/agent_capacity --json           # the same verdict for a program
+   $ scripts/agent_capacity --wait 900       # queue for a refusal to clear
 
 A stack needs the memory of postgis, redis, mapserver and a one-off test
 container at once; an agent process needs a runtime and a context. ``stack`` is
-the default, because every check ``AGENTS.md`` documents is a stack check.
+the default, because most checks ``AGENTS.md`` documents are stack checks - but
+it is sized from a *targeted* run. #1055 measured what the full backend suite
+costs in the same stack shape: ``--parallel=4`` runs the 1312 tests in 225 s
+and put the container's memory cgroup at 12.1 GiB, where a targeted module
+never comes close. A caller that means to run the whole suite asks
+``--need suite`` so the gate compares against ``AGENT_SUITE_MIN_MEM_GB``
+instead of the lighter number, and a second heavy job is refused *by the memory
+rule* while the suite is charging - which is the arithmetic of the section
+"Why #1054's acceptance is out of reach at 16 GiB" below, turned into an
+admission decision instead of an OOM.
 
 "Prospective" is the part that was wrong before: the reported counts are the
 jobs **already running**, and the job being asked about is added before the
@@ -113,7 +126,13 @@ beside three.
 
 Admission never kills. There is no code path that signals another job - the
 gate's only response to pressure is to refuse the newcomer, and the verdict
-flips back on its own as soon as the charge or the pressure drops.
+flips back on its own as soon as the charge or the pressure drops. ``--wait N``
+uses that: it turns one refusal into a bounded queue, re-reading the metrics
+for up to N seconds and exiting 0 the moment a verdict says ``fits``. A job
+that can afford to be late then does not have to poll the gate from its own
+loop, and waiting is still admission control - a running job is never
+displaced for the newcomer. Progress lines go to stderr, so ``--json`` stdout
+stays exactly one object.
 
 Thresholds
 ==========
@@ -132,7 +151,11 @@ without editing the file:
      - most 15-minute load average per core
    * - ``AGENT_STACK_MIN_MEM_GB``
      - 6
-     - effective GiB one heavy Compose stack needs
+     - effective GiB one heavy Compose stack needs, sized from a targeted run
+   * - ``AGENT_SUITE_MIN_MEM_GB``
+     - 8
+     - effective GiB a ``--need suite`` stack needs: the same stack running
+       the full unit suite, which #1055 measured well above a targeted run
    * - ``AGENT_PROCESS_MIN_MEM_GB``
      - 2
      - effective GiB one agent process needs
@@ -155,7 +178,8 @@ without editing the file:
      - least free GiB on ``/``
    * - ``AGENT_MAX_STACKS``
      - 3
-     - most running ``mrmap-agent-*`` stacks, counted prospectively
+     - most running agent stacks (``mrmap-agent-*``, ``mrmap-ao-*``), counted
+       prospectively
    * - ``AGENT_MAX_PROCESSES``
      - 6
      - most running agent processes, counted prospectively
@@ -397,6 +421,52 @@ What it costs, and this is the larger half of the decision:
    * - Rollback
      - the recorded value, one file
      - the daemon wiring and the socket
+
+Could Option B run without an operator? Measured on the agent host
+-------------------------------------------------------------------
+
+The 2026-11-05 operator decision left one open half: an agent, without admin
+rights, evaluate whether Option B is implementable under its own permissions.
+The answer is measured, not argued, and it is no - in a way that is worth
+writing down because it is a property of the cgroup layout, not of missing
+tooling:
+
+- The socket the agent holds addresses a rootful dockerd running *inside* the
+  agent container itself: ``docker info`` names the daemon after the container,
+  its process is a child of the container's PID namespace, and its cgroup
+  ``/sys/fs/cgroup/docker`` is a **child** of the 16 GiB root (``memory.max``
+  inside it reads ``max``, which means "bounded by the parent's charge", not
+  "unbounded"). The stacks were always billed there - the verdict's
+  ``docker 2.1G of it`` is this same fact.
+- Rootless docker cannot be substituted: there is no user systemd session (PID
+  1 is the container's startup script and ``systemctl --user`` fails), and
+  ``newuidmap``/``newgidmap`` are absent, so the uid remapping cannot even
+  start although the ``subuid`` ranges exist. Installing the pieces needs root
+  inside the container, which is not an agent operation.
+- No host daemon socket is mounted in, which is exactly why the nested daemon
+  above is the only one addressable - and why the privilege cost of Option B
+  is not even on the table from here.
+- The container has its own cgroup namespace (``/proc/self/cgroup`` reads
+  ``0::/init.scope`` and the ceiling appears as the mounted root's
+  ``memory.max``). *Every* daemon an agent can start here - rootful, rootless,
+  systemd-scoped - is born as a descendant of that root, and a cgroup child
+  can never use memory its parent's ceiling does not carry. Relocating the
+  daemon means leaving the container, which is the host action the runbook is
+  about. A rootless daemon inside would share the ceiling verbatim and must
+  not be presented as isolation.
+- Self-raising the ceiling is equally out of an unprivileged agent's reach:
+  the namespace root's ``memory.max`` is root-owned mode ``0644``, and writing
+  the same value back as the agent user is an ``EPERM`` (measured - the probe
+  cannot change anything, which is the point of probing with the unchanged
+  value). Whether root *inside* the container could lift the limit depends on
+  the hidden host-side parent and is moot besides: the operator decision of
+  2026-11-05 pins the 16 GiB and container root is not an agent permission.
+
+So Option B is not a feature an agent failed to build; under agent permissions
+no daemon placement escapes the ceiling. The repository-side answer is the one
+in this document: keep the stacks inside the session's accounting - the only
+place the gate can measure them truthfully - and let the gate's numbers decide
+how many jobs the ceiling carries.
 
 Why #1054's acceptance is out of reach at 16 GiB
 ------------------------------------------------

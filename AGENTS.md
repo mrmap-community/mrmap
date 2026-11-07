@@ -245,13 +245,17 @@ single verdict line and exits `0` when the job still fits or `1` when it does
 not. It refuses newcomers; it never pauses, renices or kills a running job.
 
 Ask for the class of work you are about to start: `scripts/agent_capacity`
-decides about a heavy Compose test stack (the default), `--need process` about
-one more agent worker without a stack, `--json` answers for a program, and
-`--stacks`/`--processes` pass counts a caller already keeps. The counts are
+decides about a heavy Compose test stack (the default), `--need suite` about a
+stack that runs the full unit suite (measured heavier than a targeted check),
+`--need process` about one more agent worker without a stack, `--json` answers
+for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
+`--wait N` queues up to N seconds for a refusal to clear instead of exiting
+busy; it never displaces a running job. The counts are
 prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
 and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
 job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE` (1.5),
-`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
+`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
+`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
 (16, the floor when no memory limit of this cgroup is visible),
 `AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
 `AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)

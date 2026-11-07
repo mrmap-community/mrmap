@@ -66,8 +66,11 @@ GET_RECORDS = {
 class AssertsExceptionReport:
     """The parts of an OWS Common ExceptionReport which carry a refusal."""
 
-    def assertExceptionReport(self, response, exception_code, locator=None):
-        self.assertEqual(response.status_code, 400, response.content)
+    def assertExceptionReport(self, response, exception_code, locator=None,
+                              status=400):
+        # status: 400 is the refusal of a faulty request; a report of a
+        # failure the request is not to blame for names its own code
+        self.assertEqual(response.status_code, status, response.content)
         self.assertEqual(response["Content-Type"], "application/xml")
 
         root = etree.fromstring(response.content)

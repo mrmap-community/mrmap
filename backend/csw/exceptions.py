@@ -21,12 +21,24 @@ class DocumentUnavailable(OGCServiceException):
     NoApplicableCode is the code OGC 07-006r1, Table 10 leaves for a failure
     the request itself is not to blame for: the xml backup file of a record is
     gone from the media storage, or its content cannot be read as the document
-    it is (lost files of a storage incident, quota, a failing disk). The report
-    names the record so the client and the operator know which one it is about
-    (#912); before, the FileNotFoundError of such a record killed the whole
-    response with a raw HTTP 500.
+    it is. #912 read this as the trace of a one-time storage incident; #1150
+    measured the losses spread uniformly over the whole corpus, so the
+    ``check_xml_backups`` management command is the operator's standing answer
+    to the damage itself, while this report stays the client-facing refusal of
+    the page which cannot be served.
+
+    The report names the record so the client and the operator know which one
+    it is about (#912) -- and names nothing else: the detail of the failed
+    read, which carries the absolute path of the media storage, is logged
+    server-side and never reaches this anonymous-facing document (#1150).
+
+    The status is 500, not the 400 of the request-refusing reports: the
+    request is well-formed and the storage owes the answer (#1150). A client
+    which treats 4xx as "do not retry this request again" is pointed at a
+    refusal that may well be transient; 5xx tells it the truth.
     """
     code = "NoApplicableCode"
+    status_code = 500
     message = "The stored document of a matched record cannot be served."
 
 

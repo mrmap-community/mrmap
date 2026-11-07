@@ -1,26 +1,32 @@
 """The states of a service which need the attention of an administrator.
 
-Nothing which is described here is stored. Every state which needs attention
-already exists somewhere else - the result of the last monitoring run of a
-service, the status of its last update job and the records its last harvesting
-job left behind - so that the question "what has to be done about this service"
-is decided in one place and answered by the same rules to every service, to the
-api and to every report which may follow.
+No state which is decided here is stored as a decision. Every state which
+needs attention already exists somewhere else - the result of the last
+monitoring run of a service, the status of its last update job and the records
+its last harvesting job left behind - so that the question "what has to be
+done about this service" is decided in one place and answered by the same
+rules to every service, to the api and to every report which may follow. What
+the cross-service read stores is only the projection of these rules - written
+by the refresh below, never by a second definition of them.
 
 The states are answered as annotations of the services themselves, which keeps
 them filterable, sortable and countable like every other attribute of a service
 on existing service endpoints. The cross-service projection is answered by the
-union which `service_alert_rows()` builds from these annotations and which
-creates the view of the alerts in `registry/models/alerts.py`. Only the states
-of the schedules stay calculated in python, because a crontab occurrence is not
-answered by the database - the schedule which missed its time and the schedule
-which is tighter than the run it schedules - see `extras/scheduling.py`.
+union which `service_alert_rows()` builds from these annotations; the refresh
+of the alert rows writes the result of that union into the table of the alerts
+in `registry/models/alerts.py`, so that a request reads the projection instead
+of re-evaluating it (#1030). Only the states of the schedules stay calculated
+in python, because a crontab occurrence is not answered by the database - the
+schedule which missed its time and the schedule which is tighter than the run
+it schedules - see `extras/scheduling.py`; they are calculated by the same
+refresh and not by every read of the alerts.
 
 A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
 was followed by a passing one does not need attention any more.
 """
 from camel_converter import to_camel
+from django.db import transaction
 from django.db.models import (BooleanField, Case, CharField, Exists,
                               ExpressionWrapper, F, IntegerField, OuterRef, Q,
                               Subquery, Value, When)
@@ -456,8 +462,9 @@ def alerts_requested(request, resource: str, attributes: tuple,
     return any(name in sparse_fields for name in names)
 
 
-# Cross-service projections deliberately reuse the annotations above. No alert
-# state is persisted, and candidates are never counted as separate services.
+# Cross-service projections deliberately reuse the annotations above. The
+# refresh writes the stored rows from these projections and not from a second
+# rule, and candidates are never counted as separate services.
 ALERT_CATEGORIES = {
     'monitoring_failed': ('error', 'monitoring_failed_at', 'MonitoringSetting'),
     'update_failed': ('error', 'update_failed_at', 'UpdateSetting'),
@@ -467,47 +474,47 @@ ALERT_CATEGORIES = {
 }
 
 
-def collect_service_alerts(user):
-    """Project visible published services and enabled schedules into alerts.
+#: the columns which `service_alert_rows()` answers, by the name which the
+#: table of the alerts keeps them under - the same projection of the
+#: annotations, which the services themselves answer, stored per row
+ALERT_ROW_COLUMNS = {
+    'alert_id': 'id',
+    'alert_severity': 'severity',
+    'alert_category': 'category',
+    'alert_message': 'message',
+    'alert_service_type': 'service_type',
+    'alert_service': 'service',
+    'alert_service_title': 'service_title',
+    'alert_resource_type': 'resource_type',
+    'alert_resource_id': 'resource_id',
+    'alert_occurred_at': 'occurred_at',
+    'alert_target_path': 'target_path',
+}
 
-    The alerts which the states of the services answer are projected by the
-    view of the alerts - one query which unions the annotations that the
-    services themselves answer, see `registry/models/alerts.py`. The states of
-    the schedules are not answered by that view, because a crontab is calculated
-    in python and not by the database: the schedule which did not keep its time
-    and the schedule which is tighter than the harvest it schedules are both
-    projected from the settings here.
+
+def schedule_alert_rows():
+    """The schedules which did not keep their time as alert rows.
+
+    A crontab occurrence is not answered by the database, so these rows are
+    calculated in python - by the refresh of the alert rows and not on the
+    read of the alerts: the header poll used to ask the settings of every kind
+    of service on every one of its requests, which is the cost this moves to
+    the refresh (#1030). A schedule which fires more often than a harvest takes
+    is answered here and not by the states of the services, because its
+    estimate is measured over the runs of a catalogue and a crontab is
+    calculated in python - neither is answerable by the database (#693).
+
+    Returns:
+        list: the alert row of every enabled schedule which is overdue or
+            tighter than the run it schedules, of every kind of service
     """
     from extras.scheduling import (next_run_expected_at, run_overdue,
                                    schedule_is_tighter_than)
-    from guardian.shortcuts import get_objects_for_user
     from registry.models import monitoring, update
-    from registry.models.alerts import ServiceAlertView
     from registry.models.harvest import PeriodicHarvestingJob
     from registry.querys.harvest_history import harvest_durations
 
-    scope = Q()
-    visible = {}
-    for model in SERVICE_KIND_OF:
-        services = get_objects_for_user(
-            user, f'registry.view_{model._meta.model_name}',
-            klass=model.objects.filter(update_candidate_of__isnull=True))
-        if not user.is_superuser:
-            # the view of the alerts and the settings below both ask the
-            # visible services: answer the visibility once, so that the
-            # permission subqueries of get_objects_for_user are part of one
-            # query instead of repeated by every query which uses the
-            # queryset - the superuser needs none of it, guardian answers
-            # without them
-            ids = list(services.values_list('pk', flat=True))
-            services = model.objects.filter(pk__in=ids)
-            scope |= Q(service_type=model.__name__,
-                       service__in=[str(pk) for pk in ids])
-        visible[model] = services
-    if user.is_superuser:
-        alerts = list(ServiceAlertView.objects.all().values())
-    else:
-        alerts = list(ServiceAlertView.objects.filter(scope).values())
+    rows = []
     for model in SERVICE_KIND_OF:
         resource = model.__name__
         settings = [
@@ -518,26 +525,80 @@ def collect_service_alerts(user):
         if model is CatalogueService:
             settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
             durations = harvest_durations(PeriodicHarvestingJob.objects.filter(
-                enabled=True, service__in=visible[model]).values_list(
-                    'service_id', flat=True))
+                enabled=True).values_list('service_id', flat=True))
         for setting_model, category in settings:
             for setting in setting_model.objects.filter(
-                    enabled=True, service__in=visible[model]).select_related('crontab', 'service'):
+                    enabled=True).select_related('crontab', 'service'):
                 if run_overdue(setting):
-                    alerts.append(service_alert(
+                    rows.append(service_alert(
                         setting.service, category, 'warning',
                         next_run_expected_at(setting), setting_model.__name__,
                         source=setting.pk))
                 if setting_model is PeriodicHarvestingJob:
-                    # a schedule which fires more often than a harvest takes is
-                    # answered here and not by the view of the alerts, because
-                    # its estimate is measured over the runs of a catalogue and
-                    # a crontab is calculated in python - neither is answerable
-                    # by the database (#693)
                     estimate = durations.get(setting.service_id) or {}
                     if schedule_is_tighter_than(setting, estimate.get('average')):
-                        alerts.append(harvest_schedule_alert(setting, estimate))
-    return alerts
+                        rows.append(harvest_schedule_alert(setting, estimate))
+    return rows
+
+
+def refresh_service_alerts():
+    """Write the alert rows of the whole deployment anew.
+
+    The rows of the services are answered by `service_alert_rows()` - the very
+    union of the annotations which the services themselves answer, so the
+    stored rows and the services cannot drift apart - and the rows of the
+    schedules by `schedule_alert_rows()`. Both replace the content of the table
+    in one transaction: a reader sees the rows of one full refresh or those of
+    the previous one, never a half of either. The row of an alert exists only
+    while the state behind it does, and its identity is made by
+    `service_alert()`, so an alert which stays open keeps its identifier
+    across refreshes (#1030).
+
+    The task `registry.tasks.alerts.refresh_service_alerts` runs this on beat
+    and on the invalidations which the states of the services publish; it is a
+    singleton because two refreshes over one state have nothing to add to each
+    other (see `extras/tasks.py`).
+    """
+    from registry.models.alerts import ServiceAlert
+
+    rows = [
+        ServiceAlert(**{
+            ALERT_ROW_COLUMNS[column]: value
+            for column, value in row.items()})
+        for row in service_alert_rows()]
+    rows += [ServiceAlert(**row) for row in schedule_alert_rows()]
+    with transaction.atomic():
+        ServiceAlert.objects.all().delete()
+        ServiceAlert.objects.bulk_create(rows)
+    return len(rows)
+
+
+def collect_service_alerts(user):
+    """The alert rows of the deployment which the caller may view.
+
+    The rows are written by `refresh_service_alerts()`; a request only scopes
+    them by the services which the caller may view and answers them as a
+    queryset, so that the filters, the sort and the page of the request reach
+    the database as one bounded query instead of narrowing a materialised list
+    in python (#1030). The visibility is answered once: the permission
+    subqueries of `get_objects_for_user` are part of one query instead of
+    repeated by every query which uses the queryset - the superuser needs none
+    of it, guardian answers without them.
+    """
+    from guardian.shortcuts import get_objects_for_user
+    from registry.models.alerts import ServiceAlert
+
+    if user.is_superuser:
+        return ServiceAlert.objects.all()
+    scope = Q()
+    for model in SERVICE_KIND_OF:
+        services = get_objects_for_user(
+            user, f'registry.view_{model._meta.model_name}',
+            klass=model.objects.filter(update_candidate_of__isnull=True))
+        ids = list(services.values_list('pk', flat=True))
+        scope |= Q(service_type=model.__name__,
+                   service__in=[str(pk) for pk in ids])
+    return ServiceAlert.objects.filter(scope)
 
 
 def harvest_schedule_alert(setting, estimate):
@@ -619,7 +680,8 @@ def alert_branch(model, category: str, severity: str, at: str, target: str):
         target (str): the resource which owns the workflow of the alert
 
     Returns:
-        QuerySet: the rows of this category, shaped as the view of the alerts
+        QuerySet: the rows of this category, shaped as the columns of the
+            alert rows which `refresh_service_alerts()` writes
     """
     resource = model.__name__
     if target == 'HarvestingJob':
@@ -683,7 +745,7 @@ def service_alert_rows():
 
     One branch per kind of service and category of alerts, answered by the
     annotations which the services themselves answer, united into the rows
-    which the view of the alerts is created from - see
+    which `refresh_service_alerts()` writes into the table of the alerts - see
     `registry/models/alerts.py`.
 
     Returns:

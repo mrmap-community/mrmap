@@ -381,7 +381,50 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "estimateUnknown": "Noch keine Schätzung möglich",
     "estimateNote": "Dauer, Download- und Datenbank-Zeit sowie der bisher erzielte Durchsatz werden von diesem Lauf gemessen; verbleibende Zeit und voraussichtliches Ende sind Schätzungen auf Grundlage des bisherigen Fortschritts.",
     "terminated": "Diese Datenübernahme ist beendet.",
-    "refresh": "Wird alle 5 Sekunden aktualisiert"
+    "refresh": "Wird alle 5 Sekunden aktualisiert",
+    "failedRecords": "Einträge, die nicht gespeichert werden konnten",
+    "refusedByImport": "Was der Import abgelehnt hat",
+    "collectedStates": "Was aus den gelesenen Einträgen geworden ist",
+    "collectedRecord": "Eintrag",
+    "collectedState": "Zustand",
+    "collectedAt": "Gespeichert am",
+    "collectingStates": {
+      "duplicated": "Dupliziert",
+      "new": "Neu",
+      "updated": "Aktualisiert",
+      "existing": "Vorhanden",
+      "removed": "Entfernt"
+    },
+    "failing": {
+      "request": "Angefragt am",
+      "page": "Seite",
+      "refusedWith": "Abgelehnt mit",
+      "downloadDuration": "Download-Zeit"
+    },
+    "logLine": "Zeile",
+    "logTimestamp": "Zeitpunkt",
+    "logLevelLabel": "Stufe",
+    "logKind": "Art",
+    "logDescription": "Meldung",
+    "storedResponse": "Gespeicherte Antwort",
+    "logLevelFacets": "Protokollstufe",
+    "logFacets": {
+      "all": "Alle",
+      "infoAndAbove": "Info und wichtiger",
+      "warningsAndAbove": "Warnungen und wichtiger"
+    },
+    "runLogLevel": "Dieser Lauf protokolliert auf Stufe %{level}",
+    "logLevels": {
+      "fatal": "fatal",
+      "error": "Fehler",
+      "warning": "Warnung",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "logKinds": {
+      "remoteError": "Fehler der Gegenstelle",
+      "countMismatch": "Abweichende Anzahl"
+    }
   },
   harvestingActivity: {
     started: "Gestartet",

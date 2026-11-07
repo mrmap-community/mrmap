@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 13:08+0100\n"
+"POT-Creation-Date: 2026-11-07 16:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -313,7 +313,7 @@ msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:69
-#: registry/models/harvest.py:127 registry/models/harvest.py:1417
+#: registry/models/harvest.py:127 registry/models/harvest.py:1430
 #: registry/models/monitoring.py:110 registry/models/monitoring.py:358
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -377,20 +377,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1433
+#: notify/models.py:159 registry/models/harvest.py:1446
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:1418
+#: notify/models.py:171 registry/models/harvest.py:1431
 #: registry/models/monitoring.py:359
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1438
+#: notify/models.py:175 registry/models/harvest.py:1451
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1439
+#: notify/models.py:176 registry/models/harvest.py:1452
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -1081,22 +1081,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1459 registry/models/metadata.py:613
+#: registry/models/harvest.py:1472 registry/models/metadata.py:613
 #: registry/models/monitoring.py:90 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
 #: registry/serializers/service.py:987 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1460
+#: registry/models/harvest.py:1473
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1487
+#: registry/models/harvest.py:1500
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1488
+#: registry/models/harvest.py:1501
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -2432,6 +2432,18 @@ msgstr ""
 #: registry/serializers/harvesting.py:233
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
+
+#: registry/serializers/harvesting.py:283
+msgid "has extended description"
+msgstr "hat erweiterte Beschreibung"
+
+#: registry/serializers/harvesting.py:285
+msgid ""
+"whether this log line has a stored response behind it; the content of the "
+"file is answered on the line itself, never in a list"
+msgstr ""
+"ob dieser Protokolleintrag eine gespeicherte Antwort hinter sich hat; der "
+"Inhalt der Datei wird am Eintrag selbst beantwortet, nie in einer Liste"
 
 #: registry/serializers/mapcontext.py:32
 msgid "tree id"

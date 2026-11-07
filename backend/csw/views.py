@@ -38,6 +38,14 @@ from registry.settings import MRMAP_CSW_PK
 
 logger = logging.getLogger(__name__)
 
+# The single record type name this endpoint accepts and advertises, and the
+# ISO 19139 outputSchema it answers with. Both are the normative OGC/ISO
+# identifiers of the CSW 2.0.2 profile this catalogue implements, not network
+# endpoints -- one naming site instead of the literal each comparison and
+# capabilities entry used to spell (sonar S1192 on the #1154 edit).
+DEFAULT_TYPE_NAMES = "gmd:MD_Metadata"
+GMD_OUTPUT_SCHEMA = "http://www.isotc211.org/2005/gmd"  # NOSONAR normative ISO 19139 gmd outputSchema identifier - not a network endpoint
+
 # Table 65 note a of OGC 07-006r1: the KVP binding compares the value of the
 # REQUEST parameter case-insensitively. Dispatch -- and the request analysis in
 # OGCRequest -- compare that value against the label which names the operation,
@@ -226,7 +234,10 @@ class CswServiceView(View):
         # covered: these KVP checks can not cover it (FIXME: if post method, this
         # will not cover the check)
 
-        elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":  # NOSONAR normative ISO 19139 gmd outputSchema identifier, compared as an OGC schema key - not a network endpoint
+        # an empty parameter is the parameter left to its default, as it was
+        # while the request analysis dropped empty values wholesale (#1154)
+        elif (self.ogc_request.ogc_query_params.get("outputSchema")
+              or GMD_OUTPUT_SCHEMA) != GMD_OUTPUT_SCHEMA:
             # every refusal of this view hands the exception the request it
             # answers and lets the exception read the identity of the report
             # out of it (#908; the #866 audit removed the sites which spelled
@@ -234,12 +245,13 @@ class CswServiceView(View):
             return NotSupported(
                 ogc_request=self.ogc_request,
                 locator="outputSchema",
-                message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
-        elif self.ogc_request.ogc_query_params.get("typeNames", "gmd:MD_Metadata") != "gmd:MD_Metadata":
+                message=f"Only '{GMD_OUTPUT_SCHEMA}' as outputschema is supported.")
+        elif (self.ogc_request.ogc_query_params.get("typeNames")
+              or DEFAULT_TYPE_NAMES) != DEFAULT_TYPE_NAMES:
             return NotSupported(
                 ogc_request=self.ogc_request,
                 locator="typeNames",
-                message="Only 'gmd:MD_Metadata' as typeNames is supported.")
+                message=f"Only '{DEFAULT_TYPE_NAMES}' as typeNames is supported.")
 
     def get_field_map(self):
         # the queryables of this endpoint and the field of a metadata record each of
@@ -453,17 +465,17 @@ class CswServiceView(View):
             operation_parameters={
                 "GetRecords": {
                     "CONSTRAINTLANGUAGE": ["FILTER", "CQL_TEXT"],
-                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],  # NOSONAR normative ISO 19139 gmd outputSchema identifier advertised in the capabilities - not a network endpoint
+                    "outputSchema": [GMD_OUTPUT_SCHEMA],
                     "outputFormat": ["application/xml"],
                     "ElementSetName": ["full"],
                     "resultType": ["results", "hits", "validate"],
-                    "typeNames": ["gmd:MD_Metadata"],
+                    "typeNames": [DEFAULT_TYPE_NAMES],
                 },
                 "GetRecordById": {
-                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],  # NOSONAR normative ISO 19139 gmd outputSchema identifier advertised in the capabilities - not a network endpoint
+                    "outputSchema": [GMD_OUTPUT_SCHEMA],
                     "outputFormat": ["application/xml"],
                     "ElementSetName": ["full"],
-                    "typeNames": ["gmd:MD_Metadata"],
+                    "typeNames": [DEFAULT_TYPE_NAMES],
                 },
             },
             filter_capabilities={

@@ -25,6 +25,31 @@ from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from requests import Request
 
+# the answer of a lookup for a parameter the request does not name at all; an
+# empty string is no such answer -- it is a value a caller sent, and it has to
+# be told apart from the absence of the parameter (#1154)
+_ABSENT = object()
+
+
+def _named_param_value(params, key):
+    """The value a request names for a key, or ``_ABSENT``.
+
+    A key carried as multiple queryparams hands its first value, as the
+    request analysis always did; a missing key, a ``None`` value and an
+    empty list -- the requests idioms for a parameter left without value --
+    all answer ``_ABSENT``, while an empty string is a value the caller
+    named and stays (#1154).
+    """
+    value = next(
+        (value for name, value in params.items()
+         if name.lower() == key.lower()), _ABSENT)
+    if isinstance(value, list):
+        value = value[0] if value else _ABSENT
+    if value is None:
+        # no value among the repeats either
+        return _ABSENT
+    return value
+
 
 def merged_query_params(*query_dicts) -> dict:
     """The query parameters of one request as a plain dict, repeats included.
@@ -382,6 +407,14 @@ class OGCRequest(Request):
     def ogc_query_params(self) -> dict:
         """ Parses the GET parameters into all member variables, which can be found in a ogc request.
 
+        A whitelisted parameter which the request names with an empty value is
+        kept with that empty value: WMS 1.3.0 (OGC 05-008, 7.2.2) treats the
+        empty ``STYLES=`` as the default style, and the proxy rebuilds the
+        upstream request from this dict -- dropping an empty-but-present
+        parameter asks upstream with a request the caller never sent, which
+        every standard client's GetMap is (#1154). Only a parameter the request
+        does not name at all is absent here.
+
         :return: all ogc query parameters
         :rtype: dict
         """
@@ -404,16 +437,16 @@ class OGCRequest(Request):
             for key in query_keys:
                 if any(name.lower() == key.lower() for name in self._ogc_query_params):
                     continue
-                value = next((value for name, value in self.params.items() if name.lower() == key.lower()), "")
+                value = _named_param_value(self.params, key)
 
-                if value:
-                    if isinstance(value, list):
-                        # if multiple values are passed in multiple queryparams, we pick the first item
-                        value = value[0]
+                if value is _ABSENT:
+                    # the request names no value for this key at all; an
+                    # empty value it does name stays in the result (#1154)
+                    continue
 
-                    self._ogc_query_params.update({
-                        key: value
-                    })
+                self._ogc_query_params.update({
+                    key: value
+                })
 
         return self._ogc_query_params
 
@@ -451,15 +484,19 @@ class OGCRequest(Request):
 
     def build_get_records_from_get(self):
         builder = CSWBuilder(service_version=self.service_version)
+        # a whitelisted parameter which the caller sent empty is kept in
+        # ogc_query_params (#1154); the synthesized request document carries
+        # only values, so an empty one is answered as the absent parameter it
+        # was before the dict kept it
         self._xml_request = builder.build_get_records(
             type_names=self.ogc_query_params.get("typeNames"),
-            result_type=self.ogc_query_params.get("resultType"),
-            element_set=self.ogc_query_params.get("ElementSetName", "summary"),
+            result_type=self.ogc_query_params.get("resultType") or None,
+            element_set=self.ogc_query_params.get("ElementSetName") or "summary",
             # the page a client asks for is named by the query parameters of the request
             # as well; they have to reach the request which is answered, because that --
             # not the parameters -- is what the endpoint reads its paging from
-            max_records=self.ogc_query_params.get("maxRecords"),
-            start_position=self.ogc_query_params.get("startPosition"),
+            max_records=self.ogc_query_params.get("maxRecords") or None,
+            start_position=self.ogc_query_params.get("startPosition") or None,
             sort_by=self.parse_sortby_param(
                 self.ogc_query_params.get("SortBy", "")),
             constraint=self.ogc_query_params.get("Constraint"),
@@ -472,8 +509,9 @@ class OGCRequest(Request):
         # "id" never matched it, so the synthesized request asked an empty list
         self._xml_request = builder.build_get_record_by_id(
             ids=self.ogc_query_params.get("Id", "").split(","),
-            element_set_name=self.ogc_query_params.get(
-                "ElementSetName", "summary")
+            # an empty ElementSetName is answered as the absent one (#1154),
+            # as in build_get_records_from_get above
+            element_set_name=self.ogc_query_params.get("ElementSetName") or "summary"
         )
 
     def build_get_feature_from_get(self):
@@ -486,9 +524,11 @@ class OGCRequest(Request):
             type_names=self.requested_entities,
             filter_xml=filter,
             srs_name=self.ogc_query_params.get("SRSNAME", None),
-            count=int(self.ogc_query_params.get("COUNT", 0)) or None,
-            start_index=int(self.ogc_query_params.get(
-                "startIndex", 0)) or None,
+            # an empty COUNT or startIndex is no number to int(); it pages
+            # nothing, as it did while the whitelist dropped the empty value
+            # the request carried (#1154)
+            count=int(self.ogc_query_params.get("COUNT") or 0) or None,
+            start_index=int(self.ogc_query_params.get("startIndex") or 0) or None,
         )
 
     @property

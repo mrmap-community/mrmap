@@ -11,9 +11,16 @@ from registry.ows_lib.client.exceptions import (MissingBboxParam,
 
 
 def update_queryparams(url: str, params: dict):
-    """Helper function to update query paramase inside an existing url with trailing query params"""
+    """Helper function to update query paramase inside an existing url with trailing query params
+
+    A parameter which the url or the given params carry with an empty value
+    is written back empty: ``parse_qsl`` drops blank values without
+    ``keep_blank_values``, and such a parameter -- the WMS-legal ``STYLES=``
+    above all -- is one the caller sent and upstream has to read (#1154).
+    """
     url_parts = urllib.parse.urlparse(url)
-    query = dict(urllib.parse.parse_qsl(url_parts.query))
+    query = dict(urllib.parse.parse_qsl(
+        url_parts.query, keep_blank_values=True))
     query.update(params)
     return url_parts._replace(query=urllib.parse.urlencode(query=query)).geturl()
 

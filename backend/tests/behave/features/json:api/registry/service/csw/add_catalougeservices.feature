@@ -1,4 +1,4 @@
-@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json
+@fixtures:test_keywords.json @fixtures:test_datasetmetadata.json @fixtures:test_csw.json @fixtures:test_organizations.json
 Feature: CatalogueService Add Endpoint
     As an API client,
     I want to add catalogue services,
@@ -24,7 +24,7 @@ Feature: CatalogueService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }
@@ -55,7 +55,7 @@ Feature: CatalogueService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }

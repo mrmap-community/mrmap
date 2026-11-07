@@ -165,7 +165,7 @@ class KeywordLengthMigrationTest(TransactionTestCase):
 
 
 class KeywordTriggerTransferTest(TransactionTestCase):
-    """0036 hands the keyword maintenance from hand written sql to pgtrigger.
+    """0038 hands the keyword maintenance from hand written sql to pgtrigger.
 
     Forward the legacy functions and triggers must be gone and the package
     objects installed; backwards the very state 0035 left behind must return,
@@ -225,10 +225,10 @@ class KeywordTriggerTransferTest(TransactionTestCase):
         for name, body in bodies.items():
             self.assertNotIn(
                 'varchar(300)', body,
-                'reversing 0036 did not restore the body 0035 left on %s' % name)
+                'reversing 0038 did not restore the body 0035 left on %s' % name)
 
         self.migrate_to([
-            ('registry', '0036_the_keyword_maintenance_is_managed_by_pgtrigger')])
+            ('registry', '0038_the_keyword_maintenance_is_managed_by_pgtrigger')])
         installed = self.keyword_triggers()
         self.assertEqual(len(installed), 7, installed)
         self.assertTrue(all(name.startswith('pgtrigger_') for name in installed),

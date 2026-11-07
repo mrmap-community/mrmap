@@ -7,7 +7,7 @@ are the rules which ``0021``, ``0024`` and ``0033`` of the registry migrations
 introduced by hand; django-pgtrigger owns them now, so they travel through the
 migrations as declarative objects and their ``CREATE FUNCTION`` / ``CREATE
 TRIGGER`` boilerplate is replaced by the transfer migration
-``0036_the_keyword_maintenance_is_managed_by_pgtrigger`` (#1009). Importing this
+``0038_the_keyword_maintenance_is_managed_by_pgtrigger`` (#1009). Importing this
 module registers the triggers on their models -- ``registry.apps`` does that
 when the app registry is ready, which is when the makemigrations autodetector
 and the migrate command read them. There are three kinds:

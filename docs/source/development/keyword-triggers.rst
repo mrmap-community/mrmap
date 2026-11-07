@@ -29,7 +29,7 @@ These rules were introduced by the registry migrations ``0021``, ``0024`` and
 Since #1009 they are managed by `django-pgtrigger
 <https://django-pgtrigger.readthedocs.io/>`_: the statements moved to
 ``backend/registry/triggers.py``, the migration
-``0036_the_keyword_maintenance_is_managed_by_pgtrigger`` transferred the
+``0038_the_keyword_maintenance_is_managed_by_pgtrigger`` transferred the
 database objects to the package, and a change of a rule now arrives as a
 reviewable migration operation. The aggregate inside all of them carries the
 empty array of the widened element type, the one thing ``0035`` (#1075) answered
@@ -56,7 +56,7 @@ Three facts matter when reading or extending this:
 *   A trigger is declared **on a model**, and the trigger objects in the
     database are named ``pgtrigger_<name>_<hash>``, not by the ``name``
     attribute alone. The legacy names (``registry_sync_metadatarecord_
-    keywords_list`` and friends) are gone after ``0036``.
+    keywords_list`` and friends) are gone after ``0038``.
 *   A trigger on a keywords **relation** sits on the unmanaged
     ``*KeywordsLink`` models of ``registry/models/metadata.py``. Django never
     puts the auto-created through model of a ``ManyToManyField`` into the
@@ -69,7 +69,7 @@ Three facts matter when reading or extending this:
 *   The reverse of a trigger migration drops the trigger but leaves the
     ``pgtrigger_`` function behind (this is how the package removes triggers);
     a later forward migration or ``manage.py pgtrigger uninstall`` removes it.
-    ``0036`` reverses to the legacy objects as ``0035`` left them -- their
+    ``0038`` reverses to the legacy objects as ``0035`` left them -- their
     statements, reproduced verbatim in the migration with the widened empty
     array of #1075 -- so the rollback of the whole transfer is a supported
     path.

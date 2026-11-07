@@ -200,7 +200,7 @@ LEGACY_DROP_SQL = legacy_drop()
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0035_a_too_long_keyword_does_not_take_a_record_down'),
+        ('registry', '0036_harvestingjob_import_watchdog_bookkeeping'),
     ]
 
     operations = [

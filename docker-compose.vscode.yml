@@ -20,8 +20,10 @@ services:
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
     #   /opt/mrmap/manage.py dumpdata --natural-foreign --natural-primary registry
     #   > fixture.json"
+    # Same websocket server beside the debugged runserver as in
+    # docker-compose.dev.yml: the edge asks /ws of port 8002 (#1032).
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
+      /bin/sh -c "/opt/mrmap/.bash_scripts/startup_ws.sh & python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
 
     ports:
       - "0.0.0.0:3001:5678"

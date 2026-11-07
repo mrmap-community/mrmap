@@ -985,6 +985,21 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     loadError: "Konfiguration konnte nicht geladen werden.",
     readOnly: "Diese Konfiguration ist schreibgeschützt.",
   },
+  // Menschliche Labels für Filteroptionen, deren Schema-Parameter weder ein
+  // Lookup-Label noch eine Beschreibung trägt (#945); die Keys sind die
+  // Filternamen aus dem `filter[...]`-Query-Parameter, "." durch
+  // "_filter_lookup_" ersetzt. Ohne Eintrag zeigt der Filter den humanisierten
+  // Feldnamen (siehe humaniseFilterName).
+  filterFields: {
+    has_coverage: "Hat geografische Abdeckung",
+    has_insufficient_quality: "Hat unzureichende Qualität",
+    has_licence: "Hat Lizenz",
+    harvested_dataset_metadata_relation__harvesting_job: "Geerntet durch Harvesting-Auftrag",
+    bbox_lat_lon__intersects: "Begrenzungsrahmen überschneidet",
+    bbox_lat_lon__contains: "Begrenzungsrahmen ist enthalten in",
+    bbox_lat_lon__covers: "Begrenzungsrahmen überdeckt",
+    bbox_lat_lon__equals: "Begrenzungsrahmen entspricht",
+  },
   systemInfo: {
     "title": "Systeminformationen",
     "unavailable": "Systeminformationen sind nicht verfügbar.",

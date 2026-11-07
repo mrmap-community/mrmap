@@ -1203,21 +1203,36 @@ class TemporaryMdMetadataFile(models.Model):
                             for keyword in getattr(instance, "_keywords_parsed", None) or []
                         ]
                         instance.refresh_quality_indicators(mapped_keywords)
+                        # the provenance of the record, computed once per
+                        # record file: the three buckets below name the same
+                        # url, so asking the client three times only paid
+                        # three document reads and parses per imported
+                        # record (#1044). The client reads the catalogue's
+                        # stored capabilities document only - a document
+                        # which is gone from the storage raises
+                        # CapabilitiesBackupMissing for the run instead of
+                        # the import working around a broken service per
+                        # record.
+                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
+                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
+                        origin_url = self.job.service.client.get_record_by_id_request(
+                            id=instance.file_identifier).url if self.job.service_id \
+                            else "http://localhost"
                         handler = PersistenceHandler(
                             mapper=mappers[0],
                             change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "service": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "application": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 }
                             }
                         )

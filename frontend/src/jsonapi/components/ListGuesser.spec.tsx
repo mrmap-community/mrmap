@@ -12,6 +12,8 @@ const jsonApiQuery = vi.hoisted(() => ({ include: 'service' }))
 /** The resource definition and the api the screens below are rendered with. */
 const definition = vi.hoisted(() => ({ options: undefined as { list?: Record<string, unknown> } | undefined }))
 const client = vi.hoisted(() => ({ api: undefined as { getOperation: (id: string) => unknown } | undefined }))
+/** Whether the schema is mocked to answer the `title` field of the listed resource. */
+const schema = vi.hoisted(() => ({ answersTitle: true }))
 
 vi.mock('react-admin', async importOriginal => {
   const actual = await importOriginal<typeof import('react-admin')>()
@@ -55,7 +57,9 @@ vi.mock('../../context/HttpClientContext', () => ({
   useHttpClientContext: () => ({ api: client.api }),
 }))
 vi.mock('../hooks/useFieldsForOperation', () => ({
-  useFieldsForOperation: () => [{ component: () => <span>Generated title</span>, props: { source: 'title' } }],
+  useFieldsForOperation: () => schema.answersTitle
+    ? [{ component: () => <span>Generated title</span>, props: { source: 'title' } }]
+    : [],
 }))
 vi.mock('../hooks/useFilterInputForOperation', () => ({ useFilterInputForOperation: () => [] }))
 vi.mock('../hooks/useJsonApiQuery', () => ({ default: () => jsonApiQuery }))
@@ -72,6 +76,7 @@ const PreviewAside = () => <span>preview of the selection</span>
 beforeEach(() => {
   definition.options = undefined
   client.api = undefined
+  schema.answersTitle = true
 })
 
 describe('ListGuesser aside of the resource definition', () => {
@@ -149,6 +154,25 @@ describe('ListGuesser columns', () => {
     expect(screen.getByTestId('grid-columns')).toHaveAttribute('data-preference-key', 'list_Layer.datagrid.customColumns')
     fireEvent.click(screen.getByRole('button', { name: 'Select row' }))
     expect(screen.getByRole('complementary')).toHaveTextContent('Selected record')
+  })
+
+  it('names a declared column the schema does not answer, once per key', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { rerender } = render(<ListGuesser defaultSelectedColumns={['title', 'createdAt', 'actions']} />)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('createdAt')
+    expect(warn.mock.calls[0][0]).toContain('Layer')
+    rerender(<ListGuesser defaultSelectedColumns={['title', 'createdAt', 'actions']} />)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('stays quiet while the schema answered no field to check against', () => {
+    schema.answersTitle = false
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    render(<ListGuesser defaultSelectedColumns={['createdAt']} />)
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 })
 

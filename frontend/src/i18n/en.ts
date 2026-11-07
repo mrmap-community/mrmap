@@ -373,6 +373,7 @@ const en = lodashMerge(
       "services": "Services",
       "unhandled": "Unhandled records",
       "errors": "Import errors",
+      "importStalled": "The import of this run has stood still since",
       "viewLogs": "View logs",
       "overview": "Overview",
       "configuration": "Run configuration",

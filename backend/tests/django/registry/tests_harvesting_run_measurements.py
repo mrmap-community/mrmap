@@ -214,6 +214,29 @@ class HarvestingRunMeasurementsTest(TestCase):
             answered['recordsPerMinuteRunning'], 75 * 60 / 86, delta=1)
         self.assertAlmostEqual(answered['estimatedSecondsRemaining'], 25, delta=1)
 
+    def test_the_round_trips_of_records_below_one_step_size_are_counted(self):
+        """10 records fetched with the step size 50 are one round trip (#1163)
+
+        A run whose records fit into a single request still made that request.
+        The steps divide two integer columns, and Postgres truncates the quotient
+        of an integer division: before the Float cast inside the ceiling this run
+        answered 0 round trips - 11 steps of which its stored files completed
+        only the fetch call - instead of the 12 steps whose 2 the round trip and
+        the fetch call are. The estimate scales on those steps, so it moves with
+        them: the 2 done steps measured 60 seconds of work for the 10 left.
+        """
+        job = self.working_run(
+            total_records=10, step_size=50, waiting=2, made=60)
+        fields = ('id,total_steps,done_steps,progress,'
+                  'estimated_seconds_remaining')
+        answered = self.answered(job, fields=fields)[str(job.pk)]
+
+        self.assertEqual(answered['totalSteps'], 12)
+        self.assertEqual(answered['doneSteps'], 2)
+        self.assertAlmostEqual(answered['progress'], 16.67, places=2)
+        self.assertAlmostEqual(
+            answered['estimatedSecondsRemaining'], 60 * 10 / 2, delta=3)
+
     def test_a_run_which_does_not_know_its_records_answers_no_estimate(self):
         """the phase which determines the records has nothing to scale an estimate on"""
         job = self.working_run(

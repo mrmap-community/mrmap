@@ -362,6 +362,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "services": "Dienste",
     "unhandled": "Unverarbeitete Einträge",
     "errors": "Importfehler",
+    "importStalled": "Der Import dieses Laufs steht still seit",
     "viewLogs": "Protokoll anzeigen",
     "overview": "Übersicht",
     "configuration": "Konfiguration",

@@ -50,12 +50,12 @@ def harvest_durations(service_ids):
     how long the work of a harvest is: a run which was aborted or stayed
     incomplete stopped at a moment which says nothing about a complete harvest.
 
-    The duration of a run is the time between its end and the moment it was made.
-    `date_created` is nullable and only set explicitly (see ProcessingData), so
-    the creation of a run is read from the first row of its change log - the same
-    source which answers who made a run. A catalogue which never finished a
-    harvest answers no row, so an invented estimate cannot be mistaken for a
-    measured one.
+    The duration of a run is the time between its end and the moment it was made. Since #1079 a
+    run answers that moment itself: `date_created` defaults to now and the migration of that issue
+    filled the runs a deployment already had from their change log. The first row of the change log
+    - the same source which answers who made a run - stays the fallback for the runs it could not
+    fill, whose change log is gone. A catalogue which never finished a harvest answers no row, so
+    an invented estimate cannot be mistaken for a measured one.
 
     Args:
         service_ids: the catalogues to answer the durations of
@@ -113,10 +113,9 @@ def complete_harvest(job_id):
     snapshots = complete_snapshots(job.service_id)
     if not snapshots.filter(pk=job.pk).exists():
         return
-    # date_created is nullable and only set explicitly (see ProcessingData), so
-    # jobs created by HarvestingJobManager come without it. Fall back to this
-    # job's own completion time, which is always set above, instead of querying
-    # with None - Django rejects that with "Cannot use None as a query value".
+    # A run answers the moment it was made since #1079. The own completion time stays the fallback
+    # for a row whose creation is unknown - a run older than the migration whose change log is gone
+    # - instead of querying with None: Django rejects that with "Cannot use None as a query value".
     previous_snapshot_boundary = job.date_created or job.done_at
     previous = snapshots.exclude(pk=job.pk).filter(
         done_at__lte=previous_snapshot_boundary).order_by('-done_at', '-pk').first()

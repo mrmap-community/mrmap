@@ -109,9 +109,10 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         "create": CreateHarvestingJobSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # the runs which finished are ordered by their end: the harvesting never sets the creation of
-    # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
-    # catalogue is measured by the runs which ended last (#692)
+    # the runs are ordered by the moment they were made - which is what the card of a catalogue
+    # asks for, and answers since #1079 filled `date_created`. The end of a run stays orderable:
+    # the throughput of a catalogue is measured by the runs which ended last, and a run which never
+    # ended has no end to order by (#692)
     ordering_fields = ["id", 'date_created', 'done_at', "string_representation"]
     filterset_class = HarvestingJobFilterSet
 

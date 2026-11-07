@@ -18,6 +18,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/service_alerts.py` | failed update and object visibility setup for cross-service attention |
 | `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
+| `steps/harvesting.py` | Two runs of one catalogue with known starts, for the ordering and the time range of the harvesting job list; rolled back like `statistical.py` does |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
 | `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
@@ -429,9 +430,11 @@ an `after_feature` hook removes again for the sibling features) and
 Inside the endpoints that *do* have a list scenario, the open part is narrower and known (see "Filter
 and sort scenarios"): no fixture row exists for an update job or a monitoring run, so the two sort
 fields of the frontend that order those lists — `sort=doneAt` of `ServiceUpdateJobsCard` and
-`sort=dateDone` of `MonitoringRunsCard` — are not asserted anywhere, and neither is
-`sort=dateCreated` of `HarvestingActivityCard`, which would be unstable anyway because the loaded jobs
-have no `date_created`. `periodic-harvesting-jobs` is ordered by id in the frontend and has no feature
+`sort=dateDone` of `MonitoringRunsCard` — are not asserted anywhere.
+`sort=dateCreated` of `HarvestingActivityCard` is asserted since #1079 filled the column, but by the
+two runs `steps/harvesting.py` writes and rolls back, not from a fixture row: the loaded jobs belong
+to two different catalogues, while the card is about the runs of one.
+`periodic-harvesting-jobs` is ordered by id in the frontend and has no feature
 at all. Adding one of them starts with a fixture, not with a scenario.
 
 To re-check that list without a database:

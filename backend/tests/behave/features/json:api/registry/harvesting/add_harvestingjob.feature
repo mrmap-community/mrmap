@@ -29,6 +29,9 @@ Feature: HarvestingJob Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 201
         And I expect that response json has an attribute "data.attributes.phaseLabel" with value "pending"
+        # The payload names nothing but the catalogue, so the start of the run is answered by the
+        # model or by nobody - and the screens of #1079 order, filter and time a run by it.
+        And I expect the new run answers the moment it was made
 
     Scenario: Can't add as anonymous user
         Given I am an anonymous user

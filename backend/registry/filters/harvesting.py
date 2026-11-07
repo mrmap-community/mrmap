@@ -31,4 +31,8 @@ class HarvestingJobFilterSet(filters.FilterSet):
             # 'is_unready': ['exact'],
             'service__id': ['exact', 'contains', 'icontains', 'in'],
             'id': ['exact', 'contains', 'icontains', 'in'],
+            # the lookups of the moment a run was made, as the background processes of the same
+            # work already answer them (notify/views.py): a run which never had a creation could
+            # not be filtered by one, which is why this is here since #1079 fills the column
+            'date_created': ['exact', 'gt', 'lt', 'range'],
         }

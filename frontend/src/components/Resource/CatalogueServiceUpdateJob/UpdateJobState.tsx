@@ -25,11 +25,11 @@ export const JOB_STATES = {
 } as const;
 
 /** the states a job came back from: it decided about itself and waits for nothing */
-const FINISHED: number[] = [
+const FINISHED = new Set<number>([
   JOB_STATES.noUpdateNeeded,
   JOB_STATES.error,
   JOB_STATES.updated,
-];
+]);
 
 /** the state an update job of a catalogue waits in, by the code which answers it */
 const WAITING = {
@@ -47,7 +47,7 @@ export const stateKeyOf = (code?: number): string | null =>
 export const stateColorOf = (code?: number): AlertColor => {
   if (code === JOB_STATES.error) return "error";
   if (code === JOB_STATES.reviewRequired) return "warning";
-  if (code !== undefined && FINISHED.includes(code)) return "success";
+  if (code !== undefined && FINISHED.has(code)) return "success";
   return "info";
 };
 

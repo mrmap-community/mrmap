@@ -120,6 +120,14 @@ const ChangesTable = () => {
   );
 };
 
+/** one line of the job details: a caption and the answer below it */
+const DetailField = ({ label, children }: { label: string; children: ReactNode }) => (
+  <Box>
+    <Typography variant="caption">{label}</Typography>
+    {children}
+  </Box>
+);
+
 const JobBody = () => {
   const job = useRecordContext();
   const translate = useTranslate();
@@ -131,14 +139,15 @@ const JobBody = () => {
       ? STATE_MESSAGE[code as keyof typeof STATE_MESSAGE]
       : "unknown";
   const ended = Boolean(job.doneAt);
+  const fields = "resources.CatalogueServiceUpdateJob.fields";
+  const catalogueName =
+    job.service?.title ??
+    job.service?.stringRepresentation ??
+    translate("resources.CatalogueService.singular");
   return (
     <Stack spacing={3} sx={{ p: { xs: 1, md: 3 } }}>
       <Breadcrumbs>
-        <CatalogueLink catalogue={job.service}>
-          {job.service?.title ??
-            job.service?.stringRepresentation ??
-            translate("resources.CatalogueService.singular")}
-        </CatalogueLink>
+        <CatalogueLink catalogue={job.service}>{catalogueName}</CatalogueLink>
         <Typography variant="body2">
           {translate("resources.CatalogueServiceUpdateJob.job", { id: job.id })}
         </Typography>
@@ -156,9 +165,7 @@ const JobBody = () => {
         </Stack>
         <Typography variant="h6" sx={{ mt: 1 }}>
           <CatalogueLink catalogue={job.service}>
-            {job.service?.title ??
-              job.service?.stringRepresentation ??
-              translate("resources.CatalogueService.singular")}
+            {catalogueName}
           </CatalogueLink>
         </Typography>
       </Box>
@@ -172,24 +179,17 @@ const JobBody = () => {
           {translate("resources.CatalogueServiceUpdateJob.jobDetails")}
         </Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={4}>
-          <Box>
-            <Typography variant="caption">
-              {translate("resources.CatalogueServiceUpdateJob.job", {
-                id: job.id,
-              })}
-            </Typography>
+          <DetailField
+            label={translate("resources.CatalogueServiceUpdateJob.job", {
+              id: job.id,
+            })}
+          >
             <Typography>{job.status ?? "—"}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption">
-              {translate("resources.CatalogueServiceUpdateJob.fields.dateCreated")}
-            </Typography>
+          </DetailField>
+          <DetailField label={translate(`${fields}.dateCreated`)}>
             <DateField source="dateCreated" record={job} showTime />
-          </Box>
-          <Box>
-            <Typography variant="caption">
-              {translate("resources.CatalogueServiceUpdateJob.fields.doneAt")}
-            </Typography>
+          </DetailField>
+          <DetailField label={translate(`${fields}.doneAt`)}>
             {ended ? (
               <DateField source="doneAt" record={job} showTime />
             ) : (
@@ -197,14 +197,9 @@ const JobBody = () => {
                 {translate("resources.CatalogueServiceUpdateJob.running")}
               </Typography>
             )}
-          </Box>
+          </DetailField>
           {job.updateCandidate?.id && (
-            <Box>
-              <Typography variant="caption">
-                {translate(
-                  "resources.CatalogueServiceUpdateJob.fields.updateCandidate",
-                )}
-              </Typography>
+            <DetailField label={translate(`${fields}.updateCandidate`)}>
               <Typography>
                 <CatalogueLink catalogue={job.updateCandidate}>
                   {job.updateCandidate?.title ??
@@ -214,7 +209,7 @@ const JobBody = () => {
                     )}
                 </CatalogueLink>
               </Typography>
-            </Box>
+            </DetailField>
           )}
         </Stack>
       </Paper>

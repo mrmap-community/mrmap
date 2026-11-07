@@ -1,7 +1,6 @@
 import { useTranslate } from "react-admin";
 
-import { SxProps } from "@mui/material";
-import { Step, StepLabel, Stepper, Typography } from "@mui/material";
+import { SxProps, Step, StepLabel, Stepper, Typography } from "@mui/material";
 
 /**
  * The three workflow stages of a harvesting run with the state the run is in.

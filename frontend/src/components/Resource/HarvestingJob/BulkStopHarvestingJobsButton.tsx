@@ -50,11 +50,12 @@ const BulkStopHarvestingJobsButton = () => {
   const stop = async () => {
     if (saving) return;
     setSaving(true);
-    const stopped: Identifier[] = [];
-    const refused: Identifier[] = [];
-    for (const id of targetIds) {
-      try {
-        await update(
+    // the api has no request which stops several runs at once, so every run
+    // is stopped with its own mutation - all at once, because no stop waits
+    // for another one's answer
+    const results = await Promise.allSettled(
+      targetIds.map((id) =>
+        update(
           "HarvestingJob",
           {
             id,
@@ -62,12 +63,15 @@ const BulkStopHarvestingJobsButton = () => {
             previousData: data.find((record) => record.id === id) ?? {},
           },
           { mutationMode: "pessimistic", returnPromise: true },
-        );
-        stopped.push(id);
-      } catch {
-        refused.push(id);
-      }
-    }
+        ),
+      ),
+    );
+    const stopped: Identifier[] = [];
+    const refused: Identifier[] = [];
+    results.forEach((result, index) => {
+      const outcome = result.status === "fulfilled" ? stopped : refused;
+      outcome.push(targetIds[index]);
+    });
     setSaving(false);
     unselect(stopped);
     refresh();

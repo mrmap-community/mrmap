@@ -145,12 +145,11 @@ const ABORTED_PHASE = 5;
 const COUNTING_PHASE = 1;
 const QUEUED_PHASE = 0;
 
-const phaseColor = (phase: number) =>
-  phase === COMPLETED_PHASE
-    ? "success"
-    : phase === ABORTED_PHASE
-      ? "warning"
-      : "info";
+const phaseColor = (phase: number) => {
+  if (phase === COMPLETED_PHASE) return "success";
+  if (phase === ABORTED_PHASE) return "warning";
+  return "info";
+};
 
 /** the phase the api names, above the three stages the run works through */
 const RunPhase = () => {
@@ -177,12 +176,7 @@ const RunPhase = () => {
   );
 };
 
-const progressColor = (record: RaRecord) =>
-  record.phase === COMPLETED_PHASE
-    ? "success"
-    : record.phase === ABORTED_PHASE
-      ? "warning"
-      : "info";
+const progressColor = (record: RaRecord) => phaseColor(record.phase);
 
 /**
  * How far the run is in its own work. A run whose total is not known yet is
@@ -195,6 +189,16 @@ const RunProgress = () => {
   const format = useNumberFormat();
   if (!record) return null;
   const withoutTotal = !record.doneAt && record.totalRecords == null;
+  const caption = () => {
+    if (withoutTotal) return translate("harvestRun.list.totalUnknown");
+    if (record.totalSteps != null && record.doneSteps != null) {
+      return translate("harvestRun.list.stepsCaption", {
+        done: format.format(record.doneSteps),
+        total: format.format(record.totalSteps),
+      });
+    }
+    return translate("harvestRun.list.noEstimate");
+  };
   return (
     <Stack spacing={0.5} sx={{ minWidth: 140 }}>
       {withoutTotal ? (
@@ -206,14 +210,7 @@ const RunProgress = () => {
         <ProgressField source="progress" getColor={progressColor} />
       )}
       <Typography variant="caption" color="text.secondary">
-        {withoutTotal
-          ? translate("harvestRun.list.totalUnknown")
-          : record.totalSteps != null && record.doneSteps != null
-            ? translate("harvestRun.list.stepsCaption", {
-                done: format.format(record.doneSteps),
-                total: format.format(record.totalSteps),
-              })
-            : translate("harvestRun.list.noEstimate")}
+        {caption()}
       </Typography>
     </Stack>
   );
@@ -274,29 +271,36 @@ const RunTime = () => {
   const seconds = elapsedSeconds(record.dateCreated, record.doneAt);
   const duration = seconds != null ? formatDuration(seconds) : null;
   const notRecorded = translate("harvestRun.notRecorded");
-  const tooltip = record.dateCreated
-    ? record.doneAt
-      ? translate("harvestRun.list.endedTimeTooltip", {
-          created: format.format(new Date(record.dateCreated)),
-          finished: format.format(new Date(record.doneAt)),
-        })
-      : translate("harvestRun.list.elapsedTooltip", {
-          created: format.format(new Date(record.dateCreated)),
-          elapsed: duration ?? notRecorded,
-        })
-    : translate("harvestRun.list.createdUnknown");
+  const tooltip = () => {
+    if (!record.dateCreated) return translate("harvestRun.list.createdUnknown");
+    if (record.doneAt) {
+      return translate("harvestRun.list.endedTimeTooltip", {
+        created: format.format(new Date(record.dateCreated)),
+        finished: format.format(new Date(record.doneAt)),
+      });
+    }
+    return translate("harvestRun.list.elapsedTooltip", {
+      created: format.format(new Date(record.dateCreated)),
+      elapsed: duration ?? notRecorded,
+    });
+  };
+  const caption = () => {
+    if (record.doneAt) {
+      return translate("harvestRun.list.endedCaption", {
+        at: format.format(new Date(record.doneAt)),
+      });
+    }
+    if (record.totalRecords == null) {
+      return translate("harvestRun.list.noEstimateTotal");
+    }
+    return translate("harvestRun.list.noEstimate");
+  };
   return (
-    <Tooltip title={tooltip}>
+    <Tooltip title={tooltip()}>
       <Stack spacing={0.25} sx={{ minWidth: 120 }}>
         <Typography>{duration ?? notRecorded}</Typography>
         <Typography variant="caption" color="text.secondary">
-          {record.doneAt
-            ? translate("harvestRun.list.endedCaption", {
-                at: format.format(new Date(record.doneAt)),
-              })
-            : record.totalRecords == null
-              ? translate("harvestRun.list.noEstimateTotal")
-              : translate("harvestRun.list.noEstimate")}
+          {caption()}
         </Typography>
       </Stack>
     </Tooltip>
@@ -313,19 +317,22 @@ const RunRecords = () => {
   const translate = useTranslate();
   const format = useNumberFormat();
   if (!record) return null;
+  const label = () => {
+    if (record.totalRecords != null) {
+      return translate("harvestRun.list.recordsValue", {
+        smart_count: record.totalRecords,
+        count: format.format(record.totalRecords),
+      });
+    }
+    if (record.phase === COUNTING_PHASE) {
+      return translate("harvestRun.list.recordsUnknown");
+    }
+    return translate("harvestRun.list.totalUnknown");
+  };
   return (
     <Tooltip title={translate("harvestRun.list.recordsTooltip")}>
       <Stack spacing={0.5} sx={{ minWidth: 130 }}>
-        <Typography>
-          {record.totalRecords != null
-            ? translate("harvestRun.list.recordsValue", {
-                smart_count: record.totalRecords,
-                count: format.format(record.totalRecords),
-              })
-            : record.phase === COUNTING_PHASE
-              ? translate("harvestRun.list.recordsUnknown")
-              : translate("harvestRun.list.totalUnknown")}
-        </Typography>
+        <Typography>{label()}</Typography>
         {!!record.unhandledRecordsCount && (
           <Chip
             size="small"

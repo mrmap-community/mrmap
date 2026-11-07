@@ -96,3 +96,36 @@ Feature: HarvestingLog List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "3"
+
+    # The stored response behind a line is read per line: the list answers whether
+    # one exists and never the file itself. A list which answers the download names
+    # a download per row and widens the read access #888 bounds for these very
+    # files; the content belongs to the line read by a caller allowed to read the
+    # run (#1083).
+    Scenario: The list of lines names a stored response without answering the file
+        Given I set a queryparam "filter[harvesting_job]" with value "1080101"
+        Given I set a queryparam "sort" with value "id"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.hasExtendedDescription" with value "false"
+        Then I expect that response json has an attribute "data.[1].attributes.hasExtendedDescription" with value "true"
+        Then I expect that response json does not have an attribute "data.[1].attributes.extentedDescription"
+
+    # The nested list of the run is the same answer for the same rows.
+    Scenario: The nested list of a run keeps the stored response out of its rows too
+        Given I use the endpoint http://localhost:8000/api/registry/harvesting/harvesting-jobs/1080101/harvesting-logs
+        Given I set a queryparam "sort" with value "id"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[1].attributes.hasExtendedDescription" with value "true"
+        Then I expect that response json does not have an attribute "data.[0].attributes.extentedDescription"
+        Then I expect that response json does not have an attribute "data.[1].attributes.extentedDescription"
+
+    # Read on its own - the act of the caller who reads the run - the line answers
+    # the response stored behind it.
+    Scenario: A line read on its own answers its stored response
+        Given I use the endpoint http://localhost:8000/api/registry/harvesting/harvesting-logs/1080202
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.attributes.hasExtendedDescription" with value "true"
+        Then I expect that response json has an attribute "data.attributes.extentedDescription"

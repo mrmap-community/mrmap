@@ -262,15 +262,48 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
         return attrs
 
 
-class HarvestingLogSerializer(
+class HarvestingLogListSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
 ):
+    """The rows of a log list: the message of the line and whether an
+    extended description is stored behind it.
+
+    The detail of a failed page - the response content - sits in
+    ``extented_description``, a FileField: a list which shows it answers a
+    download per row, a list which hides it shows nothing. So the list
+    answers the existence of the file and the content is read per log line,
+    by a caller allowed to read the run; these files are the pile #888
+    bounds and the list must not widen their read access (#1083).
+    """
     url = HyperlinkedIdentityField(
         view_name="registry:harvestinglog-detail",)
+    has_extended_description = SerializerMethodField(
+        label=_("has extended description"),
+        help_text=_(
+            "whether this log line has a stored response behind it; the "
+            "content of the file is answered on the line itself, never in "
+            "a list"),
+        read_only=True)
 
     class Meta:
         model = HarvestingLog
-        fields = "__all__"
+        exclude = ("extented_description",)
+
+    def get_has_extended_description(self, obj) -> bool:
+        return bool(obj.extented_description)
+
+
+class HarvestingLogSerializer(HarvestingLogListSerializer):
+    """One log line, read on its own: it answers its stored response too.
+
+    Reading one line is the act of a caller who reads the run; the list
+    above is not that act and keeps the file out of its rows (#1083).
+    """
+
+    # a fresh Meta rather than an inherited one: DRF refuses a serializer
+    # which sets `fields` while a parent's `exclude` still applies
+    class Meta:
+        model = HarvestingLog
         fields = "__all__"

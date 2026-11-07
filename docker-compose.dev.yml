@@ -175,13 +175,19 @@ services:
       - docker/backend/.mrmap.env
     ports:
       - "0.0.0.0:8001:8001"
-    # The websockets of #1032: the edge forwards /ws to port 8002 of this
-    # service, because in a production container that is where the ASGI server
-    # of the websockets lives (backend/.bash_scripts/startup.sh) - and the edge
-    # does not know which stack it fronts. `runserver` would answer websockets
-    # on 8001 itself, but nothing asks it there anymore, so the ASGI server runs
-    # beside it. Its autoreloader does not reach that second process: restart the
-    # service after changing a consumer.
+    # The websockets of #1032 - needed here although `runserver` does speak an
+    # upgrade, because of where the browser asks: the SPA builds its socket url
+    # from VITE_API_* (frontend/src/jsonapi/components/Realtime/RealtimeBus.tsx),
+    # so /ws/default/ goes to the edge of this stack and never to port 8001. The
+    # edge of the development stack is the same container with the same
+    # docker/nginx/mrmap.conf which docker-compose.yml bind-mounts and this file
+    # only rebuilds, and that conf names port 8002 for /ws in every stack. So
+    # without this, the socket of a development page answers 502 at the edge
+    # while runserver waits on 8001 for a question nobody asks. The table of that
+    # one conf is tested by scripts/nginx_routing_smoke.py, and a second
+    # development-only conf is the drift the script exists to keep out.
+    # The autoreloader of runserver does not reach this second process: restart
+    # the service after changing a consumer.
     command: >
       /bin/sh -c "/opt/mrmap/.bash_scripts/startup_ws.sh & python manage.py runserver 0.0.0.0:8001"
     depends_on:

@@ -87,3 +87,17 @@ Feature: HarvestingJob List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.[0].attributes.recordsPerMinute" with value "None"
+
+    # What a run has left to do is the part of its steps which is not done, scaled by the time the
+    # done part measured - so a run which cannot say what it has done answers nothing. The job of
+    # CSW2 is still pending and has done no step; the job of CSW3 imports without ever having
+    # determined how many records its catalogue counted. An invented estimate must not be mistaken
+    # for a measured one (#1071).
+    Scenario: Answers no remaining time for a run which cannot estimate it
+        Given I set a queryparam "fields[HarvestingJob]" with value "id,estimated_seconds_remaining,expected_done_at"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.estimatedSecondsRemaining" with value "None"
+        Then I expect that response json has an attribute "data.[0].attributes.expectedDoneAt" with value "None"
+        Then I expect that response json has an attribute "data.[1].attributes.estimatedSecondsRemaining" with value "None"
+        Then I expect that response json has an attribute "data.[1].attributes.expectedDoneAt" with value "None"

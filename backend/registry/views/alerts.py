@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
-
 from camel_converter import to_snake
+from django.db.models import F
+from django.db.models.functions import Collate
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from registry.querys.alerts import ALERT_CATEGORIES, collect_service_alerts
 from registry.serializers.alerts import ServiceAlertSerializer
@@ -27,6 +27,49 @@ SORT_TERMS = tuple(
     for term in (format_field_name(field), f'-{format_field_name(field)}'))
 
 
+def ordering(fields):
+    """The database ordering which answers the sort terms of a request.
+
+    The rows of the alerts are answered straight out of the table of the
+    alerts, so the sort of a request is answered by the database and not by a
+    python sort over the whole materialised projection (#1030). Two details
+    keep the order which the python sort answered before:
+
+    - a row without a moment is the oldest one - the python path replaced the
+      missing moment by `datetime.min`, which puts nulls first when ascending
+      and last when descending, the opposite of the database default;
+    - the identifier breaks every tie, because the python path sorted by it
+      before it applied the requested fields - and it breaks them byte for
+      byte, which is the collation `C` and not the collation of the table.
+
+    Args:
+        fields: the sort terms of the request, the primary one first
+
+    Returns:
+        list: the orderings to answer the terms by, tie-breaker last
+
+    Raises:
+        ValidationError: if a term names a field an alert does not have
+    """
+    order = []
+    for field in fields:
+        name = to_snake(field.lstrip('-'))
+        if name not in SORT_FIELDS:
+            raise ValidationError('Invalid alert sort field.')
+        descending = field.startswith('-')
+        if name == 'id':
+            expression = Collate(F(name), 'C')
+        elif name == 'occurred_at':
+            expression = F(name).asc(nulls_first=True) if not descending \
+                else F(name).desc(nulls_last=True)
+            order.append(expression)
+            continue
+        else:
+            expression = F(name)
+        order.append(expression.desc() if descending else expression.asc())
+    return order + [Collate(F('id'), 'C').asc()]
+
+
 class ServiceAlertListView(generics.ListAPIView):
     """Read-only attention across the services the caller may view."""
     serializer_class = ServiceAlertSerializer
@@ -48,7 +91,7 @@ class ServiceAlertListView(generics.ListAPIView):
             return []
         return collect_service_alerts(self.request.user)
 
-    def filter_queryset(self, rows):
+    def filter_queryset(self, queryset):
         for parameter, value in self.request.query_params.items():
             if not parameter.startswith('filter['):
                 continue
@@ -58,13 +101,7 @@ class ServiceAlertListView(generics.ListAPIView):
             choices = FILTERS[name]
             if choices and value not in choices:
                 raise ValidationError('Invalid alert filter value.')
-            rows = [row for row in rows if row[to_snake(name)] == value]
-        fields = self.request.query_params.get('sort', 'severity,-occurredAt').split(',')
-        rows = sorted(rows, key=lambda row: row['id'])
-        for field in reversed(fields):
-            name = to_snake(field.lstrip('-'))
-            if name not in SORT_FIELDS:
-                raise ValidationError('Invalid alert sort field.')
-            default = datetime.min.replace(tzinfo=timezone.utc) if name == 'occurred_at' else ''
-            rows.sort(key=lambda row: row[name] or default, reverse=field.startswith('-'))
-        return rows
+            queryset = queryset.filter(**{to_snake(name): value})
+        fields = self.request.query_params.get(
+            'sort', 'severity,-occurredAt').split(',')
+        return queryset.order_by(*ordering(fields))

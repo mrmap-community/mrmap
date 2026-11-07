@@ -5,6 +5,15 @@ from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
 
+#: the name the refresh of the alert rows has in the schedule of beat; the
+#: tests look the row up by it
+SERVICE_ALERT_REFRESH_TASK_NAME = "refresh the rows of the service alerts"
+
+#: the seconds between two refreshes of the alert rows - the interval the
+#: header poll of the alerts relied on for schedules becoming overdue, which
+#: the refresh takes over from the read of the alerts (#1030)
+SERVICE_ALERT_REFRESH_SECONDS = 20
+
 
 def create_choice_model_entries(sender, **kwargs):
     """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
@@ -55,6 +64,30 @@ def create_file_system_import_task(sender, **kwargs):
     )
 
 
+def create_service_alert_refresh_task(sender, **kwargs):
+    """Creates the periodic task which keeps the rows of the alerts current.
+
+    The api of the attention answers stored rows instead of re-evaluating the
+    whole derivation of the alerts per request (#1030); the rows are current
+    because this task rewrites them on the interval of the schedule which the
+    header poll used to rely on. Keyed by its name: a deployment which
+    re-scheduled the row over the api keeps what it chose.
+    """
+    from django_celery_beat.models import IntervalSchedule, PeriodicTask
+
+    schedule, _ = IntervalSchedule.objects.get_or_create(
+        every=SERVICE_ALERT_REFRESH_SECONDS,
+        period=IntervalSchedule.SECONDS)
+
+    PeriodicTask.objects.get_or_create(
+        name=SERVICE_ALERT_REFRESH_TASK_NAME,
+        defaults={
+            "interval": schedule,
+            "task": "registry.tasks.alerts.refresh_service_alerts",
+        }
+    )
+
+
 def find_orphan_metadata_objects(sender, **kwargs):
     import logging
     logger = logging.getLogger(__name__)
@@ -80,6 +113,10 @@ class RegistryConfig(AppConfig):
 
         post_migrate.connect(
             create_file_system_import_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_service_alert_refresh_task,
             sender=self
         )
         post_migrate.connect(

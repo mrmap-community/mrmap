@@ -290,7 +290,12 @@ class HarvestingJob(ProcessingData):
         verbose_name_plural = _("Harvesting Jobs")
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
-        indexes = ProcessingData.Meta.indexes
+        # the newest job of one service answers its harvesting alerts - with
+        # this composite, the `ORDER BY date_created DESC LIMIT 1` of the top-N
+        # is an index read and not a sort over the jobs of the service (#1030)
+        indexes = ProcessingData.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
         constraints = ProcessingData.Meta.constraints + [
             models.CheckConstraint(
                 condition=Q(service__isnull=True) | ~Q(service=MRMAP_CSW_PK),

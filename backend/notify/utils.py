@@ -116,8 +116,23 @@ def build_action_payload(request, instance, resource_type, serializer_cls, actio
     return msg
 
 
+#: the seconds a state change waits with the refresh of the alert rows - long
+#: enough that the writes of one run or job, which commit apart from each
+#: other, arrive in a group whose last write is the state the alert is decided
+#: by, short enough that the refetch a published invalidation triggers reads
+#: the new state (#1030)
+ALERT_REFRESH_COUNTDOWN_SECONDS = 2
+
+
 def invalidate_service_alerts():
-    """Publish no service data: each subscriber refetches its scoped alerts."""
+    """Publish no service data: each subscriber refetches its scoped alerts.
+
+    The refetch reads the stored rows of the alerts (#1030), so the publish is
+    followed by the refresh which answers it. The refresh is a singleton task,
+    so the fires which a burst of invalidations enqueues collapse into the
+    refreshes which really run, and one which finds another running is
+    skipped - its state is answered by the next beat fire at the latest.
+    """
     def publish():
         try:
             send_msg({
@@ -126,4 +141,10 @@ def invalidate_service_alerts():
             })
         except Exception:
             logger.exception("can't invalidate service alerts")
+        try:
+            from registry.tasks.alerts import refresh_service_alerts
+            refresh_service_alerts.apply_async(
+                countdown=ALERT_REFRESH_COUNTDOWN_SECONDS)
+        except Exception:
+            logger.exception("can't schedule the refresh of the alert rows")
     transaction.on_commit(publish)

@@ -62,3 +62,158 @@ Feature: AllowedWebFeatureServiceOperation Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 403
         Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
+
+    # The WFS sibling shares the field and its guards with the WMS one, so both refusals are asked
+    # for here too (#1148): an EMPTY area is no area and a POLYGON is no MULTIPOLYGON, and both used
+    # to reach the client as an IntegrityError with 500.
+    Scenario: Can add with a spatial restriction
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "AllowedWebFeatureServiceOperation",
+                    "attributes": {
+                        "description": "with a spatial restriction",
+                        "allowedArea": {
+                            "type": "MultiPolygon",
+                            "coordinates": [[
+                                [
+                                    [12.6, 52.4],
+                                    [13.4, 52.4],
+                                    [13.4, 52.9],
+                                    [12.6, 52.9],
+                                    [12.6, 52.4]
+                                ]
+                            ]]
+                        }
+                    },
+                    "relationships": {
+                        "operations": {
+                            "data": [
+                                {
+                                    "id": 30,
+                                    "type": "WebFeatureServiceOperation"
+                                }
+                            ]
+                        },
+                        "secured_service": {
+                            "data": {
+                                "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+                                "type": "WebFeatureService"
+                            }
+                        },
+                        "secured_feature_types": {
+                            "data": [
+                                {
+                                    "id": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+                                    "type": "FeatureType"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 201
+        Then I expect that response json has an attribute "data.attributes.allowedArea.type" with value "MultiPolygon"
+
+    Scenario: Can't add an empty allowed area
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "AllowedWebFeatureServiceOperation",
+                    "attributes": {
+                        "description": "with an empty spatial restriction",
+                        "allowedArea": {
+                            "type": "MultiPolygon",
+                            "coordinates": []
+                        }
+                    },
+                    "relationships": {
+                        "operations": {
+                            "data": [
+                                {
+                                    "id": 30,
+                                    "type": "WebFeatureServiceOperation"
+                                }
+                            ]
+                        },
+                        "secured_service": {
+                            "data": {
+                                "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+                                "type": "WebFeatureService"
+                            }
+                        },
+                        "secured_feature_types": {
+                            "data": [
+                                {
+                                    "id": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+                                    "type": "FeatureType"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 400
+        Then I expect that response json has an attribute "errors.[0].code" with value "invalid"
+        Then I expect that response json has an attribute "errors.[0].source.pointer" with value "/data/attributes/allowedArea"
+
+    Scenario: Can't add an allowed area of another geometry type
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "AllowedWebFeatureServiceOperation",
+                    "attributes": {
+                        "description": "with an area drawn as one polygon",
+                        "allowedArea": {
+                            "type": "Polygon",
+                            "coordinates": [
+                                [
+                                    [12.6, 52.4],
+                                    [13.4, 52.4],
+                                    [13.4, 52.9],
+                                    [12.6, 52.9],
+                                    [12.6, 52.4]
+                                ]
+                            ]
+                        }
+                    },
+                    "relationships": {
+                        "operations": {
+                            "data": [
+                                {
+                                    "id": 30,
+                                    "type": "WebFeatureServiceOperation"
+                                }
+                            ]
+                        },
+                        "secured_service": {
+                            "data": {
+                                "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+                                "type": "WebFeatureService"
+                            }
+                        },
+                        "secured_feature_types": {
+                            "data": [
+                                {
+                                    "id": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+                                    "type": "FeatureType"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 400
+        Then I expect that response json has an attribute "errors.[0].code" with value "invalid_geometry_type"

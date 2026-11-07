@@ -1,3 +1,5 @@
+import tempfile
+from datetime import timedelta
 from importlib import resources
 from io import BytesIO
 from pathlib import Path
@@ -13,7 +15,9 @@ from epsg_cache.registry import Registry
 from lxml import etree
 from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
-from registry.models.security import AllowedWebMapServiceOperation
+from registry.models.security import (
+    AllowedWebMapServiceOperation, WebFeatureServiceHttpRequestLog,
+    WebMapServiceHttpRequestLog, WebMapServiceProxySetting)
 from registry.models.service import WebMapService
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.proxy.wms_proxy import WebMapServiceProxy
@@ -33,8 +37,9 @@ class MockResponse:
             self.content = content
 
         self.reason = "OK"
-        self.elapsed = 123
-        self.headers = {}
+        # what requests reports for a response: the time it waited, as a timedelta
+        self.elapsed = timedelta(seconds=1)
+        self.headers = {"content-type": content_type}
         self.url = url
         self.content_type = content_type
 
@@ -317,6 +322,165 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertEqual(200, response.status_code)
         # TODO: check the response picture
+
+    def ask_for_response_logging(self):
+        """Turns response logging on for the service of the fixtures.
+
+        The constraint of the proxy settings only allows logging together with
+        camouflage, which is what the API answers for it as well.
+        """
+        return WebMapServiceProxySetting.objects.create(
+            secured_service=WebMapService.objects.get(
+                pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"),
+            camouflage=True,
+            log_response=True)
+
+    def use_own_media_root(self):
+        """Keeps the logged bodies of this test out of the media root of the project."""
+        media_root = tempfile.TemporaryDirectory(prefix="mrmap-proxy-log-")
+        self.addCleanup(media_root.cleanup)
+        override = self.settings(MEDIA_ROOT=media_root.name)
+        override.enable()
+        self.addCleanup(override.disable)
+        return media_root.name
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=remote_effect,
+    )
+    @patch.object(
+        target=Registry,
+        attribute="_fetch_coord_ref_system",
+        side_effect=epsg_side_effect,
+    )
+    def test_a_service_with_log_response_answers_and_logs_the_exchange(
+            self, mocked_proxy, mocked_registry):
+        # the log of a proxied request is an auxiliary of the answer: the service
+        # is answered exactly like with the setting off, and the rows are kept in
+        # the log models of the requested service's type (#1153)
+        self.use_own_media_root()
+        self.ask_for_response_logging()
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
+
+        response = self.client.get(self.wms_url, self.query_params)
+
+        self.assertEqual(200, response.status_code, response.content)
+
+        logs = WebMapServiceHttpRequestLog.objects.all()
+        self.assertEqual(1, logs.count(), "the proxied request was not logged")
+        request_log = logs.first()
+        self.assertEqual("GET", request_log.method)
+        self.assertEqual("User1", request_log.user.username)
+        self.assertFalse(request_log.is_test_request)
+        self.assertIn("/mrmap-proxy/wms/", request_log.url)
+
+        response_log = request_log.response
+        self.assertEqual(200, response_log.status_code)
+        self.assertEqual("OK", response_log.reason)
+        self.assertGreater(response_log.elapsed, timedelta(0))
+        self.assertEqual({"content-type": "image/png"}, response_log.headers)
+        with response_log.content.open("rb") as logged:
+            self.assertEqual(response.content, logged.read())
+
+        # the row is in the table of the service which was requested, not in the
+        # one of another service type
+        self.assertEqual(0, WebFeatureServiceHttpRequestLog.objects.count())
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=remote_effect,
+    )
+    @patch.object(
+        target=Registry,
+        attribute="_fetch_coord_ref_system",
+        side_effect=epsg_side_effect,
+    )
+    @patch("registry.models.security.async_analyze_log")
+    def test_a_logged_response_is_handed_to_the_analysis_with_its_own_model(
+            self, mocked_analysis, mocked_proxy, mocked_registry):
+        # the analysis task is told which concrete response log it shall read: the
+        # primary key alone does not say which table the row is in (#1153)
+        self.use_own_media_root()
+        self.ask_for_response_logging()
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.get(self.wms_url, self.query_params)
+
+        self.assertEqual(200, response.status_code, response.content)
+        response_log = WebMapServiceHttpRequestLog.objects.get().response
+        mocked_analysis.apply_async.assert_called_once_with(
+            args=(response_log.pk, "registry.webmapservicehttpresponselog"))
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=remote_effect,
+    )
+    @patch.object(
+        target=Registry,
+        attribute="_fetch_coord_ref_system",
+        side_effect=epsg_side_effect,
+    )
+    def test_a_response_which_cannot_be_logged_is_answered_anyway(
+            self, mocked_proxy, mocked_registry):
+        # the log shall never decide the answer: with a media root which cannot be
+        # written the service still serves the map instead of refusing the request
+        # (#1153). /proc takes no directory, not even for root.
+        override = self.settings(MEDIA_ROOT="/proc/mrmap-unwritable-media")
+        override.enable()
+        self.addCleanup(override.disable)
+        self.ask_for_response_logging()
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
+
+        response = self.client.get(self.wms_url, self.query_params)
+
+        self.assertEqual(200, response.status_code, response.content)
+        # the map itself reached the client, although its log could not be written
+        self.assertEqual("PNG", Image.open(BytesIO(response.content)).format)
+        # what could not be finished was rolled back as a whole
+        self.assertEqual(0, WebMapServiceHttpRequestLog.objects.count())
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="handle_secured_get_map",
+        side_effect=TypeError("simulated failure inside the proxy"),
+    )
+    def test_a_failure_of_the_proxy_is_answered_with_no_applicable_code(
+            self, mocked_get_map):
+        # a proxy which broke on its own does not tell the caller that it lacks a
+        # permission: that sends the operator after a permission which was never
+        # the cause of the failure (#1153)
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
+
+        response = self.client.get(self.wms_url, self.query_params)
+
+        self.assertEqual(500, response.status_code, response.content)
+
+        got_xml = response.content
+        expected_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<ogc:ServiceExceptionReport xmlns:ogc="http://www.opengis.net/ogc" version="1.3.0">'
+            '<ogc:ServiceException code="NoApplicableCode">'
+            'The server was unable to complete the request.'
+            '</ogc:ServiceException>'
+            '</ogc:ServiceExceptionReport>'
+        ).encode()
+
+        self.assertXmlSchema(
+            got_xml,
+            "registry.ows_lib.xml.schemas",
+            "wmsExceptionReport130.xsd"
+        )
+        self.assertXmlEquals(got_xml, expected_xml)
+        # nothing of the failure is a permission problem
+        self.assertNotIn(b"Forbidden", got_xml)
 
 
 class WebMapServiceProxyFontTest(SimpleTestCase):

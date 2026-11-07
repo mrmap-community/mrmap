@@ -4,7 +4,30 @@ Filed next to the manager of the aggregate (`registry/managers/havesting.py`), w
 methods return querysets of these classes.
 """
 
+from django.db.models import DateTimeField, F, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django_cte import CTEQuerySet
+
+
+def run_created_at():
+    """The moment a run was made, as the database answers it for every row.
+
+    `date_created` is nullable and only set explicitly (see `ProcessingData`), and
+    the harvesting never sets it, so the creation of a run is read from the first
+    row of its change log - the same source which answers who made a run. Every
+    question about the time a run took has to fall back to it, or the runs of a
+    deployment which has harvested for years answer nothing (#693, #1071).
+    """
+    from registry.models.harvest import HarvestingJob
+
+    return Coalesce(
+        F('date_created'),
+        Subquery(
+            HarvestingJob.change_log.model.objects
+            .filter(history_relation_id=OuterRef('pk'))
+            .order_by('history_date', 'history_id')
+            .values('history_date')[:1],
+            output_field=DateTimeField()))
 
 
 class HarvestingJobQuerySet(CTEQuerySet):

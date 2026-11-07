@@ -23,8 +23,27 @@ vi.mock("react-admin", () => {
     SimpleShowLayout: Container,
     Labeled: Container,
     BooleanField: () => null,
-    DateField: () => null,
+    DateField: ({
+      source,
+      emptyText,
+    }: {
+      source: string;
+      emptyText?: string;
+    }) => (
+      <span>
+        {source}: {state.record?.[source] ?? emptyText}
+      </span>
+    ),
     NumberField: () => null,
+    // the measurements of a run are derived values, so the field answers its
+    // source together with the rendered number (#1071)
+    FunctionField: ({
+      source,
+      render,
+    }: {
+      source: string;
+      render: (record: RaRecord) => unknown;
+    }) => <span>{`${source}: ${String(render(state.record ?? ({} as RaRecord)))}`}</span>,
     TextField: () => null,
   };
 });
@@ -52,6 +71,47 @@ describe("harvesting run detail layout", () => {
     expect(screen.getByText("harvestRun.configuration")).toBeInTheDocument();
     expect(screen.getAllByText("Timing chart")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("shows the measurements this run answers about its own work", () => {
+    state.record = {
+      id: 1,
+      elapsedSeconds: 61,
+      fetchRecordDuration: "0:10:00.000000",
+      mdMetadataFileToDbDuration: "0:05:00.000000",
+      recordsPerMinuteRunning: 48.6,
+      estimatedSecondsRemaining: 120,
+      expectedDoneAt: "2026-10-08T11:00:00Z",
+    };
+    render(<HarvestingJobTabbedShowLayout />);
+    expect(screen.getByText("elapsedSeconds: 0h 1m 1s")).toBeInTheDocument();
+    expect(
+      screen.getByText("fetchRecordDuration: 0h 10m 0s"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("mdMetadataFileToDbDuration: 0h 5m 0s"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("recordsPerMinuteRunning: 49")).toBeInTheDocument();
+    expect(
+      screen.getByText("estimatedSecondsRemaining: 0h 2m 0s"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("harvestRun.estimateNote")).toBeInTheDocument();
+  });
+  it("words the missing estimate as unknown and never as a duration", () => {
+    // a run which does not know its records yet, and a closed run, both have
+    // nothing to estimate - an invented number must not look measured (#1071)
+    state.record = { id: 1, estimatedSecondsRemaining: null };
+    render(<HarvestingJobTabbedShowLayout />);
+    expect(
+      screen.getByText(
+        "estimatedSecondsRemaining: harvestRun.estimateUnknown",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("expectedDoneAt: harvestRun.estimateUnknown"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("recordsPerMinuteRunning: harvestRun.notRecorded"),
+    ).toBeInTheDocument();
   });
   it("shows loading while the request is pending", () => {
     state.isPending = true;

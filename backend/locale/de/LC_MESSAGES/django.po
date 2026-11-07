@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 20:40+0100\n"
+"POT-Creation-Date: 2026-11-06 23:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,7 +258,7 @@ msgstr "entspricht regulärem Ausdruck"
 msgid "matches regex (case-insensitive)"
 msgstr "entspricht regulärem Ausdruck (Groß-/Kleinschreibung egal)"
 
-#: extras/serializers.py:135 registry/serializers/harvesting.py:43
+#: extras/serializers.py:135 registry/serializers/harvesting.py:44
 #: system/serializers.py:50
 msgid "time until next run"
 msgstr "Zeit bis zum nächsten Lauf"
@@ -2175,7 +2175,7 @@ msgstr ""
 "Ein neuer Featuretype kann nur einmal zugeordnet werden. Bitte passen Sie "
 "die Featuretype-Zuordnungen entsprechend an."
 
-#: registry/querys/alerts.py:559
+#: registry/querys/alerts.py:568
 #, python-format
 msgid ""
 "The schedule \"%(schedule)s\" harvests this catalogue more often than a "
@@ -2186,23 +2186,23 @@ msgstr ""
 "Erntevorgang dauert: die abgeschlossenen Erntevorgänge dauerten "
 "durchschnittlich %(duration)s."
 
-#: registry/serializers/harvesting.py:24
+#: registry/serializers/harvesting.py:25
 msgid "The internal MrMap catalogue cannot be harvested."
 msgstr "Der interne MrMap-Katalog darf nicht geharvestet werden."
 
-#: registry/serializers/harvesting.py:38 registry/serializers/update.py:407
+#: registry/serializers/harvesting.py:39 registry/serializers/update.py:407
 msgid "Catalogue Service"
 msgstr "Katalogdienst"
 
-#: registry/serializers/harvesting.py:39
+#: registry/serializers/harvesting.py:40
 msgid "the catalogue service for that this configuration is."
 msgstr "der Katalogdienst, für den diese Konfiguration ist."
 
-#: registry/serializers/harvesting.py:131
+#: registry/serializers/harvesting.py:132
 msgid "records per minute"
 msgstr "Datensätze pro Minute"
 
-#: registry/serializers/harvesting.py:133
+#: registry/serializers/harvesting.py:134
 msgid ""
 "how many records this run stored per minute of measured work, at the step "
 "size it asked the catalogue with. Only a run which finished answers one, "
@@ -2219,7 +2219,79 @@ msgstr ""
 "deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen miteinander, "
 "sie ist kein Versprechen über einen einzelnen Lauf."
 
-#: registry/serializers/harvesting.py:182
+#: registry/serializers/harvesting.py:143
+msgid "elapsed seconds"
+msgstr "verstrichene Sekunden"
+
+#: registry/serializers/harvesting.py:145
+msgid ""
+"how long this run has been working, in seconds: from the moment the run was "
+"made to its end, or to the moment of the request while it still works. The "
+"moment the run was made is its `dateCreated`, or - where the harvesting "
+"never set one - the first row of its change log; a run which was made at no "
+"answerable moment answers nothing."
+msgstr ""
+"Wie lange dieser Lauf gearbeitet hat, in Sekunden: von dem Moment, in dem "
+"der Lauf angelegt wurde, bis zu seinem Ende, oder - während er noch "
+"arbeitet - bis zum Moment der Anfrage. Der Moment, in dem der Lauf angelegt "
+"wurde, ist sein `dateCreated`, oder - wo das Harvesting nie eines gesetzt "
+"hat - die erste Zeile seiner Historie; ein Lauf, der zu keinem "
+"beantwortbaren Moment angelegt wurde, beantwortet nichts."
+
+#: registry/serializers/harvesting.py:152
+msgid "records per minute so far"
+msgstr "Datensätze pro Minute bisher"
+
+#: registry/serializers/harvesting.py:154
+msgid ""
+"how many records per minute this run has stored so far, against the time it "
+"has worked: the records it downloaded while it downloads, the records it "
+"wrote to the database while it imports. Named apart from `recordsPerMinute`, "
+"because it answers a run which is still working; what it measures is the run "
+"which is watched, not the size of the pages a harvest asks with."
+msgstr ""
+"Wie viele Datensätze pro Minute dieser Lauf bisher gespeichert hat, "
+"gerechnet gegen die Zeit, die er gearbeitet hat: die Datensätze, die er "
+"heruntergeladen hat, während er herunterlädt, die Datensätze, die er in die "
+"Datenbank geschrieben hat, während er importiert. Anders benannt als "
+"`recordsPerMinute`, weil er einen Lauf beantwortet, der noch arbeitet; was "
+"er misst, ist der beobachtete Lauf, nicht die Größe der Seiten, mit der "
+"eine Ernte fragt."
+
+#: registry/serializers/harvesting.py:161
+msgid "estimated seconds remaining"
+msgstr "geschätzte verbleibende Sekunden"
+
+#: registry/serializers/harvesting.py:163
+msgid ""
+"how long this run estimates itself to still take, in seconds: its elapsed "
+"time against the progress its steps already answer, scaled to the part which "
+"is left. An estimate and no measured duration: a run whose records are not "
+"known yet, which has done nothing yet, or which is closed answers nothing, "
+"because nothing is known or nothing is left then."
+msgstr ""
+"Wie lange dieser Lauf nach eigener Schätzung noch brauchen wird, in "
+"Sekunden: seine verstrichene Zeit gegen den Fortschritt, den seine Schritte "
+"bereits beantworten, hochgerechnet auf den Teil, der übrig ist. Eine "
+"Schätzung und keine gemessene Dauer: ein Lauf, dessen Datensätze noch nicht "
+"bekannt sind, der noch nichts getan hat oder der geschlossen ist, "
+"beantwortet nichts, weil dann nichts bekannt oder nichts übrig ist."
+
+#: registry/serializers/harvesting.py:170
+msgid "expected done at"
+msgstr "voraussichtliches Ende"
+
+#: registry/serializers/harvesting.py:172
+msgid ""
+"the moment this run is expected to end: its `estimatedSecondsRemaining` "
+"added to the moment of the request. Where no estimate is answered, no end is "
+"answered either."
+msgstr ""
+"Der Moment, in dem dieser Lauf voraussichtlich enden wird: seine "
+"`estimatedSecondsRemaining` addiert auf den Moment der Anfrage. Wo keine "
+"Schätzung beantwortet wird, wird auch kein Ende beantwortet."
+
+#: registry/serializers/harvesting.py:218
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 

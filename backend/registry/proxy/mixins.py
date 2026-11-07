@@ -16,20 +16,20 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
-from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.response.exceptions import (
     DisabledException, ForbiddenException, MissingRequestParameterException,
-    MissingVersionParameterException)
+    MissingVersionParameterException, NoApplicableCodeException)
 from registry.ows_lib.response.exceptions import \
     NotImplementedError as MrMapNotImplementedError
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from requests import Request
 from requests.exceptions import ConnectionError as ConnectionErrorException
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException
+from rest_framework.exceptions import APIException
 from rest_framework.views import APIView
 
 
@@ -65,10 +65,21 @@ def exception_handler(exc, context):
                 service_type=service_type,
                 service_version=service_version,
                 message="The requested operation is not implemented in the proxy.")
-        case _:
+        case APIException():
+            # a refusal DRF raises about the request itself, e.g. a token which
+            # does not resolve to a user: it is a refusal of the request, so it
+            # keeps the report this handler has always answered it with
             logging.error(exc, exc_info=True)
             return ForbiddenException(service_type=service_type,
                                       service_version=service_version)
+        case _:
+            # anything else is a failure of the proxy, not of the caller. The
+            # 500 report says so: a Forbidden here tells the caller it lacks a
+            # permission it may well have, and the operator looks for a
+            # permission which was never the cause (#1153)
+            logging.error(exc, exc_info=True)
+            return NoApplicableCodeException(service_type=service_type,
+                                             service_version=service_version)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -339,9 +350,27 @@ class OgcServiceProxyView(APIView):
             )
         return r
 
+    def _logged_body_name(self, content_type: str = None) -> str:
+        """The name a logged request body or response content is stored under.
+
+        The extension is the subtype of the content type. A message which answers
+        no content type keeps a name without one: the name is only the place the
+        body is kept and a missing content type shall not stop the logging.
+        """
+        name = self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")
+        subtype = (content_type or "").rpartition("/")[2]
+        return f"{name}.{subtype}" if subtype else name
+
     def log_response(self, response):
-        """Check if response logging is active. If so, the request and response will be logged."""
-        if self.service.log_response:
+        """Check if response logging is active. If so, the request and response will be logged.
+
+        The log is an auxiliary of the proxied response, not part of it: whatever
+        writing it runs into, the response the client asked for is still answered
+        (#1153).
+        """
+        if not self.service.log_response:
+            return
+        try:
             with transaction.atomic():
                 if self.request.user.username == "":
                     user = get_user_model().objects.get(username="AnonymousUser")
@@ -364,7 +393,15 @@ class OgcServiceProxyView(APIView):
                     logged_user = user
                     test_user = None
 
-                request_log = HttpRequestLog(
+                # HttpRequestLog and HttpResponseLog are abstract base classes, and
+                # an abstract model cannot be instantiated. The concrete pair of the
+                # service which is logged is the model behind its "http_request_logs"
+                # relation and the response which belongs to that one (#1153).
+                request_log_cls = self.service.http_request_logs.model
+                response_log_cls = request_log_cls._meta.get_field(
+                    "response").related_model
+
+                request_log = request_log_cls(
                     timestamp=self.start_time,
                     elapsed=datetime.datetime.now() - self.start_time,
                     method=self.request.method,
@@ -375,37 +412,42 @@ class OgcServiceProxyView(APIView):
                     is_test_request=is_test_request,
                     test_user=test_user,
                 )
-                if self.request.data:
-                    content_type = self.request.content_type
-                    if "/" in content_type:
-                        content_type = content_type.split("/")[-1]
-                    request_log.data.save(
-                        name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                        content=ContentFile(self.request.data),
+                # the body field keeps the document which was posted. A payload the
+                # parsers turned into an object is no document, so those requests
+                # are logged without one.
+                data = self.request.data
+                if isinstance(data, str):
+                    data = data.encode()
+                if isinstance(data, bytes):
+                    request_log.body.save(
+                        name=self._logged_body_name(self.request.content_type),
+                        content=ContentFile(data),
                     )
                 else:
                     request_log.save()
                 if isinstance(response, dict):
-                    response_log = HttpResponseLog(
-                        status_code=response.get("status_code"),
-                        reason=response.get("reason"),
-                        elapsed=response.get("elapsed"),
-                        headers=response.get("headers"),
-                        url=response.get("url"),
+                    # the dict of get_remote_response for a remote service which
+                    # never answered: only its own status and message are known, so
+                    # the fields which are not named keep their default value.
+                    response_log = response_log_cls(
+                        status_code=response.get("status_code") or 0,
+                        reason=response.get("reason") or "",
+                        elapsed=response.get("elapsed") or (
+                            datetime.datetime.now() - self.start_time),
+                        headers=response.get("headers") or {},
+                        url=response.get("url") or self.request.get_full_path(),
                         request=request_log,
                     )
                     if response.get("content", None):
-                        content_type = response.get("content_type")
-                        if "/" in content_type:
-                            content_type = content_type.split("/")[-1]
                         response_log.content.save(
-                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                            name=self._logged_body_name(
+                                response.get("content_type")),
                             content=ContentFile(response.get("content")),
                         )
                     else:
                         response_log.save()
                 else:
-                    response_log = HttpResponseLog(
+                    response_log = response_log_cls(
                         status_code=response.status_code,
                         reason=response.reason,
                         elapsed=response.elapsed,
@@ -414,15 +456,18 @@ class OgcServiceProxyView(APIView):
                         request=request_log,
                     )
                     if response.content:
-                        content_type = response.headers.get("content-type")
-                        if "/" in content_type:
-                            content_type = content_type.split("/")[-1]
                         response_log.content.save(
-                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                            name=self._logged_body_name(
+                                response.headers.get("content-type")),
                             content=ContentFile(response.content),
                         )
                     else:
                         response_log.save()
+        except Exception:
+            logging.error(
+                "Could not log the proxied response of service %s",
+                self.service.pk,
+                exc_info=True)
 
     def return_http_response(self, response):
         """Return the http response for the client.

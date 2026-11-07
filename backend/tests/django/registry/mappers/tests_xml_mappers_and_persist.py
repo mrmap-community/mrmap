@@ -8,6 +8,7 @@ from django.test import TestCase
 from lxml import etree
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.xml_mapper import XmlMapper
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType,
@@ -558,6 +559,35 @@ class XmlMapperTest(TestCase):
                 record.refresh_from_db()
 
                 self.assertEqual(record.equivalent_scale, 25000.0)
+
+
+class SingleValueOfAMultiValuedXpathTest(TestCase):
+    """The two cases of #990 which no document produces: a column which holds a
+    list itself, and a parse which matched nothing at all. Neither is answered
+    by picking a value out of the other one."""
+
+    def mapper(self):
+        return XmlMapper(xml=b"<xml/>", mapping={})
+
+    def test_a_field_whose_column_holds_a_list_keeps_the_list(self):
+        """`keywords_list` is an ArrayField - the list IS its value, so nothing
+        may be picked out of it and nothing is reported."""
+        mapper = self.mapper()
+
+        values = mapper.single_value_for_field(
+            "keywords_list", DatasetMetadataRecord(), ['30000', '75000'])
+
+        self.assertEqual(values, ['30000', '75000'])
+        self.assertEqual(mapper.warnings, [])
+
+    def test_an_empty_match_of_a_single_valued_field_answers_no_value(self):
+        """Nothing matched, so nothing is set and nothing was dropped - a
+        warning here would report a loss which did not happen."""
+        mapper = self.mapper()
+
+        self.assertIsNone(mapper.single_value_for_field(
+            "equivalent_scale", DatasetMetadataRecord(), []))
+        self.assertEqual(mapper.warnings, [])
 
 
 class ServiceOwnershipRegressionTest(TestCase):

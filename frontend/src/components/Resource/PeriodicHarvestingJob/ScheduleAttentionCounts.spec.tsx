@@ -1,10 +1,14 @@
+import type { ReactNode } from "react";
+
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ScheduleAttentionCounts from "./ScheduleAttentionCounts";
 
 vi.mock("react-admin", () => ({
-  Link: ({ to }: { to: string }) => <a href={to}>link</a>,
+  Link: ({ to, children }: { to: string; children?: ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
   useCreatePath: () => ({ resource }: { resource: string }) => `/${resource}`,
   useTranslate: () => (key: string) => key.split(".").pop(),
 }));
@@ -36,8 +40,14 @@ describe("ScheduleAttentionCounts", () => {
     );
     render(<ScheduleAttentionCounts />);
     expect(screen.getByText("attentionTitle")).toBeInTheDocument();
-    expect(screen.getByText("harvest_overdue 2")).toBeInTheDocument();
+    const link = screen.getByText("harvest_overdue 2");
+    expect(link).toBeInTheDocument();
     expect(screen.queryByText(/too_tight/)).not.toBeInTheDocument();
-    expect(screen.getByText("link")).toHaveAttribute("href", "/ServiceAlert");
+    expect(link.closest("a")).toHaveAttribute(
+      "href",
+      `/ServiceAlert?filter=${encodeURIComponent(
+        JSON.stringify({ category: "harvest_overdue", serviceType: "CatalogueService" }),
+      )}`,
+    );
   });
 });

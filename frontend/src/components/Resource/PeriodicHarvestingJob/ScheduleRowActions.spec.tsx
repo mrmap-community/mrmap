@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useRecordContext } from "react-admin";
 
 import { render, screen } from "@testing-library/react";
@@ -6,8 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 import ScheduleRowActions from "./ScheduleRowActions";
 
 vi.mock("react-admin", () => ({
-  Button: ({ label }: { label?: string }) => <span>{label}</span>,
-  Link: ({ to }: { to: string }) => <a href={to}>link</a>,
+  Button: ({ label, to }: { label?: string; to?: string }) =>
+    to !== undefined ? <a href={to}>{label}</a> : <span>{label}</span>,
+  Link: ({ to, children }: { to: string; children?: ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
   useRecordContext: vi.fn(),
 }));
 
@@ -33,7 +37,9 @@ describe("ScheduleRowActions", () => {
     });
     render(<ScheduleRowActions />);
     expect(screen.getByText("run:17")).toBeInTheDocument();
-    expect(screen.getByText("link")).toHaveAttribute(
+    expect(
+      screen.getByText("harvestingSchedules.runs").closest("a"),
+    ).toHaveAttribute(
       "href",
       "/CatalogueService/17/show/HarvestingJob",
     );

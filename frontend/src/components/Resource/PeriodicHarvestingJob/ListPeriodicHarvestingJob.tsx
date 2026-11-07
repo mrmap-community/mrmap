@@ -1,6 +1,5 @@
 import { Fragment, type ReactNode } from "react";
 import {
-  Chip,
   FunctionField,
   TextField,
   useLocaleState,
@@ -8,7 +7,7 @@ import {
   useTranslate,
 } from "react-admin";
 
-import { Stack, Typography } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";

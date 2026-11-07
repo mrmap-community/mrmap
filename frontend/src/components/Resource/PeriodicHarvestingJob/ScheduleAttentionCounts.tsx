@@ -64,11 +64,9 @@ const ScheduleAttentionCounts = () => {
           size="small"
           color={color}
           startIcon={icon}
-          to={createPath({
-            resource: "ServiceAlert",
-            type: "list",
-            filter: { category, serviceType: "CatalogueService" },
-          })}
+          to={`${createPath({ resource: "ServiceAlert", type: "list" })}?filter=${encodeURIComponent(
+            JSON.stringify({ category, serviceType: "CatalogueService" }),
+          )}`}
         >
           {`${translate(`serviceAlerts.categories.${category}`)} ${total}`}
         </Button>

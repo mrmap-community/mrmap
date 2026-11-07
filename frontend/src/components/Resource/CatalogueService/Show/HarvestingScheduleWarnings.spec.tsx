@@ -39,10 +39,10 @@ describe("harvesting schedule warnings", () => {
 
   it("names the schedule and the harvest which is tighter than it", () => {
     vi.mocked(useServiceAlerts).mockImplementation(
-      (filter: Record<string, string>) =>
+      (filter?: Record<string, string | number | undefined>) =>
         ({
           data:
-            filter.category === "harvest_schedule_too_tight"
+            filter?.category === "harvest_schedule_too_tight"
               ? [
                   {
                     id: "harvest_schedule_too_tight:CatalogueService:7",
@@ -65,10 +65,10 @@ describe("harvesting schedule warnings", () => {
     // the alert of an overdue harvest was answered by the api and shown nowhere
     // on the schedules of the catalogue (#1082)
     vi.mocked(useServiceAlerts).mockImplementation(
-      (filter: Record<string, string>) =>
+      (filter?: Record<string, string | number | undefined>) =>
         ({
           data:
-            filter.category === "harvest_overdue"
+            filter?.category === "harvest_overdue"
               ? [
                   {
                     id: "harvest_overdue:CatalogueService:7",

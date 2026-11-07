@@ -14,7 +14,9 @@ HarvestingJob.objects.with_process_info() after the save, which is what the
 payload assertions of these tests are about. Since #1071 the same holds for the
 measurements of a working run (elapsedSeconds, recordsPerMinuteRunning,
 estimatedSecondsRemaining, expectedDoneAt): a push which drops them blanks the
-diagnostics of an open run screen every few seconds.
+diagnostics of an open run screen every few seconds. Those measurements answer
+from the clock of the query which asks for them, so the test which compares them
+between the push and the endpoint holds one instant for both reads (#1133).
 
 Run with:
 
@@ -24,6 +26,7 @@ Run with:
 """
 
 from collections import OrderedDict
+from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -189,10 +192,21 @@ class HarvestingJobSignalsTest(TestCase):
         self.unhandled(job)
         job = HarvestingJob.objects.get(pk=job.pk)
 
-        published = self.publish_during(lambda: job.save())
-        message = self.job_message(published, job)
-        attributes = self.attributes_of(message)
-        annotated = HarvestingJob.objects.with_process_info().get(pk=job.pk)
+        # The measurements answer from the clock of the query which asks for
+        # them (`ends_at` of `run_measurements` is its `now()`), so the push and
+        # the re-read below are two statements answering two moments. That they
+        # nevertheless agree is what this test is about - a client replacing its
+        # record with the push must not see the elapsed time jump - so the clock
+        # is held for both reads. Left to the wall clock the gap between them
+        # measured 1.15 s on a loaded runner, against a delta of 1 (#1133).
+        # Frozen 30 s into the run, so that the elapsed time is a positive number
+        # and the estimate is answered at all.
+        instant = now() + timedelta(seconds=30)
+        with patch("registry.managers.havesting.now", return_value=instant):
+            published = self.publish_during(lambda: job.save())
+            message = self.job_message(published, job)
+            attributes = self.attributes_of(message)
+            annotated = HarvestingJob.objects.with_process_info().get(pk=job.pk)
 
         for field in ("elapsedSeconds", "recordsPerMinuteRunning",
                       "estimatedSecondsRemaining"):
@@ -202,12 +216,12 @@ class HarvestingJobSignalsTest(TestCase):
         self.assertIsNotNone(
             attributes["expectedDoneAt"],
             "the expected end travels as the timestamp the endpoint answers")
-        self.assertAlmostEqual(
-            attributes["elapsedSeconds"], annotated.elapsed_seconds, delta=1,
+        self.assertEqual(
+            attributes["elapsedSeconds"], annotated.elapsed_seconds,
             msg="the push must not tell a different time than the endpoint")
-        self.assertAlmostEqual(
+        self.assertEqual(
             attributes["estimatedSecondsRemaining"],
-            annotated.estimated_seconds_remaining, delta=1,
+            annotated.estimated_seconds_remaining,
             msg="the push must not tell a different estimate than the endpoint")
 
     def test_the_terminal_state_is_announced_immediately(self):

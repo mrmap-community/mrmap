@@ -4,15 +4,14 @@ from itertools import chain
 
 from csw.describe_record import (CSWDescribeRecordBuilder,
                                  SUPPORTED_RECORD_TYPE_NAMES)
-from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS,
-                             apply_sort, loaded_fields, merge_sorted,
+from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS, merged_page,
                              project_gmd_record, requested_element_set,
                              requested_sort_by, sortable_field,
                              sortable_properties)
 from csw.exceptions import (DocumentUnavailable, InvalidQuery,
                             MissingIdParameterException, NotSupported)
 from csw.queryables import (FIELD_MAP, application_records, dataset_records,
-                            search_filter, service_records)
+                            page_records, search_filter, service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models.aggregates import Count
@@ -685,21 +684,16 @@ class CswServiceView(View):
         constraint = search_filter(q)
 
         try:
-            # a GetRecords answers the stored document of a record and nothing else
-            # of it, so nothing else of it is read -- save for the fields it is
-            # sorted by, which the merge of the sources compares
-            dataset_metadata_records_result = apply_sort(
-                dataset_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
-            service_metadata_records_result = apply_sort(
-                service_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
-            application_metadata_records_result = apply_sort(
-                application_records().filter(
-                    constraint).only(*loaded_fields(sort_specs)),
-                sort_specs)
+            # a GetRecords answers the stored document of a record and nothing
+            # else of it: the three sources stay whole querysets here -- the
+            # page query projects the few fields it reads of its own accord
+            # (see csw/elementsets.merged_page)
+            dataset_metadata_records_result = dataset_records().filter(
+                constraint)
+            service_metadata_records_result = service_records().filter(
+                constraint)
+            application_metadata_records_result = application_records().filter(
+                constraint)
         except FieldError as e:
             requested_field = str(e).split(":")[0].split("'")[1]
             available_fields = field_mapping.keys()
@@ -718,7 +712,7 @@ class CswServiceView(View):
         # endpoint ships stays capped
         max_records = max_records if max_records <= 1000 else 1000
 
-        heap_count = start_position + max_records
+        page_stop = start_position + max_records
 
         result_type = (self.ogc_request.xml_request.xpath(
             "/csw:GetRecords/@resultType",
@@ -746,24 +740,29 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
-            # All sources are ordered by the same total order -- the requested
-            # sorting over the primary key -- which means that a record which is
-            # among the first `heap_count` records of the merged result is among
-            # the first `heap_count` records of *its own* source too: every record
-            # standing in front of it in the merged order stands in front of it in
-            # its own source as well. So taking that many records from all of them
-            # and merging them by that order answers the requested page, for the
-            # price of one limited query per source.
-            merged_records = merge_sorted(
-                chain(dataset_metadata_records_result[:heap_count],
-                      service_metadata_records_result[:heap_count],
-                      application_metadata_records_result[:heap_count]),
-                sort_specs
-            )
+            # The merged result set is paged in the database: the order every
+            # source answered its own records in is a total order over
+            # (sort criteria, pk, source), so ordering the union of the three
+            # projections by that order and slicing it answers the page with
+            # one query -- whose OFFSET the database skips without reading the
+            # records in front of the page. Merging the sources on this side
+            # could not: it had to materialise every record in front of the
+            # page from every source first, which is what made the cost of a
+            # page grow with its position (#1151).
+            if start_position >= total_records:
+                # the page starts past the end of the result set, which is
+                # known from the numberOfRecordsMatched counted above: the page
+                # is empty whatever the database would answer for it, and the
+                # empty page is answered without asking
+                result = []
+            else:
+                result = page_records(merged_page(
+                    (dataset_metadata_records_result,
+                     service_metadata_records_result,
+                     application_metadata_records_result),
+                    sort_specs, start_position, page_stop))
 
-            result = merged_records[start_position: heap_count]
-
-            next_record = heap_count + 1
+            next_record = page_stop + 1
             next_record = next_record if next_record < total_records else total_records
 
             records_returned = len(result)

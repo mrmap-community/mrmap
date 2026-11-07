@@ -119,6 +119,35 @@ def search_records(model, hierarchy_level: str):
     ).order_by("pk").distinct()
 
 
+#: The records of one kind, keyed by the value of the ``type`` queryable which
+#: selects them -- the mapping the three querysets above spell out one by one.
+RECORD_MODELS = {
+    HIERARCHY_LEVEL_DATASET: DatasetMetadataRecord,
+    HIERARCHY_LEVEL_SERVICE: ServiceMetadataRecord,
+    HIERARCHY_LEVEL_APPLICATION: ApplicationMetadataRecord,
+}
+
+
+def page_records(rows) -> list:
+    """The records the projected rows of a merged page are, as themselves.
+
+    :func:`csw.elementsets.merged_page` answers a page as rows projected over
+    all three record tables -- one of which names no record of the others --
+    and this turns the kind, pk, identifier and backup document each row
+    carries back into an unsaved instance of the model the row came out of. A
+    ``GetRecords`` reads the stored document off the instance and names it by
+    its identifier when that document cannot be served; both are fields the row
+    already carries, so nothing of the record is re-read.
+    """
+    records = []
+    for row in rows:
+        record = RECORD_MODELS[row["hierarchy_level"]](pk=row["pk"])
+        record.file_identifier = row["file_identifier"]
+        record.xml_backup_file = row["xml_backup_file"]
+        records.append(record)
+    return records
+
+
 def search_filter(constraint: Q) -> Q:
     """The constraint of a request, asked of a metadata record.
 

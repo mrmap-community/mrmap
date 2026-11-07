@@ -197,12 +197,12 @@ class HarvestingThroughputTest(TestCase):
             answered[str(unfinished.pk)]['recordsPerMinute'])
 
     def test_the_runs_of_a_catalogue_can_be_ordered_by_their_end(self):
-        """the end of a run is orderable, its creation is not a usable order
+        """the end of a run is an order of its own, beside the moment it was made
 
-        The harvesting never sets `date_created`, so the runs a harvesting made over
-        a year cannot be told apart by it. The screen which recommends a page size
-        asks the runs which finished last, so the end of a run has to be an order of
-        the endpoint (#692).
+        The screen which recommends a page size asks the runs which finished last, so
+        the end of a run has to be an order of the endpoint (#692). This stayed true
+        when #1079 filled the creation of a run: the two moments order a catalogue
+        differently whenever a harvest took its time, and both are answered.
         """
         oldest = self.new_run(done_at=now() - timedelta(days=2))
         newest = self.new_run(done_at=now() - timedelta(hours=1))

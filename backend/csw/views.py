@@ -1,4 +1,5 @@
 import datetime
+import logging
 from itertools import chain
 
 from csw.describe_record import (CSWDescribeRecordBuilder,
@@ -35,6 +36,8 @@ from registry.ows_lib.response.exceptions import (
     MissingServiceParameterException, ParsingErrorException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.settings import MRMAP_CSW_PK
+
+logger = logging.getLogger(__name__)
 
 # Table 65 note a of OGC 07-006r1: the KVP binding compares the value of the
 # REQUEST parameter case-insensitively. Dispatch -- and the request analysis in
@@ -245,6 +248,13 @@ class CswServiceView(View):
         cannot be served is what a client -- and the operator who has to restore
         it -- needs to know.
 
+        The report names the record and nothing else (#1150): the detail of the
+        failed read carries the absolute path of the media storage, which is
+        deployment-internal information an anonymous OGC caller must not
+        receive. The detail belongs to the server log, where the operator
+        restoring the file reads it; the standing answer to the damage itself
+        is the ``check_xml_backups`` management command.
+
         :return: the parsed documents, or the refusal naming the record of the
             one which cannot be served
         :rtype: list | :class:`~registry.ows_lib.response.exceptions.OGCServiceException`
@@ -254,11 +264,14 @@ class CswServiceView(View):
             try:
                 documents.append(etree.fromstring(record.xml_backup))
             except (OSError, ValueError, SyntaxError) as e:
+                logger.error(
+                    "the stored document of the record '%s' cannot be served: "
+                    "%s", record.file_identifier, e)
                 return DocumentUnavailable(
                     ogc_request=self.ogc_request,
                     message=(
                         "The stored document of the record "
-                        f"'{record.file_identifier}' cannot be served: {e}"))
+                        f"'{record.file_identifier}' cannot be served."))
         return documents
 
     def get_filter_constraint(self):

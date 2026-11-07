@@ -31,7 +31,7 @@ import {
 
 import ServiceAlertChips from "../ServiceShow/ServiceAlertChips";
 import ServiceDetailsCard from "../ServiceShow/ServiceDetailsCard";
-import { facetOf, filterForFacet, queryOfList, STATUS_FACETS } from "./alertFacets";
+import { facetOf, facetsFor, filterForFacet, harvestFacetsFor, queryOfList } from "./alertFacets";
 import { type ServiceListConfig } from "./config";
 import ServiceElementCount from "./ServiceElementCount";
 import ServiceSummaryTiles from "./ServiceSummaryTiles";
@@ -131,6 +131,12 @@ export const ServiceListExplorer = ({
   } = useListContext();
   const translate = useTranslate();
   const [selected, setSelected] = useState<Identifier>();
+  // the facets of this screen: the states every kind of service answers and the
+  // states of the harvesting which its resource declares as filters
+  const facets = useMemo(
+    () => facetsFor(config.harvestFilters),
+    [config.harvestFilters],
+  );
 
   // a service which is not part of the answer any more cannot be selected
   useEffect(() => {
@@ -157,7 +163,7 @@ export const ServiceListExplorer = ({
    * the user opened with the filter button.
    */
   const chooseFacet = (key: string) =>
-    setFilters(filterForFacet(filterValues, key), displayedFilters);
+    setFilters(filterForFacet(filterValues, key, facets), displayedFilters);
 
   /**
    * A group which narrows exclusively answers the click on the facet which is
@@ -190,11 +196,11 @@ export const ServiceListExplorer = ({
           <ToggleButtonGroup
             exclusive
             size="small"
-            value={facetOf(queryOfList(filter, filterValues))}
+            value={facetOf(queryOfList(filter, filterValues), facets)}
             onChange={changeFacet}
             aria-label={translate("serviceList.facetGroup")}
           >
-            {STATUS_FACETS.map((facet) => (
+            {facets.map((facet) => (
               <ToggleButton key={facet.key} value={facet.key}>
                 {translate(`serviceList.facets.${facet.key}`)}
               </ToggleButton>
@@ -202,7 +208,7 @@ export const ServiceListExplorer = ({
           </ToggleButtonGroup>
         </Stack>
       </Stack>
-      <ServiceSummaryTiles/>
+      <ServiceSummaryTiles harvestFacets={harvestFacetsFor(config.harvestFilters)} />
       <Box
         sx={{
           display: "grid",

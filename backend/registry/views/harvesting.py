@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from camel_converter import to_snake
 from django.db.models import Case, Count, F, Prefetch, Q, Sum, When
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import DurationField, FloatField
@@ -26,6 +27,7 @@ from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
     HarvestingJobSerializer, HarvestingLogSerializer,
     PeriodicHarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
+from rest_framework.filters import OrderingFilter
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -118,9 +120,11 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
     # `date_created` is orderable again: #1079 filled the column, which #1080 had withdrawn from
     # the sort offers while it was still empty. The end of a run stays orderable - the throughput
     # of a catalogue is measured by the runs which ended last, and a run which never ended has no
-    # end to order by (#692, #1080)
+    # end to order by (#692, #1080). The progress of a run joins the offer now that #1071 answers
+    # it: it is no column of the row but the annotation of the run's own work, which the request
+    # has to carry before anything can be ordered by it (`with_unhandled_records`) (#1071, #1130)
     ordering_fields = ["id", "date_created", "done_at", "string_representation", "phase",
-                       "total_records"]
+                       "total_records", "progress"]
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -352,28 +356,73 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
 
         return qs
 
+    def _progress_answers_asked(self):
+        """The answers of ``RUN_PROGRESS_FIELDS`` which this request reads.
+
+        The sparse fieldset names the answers a screen renders. A ``sort`` names
+        the answer the list is ordered by, and that one is read as much as a
+        column is: the offer of #1130 orders the runs of a catalogue by their
+        progress whether or not the screen shows a number of it, and an answer
+        which was not annotated is nothing to order by. The alerts list reads the
+        annotations of a request the very same way (`querys/alerts.py`).
+        """
+        asked = {
+            field for field in RUN_PROGRESS_FIELDS
+            if self.check_sparse_fields_contains(field)}
+        terms = {term.strip().lstrip("-")
+                 for term in self.request.GET.get("sort", "").split(",")}
+        # a client names an answer as the api names it, while the ordering is
+        # answered as the database names it - a term may arrive either way
+        asked |= {
+            field for field in RUN_PROGRESS_FIELDS
+            if field in terms or to_snake(field) in terms}
+        return asked
+
     def with_unhandled_records(self, qs):
         """Answer what a run reports about its own work.
 
         The steps, the progress and the measurements of a run are annotations, so
-        the sparse fieldset of the request decides which of them are answered: a
-        screen which shows no throughput pays for no aggregation of the records
-        (#692) and a screen which shows no measurement pays for no measurement
-        (#1071). The annotations themselves live with the aggregate
+        the request decides which of them are answered: a screen which shows no
+        throughput pays for no aggregation of the records (#692) and a screen
+        which shows no measurement pays for no measurement (#1071). What a client
+        asks the list to be ordered by belongs to that decision as much as what it
+        asks to see - an offered sort whose annotation was left out would answer
+        one request in the order it asked for and the next with an error (#1130).
+        The annotations themselves live with the aggregate
         (`HarvestingJobManager.with_run_progress`), because the websocket payload
         of a run is built from the very same numbers: a field which was only
         annotated here would answer once and empty with the first push.
         """
         return HarvestingJob.objects.with_run_progress(
-            qs, answer=[
-                field for field in RUN_PROGRESS_FIELDS
-                if self.check_sparse_fields_contains(field)])
+            qs, answer=self._progress_answers_asked())
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
         qs = self.with_unhandled_records(qs)
         return qs
+
+    def filter_queryset_without_ordering(self, queryset):
+        """Apply the filters of the request and leave out the order it asked for.
+
+        ``filter_queryset`` has to be given a queryset which carries the annotations
+        the sort names - an answer which cannot resolve its own order raises a
+        ``FieldError``. For the number of rows that requirement is a cost without a
+        benefit: the order of the rows changes nothing about how many they are, and
+        the answers of a run are read from the files it left behind, which the
+        overview of a deployment must not read a second time only to be told how many
+        runs it lists (#870, #1130).
+
+        The backends are asked in the order they are configured, exactly as
+        ``GenericAPIView.filter_queryset`` does; only the ordering is left out. The
+        page itself is still filtered with it, so an order which is not offered is
+        still answered with a bad request.
+        """
+        for backend in self.filter_backends:
+            if issubclass(backend, OrderingFilter):
+                continue
+            queryset = backend().filter_queryset(self.request, queryset, self)
+        return queryset
 
     def paginate_queryset(self, queryset, *args, **kwargs):
         """Count the jobs of the answer without the statistics of a job.
@@ -391,10 +440,14 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         of the request are applied to the queryset without them, which is the same
         answer without the annotations, and the page itself is still taken from the
         annotated queryset. The statistics cost one materialization per request.
+        Without the order of the request: the progress of a run joins the sort offer
+        of #1130 as an annotation, and the queryset before the statistics does not
+        carry it, so ordering it by the terms of the request would answer such a
+        request with an error instead of with a number of rows.
         """
         if getattr(queryset.query, '_with_ctes', None):
             queryset = queryset.with_cached_count(
-                self.filter_queryset(
+                self.filter_queryset_without_ordering(
                     super().get_queryset()).count())
         return super().paginate_queryset(queryset, *args, **kwargs)
 

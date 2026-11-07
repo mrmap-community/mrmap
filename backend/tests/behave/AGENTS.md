@@ -114,8 +114,8 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (72) | 72 | 0 | 0 | 0 |
-| scenarios | 528 | 0 | 0 | 0 |
+| features (73) | 73 | 0 | 0 | 0 |
+| scenarios | 536 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
 `definition_of_done.rst` is answered by the four counts. No scenario is skipped; how a refused
@@ -256,7 +256,7 @@ hand written method**, not one row per parameter:
 | GIS lookups `contains`, `covers`, `intersects`, `equals` | `registry/service/wms/layer/list_layers.feature`, `registry/service/wms/list_webmapservices.feature` | one whole-world polygon and one small rectangle is what separates the four; the counts differ per lookup |
 | choice and relation filters | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | a filter whose model field has choices answers `invalid_choice`, not an empty list |
 | hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/harvesting/filter_harvestingjobs.feature` (`is_running`, `has_import_error`, `unhandled_records`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
-| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
+| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/sort_harvestingjobs.feature` (`±progress`), `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
 
 Three rules make such a table worth having:
 
@@ -443,7 +443,11 @@ the column, and `sort=dateCreated` is asserted by the two runs `steps/harvesting
 rolls back in `list_harvestingjobs.feature` — not from a fixture row, because the loaded jobs belong
 to two different catalogues while the harvesting screens are about the runs of one. That assertion
 is about the endpoint: the card itself still orders by `doneAt`, which is the value its throughput
-measure is about.
+measure is about. The `sort=progress` of #1130 is asserted by `sort_harvestingjobs.feature`, which
+loads the states fixture rather than joining `list_harvestingjobs.feature`: the progress of a run is
+an annotation of its steps (#1071), and only the states fixture answers a run which is half way
+through them — `test_harvesting_states.json` is removed again by `after_feature`, so the counts of
+the `test_csw.json` feature stay what they are.
 
 To re-check that list without a database:
 

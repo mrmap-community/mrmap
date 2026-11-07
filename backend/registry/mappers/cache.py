@@ -1,7 +1,10 @@
+import logging
 import threading
 import time
 from collections import OrderedDict
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 
 # -------------------------------------------------------------------
@@ -70,8 +73,19 @@ class GlobalXmlCache:
 
     @classmethod
     def _cleanup_loop(cls):
+        # Every other caller mutates cls._data under cls._lock, and
+        # _cleanup_expired_locked documents that it must hold it: iterating
+        # cls._data.items() without the lock lets a concurrent set() raise
+        # "OrderedDict mutated during iteration" and kill this thread (#1028).
+        # A failing cycle is logged and does not end the loop either - the
+        # thread must not depend on unrelated set() traffic to be resurrected.
         while not cls._stop_event.wait(cls._cleanup_interval):
-            cls._cleanup_expired_locked()
+            try:
+                with cls._lock:
+                    cls._cleanup_expired_locked()
+            except Exception:
+                logger.exception(
+                    "GlobalXmlCache cleanup cycle failed, retrying next interval")
 
     @classmethod
     def stop_cleanup_thread(cls):
@@ -86,7 +100,9 @@ class GlobalXmlCache:
         with cls._lock:
             cls._data[key] = (value, expire_at)
             cls._data.move_to_end(key)
-        cls._start_cleanup_thread()
+            # inside the lock: the alive-check and the start must be atomic,
+            # otherwise concurrent set() calls can start two cleanup threads
+            cls._start_cleanup_thread()
 
     @classmethod
     def get(cls, key, default=None):

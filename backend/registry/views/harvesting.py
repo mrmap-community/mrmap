@@ -115,11 +115,11 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         "create": CreateHarvestingJobSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # the runs which finished are ordered by their end: the harvesting never sets the creation of
-    # a run, so sorting the runs by `date_created` does not group them (a run made last night can
-    # be answered before one made last week); until the harvesting fills the creation (#1079),
-    # the sort offers name only the values which really order the runs (#692, #1080)
-    ordering_fields = ["id", "done_at", "string_representation", "phase",
+    # `date_created` is orderable again: #1079 filled the column, which #1080 had withdrawn from
+    # the sort offers while it was still empty. The end of a run stays orderable - the throughput
+    # of a catalogue is measured by the runs which ended last, and a run which never ended has no
+    # end to order by (#692, #1080)
+    ordering_fields = ["id", "date_created", "done_at", "string_representation", "phase",
                        "total_records"]
     filterset_class = HarvestingJobFilterSet
 

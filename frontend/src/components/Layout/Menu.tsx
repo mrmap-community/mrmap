@@ -93,7 +93,7 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
                                     key={resource.name}
                                     to={`/${resource.name}`}
                                     state={{ _scrollToTop: true }}
-                                    primaryText={resource.options?.label ?? resource.name}
+                                    primaryText={translate(resource.options?.label ?? resource.name)}
                                     leftIcon={createElementIfDefined(resource.icon)}
                                     dense={dense}
                                 />

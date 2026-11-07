@@ -15,8 +15,8 @@ already running keeps its resources.
 Classes of job
 --------------
 `--need stack` (default) one heavy Docker Compose test stack: postgis, redis,
-    mapserver plus a one-off test container. Default, because every check
-    AGENTS.md documents is a stack check.
+    mapserver plus a one-off test container. Default, because most checks
+    AGENTS.md documents are stack checks.
 `--need suite` one stack that runs the *full* Django suite (--parallel=4, the
     command docker-compose.dev.yml defines). Same stack shape, measurably
     heavier: #1055 saw the container cgroup peak at 12.1 GiB for such a run,

@@ -5,7 +5,7 @@
 Agent Capacity And Cgroups
 ==========================
 
-.. sidebar:: Issue #1053 (epic #1051)
+.. sidebar:: Issues #1053, #1054 (epic #1051)
 
    The gate is ``scripts/agent_capacity``; its offline checks are
    ``scripts/test_agent_capacity.py`` (no docker, no network, no real cgroup
@@ -59,8 +59,10 @@ What the gate measures
      - is the cgroup at its ceiling
    * - stacks
      - ``docker ps`` labels ``com.docker.compose.project`` starting with
-       ``mrmap-agent-``
-     - how many disposable test stacks are already up
+       ``mrmap-agent-`` or ``mrmap-ao-``
+     - how many disposable test stacks are already up - both prefixes agent
+       stacks actually carry in the field: the repository naming convention
+       and the Agent Orchestrator worktree name this host's wrapper pins
    * - processes
      - ``/proc/<pid>/cmdline`` of the agent executable (``opencode`` by default)
      - how many workers are already running
@@ -89,21 +91,32 @@ measured and a test stack can never be handed memory the container does not
 have. Swap is deliberately not counted - a stack that has reached swap misses
 its own timeouts.
 
-Two classes of job
-==================
+Three classes of job
+====================
 
 The gate decides about one *prospective* job at a time, and the job matters:
 
 .. code-block:: console
 
    $ scripts/agent_capacity                  # a heavy Compose test stack
+   $ scripts/agent_capacity --need suite     # a stack running the FULL suite
    $ scripts/agent_capacity --need process   # another agent worker, no stack
    $ scripts/agent_capacity --need none      # report only, no class need
    $ scripts/agent_capacity --json           # the same verdict for a program
+   $ scripts/agent_capacity --wait 900       # queue for a refusal to clear
 
 A stack needs the memory of postgis, redis, mapserver and a one-off test
 container at once; an agent process needs a runtime and a context. ``stack`` is
-the default, because every check ``AGENTS.md`` documents is a stack check.
+the default, because most checks ``AGENTS.md`` documents are stack checks - but
+it is sized from a *targeted* run. #1055 measured what the full backend suite
+costs in the same stack shape: ``--parallel=4`` runs the 1312 tests in 225 s
+and put the container's memory cgroup at 12.1 GiB, where a targeted module
+never comes close. A caller that means to run the whole suite asks
+``--need suite`` so the gate compares against ``AGENT_SUITE_MIN_MEM_GB``
+instead of the lighter number, and a second heavy job is refused *by the memory
+rule* while the suite is charging - which is the arithmetic of the section
+"Why #1054's acceptance is out of reach at 16 GiB" below, turned into an
+admission decision instead of an OOM.
 
 "Prospective" is the part that was wrong before: the reported counts are the
 jobs **already running**, and the job being asked about is added before the
@@ -113,7 +126,13 @@ beside three.
 
 Admission never kills. There is no code path that signals another job - the
 gate's only response to pressure is to refuse the newcomer, and the verdict
-flips back on its own as soon as the charge or the pressure drops.
+flips back on its own as soon as the charge or the pressure drops. ``--wait N``
+uses that: it turns one refusal into a bounded queue, re-reading the metrics
+for up to N seconds and exiting 0 the moment a verdict says ``fits``. A job
+that can afford to be late then does not have to poll the gate from its own
+loop, and waiting is still admission control - a running job is never
+displaced for the newcomer. Progress lines go to stderr, so ``--json`` stdout
+stays exactly one object.
 
 Thresholds
 ==========
@@ -132,7 +151,11 @@ without editing the file:
      - most 15-minute load average per core
    * - ``AGENT_STACK_MIN_MEM_GB``
      - 6
-     - effective GiB one heavy Compose stack needs
+     - effective GiB one heavy Compose stack needs, sized from a targeted run
+   * - ``AGENT_SUITE_MIN_MEM_GB``
+     - 8
+     - effective GiB a ``--need suite`` stack needs: the same stack running
+       the full unit suite, which #1055 measured well above a targeted run
    * - ``AGENT_PROCESS_MIN_MEM_GB``
      - 2
      - effective GiB one agent process needs
@@ -155,7 +178,8 @@ without editing the file:
      - least free GiB on ``/``
    * - ``AGENT_MAX_STACKS``
      - 3
-     - most running ``mrmap-agent-*`` stacks, counted prospectively
+     - most running agent stacks (``mrmap-agent-*``, ``mrmap-ao-*``), counted
+       prospectively
    * - ``AGENT_MAX_PROCESSES``
      - 6
      - most running agent processes, counted prospectively
@@ -398,6 +422,67 @@ What it costs, and this is the larger half of the decision:
      - the recorded value, one file
      - the daemon wiring and the socket
 
+Could Option B run without an operator? Measured on the agent host
+-------------------------------------------------------------------
+
+The 2026-11-05 operator decision left one open half: an agent, without admin
+rights, evaluate whether Option B is implementable under its own permissions.
+The answer is measured, not argued, and it is no - in a way that is worth
+writing down because it is a property of the cgroup layout, not of missing
+tooling:
+
+- The socket the agent holds addresses a rootful dockerd running *inside* the
+  agent container itself: ``docker info`` names the daemon after the container,
+  its process is a child of the container's PID namespace, and its cgroup
+  ``/sys/fs/cgroup/docker`` is a **child** of the 16 GiB root (``memory.max``
+  inside it reads ``max``, which means "bounded by the parent's charge", not
+  "unbounded"). The stacks were always billed there - the verdict's
+  ``docker 2.1G of it`` is this same fact.
+- Rootless docker cannot be substituted: there is no user systemd session (PID
+  1 is the container's startup script and ``systemctl --user`` fails), and
+  ``newuidmap``/``newgidmap`` are absent, so the uid remapping cannot even
+  start although the ``subuid`` ranges exist. Installing the pieces needs root
+  inside the container, which is not an agent operation.
+- No host daemon socket is mounted in, which is exactly why the nested daemon
+  above is the only one addressable - and why the privilege cost of Option B
+  is not even on the table from here.
+- The container has its own cgroup namespace (``/proc/self/cgroup`` reads
+  ``0::/init.scope`` and the ceiling appears as the mounted root's
+  ``memory.max``). *Every* daemon an agent can start here - rootful, rootless,
+  systemd-scoped - is born as a descendant of that root, and a cgroup child
+  can never use memory its parent's ceiling does not carry. Relocating the
+  daemon means leaving the container, which is the host action the runbook is
+  about. A rootless daemon inside would share the ceiling verbatim and must
+  not be presented as isolation.
+- Self-raising the ceiling is equally out of an unprivileged agent's reach:
+  the namespace root's ``memory.max`` is mode ``0644`` and owned by a uid that
+  maps to no user inside (``nobody`` under the container's user namespace), so
+  writing the same value back as the agent user answers ``EPERM`` (measured -
+  probing with the *unchanged* value is the only probe that cannot change
+  anything, which is why it is safe). Whether root *inside* the container could
+  lift the limit depends on the hidden host-side parent and is moot besides:
+  the operator decision of 2026-11-05 pins the 16 GiB and container root is not
+  an agent permission.
+
+So Option B is not a feature an agent failed to build; under agent permissions
+no daemon placement escapes the ceiling. An independent read-only probe from a
+second agent session the same evening corroborated every element from a cold
+start: session and dockerd (PID 97) share one ``/init.scope`` under the 16 GiB
+``memory.max`` (peak at the ceiling, ``oom_kill`` 11); test stacks charge under
+that ceiling through ``/sys/fs/cgroup/docker``; the cgroupfs mount's root is
+root-owned with no delegation; ``/run/user`` is empty (no user systemd to scope
+a rootless daemon into); the only socket on the machine is the nested daemon's
+- the agent's group membership on it is why stacks work at all, and it is the
+daemon-in-this-container this section is about. One number that probe read
+deserves precision: the docker cgroup holds ~2.5 GiB of buildkit charge while
+idle, but the sampler in the section below saw that subtree's anon stay at or
+below 0.3 GiB the whole time - it is overwhelmingly page cache, which the gate
+deliberately does not bill, and clearing it would violate the shared-image
+rules for no admission gain. The repository-side answer is the one in this
+document: keep the stacks inside the session's accounting - the only place the
+gate can measure them truthfully - and let the gate's numbers decide how many
+jobs the ceiling carries.
+
 Why #1054's acceptance is out of reach at 16 GiB
 ------------------------------------------------
 
@@ -502,6 +587,135 @@ lifetime of the cgroup, not since the change, so report the difference from
 step 1 - and a recreated container starts at zero, which makes its absolute peak
 incomparable with the old container's.
 
+Validated under the fixed ceiling: what 16 GiB carries
+------------------------------------------------------
+
+The operator decision of 2026-11-05 took Option A off the table - the host is
+not the agent operator's to change - and asked what is achievable *within* the
+fixed 16 GiB, with measured findings kept apart from proposed settings. The
+protocol above was run on the same container on 2026-11-07: every stack started
+through the host's exclusive agent Docker-test slot (one stack at a time, the
+slot itself runs the gate), ``memory.stat`` sampled every 5-10 s inside the
+slot, and ``agent_capacity`` asked before every start - each verdict line below
+is that start's admission record.
+
+Step 1, inside (the outside half belongs to the host operator): limit
+``17179869184`` (16.0 GiB), ``memory.peak`` at the ceiling, ``memory.events``
+``oom 153 / oom_kill 11`` - cumulative counters, and they did not move during
+any run below. The unreclaimable session charge fluctuated with how many
+OpenCode sessions were live on this host: 7.10-10.61 GiB observed, where the
+2.4 GiB baseline quoted elsewhere in this page is the single-session figure.
+Effective headroom therefore sat between 3.4 and 6.9 GiB - around the 6 GiB a
+stack is admitted on, and always under the suite's 8: most newcomers were
+queued or refused, the one heavy run of this experiment was admitted at 6.03
+GiB, and the stacks started beside it found room as the fleet decayed. This is
+the designed production behaviour of this ceiling, not an incident.
+
+The suite arm of the protocol makes that concrete with waiting rather than
+peaks: three bounded ``--need suite --wait`` windows queued on 2026-11-07 -
+7200 s and 14400 s on the fleet's own idle moments (1436 polls, every one
+refused on ``mem`` alone), then a coordinated window in which the
+orchestrating agent quiesced its own spawns and held its live workers off new
+stacks; its queue and the queue's logger ran 19:18:40Z - 19:50:06Z, past the
+window's timer, until the experiment was stopped by hand. The logger recorded
+17,033 gate verdicts through it: effective headroom peaked at 6.90 GiB
+against the 8 GiB the suite class requires, because the quiesced fleet still
+held a ``committed`` floor of 7.10 GiB - and two stacks dispatched from the
+issue queue started inside the window anyway (a spawn-quiesce cannot recall a
+run already in flight) and pushed committed to 8.29 GiB at 19:37, the
+contamination visible from inside the queue. No window reached its
+``fits``. A full suite therefore does not coexist with a fleet of this size on
+this ceiling; it fits in genuinely deep-idle hours or not at all. That is the
+host-side half of #1054's arithmetic, measured live through the queue's own
+verdicts, and it arrived without a single new OOM event, which is what the
+gate is for.
+
+.. list-table:: 2026-11-07 runs, each in its own disposable stack
+
+   * - Arm
+     - Wall clock
+     - Max mid-run charge
+     - Admission before the start
+     - ``oom_kill`` delta
+   * - targeted Django module (5 tests)
+     - 89 s incl. stack bring-up and teardown
+     - committed 9.09 GiB (0.54 GiB above the pre-run baseline); nested docker
+       ``memory.current`` 3.53 -> 4.05 GiB, its anon peaking at 0.28 GiB
+     - ``fits``: effective 6.03 GiB against ``need 6``
+     - 0 (stayed at 11)
+   * - full unit suite, ``--parallel=4``
+     - never started (see text)
+     - not measured; #1055's 12.09 GiB cgroup peak remains the sizing source
+     - refused in all three windows: effective ceiling 6.90 against ``need 8``
+     - n/a - nothing ran
+
+What these readings already establish:
+
+- **A targeted stack barely charges.** The whole stack - postgis, redis,
+  mapserver, one-off container - peaked 0.54 GiB above the pre-run committed
+  baseline; the rest of what it touched was page cache, which the gate does not
+  bill. The 6 GiB ``stack`` requirement is margin, not measurement, and that is
+  its correct role.
+- **What actually holds the ceiling is not the stacks.** Read while the suite
+  queue was waiting, the ~8 GiB of unreclaimable charge broke down as the
+  OpenCode server fleet (~4.9 GiB RSS across ``opencode`` processes), the
+  Agent Orchestrator app and daemon (~2.4 GiB), the nested dockerd (~0.9 GiB)
+  and the container's desktop stack - ``selkies``, ``Xvfb``, window manager
+  (~1.0 GiB). None of it is test-stack memory, and none of it is inside this
+  repository's reach; the honest "avoidable consumption" list is a host-side
+  one (a headless agent container, a bound on concurrently served sessions).
+  That list has a measured size: the same host with ten concurrent OpenCode
+  sessions committed 8.2 GiB and admitted no stack at all; after the
+  orchestrator released seven of them (2026-11-07, all delivered work
+  first), ``committed`` fell to a quoted 6.15 GiB - an effective 7.85 GiB,
+  still short of the suite's 8 - and grew back to nine sessions before any
+  window reached its ``fits``. The fleet - not any environment default in
+  the repository - is the lever, which is the host-side argument of this
+  page stated with tonight's numbers.
+  The gate's response to this baseline is the one it was built for: it charges
+  the baseline and admits the stack against what is left, not against the
+  62 GiB ``MemAvailable`` claims.
+- **The suite-class reading the protocol asks for could not be taken, and the
+  numbers that remain are honest about why.** Step 5's mid-suite
+  ``memory.stat`` sample exists only once step 4 admits, and step 4 never
+  admitted on this host: the quiesced fleet's committed floor of 7.10 GiB sits
+  above the 6.0 GiB an 8 GiB ``need`` must leave free under a 16 GiB ceiling.
+  The default ``AGENT_SUITE_MIN_MEM_GB=8`` therefore rests on #1055's
+  12.09 GiB measured peak net of its page-cache allowance, not on a fresh
+  mid-suite reading; a host where the suite does admit should record the wall
+  clock, the max mid-run committed and the mid-suite nested-docker anon peak
+  in the table above. What the queue did establish while waiting is the
+  serialisation consequence: the *memory rule alone* refuses a second heavy
+  job while a suite charges - a suite admitted at deep idle leaves effective
+  headroom below both the 8 GiB suite need and the 6 GiB stack need for the
+  minutes it runs - so suite-class jobs queue rather than overlap, and the
+  expected wall-clock wait is the sum of the queue ahead plus one own wait. A
+  runner that must guarantee a slot should hold the exclusive Docker-test
+  slot across retries rather than re-queue behind itself. Raising
+  ``AGENT_PROCESS_MIN_MEM_GB`` to pin the fleet floor under 6.0 GiB was
+  evaluated and left to the operator: at the measured ~0.49 GiB median per
+  live session it would cap the fleet near six sessions, which the nightly
+  load does not respect, so it is fleet policy, not a gate default.
+
+The configuration the numbers support, with rollback: every setting is an
+environment variable on the agent session or the supervisor that starts it -
+nothing host-level, and removing the variable restores the gate's own default.
+
+.. code-block:: ini
+
+   AGENT_MAX_STACKS=1        # conservative serialisation (the existing advice)
+   AGENT_SUITE_MIN_MEM_GB=8  # the suite class; the gate default today
+
+``AGENT_MAX_STACKS=1`` stays the blunt safety cap it always was, and the flock
+of this host's Docker-test slot already serialises stacks one deeper. What the
+2026-11-07 readings add is the knowledge that it is not the only honest
+setting: with the suite class in place the *memory rule itself* refuses a
+second heavy job while a suite is charging - the arithmetic of the bullet
+above, arriving before any counter does - while two targeted stacks,
+charging half a GiB each, are precisely the concurrency the operator
+decision allowed. An operator who prefers the blunt cap sets it; the rollback
+is one unset variable; the verdict line always names which rule refused.
+
 If the ceiling is not raised
 ----------------------------
 
@@ -513,8 +727,12 @@ pressure drops. It does not throttle, pause, renice or kill, and it does not
 pretend to share - under a 16 GiB ceiling the honest configuration is one heavy
 stack at a time. Throughput suffers and the OpenCode server stops dying. That
 trade is a human's to reverse, and this runbook is what makes reversing it an
-informed decision: the acceptance of #1054 stays open until someone applies the
-change on the host and reads the protocol above back.
+informed decision. The 2026-11-05 operator decision for this host *is* this
+option: the ceiling stays, and what was asked for in return - a measured
+account of what the fixed ceiling carries - is the section above. The host-side
+half of #1054's acceptance, OpenCode surviving two to three concurrent heavy
+jobs, stays open until someone applies a ceiling change and reads the protocol
+back; a job that reverses this trade reverses it with these numbers in hand.
 
 Who asks the gate
 =================
@@ -529,4 +747,6 @@ person at a shell - asks the same gate rather than re-implementing a policy:
 ``--stacks``/``--processes`` to pass the counts a caller already tracks in its own
 state, so the number that decides is the number of jobs it actually has.
 ``evaluate()`` is importable for a caller that would rather not fork. Import it with
-``importlib`` - the file has no ``.py`` suffix, like ``scripts/wip``.
+``importlib`` - the file has no ``.py`` suffix, like ``scripts/wip``. A supervisor that
+would otherwise poll the gate in a shell loop passes ``--wait N`` instead: one process
+that queues for room, prints progress on stderr, and exits with the final verdict.

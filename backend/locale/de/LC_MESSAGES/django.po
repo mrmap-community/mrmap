@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 13:08+0100\n"
+"POT-Creation-Date: 2026-11-07 19:34+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,7 +258,7 @@ msgstr "entspricht regulärem Ausdruck"
 msgid "matches regex (case-insensitive)"
 msgstr "entspricht regulärem Ausdruck (Groß-/Kleinschreibung egal)"
 
-#: extras/serializers.py:135 registry/serializers/harvesting.py:44
+#: extras/serializers.py:135 registry/serializers/harvesting.py:45
 #: system/serializers.py:50
 msgid "time until next run"
 msgstr "Zeit bis zum nächsten Lauf"
@@ -313,7 +313,7 @@ msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:69
-#: registry/models/harvest.py:127 registry/models/harvest.py:1417
+#: registry/models/harvest.py:127 registry/models/harvest.py:1430
 #: registry/models/monitoring.py:110 registry/models/monitoring.py:358
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -377,20 +377,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1433
+#: notify/models.py:159 registry/models/harvest.py:1446
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:1418
+#: notify/models.py:171 registry/models/harvest.py:1431
 #: registry/models/monitoring.py:359
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1438
+#: notify/models.py:175 registry/models/harvest.py:1451
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1439
+#: notify/models.py:176 registry/models/harvest.py:1452
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -1016,7 +1016,7 @@ msgstr ""
 "hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
 "bewegt hat"
 
-#: registry/models/harvest.py:308 registry/serializers/harvesting.py:182
+#: registry/models/harvest.py:308 registry/serializers/harvesting.py:225
 msgid "import stalled at"
 msgstr "Import steht still seit"
 
@@ -1081,22 +1081,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1459 registry/models/metadata.py:613
+#: registry/models/harvest.py:1472 registry/models/metadata.py:613
 #: registry/models/monitoring.py:90 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
 #: registry/serializers/service.py:987 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1460
+#: registry/models/harvest.py:1473
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1487
+#: registry/models/harvest.py:1500
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1488
+#: registry/models/harvest.py:1501
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -2312,23 +2312,56 @@ msgstr ""
 "Erntevorgang dauert: die abgeschlossenen Erntevorgänge dauerten "
 "durchschnittlich %(duration)s."
 
-#: registry/serializers/harvesting.py:25
+#: registry/serializers/harvesting.py:26
 msgid "The internal MrMap catalogue cannot be harvested."
 msgstr "Der interne MrMap-Katalog darf nicht geharvestet werden."
 
-#: registry/serializers/harvesting.py:39 registry/serializers/update.py:407
+#: registry/serializers/harvesting.py:40 registry/serializers/update.py:407
 msgid "Catalogue Service"
 msgstr "Katalogdienst"
 
-#: registry/serializers/harvesting.py:40
+#: registry/serializers/harvesting.py:41
 msgid "the catalogue service for that this configuration is."
 msgstr "der Katalogdienst, für den diese Konfiguration ist."
 
-#: registry/serializers/harvesting.py:132
+#: registry/serializers/harvesting.py:47
+msgid "next run at"
+msgstr "Nächster Lauf"
+
+#: registry/serializers/harvesting.py:49
+msgid ""
+"the moment this schedule is expected to fire next, as an aware instant: the "
+"same rule which decides that a schedule is overdue. A schedule which is "
+"disabled, expired or without a crontab answers nothing."
+msgstr ""
+"der Zeitpunkt, zu dem dieser Zeitplan voraussichtlich als Nächstes "
+"ausgelöst wird, als vorzeichenbehafteter Zeitpunkt: dieselbe Regel, die "
+"entscheidet, dass ein Zeitplan überfällig ist. Ein Zeitplan, der "
+"deaktiviert oder abgelaufen ist oder keinen Crontab hat, beantwortet nichts."
+
+#: registry/serializers/harvesting.py:55
+msgid "last run at"
+msgstr "Letzter Lauf"
+
+#: registry/serializers/harvesting.py:57
+msgid "the moment this schedule last fired; nothing, while it never fired."
+msgstr ""
+"der Zeitpunkt, an dem dieser Zeitplan zuletzt ausgelöst wurde; nichts, "
+"solange er nie ausgelöst wurde."
+
+#: registry/serializers/harvesting.py:62
+msgid "total run count"
+msgstr "Gesamtanzahl der Läufe"
+
+#: registry/serializers/harvesting.py:63
+msgid "how often this schedule fired in all."
+msgstr "wie oft dieser Zeitplan insgesamt ausgelöst wurde."
+
+#: registry/serializers/harvesting.py:175
 msgid "records per minute"
 msgstr "Datensätze pro Minute"
 
-#: registry/serializers/harvesting.py:134
+#: registry/serializers/harvesting.py:177
 msgid ""
 "how many records this run stored per minute of measured work, at the step "
 "size it asked the catalogue with. Only a run which finished answers one, "
@@ -2345,11 +2378,11 @@ msgstr ""
 "deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen miteinander, "
 "sie ist kein Versprechen über einen einzelnen Lauf."
 
-#: registry/serializers/harvesting.py:143
+#: registry/serializers/harvesting.py:186
 msgid "elapsed seconds"
 msgstr "verstrichene Sekunden"
 
-#: registry/serializers/harvesting.py:145
+#: registry/serializers/harvesting.py:188
 msgid ""
 "how long this run has been working, in seconds: from the moment the run was "
 "made to its end, or to the moment of the request while it still works. The "
@@ -2364,11 +2397,11 @@ msgstr ""
 "erste Zeile seiner Historie; ein Lauf, der zu keinem beantwortbaren Moment "
 "angelegt wurde, beantwortet nichts."
 
-#: registry/serializers/harvesting.py:152
+#: registry/serializers/harvesting.py:195
 msgid "records per minute so far"
 msgstr "Datensätze pro Minute bisher"
 
-#: registry/serializers/harvesting.py:154
+#: registry/serializers/harvesting.py:197
 msgid ""
 "how many records per minute this run has stored so far, against the time it "
 "has worked: the records it downloaded while it downloads, the records it "
@@ -2384,11 +2417,11 @@ msgstr ""
 "er misst, ist der beobachtete Lauf, nicht die Größe der Seiten, mit der eine "
 "Ernte fragt."
 
-#: registry/serializers/harvesting.py:161
+#: registry/serializers/harvesting.py:204
 msgid "estimated seconds remaining"
 msgstr "geschätzte verbleibende Sekunden"
 
-#: registry/serializers/harvesting.py:163
+#: registry/serializers/harvesting.py:206
 msgid ""
 "how long this run estimates itself to still take, in seconds: its elapsed "
 "time against the progress its steps already answer, scaled to the part which "
@@ -2403,11 +2436,11 @@ msgstr ""
 "bekannt sind, der noch nichts getan hat oder der geschlossen ist, "
 "beantwortet nichts, weil dann nichts bekannt oder nichts übrig ist."
 
-#: registry/serializers/harvesting.py:170
+#: registry/serializers/harvesting.py:213
 msgid "expected done at"
 msgstr "voraussichtliches Ende"
 
-#: registry/serializers/harvesting.py:172
+#: registry/serializers/harvesting.py:215
 msgid ""
 "the moment this run is expected to end: its `estimatedSecondsRemaining` "
 "added to the moment of the request. Where no estimate is answered, no end is "
@@ -2417,7 +2450,7 @@ msgstr ""
 "`estimatedSecondsRemaining` addiert auf den Moment der Anfrage. Wo keine "
 "Schätzung beantwortet wird, wird auch kein Ende beantwortet."
 
-#: registry/serializers/harvesting.py:184
+#: registry/serializers/harvesting.py:227
 msgid ""
 "since when the import watchdog sees the backlog of this run untouched: as "
 "many records are waiting for their import as on the watchdog's look before. "
@@ -2429,7 +2462,7 @@ msgstr ""
 "Watchdogs zuvor. Ein Lauf, der importiert, beantwortet nichts, und was der "
 "Watchdog gegen den Stillstand getan hat, steht im Ernteprotokoll des Laufs."
 
-#: registry/serializers/harvesting.py:233
+#: registry/serializers/harvesting.py:276
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 

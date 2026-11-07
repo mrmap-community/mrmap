@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from extras.scheduling import next_run_expected_at
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
                                 TimeUntilNextRunMixin)
@@ -42,14 +43,56 @@ class PeriodicHarvestingJobSerializer(
     )
     scheduling = CrontabStringField(source='crontab')
     time_until_next_run = SerializerMethodField(label=_("time until next run"))
+    next_run_at = SerializerMethodField(
+        label=_("next run at"),
+        help_text=_(
+            "the moment this schedule is expected to fire next, as an aware "
+            "instant: the same rule which decides that a schedule is overdue. "
+            "A schedule which is disabled, expired or without a crontab "
+            "answers nothing."),
+        allow_null=True)
+    last_run_at = DateTimeField(
+        label=_("last run at"),
+        help_text=_(
+            "the moment this schedule last fired; nothing, while it never "
+            "fired."),
+        read_only=True,
+        allow_null=True)
+    total_run_count = IntegerField(
+        label=_("total run count"),
+        help_text=_("how often this schedule fired in all."),
+        read_only=True)
 
     class Meta:
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
-                  'time_until_next_run', 'enabled')
+                  'time_until_next_run', 'next_run_at',
+                  'enabled', 'last_run_at', 'total_run_count')
 
     def validate_service(self, value):
         return validate_harvestable_service(value)
+
+    def _answers_next_run(self, name):
+        """Whether the request of these schedules asks the named next-run answer.
+
+        Both the human reading and the instant of the next run are decided in
+        python, so the sparse fieldset of the request decides whether they are
+        calculated at all: a screen which shows no next run pays for no
+        estimate (#1082, cf. the annotations of the harvesting jobs).
+        """
+        view = self.context.get("view")
+        check = getattr(view, "check_sparse_fields_contains", None)
+        return True if check is None else check(name)
+
+    def get_time_until_next_run(self, obj):
+        if not self._answers_next_run("timeUntilNextRun"):
+            return None
+        return super().get_time_until_next_run(obj)
+
+    def get_next_run_at(self, obj):
+        if not self._answers_next_run("nextRunAt"):
+            return None
+        return next_run_expected_at(obj)
 
 
 class HarvestedMetadataRelationSerializer(

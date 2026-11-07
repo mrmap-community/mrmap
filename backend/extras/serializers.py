@@ -150,7 +150,11 @@ class TimeUntilNextRunMixin:
         remaining = schedule.remaining_estimate(
             now_tz) if schedule is not None else None
         if remaining is None:
-            return "unbekannt"
+            # A schedule which answers no next run answers nothing - and never a
+            # word. A translated word inside the JSON:API answer of an English
+            # deployment is a bug on its own right: no client can translate it,
+            # and the screen which shows the attribute names its empty (#1082).
+            return None
 
         total_seconds = int(remaining.total_seconds())
         hours, remainder = divmod(total_seconds, 3600)

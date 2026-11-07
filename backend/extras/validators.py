@@ -119,3 +119,28 @@ def geometry_is_empty(geometry: GEOSGeometry):
     """Raise ValidationError on empty GEOSGeometry objects"""
     if geometry.empty:
         raise ValidationError(_("Empty geometry collections are not allowed."))
+
+
+def geometry_type_is(*geometry_types: str):
+    """Return a validator rejecting geometries of any other type.
+
+    Args:
+        geometry_types: the accepted geometry types, e.g. ``"MultiPolygon"``.
+                        Compared like :attr:`GEOSGeometry.geom_type` answers it.
+
+    A geometry column typed ``MULTIPOLYGON`` refuses every other type when the row is
+    written. That refusal is a database error, so a client sending a ``Polygon`` would
+    get a 500 for something the serializer can answer with a 400.
+    """
+    def validate_geometry_type(geometry: GEOSGeometry):
+        if geometry.geom_type.upper() not in (t.upper() for t in geometry_types):
+            raise ValidationError(
+                _("The geometry must be of type %(expected)s, but is of type %(actual)s."),
+                code="invalid_geometry_type",
+                params={
+                    "expected": " or ".join(geometry_types),
+                    "actual": geometry.geom_type,
+                },
+            )
+
+    return validate_geometry_type

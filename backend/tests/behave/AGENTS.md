@@ -418,7 +418,9 @@ any scenario. Nothing covers the WFS and CSW update jobs and settings, `layer-ma
 `featuretype-mappings`, the `*-proxy-settings` and `*-authentication` records, the monitoring probes,
 probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-metadata`,
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
-and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
+and `historical-featuretypes`. Of the proxy settings only the WMS add endpoint answers a scenario
+(`add_webmapserviceproxysettings.feature`, since #1148); its update, list and retrieve endpoints and
+the whole WFS side are still open. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
 since #855 and every refused `/csw` request since #908 (see above); #907 added
 `features/csw/describe_record.feature` for the mandatory `DescribeRecord` and
 `features/csw/operation_dispatch.feature` for the unknown-operation fallback and

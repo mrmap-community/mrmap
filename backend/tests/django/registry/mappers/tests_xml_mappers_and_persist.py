@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from django.test import TestCase
 from lxml import etree
+from registry.enums.iso import CategoryChoices
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
+from registry.mappers.parsers.iso import parse_topic_category
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.xml_mapper import XmlMapper
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
@@ -698,6 +700,91 @@ class ServiceOwnershipRegressionTest(TestCase):
             self.CAPABILITIES / 'csw/2.0.2.xml', 'AAA second service', rename_children=True)
 
         self._assert_owned_operation_urls(first, second)
+
+
+class TopicCategoryEmptyElementRegressionTest(TestCase):
+    """An empty <gmd:MD_TopicCategoryCode/> is a missing value, not an import
+    error (#989).
+
+    Of the 146 GDI-BW records one harvest could not import, four fifths carried
+    the topic category code without any character content. The parser called
+    .strip() on the None lxml answers for such an element's text, and that
+    AttributeError aborted the mapping of the whole record. Whatever the parser
+    decides about a category it cannot read, it may cost the category at most,
+    never the record.
+    """
+
+    XML = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+    NAMESPACES = {'gmd': 'http://www.isotc211.org/2005/gmd'}
+
+    def _record_with_empty_topic_category(self, text):
+        """The dataset fixture with its category code carrying `text`."""
+        root = etree.fromstring(self.XML.read_bytes())
+        root.find('.//gmd:MD_TopicCategoryCode', self.NAMESPACES).text = text
+        mapper = MDMetadataXmlMapper.from_xml(root)[0]
+        mapper.xml_to_django()
+        PersistenceHandler(mapper).persist_all()
+        return DatasetMetadataRecord.objects.get(
+            file_identifier='de.dwd.geoserver.fach.RBSN_FF')
+
+    def test_an_empty_topic_category_element_costs_the_category_only(self):
+        # the element carries no character content: lxml gives None for its text
+        for text in (None, "\n            "):
+            with self.subTest(text=text):
+                record = self._record_with_empty_topic_category(text)
+                self.assertEqual(record.title, EXPECTED_DATASET_DATA["title"])
+                self.assertFalse(
+                    record.categories.exists(),
+                    "the unusable category must not produce a row")
+                # the rest of the record is untouched
+                self.assertTrue(record.keywords.exists())
+                self.assertTrue(record.languages.exists())
+                self.assertIsNotNone(record.bounding_geometry)
+
+    def test_a_valid_topic_category_still_maps_after_the_fix(self):
+        record = self._record_with_empty_topic_category("biota")
+        self.assertCountEqual(
+            record.categories.values_list('value', flat=True),
+            [CategoryChoices.BIOTA.value])
+
+
+class ParseTopicCategoryNodeTest(TestCase):
+    """The parser's contract on the two node types its signature names (#989).
+
+    An element without character content answers like the empty case of the
+    character branch: CategoryChoices('') is no valid choice, so the answer is
+    None and the mapping of the record continues.
+    """
+
+    def _element(self, text):
+        """A category code element carrying `text` as its character content;
+        None builds the empty <MD_TopicCategoryCode/> of the issue."""
+        ns = 'xmlns:gmd="http://www.isotc211.org/2005/gmd"'
+        if text is None:
+            xml = f'<gmd:MD_TopicCategoryCode {ns}/>'
+        else:
+            xml = (f'<gmd:MD_TopicCategoryCode {ns}>{text}'
+                   '</gmd:MD_TopicCategoryCode>')
+        return etree.fromstring(xml.encode())
+
+    def test_element_without_character_content_answers_none(self):
+        for text in (None, "", "  \n "):
+            with self.subTest(text=text):
+                self.assertIsNone(
+                    parse_topic_category(None, self._element(text)))
+
+    def test_empty_text_node_answers_none(self):
+        element = self._element("anything")
+        element.text = ""
+        text_node = element.xpath("./text()")[0]
+        self.assertIsNone(parse_topic_category(None, text_node))
+
+    def test_valid_and_unknown_codes_answer_as_before(self):
+        self.assertEqual(
+            parse_topic_category(None, self._element("biota")).value,
+            CategoryChoices.BIOTA.value)
+        self.assertIsNone(
+            parse_topic_category(None, self._element("no category defined till now!")))
 
 
 class MetadataRecordRepublishRegressionTest(TestCase):

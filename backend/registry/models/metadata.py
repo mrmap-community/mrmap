@@ -1439,3 +1439,68 @@ class ApplicationMetadataRecord(MetadataRecord):
             models.Index(fields=["code", "code_space"]),
             GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
+
+
+#: The keyword side of the three keywords relation models below, named once;
+#: a module constant because a class attribute of a model clashes with the
+#: ``keyword`` field it would sit next to (#1009).
+KEYWORD_TARGET = "registry.Keyword"
+
+
+class DatasetMetadataRecordKeywordsLink(models.Model):
+    """The keywords relation of the dataset records as an unmanaged model.
+
+    The table is the one of the auto-created through model of
+    ``DatasetMetadataRecord.keywords`` and stays created by it; this model only
+    makes that table addressable by the migration autodetector, which is what a
+    trigger of ``registry.triggers`` needs: triggers are declared on a model and
+    the auto-created through models never enter the migration state (#1009).
+    Being unmanaged, Django never creates, alters or drops the table through it.
+    """
+
+    datasetmetadatarecord = models.ForeignKey(
+        to="registry.DatasetMetadataRecord",
+        on_delete=models.CASCADE,
+        related_name="d_keywords_link+")
+    keyword = models.ForeignKey(
+        to=KEYWORD_TARGET,
+        on_delete=models.CASCADE,
+        related_name="d_keywords_link+")
+
+    class Meta:
+        db_table = "registry_datasetmetadatarecord_keywords"
+        managed = False
+
+
+class ServiceMetadataRecordKeywordsLink(models.Model):
+    """The keywords relation of the service records, see the dataset one above."""
+
+    servicemetadatarecord = models.ForeignKey(
+        to="registry.ServiceMetadataRecord",
+        on_delete=models.CASCADE,
+        related_name="s_keywords_link+")
+    keyword = models.ForeignKey(
+        to=KEYWORD_TARGET,
+        on_delete=models.CASCADE,
+        related_name="s_keywords_link+")
+
+    class Meta:
+        db_table = "registry_servicemetadatarecord_keywords"
+        managed = False
+
+
+class ApplicationMetadataRecordKeywordsLink(models.Model):
+    """The keywords relation of the application records, see the dataset one above."""
+
+    applicationmetadatarecord = models.ForeignKey(
+        to="registry.ApplicationMetadataRecord",
+        on_delete=models.CASCADE,
+        related_name="a_keywords_link+")
+    keyword = models.ForeignKey(
+        to=KEYWORD_TARGET,
+        on_delete=models.CASCADE,
+        related_name="a_keywords_link+")
+
+    class Meta:
+        db_table = "registry_applicationmetadatarecord_keywords"
+        managed = False

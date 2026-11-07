@@ -162,3 +162,74 @@ class KeywordLengthMigrationTest(TransactionTestCase):
     def restore_schema(self):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class KeywordTriggerTransferTest(TransactionTestCase):
+    """0039 hands the keyword maintenance from hand written sql to pgtrigger.
+
+    Forward the legacy functions and triggers must be gone and the package
+    objects installed; backwards the very state 0035 left behind must return,
+    which since #1075 means the legacy bodies with the empty array of the
+    widened element type. Both directions are asked because the harvesting
+    writers run against these triggers in production and a deployment must be
+    able to roll back.
+    """
+
+    #: the objects as 0021, 0024 and 0033 named them
+    LEGACY = sorted([
+        'registry_datasetmetadatarecord_keywords_keywords_list_sync',
+        'registry_servicemetadatarecord_keywords_keywords_list_sync',
+        'registry_applicationmetadatarecord_keywords_keywords_list_sync',
+        'registry_datasetmetadatarecord_keywords_list_keep',
+        'registry_servicemetadatarecord_keywords_list_keep',
+        'registry_applicationmetadatarecord_keywords_list_keep',
+        'registry_keyword_sync_to_metadatarecords',
+    ])
+
+    def tearDown(self):
+        # leave the schema at the tip whatever the test did
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def keyword_triggers(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal"
+                " AND (tgname LIKE '%keywords\\_list\\_sync%'"
+                " OR tgname LIKE '%keywords\\_list\\_keep%'"
+                " OR tgname LIKE '%keyword\\_sync\\_to\\_metadatarecords%')"
+                " ORDER BY tgname")
+            return [row[0] for row in cursor.fetchall()]
+
+    def keyword_bodies(self):
+        """The stored sources of the three legacy functions, by name"""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname, prosrc FROM pg_proc WHERE proname IN"
+                " ('registry_sync_metadatarecord_keywords_list',"
+                " 'registry_keep_metadatarecord_keywords_list',"
+                " 'registry_sync_keyword_rename_to_metadatarecords')")
+            return dict(cursor.fetchall())
+
+    def migrate_to(self, targets):
+        MigrationExecutor(connection).migrate(targets)
+
+    def test_the_transfer_swaps_the_objects_in_both_directions(self):
+        self.migrate_to([
+            ('registry',
+             '0035_a_too_long_keyword_does_not_take_a_record_down')])
+        self.assertEqual(self.keyword_triggers(), self.LEGACY)
+        bodies = self.keyword_bodies()
+        self.assertEqual(len(bodies), 3, sorted(bodies))
+        for name, body in bodies.items():
+            self.assertNotIn(
+                'varchar(300)', body,
+                'reversing 0039 did not restore the body 0035 left on %s' % name)
+
+        self.migrate_to([
+            ('registry', '0039_the_keyword_maintenance_is_managed_by_pgtrigger')])
+        installed = self.keyword_triggers()
+        self.assertEqual(len(installed), 7, installed)
+        self.assertTrue(all(name.startswith('pgtrigger_') for name in installed),
+                        installed)

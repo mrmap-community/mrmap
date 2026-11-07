@@ -280,6 +280,51 @@ class WrittenKeywordsListTest(TestCase):
         self.assertEqual(before, self.keywords_of(self.application))
 
 
+class PgtriggerOwnershipTest(TestCase):
+    """After the transfer of 0035 the package owns the maintenance objects.
+
+    The point of #1009 is that every keyword rule is exactly one trigger which
+    the migrations of pgtrigger know. Both halves are asked here: that nothing
+    of the hand written legacy objects survives, and that no rule is installed
+    twice -- a duplicated keep trigger would answer a write twice and a
+    duplicated sync trigger would pay for the aggregate twice on every harvest
+    write.
+    """
+
+    def catalog(self, predicate):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid'
+                ' WHERE NOT tgisinternal AND ' + predicate + ' ORDER BY tgname')
+            return [row[0] for row in cursor.fetchall()]
+
+    def test_the_maintenance_triggers_are_the_objects_of_the_package(self):
+        own = self.catalog(
+            "(tgname LIKE 'pgtrigger\\_%' AND (tgname LIKE '%\\_keywords\\_list\\_%'"
+            " OR tgname LIKE '%\\_metadatarecords%'))"
+            " OR (tgname NOT LIKE 'pgtrigger\\_%' AND (tgname LIKE '%keywords\\_list%'"
+            " OR tgname = 'registry_keyword_sync_to_metadatarecords'))")
+        self.assertEqual(len(own), 7, own)
+        self.assertTrue(all(name.startswith('pgtrigger_') for name in own), own)
+
+    def test_the_legacy_functions_are_gone(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname FROM pg_proc WHERE proname IN ("
+                "'registry_sync_metadatarecord_keywords_list',"
+                "'registry_keep_metadatarecord_keywords_list',"
+                "'registry_sync_keyword_rename_to_metadatarecords')")
+            self.assertEqual([row[0] for row in cursor.fetchall()], [])
+
+    def test_every_rule_is_installed_exactly_once(self):
+        """One function per trigger, no orphans of earlier installs."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM pg_proc WHERE proname LIKE 'pgtrigger\\_%'"
+                " AND (proname LIKE '%keywords\\_list%' OR proname LIKE '%metadatarecords%')")
+            self.assertEqual(cursor.fetchone()[0], 7)
+
+
 class TooLongKeywordTest(TestCase):
     """A keyword wider than the old column width is not a reason to refuse a record.
 
@@ -364,32 +409,31 @@ class TooLongKeywordTest(TestCase):
 
 
 class MaintainingFunctionsBodyTest(TestCase):
-    """No maintaining function carries a width the columns gave up.
+    """No maintaining body carries a width the columns gave up.
 
-    The function bodies are data: the ``ALTER TYPE`` of ``0028`` did not reach
-    into the aggregate written into them by ``0021``, ``0024`` and ``0033``, and
-    the narrow ``varchar(300)[]`` fallback inside them is what coerced every
-    aggregated keyword on a deployed cluster. Newer clusters resolve the same
-    COALESCE onto the aggregated array and answer nothing -- no behavioural test
-    on this schema can notice the narrow body. Asking the catalog is the one
-    check which fails as long as the narrow literal is installed, whichever
-    postgres reads it (0035).
+    The maintenance statements are data: the ``ALTER TYPE`` of ``0028`` did not
+    reach into the aggregate written into the function bodies of ``0021``,
+    ``0024`` and ``0033``, and the narrow ``varchar(300)[]`` fallback inside
+    them is what coerced every aggregated keyword on a deployed cluster.
+    Newer clusters resolve the same COALESCE onto the aggregated array and
+    answer nothing -- no behavioural test on this schema can notice the narrow
+    body. Asking the catalog is the one check which fails as long as the
+    narrow literal is installed, whichever postgres reads it (0035). Since
+    #1009 the same statements live in the trigger functions of pgtrigger
+    instead of the three shared legacy functions, and the question is asked
+    of them: the guarantee belongs to the body, not to whoever stores it.
     """
 
-    FUNCTIONS = (
-        'registry_sync_metadatarecord_keywords_list',
-        'registry_keep_metadatarecord_keywords_list',
-        'registry_sync_keyword_rename_to_metadatarecords',
-    )
-
-    def test_no_maintaining_function_narrows_the_keywords_it_aggregates(self):
+    def test_no_maintaining_body_narrows_the_keywords_it_aggregates(self):
         with connection.cursor() as cursor:
             cursor.execute(
-                'SELECT proname, prosrc FROM pg_proc WHERE proname = ANY(%s)',
-                [list(self.FUNCTIONS)])
+                "SELECT proname, prosrc FROM pg_proc "
+                "WHERE proname LIKE 'pgtrigger\\_%' "
+                "AND (proname LIKE '%keywords\\_list%' "
+                "OR proname LIKE '%metadatarecords%')")
             bodies = dict(cursor.fetchall())
 
-        self.assertEqual(sorted(bodies), sorted(self.FUNCTIONS))
+        self.assertEqual(len(bodies), 7, sorted(bodies))
         for name, body in bodies.items():
             self.assertNotIn(
                 'varchar(300)', body,

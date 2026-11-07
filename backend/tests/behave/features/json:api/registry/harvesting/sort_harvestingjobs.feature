@@ -8,16 +8,14 @@ Feature: HarvestingJob Sort Endpoint
     # and derives the percentage from them, which is what lets the endpoint offer the term.
     # The fixture answers the two shapes the order reads (the set of #1080, also behind
     # `filter_harvestingjobs.feature`): run 1080101 of catalogue Alpha ended, so it is 100,
-    # and run 1080102 of the very same catalogue is half way - it counted 10 records, asks
+    # and run 1080102 of the very same catalogue is working - it counted 10 records, asks
     # them with the step size 50 of a run which started without one, and has 2 files left on
-    # its backlog. Its steps are 11 and one of them is done, which is 9.09 %. The 11 are the
-    # 10 records, the +1 of #1071 and the round trips, and the round trips answer 0 here:
-    # `Ceil(F("total_records") / F("max_step_size"))` divides two integer columns, so Postgres
-    # divides 10 by 50 as integers and the ceiling of that is 0 - the same for the 2 files
-    # which are waiting, which leaves 1 done step. A run which fetches its records in a
-    # single round trip therefore has that round trip in no step of its own; that is the
-    # annotation of #1071 and not the order of #1130, and a fix of it moves the value
-    # asserted below.
+    # its backlog. Its steps are 12 and two of them are done, which is 16.67 %. The 12 are the
+    # 10 records, the +1 of #1071 and the 1 round trip of the 10 records asked with the step
+    # size 50: the ceiling divides them as Float, since #1163, where Postgres used to divide
+    # the two integer columns by truncation and answer 0. The 2 files on the backlog are that
+    # one round trip of the run - its fetch call and that trip are the 2 done steps. Before
+    # #1163 the round trip was in no step of its own and the scenario measured 9.09 of 11.
     # The scenarios scope on the catalogue of those two runs: the `add_harvestingjob`
     # feature runs before this one and leaves runs of its own behind, and the runs of
     # another catalogue are no answer to the order of this one.
@@ -43,8 +41,8 @@ Feature: HarvestingJob Sort Endpoint
 
         Examples:
             | ordering  | first   | firstProgress | last    | lastProgress |
-            | progress  | 1080102 | 9.09          | 1080101 | 100.0        |
-            | -progress | 1080101 | 100.0         | 1080102 | 9.09         |
+            | progress  | 1080102 | 16.67         | 1080101 | 100.0        |
+            | -progress | 1080101 | 100.0         | 1080102 | 16.67        |
 
     # A screen may order the runs by their progress without showing a number of it: the
     # cards of a catalogue ask one field of a run and order them by another (#1080). The

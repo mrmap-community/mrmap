@@ -26,6 +26,8 @@ import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
+import ListCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ListCatalogueServiceUpdateJob';
+import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatalogueServiceUpdateJob';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
@@ -150,7 +152,7 @@ const RESOURCES: Array<ResourceProps> = [
   
 
   {name: "CatalogueServiceUpdateSetting", icon: UpdateIcon},
-  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "CSW", order: 40 } }},
+  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, list: ListCatalogueServiceUpdateJob, show: ShowCatalogueServiceUpdateJob, options: { label: "resources.CatalogueServiceUpdateJob.name", menu: { group: "CSW", order: 40 } }},
   
 
   // monitoring

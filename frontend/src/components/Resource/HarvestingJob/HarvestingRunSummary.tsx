@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   DateField,
   Link,
@@ -23,17 +22,12 @@ import { Count } from "../../../jsonapi/components/Count";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import HarvestingJobActions from "./HarvestingJobActions";
 import HarvestingPhaseStepper from "./HarvestingPhaseStepper";
+import { formatSeconds } from "./runDurations";
 
 const HarvestingRunSummary = () => {
   const run = useRecordContext();
   const translate = useTranslate();
   const createPath = useCreatePath();
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (run?.doneAt) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [run?.doneAt]);
   if (!run) return null;
   const path = createPath({
     resource: "HarvestingJob",
@@ -41,12 +35,13 @@ const HarvestingRunSummary = () => {
     type: "show",
   });
   const progress = Math.min(100, Math.max(0, Number(run.progress) || 0));
-  const started = run.dateCreated ? new Date(run.dateCreated).getTime() : Number.NaN;
-  const end = run.doneAt ? new Date(run.doneAt).getTime() : now;
-  const seconds = Math.max(0, Math.floor((end - started) / 1000));
-  const elapsed = Number.isFinite(seconds)
-    ? `${Math.floor(seconds / 3600)}h ${Math.floor(seconds / 60) % 60}m ${seconds % 60}s`
-    : translate("harvestRun.notRecorded");
+  // the elapsed time is what the api measured - from the moment the run was
+  // made (which the harvesting never writes into `dateCreated`, so the run
+  // reads its own change log) to its end or to now (#1071)
+  const elapsed =
+    run.elapsedSeconds != null
+      ? formatSeconds(run.elapsedSeconds)
+      : translate("harvestRun.notRecorded");
   const counters = [
     { resource: "DatasetMetadataRecord", label: "datasets" },
     { resource: "ServiceMetadataRecord", label: "services" },

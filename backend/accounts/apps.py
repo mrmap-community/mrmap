@@ -1,6 +1,7 @@
 import os
 
 from django.apps import AppConfig
+from django.conf import settings
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
 
@@ -31,6 +32,11 @@ def create_default_user_and_org(sender, **kwargs):
         User.objects.create_superuser(username=username, password=password)
 
     # Default Organization
-    if os.environ.get('MRMAP_PRODUCTION', False):
+    # the parsed flag from settings, not the raw env value: a deployment
+    # exports MRMAP_PRODUCTION as a string and the development compose passes
+    # "False", which os.environ.get answers truthy - so this hook created the
+    # organization in development stacks and its groups collided on the next
+    # migrate after a TransactionTestCase truncation (#1141)
+    if settings.MRMAP_PRODUCTION:
         if not Organization.objects.filter(name="Testorganization").exists():
             Organization.objects.create(name="Testorganization")

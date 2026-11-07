@@ -81,7 +81,8 @@ def limits(**kwargs):
     base = {
         "AGENT_MAX_LOAD_PER_CORE": "1.5", "AGENT_MIN_DISK_GB": "100",
         "AGENT_MAX_STACKS": "3", "AGENT_MAX_PROCESSES": "6",
-        "AGENT_STACK_MIN_MEM_GB": "6", "AGENT_PROCESS_MIN_MEM_GB": "2",
+        "AGENT_STACK_MIN_MEM_GB": "6", "AGENT_SUITE_MIN_MEM_GB": "8",
+        "AGENT_PROCESS_MIN_MEM_GB": "2",
         "AGENT_MIN_MEM_GB": "16", "AGENT_MEM_RESERVE_GB": "2",
         "AGENT_MEM_NEAR_CEILING_PCT": "90", "AGENT_MAX_MEM_PRESSURE": "10",
     }
@@ -336,13 +337,91 @@ def test_cli_contract(tmp):
     check("a bad class is a usage error", bad.returncode == 2)
 
 
+def test_suite_class(tmp):
+    """The suite arm of #1055 is heavier than a targeted check and must be
+    refused where a targeted check would still be admitted."""
+    cg, proc = Path(tmp) / "cg11", Path(tmp) / "proc11"
+    # 16 GiB ceiling, 6.5 GiB unreclaimable: headroom 9.5, effective 7.5 -
+    # room for a 6 GiB stack, not for an 8 GiB full-suite run.
+    write_cgroup(cg, "/", limit=16 * GB, current=int(10 * GB),
+                 stat={"anon": int(6.0 * GB), "file": int(3.5 * GB), "kernel": int(0.5 * GB)})
+    write_proc(proc, "/init.scope", mem_available_gb=64.0)
+    rs = decide(cg, proc, need="suite", stacks=0)
+    check("a suite is refused where a targeted stack fits",
+          not rs["fits"] and "mem" in rs["reasons"] and decide(cg, proc, stacks=0)["fits"],
+          rs["reasons"])
+    check("the suite requirement is the suite threshold",
+          rs["metrics"]["mem_required_gb"] == 8, rs["metrics"]["mem_required_gb"])
+    deep = Path(tmp) / "cg11deep"
+    write_cgroup(deep, "/", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0})
+    check("a deep-idle cgroup admits the suite", decide(deep, proc, need="suite", stacks=0)["fits"])
+    check("the stacks rule polices suites too",
+          "stacks" in decide(cg, proc, need="suite", stacks=3)["reasons"])
+    check("the ceiling rule polices suites too",
+          "ceiling" in decide(cg, proc, need="suite", stacks=0,
+                              mem_near_ceiling_pct=50)["reasons"]
+          or "ceiling" in decide(deep, proc, need="suite", stacks=0,
+                                 mem_near_ceiling_pct=10)["reasons"])
+    unlimited = Path(tmp) / "cg11free"
+    write_cgroup(unlimited, "/", limit=None, current=int(3.0 * GB),
+                 stat={"anon": int(3.0 * GB), "file": 0, "kernel": 0})
+    busy_host = write_proc(Path(tmp) / "proc11b", mem_available_gb=10.0)
+    check("on an unrestricted host the suite pays the host floor too",
+          "mem" in decide(unlimited, busy_host, need="suite", stacks=0)["reasons"],
+          decide(unlimited, busy_host, need="suite", stacks=0)["reasons"])
+
+
+def test_agent_stack_counting(tmp):
+    """Both naming schemes an agent stack actually has are counted, nothing
+    else is: the repository convention and the AO-generated worktree name."""
+    projects = ["mrmap-agent-852-1103", "mrmap-ao-27b9cb6b0f67",
+                "mrmap-dev", "mrmapagent-nope", "backend", ""]
+    check("agent stacks are counted by project prefix", cap.count_stacks(projects) == 2,
+          cap.count_stacks(projects))
+    check("an empty project list counts none", cap.count_stacks([]) == 0)
+
+
+def test_wait_queues_without_displacing(tmp):
+    """--wait turns a refusal into a bounded queue: exit stays 1 while busy,
+    the stdout verdict stays exactly one line or one JSON object, and a
+    refusal clears on its own when the room appears."""
+    cg, proc = Path(tmp) / "cg12", Path(tmp) / "proc12"
+    write_cgroup(cg, "/", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0})
+    write_proc(proc, "/init.scope", mem_available_gb=64.0)
+    env = dict(os.environ)
+    for key in [k for k in env if k.startswith("AGENT_")]:
+        env.pop(key)
+    env.update({"AGENT_CGROUP_ROOT": str(cg), "AGENT_PROC_ROOT": str(proc),
+                "AGENT_MAX_STACKS": "3"})
+
+    def run(*args):
+        return subprocess.run([sys.executable, str(SCRIPTS / "agent_capacity"), *args],
+                              capture_output=True, text=True, env=env, timeout=60)
+    busy = run("--stacks", "3", "--wait", "1")
+    check("a waited-through refusal still exits 1", busy.returncode == 1)
+    check("wait progress goes to stderr", "waiting" in busy.stderr, busy.stderr)
+    check("wait keeps stdout to one verdict line", busy.stdout.count("\n") == 1
+          and busy.stdout.startswith("agent_capacity:"), busy.stdout)
+    check("a waited refusal names its reason on the final line",
+          "BUSY: stacks" in busy.stdout, busy.stdout)
+    js = run("--json", "--stacks", "3", "--wait", "1")
+    check("wait with --json prints exactly one JSON object on stdout",
+          js.returncode == 1 and json.loads(js.stdout)["fits"] is False)
+    fits = run("--wait", "1", "--stacks", "0")
+    check("a fitting job is not delayed by --wait", fits.returncode == 0
+          and fits.stderr == "", fits.stderr)
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="agent-capacity-test-") as tmp:
         for fn in (test_parsing, test_host_without_a_limit, test_container_headroom_is_the_binding_metric,
                    test_at_limit, test_parent_limit_is_stricter, test_missing_metrics_fail_open,
                    test_stack_boundary_is_prospective, test_process_class,
                    test_nested_docker_is_reported, test_pressure_threshold_is_configurable,
-                   test_cli_contract):
+                   test_cli_contract, test_suite_class, test_agent_stack_counting,
+                   test_wait_queues_without_displacing):
             fn(tmp)
     failed = 0
     for name, ok, detail in RESULTS:

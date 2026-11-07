@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 11:39+0100\n"
+"POT-Creation-Date: 2026-11-07 13:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -313,7 +313,7 @@ msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
 #: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:69
-#: registry/models/harvest.py:127 registry/models/harvest.py:1384
+#: registry/models/harvest.py:127 registry/models/harvest.py:1417
 #: registry/models/monitoring.py:110 registry/models/monitoring.py:358
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -377,20 +377,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1400
+#: notify/models.py:159 registry/models/harvest.py:1433
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:1385
+#: notify/models.py:171 registry/models/harvest.py:1418
 #: registry/models/monitoring.py:359
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1405
+#: notify/models.py:175 registry/models/harvest.py:1438
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1406
+#: notify/models.py:176 registry/models/harvest.py:1439
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -456,7 +456,7 @@ msgstr "unbekannt"
 msgid "kind of error"
 msgstr "Art des Fehlers"
 
-#: registry/apps.py:105
+#: registry/apps.py:140
 msgid "Registry"
 msgstr "Registrierung"
 
@@ -924,7 +924,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:117 registry/models/harvest.py:1083
+#: registry/models/harvest.py:117 registry/models/harvest.py:1116
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -991,48 +991,87 @@ msgstr "Hintergrundprozess"
 msgid "the background process which reports this job"
 msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
 
-#: registry/models/harvest.py:289
+#: registry/models/harvest.py:291
+msgid "import backlog seen"
+msgstr "gezählte Import-Rückstände"
+
+#: registry/models/harvest.py:293
+msgid ""
+"how many records of this job the import watchdog last counted as waiting for "
+"their import"
+msgstr ""
+"wie viele Datensätze dieser Ernteaufgabe der Import-Watchdog zuletzt als auf "
+"ihren Import wartend gezählt hat"
+
+#: registry/models/harvest.py:299
+msgid "import backlog seen at"
+msgstr "Zeitpunkt der letzten Rückstandszählung"
+
+#: registry/models/harvest.py:301
+msgid ""
+"the moment the import watchdog counted that many records waiting; the same "
+"count at the next look is a backlog which did not move"
+msgstr ""
+"der Moment, in dem der Import-Watchdog so viele Datensätze wartend gezählt "
+"hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
+"bewegt hat"
+
+#: registry/models/harvest.py:308 registry/serializers/harvesting.py:182
+msgid "import stalled at"
+msgstr "Import steht still seit"
+
+#: registry/models/harvest.py:310
+msgid ""
+"since when the import watchdog sees the import backlog of this job "
+"untouched; the run is not waiting on work which somebody is doing. What the "
+"watchdog could do about it is on its harvesting log"
+msgstr ""
+"seit wann der Import-Watchdog den Import-Rückstand dieser Ernteaufgabe "
+"unberührt sieht; der Lauf wartet nicht auf Arbeit, die jemand verrichtet. "
+"Was der Watchdog dagegen tun konnte, steht in seinem Ernteprotokoll"
+
+#: registry/models/harvest.py:322
 msgid "Harvesting Job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:290
+#: registry/models/harvest.py:323
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:309 registry/models/update.py:262
+#: registry/models/harvest.py:342 registry/models/update.py:262
 #: registry/serializers/update.py:123 registry/serializers/update.py:143
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:1054
+#: registry/models/harvest.py:1087
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:1059
+#: registry/models/harvest.py:1092
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:1061
+#: registry/models/harvest.py:1094
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:1065
+#: registry/models/harvest.py:1098
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:1069
+#: registry/models/harvest.py:1102
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:1072
+#: registry/models/harvest.py:1105
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:1073
+#: registry/models/harvest.py:1106
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:1084
+#: registry/models/harvest.py:1117
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -1042,22 +1081,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1426 registry/models/metadata.py:613
+#: registry/models/harvest.py:1459 registry/models/metadata.py:613
 #: registry/models/monitoring.py:90 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:474
 #: registry/serializers/service.py:987 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1427
+#: registry/models/harvest.py:1460
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1454
+#: registry/models/harvest.py:1487
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1455
+#: registry/models/harvest.py:1488
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -2378,7 +2417,19 @@ msgstr ""
 "`estimatedSecondsRemaining` addiert auf den Moment der Anfrage. Wo keine "
 "Schätzung beantwortet wird, wird auch kein Ende beantwortet."
 
-#: registry/serializers/harvesting.py:218
+#: registry/serializers/harvesting.py:184
+msgid ""
+"since when the import watchdog sees the backlog of this run untouched: as "
+"many records are waiting for their import as on the watchdog's look before. "
+"A run which imports answers nothing, and what the watchdog did about the "
+"standstill is on the harvesting log of the run."
+msgstr ""
+"seit wann der Import-Watchdog den Rückstand dieses Laufs unberührt sieht: es "
+"warten genauso viele Datensätze auf ihren Import wie beim Blick des "
+"Watchdogs zuvor. Ein Lauf, der importiert, beantwortet nichts, und was der "
+"Watchdog gegen den Stillstand getan hat, steht im Ernteprotokoll des Laufs."
+
+#: registry/serializers/harvesting.py:233
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 

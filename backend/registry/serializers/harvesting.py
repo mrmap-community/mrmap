@@ -178,6 +178,16 @@ class HarvestingJobSerializer(
     done_steps = IntegerField(read_only=True)
     progress = FloatField(read_only=True)
 
+    import_stalled_at = DateTimeField(
+        label=_("import stalled at"),
+        help_text=_(
+            "since when the import watchdog sees the backlog of this run "
+            "untouched: as many records are waiting for their import as on the "
+            "watchdog's look before. A run which imports answers nothing, and what "
+            "the watchdog did about the standstill is on the harvesting log of the "
+            "run."),
+        read_only=True)
+
     phase_label = CharField(source="get_phase_display", read_only=True)
     phase = IntegerField(required=False)
     # TODO: use IntegerChoices instead
@@ -199,11 +209,16 @@ class HarvestingJobSerializer(
         # The harvested relations go the same way: the records a run collected
         # are explored as harvested-metadata-records, so the job answers their
         # counts but never the records themselves (#827 adds the third of them)
+        # The watchdog's two counting fields are its memory, answered by
+        # nothing: only its verdict, the re-declared `import_stalled_at` above,
+        # reaches the api (#1038).
         exclude = (
             "harvested_dataset_metadata",
             "harvested_service_metadata",
             "harvested_application_metadata",
             "background_process",
+            "import_backlog_seen",
+            "import_backlog_seen_at",
         )
 
     def validate_service(self, value):

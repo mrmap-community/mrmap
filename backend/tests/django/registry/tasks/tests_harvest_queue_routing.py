@@ -92,6 +92,7 @@ class RoutingMapTest(TestCase):
         'notify.tasks.finish_background_process': celery_queues.DB_ROUTINES,
         # the beat-scheduled tasks: starved for 16 h behind the backlog (#970)
         'registry.tasks.harvest.check_for_files_to_import': celery_queues.DB_ROUTINES,
+        'registry.tasks.harvest.watch_import_backlogs': celery_queues.DB_ROUTINES,
         'system.tasks.delete_old_slow_request_dumps': celery_queues.DB_ROUTINES,
         'registry.tasks.alerts.refresh_service_alerts': celery_queues.DB_ROUTINES,
         # the harvest tasks which were on their own queues already

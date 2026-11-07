@@ -6,8 +6,11 @@ from uuid import uuid4
 
 from django.test import TestCase
 from lxml import etree
+from registry.enums.iso import CategoryChoices
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
+from registry.mappers.parsers.iso import parse_topic_category
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.xml_mapper import XmlMapper
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType,
@@ -481,6 +484,113 @@ class XmlMapperTest(TestCase):
     def test_iso_import_keeps_valid_extent_alongside_reversed_extent(self):
         self._test_iso_reversed_time_extent(keep_valid_extent=True)
 
+    # One MD_Resolution block with one representative fraction, the shape ISO
+    # 19139 allows per part of a dataset and which an inventory mapping several
+    # scales uses (#990).
+    RESOLUTION = """
+    <gmd:spatialResolution xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                           xmlns:gco="http://www.isotc211.org/2005/gco">
+      <gmd:MD_Resolution>
+        <gmd:equivalentScale>
+          <gmd:MD_RepresentativeFraction>
+            <gmd:denominator><gco:Integer>{}</gco:Integer></gmd:denominator>
+          </gmd:MD_RepresentativeFraction>
+        </gmd:equivalentScale>
+      </gmd:MD_Resolution>
+    </gmd:spatialResolution>
+    """
+
+    def __with_representative_fractions(self, filename, denominators):
+        """The ISO fixture with one resolution block per given denominator.
+
+        Neither fixture carries a spatial resolution at all, so the blocks are
+        added to the identification of the record - before its extent, where
+        ISO 19139 places the resolution of a record.
+        """
+        xml = Path(__file__).parent / '../../test_data/iso_metadata' / filename
+        namespaces = {'gmd': 'http://www.isotc211.org/2005/gmd'}
+        root = etree.fromstring(xml.read_bytes())
+        identification = root.xpath(
+            './/gmd:identificationInfo/*', namespaces=namespaces)[0]
+        extent = identification.find('gmd:extent', namespaces)
+        position = list(identification).index(
+            extent) if extent is not None else len(identification)
+        for offset, denominator in enumerate(denominators):
+            identification.insert(
+                position + offset,
+                etree.fromstring(self.RESOLUTION.format(denominator)))
+        return root
+
+    def test_iso_import_keeps_first_of_several_representative_fractions(self):
+        """A record which maps several scales answers one denominator per
+        resolution block. The scalar equivalent_scale is answered by the first
+        one and the record is imported: answering it with the list of all
+        denominators was refused by the field on save and cost the whole record
+        (#990). The dropped denominator is named in the warnings, so the
+        harvesting run says which scale it left behind."""
+        for filename in ('dataset.xml', 'service.xml'):
+            with self.subTest(filename=filename):
+                mapper = MDMetadataXmlMapper.from_xml(
+                    self.__with_representative_fractions(
+                        filename, ('30000', '75000')))[0]
+
+                record = mapper.xml_to_django()[0]
+                self.assertEqual(mapper.warnings, [
+                    "Mapped 2 values for the single valued field "
+                    "'equivalent_scale'; kept '30000' and dropped ['75000'].",
+                ])
+                PersistenceHandler(mapper).persist_all()
+                record.refresh_from_db()
+
+                self.assertTrue(record.title)
+                self.assertEqual(record.equivalent_scale, 30000.0)
+
+    def test_iso_import_maps_a_single_representative_fraction_unreported(self):
+        """The value of a record which names exactly one scale is mapped
+        without a word about it - the mapper only speaks about the values it
+        really dropped."""
+        for filename in ('dataset.xml', 'service.xml'):
+            with self.subTest(filename=filename):
+                mapper = MDMetadataXmlMapper.from_xml(
+                    self.__with_representative_fractions(
+                        filename, ('25000',)))[0]
+
+                record = mapper.xml_to_django()[0]
+                self.assertEqual(mapper.warnings, [])
+                PersistenceHandler(mapper).persist_all()
+                record.refresh_from_db()
+
+                self.assertEqual(record.equivalent_scale, 25000.0)
+
+
+class SingleValueOfAMultiValuedXpathTest(TestCase):
+    """The two cases of #990 which no document produces: a column which holds a
+    list itself, and a parse which matched nothing at all. Neither is answered
+    by picking a value out of the other one."""
+
+    def mapper(self):
+        return XmlMapper(xml=b"<xml/>", mapping={})
+
+    def test_a_field_whose_column_holds_a_list_keeps_the_list(self):
+        """`keywords_list` is an ArrayField - the list IS its value, so nothing
+        may be picked out of it and nothing is reported."""
+        mapper = self.mapper()
+
+        values = mapper.single_value_for_field(
+            "keywords_list", DatasetMetadataRecord(), ['30000', '75000'])
+
+        self.assertEqual(values, ['30000', '75000'])
+        self.assertEqual(mapper.warnings, [])
+
+    def test_an_empty_match_of_a_single_valued_field_answers_no_value(self):
+        """Nothing matched, so nothing is set and nothing was dropped - a
+        warning here would report a loss which did not happen."""
+        mapper = self.mapper()
+
+        self.assertIsNone(mapper.single_value_for_field(
+            "equivalent_scale", DatasetMetadataRecord(), []))
+        self.assertEqual(mapper.warnings, [])
+
 
 class ServiceOwnershipRegressionTest(TestCase):
     """Registering a second service must not redirect the operation urls,
@@ -590,6 +700,91 @@ class ServiceOwnershipRegressionTest(TestCase):
             self.CAPABILITIES / 'csw/2.0.2.xml', 'AAA second service', rename_children=True)
 
         self._assert_owned_operation_urls(first, second)
+
+
+class TopicCategoryEmptyElementRegressionTest(TestCase):
+    """An empty <gmd:MD_TopicCategoryCode/> is a missing value, not an import
+    error (#989).
+
+    Of the 146 GDI-BW records one harvest could not import, four fifths carried
+    the topic category code without any character content. The parser called
+    .strip() on the None lxml answers for such an element's text, and that
+    AttributeError aborted the mapping of the whole record. Whatever the parser
+    decides about a category it cannot read, it may cost the category at most,
+    never the record.
+    """
+
+    XML = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+    NAMESPACES = {'gmd': 'http://www.isotc211.org/2005/gmd'}
+
+    def _record_with_empty_topic_category(self, text):
+        """The dataset fixture with its category code carrying `text`."""
+        root = etree.fromstring(self.XML.read_bytes())
+        root.find('.//gmd:MD_TopicCategoryCode', self.NAMESPACES).text = text
+        mapper = MDMetadataXmlMapper.from_xml(root)[0]
+        mapper.xml_to_django()
+        PersistenceHandler(mapper).persist_all()
+        return DatasetMetadataRecord.objects.get(
+            file_identifier='de.dwd.geoserver.fach.RBSN_FF')
+
+    def test_an_empty_topic_category_element_costs_the_category_only(self):
+        # the element carries no character content: lxml gives None for its text
+        for text in (None, "\n            "):
+            with self.subTest(text=text):
+                record = self._record_with_empty_topic_category(text)
+                self.assertEqual(record.title, EXPECTED_DATASET_DATA["title"])
+                self.assertFalse(
+                    record.categories.exists(),
+                    "the unusable category must not produce a row")
+                # the rest of the record is untouched
+                self.assertTrue(record.keywords.exists())
+                self.assertTrue(record.languages.exists())
+                self.assertIsNotNone(record.bounding_geometry)
+
+    def test_a_valid_topic_category_still_maps_after_the_fix(self):
+        record = self._record_with_empty_topic_category("biota")
+        self.assertCountEqual(
+            record.categories.values_list('value', flat=True),
+            [CategoryChoices.BIOTA.value])
+
+
+class ParseTopicCategoryNodeTest(TestCase):
+    """The parser's contract on the two node types its signature names (#989).
+
+    An element without character content answers like the empty case of the
+    character branch: CategoryChoices('') is no valid choice, so the answer is
+    None and the mapping of the record continues.
+    """
+
+    def _element(self, text):
+        """A category code element carrying `text` as its character content;
+        None builds the empty <MD_TopicCategoryCode/> of the issue."""
+        ns = 'xmlns:gmd="http://www.isotc211.org/2005/gmd"'
+        if text is None:
+            xml = f'<gmd:MD_TopicCategoryCode {ns}/>'
+        else:
+            xml = (f'<gmd:MD_TopicCategoryCode {ns}>{text}'
+                   '</gmd:MD_TopicCategoryCode>')
+        return etree.fromstring(xml.encode())
+
+    def test_element_without_character_content_answers_none(self):
+        for text in (None, "", "  \n "):
+            with self.subTest(text=text):
+                self.assertIsNone(
+                    parse_topic_category(None, self._element(text)))
+
+    def test_empty_text_node_answers_none(self):
+        element = self._element("anything")
+        element.text = ""
+        text_node = element.xpath("./text()")[0]
+        self.assertIsNone(parse_topic_category(None, text_node))
+
+    def test_valid_and_unknown_codes_answer_as_before(self):
+        self.assertEqual(
+            parse_topic_category(None, self._element("biota")).value,
+            CategoryChoices.BIOTA.value)
+        self.assertIsNone(
+            parse_topic_category(None, self._element("no category defined till now!")))
 
 
 class MetadataRecordRepublishRegressionTest(TestCase):

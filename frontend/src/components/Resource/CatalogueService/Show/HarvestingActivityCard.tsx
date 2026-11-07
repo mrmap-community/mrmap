@@ -202,7 +202,7 @@ const HarvestingActivityCard = () => {
       resource="HarvestingJob"
       relatedResource={{ resource: "CatalogueService", id: service.id }}
       disableSyncWithLocation
-      sort={{ field: "dateCreated", order: "DESC" }}
+      sort={{ field: "doneAt", order: "DESC" }}
       perPage={3}
       actions={false}
       filters={undefined}

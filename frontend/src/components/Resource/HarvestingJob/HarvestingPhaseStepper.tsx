@@ -1,8 +1,21 @@
 import { useTranslate } from "react-admin";
 
+import { SxProps } from "@mui/material";
 import { Step, StepLabel, Stepper, Typography } from "@mui/material";
 
-const HarvestingPhaseStepper = ({ phase }: { phase: number | undefined }) => {
+/**
+ * The three workflow stages of a harvesting run with the state the run is in.
+ *
+ * `sx` places the stepper in the screen which shows it: the show screen of a
+ * run gives it room, a row of the list of runs keeps it dense.
+ */
+const HarvestingPhaseStepper = ({
+  phase,
+  sx,
+}: {
+  phase: number | undefined;
+  sx?: SxProps;
+}) => {
   const translate = useTranslate();
   // Map the API's phases to the three user-facing workflow stages.
   const activeStep =
@@ -16,7 +29,7 @@ const HarvestingPhaseStepper = ({ phase }: { phase: number | undefined }) => {
             ? 3
             : -1;
   return (
-    <Stepper activeStep={activeStep} alternativeLabel sx={{ my: 2 }}>
+    <Stepper activeStep={activeStep} alternativeLabel sx={sx ?? { my: 2 }}>
       {["discover", "download", "import"].map((stage, index) => {
         const state =
           activeStep < 0

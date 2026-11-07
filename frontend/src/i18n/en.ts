@@ -383,7 +383,46 @@ const en = lodashMerge(
       "downloadTimings": "Download timings",
       "databaseTimings": "Database timings",
       "terminated": "This harvesting run has ended.",
-      "refresh": "Updates automatically every 5 seconds"
+      "refresh": "Updates automatically every 5 seconds",
+      list: {
+        listDescription: "Every run a catalogue has made, and what the running ones are doing right now.",
+        runHeading: "Catalogue · run",
+        runCaption: "Run #%{id}",
+        stepSizeCaption: "page size %{size}",
+        stepSizeUnknown: "page size not probed",
+        phaseHeading: "Phase",
+        progressHeading: "Progress",
+        stepsCaption: "%{done} of %{total} steps",
+        totalUnknown: "total unknown",
+        queued: "waiting for a worker",
+        queuedTooltip: "The run is queued; no worker has started it yet.",
+        throughputHeading: "Throughput",
+        throughputValue: "%{count} rec / min",
+        throughputCaption: "measured at page size %{size}",
+        noThroughput: "no throughput measured",
+        throughputTooltip: "How many records a finished run stored per minute of measured work. A run which is still working answers none: only a run which ended measured the harvest as a whole (#692).",
+        timeHeading: "Time",
+        elapsedTooltip: "Made %{created} · running since %{elapsed}",
+        createdUnknown: "The moment this run was made is not recorded, so its elapsed time starts with its first progress.",
+        endedTimeTooltip: "Made %{created} · ended %{finished}",
+        endedCaption: "ended %{at}",
+        noEstimate: "no estimate",
+        noEstimateTotal: "no estimate: the total is unknown",
+        recordsHeading: "Records",
+        recordsValue: "%{count} record |||| %{count} records",
+        recordsUnknown: "counting",
+        recordsTooltip: "How many records the catalogue answered for this run. The count belongs to this run and is not the number of records the MrMap catalogue holds.",
+        awaitingChip: "%{count} awaiting import",
+        importErrorChip: "%{count} import error |||| %{count} import errors",
+        selectUnfinished: "Only runs which have not ended are selectable - there is nothing left to stop.",
+        stopConfirmTitle: "Stop this harvesting run?",
+        stopConfirmContent: "The run stops with its next step; what it already stored stays stored.",
+        stopAsked: "Asked the run to stop.",
+        bulkStopTitle: "Stop selected runs",
+        bulkStopContent: "Stop %{smart_count} run? Runs which ended in the meantime are left untouched. |||| Stop %{smart_count} runs? Runs which ended in the meantime are left untouched.",
+        bulkStopped: "%{count} harvesting run stopped. |||| %{count} harvesting runs stopped.",
+        bulkStopRefused: "The api did not accept the stop for: %{ids}."
+      }
     },
     harvestingActivity: {
       started: "Started",
@@ -854,6 +893,10 @@ const en = lodashMerge(
       },
     },
     resources: {
+      HarvestingJob: {
+        name: "Harvesting run",
+        name_plural: "Harvesting runs",
+      },
       ServiceAlert: {
         name: "Attention required",
         fields: {

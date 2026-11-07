@@ -34,17 +34,16 @@ Two request parameters of ``GetRecords`` shape the response around the records:
     it is paged. Both bindings carry the request the same way -- the KVP binding
     embeds a ``csw:SortBy`` in the request it synthesizes -- so the sorting is
     read from the request element and mapped onto the ORM: every sortable queryable
-    orders every record source by that expression and the merge of the sources
-    compares records by it too. A queryable which is not sortable -- a text a
+    orders the merged record sources by that expression, which is the order the
+    page answers the merged set in. A queryable which is not sortable -- a text a
     pattern is searched with, a geometry, a keyword the record reaches over a
     relation -- is refused with ``InvalidParameterValue``, which 10.8.4.9 leaves
     for a property a catalogue does not sort on.
 """
 
 from csw.queryables import FIELD_MAP
-from django.db.models import F
+from django.db.models import F, IntegerField, Value
 from django.db.models.functions import Lower
-from functools import cmp_to_key
 from lxml import etree
 
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -66,7 +65,7 @@ DEFAULT_ELEMENT_SET = "summary"
 NOT_SORTABLE = frozenset({"keywords__keyword", "search_vector", "bounding_geometry"})
 
 #: The fields a record answers as a date rather than as a text; the text of a
-#: field is ordered case-insensitively (see :func:`apply_sort`), its date is
+#: field is ordered case-insensitively (see :func:`merged_page`), its date is
 #: compared as it is.
 DATETIME_FIELDS = frozenset({"date_stamp"})
 
@@ -125,93 +124,80 @@ def requested_sort_by(xml_request) -> list:
     return sorts
 
 
-#: The fields of a record source which are no column but an annotation of it
-#: (the ``type`` queryable, see ``csw/queryables.py``); they are carried by every
-#: queryset of the sources and so never belong into ``only()``.
-ANNOTATED_FIELDS = frozenset({"hierarchy_level"})
+#: The fields of a record a merged ``GetRecords`` page carries: the pk and the
+#: document of it, the identifier which names it when its document cannot be
+#: served, and the kind of source it came out of -- the constant every record
+#: queryset annotates itself (see ``csw/queryables.search_records``), which both
+#: tells the response which model to answer the row as and keeps the rows two
+#: records of different tables with the same pk distinct under the projection.
+PAGE_FIELDS = ("pk", "hierarchy_level", "file_identifier", "xml_backup_file")
 
 
-def loaded_fields(sort_specs) -> list:
-    """The columns the answer of a page has to carry.
+def _sort_expression(field):
+    """The expression one sort criterion of a request orders by.
 
-    The pk and the document of a record always; the field of every sort criterion
-    too, because the merge of the record sources compares the records it
-    merges by the very values the database ordered its half of the page by.
+    Text is ordered over ``LOWER(...)``: the collation of the cluster is not
+    case-insensitive, so the order the database answers and the order the
+    comparison would answer have to be brought to one spelling explicitly. Dates
+    compare as they are.
     """
-    fields = ["pk", "xml_backup_file"]
-    fields += [
-        field
-        for field in dict.fromkeys(field for field, _ in sort_specs)
-        if field not in ANNOTATED_FIELDS
-    ]
-    return fields
+    return F(field) if field in DATETIME_FIELDS else Lower(field)
 
 
-def apply_sort(queryset, sort_specs):
-    """Order one record source by the request's sorting, ready for ``merge_sorted``.
+def merged_page(sources, sort_specs, start_position, stop):
+    """The records one ``GetRecords`` page answers, as a single database query.
 
-    Every sort criterion is annotated before it is ordered by: the sources answer
-    their records ``DISTINCT``, and postgres demands an ``ORDER BY`` expression
-    of a distinct query to stand in the select list too -- which an annotation
-    always does. Text is ordered over ``LOWER(...)``: the collation of the cluster
-    orders ASCII case-insensitively, and the python merge which interleaves the
-    sources cannot know that collation -- it compares casefolded copies
-    instead, which orders the same text the same way whatever the collation is,
-    once the database has lowercased its side too.
+    ``sources`` are the record querysets of the three record tables, in the
+    order the sources were always chained: dataset, service, application. Each
+    is projected onto :data:`PAGE_FIELDS`, plus one ``csw_sort_<n>`` column per
+    sort criterion of the request, and the projection of the source's place in
+    ``sources`` joins them as the tie breaker of records which share a
+    ``pk`` across tables -- the order in which the chain used to hand such
+    records to the merge.
 
-    Nulls need no clause: postgres orders a null as the greatest value of either
-    direction (``NULLS LAST`` ascending, ``NULLS FIRST`` descending) and
-    :func:`_compare_values` mirrors exactly that.
+    The union of the projections is then ordered by that
+    ``(sort criteria, pk, source)`` order and sliced from ``start_position`` to
+    ``stop``: the order the sources answered their own records in, applied to
+    the merged set once, in the database. The slice therefore reaches the
+    database as ``OFFSET``/``LIMIT`` and the cost of a page depends on the size
+    of the page, not on how far into the result set it starts -- which is what
+    answering it with a python merge could not do: merging on this side had to
+    read every record in front of the page from every source first (#1151).
+
+    The sources answer ``DISTINCT`` because a filter on a keyword joins a record
+    once per matching keyword; the projection is the same for every row a record
+    causes, so the sources deduplicate themselves inside the union and a record
+    of one source never deduplicates against a record of another.
+
+    The queryset answers rows projected as values -- one table of the three
+    names no record of the others -- which is what lets the order by the merge
+    stand in the select list the union demands; ``csw/queryables.page_records``
+    turns the rows back into records.
+
+    :arg sources: the three record querysets, dataset, service, application
+    :arg sort_specs: ``[(field, descending), ...]`` of the request's SortBy
+    :arg start_position: the 0-based index the page starts at
+    :arg stop: the 0-based index the page ends at (excluded)
+    :return: the rows of the page, in the merged order
+    :rtype: :class:`~django.db.models.query.QuerySet`
     """
-    if not sort_specs:
-        # the paging order without a SortBy: the primary key, as csw/queryables.py
-        # hands the sources out
-        return queryset.order_by("pk")
+    projected = list(PAGE_FIELDS)
     ordering = []
-    for index, (field, descending) in enumerate(sort_specs):
+    for index, (_field, descending) in enumerate(sort_specs):
         alias = f"csw_sort_{index}"
-        expression = F(field) if field in DATETIME_FIELDS else Lower(field)
-        queryset = queryset.annotate(**{alias: expression})
-        ordering.append(F(alias).desc() if descending else F(alias).asc())
-    return queryset.order_by(*ordering, "pk")
+        projected.append(alias)
+        ordering.append(f"-{alias}" if descending else alias)
+    ordering += ["pk", "csw_source"]
 
+    querysets = []
+    for rank, source in enumerate(sources):
+        for index, (field, _descending) in enumerate(sort_specs):
+            source = source.annotate(**{f"csw_sort_{index}": _sort_expression(field)})
+        querysets.append(source.values(
+            *projected, csw_source=Value(rank, output_field=IntegerField())))
 
-def merge_sorted(records, sort_specs) -> list:
-    """The records of all sources merged into the order the sources answered.
-
-    Every source was sliced and ordered by :func:`apply_sort`, which is a total
-    order over ``(sort fields, pk)``; a record which belongs to the first ``n``
-    records of the merged result belongs to the first ``n`` of its own source
-    under the same order, so merging the limited slices answers the page.
-    """
-    return sorted(records, key=cmp_to_key(
-        lambda a, b: _compare_records(a, b, sort_specs)))
-
-
-def _compare_records(a, b, sort_specs) -> int:
-    for field, descending in sort_specs:
-        result = _compare_values(
-            getattr(a, field), getattr(b, field), field, descending)
-        if result:
-            return result
-    # the tie breaker the ORDER BY of the sources ends with, too
-    return (a.pk > b.pk) - (a.pk < b.pk)
-
-
-def _compare_values(value_a, value_b, field, descending) -> int:
-    # postgres orders a null as the greatest value of the column whichever way the
-    # column is ordered -- ascending puts it last, descending puts it first
-    if value_a is None or value_b is None:
-        if value_a is value_b is None:
-            return 0
-        greatest = 1 if value_a is None else -1
-        return -greatest if descending else greatest
-    if field not in DATETIME_FIELDS:
-        value_a, value_b = str(value_a).casefold(), str(value_b).casefold()
-    if value_a == value_b:
-        return 0
-    lesser = -1 if value_a < value_b else 1
-    return -lesser if descending else lesser
+    return querysets[0].union(*querysets[1:]).order_by(*ordering)[
+        start_position:stop]
 
 
 # The element paths of a gmd:MD_Metadata document the brief and the summary view

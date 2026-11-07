@@ -82,6 +82,23 @@ describe("harvesting run summary", () => {
       "harvestingActivity.importErrors",
     );
   });
+  it("says on the run when the watchdog sees the import backlog untouched", () => {
+    state.run = {
+      ...state.run,
+      importStalledAt: "2026-10-08T12:00:00Z",
+      importErrorCount: 0,
+    };
+    render(<HarvestingRunSummary />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("harvestRun.importStalled");
+    expect(alert).toHaveTextContent("2026-10-08T12:00:00Z");
+  });
+  it("answers nothing about a stall the watchdog did not report", () => {
+    render(<HarvestingRunSummary />);
+    expect(
+      screen.queryByText("harvestRun.importStalled"),
+    ).not.toBeInTheDocument();
+  });
   it("shows the elapsed time the api measured, not the browser clock", () => {
     state.run.elapsedSeconds = 61;
     render(<HarvestingRunSummary />);

@@ -148,7 +148,7 @@ class HarvestingRunMomentTest(TestCase):
 
     def test_a_moment_handed_to_a_run_wins_over_the_answer_of_the_model(self):
         """`default` and not `auto_now_add`: the scenarios of #870 give a run a moment of their
-        own and the migration of 0036 hands the runs of a deployment the moment their change log
+        own and the migration of 0037 hands the runs of a deployment the moment their change log
         records - both would be ignored by auto_now_add"""
         made = now() - timedelta(days=3)
         job = self.start_run(made=made)

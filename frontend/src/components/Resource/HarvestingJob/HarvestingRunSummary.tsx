@@ -188,6 +188,23 @@ const HarvestingRunSummary = () => {
           </Card>
         </Grid>
       </Grid>
+      {run.importStalledAt && (
+        <Alert
+          severity="warning"
+          action={
+            <Link to={`${path}/HarvestingLog`}>
+              {translate("harvestRun.viewLogs")}
+            </Link>
+          }
+        >
+          {translate("harvestRun.importStalled")}{" "}
+          <DateField
+            source="importStalledAt"
+            showTime
+            emptyText={translate("harvestRun.notRecorded")}
+          />
+        </Alert>
+      )}
       {run.importErrorCount > 0 && (
         <Alert
           severity="warning"

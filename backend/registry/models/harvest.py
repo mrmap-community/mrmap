@@ -66,7 +66,7 @@ class ProcessingData(models.Model):
         # So even if you set a value for this field when creating the object, it will be ignored.
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         default=now,
-        # A default and not auto_now_add: the harvesting, the migration of 0036 and the tests of
+        # A default and not auto_now_add: the harvesting, the migration of 0037 and the tests of
         # #870 all hand a moment of their own to a run, and auto_now_add would ignore every one of
         # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
         # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
@@ -283,6 +283,39 @@ class HarvestingJob(ProcessingData):
         related_query_name="harvesting_job_process",
         verbose_name=_('background process'),
         help_text=_('the background process which reports this job'))
+    # The bookkeeping of the import watchdog (``registry.tasks.harvest``). An open
+    # job which reports "records to db" can mean either that its import works or
+    # that nothing imports its records anymore, and the api answered both the same
+    # while the chord which was supposed to end the run had given up quietly
+    # (#1038). Only the watchdog writes these three; they are its memory and its
+    # verdict, not something a client hands in.
+    import_backlog_seen = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen"),
+        help_text=_(
+            "how many records of this job the import watchdog last counted "
+            "as waiting for their import"))
+    import_backlog_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen at"),
+        help_text=_(
+            "the moment the import watchdog counted that many records "
+            "waiting; the same count at the next look is a backlog which "
+            "did not move"))
+    import_stalled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import stalled at"),
+        help_text=_(
+            "since when the import watchdog sees the import backlog of this "
+            "job untouched; the run is not waiting on work which somebody is "
+            "doing. What the watchdog could do about it is on its harvesting "
+            "log"))
     change_log = HistoricalRecords(
         related_name="change_logs",
         bases=[AdditionalTimeFieldsHistoricalModel,],

@@ -78,11 +78,11 @@ Feature: HarvestingJob List Endpoint
             | doneAt   |
             | -doneAt  |
 
-    # The harvesting activity card of a catalogue asks the runs of that catalogue newest first
-    # (`sort=dateCreated` of HarvestingActivityCard.tsx) and names the moment of its last run. Both
-    # is asserted on CSW1, which has no job in the fixture: the two runs of one catalogue are
-    # written by the step and rolled back after the scenario, because the fixture is shared with
-    # the scenarios above and below this one (#1079).
+    # The runs of one catalogue are ordered by the moment they were made since #1079 filled that
+    # column; #1080 had withdrawn the sort offer because the empty column ordered nothing, and this
+    # scenario is what earns it back. It runs on CSW1, which has no job in the fixture: the runs
+    # written by the step and rolled back afterwards, because the fixture is shared with the
+    # scenarios above and below this one.
     Scenario: Orders the runs of a catalogue by the moment they were made
         Given the catalogue 9cc4889d-0cd4-4c3b-8975-58de6d30db41 has two finished runs started at 2024-05-03T08:00:00Z and 2024-05-04T08:30:00Z
         Given I set a queryparam "filter[service.id]" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
@@ -92,9 +92,9 @@ Feature: HarvestingJob List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
         Then I expect the runs of the catalogue newest first
 
-    # The time range a client asks a list of runs within (#1080) answers nothing while the column is
-    # empty. The moment between the two runs of the setup above is inside the range for the newer
-    # one only.
+    # The time range a client asks a list of runs within is declared since #1080, and #1079 filled
+    # the column it reads. The moment between the two runs of the setup above is inside the range
+    # for the newer one only.
     Scenario: Answers the runs of a catalogue within a time range
         Given the catalogue 9cc4889d-0cd4-4c3b-8975-58de6d30db41 has two finished runs started at 2024-05-03T08:00:00Z and 2024-05-04T08:30:00Z
         Given I set a queryparam "filter[service.id]" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
@@ -113,3 +113,26 @@ Feature: HarvestingJob List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.[0].attributes.recordsPerMinute" with value "None"
+
+    # What a run has left to do is the part of its steps which is not done, scaled by the time the
+    # done part measured - so a run which cannot say what it has done answers nothing. The job of
+    # CSW2 is still pending and has done no step; the job of CSW3 imports without ever having
+    # determined how many records its catalogue counted. An invented estimate must not be mistaken
+    # for a measured one (#1071).
+    Scenario: Answers no remaining time for a run which cannot estimate it
+        Given I set a queryparam "fields[HarvestingJob]" with value "id,estimated_seconds_remaining,expected_done_at"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.estimatedSecondsRemaining" with value "None"
+        Then I expect that response json has an attribute "data.[0].attributes.expectedDoneAt" with value "None"
+        Then I expect that response json has an attribute "data.[1].attributes.estimatedSecondsRemaining" with value "None"
+        Then I expect that response json has an attribute "data.[1].attributes.expectedDoneAt" with value "None"
+
+    # The display string of a job names the catalogue it runs for and the id of the run, the
+    # shape every registry resource uses - it is what the frontend renders wherever it shows a
+    # record generically. The model repr it replaced read "HarvestingJob object (1)" (#1045).
+    Scenario: Answers the display string of a job
+        Given I set a queryparam "filter[id]" with value "1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.stringRepresentation" with value "CSW2 (harvesting job 1)"

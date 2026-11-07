@@ -52,7 +52,7 @@ CREATION_FROM_CHANGE_LOG = """
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0034_remove_harvestedmetadatarelation_dm_record_or_sm_record_and_more'),
+        ('registry', '0035_a_too_long_keyword_does_not_take_a_record_down'),
     ]
 
     operations = [

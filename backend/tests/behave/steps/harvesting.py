@@ -1,10 +1,10 @@
 """Runs of a catalogue, written by the scenario which asks them and taken away again.
 
 The harvesting scenarios of this feature ask the two jobs of `test_csw.json`, which belong to two
-different catalogues and never ended. The card of a catalogue (#1079: the one which asks
-`sort=dateCreated` and names the moment of its last run) wants the runs of *one* catalogue, so the
-pair is written here - inside a transaction the cleanup rolls back, because the fixture is loaded
-once for the whole feature and its counts belong to its sibling scenarios.
+different catalogues and never ended. The harvesting screens of a catalogue want the runs of *one*
+catalogue, and since #1079 filled the moment a run was made, the endpoint orders them by it - which
+is what these two runs assert. They are written inside a transaction the cleanup rolls back, because
+the fixture is loaded once for the whole feature and its counts belong to its sibling scenarios.
 """
 from behave import given, then
 from django.db import transaction

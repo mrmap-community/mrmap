@@ -17,6 +17,7 @@ view. The 200 case therefore writes into the configured media root, the same
 directory a deployment serves - and so does every test of the dumps.
 """
 
+import contextlib
 import importlib.util
 import uuid
 from pathlib import Path
@@ -38,7 +39,6 @@ class ProtectedServeVerbTests(SimpleTestCase):
         # a dump as the rfc5424 formatter writes it: the sweep of system.tasks
         # takes it back, the test below does not wait for that
         cls.dump_directory = Path(settings.MEDIA_ROOT) / SLOW_REQUEST_DUMP_SUBDIR
-        cls.created_dump_directory = not cls.dump_directory.exists()
         cls.dump_directory.mkdir(exist_ok=True)
         cls.dump_name = f'{uuid.uuid4()}.json'
         cls.dump_path = cls.dump_directory / cls.dump_name
@@ -48,7 +48,6 @@ class ProtectedServeVerbTests(SimpleTestCase):
         # directory of its own, inside the media root, and those are media
         cls.proxy_directory = (Path(settings.MEDIA_ROOT) / 'security_proxy'
                                / 'logs' / 'requests')
-        cls.created_proxy_directory = not cls.proxy_directory.exists()
         cls.proxy_name = f'{uuid.uuid4()}.json'
         cls.proxy_path = cls.proxy_directory / cls.proxy_name
         cls.proxy_directory.mkdir(parents=True, exist_ok=True)
@@ -59,12 +58,15 @@ class ProtectedServeVerbTests(SimpleTestCase):
         cls.media_path.unlink(missing_ok=True)
         cls.dump_path.unlink(missing_ok=True)
         cls.proxy_path.unlink(missing_ok=True)
-        # only the directories this class created: the checkout may hold dumps of its
-        # own, which belong to whoever wrote them
-        if cls.created_dump_directory:
-            cls.dump_directory.rmdir()
-        if cls.created_proxy_directory:
-            cls.proxy_directory.rmdir()
+        # the directory goes with the last file below it, whatever class wrote
+        # that file: the parallel runner runs the development subclass below in
+        # another process, so both classes share these directories and an
+        # rmdir can meet a file of the sibling still running there. A file is
+        # what keeps a directory, so the dumps a checkout holds of its own
+        # belong to whoever wrote them and the rmdir simply does not apply.
+        for directory in (cls.dump_directory, cls.proxy_directory):
+            with contextlib.suppress(OSError):
+                directory.rmdir()
         super().tearDownClass()
 
     def test_get_serves_the_file(self):

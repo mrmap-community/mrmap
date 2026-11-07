@@ -5,9 +5,8 @@ the duration a harvest takes is measured by the runs which finished: both
 questions are answered by the runs a catalogue already has behind it.
 """
 from django.db import transaction
-from django.db.models import (Avg, Count, DateTimeField, DurationField, Exists,
-                              ExpressionWrapper, F, Max, OuterRef, Q, Subquery)
-from django.db.models.functions import Coalesce
+from django.db.models import (Avg, Count, DurationField, Exists,
+                              ExpressionWrapper, F, Max, OuterRef, Q)
 from django.utils.timezone import now
 from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
@@ -66,14 +65,7 @@ def harvest_durations(service_ids):
             newest of them
     """
     from registry.models.harvest import HarvestingJob
-    created_at = Coalesce(
-        F('date_created'),
-        Subquery(
-            HarvestingJob.change_log.model.objects
-            .filter(history_relation_id=OuterRef('pk'))
-            .order_by('history_date', 'history_id')
-            .values('history_date')[:1],
-            output_field=DateTimeField()))
+    from registry.querys.havesting import run_created_at
     return {
         row['service']: row
         for row in HarvestingJob.objects.filter(
@@ -82,7 +74,7 @@ def harvest_durations(service_ids):
             done_at__isnull=False,
         ).values('service').annotate(
             average=Avg(ExpressionWrapper(
-                F('done_at') - created_at, output_field=DurationField())),
+                F('done_at') - run_created_at(), output_field=DurationField())),
             last_done=Max('done_at'))
     }
 

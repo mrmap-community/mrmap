@@ -1,12 +1,12 @@
 """Fills the moment a run was made for the runs a deployment already has.
 
-Migration ``0035`` gave ``ProcessingData.date_created`` the ``default=now`` its sibling in
+Migration ``0036`` gave ``ProcessingData.date_created`` the ``default=now`` its sibling in
 ``notify/models.py`` already has and, beside the two ``AlterField``, the ``UPDATE`` which fills the
 runs a deployment already has from the earliest row of their change log (#1079). The live model
 cannot seed the shape that fill is about: it answers a creation for every row it is handed, so the
 empty column which has to be filled does not exist anymore. So this test travels the real
-``MigrationExecutor`` back to 0034, writes the runs and their change log the way an installation
-which harvested for years has them, and migrates to 0035 again - which is the upgrade itself, the
+``MigrationExecutor`` back to 0035, writes the runs and their change log the way an installation
+which harvested for years has them, and migrates to 0036 again - which is the upgrade itself, the
 schema of the column and the fill of its values.
 """
 from datetime import datetime, timezone
@@ -23,12 +23,12 @@ ALREADY_LOGGED = datetime(2024, 11, 2, 16, 44, 58, 405990, tzinfo=timezone.utc)
 
 
 class HarvestingRunMomentMigrationTest(TransactionTestCase):
-    """What the fill of 0035 writes from the change log and what it leaves alone"""
+    """What the fill of 0036 writes from the change log and what it leaves alone"""
 
     migrate_from = [
-        ('registry', '0034_remove_harvestedmetadatarelation_dm_record_or_sm_record_and_more')]
+        ('registry', '0035_a_too_long_keyword_does_not_take_a_record_down')]
     migrate_to = [
-        ('registry', '0035_a_harvesting_run_knows_when_it_was_made')]
+        ('registry', '0036_a_harvesting_run_knows_when_it_was_made')]
 
     def setUp(self):
         super().setUp()
@@ -37,7 +37,7 @@ class HarvestingRunMomentMigrationTest(TransactionTestCase):
     def old_shape(self):
         """Runs of a deployment which harvested before this migration existed
 
-        The rows are written under the schema of 0034, where the column answers nothing on its own
+        The rows are written under the schema of 0035, where the column answers nothing on its own
         and every value in it was written by hand:
 
         * a run whose change log names its creation and a later revision - the fill has to pick the

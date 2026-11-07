@@ -4,6 +4,15 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   cronInput: {
     openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
     minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
+    editorTitle: "Cron-Ausdruck bearbeiten",
+    minute: "Minute",
+    hour: "Stunde",
+    dayOfMonth: "Monatstag",
+    month: "Monat",
+    weekday: "Wochentag (0=So)",
+    every: "* (alle)",
+    preview: "Vorschau / manuelle Eingabe",
+    apply: "Anwenden",
   },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
@@ -362,6 +371,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "diagnostics": "Diagnose",
     "downloadTimings": "Download-Zeiten",
     "databaseTimings": "Datenbank-Zeiten",
+    "measurements": "Messwerte dieses Laufs",
+    "measuredDownload": "Gemessene Download-Zeit",
+    "measuredDatabase": "Gemessene Datenbank-Zeit",
+    "throughputRunning": "Datensätze pro Minute bisher",
+    "estimateRemaining": "Geschätzte verbleibende Zeit",
+    "expectedEnd": "Voraussichtliches Ende",
+    "estimateUnknown": "Noch keine Schätzung möglich",
+    "estimateNote": "Dauer, Download- und Datenbank-Zeit sowie der bisher erzielte Durchsatz werden von diesem Lauf gemessen; verbleibende Zeit und voraussichtliches Ende sind Schätzungen auf Grundlage des bisherigen Fortschritts.",
     "terminated": "Diese Datenübernahme ist beendet.",
     "refresh": "Wird alle 5 Sekunden aktualisiert"
   },
@@ -404,6 +421,10 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     disabledMessage: "Die Zeitpläne sind deaktiviert. Aktivieren Sie einen Zeitplan für die automatische Datenübernahme.",
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
+  },
+  harvestingStats: {
+    records: "Datensätze",
+    day: "Tag",
   },
   harvestThroughput: {
     basis: "Gemessen an den %{count} abgeschlossenen Datenübernahmen dieses Katalogs:",
@@ -484,16 +505,24 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",
+      harvestAborted: "Harvesting abgebrochen",
+      harvestIncomplete: "Harvesting unvollständig",
     },
     tiles: {
       total: "Dienste in dieser Ansicht",
       noAlerts: "Keine Warnungen",
       runningUpdates: "Aktualisierungen laufen (alle Dienste)",
+      runningHarvests: "Harvesting läuft (alle Dienste)",
+      harvestAborted: "Harvesting abgebrochen",
+      harvestIncomplete: "Harvesting unvollständig",
       needsAttention: "Aufmerksamkeit nötig",
       hints: {
         total: "Die Dienste, die diese Ansicht beantwortet - dieselbe Zahl wie die Zeilen der Liste.",
-        noAlerts: "Dienste dieser Ansicht, deren letztes Monitoring, deren letzte Aktualisierung und deren letzte Ernte keinen Fehler gemeldet haben. Das sagt nicht, dass ein Dienst kürzlich geprüft wurde.",
+        noAlerts: "Dienste dieser Ansicht, die keine Warnung melden. Ein Dienst, dessen Monitoring nie lief und dessen Harvesting nie lief, meldet ebenfalls keine Warnung - in dieser Zahl stehen also auch Dienste, die nie geprüft wurden.",
         runningUpdates: "Aktualisierungsprozesse aller Dienstarten, die gerade warten oder laufen - für das gesamte Registry gezählt und nicht für diese Ansicht.",
+        runningHarvests: "Harvesting-Prozesse, die gerade warten oder laufen - für das gesamte Registry gezählt und nicht für diese Ansicht, weil ein Harvesting-Prozess keinen Katalog nennt. Diese Zahl öffnet die Liste der Läufe, die arbeiten.",
+        harvestAborted: "Dienste dieser Ansicht, deren letztes Harvesting vor dem Abschluss abgebrochen wurde. Harvesting betrifft nur Kataloge, deshalb beantwortet nur eine Ansicht von Katalogen diese Zahl.",
+        harvestIncomplete: "Dienste dieser Ansicht, deren letztes Harvesting nicht alle Datensätze übernehmen konnte. Harvesting betrifft nur Kataloge, deshalb beantwortet nur eine Ansicht von Katalogen diese Zahl.",
         needsAttention: "Dienste dieser Ansicht, die ein fehlgeschlagenes Monitoring, eine fehlgeschlagene oder ungeklärte Aktualisierung oder eine abgebrochene oder unvollständige Ernte melden.",
       },
     },
@@ -502,6 +531,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       abstract: "Beschreibung",
       id: "ID",
       lastUpdate: "Letzte Aktualisierung",
+      harvest: "Harvesting",
       service: "Dienst",
       status: "Status",
       layers: "Ebenen",
@@ -512,7 +542,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       actions: "Aktionen",
     },
     secured: "Gesichert",
-    noUpdates: "Noch keine Aktualisierungen",
+    nothingReported: "Nichts gemeldet",
     inactive: "Inaktiv",
     details: "Details des ausgewählten Dienstes",
     noSelection: "Wähle einen Dienst aus, um seine Details zu sehen.",
@@ -538,6 +568,117 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         occurredAt: "Zeitpunkt",
       },
     },
+    // The changelog labels lived in a `resources` block nested under `ra`, where
+    // no translation lookup ever reached them; they live here now (#1085).
+    ChangeLog: {
+      historyDate: "Zeitstempel",
+      historyUser: "Nutzer",
+      historyType: "Aktion",
+      historyRelation: "Objekt",
+      lastChanges: "Letzte Änderungen",
+    },
+    CatalogueService: {
+      singular: "Katalogdienst",
+      plural: "Katalogdienste",
+      listSubheader: "Registrierte Katalogdienste (CSW) verwalten",
+    },
+    CatalogueServiceMonitoringSetting: {
+      singular: "Monitoringeinstellung des Katalogdiensts",
+      plural: "Monitoringeinstellungen der Katalogdienste",
+    },
+    HarvestingJob: {
+      singular: "Datenübernahme",
+      plural: "Datenübernahmen",
+      listSubheader: "Läufe, die die Kataloge übernommen haben, laufende und beendete",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Gestartet",
+        doneAt: "Beendet",
+        phase: "Phase",
+        phaseLabel: "Status",
+        progress: "Fortschritt",
+        totalRecords: "Datensätze",
+        unhandledRecordsCount: "Warten auf Import",
+        importErrorCount: "Importfehler",
+        maxStepSize: "Schrittgröße",
+        recordsPerMinute: "Datensätze pro Minute",
+      },
+    },
+    PeriodicHarvestingJob: {
+      singular: "Zeitplan für Datenübernahme",
+      plural: "Zeitpläne für Datenübernahme",
+      listSubheader: "Zeitpläne, die festlegen, wann welcher Katalog übernommen wird",
+      fields: {
+        service: "Katalog",
+        enabled: "Aktiviert",
+        scheduling: "Zeitplan",
+        timeUntilNextRun: "Zeit bis zum nächsten Lauf",
+      },
+    },
+    HarvestingLog: {
+      singular: "Protokolleintrag der Datenübernahme",
+      plural: "Protokolleinträge der Datenübernahme",
+      listSubheader: "Was die Läufe bei der Datenübernahme gemeldet haben",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        timestamp: "Zeit",
+        level: "Stufe",
+        kind: "Art",
+        description: "Beschreibung",
+      },
+    },
+    TemporaryMdMetadataFile: {
+      singular: "Heruntergeladene Metadatendatei",
+      plural: "Heruntergeladene Metadatendateien",
+      fields: {
+        job: "Datenübernahme",
+        reSchedule: "Neu eingeplant",
+        hasImportError: "Hat Importfehler",
+        importError: "Importfehler",
+      },
+    },
+    CatalogueServiceUpdateJob: {
+      name: "Katalog-Aktualisierungen",
+      singular: "Aktualisierungslauf eines Katalogdiensts",
+      plural: "Aktualisierungsläufe der Katalogdienste",
+      running: "Noch nicht beendet",
+      status: "Zustand",
+      updateCandidate: "Aktualisierungskandidat",
+      notEndedMessage: "Diese Aktualisierung ist noch nicht beendet. Ihr Ergebnis steht noch nicht fest.",
+      reviewRequiredMessage: "Diese Aktualisierung wartet auf eine Entscheidung über sie. Was der Katalog meldet, wird erst mit dieser Entscheidung übernommen.",
+      listSubheader: "Aktualisierungsaufträge der registrierten Katalogdienste",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Erstellt",
+        doneAt: "Abgeschlossen",
+        statusCode: "Statuscode",
+      },
+    },
+    HarvestedMetadataRelation: {
+      singular: "Übernommener Metadatensatz",
+      plural: "Übernommene Metadatensätze",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        datasetMetadataRecord: "Datensatz",
+        serviceMetadataRecord: "Dienst",
+        applicationMetadataRecord: "Anwendung",
+        collectingState: "Sammlungsstatus",
+        downloadDuration: "Download-Dauer",
+      },
+    },
+    BackgroundProcess: {
+      titles: {
+        registering: "Neuen Dienst registrieren",
+        harvesting: "Datenübernahme",
+        harvestingOf: "Datenübernahme von %{id}",
+        monitoring: "Monitoring",
+        runningTask: "Laufende Aufgabe",
+      },
+      states: {
+        completed: "abgeschlossen",
+        waitingForSchedule: "wartet auf den Zeitplan",
+      },
+      stepsDone: "%{done} von %{total} Schritten abgeschlossen.",    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",
@@ -1059,15 +1200,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         secondaryText: "Sekundärtext",
         tertiaryText: "Tertiärtext"
       },
-    },
-    resources: {
-      ChangeLog: {
-        historyDate: "Zeitstempel",
-        historyUser: "Nutzer",
-        historyType: "Aktion",
-        historyRelation: "Objekt",
-        lastChanges: "Letzte Änderungen",
-      }
     }
   }
 }

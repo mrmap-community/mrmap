@@ -66,7 +66,7 @@ class ProcessingData(models.Model):
         # So even if you set a value for this field when creating the object, it will be ignored.
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         default=now,
-        # A default and not auto_now_add: the harvesting, the migration of 0035 and the tests of
+        # A default and not auto_now_add: the harvesting, the migration of 0036 and the tests of
         # #870 all hand a moment of their own to a run, and auto_now_add would ignore every one of
         # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
         # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
@@ -309,6 +309,19 @@ class HarvestingJob(ProcessingData):
                     "There is an existing noncompleted job for this service.")
             )
         ]
+
+    def __str__(self):
+        """The catalogue this run harvested, named by the run's own id.
+
+        The registry renders every resource as ``<meaningful> (<pk>)``; the
+        meaningful part of a run is the title of its catalogue and the
+        parenthesized part names what the number is the id of, so it is never
+        read as the catalogue's own pk. A run without a catalogue is a file
+        import - it has no title to lead with (#1045).
+        """
+        if self.service_id:
+            return f"{self.service.title} (harvesting job {self.pk})"
+        return f"harvesting job {self.pk}"
 
     def append_celery_task_ids(self, ids, creation=False):
         """Register the ids of the tasks this job is publishing.
@@ -1208,21 +1221,36 @@ class TemporaryMdMetadataFile(models.Model):
                             for keyword in getattr(instance, "_keywords_parsed", None) or []
                         ]
                         instance.refresh_quality_indicators(mapped_keywords)
+                        # the provenance of the record, computed once per
+                        # record file: the three buckets below name the same
+                        # url, so asking the client three times only paid
+                        # three document reads and parses per imported
+                        # record (#1044). The client reads the catalogue's
+                        # stored capabilities document only - a document
+                        # which is gone from the storage raises
+                        # CapabilitiesBackupMissing for the run instead of
+                        # the import working around a broken service per
+                        # record.
+                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
+                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
+                        origin_url = self.job.service.client.get_record_by_id_request(
+                            id=instance.file_identifier).url if self.job.service_id \
+                            else "http://localhost"
                         handler = PersistenceHandler(
                             mapper=mappers[0],
                             change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "service": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "application": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 }
                             }
                         )
@@ -1330,8 +1358,11 @@ class TemporaryMdMetadataFile(models.Model):
 
 
 def extented_description_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
-    return f'HarvestingLog/{instance.harvesting_job}/{filename}'
+    # file will be uploaded to MEDIA_ROOT/HarvestingLog/<job pk>/<filename>;
+    # the path is built from the id of the job, never from str(instance): a
+    # display string is no stable identifier and would carry spaces and
+    # parentheses into MEDIA_ROOT and into the url of the attachment (#1045)
+    return f'HarvestingLog/{instance.harvesting_job_id}/{filename}'
 
 
 class HarvestingLog(models.Model):
@@ -1374,6 +1405,16 @@ class HarvestingLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+    def __str__(self):
+        """The message of the log, named by the log's own id.
+
+        The description is what a log line says and answers without reading
+        over the job to its catalogue; the id in parentheses tells the rows
+        which repeat one message apart. A log without a message - the column
+        is blankable - falls back to the name of its kind (#1045).
+        """
+        return f"{self.description or self._meta.verbose_name} ({self.pk})"
 
 
 class PeriodicHarvestingJob(PeriodicTask):
@@ -1418,3 +1459,11 @@ class PeriodicHarvestingJob(PeriodicTask):
                 name="periodic_harvesting_excludes_internal_csw",
             ),
         ]
+
+    def __str__(self):
+        """The catalogue this schedule harvests, named by the schedule's id.
+
+        Same shape as the run it starts: the title leads and the parenthesis
+        says what the number is the id of (#1045).
+        """
+        return f"{self.service.title} (periodic harvesting job {self.pk})"

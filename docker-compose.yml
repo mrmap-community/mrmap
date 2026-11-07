@@ -155,8 +155,15 @@ services:
         MRMAP_PRODUCTION: "True"
     # deploy:
     #   replicas: 10
+    # No -Q on purpose: the worker consumes every queue the app declares
+    # (CELERY_TASK_QUEUES over backend/MrMap/celery_queues.py), so a release
+    # which adds a queue is consumed by a restarted deployment without any
+    # override restating the list (#1040). The number of worker slots comes
+    # from CELERY_WORKER_CONCURRENCY in the .env, below; a worker narrowed
+    # to a part of the queues with its own -Q logs an ERROR naming the
+    # queues it cannot deliver from at every start.
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines,harvest-import,monitoring,update --statedb=/var/run/celery/%n-%i_worker.state"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO --statedb=/var/run/celery/%n-%i_worker.state"
     # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.
@@ -188,6 +195,9 @@ services:
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
+      # deployer knob for the worker slots (#1040); empty keeps celery's
+      # own default, see docs/source/development/environment.rst
+      CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-}"
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:
@@ -289,7 +299,9 @@ services:
       # while empty, so `up -d --build` after an upgrade kept serving the
       # previous version's assets from the volume - and stale hashed files
       # never disappeared, which #942's 404s and #946's immutable caching
-      # both depend on. (#922)
+      # both depend on. (#922) That no mount ever returns to those paths is
+      # what scripts/static_mounts_smoke.py checks; #1027 is the invisible
+      # stale rebuild a mount caused again on an older checkout.
     ports:
       - "${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}:80"
     depends_on:

@@ -9,7 +9,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (CharField, ChoiceField, DurationField,
+from rest_framework_json_api.serializers import (CharField, ChoiceField,
+                                                 DateTimeField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
@@ -136,6 +137,41 @@ class HarvestingJobSerializer(
             "time of the records of the run, which spreads the time of a response over its "
             "records: the number compares step sizes with each other, it is no promise about a "
             "single run."),
+        read_only=True)
+
+    elapsed_seconds = FloatField(
+        label=_("elapsed seconds"),
+        help_text=_(
+            "how long this run has been working, in seconds: from the moment the run was made "
+            "to its end, or to the moment of the request while it still works. The moment the "
+            "run was made is its `dateCreated`, or - where the harvesting never set one - the "
+            "first row of its change log; a run which was made at no answerable moment answers "
+            "nothing."),
+        read_only=True)
+    records_per_minute_running = FloatField(
+        label=_("records per minute so far"),
+        help_text=_(
+            "how many records per minute this run has stored so far, against the time it has "
+            "worked: the records it downloaded while it downloads, the records it wrote to the "
+            "database while it imports. Named apart from `recordsPerMinute`, because it answers "
+            "a run which is still working; what it measures is the run which is watched, not the "
+            "size of the pages a harvest asks with."),
+        read_only=True)
+    estimated_seconds_remaining = FloatField(
+        label=_("estimated seconds remaining"),
+        help_text=_(
+            "how long this run estimates itself to still take, in seconds: its elapsed time "
+            "against the progress its steps already answer, scaled to the part which is left. An "
+            "estimate and no measured duration: a run whose records are not known yet, which has "
+            "done nothing yet, or which is closed answers nothing, because nothing is known or "
+            "nothing is left then."),
+        read_only=True)
+    expected_done_at = DateTimeField(
+        label=_("expected done at"),
+        help_text=_(
+            "the moment this run is expected to end: its `estimatedSecondsRemaining` added to "
+            "the moment of the request. Where no estimate is answered, no end is answered "
+            "either."),
         read_only=True)
 
     total_steps = IntegerField(read_only=True)

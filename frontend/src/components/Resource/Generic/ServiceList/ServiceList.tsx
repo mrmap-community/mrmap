@@ -3,6 +3,7 @@ import { useLocaleState, useResourceContext, useTranslate, type ListProps } from
 import { Box, Stack, Typography } from "@mui/material";
 
 import ListWithDialogs from "../../../../jsonapi/components/ListWithDialogs";
+import { harvestFacetsFor } from "./alertFacets";
 import { type ServiceListConfig } from "./config";
 import { serviceListProps } from "./serviceListProps";
 import ServiceSummaryTiles from './ServiceSummaryTiles';
@@ -20,7 +21,7 @@ export interface ServiceListProps extends Partial<ListProps> {
  * Keep the create and edit dialog routes mounted beside the configured list.
  */
 
-const ServiceHeader = () => {
+const ServiceHeader = ({ config }: { config: ServiceListConfig }) => {
   const translate = useTranslate()
   const resource = useResourceContext()
   return (
@@ -33,7 +34,9 @@ const ServiceHeader = () => {
           {translate(`resources.${resource}.listSubheader`)}
         </Typography>
       </Box>
-      <ServiceSummaryTiles />
+      {/* the tiles of the harvesting are counted where the resource declares the
+          filters of the harvesting - the same answer which gives the facets */}
+      <ServiceSummaryTiles harvestFacets={harvestFacetsFor(config.harvestFilters)} />
     </Stack>
   );
 };
@@ -47,7 +50,7 @@ const ServiceList = ({ config, ...props }: ServiceListProps) => {
         listGuesserProps={{
           ...props,
           ...serviceListProps(config, locale),
-          header: <ServiceHeader />,
+          header: <ServiceHeader config={config} />,
         }}
       />
   )

@@ -32,6 +32,7 @@ import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetada
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
+import ListHarvestingLog from './HarvestingLog/ListHarvestingLog';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
 import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
@@ -43,6 +44,7 @@ import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
+import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -113,8 +115,11 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},
-  {name: "TemporaryMdMetadataFile"},
-  {name: "HarvestingLog"},
+  // the declared lists of the run's leftovers have no menu entries on purpose:
+  // an administrator reaches them from a run, not from a pile of every log
+  // line of every catalogue (#1083, #888)
+  {name: "TemporaryMdMetadataFile", list: ListTemporaryMdMetadataFile},
+  {name: "HarvestingLog", list: ListHarvestingLog},
   // the screen of all schedules: the question which catalogue has one, and when
   // it next runs, is answered here and not on the tab of a single catalogue
   // (#1082). The fieldset names its columns, because the grid of declared

@@ -4,6 +4,8 @@ import { type SortPayload, useTranslate } from "react-admin";
 import ErrorIcon from "@mui/icons-material/Error";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import RateReviewIcon from "@mui/icons-material/RateReview";
+import SyncIcon from "@mui/icons-material/Sync";
+import SyncProblemIcon from "@mui/icons-material/SyncProblem";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Stack, Typography, type SvgIconProps } from "@mui/material";
 
@@ -33,16 +35,29 @@ export interface WorkQueue {
   color: "error" | "warning" | "info";
 }
 
+/** the categories which the harvesting of a catalogue leaves behind, as the
+ *  alerts api names them; its category filter answers several of them comma
+ *  separated with one request (registry/views/alerts.py, #1086) */
+const HARVEST_ALERT_CATEGORIES = [
+  "harvest_aborted",
+  "harvest_incomplete",
+  "harvest_overdue",
+  "harvest_schedule_too_tight",
+];
+
 /**
  * The queues of the whole deployment which the dashboard answers above the
  * inventory.
  *
- * The alerts and the reviews are counted by the collection of the service
- * alerts, because that collection is what the api answers as the attention of
- * the services - it names the categories of the alerts and does not ask which
- * kind of service an alert belongs to. The work is counted by the background
- * processes, which do not name the kind of the resource they work on and are
- * therefore never counted by a resource of the registry.
+ * The alerts are counted by the collection of the service alerts, which
+ * answers the category of an alert and the kind of service the alert belongs
+ * to - `filter[category]` and `filter[serviceType]` (registry/views/alerts.py)
+ * - so every queue of the alerts names the states and, where it is narrowed,
+ * the kind of service it counts. The work is counted by the background
+ * processes, which do not name the kind of the resource they work on; a queue
+ * of them names its process type, a queue without one counts all work.
+ * Nothing of the card is counted per screen: its subheader says that every
+ * queue counts over everything the caller may read.
  */
 export const workQueues = (): WorkQueue[] => [
   {
@@ -60,11 +75,34 @@ export const workQueues = (): WorkQueue[] => [
     icon: RateReviewIcon,
     color: "warning",
   },
+  // the harvesting states are only answered by a catalogue, so the queue
+  // names the kind of service it counts - monitoring alerts of a map service
+  // must never push the broken catalogues out of this queue
+  {
+    key: "harvestAlerts",
+    resource: "ServiceAlert",
+    filter: {
+      category: HARVEST_ALERT_CATEGORIES.join(","),
+      serviceType: "CatalogueService",
+    },
+    sort: { field: "severity,-occurredAt", order: "ASC" },
+    icon: SyncProblemIcon,
+    color: "warning",
+  },
   {
     key: "runningWork",
     resource: "BackgroundProcess",
     filter: { status: ACTIVE_STATUSES },
     icon: PendingActionsIcon,
+    color: "info",
+  },
+  // a harvesting process names no catalogue, so the queue counts the runs of
+  // every catalogue - the same shape as the running updates tile of the list
+  {
+    key: "runningHarvests",
+    resource: "BackgroundProcess",
+    filter: { status: ACTIVE_STATUSES, process_type: "harvesting" },
+    icon: SyncIcon,
     color: "info",
   },
   {
@@ -101,7 +139,7 @@ const WorkQueueCard = () => {
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
           },
           width: "100%",
           gap: 2,

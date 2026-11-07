@@ -2466,6 +2466,18 @@ msgstr ""
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 
+#: registry/serializers/harvesting.py:283
+msgid "has extended description"
+msgstr "hat erweiterte Beschreibung"
+
+#: registry/serializers/harvesting.py:285
+msgid ""
+"whether this log line has a stored response behind it; the content of the "
+"file is answered on the line itself, never in a list"
+msgstr ""
+"ob dieser Protokolleintrag eine gespeicherte Antwort hinter sich hat; der "
+"Inhalt der Datei wird am Eintrag selbst beantwortet, nie in einer Liste"
+
 #: registry/serializers/mapcontext.py:32
 msgid "tree id"
 msgstr "Baum-ID"

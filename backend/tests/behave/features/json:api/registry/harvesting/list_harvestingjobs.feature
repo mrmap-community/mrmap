@@ -62,12 +62,12 @@ Feature: HarvestingJob List Endpoint
             | id       | 1     |
             | -id      | 2     |
 
-    # The harvesting never set the creation of a job, so the runs which finished cannot be told
-    # apart by it. The end of a run is the order the throughput of a catalogue is measured by: the
-    # screen which recommends a page size asks the runs which finished last (#692). Both jobs of
-    # the fixture never ended, so the order itself is nothing to assert here - what is asserted is
-    # that the endpoint answers the order at all, because an unknown sort field is answered with a
-    # bad request.
+    # The end of a run is the order the throughput of a catalogue is measured by: the screen which
+    # recommends a page size asks the runs which finished last (#692). Both jobs of the fixture
+    # never ended, so the order itself is nothing to assert here - what is asserted is that the
+    # endpoint answers the order at all, because an unknown sort field is answered with a bad
+    # request. The moment a run was made is ordered by the scenario below, which writes two runs
+    # whose starts it knows.
     Scenario Outline: Can sort jobs by the end of the run
         Given I set a queryparam "sort" with value "<ordering>"
         When I send the request with GET method
@@ -77,6 +77,32 @@ Feature: HarvestingJob List Endpoint
             | ordering |
             | doneAt   |
             | -doneAt  |
+
+    # The runs of one catalogue are ordered by the moment they were made since #1079 filled that
+    # column; #1080 had withdrawn the sort offer because the empty column ordered nothing, and this
+    # scenario is what earns it back. It runs on CSW1, which has no job in the fixture: the runs
+    # written by the step and rolled back afterwards, because the fixture is shared with the
+    # scenarios above and below this one.
+    Scenario: Orders the runs of a catalogue by the moment they were made
+        Given the catalogue 9cc4889d-0cd4-4c3b-8975-58de6d30db41 has two finished runs started at 2024-05-03T08:00:00Z and 2024-05-04T08:30:00Z
+        Given I set a queryparam "filter[service.id]" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+        Given I set a queryparam "sort" with value "-dateCreated"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "2"
+        Then I expect the runs of the catalogue newest first
+
+    # The time range a client asks a list of runs within is declared since #1080, and #1079 filled
+    # the column it reads. The moment between the two runs of the setup above is inside the range
+    # for the newer one only.
+    Scenario: Answers the runs of a catalogue within a time range
+        Given the catalogue 9cc4889d-0cd4-4c3b-8975-58de6d30db41 has two finished runs started at 2024-05-03T08:00:00Z and 2024-05-04T08:30:00Z
+        Given I set a queryparam "filter[service.id]" with value "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+        Given I set a queryparam "filter[dateCreated.gt]" with value "2024-05-04T00:00:00Z"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect only the newer run of the catalogue
 
     # The records per minute of a run are its records against the time their download and their way
     # into the database measured. The jobs of the fixture carry no harvested records and no

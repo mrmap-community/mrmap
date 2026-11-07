@@ -153,7 +153,8 @@
             "timestamp": "2026-11-05T01:20:00Z",
             "level": 2,
             "kind": 0,
-            "description": "record response was incomplete"
+            "description": "record response was incomplete",
+            "extented_description": "harvesting/1080101/incomplete-page.xml"
         }
     },
     {

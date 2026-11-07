@@ -1,4 +1,4 @@
-@fixtures:test_wms.json @fixtures:test_keywords.json
+@fixtures:test_wms.json @fixtures:test_keywords.json @fixtures:test_organizations.json
 Feature: WebMapService Add Endpoint
     As an API client,
     I want to add web map services,
@@ -25,7 +25,7 @@ Feature: WebMapService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }
@@ -59,7 +59,7 @@ Feature: WebMapService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "1",
+                                "id": "901",
                                 "type": "Organization"
                             }
                         }

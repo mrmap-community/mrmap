@@ -7,7 +7,7 @@ are the rules which ``0021``, ``0024`` and ``0033`` of the registry migrations
 introduced by hand; django-pgtrigger owns them now, so they travel through the
 migrations as declarative objects and their ``CREATE FUNCTION`` / ``CREATE
 TRIGGER`` boilerplate is replaced by the transfer migration
-``0035_the_keyword_maintenance_is_managed_by_pgtrigger`` (#1009). Importing this
+``0036_the_keyword_maintenance_is_managed_by_pgtrigger`` (#1009). Importing this
 module registers the triggers on their models -- ``registry.apps`` does that
 when the app registry is ready, which is when the makemigrations autodetector
 and the migrate command read them. There are three kinds:
@@ -68,11 +68,13 @@ class AddKeywordsLinkTrigger(AddTrigger):
         return schema_editor.connection.vendor == "postgresql"
 
 
-# the aggregate answering the keywords of one record -- the very statement of
-# 0021, which its triggers, its backfill and the guard of 0024 all write, so
-# that pgtrigger keeps storing what the legacy triggers stored
+# the aggregate answering the keywords of one record -- the statement of
+# 0021 with the one thing 0035 answered differently: the empty array carries
+# the element type the columns have since 0028, so COALESCE has one type to
+# agree on and nothing is re-cast on the way into the widened column (#1075).
+# pgtrigger keeps storing what the legacy triggers stored.
 AGGREGATE = """(SELECT COALESCE(array_agg(DISTINCT keyword.keyword ORDER BY keyword.keyword),
-                             '{{}}'::varchar(300)[])
+                             '{{}}'::text[])
                  FROM {relation} AS relation
                  JOIN registry_keyword AS keyword ON keyword.id = relation.keyword_id
                 WHERE relation.{foreign_key} = record.id

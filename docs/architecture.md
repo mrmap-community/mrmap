@@ -114,9 +114,9 @@ catalogue, `harvestAborted`, `harvestIncomplete` and `harvestFailedAt`. Because
 these are annotations of the services, a client filters, sorts and counts its
 services by them like by any other attribute; the endpoints annotate them only
 to a query which asks for them, because each is answered by a subquery. An alert
-disappears as soon as the state behind it is fixed, which means that no model
-and no migration backs it, and it is answered to exactly those users which may
-see the service it tells about.
+disappears as soon as the state behind it is fixed, which means the answer
+over the services is not backed by a model of its own, and it is answered to
+exactly those users which may see the service it tells about.
 
 Next to a state, an alert names the record which decided it: `monitoringFailedRun`,
 `updateReviewJob` and `updateFailedJob` answer the run or job behind the alert of a
@@ -135,30 +135,38 @@ monitoring and update settings of a service answer their `runOverdue` instead
 ### Cross-service overview
 
 `GET /api/registry/service-alerts` exposes the current problems of published
-WMS, WFS and CSW services as a computed JSON:API `ServiceAlert` collection.
-It reuses `registry/querys/alerts.py` annotations and `extras/scheduling.py`:
-latest monitoring and update failures, pending update reviews (including dangling
-candidates), harvesting failures/import errors, and enabled overdue schedules.
-Candidates and their update jobs produce one review alert for the original service.
+WMS, WFS and CSW services as a JSON:API `ServiceAlert` collection. Its rows
+are stored (`registry.models.ServiceAlert`) and answered as one scoped query;
+what the alert of a service decides is unchanged - the endpoint reuses
+`registry/querys/alerts.py` annotations and `extras/scheduling.py` through
+the refresh which writes the rows: latest monitoring and update failures,
+pending update reviews (including dangling candidates), harvesting
+failures/import errors, and enabled overdue schedules. Candidates and their
+update jobs produce one review alert for the original service.
 
 The endpoint requires authentication and scopes services with guardian view
 permissions, including group and global permissions, before counting or filtering.
 It supports `filter[severity]`, `filter[category]`, `filter[serviceType]`,
 `filter[service]`, `sort=severity,-occurredAt` (also `occurred_at`) and ordinary
-JSON:API pagination. `meta.pagination.count` counts problems, so one service can
+JSON:API pagination; filters, sort and page reach the database as one bounded
+query. `meta.pagination.count` counts problems, so one service can
 contribute several alerts. IDs remain stable while a problem remains open.
-`targetPath` opens the existing service workflow or update review; no state or
-schema migration is introduced.
+`targetPath` opens the existing service workflow or update review.
 
 The app bar, dashboard and schema-driven attention list share this collection.
 Monitoring completion, update job saves and harvesting transitions publish a
 payload-free `resource/ServiceAlert` invalidation after commit. Clients refetch
-their own scoped data, with a 20-second polling fallback that also detects
-schedules becoming overdue. The indicator and dashboard card disappear at zero
-and do not display cached counts on request errors. The alerts which the states
-of the services answer are read from one database view, which is created by a
-union of the same annotations and not by a second definition of the rules (see
-`backend/registry/models/alerts.py`); only the schedule projection still
-happens in memory before pagination, because a crontab is calculated in python
-- answering it from the database too would need the expected run time stored on
-the settings, a later performance change.
+their own scoped data, with a 20-second polling fallback. The indicator and
+dashboard card disappear at zero and do not display cached counts on request
+errors.
+
+The stored rows are written by one refresh (`refresh_service_alerts()`) which
+answers the same union of the service annotations - not a second definition of
+the rules - and adds the schedule projection to it, because a crontab is
+calculated in python. It runs on a beat schedule of twenty seconds - the
+interval which also detects schedules becoming overdue - and every
+invalidation enqueues it with a short countdown, so the rows track the states
+of the services closely behind them. The header poll of an open tab, which
+before this change paid a full re-evaluation of the derivation on every twenty
+seconds, is thereby an indexed read of the rows which answer (#1030); the
+services themselves still answer their alert attributes as live annotations.

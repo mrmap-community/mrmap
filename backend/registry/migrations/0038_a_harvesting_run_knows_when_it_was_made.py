@@ -52,7 +52,7 @@ CREATION_FROM_CHANGE_LOG = """
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0036_harvestingjob_import_watchdog_bookkeeping'),
+        ('registry', '0037_store_the_rows_of_the_alerts'),
     ]
 
     operations = [

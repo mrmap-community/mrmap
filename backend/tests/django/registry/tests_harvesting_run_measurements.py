@@ -109,7 +109,7 @@ class HarvestingRunMeasurementsTest(TestCase):
             made: how many seconds ago the run was made
             date_created: write the creation on the row itself, the way a run
                 made since #1079 answers it; False leaves the column empty - the
-                run whose creation the fill of 0037 could not find - so that the
+                run whose creation the fill of 0038 could not find - so that the
                 moment of the run comes from its change log
             done_at: how many seconds ago the run ended, None while it works
 
@@ -129,7 +129,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         # The `made` moment has to land on the row either way: either it is the
         # creation the run answers on its own - what every run made since #1079
         # carries - or the column is left empty on purpose, which is the row of a
-        # deployment whose change log the fill of 0037 could not read. Only in that
+        # deployment whose change log the fill of 0038 could not read. Only in that
         # second shape is the change log the source of the moment.
         row = {'date_created': now() - timedelta(seconds=made)} if date_created \
             else {'date_created': None}

@@ -25,8 +25,9 @@ from registry.models.monitoring import CatalogueServiceMonitoringSetting
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
-    HarvestingJobSerializer, HarvestingLogSerializer,
-    PeriodicHarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
+    HarvestingJobSerializer, HarvestingLogListSerializer,
+    HarvestingLogSerializer, PeriodicHarvestingJobSerializer,
+    TemporaryMdMetadataFileSerializer)
 from rest_framework.filters import OrderingFilter
 from rest_framework_json_api.views import ModelViewSet
 
@@ -597,9 +598,17 @@ class NestedHarvestedMetadataRelationViewSet(
     pass
 
 
-class HarvestingLogViewSetMixin(PreloadNotIncludesMixin):
+class HarvestingLogViewSetMixin(PreloadNotIncludesMixin,
+                                SerializerClassesMixin):
     queryset = HarvestingLog.objects.all()
     serializer_class = HarvestingLogSerializer
+    # the list of lines answers the description and whether an extended one
+    # is stored; the content of the stored response is read per line, not
+    # fetched for every row of the list (#1083)
+    serializer_classes = {
+        "default": HarvestingLogSerializer,
+        "list": HarvestingLogListSerializer,
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     # every line really carries the time it was written, so the list answers
     # both directions of it and the run log reads in the order it happened (#1080)

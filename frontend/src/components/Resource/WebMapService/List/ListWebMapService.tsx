@@ -47,7 +47,6 @@ export const WMS_SERVICE_LIST_CONFIG: ServiceListConfig = {
   resource: "WebMapService",
   protocol: "WMS",
   countLabelKey: "layers",
-  countRelation: "layers",
   fields: WEB_MAP_SERVICE_LIST_FIELDS,
 };
 

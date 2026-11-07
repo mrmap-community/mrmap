@@ -401,7 +401,50 @@ const en = lodashMerge(
       "estimateUnknown": "Nothing to estimate yet",
       "estimateNote": "The elapsed time, the durations and the throughput so far are measured by this run; the remaining time and the expected end are estimates from the progress so far.",
       "terminated": "This harvesting run has ended.",
-      "refresh": "Updates automatically every 5 seconds"
+      "refresh": "Updates automatically every 5 seconds",
+      "failedRecords": "Records it could not store",
+      "refusedByImport": "What the import refused",
+      "collectedStates": "What became of the records it read",
+      "collectedRecord": "Record",
+      "collectedState": "State",
+      "collectedAt": "Stored at",
+      "collectingStates": {
+        "duplicated": "Duplicated",
+        "new": "New",
+        "updated": "Updated",
+        "existing": "Already there",
+        "removed": "Gone"
+      },
+      "failing": {
+        "request": "Requested at",
+        "page": "Page",
+        "refusedWith": "Refused with",
+        "downloadDuration": "Download duration"
+      },
+      "logLine": "Line",
+      "logTimestamp": "Timestamp",
+      "logLevelLabel": "Level",
+      "logKind": "Kind",
+      "logDescription": "Message",
+      "storedResponse": "Stored response",
+      "logLevelFacets": "Log level",
+      "logFacets": {
+        "all": "All",
+        "infoAndAbove": "Info and above",
+        "warningsAndAbove": "Warnings and above"
+      },
+      "runLogLevel": "This run logs at %{level}",
+      "logLevels": {
+        "fatal": "fatal",
+        "error": "error",
+        "warning": "warning",
+        "info": "info",
+        "debug": "debug"
+      },
+      "logKinds": {
+        "remoteError": "Remote error",
+        "countMismatch": "Count mismatch"
+      }
     },
     harvestingActivity: {
       started: "Started",
@@ -475,7 +518,9 @@ const en = lodashMerge(
         scope: "Counted over everything you are allowed to see",
         alerts: "Services with an alert",
         updateReviews: "Updates awaiting review",
+        harvestAlerts: "Catalogues with harvesting alerts",
         runningWork: "Background work running",
+        runningHarvests: "Harvestings running (all catalogues)",
         failedWork: "Background work failed",
       },
     },
@@ -581,6 +626,7 @@ const en = lodashMerge(
       title: "Attention required",
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
+      viewCatalogueAlerts: "View catalogue alerts",
       error: "Error",
       warning: "Warning",
       categories: {

@@ -326,7 +326,7 @@ reads like the existing ones is what keeps the scenarios reviewable.
 | request target | `I use the endpoint {url}`, `I set the content type of the request to {content_type}`, `I set the request payload to:`, `I set a queryparam "{param}" with value "{value}"`, `I set the header "{name}" with value "{value}"`, `I set the cookie "{name}" with value "{value}"` |
 | authentication | `I am logged in as {user} with password {password}`, `I am an anonymous user`, `I use token based authentication for user "{user}"`, `I use token authentication as {user}`, `I enforce csrf checks`, `I logout the current user` |
 | execution | `I send the request with GET/POST/PATCH/DELETE method` |
-| assertions | `I expect the response status is {status}`, `I expect that response json has an attribute "{path}"[ with value "{value}"]`, `I expect that there is a xpath "{xpath}"[ with value "{value}"]`, `I expect that response xml content is:`, `I expect that "{n}" queries where made` |
+| assertions | `I expect the response status is {status}`, `I expect that response json has an attribute "{path}"[ with value "{value}"]`, `I expect that response json does not have an attribute "{attribute}"`, `I expect that there is a xpath "{xpath}"[ with value "{value}"]`, `I expect that response xml content is:`, `I expect that "{n}" queries where made` |
 | mocking | `I mock the function "{func}" of the module "{module}" with return value as object` (stopped in `after_scenario`) |
 
 - Add a **generic** step to `steps.py` only when it works without knowledge of a model.

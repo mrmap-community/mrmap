@@ -630,6 +630,42 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
             self.response(**queue)['meta']['pagination']['count'],
             counted['meta']['pagination']['count'])
 
+    def test_the_harvesting_queue_counts_the_harvest_categories_at_once(self):
+        """The dashboard queue of the harvesting is one count of the api (#1086)
+
+        The queue counts the states which the harvesting of a catalogue leaves
+        behind with one request: the value of the category filter names the
+        harvest categories comma separated, together with the kind of service
+        which is harvested at all, and answers no other alert of it.
+        """
+        from registry.models.harvest import PeriodicHarvestingJob
+        from registry.models.update import CatalogueServiceUpdateJob
+        self.harvesting_job(phase=Phase.ABORTED)
+        schedule = PeriodicHarvestingJob.objects.create(
+            service=self.csw, crontab=self.crontab)
+        PeriodicHarvestingJob.objects.filter(pk=schedule.pk).update(
+            last_run_at=now() - timedelta(hours=1))
+        # an alert of the catalogue which the harvesting did not leave behind
+        # waits next to them and is not part of the queue
+        CatalogueServiceUpdateJob.objects.create(
+            service=self.csw, status=JobState.REVIEW_REQUIRED.value)
+        queue = {
+            'filter[category]': ('harvest_aborted,harvest_incomplete,'
+                                 'harvest_overdue,harvest_schedule_too_tight'),
+            'filter[serviceType]': 'CatalogueService',
+        }
+        response = self.response(**queue)
+        self.assertEqual(response['meta']['pagination']['count'], 2)
+        self.assertEqual(
+            {row['attributes']['category'] for row in response['data']},
+            {'harvest_aborted', 'harvest_overdue'})
+        # and the count answers the records its list shows: a single one of
+        # the categories holds only its own alert
+        single = {'filter[category]': 'harvest_aborted',
+                  'filter[serviceType]': 'CatalogueService'}
+        self.assertEqual(
+            self.response(**single)['meta']['pagination']['count'], 1)
+
     def test_resolved_alert_disappears_and_identity_is_stable(self):
         job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
         before = self.response()['data'][0]['id']
@@ -698,7 +734,9 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.assertEqual(self.response()['data'], [])
 
     def test_unknown_filter_and_sort_are_rejected(self):
-        for query in ({'filter[unknown]': 'x'}, {'sort': 'unknown'}, {'filter[severity]': 'unknown'}):
+        for query in ({'filter[unknown]': 'x'}, {'sort': 'unknown'},
+                      {'filter[severity]': 'unknown'},
+                      {'filter[category]': 'monitoring_failed,not_a_category'}):
             response = self.client.get(reverse('registry:service-alert-list'), query)
             self.assertEqual(response.status_code, 400, response.content)
 

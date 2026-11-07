@@ -477,7 +477,7 @@ const en = lodashMerge(
         updateReviews: "Updates awaiting review",
         harvestAlerts: "Catalogues with harvesting alerts",
         runningWork: "Background work running",
-        runningHarvests: "Harvestings running",
+        runningHarvests: "Harvestings running (all catalogues)",
         failedWork: "Background work failed",
       },
     },

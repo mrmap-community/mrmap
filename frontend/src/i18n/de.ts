@@ -457,7 +457,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       updateReviews: "Aktualisierungen zur Prüfung",
       harvestAlerts: "Kataloge mit Harvesting-Meldungen",
       runningWork: "Laufende Hintergrundarbeit",
-      runningHarvests: "Laufende Harvestings",
+      runningHarvests: "Laufende Harvestings (alle Kataloge)",
       failedWork: "Fehlgeschlagene Hintergrundarbeit",
     },
   },

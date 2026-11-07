@@ -114,6 +114,44 @@ class KVPGetFeatureRequestTest(SimpleTestCase):
             ogc_request.xml_request
         self.assertEqual("COUNT", raised.exception.param)
 
+    def test_a_parameter_present_without_a_value_asks_nothing(self):
+        # #1154 keeps a whitelisted parameter which the request names with an
+        # empty value, so the translation has to hear such a parameter as "asks
+        # nothing": as a faulty parameter it would refuse the request of every
+        # standard client, as an extent it would answer no feature at all
+        ogc_request = self.kv_get(BBOX="", COUNT="", startIndex="", FILTER="")
+
+        self.assertEqual("", ogc_request.ogc_query_params.get("BBOX"))
+        self.assertEqual("", ogc_request.ogc_query_params.get("COUNT"))
+
+        document = ogc_request.xml_request
+        # a parameter named without a value has to answer the same document as a
+        # parameter not named at all; the schema stamps its own default onto
+        # startIndex, so the paging is compared against the request naming none
+        unnamed = self.kv_get().xml_request
+        paging = ("count", "startIndex")
+        self.assertEqual(
+            {key: unnamed.get(key) for key in paging},
+            {key: document.get(key) for key in paging},
+            etree.tostring(document))
+        self.assertXpathCount(document, "./wfs:Query/fes:Filter", 0)
+
+        exception = ogc_request.secure_get_feature_request([{
+            "type_name": "ms:Countries",
+            "geometry_property_name": "ms:Geometry",
+            "allowed_area_union": Polygon(((0, 0), (0, 10), (10, 10),
+                                           (10, 0), (0, 0)), srid=4326),
+        }])
+        self.assertIsNone(exception)
+
+        # the allowed area is applied; the extent which asks nothing is not
+        # ANDed on the query as a restriction answering nothing
+        self.assertXpathCount(
+            ogc_request.xml_request, "./wfs:Query/fes:Filter//fes:Within", 1)
+        self.assertXpathCount(
+            ogc_request.xml_request,
+            "./wfs:Query/fes:Filter//fes:Intersects", 0)
+
     def test_the_bbox_of_a_wfs_request_is_read(self):
         # the parameters are collected under the spelling of the request class,
         # which the bbox helper of the WFS used not to find (#1155)

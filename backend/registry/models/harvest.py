@@ -1228,6 +1228,15 @@ class TemporaryMdMetadataFile(models.Model):
         return True
 
     def md_metadata_file_to_db(self):
+        """Import the stored document, answering one (record, updated, existed) per instance.
+
+        The answer is always a list - also on the DUPLICATED path - because the
+        import task iterates it: a bare tuple is iterated as its own elements,
+        handing the record out as an "entry", and the TypeError that raises
+        rolls the duplicated diagnosis and its relation back while the task's
+        handler overwrites the diagnosis with the traceback (#1039). The error
+        of the document itself is documented on the file and re-raised.
+        """
         with self.md_metadata_file.open('rb') as _file:
             try:
                 with transaction.atomic():
@@ -1327,8 +1336,12 @@ class TemporaryMdMetadataFile(models.Model):
                                     # the whole method answers a list of (record, updated,
                                     # existed) - the duplicated entry is one such row, so the
                                     # import task which iterates the result does not crash and
-                                    # the DUPLICATED relation of #827 stays committed
-                                    return [(created_instance, update, not created)]
+                                    # the DUPLICATED relation of #827 stays committed. The rows
+                                    # the earlier instances of this file collected stay in the
+                                    # answer too: they were imported by this very call and the
+                                    # task has to be told about them (#1039).
+                                    return result + [
+                                        (created_instance, update, not created)]
                             result.append(
                                 (created_instance, update, not created))
                             if self.job:

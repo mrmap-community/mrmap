@@ -54,6 +54,11 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
   of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
   with a proxied prefix belongs in its table, which is how #1036 would have been caught.
+  `scripts/static_mounts_smoke.py` asserts that no compose mount shadows the static roots the
+  frontend image serves (`python3 scripts/static_mounts_smoke.py`; it reads `docker compose
+  config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
+  removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
+  stop reaching the browser.
 
 ## Authoritative sources
 

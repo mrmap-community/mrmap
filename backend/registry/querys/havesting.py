@@ -12,11 +12,13 @@ from django_cte import CTEQuerySet
 def run_created_at():
     """The moment a run was made, as the database answers it for every row.
 
-    `date_created` is nullable and only set explicitly (see `ProcessingData`), and
-    the harvesting never sets it, so the creation of a run is read from the first
-    row of its change log - the same source which answers who made a run. Every
-    question about the time a run took has to fall back to it, or the runs of a
-    deployment which has harvested for years answer nothing (#693, #1071).
+    `date_created` answers the creation of a run made since #1079, which gave the
+    field the default its own comment asks for and filled the runs a deployment
+    already has from their change log. What stays is the row whose creation cannot
+    be known - `null=True` is kept for exactly that - and for it the moment is read
+    from the first row of the change log, the same source which answers who made a
+    run. Every question about the time a run took has to keep that fallback, or the
+    runs of a deployment which has harvested for years answer nothing (#693, #1071).
     """
     from registry.models.harvest import HarvestingJob
 

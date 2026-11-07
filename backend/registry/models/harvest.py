@@ -65,7 +65,12 @@ class ProcessingData(models.Model):
         # it’s not just a default value that you can override.
         # So even if you set a value for this field when creating the object, it will be ignored.
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
-        # auto_now_add=True,
+        default=now,
+        # A default and not auto_now_add: the harvesting, the migration of 0038 and the tests of
+        # #870 all hand a moment of their own to a run, and auto_now_add would ignore every one of
+        # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
+        # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
+        # "not recorded" instead of inventing a moment.
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,

@@ -1204,6 +1204,39 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
             'the invalidation of an app with eager tasks must not refresh the '
             'rows itself')
 
+    def test_a_minute_passing_inside_a_test_changes_no_row(self):
+        """Guards the moment `refresh_alerts()` holds, so it is not lost (#1186).
+
+        `run_overdue()` asks the wall clock, nothing dispatches the settings of
+        these tests, and their crontab fires every minute - so a refresh which
+        asked the clock itself would answer a `monitoring_overdue` row sixty
+        seconds after the setting was created, while the test which created it
+        still runs. That is the flake of #1186, and it is the invisible kind:
+        it only adds a warning row, so a test which filters a category never
+        notices and the assertion which counts all rows fails on another day.
+        This test jumps the clock over that boundary on purpose, which is what
+        the wall clock does by itself. The refresh holds the moment of the
+        test, so it answers the rows the state answers. Whoever simplifies the
+        freeze away makes the second read gain the row and this test go red.
+        """
+        from registry.models.alerts import ServiceAlert
+
+        setting = self.monitoring_setting(self.wms_one)
+        self.monitoring_run(setting, False, hours_ago=3)
+        self.monitoring_run(setting, True)          # recovered - no alert owed
+        self.update_job(self.wms_two, JobState.ERROR, done_at=now())
+        self.refresh_alerts()
+        rows = list(ServiceAlert.objects.values_list('category', flat=True))
+        self.assertEqual(rows, ['update_failed'])
+        # a minute passes inside the test, as the wall clock does on its own
+        with patch('django.utils.timezone.now', return_value=self.schedule_moment
+                   + timedelta(seconds=90)):
+            self.refresh_alerts()
+        self.assertEqual(
+            list(ServiceAlert.objects.values_list('category', flat=True)), rows,
+            'a refresh answers the rows the state of the test answers, not the '
+            'rows of the minute the test happens to run in')
+
 
 class ServiceAlertRefreshScheduleTest(TestCase):
     """The schedule which keeps the stored rows current (#1030).

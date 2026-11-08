@@ -12,6 +12,7 @@ the beat schedule and the invalidations run in a deployment.
 """
 import json
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
@@ -72,6 +73,37 @@ class ServiceAlertsMixin:
         self.crontab = CrontabSchedule.objects.create(
             minute="*", hour="*", day_of_week="*", day_of_month="*",
             month_of_year="*", timezone="UTC")
+        # The crontab above fires every minute and no beat dispatches the
+        # settings of these tests, so a setting is overdue 60 seconds after it
+        # was created - while the test which created it still runs. The moment
+        # every refresh of this test decides its schedules at, see
+        # `refresh_alerts()` (#1186).
+        self.schedule_moment = now()
+
+    def refresh_alerts(self):
+        """Rewrite the stored rows with the schedules decided at one moment.
+
+        The rows of the schedules are decided against the wall clock:
+        `run_overdue()` compares the next run a setting is expected at against
+        `timezone.now()`, and a setting of these tests was never dispatched, so
+        its next run is decided from the moment it was created. Left to the
+        clock, two refreshes of one state answer another rows as soon as a
+        minute boundary passes in between - the flake of #1186, which bit the
+        parity test below and the counts of the queue. Held to the moment the
+        test began, the refresh answers the same rows however long the test
+        runs: a setting created afterwards is not due yet at that moment, while
+        a test which wants an overdue setting still answers one, because it
+        states its lateness with a `last_run_at` an hour before.
+
+        Returns:
+            int: the amount of rows the refresh wrote
+        """
+        # Only `timezone.now()` is held, which is the clock the rule of the
+        # schedules asks; the runs and jobs of a test keep naming the moments
+        # the test gave them.
+        with patch("django.utils.timezone.now",
+                   return_value=self.schedule_moment):
+            return refresh_service_alerts()
 
     @staticmethod
     def client_for(user):
@@ -585,7 +617,7 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         # the endpoint answers the stored rows of the alerts (#1030): a test
         # which created a state refreshes the rows the way the beat schedule
         # and the invalidations do before it asks the endpoint
-        refresh_service_alerts()
+        self.refresh_alerts()
         response = (client or self.client).get(
             reverse('registry:service-alert-list'), query)
         self.assertEqual(response.status_code, 200, response.content)
@@ -786,7 +818,7 @@ class ServiceAlertRowsParityTest(ServiceAlertsMixin, TestCase):
                     alert['target_path'] = (
                         f"/{alert['resource_type']}/{alert['resource_id']}/show")
                 expected[alert['id']] = alert
-        refresh_service_alerts()
+        self.refresh_alerts()
         answered = {row['id']: row for row in ServiceAlert.objects.values()}
         self.assertEqual(answered, expected)
 
@@ -1096,7 +1128,7 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
     def test_the_poll_sorts_and_pages_inside_the_database(self):
         self.update_job(self.wms_one, JobState.ERROR, done_at=now())
         self.update_job(self.wms_two, JobState.REVIEW_REQUIRED)
-        refresh_service_alerts()
+        self.refresh_alerts()
         with CaptureQueriesContext(connections['default']) as queries:
             response = self.client.get(
                 reverse('registry:service-alert-list'),
@@ -1114,7 +1146,7 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
         """The schedules were the per-request cost of every poll: the settings
     rows they are decided by must be read by the refresh and not by the poll"""
         self.update_job(self.wms_one, JobState.ERROR, done_at=now())
-        refresh_service_alerts()
+        self.refresh_alerts()
         with CaptureQueriesContext(connections['default']) as queries:
             response = self.client.get(
                 reverse('registry:service-alert-list'), {})
@@ -1154,7 +1186,7 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
 
         from registry.models.alerts import ServiceAlert
 
-        refresh_service_alerts()
+        self.refresh_alerts()
         before = list(
             ServiceAlert.objects.values_list('id', flat=True).order_by('id'))
         # the job of the service enqueues its own update task on commit, which

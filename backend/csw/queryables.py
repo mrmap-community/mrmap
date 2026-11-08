@@ -119,6 +119,25 @@ def search_records(model, hierarchy_level: str):
     ).order_by("pk").distinct()
 
 
+def count_records(queryset) -> int:
+    """The number of records a record queryset matches, counted over primary keys.
+
+    This is ``numberOfRecordsMatched``, asked in the shape the database can
+    use. The querysets of this module are ``distinct()`` over a join, and
+    Django's ``count()`` of a distinct queryset wraps the *whole select list*
+    in the ``SELECT DISTINCT`` subquery it needs -- for these models every
+    column of the record table, the stored XML document among them -- so the
+    database hashed full records to answer a number (#1188 measured 7.7 s for
+    one count of the service table). Projecting the primary key first keeps
+    exactly the distinctness which is asked for: a matched *record* is
+    distinct by its key, the keyword duplicates the docstring of
+    :func:`search_records` names are rows sharing one key. The joins and the
+    constraint of the request are untouched; the same number is hashed over
+    ids only.
+    """
+    return queryset.values("pk").distinct().count()
+
+
 #: The records of one kind, keyed by the value of the ``type`` queryable which
 #: selects them -- the mapping the three querysets above spell out one by one.
 RECORD_MODELS = {

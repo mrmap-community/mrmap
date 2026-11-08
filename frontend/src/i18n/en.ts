@@ -695,6 +695,7 @@ const en = lodashMerge(
         update_overdue: "Update overdue",
         harvest_overdue: "Harvesting overdue",
         harvest_schedule_too_tight: "Harvesting schedule too tight",
+        capabilities_backup_missing: "Capabilities document missing",
       },
     },
     serviceAttention: {

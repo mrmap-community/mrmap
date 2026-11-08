@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 21:36+0000\n"
+"POT-Creation-Date: 2026-11-08 12:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2307,7 +2307,7 @@ msgstr ""
 "Ein neuer Featuretype kann nur einmal zugeordnet werden. Bitte passen Sie "
 "die Featuretype-Zuordnungen entsprechend an."
 
-#: registry/querys/alerts.py:629
+#: registry/querys/alerts.py:636
 #, python-format
 msgid ""
 "The schedule \"%(schedule)s\" harvests this catalogue more often than a "
@@ -2317,6 +2317,20 @@ msgstr ""
 "Der Zeitplan \"%(schedule)s\" erntet diesen Katalog häufiger, als ein "
 "Erntevorgang dauert: die abgeschlossenen Erntevorgänge dauerten "
 "durchschnittlich %(duration)s."
+
+#: registry/querys/alerts.py:681
+#, python-format
+msgid ""
+"The %(type)s service %(pk)s names the capabilities document \"%(path)s\" "
+"which the storage does not hold: restore the original document on the "
+"storage or run the update workflow of the service, which fetches the "
+"document from the remote and stages it as a candidate."
+msgstr ""
+"Der %(type)s-Dienst %(pk)s nennt das Capabilities-Dokument \"%(path)s\", "
+"das der Speicher nicht enthält: Stellen Sie das Originaldokument im "
+"Speicher wieder her oder führen Sie den Aktualisierungsworkflow des "
+"Dienstes aus, der das Dokument erneut beim entfernten Dienst abruft und es "
+"als Aktualisierungskandidat bereitlegt."
 
 #: registry/serializers/harvesting.py:26
 msgid "The internal MrMap catalogue cannot be harvested."

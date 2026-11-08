@@ -366,6 +366,13 @@ router.register(r'historical-csw',
 
 urlpatterns = router.urls + [
     path('service-alerts', ServiceAlertListView.as_view(), name='service-alert-list'),
+    # the stored response body of one probe result, answered as a plain file
+    # and not as a json:api resource (#682)
+    path(
+        route=r'monitoring/probe-results/<str:probe_result_type>/<int:pk>/response',
+        view=monitoring_views.ProbeResponseContentView.as_view(),
+        name='probe-result-response'
+    ),
     path(
         route=r'statistical/webmapservices',
         view=stats_views.StatisticalWebMapServiceListView.as_view(),

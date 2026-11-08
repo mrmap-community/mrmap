@@ -708,6 +708,19 @@ SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
 SLOW_REQUEST_DUMP_MAX_FILES = int(
     os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
 
+# the largest response body a monitoring probe keeps as an artifact of the
+# execution; the size of a response is recorded either way, so the inspector
+# can say why a body was not stored (#682)
+MONITORING_PROBE_RESPONSE_MAX_SIZE = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_MAX_SIZE", "5242880"))
+# how many days a stored probe response stays inspectable; the sweep which
+# registry/tasks/monitoring.py names takes the bodies back after this many
+# days while the result rows and their check answers stay, and the artifact
+# endpoint refuses an older body as gone before the sweep reached it. 0 keeps
+# every artifact until an operator removes it (#682)
+MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_RETENTION_DAYS", "30"))
+
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
 # record (#859): a harvest of 70,000 records publishes ~280 broker messages, task

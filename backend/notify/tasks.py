@@ -19,6 +19,31 @@ from requests.exceptions import ConnectionError, Timeout
 
 logger: Logger = settings.ROOT_LOGGER
 
+#: The stamp `AsyncCreateMixin` puts on the one message it publishes for a
+#: `TaskResult` row, and which the mirroring below reads from the request of
+#: the task instead of looking a row up (#1176).
+MIRROR_TASK_RESULT_STAMP = 'mirror_task_result'
+
+
+def mirror_requested(request):
+    """Whether the publication of a task asked for its states to be mirrored.
+
+    Only a root task published by the asynchronous api has a `TaskResult` row
+    to mirror into, and `AsyncCreateMixin` (extras/viewsets.py) says so by
+    stamping the message it publishes; celery carries stamped headers in the
+    request of the task. Every other task - the harvesting and the monitoring
+    fan out among them - is not asked here and does no `TaskResult` sql at
+    all: an indexed `UPDATE` which matches no row still costs a database round
+    trip per task and signal. Eligibility is therefore read from the message,
+    never looked up in the table (#1176).
+
+    `request` is celery's request of the task: the `Context` of a running one
+    or the one a revocation hands over.
+    """
+    if request is None:
+        return False
+    return MIRROR_TASK_RESULT_STAMP in (request.get('stamped_headers') or [])
+
 
 @task_prerun.connect
 def get_background_process(task, *args, **kwargs):
@@ -55,10 +80,11 @@ def mirror_task_result(task_id, **values):
     writes nothing into this table, so the state has to be mirrored here or the
     row keeps reading PENDING after the worker answered long ago.
 
-    Only a row which already exists is written: the tasks of the harvesting and
-    of the monitoring fan out pass through the very same signals, and a row for
-    each of them would fill the resource, which no client asks for, with
-    thousands of entries of its own.
+    Which tasks may reach this at all is decided by `mirror_requested` before
+    any sql is made, and only a row which already exists is written: the api
+    inserts the row of its task before it publishes, and a row for a task it
+    never published would fill the resource, which no client asks for, with
+    entries of its own.
     """
     if not task_id:
         return
@@ -73,6 +99,9 @@ def mirror_task_result_start(sender, task_id, **kwargs):
     Without this the row reads PENDING while the task is running, which is the
     state a client cannot tell a task which still waits in a queue apart from.
     """
+    if not mirror_requested(sender.request):
+        return
+
     mirror_task_result(task_id, status=states.STARTED, date_started=Now())
 
 
@@ -84,6 +113,9 @@ def mirror_task_result_failure(sender, task_id, einfo, **kwargs):
     failure, and it is what a client which registered a service wants to read
     about a task that did not build it.
     """
+    if not mirror_requested(sender.request):
+        return
+
     mirror_task_result(
         task_id, status=states.FAILURE, traceback=einfo.traceback)
 
@@ -97,6 +129,9 @@ def mirror_task_result_end(sender, task_id, state, retval, **kwargs):
     `IGNORED`) is left out: the resource would answer a status its schema does not
     declare, and celery's own database backend does not store those either.
     """
+    if not mirror_requested(sender.request):
+        return
+
     if state not in states.ALL_STATES:
         return
 
@@ -120,6 +155,9 @@ def mirror_task_result_revoked(sender, request, **kwargs):
     `BackgroundProcess.save` in notify/models.py), and the client which polls the
     row of one of them has to learn that from it.
     """
+    if not mirror_requested(request):
+        return
+
     mirror_task_result(
         (request or {}).get("id"),
         status=states.REVOKED,

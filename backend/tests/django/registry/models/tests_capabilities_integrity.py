@@ -350,7 +350,10 @@ class MissingCapabilitiesAlertTest(CapabilitiesReadHarness, TestCase):
     recovery, points at the workflow which owns it, and leaves no row behind
     once a restoration has been refreshed. A service whose field was never
     set is no such case, and a pending candidate is not alerted of its own
-    storage state.
+    storage state. The assertions are scoped to the services they are about:
+    the migration-made internal MrMap catalogue legitimately answers a row
+    of its own under this harness' temp MEDIA_ROOT, so "no row of this
+    category" is never what a refresh here answers.
     """
 
     def name_named_document(self, service):
@@ -366,10 +369,10 @@ class MissingCapabilitiesAlertTest(CapabilitiesReadHarness, TestCase):
         catalogue = self.make_catalogue()
         name = catalogue.xml_backup_file.name
         path = self.remove_backup_file(catalogue)
+        alert_id = f'capabilities_backup_missing:CatalogueService:{catalogue.pk}'
 
         refresh_service_alerts()
-        row = ServiceAlert.objects.get(
-            id=f'capabilities_backup_missing:CatalogueService:{catalogue.pk}')
+        row = ServiceAlert.objects.get(id=alert_id)
         self.assertEqual('error', row.severity)
         self.assertEqual('CatalogueService', row.resource_type)
         self.assertIsNone(row.occurred_at,
@@ -381,24 +384,25 @@ class MissingCapabilitiesAlertTest(CapabilitiesReadHarness, TestCase):
         self.assertEqual(
             f'/CatalogueService/{catalogue.pk}/show/', row.target_path)
 
-        # nothing heals implicitly: only the refresh after a restoration
-        # answers the state away, and then no row of it survives
+        # nothing heals implicitly: a restored file changes the table only
+        # when the next refresh answers the state away
         with open(path, 'wb') as f:
             f.write(CAPABILITIES.read_bytes())
+        self.assertTrue(ServiceAlert.objects.filter(id=alert_id).exists(),
+                        "writing the file back never touches the stored rows")
         refresh_service_alerts()
-        self.assertFalse(ServiceAlert.objects.filter(
-            category='capabilities_backup_missing').exists())
+        self.assertFalse(ServiceAlert.objects.filter(id=alert_id).exists())
 
     def test_a_service_without_a_named_document_reports_nothing(self):
         """An unset field is no incident - its read answers an empty document."""
         contact = MetadataContact.objects.create(name='unset alert contact')
-        CatalogueService.objects.create(
+        catalogue = CatalogueService.objects.create(
             title='Never stored catalogue', version=202, origin=1,
             service_url='https://unset.example.org/csw',
             metadata_contact=contact, service_contact=contact)
         refresh_service_alerts()
         self.assertFalse(ServiceAlert.objects.filter(
-            category='capabilities_backup_missing').exists())
+            service=str(catalogue.pk)).exists())
 
     def test_a_map_service_alert_names_its_update_settings(self):
         """Only the CSW lacks a settings tab; the WMS alert owns its tab."""
@@ -428,6 +432,9 @@ class MissingCapabilitiesAlertTest(CapabilitiesReadHarness, TestCase):
             update_candidate_of=map_service)
         self.name_named_document(candidate)
         refresh_service_alerts()
-        self.assertEqual(
-            1, ServiceAlert.objects.filter(
-                category='capabilities_backup_missing').count())
+        self.assertFalse(ServiceAlert.objects.filter(
+            service=str(candidate.pk)).exists())
+        self.assertTrue(
+            ServiceAlert.objects.filter(
+                service=str(map_service.pk)).exists(),
+            "the active service keeps its row while the file is still gone")

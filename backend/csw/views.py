@@ -10,8 +10,9 @@ from csw.elementsets import (DEFAULT_ELEMENT_SET, ELEMENT_SETS, merged_page,
                              sortable_properties)
 from csw.exceptions import (DocumentUnavailable, InvalidQuery,
                             MissingIdParameterException, NotSupported)
-from csw.queryables import (FIELD_MAP, application_records, dataset_records,
-                            page_records, search_filter, service_records)
+from csw.queryables import (FIELD_MAP, application_records, count_records,
+                            dataset_records, page_records, search_filter,
+                            service_records)
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models.aggregates import Count
@@ -715,9 +716,17 @@ class CswServiceView(View):
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
                 message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
             )
-        total_records = (dataset_metadata_records_result.count()
-                         + service_metadata_records_result.count()
-                         + application_metadata_records_result.count())
+        # numberOfRecordsMatched is counted over the primary keys of the three
+        # sources, not over their full distinct rows: a plain count() of these
+        # distinct querysets wraps every column of the record table -- the
+        # stored XML document among them -- into the SELECT DISTINCT its join
+        # makes necessary, which cost seconds per request on a large corpus
+        # (#1188; see csw/queryables.count_records).
+        total_records = sum(
+            count_records(queryset)
+            for queryset in (dataset_metadata_records_result,
+                             service_metadata_records_result,
+                             application_metadata_records_result))
 
         # the paging attributes were refused or read above, before the result
         # set was asked of the database (#1149); the maximum page size this

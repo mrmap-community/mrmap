@@ -756,7 +756,24 @@ const en = lodashMerge(
       "duration": "Duration",
       "setting": "Monitoring setting",
       "settingUnavailable": "Monitoring setting is no longer available.",
-      "probeResults": "Probe results"
+      "probeResults": "Probe results",
+      response: {
+        title: "Response of the probe",
+        status: "HTTP status",
+        duration: "Duration",
+        size: "Size",
+        contentType: "Content type",
+        uri: "Monitored uri",
+        notStored: "The body of this response was not stored.",
+        notRenderable: "A body of the type %{type} is not rendered here.",
+        loading: "Loading the stored response.",
+        image: "Image which the probe received",
+        download: "Download the body",
+        truncated: "Only the beginning of the document is shown.",
+        missing: "The stored body of this response is gone.",
+        expired: "The retention of this response has expired; its body is gone.",
+        unavailable: "The stored response could not be loaded.",
+      }
 },
     wfsUpdateReview: {
       tree: "Incoming feature types",

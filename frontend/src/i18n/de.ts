@@ -865,7 +865,24 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "duration": "Dauer",
       "setting": "Monitoringeinstellung",
       "settingUnavailable": "Die Monitoringeinstellung ist nicht mehr verfügbar.",
-      "probeResults": "Prüfergebnisse"
+      "probeResults": "Prüfergebnisse",
+      response: {
+        title: "Antwort der Prüfung",
+        status: "HTTP-Status",
+        duration: "Dauer",
+        size: "Größe",
+        contentType: "Content-Type",
+        uri: "Überwachte URI",
+        notStored: "Der Body dieser Antwort wurde nicht gespeichert.",
+        notRenderable: "Ein Body des Typs %{type} wird hier nicht dargestellt.",
+        loading: "Die gespeicherte Antwort wird geladen.",
+        image: "Bild der Prüfung",
+        download: "Body herunterladen",
+        truncated: "Nur der Anfang des Dokuments wird angezeigt.",
+        missing: "Der gespeicherte Body dieser Antwort ist nicht mehr vorhanden.",
+        expired: "Die Aufbewahrungsfrist dieser Antwort ist abgelaufen; ihr Body ist gelöscht.",
+        unavailable: "Die gespeicherte Antwort konnte nicht geladen werden.",
+      }
 },
     wfsUpdateReview: {
       tree: "Eingehende Feature-Typen",

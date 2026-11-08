@@ -21,6 +21,8 @@ come from the existing inherited-attribute queries of the
 :class:`registry.models.service.Layer` queryset.
 """
 import hashlib
+from dataclasses import dataclass
+from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
@@ -65,6 +67,23 @@ VERSION_DEFAULT_EXCEPTIONS = {
     "1.3.0": "XML",
     "1.1.1": "application/vnd.ogc.se_xml",
 }
+
+
+@dataclass(frozen=True)
+class _RequestOptions:
+    """The request wide state which every probe of one answer shares.
+
+    The scan threads these through its steps: they come from the request
+    parameters and the version defaults which the generation reads from the
+    service, and no single layer proposal changes them.
+    """
+
+    width: int
+    height: int
+    timeout: int
+    exceptions: str
+    format_override: Optional[str] = None
+    crs_override: Optional[str] = None
 
 
 class SkipReason:
@@ -469,8 +488,7 @@ def _dimension_parameters(dimensions: dict, identifier: str) -> tuple:
 
 
 def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
-                  dimensions, image_formats, width, height, timeout, exceptions,
-                  format_override):
+                  dimensions, image_formats, options):
     """The GetMap proposal of a layer whose advertised state is proposable."""
     try:
         bbox, axis_order = client.get_map_bbox(
@@ -483,7 +501,7 @@ def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
         return None, skip
 
     style = _default_style_name(node)
-    image_format = _image_format(image_formats, format_override)
+    image_format = _image_format(image_formats, options.format_override)
     parameters = {
         "layers": [identifier],
         "layerIds": [str(layer.pk)],
@@ -495,11 +513,11 @@ def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
         "bbox": [float(value) for value in geographic.extent],
         "requestBbox": [float(value) for value in bbox],
         "axisOrder": axis_order,
-        "width": width,
-        "height": height,
-        "timeout": timeout,
+        "width": options.width,
+        "height": options.height,
+        "timeout": options.timeout,
         "maxResponseBytes": MAX_RESPONSE_BYTES,
-        "exceptions": exceptions,
+        "exceptions": options.exceptions,
         "dimensionDefaults": defaults,
     }
     parameters.update(request_kwargs)
@@ -507,8 +525,8 @@ def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
     try:
         request = client.get_map_request(
             layers=[identifier], styles=[style], crs=crs, bbox=bbox,
-            width=width, height=height, format=image_format,
-            exceptions=exceptions, **request_kwargs)
+            width=options.width, height=options.height, format=image_format,
+            exceptions=options.exceptions, **request_kwargs)
     except (InitialError, ValueError) as error:
         return None, _skip(
             SkipReason.OPERATION_UNSUPPORTED, identifier,
@@ -530,8 +548,7 @@ def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
     return probe, None
 
 
-def _layer_probe(client, lookup, layer, node, image_formats, width, height,
-                 timeout, exceptions, format_override, crs_override):
+def _layer_probe(client, lookup, layer, node, image_formats, options):
     """Propose the GetMap probe of one layer or report why it is not proposable.
 
     The checks run in the order in which a reviewer reads the state of the
@@ -557,8 +574,8 @@ def _layer_probe(client, lookup, layer, node, image_formats, width, height,
 
     if skip is None:
         try:
-            crs = _probe_crs(client, node, identifier, crs_override)
-            _check_fixed_dimensions(node, width, height)
+            crs = _probe_crs(client, node, identifier, options.crs_override)
+            _check_fixed_dimensions(node, options.width, options.height)
         except ValueError as error:
             reason, _, detail = str(error).partition("|")
             skip = _skip(reason, identifier, detail)
@@ -571,7 +588,7 @@ def _layer_probe(client, lookup, layer, node, image_formats, width, height,
         return None, skip
     return _getmap_probe(
         client, lookup, layer, node, identifier, geographic, crs, dimensions,
-        image_formats, width, height, timeout, exceptions, format_override)
+        image_formats, options)
 
 
 def _layer_tokens(layer) -> set:
@@ -601,8 +618,8 @@ def _unknown_selection(selection: list, matched: set) -> list:
     return skips
 
 
-def _scan_layers(client, lookup, layers, nodes, image_formats, width, height,
-                 timeout, exceptions, format_override, crs_override, selection):
+def _scan_layers(client, lookup, layers, nodes, image_formats, selection,
+                 options):
     """Run the per-layer proposal in one deterministic scan over the service tree.
 
     ``selection`` is the set of layer identifiers or ids explicitly requested;
@@ -618,7 +635,7 @@ def _scan_layers(client, lookup, layers, nodes, image_formats, width, height,
         selected = bool(_layer_tokens(layer) & matched)
         probe, skip = _layer_probe(
             client, lookup, layer, nodes.get(identifier), image_formats,
-            width, height, timeout, exceptions, format_override, crs_override)
+            options)
         if requested and not selected:
             # an explicitly requested probe must not appear for other layers
             continue
@@ -784,9 +801,11 @@ def generate_probe_preview(service, query) -> dict:
     selection = _request_selection(query)
 
     lookup = _Lookup()
+    options = _RequestOptions(
+        width=width, height=height, timeout=timeout, exceptions=exceptions,
+        format_override=format_override, crs_override=crs_override)
     proposals, skips = _scan_layers(
-        client, lookup, layers, nodes, image_formats, width, height, timeout,
-        exceptions, format_override, crs_override, selection)
+        client, lookup, layers, nodes, image_formats, selection, options)
 
     probes = []
     if capabilities_request is not None:

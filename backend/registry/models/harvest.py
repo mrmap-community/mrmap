@@ -138,6 +138,22 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
     class Meta:
         indexes = [
+            # The counters a run answers about the records it collected are one
+            # count per kind of record and collecting state. Read as a FILTER over
+            # the rows of the run, every one of them walks the whole of it - which
+            # is the table the import of a big run is writing into while the screen
+            # which shows those counters is polled (#1037). Held as two partial
+            # indexes over the job and the state, one per kind of record, a counter
+            # is the range of the rows it counts and is answered out of the index
+            # alone; see `HarvestingJobManager.with_metadata_record_counts`.
+            models.Index(
+                fields=["harvesting_job", "collecting_state"],
+                condition=Q(dataset_metadata_record__isnull=False),
+                name="harvested_dataset_job_state"),
+            models.Index(
+                fields=["harvesting_job", "collecting_state"],
+                condition=Q(service_metadata_record__isnull=False),
+                name="harvested_service_job_state"),
             models.Index(
                 fields=["harvesting_job", "dataset_metadata_record"]),
             models.Index(

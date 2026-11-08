@@ -31,6 +31,41 @@ RUN_PROGRESS_FIELDS = (
 CLOSED_PHASES = [HarvestingPhaseEnum.ABORT.value,
                  HarvestingPhaseEnum.ABORTED.value]
 
+# The counters of the records a run collected, as the api names them, each one
+# naming the kind of record the relation carries and the state the import decided
+# for it. Both ways which answer them - the ranges of the rows of one run
+# (`with_metadata_record_counts`) and the aggregation of many runs at once
+# (`HarvestingJobViewSetMixin.with_harvesting_stats`) - read this, so a counter
+# cannot answer one thing on the screen of a run and something else on the list
+# of them. There is no counter for application records: the api answers none.
+METADATA_RECORD_COUNTS = {
+    "newDatasetMetadataCount": ("dataset", CollectingStatenEnum.NEW),
+    "updatedDatasetMetadataCount": ("dataset", CollectingStatenEnum.UPDATED),
+    "existingDatasetMetadataCount": ("dataset", CollectingStatenEnum.EXISTING),
+    "duplicatedDatasetMetadataCount": ("dataset", CollectingStatenEnum.DUPLICATED),
+    "newServiceMetadataCount": ("service", CollectingStatenEnum.NEW),
+    "updatedServiceMetadataCount": ("service", CollectingStatenEnum.UPDATED),
+    "existingServiceMetadataCount": ("service", CollectingStatenEnum.EXISTING),
+    "duplicatedServiceMetadataCount": ("service", CollectingStatenEnum.DUPLICATED),
+}
+
+
+def metadata_count_annotation(kind, state):
+    """The name the queryset answers one counter of the records of a run under."""
+    return f"{state.name.lower()}_{kind}_metadata_count"
+
+
+def metadata_count_range(kind, state):
+    """The rows which answer one counter of the records of a run.
+
+    The relation of a run carries its record in the column named by the kind, and
+    the state is what the import decided for it - so these rows are a range of the
+    relation table, which is what an index answers, and not a property picked out
+    of an aggregation (#1037, cf. #886).
+    """
+    return Q(collecting_state=state.value,
+             **{f"{kind}_metadata_record__isnull": False})
+
 
 class HarvestedMetadataRelationQuerySet(models.QuerySet):
     def stats_per_day(self):
@@ -107,6 +142,54 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             subqueries[name] = Coalesce(Subquery(
                 files_of_count.annotate(**{name: count}).values(name)), 0)
         return qs.annotate(**subqueries)
+
+    def with_metadata_record_counts(self, qs=None, answer=METADATA_RECORD_COUNTS):
+        """Answer the counters of the records one run collected, from their ranges.
+
+        The screen of a run shows how many records it found new, updated, already
+        existing and delivered twice, per kind of record, and it asks again every
+        few seconds while the import of that very run writes the relations. Answered
+        as a ``COUNT(...) FILTER`` over the rows of the run, every one of those
+        counters walks all of them: the detail request of a run with 411,633
+        relations logged 5.85 s, and the same statement reached 12.2 s while the
+        harvest was still writing the table - the screen which watches a harvest
+        getting slower the further the harvest has come (#1037).
+
+        Each counter is therefore answered by the rows it counts and no others: the
+        state and the kind of record move into the WHERE of the subquery which
+        answers it, which is the range the partial index over the job and the state
+        of one kind of record holds (`registry/models/harvest.py`), and the count is
+        over ``*`` so that range is read out of the index without the heap the
+        import is writing to. This is the property #886 established for the files a
+        run left behind, applied to the records it collected.
+
+        Only a request which names one run can answer its counters that way; a list
+        has to answer the counters of many runs at once, and the aggregation of the
+        relation table is what does that in one pass
+        (`HarvestingJobViewSetMixin.with_harvesting_stats`).
+
+        Args:
+            qs: the queryset of harvesting jobs to answer on; the queryset of the
+                manager by default
+            answer: which of the counters named in ``METADATA_RECORD_COUNTS`` the
+                caller answers
+        """
+        from registry.models.harvest import HarvestedMetadataRelation
+
+        if qs is None:
+            qs = self.get_queryset()
+        annotations = {}
+        for name, (kind, state) in METADATA_RECORD_COUNTS.items():
+            if name not in answer:
+                continue
+            annotation = metadata_count_annotation(kind, state)
+            annotations[annotation] = Coalesce(Subquery(
+                HarvestedMetadataRelation.objects
+                .filter(metadata_count_range(kind, state),
+                        harvesting_job_id=OuterRef("pk"))
+                .order_by().values("harvesting_job_id")
+                .annotate(**{annotation: Count("*")}).values(annotation)), 0)
+        return qs.annotate(**annotations) if annotations else qs
 
     def with_string_representation(self):
         """Annotate the display string which the serializer answers for a job.

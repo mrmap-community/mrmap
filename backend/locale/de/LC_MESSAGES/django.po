@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 20:15+0100\n"
+"POT-Creation-Date: 2026-11-07 21:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,7 +71,7 @@ msgid "Country"
 msgstr "Land"
 
 #: accounts/models/groups.py:93 notify/models.py:64
-#: registry/models/mapcontext.py:312 registry/models/security.py:253
+#: registry/models/mapcontext.py:312 registry/models/security.py:252
 msgid "description"
 msgstr "Beschreibung"
 
@@ -258,7 +258,7 @@ msgstr "entspricht regulärem Ausdruck"
 msgid "matches regex (case-insensitive)"
 msgstr "entspricht regulärem Ausdruck (Groß-/Kleinschreibung egal)"
 
-#: extras/serializers.py:184 registry/serializers/harvesting.py:44
+#: extras/serializers.py:184 registry/serializers/harvesting.py:45
 #: system/serializers.py:50
 msgid "time until next run"
 msgstr "Zeit bis zum nächsten Lauf"
@@ -883,7 +883,7 @@ msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 
 #: registry/models/conformity.py:141 registry/models/harvest.py:220
-#: registry/models/security.py:450 registry/models/security.py:461
+#: registry/models/security.py:449 registry/models/security.py:460
 #: registry/models/service.py:773 registry/models/service.py:1026
 #: registry/models/update.py:120 registry/models/update.py:163
 #: registry/models/update.py:206 registry/models/update.py:464
@@ -1022,7 +1022,7 @@ msgstr ""
 "hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
 "bewegt hat"
 
-#: registry/models/harvest.py:313 registry/serializers/harvesting.py:182
+#: registry/models/harvest.py:313 registry/serializers/harvesting.py:225
 msgid "import stalled at"
 msgstr "Import steht still seit"
 
@@ -1341,7 +1341,7 @@ msgid "the fetched content of the download url."
 msgstr "Der Inhalt der heruntergeladenen URL."
 
 #: registry/models/metadata.py:573 registry/models/monitoring.py:66
-#: registry/models/security.py:150 registry/models/service.py:341
+#: registry/models/security.py:149 registry/models/service.py:341
 #: registry/models/update.py:97 registry/serializers/monitoring.py:118
 #: registry/serializers/service.py:59 registry/serializers/service.py:90
 #: registry/serializers/update.py:64
@@ -1359,7 +1359,7 @@ msgstr ""
 "wurde im GetCapabilities Dokument gefunden."
 
 #: registry/models/metadata.py:593 registry/models/monitoring.py:78
-#: registry/models/security.py:165 registry/models/security.py:180
+#: registry/models/security.py:164 registry/models/security.py:179
 #: registry/models/service.py:446 registry/models/update.py:140
 #: registry/serializers/monitoring.py:263 registry/serializers/service.py:654
 #: registry/serializers/update.py:82
@@ -1827,68 +1827,68 @@ msgstr "die maximale Anzahl an Datensätzen, die die Anfrage zurückgeben soll"
 msgid "comma seperated search strings like: GetRecordsResponse"
 msgstr "kommagetrennte Suchbegriffe wie: GetRecordsResponse"
 
-#: registry/models/security.py:36
+#: registry/models/security.py:35
 msgid "username"
 msgstr "Nutzername"
 
-#: registry/models/security.py:37
+#: registry/models/security.py:36
 msgid "the username used for the authentication."
 msgstr "Dienst benötigt Authentifizierung"
 
-#: registry/models/security.py:41
+#: registry/models/security.py:40
 msgid "password"
 msgstr "Passwort"
 
-#: registry/models/security.py:42
+#: registry/models/security.py:41
 msgid "the password used for the authentication."
 msgstr ""
 "Das Passwort, welches für die Authentifizierung des Dienstes genutzt werden "
 "soll."
 
-#: registry/models/security.py:48
+#: registry/models/security.py:47
 msgid "authentication type"
 msgstr "Authentifizierungstyp"
 
-#: registry/models/security.py:49
+#: registry/models/security.py:48
 msgid "kind of authentication mechanism shall used."
 msgstr "Authentifizierungsmechanismus."
 
-#: registry/models/security.py:152 registry/models/security.py:167
-#: registry/models/security.py:182
+#: registry/models/security.py:151 registry/models/security.py:166
+#: registry/models/security.py:181
 msgid ""
 "the optional authentication type and credentials to request the service."
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
-#: registry/models/security.py:197 registry/models/security.py:209
+#: registry/models/security.py:196 registry/models/security.py:208
 #: registry/models/service.py:528
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
-#: registry/models/security.py:198
+#: registry/models/security.py:197
 msgid "the operation which is allowed for this wms"
 msgstr "die Operation, die für diesen WMS erlaubt ist"
 
-#: registry/models/security.py:210
+#: registry/models/security.py:209
 msgid "the operation which is allowed for this wfs"
 msgstr "die Operation, die für diesen WFS erlaubt ist"
 
-#: registry/models/security.py:255
+#: registry/models/security.py:254
 msgid "a short description what this allowed operation controls."
 msgstr "Eine Kurzbeschreibung für was diese erlaubte Funktion steht."
 
-#: registry/models/security.py:286 registry/models/security.py:343
+#: registry/models/security.py:285 registry/models/security.py:342
 msgid "secured service"
 msgstr "Abonnierte Dienste"
 
-#: registry/models/security.py:288 registry/models/security.py:345
+#: registry/models/security.py:287 registry/models/security.py:344
 msgid "the service where some layers or feature types are secured of."
 msgstr "Der Dienst welcher Ebenen und Medientypen absichert."
 
-#: registry/models/security.py:294
+#: registry/models/security.py:293
 msgid "secured layers"
 msgstr "abgesicherte Ebene"
 
-#: registry/models/security.py:296
+#: registry/models/security.py:295
 msgid ""
 "Select one or more layers. Note that all sub layers of a selected layer will "
 "also be secured."
@@ -1896,20 +1896,20 @@ msgstr ""
 "Wählen Sie eine oder mehere Ebenen. Hinweis: Alle Unterebenen einer "
 "gewähltenEbene sind ebenfals abgesichert."
 
-#: registry/models/security.py:351
+#: registry/models/security.py:350
 msgid "secured feature types"
 msgstr "Featuretyp bearbeiten"
 
-#: registry/models/security.py:352
+#: registry/models/security.py:351
 msgid "Select one or more feature types."
 msgstr "Wählen Sie einen oder mehere Medientypen."
 
-#: registry/models/security.py:384 registry/serializers/service.py:488
+#: registry/models/security.py:383 registry/serializers/service.py:488
 #: registry/serializers/service.py:692
 msgid "camouflage"
 msgstr "tarnen"
 
-#: registry/models/security.py:386
+#: registry/models/security.py:385
 msgid ""
 "if true, all related xml documents are secured, by replace all hostname/"
 "internet addresses of the related service by the hostname of the current mr. "
@@ -1919,21 +1919,21 @@ msgstr ""
 "alleInternetadressen von verwiesenen Diensten durch den von MrMap ersetzt "
 "werden."
 
-#: registry/models/security.py:394 registry/serializers/service.py:494
+#: registry/models/security.py:393 registry/serializers/service.py:494
 #: registry/serializers/service.py:698
 msgid "log response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/security.py:397
+#: registry/models/security.py:396
 msgid "if true, all responses of the related service will be logged."
 msgstr ""
 "Wenn 'Wahr', werden alle Antworten des vernüpften Dienstes protokolliert."
 
-#: registry/models/security.py:416
+#: registry/models/security.py:415
 msgid "log response without active camouflage is not supported."
 msgstr "Antwort prokollieren ohne die Tarnung zu aktivieren ist nicht erlaubt."
 
-#: registry/models/security.py:434
+#: registry/models/security.py:433
 #, python-brace-format
 msgid ""
 "There are configured allowed operation objects. Camouflage cannot be "
@@ -1943,23 +1943,23 @@ msgstr ""
 "nicht deaktiviert werden. Alle erlaubten Operationen finden Sie <a href={url}"
 ">hier</a>."
 
-#: registry/models/security.py:451 registry/models/security.py:462
+#: registry/models/security.py:450 registry/models/security.py:461
 msgid "the security proxy settings for this service."
 msgstr "Die Basis-URL des Dienstes."
 
-#: registry/models/security.py:488
+#: registry/models/security.py:487
 msgid "is test request"
 msgstr "ist Test-Anfrage"
 
-#: registry/models/security.py:489
+#: registry/models/security.py:488
 msgid "indicates if this request was processed in test-as-user mode"
 msgstr "zeigt an, ob diese Anfrage im Test-als-Nutzer-Modus verarbeitet wurde"
 
-#: registry/models/security.py:498
+#: registry/models/security.py:497
 msgid "test user"
 msgstr "Test-Nutzer"
 
-#: registry/models/security.py:499
+#: registry/models/security.py:498
 msgid "the user context used for testing; null if not a test request"
 msgstr ""
 "der für den Test verwendete Nutzerkontext; null, wenn es keine Test-Anfrage "
@@ -2318,23 +2318,56 @@ msgstr ""
 "Erntevorgang dauert: die abgeschlossenen Erntevorgänge dauerten "
 "durchschnittlich %(duration)s."
 
-#: registry/serializers/harvesting.py:25
+#: registry/serializers/harvesting.py:26
 msgid "The internal MrMap catalogue cannot be harvested."
 msgstr "Der interne MrMap-Katalog darf nicht geharvestet werden."
 
-#: registry/serializers/harvesting.py:39 registry/serializers/update.py:407
+#: registry/serializers/harvesting.py:40 registry/serializers/update.py:407
 msgid "Catalogue Service"
 msgstr "Katalogdienst"
 
-#: registry/serializers/harvesting.py:40
+#: registry/serializers/harvesting.py:41
 msgid "the catalogue service for that this configuration is."
 msgstr "der Katalogdienst, für den diese Konfiguration ist."
 
-#: registry/serializers/harvesting.py:132
+#: registry/serializers/harvesting.py:47
+msgid "next run at"
+msgstr "Nächster Lauf"
+
+#: registry/serializers/harvesting.py:49
+msgid ""
+"the moment this schedule is expected to fire next, as an aware instant: the "
+"same rule which decides that a schedule is overdue. A schedule which is "
+"disabled, expired or without a crontab answers nothing."
+msgstr ""
+"der Zeitpunkt, zu dem dieser Zeitplan voraussichtlich als Nächstes ausgelöst "
+"wird, als vorzeichenbehafteter Zeitpunkt: dieselbe Regel, die entscheidet, "
+"dass ein Zeitplan überfällig ist. Ein Zeitplan, der deaktiviert oder "
+"abgelaufen ist oder keinen Crontab hat, beantwortet nichts."
+
+#: registry/serializers/harvesting.py:55
+msgid "last run at"
+msgstr "Letzter Lauf"
+
+#: registry/serializers/harvesting.py:57
+msgid "the moment this schedule last fired; nothing, while it never fired."
+msgstr ""
+"der Zeitpunkt, an dem dieser Zeitplan zuletzt ausgelöst wurde; nichts, "
+"solange er nie ausgelöst wurde."
+
+#: registry/serializers/harvesting.py:62
+msgid "total run count"
+msgstr "Gesamtanzahl der Läufe"
+
+#: registry/serializers/harvesting.py:63
+msgid "how often this schedule fired in all."
+msgstr "wie oft dieser Zeitplan insgesamt ausgelöst wurde."
+
+#: registry/serializers/harvesting.py:175
 msgid "records per minute"
 msgstr "Datensätze pro Minute"
 
-#: registry/serializers/harvesting.py:134
+#: registry/serializers/harvesting.py:177
 msgid ""
 "how many records this run stored per minute of measured work, at the step "
 "size it asked the catalogue with. Only a run which finished answers one, "
@@ -2351,11 +2384,11 @@ msgstr ""
 "deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen miteinander, "
 "sie ist kein Versprechen über einen einzelnen Lauf."
 
-#: registry/serializers/harvesting.py:143
+#: registry/serializers/harvesting.py:186
 msgid "elapsed seconds"
 msgstr "verstrichene Sekunden"
 
-#: registry/serializers/harvesting.py:145
+#: registry/serializers/harvesting.py:188
 msgid ""
 "how long this run has been working, in seconds: from the moment the run was "
 "made to its end, or to the moment of the request while it still works. The "
@@ -2370,11 +2403,11 @@ msgstr ""
 "erste Zeile seiner Historie; ein Lauf, der zu keinem beantwortbaren Moment "
 "angelegt wurde, beantwortet nichts."
 
-#: registry/serializers/harvesting.py:152
+#: registry/serializers/harvesting.py:195
 msgid "records per minute so far"
 msgstr "Datensätze pro Minute bisher"
 
-#: registry/serializers/harvesting.py:154
+#: registry/serializers/harvesting.py:197
 msgid ""
 "how many records per minute this run has stored so far, against the time it "
 "has worked: the records it downloaded while it downloads, the records it "
@@ -2390,11 +2423,11 @@ msgstr ""
 "er misst, ist der beobachtete Lauf, nicht die Größe der Seiten, mit der eine "
 "Ernte fragt."
 
-#: registry/serializers/harvesting.py:161
+#: registry/serializers/harvesting.py:204
 msgid "estimated seconds remaining"
 msgstr "geschätzte verbleibende Sekunden"
 
-#: registry/serializers/harvesting.py:163
+#: registry/serializers/harvesting.py:206
 msgid ""
 "how long this run estimates itself to still take, in seconds: its elapsed "
 "time against the progress its steps already answer, scaled to the part which "
@@ -2409,11 +2442,11 @@ msgstr ""
 "bekannt sind, der noch nichts getan hat oder der geschlossen ist, "
 "beantwortet nichts, weil dann nichts bekannt oder nichts übrig ist."
 
-#: registry/serializers/harvesting.py:170
+#: registry/serializers/harvesting.py:213
 msgid "expected done at"
 msgstr "voraussichtliches Ende"
 
-#: registry/serializers/harvesting.py:172
+#: registry/serializers/harvesting.py:215
 msgid ""
 "the moment this run is expected to end: its `estimatedSecondsRemaining` "
 "added to the moment of the request. Where no estimate is answered, no end is "
@@ -2423,7 +2456,7 @@ msgstr ""
 "`estimatedSecondsRemaining` addiert auf den Moment der Anfrage. Wo keine "
 "Schätzung beantwortet wird, wird auch kein Ende beantwortet."
 
-#: registry/serializers/harvesting.py:184
+#: registry/serializers/harvesting.py:227
 msgid ""
 "since when the import watchdog sees the backlog of this run untouched: as "
 "many records are waiting for their import as on the watchdog's look before. "
@@ -2435,15 +2468,15 @@ msgstr ""
 "Watchdogs zuvor. Ein Lauf, der importiert, beantwortet nichts, und was der "
 "Watchdog gegen den Stillstand getan hat, steht im Ernteprotokoll des Laufs."
 
-#: registry/serializers/harvesting.py:233
+#: registry/serializers/harvesting.py:276
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 
-#: registry/serializers/harvesting.py:283
+#: registry/serializers/harvesting.py:326
 msgid "has extended description"
 msgstr "hat erweiterte Beschreibung"
 
-#: registry/serializers/harvesting.py:285
+#: registry/serializers/harvesting.py:328
 msgid ""
 "whether this log line has a stored response behind it; the content of the "
 "file is answered on the line itself, never in a list"

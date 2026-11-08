@@ -14,6 +14,19 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     preview: "Vorschau / manuelle Eingabe",
     apply: "Anwenden",
   },
+  // was ein Cron-Zeitplan der Erntezeitpläne in Worten sagt; der Ausdruck bleibt
+  // daneben stehen, und ein Ausdruck, den diese Sätze nicht abdecken, wird nur
+  // durch den Ausdruck selbst beantwortet (#1082)
+  cronReading: {
+    everyMinute: "Jede Minute",
+    everyNMinutes: "Alle %{every} Minuten",
+    everyNHours: "Alle %{every} Stunden bei Minute %{minute}",
+    hourly: "Einmal pro Stunde, bei Minute %{minute}",
+    daily: "Jeden Tag um %{time} Uhr",
+    weekly: "Jeden %{days} um %{time} Uhr",
+    monthly: "Jeden Monat am Tag %{day} um %{time} Uhr",
+    yearly: "Jedes Jahr am %{day}. %{month} um %{time} Uhr",
+  },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
     description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
@@ -504,6 +517,10 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     disabledMessage: "Die Zeitpläne sind deaktiviert. Aktivieren Sie einen Zeitplan für die automatische Datenübernahme.",
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
+    runs: "Läufe ansehen",
+    neverRan: "Noch nie ausgeführt",
+    noNextRun: "Kein nächster Lauf",
+    attentionTitle: "Zeitpläne, die Aufmerksamkeit brauchen",
   },
   harvestingStats: {
     records: "Datensätze",
@@ -700,6 +717,9 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         enabled: "Aktiviert",
         scheduling: "Zeitplan",
         timeUntilNextRun: "Zeit bis zum nächsten Lauf",
+        lastRunAt: "Letzter Lauf",
+        nextRunAt: "Nächster Lauf",
+        totalRunCount: "Läufe",
       },
     },
     HarvestingLog: {

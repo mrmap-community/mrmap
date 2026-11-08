@@ -64,6 +64,15 @@ describe("RelativeDateField", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("answers the words of the screen for a record which names no moment", () => {
+    render(
+      <RecordContextProvider value={{ id: 1 }}>
+        <RelativeDateField source="endedAt" emptyText="never" locales="en" />
+      </RecordContextProvider>,
+    );
+    expect(screen.getByText("never")).toBeInTheDocument();
+  });
+
   it("reads the record it is given beside the record of the screen", () => {
     renderField({ endedAt: ago(3 * HOUR) }, true);
     expect(screen.getByText("3 hours ago")).toBeInTheDocument();

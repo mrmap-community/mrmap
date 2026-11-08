@@ -15,6 +15,8 @@ from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.expressions.durations import DurationSeconds
 from registry.filters.harvesting import (HarvestingJobFilterSet,
                                          HarvestingLogFilterSet)
+from registry.filters.scheduling import NextRunOrderingFilter
+from registry.filters.search import SearchVectorSearchFilter
 from registry.managers.havesting import RUN_PROGRESS_FIELDS
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
@@ -29,6 +31,9 @@ from registry.serializers.harvesting import (
     HarvestingLogSerializer, PeriodicHarvestingJobSerializer,
     TemporaryMdMetadataFileSerializer)
 from rest_framework.filters import OrderingFilter
+from rest_framework_json_api.django_filters.backends import DjangoFilterBackend
+from rest_framework_json_api.filters import (IncludedResourcesFilter,
+                                             QueryParameterValidationFilter)
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -469,7 +474,7 @@ class NestedHarvestingJobViewSet(
     pass
 
 
-class PeriodicHarvestingJobViewSetMixin:
+class PeriodicHarvestingJobViewSetMixin(SparseFieldMixin):
     """ Endpoints for resource `PeriodicHarvestingJob`
 
         create:
@@ -485,22 +490,41 @@ class PeriodicHarvestingJobViewSetMixin:
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     # the display string names the catalogue of the schedule, so the service
-    # rides the select instead of one read per row (#1045)
-    queryset = PeriodicHarvestingJob.objects.all().select_related("service")
+    # rides the select instead of one read per row (#1045); the crontab rides
+    # it likewise, because the next run and its reading are answered per row
+    # and both ask the crontab of the schedule (#1082)
+    queryset = PeriodicHarvestingJob.objects.all().select_related(
+        "service", "crontab")
     serializer_class = PeriodicHarvestingJobSerializer
     select_for_includes = {
         "service": ["service"],
     }
+    # the backends of every endpoint, with the ordering asked of this one by
+    # the filter which answers the sort by the next run of a schedule (#1082)
+    filter_backends = [
+        QueryParameterValidationFilter,
+        IncludedResourcesFilter,
+        NextRunOrderingFilter,
+        DjangoFilterBackend,
+        SearchVectorSearchFilter,
+    ]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'service__id': ['exact', 'icontains', 'contains', 'in'],
         'service__title': ['exact', 'icontains', 'contains'],
+        # enabled is the one answer every row of the schedules shows, so the
+        # screen of all schedules facets by it as well (#1082)
+        'enabled': ['exact'],
     }
     search_fields = ("id", "service", "service__title")
     # `name` is a uuid the system generates for the uniqueness of the celery
     # task, not a label an administrator orders schedules by; the readable
-    # ordering of the schedules is by the catalogue they harvest (#1080)
-    ordering_fields = ["id", "service"]
+    # ordering of the schedules is by the catalogue they harvest (#1080). The
+    # states of the row which an administrator sorts are the enabled flag, the
+    # last dispatch and the next one - the last decided by the database, the
+    # next by the ordering filter of `registry/filters/scheduling.py` (#1082)
+    ordering_fields = ["id", "enabled", "last_run_at", "next_run_at",
+                       "service__title"]
 
 
 class PeriodicHarvestingJobViewSet(

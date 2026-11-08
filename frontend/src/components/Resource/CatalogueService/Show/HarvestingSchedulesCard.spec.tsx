@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HarvestingSchedulesCardBase } from "./HarvestingSchedulesCard";
 
 const state = vi.hoisted(() => ({ isHarvestable: true }));
-vi.mock("./RunHarvestingButton", () => ({
+vi.mock("../../Generic/ServiceShow/RunHarvestingButton", () => ({
   default: () => <span>Harvest now</span>,
 }));
 

@@ -15,8 +15,8 @@ import UpdateIcon from "@mui/icons-material/Update";
 
 import { type ServiceListConfig } from "../Generic/ServiceList/config";
 import ServiceList from "../Generic/ServiceList/ServiceList";
+import RunHarvestingButton from "../Generic/ServiceShow/RunHarvestingButton";
 import BulkCreateHarvestingSchedulesButton from "./BulkCreateHarvestingSchedulesButton";
-import RunHarvestingButton from "./Show/RunHarvestingButton";
 
 export interface ShowRunningHarvestingJobButtonProps {
   id: Identifier;

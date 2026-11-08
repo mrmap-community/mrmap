@@ -579,6 +579,40 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
                 self.assertEqual(len(file_queries), 1)
                 self.assertTemporaryFileScansAreBounded(file_queries[0])
 
+    def test_the_order_of_the_answer_does_not_count_files(self):
+        """The number of rows of an answer is read without the progress of a run.
+
+        The progress joined the sort offer of #1130 and it is no column of the row:
+        it is read from the files a run left behind. The paginator asks for the number
+        of rows before it takes the page, and an answer which orders its runs by that
+        progress must not read the recovery backlog of every run it filters only to
+        say how many there are - the order changes nothing about the number, and a run
+        which was interrupted keeps its files for the recovery (#870, #885, #1130).
+
+        The request names a statistics field as well, because it is the ``sums`` CTE
+        which makes the view read the number of rows itself.
+        """
+        for path, filters in [
+            ('/api/registry/harvesting/harvesting-jobs',
+             {'filter[service.id]': str(self.job.service_id)}),
+            (f'/api/registry/csw/{self.job.service_id}/harvesting-jobs', {}),
+        ]:
+            with self.subTest(path=path):
+                status, body, queries = self.request(path, **filters, **{
+                    'page[size]': 1, 'sort': '-progress',
+                    'fields[HarvestingJob]': 'id,progress,newDatasetMetadataCount',
+                })
+                self.assertEqual(status, 200, body)
+                self.assertEqual(self.ids_of(body), [str(self.job.pk)])
+                self.assertEqual(body['meta']['pagination']['count'], 2)
+                file_queries = [q['sql'] for q in queries
+                                if 'registry_temporarymdmetadatafile' in q['sql']]
+                self.assertEqual(
+                    len(file_queries), 1,
+                    'the number of rows reads the files of every run it counts, '
+                    'although the order it was asked for is not part of that number')
+                self.assertTemporaryFileScansAreBounded(file_queries[0])
+
     def test_sparse_progress_fields_and_manager_agree_in_each_phase(self):
         path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
         fields = ['totalSteps', 'doneSteps', 'progress',

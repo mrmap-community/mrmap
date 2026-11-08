@@ -229,6 +229,12 @@ class WebMapServiceMonitoringRun(MonitoringRun):
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
+
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_wms_monitoring
 
@@ -256,6 +262,12 @@ class WebFeatureServiceMonitoringRun(MonitoringRun):
         to=WebFeatureServiceMonitoringSetting,
         on_delete=models.CASCADE,
     )
+
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
 
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_wfs_monitoring
@@ -285,6 +297,12 @@ class CatalogueServiceMonitoringRun(MonitoringRun):
         to=CatalogueServiceMonitoringSetting,
         on_delete=models.CASCADE,
     )
+
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
 
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_csw_monitoring

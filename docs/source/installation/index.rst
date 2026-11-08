@@ -277,6 +277,17 @@ of the backend's statics builds that image too — a plain
 ``docker compose up -d --build`` covers every service with a ``build:``
 section.
 
+The address the SPA talks to is build content of the same kind. The
+``frontend`` service hands ``EXTERNAL_BASE_URL``, ``EXTERNAL_PORT`` and
+``EXTERNAL_SCHEME`` to the image build as ``VITE_API_*`` arguments, and the
+built bundle carries that address compiled in — the API base and the websocket
+URL are not read at runtime. Changing one of the three in ``.env`` therefore
+reaches the browser through a rebuild of the ``frontend`` image, exactly like a
+source change does: the build command of ``docker/nginx/nginx.Dockerfile``
+names the arguments, so a changed value re-runs the bundle build (issue
+``#1027``). After the edit, ``docker compose up -d --build`` recreates the
+container onto the new bundle and a reloading browser talks to the new address.
+
 Deployments created before issue ``#922`` are the exception, and they need one
 manual step, once. Their compose file kept the two statics in the named
 volumes ``frontend-static`` and ``backend-static``, and Docker fills a named

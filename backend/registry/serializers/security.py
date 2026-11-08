@@ -1,7 +1,9 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.serializers import (StringRepresentationSerializer,
+from extras.serializers import (CheckConstraintSerializerMixin,
+                                StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
+from extras.validators import geometry_is_empty, geometry_type_is
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -16,6 +18,15 @@ from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  ValidationError)
+
+# DRF only takes the validators of a model field over to a field it generates itself; a field
+# which a serializer declares starts without them. `allowed_area` is declared, because the API
+# answers it as GeoJSON and accepts null, so the invariant the model declares on the field is
+# restated here: an EMPTY area would pass the plain geometry field, be refused by the
+# `allowed_area_not_empty` check constraint of the column and answer as an IntegrityError with
+# 500 (#1148). The type is refused for the same reason: a MULTIPOLYGON column writes nothing
+# else, and that refusal is a database error too.
+ALLOWED_AREA_VALIDATORS = [geometry_is_empty, geometry_type_is("MultiPolygon")]
 
 
 class WebMapServiceAuthenticationSerializer(SystemInfoSerializerMixin, ModelSerializer):
@@ -77,7 +88,10 @@ class AllowedWebMapServiceOperationSerializer(
         queryset=Group.objects,
         many=True,
         required=False)
-    allowed_area = GeometryField(required=False, allow_null=True)
+    allowed_area = GeometryField(
+        required=False,
+        allow_null=True,
+        validators=ALLOWED_AREA_VALIDATORS)
 
     included_serializers = {
         "operations": WebMapServiceOperationSerializer,
@@ -141,7 +155,10 @@ class AllowedWebFeatureServiceOperationSerializer(
         queryset=Group.objects,
         many=True,
         required=False)
-    allowed_area = GeometryField(required=False, allow_null=True)
+    allowed_area = GeometryField(
+        required=False,
+        allow_null=True,
+        validators=ALLOWED_AREA_VALIDATORS)
 
     included_serializers = {
         "operations": WebFeatureServiceOperationSerializer,
@@ -157,6 +174,7 @@ class AllowedWebFeatureServiceOperationSerializer(
 class WebMapServiceProxySettingSerializer(
         StringRepresentationSerializer,
         SystemInfoSerializerMixin,
+        CheckConstraintSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapserviceproxysetting-detail',
@@ -170,6 +188,7 @@ class WebMapServiceProxySettingSerializer(
 class WebFeatureServiceProxySettingSerializer(
         StringRepresentationSerializer,
         SystemInfoSerializerMixin,
+        CheckConstraintSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapserviceproxysetting-detail',

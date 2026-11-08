@@ -66,10 +66,12 @@ MEASUREMENT_ANSWERS = ('elapsedSeconds', 'recordsPerMinuteRunning',
 class HarvestingRunMeasurementsTest(TestCase):
     """The elapsed time, the throughput and the estimate of a run of a catalogue.
 
-    A run is made the way the harvesting makes one: through its catalogue, which
-    writes the first row of its change log and never sets `date_created`. Its
-    records so far are the temporary files it has stored, because those are the
-    numbers the steps of a run are derived from.
+    A run is made through its catalogue, which writes the first row of its change
+    log beside it. Since #1079 a run made this way carries its own creation moment,
+    so the helper below seeds both shapes the measurements have to answer: the run
+    which reads its start from its own column and the older row which still reads it
+    from the change log. Its records so far are the temporary files it has stored,
+    because those are the numbers the steps of a run are derived from.
     """
 
     fixtures = ["test_users.json"]
@@ -105,8 +107,10 @@ class HarvestingRunMeasurementsTest(TestCase):
                 downloads these are the records it stored, while it imports they
                 are the records which are NOT stored yet
             made: how many seconds ago the run was made
-            date_created: write the creation on the row instead of leaving it to
-                the change log, which is what the harvesting never does
+            date_created: write the creation on the row itself, the way a run
+                made since #1079 answers it; False leaves the column empty - the
+                run whose creation the fill of 0038 could not find - so that the
+                moment of the run comes from its change log
             done_at: how many seconds ago the run ended, None while it works
 
         Returns:
@@ -122,8 +126,13 @@ class HarvestingRunMeasurementsTest(TestCase):
         job = HarvestingJob.objects.create(
             service=service, total_records=total_records,
             max_step_size=step_size, phase=phase)
+        # The `made` moment has to land on the row either way: either it is the
+        # creation the run answers on its own - what every run made since #1079
+        # carries - or the column is left empty on purpose, which is the row of a
+        # deployment whose change log the fill of 0038 could not read. Only in that
+        # second shape is the change log the source of the moment.
         row = {'date_created': now() - timedelta(seconds=made)} if date_created \
-            else {}
+            else {'date_created': None}
         if done_at is not None:
             row['done_at'] = now() - timedelta(seconds=done_at)
         if row:
@@ -171,7 +180,9 @@ class HarvestingRunMeasurementsTest(TestCase):
         job = self.working_run(waiting=50, made=60)
         answered = self.answered(job)[str(job.pk)]
 
-        self.assertIsNone(job.date_created, 'the harvesting never sets it')
+        self.assertIsNone(
+            job.date_created,
+            'the seeded run is one whose creation was never recorded')
         self.assertAlmostEqual(answered['elapsedSeconds'], 60, delta=2)
         self.assertAlmostEqual(
             answered['recordsPerMinuteRunning'], 50.0, delta=1)
@@ -202,6 +213,29 @@ class HarvestingRunMeasurementsTest(TestCase):
         self.assertAlmostEqual(
             answered['recordsPerMinuteRunning'], 75 * 60 / 86, delta=1)
         self.assertAlmostEqual(answered['estimatedSecondsRemaining'], 25, delta=1)
+
+    def test_the_round_trips_of_records_below_one_step_size_are_counted(self):
+        """10 records fetched with the step size 50 are one round trip (#1163)
+
+        A run whose records fit into a single request still made that request.
+        The steps divide two integer columns, and Postgres truncates the quotient
+        of an integer division: before the Float cast inside the ceiling this run
+        answered 0 round trips - 11 steps of which its stored files completed
+        only the fetch call - instead of the 12 steps whose 2 the round trip and
+        the fetch call are. The estimate scales on those steps, so it moves with
+        them: the 2 done steps measured 60 seconds of work for the 10 left.
+        """
+        job = self.working_run(
+            total_records=10, step_size=50, waiting=2, made=60)
+        fields = ('id,total_steps,done_steps,progress,'
+                  'estimated_seconds_remaining')
+        answered = self.answered(job, fields=fields)[str(job.pk)]
+
+        self.assertEqual(answered['totalSteps'], 12)
+        self.assertEqual(answered['doneSteps'], 2)
+        self.assertAlmostEqual(answered['progress'], 16.67, places=2)
+        self.assertAlmostEqual(
+            answered['estimatedSecondsRemaining'], 60 * 10 / 2, delta=3)
 
     def test_a_run_which_does_not_know_its_records_answers_no_estimate(self):
         """the phase which determines the records has nothing to scale an estimate on"""
@@ -240,9 +274,11 @@ class HarvestingRunMeasurementsTest(TestCase):
     def test_the_creation_of_a_run_is_read_from_its_change_log(self):
         """a run of a deployment which has harvested for years answers an elapsed time
 
-        `date_created` is nullable and the harvesting never sets it, so the
-        moment the run was made is the first row of its change log - the same
-        source which answers who made a run (#693, #1071).
+        Since #1079 a new run answers its own creation, and the runs a deployment
+        already had are filled from their change log. What stays is the row the fill
+        could not read - `date_created` nullable and empty - whose moment is the
+        first row of its change log, the same source which answers who made a run
+        (#693, #1071).
         """
         job = self.working_run(waiting=10, made=90)
         self.assertIsNone(job.date_created)

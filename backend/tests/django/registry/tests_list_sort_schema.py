@@ -49,7 +49,13 @@ DISPLAY_SORTED = {
         "facsimile", "city", "postalCode", "addressType", "address",
         "stateOrProvince", "country", "stringRepresentation"],
     "/api/registry/harvesting/harvesting-jobs": [
-        "id", "dateCreated", "doneAt", "stringRepresentation"],
+        # #1080: phase and total_records joined the offer; date_created could
+        # not join then - a sort that cannot sort shows a false arrow in the
+        # table. #1079 filled the moment every run was made, which is what
+        # brings it into the offer here. The progress of a run is the answer of
+        # #1071, annotated on the way out, so it joins the offer with it (#1130)
+        "id", "doneAt", "stringRepresentation", "phase", "totalRecords",
+        "dateCreated", "progress"],
     "/api/notify/background-processes": ["id", "dateCreated", "progress"],
 }
 

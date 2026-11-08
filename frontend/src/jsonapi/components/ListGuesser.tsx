@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, useTranslate, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 import { Box, Stack } from '@mui/material'
@@ -128,6 +128,7 @@ const ListGuesserContent = ({
 }: ListGuesserProps): ReactElement => {
   const ListComponent = header != null ? ListWithHeader : realtime ? RealtimeList : List
   const { name, hasShow, options } = useResourceDefinition(props)
+  const translate = useTranslate()
   const listOptions = useMemo(()=>(options?.list),[options])
 
   const { api } = useHttpClientContext()
@@ -310,9 +311,8 @@ const ListGuesserContent = ({
         {...dataGridProps}
       >
         {columns ?? fields}
-        {/**TODO: label should be translated */}
         {
-          rowActions || <WrapperField label={"ra.list.actions"} >
+          rowActions || <WrapperField label={translate("ra.list.actions")} >
             {hasShow && <ShowButton />}
             {<EditButton />}
             {additionalActions || listOptions?.additionalActions && createElement(listOptions?.additionalActions)}

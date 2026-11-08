@@ -64,8 +64,9 @@ describe("harvesting activity", () => {
   it("orders the three shown runs by id and asks cheap fields independently of saved table preferences", () => {
     render(<HarvestingActivityCard />);
     const props = vi.mocked(ListGuesser).mock.calls.at(-1)?.[0];
-    // `dateCreated` orders nothing while #1079 has not filled it - the id is the
-    // field which answers the three most recent runs until then
+    // `dateCreated` orders nothing while #1079 has not filled it and a run still
+    // working has no `doneAt` - the id is the field which answers the three most
+    // recent runs, the watched one included, until #1079 fills the date
     expect(props?.sort).toEqual({ field: "id", order: "DESC" });
     expect(props?.refetchInterval).toBe(5000);
     const fieldset = String(

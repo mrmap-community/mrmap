@@ -111,15 +111,25 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
     def with_string_representation(self):
         """Annotate the display string which the serializer answers for a job.
 
-        ``HarvestingJob`` has no ``__str__`` of its own, so the serializer
-        answers django's plain model string - the annotation mirrors it, so the
-        list can order by the very string its client renders (#1035).
+        ``HarvestingJob.__str__`` answers ``<catalogue title> (harvesting job
+        <pk>)`` and, for a file import without a catalogue, just ``harvesting
+        job <pk>``; the annotation mirrors both branches, so the list orders
+        the rows the way its client renders them (#1035, #1045).
         """
         return self.get_queryset().annotate(
-            string_representation=Concat(
-                Value("HarvestingJob object ("),
-                Cast("pk", TextField()),
-                Value(")"),
+            string_representation=Case(
+                When(
+                    service__isnull=False,
+                    then=Concat(
+                        "service__title",
+                        Value(" (harvesting job "),
+                        Cast("pk", TextField()),
+                        Value(")"),
+                        output_field=TextField())),
+                default=Concat(
+                    Value("harvesting job "),
+                    Cast("pk", TextField()),
+                    output_field=TextField()),
                 output_field=TextField()))
 
     def with_run_progress(self, qs=None, answer=RUN_PROGRESS_FIELDS):
@@ -181,10 +191,32 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             qs = self.with_temporary_file_counts(qs, **counts)
 
         annotations = {}
+
+        def round_trips(records):
+            """The whole round trips it takes to fetch `records` of the row.
+
+            Postgres divides two integers by truncation, so the count is cast
+            to Float before the division and the ceiling counts the trip which
+            still has records in it: a run which fetches its 10 records with
+            the step size 50 makes 1 round trip, not the 0 the quotient of the
+            two integer columns truncates to (#1163). The answer stays an
+            IntegerField - the steps of a run are counted in whole numbers,
+            and the annotations building on it sum and compare them - and a
+            row whose records are not known yet answers no round trips, the
+            NULL travelling through the casts as it did through the plain
+            division before.
+            """
+            return Ceil(
+                ExpressionWrapper(
+                    Cast(records, FloatField()) / F("max_step_size"),
+                    output_field=FloatField(),
+                ),
+                output_field=IntegerField(),
+            )
+
         if total_steps_asked:
             annotations.update({
-                "download_tasks_count": Ceil(
-                    F("total_records") / F("max_step_size")),
+                "download_tasks_count": round_trips(F("total_records")),
                 # + 1 for call_fetch_total_records
                 "total_steps": F("download_tasks_count") + F("total_records") + 1,
             })
@@ -199,8 +231,9 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                     When(
                         condition=Q(
                             phase=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
-                        then=1 + Ceil(F("records_count") /
-                                      F("max_step_size"))
+                        # the files stored so far make the round trips the run
+                        # has through, counted the same way (#1163)
+                        then=1 + round_trips(F("records_count"))
                     ),
                     When(
                         condition=Q(

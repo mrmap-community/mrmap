@@ -2,8 +2,9 @@ import type { PropsWithChildren } from 'react'
 import { AdminContext, testDataProvider, useListContext, type ListProps, type RaRecord } from 'react-admin'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { describe, expect, it, beforeEach, afterAll, vi } from 'vitest'
 
+import i18nProvider from '../../providers/i18nProvider'
 import ListGuesser from './ListGuesser'
 import { useSelectedRecordContext } from './SelectedRecordContext'
 
@@ -35,7 +36,9 @@ vi.mock('react-admin', async importOriginal => {
     ),
     EditButton: () => null,
     ShowButton: () => null,
-    WrapperField: () => null,
+    WrapperField: ({ label }: { label?: string }) => (
+      <div data-testid="actions-column">{label}</div>
+    ),
     useResourceDefinition: (props?: { resource?: string }) => ({
       name: props?.resource ?? 'Layer',
       hasShow: false,
@@ -105,6 +108,24 @@ describe('ListGuesser aside of the resource definition', () => {
 
     expect(screen.queryByText('preview of the selection')).toBeNull()
     expect(screen.getByRole('complementary')).toHaveTextContent('No selection')
+  })
+})
+
+describe('ListGuesser actions column', () => {
+  it.each([
+    { locale: 'en', label: 'Actions' },
+    { locale: 'de', label: 'Aktionen' },
+  ])('labels the actions column of a guessed list in $locale', async ({ locale, label }) => {
+    await i18nProvider.changeLocale(locale)
+
+    render(<AdminContext i18nProvider={i18nProvider}><ListGuesser /></AdminContext>)
+
+    expect(screen.getByTestId('actions-column')).toHaveTextContent(label)
+    expect(screen.getByTestId('actions-column')).not.toHaveTextContent('ra.list.actions')
+  })
+
+  afterAll(async () => {
+    await i18nProvider.changeLocale('en')
   })
 })
 

@@ -132,6 +132,14 @@ services:
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      # The queueing depth of one HTTP worker of the backend; 4 keeps a cheap
+      # endpoint at its own latency beside a burst of CPU bound requests, which
+      # 1 thread cannot (#1032). See docs/source/development/environment.rst.
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+      # Websockets are I/O bound and idle, so one ASGI worker serves the open
+      # connections of a deployment; it is a knob only to size an unusual number
+      # of simultaneous connections.
+      GUNICORN_WS_WORKERS: ${GUNICORN_WS_WORKERS:-1}
     env_file:
       - docker/backend/.mrmap.env
     depends_on:
@@ -299,7 +307,9 @@ services:
       # while empty, so `up -d --build` after an upgrade kept serving the
       # previous version's assets from the volume - and stale hashed files
       # never disappeared, which #942's 404s and #946's immutable caching
-      # both depend on. (#922)
+      # both depend on. (#922) That no mount ever returns to those paths is
+      # what scripts/static_mounts_smoke.py checks; #1027 is the invisible
+      # stale rebuild a mount caused again on an older checkout.
     ports:
       - "${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}:80"
     depends_on:

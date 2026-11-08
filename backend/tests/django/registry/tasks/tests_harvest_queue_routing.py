@@ -37,6 +37,7 @@ from MrMap.settings import CELERY_TASK_QUEUES
 # importing the task modules registers the tasks the router resolves
 import notify.tasks  # noqa: F401  (registers finish_background_process)
 import system.tasks  # noqa: F401  (registers delete_old_slow_request_dumps)
+import registry.tasks.alerts  # noqa: F401  (registers refresh_service_alerts)
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
@@ -91,7 +92,9 @@ class RoutingMapTest(TestCase):
         'notify.tasks.finish_background_process': celery_queues.DB_ROUTINES,
         # the beat-scheduled tasks: starved for 16 h behind the backlog (#970)
         'registry.tasks.harvest.check_for_files_to_import': celery_queues.DB_ROUTINES,
+        'registry.tasks.harvest.watch_import_backlogs': celery_queues.DB_ROUTINES,
         'system.tasks.delete_old_slow_request_dumps': celery_queues.DB_ROUTINES,
+        'registry.tasks.alerts.refresh_service_alerts': celery_queues.DB_ROUTINES,
         # the harvest tasks which were on their own queues already
         'registry.tasks.harvest.call_fetch_records': celery_queues.DOWNLOAD,
         'registry.tasks.harvest.call_fetch_total_records': celery_queues.DEFAULT,

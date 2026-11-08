@@ -206,8 +206,11 @@ const HarvestingActivityCard = () => {
       // have to be the three most recent runs. Ordering by `dateCreated` cannot do
       // that yet: the column is NULL for every run until #1079 fills it, which is
       // why #692 had to add `done_at` to the api's ordering_fields for the same
-      // reason. The id counts in the order the runs were made, so it orders until
-      // #1079 lands; switch this back to `dateCreated` then.
+      // reason and why #1080 sorted this card by `doneAt` - a run which is still
+      // working has no `doneAt` either, and the five second interval exists to
+      // follow the run the catalogue is watching. The id counts in the order the
+      // runs were made, so it orders until #1079 lands; switch back to
+      // `dateCreated` then.
       sort={{ field: "id", order: "DESC" }}
       perPage={3}
       actions={false}

@@ -175,7 +175,23 @@ services:
       - docker/backend/.mrmap.env
     ports:
       - "0.0.0.0:8001:8001"
-    command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
+    # The websockets of #1032. The development server of the frontend answers
+    # without nginx and points at port 8001 of this service (frontend/.env), so
+    # that flow needs nothing here. The stack of the "mrmap startup" task does:
+    # its frontend is the same nginx container with the same
+    # docker/nginx/mrmap.conf which docker-compose.yml bind-mounts and this file
+    # only rebuilds, and the bundle that container serves takes its addresses
+    # from the VITE_API_* build args which docker-compose.yml derives from
+    # EXTERNAL_* - so that page asks the edge, for its api as for its socket,
+    # and the conf of the edge names port 8002 for /ws in every stack. Without
+    # this, the notification bus of a page on EXTERNAL_PORT answers 502 while
+    # runserver waits on 8001 for a question that page does not ask.
+    # The autoreloader of runserver does not reach this second process: restart
+    # the service after changing a consumer.
+    # The autoreloader of runserver does not reach this second process: restart
+    # the service after changing a consumer.
+    command: >
+      /bin/sh -c "/opt/mrmap/.bash_scripts/startup_ws.sh & python manage.py runserver 0.0.0.0:8001"
     depends_on:
       postgis:
         condition: service_started

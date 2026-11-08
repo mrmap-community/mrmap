@@ -8,6 +8,10 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
 from requests import Request
 
+#: the capabilities Layer chain of a node, from the root down to the node
+#: itself; namespace agnostic, so it matches every version's default namespace
+LAYER_CHAIN = "ancestor-or-self::*[local-name()='Layer']"
+
 
 class WebMapServiceClient(OgcClient):
     """WebMapService class which implements some basic functionality for all wms client applications"""
@@ -96,7 +100,7 @@ class WebMapServiceClient(OgcClient):
         supported = set()
         extents = {}
         geographic = None
-        for ancestor in layer.xpath("ancestor-or-self::*[local-name()='Layer']"):
+        for ancestor in layer.xpath(LAYER_CHAIN):
             for value in ancestor.findall(f"{{*}}{self.crs_qp}"):
                 supported.update((value.text or "").split())
             for value in ancestor.findall("{*}BoundingBox"):
@@ -147,7 +151,7 @@ class WebMapServiceClient(OgcClient):
                     continue
                 attributes = {}
                 dimensions = {}
-                for ancestor in layer.xpath("ancestor-or-self::*[local-name()='Layer']"):
+                for ancestor in layer.xpath(LAYER_CHAIN):
                     attributes.update(ancestor.attrib)
                     for dimension in ancestor.xpath("./*[local-name()='Dimension' or local-name()='Extent']"):
                         name = (dimension.get("name") or "").lower()
@@ -257,7 +261,7 @@ class WebMapServiceClient(OgcClient):
         if not nodes:
             return {}
         extents = {}
-        for ancestor in nodes[0].xpath("ancestor-or-self::*[local-name()='Layer']"):
+        for ancestor in nodes[0].xpath(LAYER_CHAIN):
             for bbox in ancestor.findall("{*}BoundingBox"):
                 crs = bbox.get(self.crs_qp)
                 if crs:

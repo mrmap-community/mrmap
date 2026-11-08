@@ -27,7 +27,7 @@ from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.helper.preview import PreviewError, integer, stored_client
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.ows_lib.client.exceptions import InitialError
-from registry.ows_lib.wms.wms import WebMapServiceClient
+from registry.ows_lib.wms.wms import LAYER_CHAIN, WebMapServiceClient
 
 #: version of the generation logic; part of every preview response so that a
 #: consumer can tell which rules produced a proposal
@@ -50,6 +50,10 @@ MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 MAX_PROBES = 100
 DEFAULT_PROBE_LIMIT = 25
 MAX_SKIPPED_REPORTED = 200
+
+# the capabilities element which carries the name of a layer or a style; the
+# element is named the same in every version, only its namespace differs
+NAME_QP = "{*}Name"
 
 # the CRSs whose request extent the stored geographic bbox can serialize
 # without a native BoundingBox; ordered by preference
@@ -165,7 +169,7 @@ def _node_map(client) -> dict:
     """Every capabilities Layer node by its advertised Name, first wins."""
     nodes = {}
     for node in client._capabilities_etree.xpath("//*[local-name()='Layer']"):
-        name = (node.findtext("{*}Name") or "").strip()
+        name = (node.findtext(NAME_QP) or "").strip()
         if name and name not in nodes:
             nodes[name] = node
     return nodes
@@ -173,7 +177,7 @@ def _node_map(client) -> dict:
 
 def _ancestors(node) -> list:
     """The capabilities Layer chain from the root down to the node itself."""
-    return list(node.xpath("ancestor-or-self::*[local-name()='Layer']"))
+    return list(node.xpath(LAYER_CHAIN))
 
 
 def _advertised_crs(node, client) -> set:
@@ -190,7 +194,7 @@ def _inherited_styles(node) -> list:
     styles = []
     for ancestor in _ancestors(node):
         for style in ancestor.findall("{*}Style"):
-            name = (style.findtext("{*}Name") or "").strip()
+            name = (style.findtext(NAME_QP) or "").strip()
             if name and name not in styles:
                 styles.append(name)
     return styles
@@ -208,7 +212,7 @@ def _default_style_name(node) -> str:
     for ancestor in reversed(_ancestors(node)):
         styles = ancestor.findall("{*}Style")
         if styles:
-            return (styles[0].findtext("{*}Name") or "").strip()
+            return (styles[0].findtext(NAME_QP) or "").strip()
     return ""
 
 
@@ -238,6 +242,60 @@ def _fixed_dimensions(node) -> tuple:
     return tuple(dimensions)
 
 
+def _declared_values(element) -> list:
+    """The values a dimension declaration carries inside its own element.
+
+    Only 1.3.0 writes them there; 1.1.1 keeps them in the ``Extent`` sibling,
+    which is the same read on a different element.
+    """
+    return [value.strip() for value in (element.text or "").split(",")
+            if value.strip()]
+
+
+def _declare_dimension(declared: dict, element) -> None:
+    """One ``Dimension`` or ``Extent`` declaration into the gathered ones.
+
+    Both elements carry the names in the ``name`` attribute, the default in
+    the ``default`` attribute and the advertised values in the element itself.
+    A later declaration of the same name replaces what it states and keeps
+    what it does not.
+    """
+    default = (element.get("default") or "").strip()
+    values = _declared_values(element)
+    for name in (element.get("name") or "").lower().split():
+        declaration = declared.setdefault(name, {"default": None, "values": []})
+        declaration["default"] = default or declaration["default"]
+        declaration["values"] = values or declaration["values"]
+
+
+def _declared_dimensions(node) -> dict:
+    """The dimension declarations of the layer chain, in document order."""
+    declared = {}
+    for ancestor in _ancestors(node):
+        elements = ancestor.findall("{*}Dimension") + ancestor.findall("{*}Extent")
+        for element in elements:
+            _declare_dimension(declared, element)
+    return declared
+
+
+def _resolve_dimension(declaration: dict):
+    """What a probe shall do with one declared dimension.
+
+    Returns:
+        dict: ``default`` and ``value`` of the proposal, ``None`` when the
+            dimension is required but advertises nothing to request it with
+    """
+    if declaration["default"]:
+        # the server applies its default when the request omits the
+        # dimension, so no value is sent
+        return {"default": declaration["default"], "value": None}
+    if declaration["values"]:
+        # a required dimension is requested with its first advertised value
+        return {"default": None, "value": declaration["values"][0]}
+    # required and nothing to request it with: not proposable
+    return None
+
+
 def _dimensions(node) -> dict:
     """The effective dimensions of a layer, inherited down the chain.
 
@@ -247,45 +305,9 @@ def _dimensions(node) -> dict:
     mapping with ``default`` and/or ``value`` otherwise. Declarations of a
     deeper layer replace same-named inherited ones.
     """
-    declared = {}
-    for ancestor in _ancestors(node):
-        for dimension in ancestor.findall("{*}Dimension"):
-            for name in (dimension.get("name") or "").lower().split():
-                declared.setdefault(name, {"default": None, "values": []})
-                default = (dimension.get("default") or "").strip()
-                if default:
-                    declared[name]["default"] = default
-                # 1.3.0 carries the advertised values inside the Dimension
-                # element itself
-                values = [value.strip() for value in (dimension.text or "").split(",")
-                          if value.strip()]
-                if values:
-                    declared[name]["values"] = values
-        for extent in ancestor.findall("{*}Extent"):
-            for name in (extent.get("name") or "").lower().split():
-                declaration = declared.setdefault(name, {"default": None, "values": []})
-                default = (extent.get("default") or "").strip()
-                if default:
-                    declaration["default"] = default
-                values = [value.strip() for value in (extent.text or "").split(",")
-                          if value.strip()]
-                if values:
-                    declaration["values"] = values
-    effective = {}
-    for name, declaration in declared.items():
-        default = declaration["default"]
-        values = declaration["values"]
-        if default:
-            # the server applies its default when the request omits the
-            # dimension, so no value is sent
-            effective[name] = {"default": default, "value": None}
-        elif values:
-            # a required dimension is requested with its first advertised value
-            effective[name] = {"default": None, "value": values[0]}
-        else:
-            # required and nothing to request it with: not proposable
-            effective[name] = None
-    return effective
+    declared = _declared_dimensions(node)
+    return {name: _resolve_dimension(declaration)
+            for name, declaration in declared.items()}
 
 
 def _select_crs(client, node, identifier: str) -> str:
@@ -317,82 +339,151 @@ def _skip(reason: str, layer, detail: str) -> dict:
     return {"reason": reason, "layer": layer, "detail": detail}
 
 
-def _layer_probe(client, lookup, layer, node, image_formats, width, height,
-                 timeout, exceptions, format_override, crs_override):
-    """Propose the GetMap probe of one layer or report why it is not proposable.
-
-    Returns:
-        tuple: (probe dict or None, skip dict or None)
-    """
-    identifier = (layer.identifier or "").strip()
+def _not_renderable(layer, node, identifier: str):
+    """Why this layer can not be rendered on its own, or None when it can."""
     if not identifier:
-        return None, _skip(
+        return _skip(
             SkipReason.GROUP_LAYER, None,
             "layer without an advertised Name is not renderable on its own")
     if not layer.is_active:
-        return None, _skip(
+        return _skip(
             SkipReason.INACTIVE, identifier,
             "layer is deactivated in the registry")
     if node is None:
-        return None, _skip(
+        return _skip(
             SkipReason.STALE, identifier,
             "the stored capabilities do not advertise this layer anymore")
+    return None
 
+
+def _geographic_extent(layer):
+    """The geographic bounding box the layer states or inherits, or None."""
     geographic = getattr(layer, "bbox_lat_lon_inherited", None)
     if geographic is None or geographic.empty:
-        return None, _skip(
-            SkipReason.NO_EXTENT, identifier,
-            "no geographic bounding box stated or inherited by the layer")
+        return None
+    return geographic
 
-    try:
-        if crs_override:
-            if crs_override not in _advertised_crs(node, client):
-                raise ValueError(
-                    f"{SkipReason.UNSUPPORTED_CRS}|'{crs_override}' is not "
-                    "advertised for the layer")
-            crs = crs_override
-        else:
-            crs = _select_crs(client, node, identifier)
-    except ValueError as error:
-        reason, _, detail = str(error).partition("|")
-        return None, _skip(reason, identifier, detail)
 
-    try:
-        fixed_width, fixed_height = _fixed_dimensions(node)
-    except ValueError as error:
-        reason, _, detail = str(error).partition("|")
-        return None, _skip(reason, identifier, detail)
+def _probe_crs(client, node, identifier: str, crs_override) -> str:
+    """The CRS a probe of this layer shall use.
+
+    Raises:
+        ValueError: as ``reason|detail`` when an override is not advertised
+            for the layer or no CRS can be selected from the document.
+    """
+    if crs_override:
+        if crs_override not in _advertised_crs(node, client):
+            raise ValueError(
+                f"{SkipReason.UNSUPPORTED_CRS}|'{crs_override}' is not "
+                "advertised for the layer")
+        return crs_override
+    return _select_crs(client, node, identifier)
+
+
+def _check_fixed_dimensions(node, width: int, height: int) -> None:
+    """Refuse a layer which only renders other image dimensions than asked.
+
+    Raises:
+        ValueError: as ``reason|detail`` when the layer only renders image
+            dimensions other than the ones the request asks for.
+    """
+    fixed_width, fixed_height = _fixed_dimensions(node)
     if (fixed_width and fixed_width != width) \
             or (fixed_height and fixed_height != height):
-        return None, _skip(
-            SkipReason.FIXED_DIMENSIONS, identifier,
-            "the layer only renders the fixed image dimensions "
-            f"{fixed_width}x{fixed_height}")
+        raise ValueError(
+            f"{SkipReason.FIXED_DIMENSIONS}|the layer only renders the fixed "
+            f"image dimensions {fixed_width}x{fixed_height}")
 
-    dimensions = _dimensions(node)
+
+def _dimensions_skip(dimensions: dict, identifier: str):
+    """Why the declared dimensions make the layer not proposable, or None."""
     for name, proposal in sorted(dimensions.items()):
         if name not in REQUESTABLE_DIMENSIONS:
-            return None, _skip(
+            return _skip(
                 SkipReason.UNSUPPORTED_DIMENSION, identifier,
                 f"dimension '{name}' can not be expressed by the GetMap "
                 "probe abstraction")
         if proposal is None:
-            return None, _skip(
+            return _skip(
                 SkipReason.UNAVAILABLE_DIMENSION, identifier,
                 f"dimension '{name}' is required but advertises no value "
                 "the probe could request")
+    return None
 
+
+def _image_format(image_formats: list, format_override) -> str:
+    """The format a GetMap probe of this service shall ask for.
+
+    An explicit override wins, it was checked against the advertised ones.
+    Otherwise PNG before JPEG: a monitoring probe reads the response bytes,
+    and an exception drawn into a lossy image is harder to interpret.
+    """
+    if format_override:
+        return format_override
+    for value in ("image/png", "image/jpeg"):
+        if value in image_formats:
+            return value
+    return image_formats[0] if image_formats else ""
+
+
+def _dimension_values(dimensions: dict) -> tuple:
+    """The GetMap keyword arguments the advertised dimension values need.
+
+    Returns:
+        tuple: the keyword arguments and the name of the dimension whose
+            advertised value the request can not carry, when there is one.
+    """
+    request_kwargs = {}
+    for name, proposal in sorted(dimensions.items()):
+        value = proposal["value"] if proposal else None
+        if not value:
+            continue
+        if name == "elevation":
+            try:
+                request_kwargs[name] = float(value)
+            except ValueError:
+                return request_kwargs, name
+        elif name == "time":
+            request_kwargs[name] = [value]
+    return request_kwargs, None
+
+
+def _dimension_parameters(dimensions: dict, identifier: str) -> tuple:
+    """The dimension part of a probe and of the request which proves it.
+
+    Returns:
+        tuple: the defaults the server applies on its own, the keyword
+            arguments the GetMap must carry and the skip which says when an
+            advertised value can not be requested.
+    """
+    defaults = {name: proposal["default"]
+                for name, proposal in sorted(dimensions.items())
+                if proposal and proposal["default"]}
+    request_kwargs, unusable = _dimension_values(dimensions)
+    if unusable is None:
+        return defaults, request_kwargs, None
+    return {}, {}, _skip(
+        SkipReason.UNAVAILABLE_DIMENSION, identifier,
+        f"dimension '{unusable}' advertises the non-numeric value "
+        f"'{dimensions[unusable]['value']}'")
+
+
+def _getmap_probe(client, lookup, layer, node, identifier, geographic, crs,
+                  dimensions, image_formats, width, height, timeout, exceptions,
+                  format_override):
+    """The GetMap proposal of a layer whose advertised state is proposable."""
     try:
         bbox, axis_order = client.get_map_bbox(
             crs=crs, layer_name=identifier, geographic=geographic)
     except ValueError as error:
         return None, _skip(SkipReason.UNSUPPORTED_CRS, identifier, str(error))
 
-    style = _default_style_name(node)
-    image_format = format_override or next(
-        (value for value in ("image/png", "image/jpeg") if value in image_formats),
-        image_formats[0] if image_formats else "")
+    defaults, request_kwargs, skip = _dimension_parameters(dimensions, identifier)
+    if skip is not None:
+        return None, skip
 
+    style = _default_style_name(node)
+    image_format = _image_format(image_formats, format_override)
     parameters = {
         "layers": [identifier],
         "layerIds": [str(layer.pk)],
@@ -409,26 +500,9 @@ def _layer_probe(client, lookup, layer, node, image_formats, width, height,
         "timeout": timeout,
         "maxResponseBytes": MAX_RESPONSE_BYTES,
         "exceptions": exceptions,
-        "dimensionDefaults": {
-            name: proposal["default"] for name, proposal in sorted(dimensions.items())
-            if proposal and proposal["default"]},
+        "dimensionDefaults": defaults,
     }
-    request_kwargs = {}
-    for name, proposal in dimensions.items():
-        if proposal and proposal["value"]:
-            if name == "time":
-                parameters["time"] = [proposal["value"]]
-                request_kwargs["time"] = [proposal["value"]]
-            elif name == "elevation":
-                try:
-                    elevation = float(proposal["value"])
-                except ValueError:
-                    return None, _skip(
-                        SkipReason.UNAVAILABLE_DIMENSION, identifier,
-                        f"dimension '{name}' advertises the non-numeric "
-                        f"value '{proposal['value']}'")
-                parameters["elevation"] = elevation
-                request_kwargs["elevation"] = elevation
+    parameters.update(request_kwargs)
 
     try:
         request = client.get_map_request(
@@ -456,6 +530,77 @@ def _layer_probe(client, lookup, layer, node, image_formats, width, height,
     return probe, None
 
 
+def _layer_probe(client, lookup, layer, node, image_formats, width, height,
+                 timeout, exceptions, format_override, crs_override):
+    """Propose the GetMap probe of one layer or report why it is not proposable.
+
+    The checks run in the order in which a reviewer reads the state of the
+    layer: is it renderable at all, does it state an extent, can it be asked
+    for in a CRS and at the requested image dimensions, and can its
+    dimensions be expressed. The first unmet condition is the reported skip.
+
+    Returns:
+        tuple: (probe dict or None, skip dict or None)
+    """
+    identifier = (layer.identifier or "").strip()
+    skip = _not_renderable(layer, node, identifier)
+    geographic = None
+    crs = None
+    dimensions = {}
+
+    if skip is None:
+        geographic = _geographic_extent(layer)
+        if geographic is None:
+            skip = _skip(
+                SkipReason.NO_EXTENT, identifier,
+                "no geographic bounding box stated or inherited by the layer")
+
+    if skip is None:
+        try:
+            crs = _probe_crs(client, node, identifier, crs_override)
+            _check_fixed_dimensions(node, width, height)
+        except ValueError as error:
+            reason, _, detail = str(error).partition("|")
+            skip = _skip(reason, identifier, detail)
+
+    if skip is None:
+        dimensions = _dimensions(node)
+        skip = _dimensions_skip(dimensions, identifier)
+
+    if skip is not None:
+        return None, skip
+    return _getmap_probe(
+        client, lookup, layer, node, identifier, geographic, crs, dimensions,
+        image_formats, width, height, timeout, exceptions, format_override)
+
+
+def _layer_tokens(layer) -> set:
+    """The values a caller can select this layer by: its name and its id."""
+    identifier = (layer.identifier or "").strip()
+    return {value for value in (identifier, str(layer.pk)) if value}
+
+
+def _matched_tokens(layers, requested: set) -> set:
+    """The tokens of the layers which an explicit selection does select."""
+    matched = set()
+    for layer in layers:
+        tokens = _layer_tokens(layer)
+        if tokens & requested:
+            matched |= tokens
+    return matched
+
+
+def _unknown_selection(selection: list, matched: set) -> list:
+    """The skips of the requested layers which the service does not register."""
+    skips = []
+    for identifier in selection:
+        if identifier not in matched:
+            skips.append(_skip(
+                SkipReason.UNKNOWN_LAYER, identifier,
+                "the service registers no layer with this identifier"))
+    return skips
+
+
 def _scan_layers(client, lookup, layers, nodes, image_formats, width, height,
                  timeout, exceptions, format_override, crs_override, selection):
     """Run the per-layer proposal in one deterministic scan over the service tree.
@@ -466,29 +611,121 @@ def _scan_layers(client, lookup, layers, nodes, image_formats, width, height,
     """
     proposals = []
     skips = []
-    selected = set(selection)
-    matched = set()
+    requested = set(selection)
+    matched = _matched_tokens(layers, requested)
     for layer in layers:
         identifier = (layer.identifier or "").strip()
-        tokens = {value for value in (identifier, str(layer.pk)) if value}
-        if selection and tokens & selected:
-            matched |= tokens
+        selected = bool(_layer_tokens(layer) & matched)
         probe, skip = _layer_probe(
             client, lookup, layer, nodes.get(identifier), image_formats,
             width, height, timeout, exceptions, format_override, crs_override)
-        if selection and not tokens & matched:
+        if requested and not selected:
             # an explicitly requested probe must not appear for other layers
             continue
         if probe is not None:
             proposals.append(probe)
-        elif skip is not None and (not selection or tokens & matched):
+        elif skip is not None and (not requested or selected):
             skips.append(skip)
-    for identifier in selection:
-        if identifier not in matched:
-            skips.append(_skip(
-                SkipReason.UNKNOWN_LAYER, identifier,
-                "the service registers no layer with this identifier"))
+    skips.extend(_unknown_selection(selection, matched))
     return proposals, skips
+
+
+def _preset(query) -> str:
+    """The preset of the request, validated against what is implemented.
+
+    Raises:
+        PreviewError: ``presetNotImplemented`` for the preset of the epic
+            which does not exist yet, ``preset`` for anything unknown.
+    """
+    preset = (query.get("preset") or PRESET_STANDARD).strip().lower()
+    if preset == PRESET_COMPREHENSIVE:
+        raise PreviewError("presetNotImplemented", 400)
+    if preset not in IMPLEMENTED_PRESETS:
+        raise PreviewError("preset", 400)
+    return preset
+
+
+def _offset(query) -> int:
+    """The first proposal of the answer, validated.
+
+    Raises:
+        PreviewError: ``offset`` for a value which is not a position.
+    """
+    try:
+        offset = int(query.get("offset") or 0)
+    except (TypeError, ValueError):
+        raise PreviewError("offset", 400)
+    if offset < 0:
+        raise PreviewError("offset", 400)
+    return offset
+
+
+def _crs_override(query):
+    """The CRS the caller asks all probes to use, validated.
+
+    Raises:
+        PreviewError: ``crsOverride`` for a code which is not an EPSG or CRS
+            authority code, because the BBOX serialization depends on it.
+    """
+    crs_override = (query.get("crs") or "").strip().upper() or None
+    if crs_override and not crs_override.startswith(("EPSG:", "CRS:")):
+        raise PreviewError("crsOverride", 400)
+    return crs_override
+
+
+def _endpoint_state(client) -> tuple:
+    """The GetCapabilities request of the service and the endpoints it lacks.
+
+    A probe without its advertised endpoint is reported, never proposed, so a
+    missing operation is a service wide skip rather than a failed request.
+    """
+    service_skips = []
+    capabilities_request = None
+    try:
+        capabilities_request = client.get_capabilities_request()
+    except InitialError:
+        service_skips.append(_skip(
+            SkipReason.OPERATION_UNSUPPORTED, None,
+            "the capabilities advertise no GetCapabilities endpoint"))
+    try:
+        client.get_operation_url_by_name_and_method(
+            OGCOperationEnum.GET_MAP, HttpMethodEnum.GET)
+    except InitialError:
+        service_skips.append(_skip(
+            SkipReason.OPERATION_UNSUPPORTED, None,
+            "the capabilities advertise no GetMap endpoint"))
+    return capabilities_request, service_skips
+
+
+def _request_selection(query) -> list:
+    """The layers the caller selected, by identifier or by layer id."""
+    if hasattr(query, "getlist"):
+        return [value.strip() for value in query.getlist("layer") if value.strip()]
+    value = query.get("layer") or []
+    if isinstance(value, str):
+        return [value]
+    return [item for item in value if item]
+
+
+def _page(proposals: list, preset: str, offset: int, limit: int) -> list:
+    """The proposals this answer carries.
+
+    ``basic`` asks for the single representative probe of the service, so it
+    takes the first one; ``standard`` answers a page of the selection.
+    """
+    if preset == PRESET_BASIC:
+        return proposals[:1]
+    return proposals[offset:offset + limit]
+
+
+def _pagination(offset: int, limit: int, total: int, preset: str,
+                selection: list) -> dict:
+    """Where this answer sits in the candidates and what the caller must do."""
+    return {
+        "offset": offset, "limit": limit,
+        "totalGetMapCandidates": total,
+        "truncated": bool(preset != PRESET_BASIC and offset + limit < total),
+        "selectionRequired": total > MAX_PROBES and not selection}
 
 
 def generate_probe_preview(service, query) -> dict:
@@ -513,22 +750,13 @@ def generate_probe_preview(service, query) -> dict:
     if not service.is_active:
         raise PreviewError("disabled", 423)
 
-    preset = (query.get("preset") or PRESET_STANDARD).strip().lower()
-    if preset == PRESET_COMPREHENSIVE:
-        raise PreviewError("presetNotImplemented", 400)
-    if preset not in IMPLEMENTED_PRESETS:
-        raise PreviewError("preset", 400)
+    preset = _preset(query)
 
     width = integer(query.get("width"), DEFAULT_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION)
     height = integer(query.get("height"), DEFAULT_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION)
     timeout = integer(query.get("timeout"), DEFAULT_TIMEOUT, MAX_TIMEOUT)
     limit = integer(query.get("limit"), DEFAULT_PROBE_LIMIT, MAX_PROBES)
-    try:
-        offset = int(query.get("offset") or 0)
-    except (TypeError, ValueError):
-        raise PreviewError("offset", 400)
-    if offset < 0:
-        raise PreviewError("offset", 400)
+    offset = _offset(query)
 
     # the stored read of the live preview, for the protocol client: the bounded
     # session it carries is never used here, generation only reads the document
@@ -537,32 +765,14 @@ def generate_probe_preview(service, query) -> dict:
         raise PreviewError("version", 422)
 
     format_override = (query.get("imageFormat") or "").strip() or None
-    crs_override = (query.get("crs") or "").strip().upper() or None
-    if crs_override and not crs_override.startswith(("EPSG:", "CRS:")):
-        raise PreviewError("crsOverride", 400)
+    crs_override = _crs_override(query)
 
     exceptions = _exception_format(client)
     image_formats = _advertised_image_formats(client)
     if format_override and format_override not in image_formats:
         raise PreviewError("formatOverride", 400)
 
-    # the operation endpoints the service advertises; a probe without its
-    # advertised endpoint is reported, never proposed
-    service_skips = []
-    capabilities_request = None
-    try:
-        capabilities_request = client.get_capabilities_request()
-    except InitialError:
-        service_skips.append(_skip(
-            SkipReason.OPERATION_UNSUPPORTED, None,
-            "the capabilities advertise no GetCapabilities endpoint"))
-    try:
-        client.get_operation_url_by_name_and_method(
-            OGCOperationEnum.GET_MAP, HttpMethodEnum.GET)
-    except InitialError:
-        service_skips.append(_skip(
-            SkipReason.OPERATION_UNSUPPORTED, None,
-            "the capabilities advertise no GetMap endpoint"))
+    capabilities_request, service_skips = _endpoint_state(client)
     if not image_formats and not format_override:
         # without a renderable format every GetMap candidate would be a
         # misleading probe, so this is the state of the whole service
@@ -571,12 +781,7 @@ def generate_probe_preview(service, query) -> dict:
     layers = list(service.layers.with_inherited_attributes_cte()
                   .order_by("mptt_tree_id", "mptt_lft"))
     nodes = _node_map(client)
-    if hasattr(query, "getlist"):
-        selection = [value.strip() for value in query.getlist("layer") if value.strip()]
-    else:
-        value = query.get("layer") or []
-        selection = [value] if isinstance(value, str) else [
-            item for item in value if item]
+    selection = _request_selection(query)
 
     lookup = _Lookup()
     proposals, skips = _scan_layers(
@@ -597,8 +802,7 @@ def generate_probe_preview(service, query) -> dict:
         })
 
     total = len(proposals)
-    page = proposals[:1] if preset == PRESET_BASIC else proposals[offset:offset + limit]
-    probes.extend(page)
+    probes.extend(_page(proposals, preset, offset, limit))
 
     reported = service_skips + skips
     return {
@@ -624,11 +828,7 @@ def generate_probe_preview(service, query) -> dict:
         "request": {
             "width": width, "height": height, "timeout": timeout,
             "format": format_override, "crs": crs_override},
-        "pagination": {
-            "offset": offset, "limit": limit,
-            "totalGetMapCandidates": total,
-            "truncated": bool(preset != PRESET_BASIC and offset + limit < total),
-            "selectionRequired": total > MAX_PROBES and not selection},
+        "pagination": _pagination(offset, limit, total, preset, selection),
         "probes": probes,
         "skipped": reported[:MAX_SKIPPED_REPORTED],
         "skippedTotal": len(reported),

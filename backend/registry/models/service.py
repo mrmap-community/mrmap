@@ -1,5 +1,6 @@
 from logging import Logger
 from threading import Lock
+from typing import Optional
 from uuid import uuid4
 
 from django.conf import settings
@@ -869,7 +870,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
-    def get_default_style(self) -> Style:
+    def get_default_style(self) -> Optional[Style]:
         """The default style of this layer as the OGC specs define it.
 
         The first Style advertised for the deepest layer of the inheritance
@@ -877,7 +878,9 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         prefetched answer this without further queries.
 
         Returns:
-            Style: the default style or None when no style is advertised
+            Optional[Style]: the default style or None when neither the layer
+                nor an ancestor advertises one, which a GetMap answers with
+                the server's own default
         """
         seen = set()
         node = self

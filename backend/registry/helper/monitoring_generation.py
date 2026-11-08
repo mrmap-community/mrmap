@@ -15,16 +15,16 @@ The presets follow the epic:
 
 Protocol decisions (advertised operations, formats, styles, dimensions and
 the BBOX axis order) are read from the stored capabilities document through
-the existing :class:`registry.ows_lib.wms.wms.WebMapServiceClient`; inherited
-layer values come from the existing inherited-attribute queries of the
+the stored read of :mod:`registry.helper.preview`, which answers a
+:class:`registry.ows_lib.wms.wms.WebMapServiceClient`; inherited layer values
+come from the existing inherited-attribute queries of the
 :class:`registry.models.service.Layer` queryset.
 """
 import hashlib
 from urllib.parse import urlsplit, urlunsplit
 
-from lxml import etree
-from registry.enums.service import HttpMethodEnum, OGCOperationEnum, OGCServiceVersionEnum
-from registry.helper.preview import PreviewError, integer, parse_xml
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.helper.preview import PreviewError, integer, stored_client
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.ows_lib.client.exceptions import InitialError
 from registry.ows_lib.wms.wms import WebMapServiceClient
@@ -110,26 +110,6 @@ def request_summary(request, operation: str) -> dict:
     return {"method": request.method, "operation": operation, "url": url}
 
 
-def _stored_client(service) -> WebMapServiceClient:
-    """The WMS client on the capabilities stored for the service.
-
-    A missing or corrupted backup never triggers the model's remote fallback
-    and the client is never used to send anything: generation reads the
-    advertised state only.
-    """
-    try:
-        if not service.xml_backup_file:
-            # no document was ever stored for this service
-            raise PreviewError("discovery")
-        capabilities = service.xml_backup
-    except (FileNotFoundError, ValueError):
-        raise PreviewError("discovery")
-    client = WebMapServiceClient(capabilities=etree.tostring(parse_xml(capabilities)))
-    if client.service_version != OGCServiceVersionEnum(service.version).label:
-        raise PreviewError("discovery")
-    return client
-
-
 class _Lookup:
     """Small caches which keep the per-layer generation free of re-queries."""
 
@@ -161,6 +141,16 @@ def _advertised_image_formats(client) -> list:
 
 
 def _exception_format(client) -> str:
+    """The exception format a probe of this service shall ask for.
+
+    An advertised XML format is preferred, because the probe reads the error
+    message out of the response. What is advertised but not XML is
+    deliberately NOT proposed: a service which draws its exceptions into the
+    image (se_inimage) would answer a failing GetMap with a valid image and
+    hide the failure. With nothing usable advertised the request carries the
+    default of its own version (ogc wms 1.1.1 7.3.3.4 / 1.3.0 7.2.4.3), which
+    a server that can not honor it reports loudly.
+    """
     formats = client._capabilities_etree.findall(
         "{*}Capability/{*}Exception/{*}Format")
     advertised = [(value.text or "").strip() for value in formats]
@@ -223,11 +213,29 @@ def _default_style_name(node) -> str:
 
 
 def _fixed_dimensions(node) -> tuple:
+    """The image dimensions a layer only renders at, inherited down the chain.
+
+    Raises:
+        ValueError: when the document advertises a dimension which can not be
+            read; a layer with an unreadable constraint is not proposable.
+    """
     attributes = {}
     for ancestor in _ancestors(node):
         attributes.update(ancestor.attrib)
-    return (int(attributes.get("fixedWidth", "0") or 0),
-            int(attributes.get("fixedHeight", "0") or 0))
+    dimensions = []
+    for name in ("fixedWidth", "fixedHeight"):
+        value = (attributes.get(name) or "0").strip()
+        try:
+            dimensions.append(int(value))
+        except ValueError:
+            raise ValueError(
+                f"{SkipReason.FIXED_DIMENSIONS}|the layer advertises the "
+                f"unreadable {name} '{value}'") from None
+        if dimensions[-1] < 0:
+            raise ValueError(
+                f"{SkipReason.FIXED_DIMENSIONS}|the layer advertises the "
+                f"negative {name} '{value}'")
+    return tuple(dimensions)
 
 
 def _dimensions(node) -> dict:
@@ -309,8 +317,8 @@ def _skip(reason: str, layer, detail: str) -> dict:
     return {"reason": reason, "layer": layer, "detail": detail}
 
 
-def _layer_probe(client, lookup, layer, node, width, height, timeout,
-                 exceptions, format_override, crs_override):
+def _layer_probe(client, lookup, layer, node, image_formats, width, height,
+                 timeout, exceptions, format_override, crs_override):
     """Propose the GetMap probe of one layer or report why it is not proposable.
 
     Returns:
@@ -336,7 +344,6 @@ def _layer_probe(client, lookup, layer, node, width, height, timeout,
             SkipReason.NO_EXTENT, identifier,
             "no geographic bounding box stated or inherited by the layer")
 
-    image_formats = _advertised_image_formats(client)
     try:
         if crs_override:
             if crs_override not in _advertised_crs(node, client):
@@ -350,7 +357,11 @@ def _layer_probe(client, lookup, layer, node, width, height, timeout,
         reason, _, detail = str(error).partition("|")
         return None, _skip(reason, identifier, detail)
 
-    fixed_width, fixed_height = _fixed_dimensions(node)
+    try:
+        fixed_width, fixed_height = _fixed_dimensions(node)
+    except ValueError as error:
+        reason, _, detail = str(error).partition("|")
+        return None, _skip(reason, identifier, detail)
     if (fixed_width and fixed_width != width) \
             or (fixed_height and fixed_height != height):
         return None, _skip(
@@ -445,8 +456,8 @@ def _layer_probe(client, lookup, layer, node, width, height, timeout,
     return probe, None
 
 
-def _scan_layers(client, lookup, layers, nodes, width, height, timeout,
-                 exceptions, format_override, crs_override, selection):
+def _scan_layers(client, lookup, layers, nodes, image_formats, width, height,
+                 timeout, exceptions, format_override, crs_override, selection):
     """Run the per-layer proposal in one deterministic scan over the service tree.
 
     ``selection`` is the set of layer identifiers or ids explicitly requested;
@@ -463,7 +474,7 @@ def _scan_layers(client, lookup, layers, nodes, width, height, timeout,
         if selection and tokens & selected:
             matched |= tokens
         probe, skip = _layer_probe(
-            client, lookup, layer, nodes.get(identifier),
+            client, lookup, layer, nodes.get(identifier), image_formats,
             width, height, timeout, exceptions, format_override, crs_override)
         if selection and not tokens & matched:
             # an explicitly requested probe must not appear for other layers
@@ -519,7 +530,9 @@ def generate_probe_preview(service, query) -> dict:
     if offset < 0:
         raise PreviewError("offset", 400)
 
-    client = _stored_client(service)
+    # the stored read of the live preview, for the protocol client: the bounded
+    # session it carries is never used here, generation only reads the document
+    client = stored_client(service, client_class=WebMapServiceClient)
     if client.service_version not in {"1.1.1", "1.3.0"}:
         raise PreviewError("version", 422)
 
@@ -556,8 +569,7 @@ def generate_probe_preview(service, query) -> dict:
         raise PreviewError("noImageFormat", 422)
 
     layers = list(service.layers.with_inherited_attributes_cte()
-                  .order_by("mptt_tree_id", "mptt_lft")
-                  .prefetch_related("styles", "mptt_parent__styles"))
+                  .order_by("mptt_tree_id", "mptt_lft"))
     nodes = _node_map(client)
     if hasattr(query, "getlist"):
         selection = [value.strip() for value in query.getlist("layer") if value.strip()]
@@ -568,7 +580,7 @@ def generate_probe_preview(service, query) -> dict:
 
     lookup = _Lookup()
     proposals, skips = _scan_layers(
-        client, lookup, layers, nodes, width, height, timeout,
+        client, lookup, layers, nodes, image_formats, width, height, timeout,
         exceptions, format_override, crs_override, selection)
 
     probes = []

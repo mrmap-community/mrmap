@@ -144,13 +144,43 @@ class MonitoringProbePreviewApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.send.assert_not_called()
 
-    def test_anonymous_caller_is_rejected(self):
+    def test_anonymous_caller_without_view_permission_is_rejected(self):
+        # guardian answers the object permissions of an anonymous caller
+        # through its anonymous user row, which a test database may or may not
+        # hold depending on the suite order
+        get_user_model().objects.get_or_create(username='AnonymousUser')
         client = APIClient()
         client.credentials(HTTP_ACCEPT='application/json')
 
         response = client.get(self.url())
 
         self.assertEqual(response.status_code, 403)
+        self.send.assert_not_called()
+
+    def test_anonymous_caller_is_rejected_without_an_anonymous_user(self):
+        # without that row nothing can be granted to an anonymous caller: the
+        # answer is a rejection, not the exception of the permission lookup
+        get_user_model().objects.filter(username='AnonymousUser').delete()
+        client = APIClient()
+        client.credentials(HTTP_ACCEPT='application/json')
+
+        response = client.get(self.url())
+
+        self.assertEqual(response.status_code, 403, response.content)
+        self.send.assert_not_called()
+
+    def test_view_permission_of_the_anonymous_user_opens_the_preview(self):
+        # the preview follows the object permission, so a service which is
+        # public to the anonymous user is previewable without credentials
+        anonymous = get_user_model().objects.get_or_create(
+            username='AnonymousUser')[0]
+        assign_perm('view_webmapservice', anonymous, self.wms)
+        client = APIClient()
+        client.credentials(HTTP_ACCEPT='application/json')
+
+        response = client.get(self.url())
+
+        self.assertEqual(response.status_code, 200, response.content)
         self.send.assert_not_called()
 
     def test_assigned_view_permission_opens_the_preview(self):
@@ -203,6 +233,17 @@ class MonitoringProbePreviewApiTests(TestCase):
         self.assertEqual(response.status_code, 422, response.content)
         self.assertEqual(response.json()['error'], 'discovery')
         self.send.assert_not_called()
+
+    def test_the_nested_service_route_does_not_offer_the_preview(self):
+        # nested relationship viewsets inherit the service viewsets, but the
+        # preview addresses only the canonical registered-service endpoint
+        from registry.views.service import (NestedWebMapServiceViewSet,
+                                            WebMapServiceViewSet)
+
+        self.assertIn('monitoring_probe_preview', {
+            action.__name__ for action in WebMapServiceViewSet.get_extra_actions()})
+        self.assertNotIn('monitoring_probe_preview', {
+            action.__name__ for action in NestedWebMapServiceViewSet.get_extra_actions()})
 
     def test_only_the_wms_route_offers_the_preview(self):
         for url in (self.url(pk=WFS, protocol='wfs'),

@@ -139,6 +139,31 @@ class LivePreviewTests(TestCase):
         self.assertEqual(base64.b64decode(result.json()['image'].split(',')[1]), self.image.getvalue())
         self.assertIn('fetchedAt', result.json())
 
+    def test_service_without_a_stored_document_is_answered_with_discovery(self):
+        # a service which never stored a capabilities document has nothing to
+        # discover from: that is an explicit answer, not a failing document read
+        self.wms.xml_backup_file = ''
+        self.wms.save()
+
+        result = self.request()
+
+        self.assertEqual(result.status_code, 422, result.content)
+        self.assertEqual(result.json()['error'], 'discovery')
+        self.send.assert_not_called()
+
+    def test_anonymous_caller_without_an_anonymous_user_is_rejected(self):
+        # guardian answers the permissions of an anonymous caller through its
+        # anonymous user row; a deployment without it grants nothing and is
+        # rejected instead of raising inside the permission check
+        get_user_model().objects.filter(username='AnonymousUser').delete()
+        client = APIClient()
+        client.credentials(HTTP_ACCEPT='application/json')
+
+        result = client.get(f'/api/registry/wms/{self.wms.pk}/preview')
+
+        self.assertEqual(result.status_code, 403, result.content)
+        self.send.assert_not_called()
+
     def test_wms_versions_axis_order_and_operation_endpoints(self):
         for version, code, bbox, crs in [('1.3.0', 130, '0.0,-2.0,8.0,4.0', 'CRS'), ('1.1.1', 111, '-2.0,0.0,4.0,8.0', 'SRS')]:
             self.wms.version = code

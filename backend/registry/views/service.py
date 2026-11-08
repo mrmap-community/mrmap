@@ -3,8 +3,10 @@ from django.db.models import Count, Exists, F, OuterRef, Prefetch, Subquery
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
 from guardian.core import ObjectPermissionChecker
+from guardian.utils import get_anonymous_user
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import JSONRenderer
@@ -114,6 +116,25 @@ MIME_TYPES_AS_RELATION = Prefetch(
     "mime_types", queryset=MimeType.objects.only("id"))
 
 
+def has_object_view_permission(user, service) -> bool:
+    """Whether a caller may view a registered service, an anonymous caller too.
+
+    The read-only object permission map of DRF is empty, so the preview
+    endpoints of a service state this requirement explicitly. Guardian answers
+    the object permissions of an anonymous caller through its anonymous user
+    row; a deployment which does not have that row grants nothing to an
+    anonymous caller, which is answered here instead of letting guardian
+    raise.
+    """
+    if not user.is_authenticated:
+        try:
+            user = get_anonymous_user()
+        except ObjectDoesNotExist:
+            return False
+    return ObjectPermissionChecker(user).has_perm(
+        f"view_{service.__class__.__name__.lower()}", service)
+
+
 class ServiceAlertAnnotationMixin:
     """Annotates the alerts of a service to the queryset which answers them.
 
@@ -182,9 +203,10 @@ class ServicePreviewMixin:
     def get_extra_actions(cls):
         actions = super().get_extra_actions()
         # Nested relationship viewsets inherit the service UI customizations,
-        # but preview addresses only the canonical registered-service endpoint.
+        # but these address only the canonical registered-service endpoint.
         if issubclass(cls, NestedModelViewSet):
-            return [item for item in actions if item.__name__ not in {"preview", "preview_image"}]
+            return [item for item in actions if item.__name__ not in {
+                "preview", "preview_image", "monitoring_probe_preview"}]
         return actions
 
     @extend_schema(
@@ -207,8 +229,7 @@ class ServicePreviewMixin:
         service = self.get_object()
         # DRF's default read-only object permission map is empty; previews also
         # explicitly require view permission on the registered service.
-        if not ObjectPermissionChecker(request.user).has_perm(
-                f"view_{service.__class__.__name__.lower()}", service):
+        if not has_object_view_permission(request.user, service):
             raise PermissionDenied
         try:
             result = preview(service, request, request.query_params)
@@ -263,8 +284,7 @@ class ServiceMonitoringProbePreviewMixin:
         service = self.get_object()
         # the same explicit object permission as the live preview: generating
         # monitoring proposals requires view on the registered service
-        if not ObjectPermissionChecker(request.user).has_perm(
-                f"view_{service.__class__.__name__.lower()}", service):
+        if not has_object_view_permission(request.user, service):
             raise PermissionDenied
         try:
             result = generate_probe_preview(service, request.query_params)
@@ -658,7 +678,7 @@ class WebFeatureServiceViewSet(
             renderer_classes=[PreviewImageRenderer, JSONRenderer], filter_backends=[])
     def preview_image(self, request, *args, **kwargs):
         service = self.get_object()
-        if not ObjectPermissionChecker(request.user).has_perm("view_webfeatureservice", service):
+        if not has_object_view_permission(request.user, service):
             raise PermissionDenied
         try:
             content = feature_preview_image(service, request, request.query_params)

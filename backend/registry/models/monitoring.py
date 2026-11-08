@@ -703,7 +703,12 @@ class GetMapProbe(WebMapServiceProbe):
     def build_request(self, client) -> Request:
         # One ordered list of the configured layers, so that LAYERS and STYLES
         # stay aligned and a re-run of the same probe sends the same request.
-        layers: list[Layer] = list(self.layers.with_inherited_attributes_cte())
+        # The styles are read with the layers: the default style of a layer is
+        # the first one it advertises, inherited from its ancestors.
+        layers: list[Layer] = list(
+            self.layers.with_inherited_attributes_cte()
+            .order_by("mptt_tree_id", "mptt_lft")
+            .prefetch_related("styles", "mptt_parent__styles"))
         crs = str(self.reference_system) if self.reference_system_id else "EPSG:4326"
         if self.bbox_lat_lon is not None:
             # The configured bounding box of this probe is authoritative.

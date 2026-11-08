@@ -93,15 +93,27 @@ class PreviewSession(Session):
             return self.buffer_response(response)
 
 
-def stored_client(service):
+def stored_client(service, client_class=OgcClient):
+    """The client over the capabilities document stored for a service.
+
+    `client_class` selects the protocol client for a caller which needs the
+    operations of a concrete service type (e.g.
+    :class:`registry.ows_lib.wms.wms.WebMapServiceClient`) instead of the
+    generic one. Never send the requests such a client builds with the session
+    of an unbounded read: this session is the bounded one.
+    """
     # A missing backup must not trigger the model's unbounded remote fallback.
+    # A service which never stored a document has nothing to discover from.
+    if not service.xml_backup_file:
+        raise PreviewError("discovery")
     try:
         capabilities = service.xml_backup
     except (FileNotFoundError, ValueError):
         raise PreviewError("discovery")
     session = PreviewSession()
     session.auth = service.get_session_for_request().auth
-    client = OgcClient(capabilities=etree.tostring(parse_xml(capabilities)), session=session)
+    client = client_class(
+        capabilities=etree.tostring(parse_xml(capabilities)), session=session)
     if client.service_version != OGCServiceVersionEnum(service.version).label:
         raise PreviewError("discovery")
     return client

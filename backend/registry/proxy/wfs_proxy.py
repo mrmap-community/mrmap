@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import cached_property
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -6,7 +7,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from epsg_cache.utils import adjust_axis_order
 from registry.models.service import WebFeatureService
-from registry.ows_lib.response.exceptions import ForbiddenException
+from registry.ows_lib.client.exceptions import (InitialError,
+                                                InvalidQueryParam)
+from registry.ows_lib.response.exceptions import (ForbiddenException,
+                                                  InvalidParameterValueException)
 from registry.ows_lib.response.exceptions import \
     NotImplementedError as MrMapNotImplementedError
 from registry.ows_lib.wfs.wfs import \
@@ -16,14 +20,18 @@ from rest_framework.parsers import BaseParser
 from rest_framework.views import APIView
 
 
-class GMLParser(BaseParser):
-    """Parser for GML XML content types like 'application/gml+xml; version=3.2'.
+class XMLRequestParser(BaseParser):
+    """Parser which hands the raw body of an XML request to the OGC machinery.
 
-    This parser accepts media types starting with 'application/gml+xml' (including
-    optional parameters such as version) and returns the raw request body as
-    bytes so downstream code (e.g. `OGCRequest`) can parse the XML.
+    The proxy answers the request document itself: it parses it, restricts it and
+    forwards it, so what a parser has to return are the bytes of the body -- a
+    parsed tree or a dict would leave the request without the document its
+    analysis reads. DRF matches exactly one media type per parser class, so every
+    media type the XML POST binding of WFS arrives with is a parser of its own.
+    ``text/xml`` is that binding's default (OGC 06-042, 3.4 / OGC 10-166r4, 11.2);
+    the subclasses name the other spellings clients send.
     """
-    media_type = "application/gml+xml"
+    media_type = "text/xml"
 
     def parse(self, stream, media_type=None, parser_context=None):
         data = stream.read()
@@ -34,6 +42,16 @@ class GMLParser(BaseParser):
                 encoding = parser_context.get("encoding")
             data = data.encode(encoding or "utf-8")
         return data
+
+
+class ApplicationXMLParser(XMLRequestParser):
+    """The XML POST binding of WFS 1.1 and 2.0 as 'application/xml'."""
+    media_type = "application/xml"
+
+
+class GMLParser(XMLRequestParser):
+    """The GML profile of the XML POST binding: 'application/gml+xml; version=3.2'."""
+    media_type = "application/gml+xml"
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -51,8 +69,16 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
     service_cls = WebFeatureService
     service_type = "WFS"
     service_version = "2.0.0"
-    # Accept GML payloads like 'application/gml+xml; version=3.2'
-    parser_classes = [GMLParser] + APIView.parser_classes
+    # The XML POST binding arrives as 'text/xml' (its default), as
+    # 'application/xml' or as the GML profile like 'application/gml+xml;
+    # version=3.2'. A media type no parser names answers UnsupportedMediaType,
+    # which used to be answered as the permissions report of the catch-all
+    # (#1155).
+    parser_classes = [
+        XMLRequestParser,
+        ApplicationXMLParser,
+        GMLParser,
+    ] + APIView.parser_classes
 
     @cached_property
     def service(self) -> WebFeatureService:
@@ -112,6 +138,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
+        exception = None
         try:
             if self.ogc_request.service_version.split(".")[0] != "2":
                 return MrMapNotImplementedError(
@@ -119,7 +146,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                     service_version=self.ogc_request.service_version,
                     message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
 
-            self.ogc_request.secure_get_feature_request(
+            exception = self.ogc_request.secure_get_feature_request(
                 self.service.security_info_per_feature_type
             )
 
@@ -128,8 +155,37 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 service_type=self.ogc_request.service_type.lower(),
                 service_version=self.ogc_request.service_version,
                 message="MrMap can't secure the given request. Maybe you request multiple typenames in a single query.")
-        response = self.remote_service.send_request(
-            self.remote_service.get_feature_request(get_feature_request=self.ogc_request.content))
+        except InvalidQueryParam as e:
+            # a parameter of the KVP request which cannot be read: the client
+            # asked a faulty parameter, which is not the permissions report an
+            # uncaught error is answered with by the endpoint's catch-all (#1155)
+            return InvalidParameterValueException(
+                ogc_request=self.ogc_request,
+                locator=e.param,
+                message=str(e))
+
+        if exception is not None:
+            return exception
+
+        try:
+            # The secured answer is asked with the XML binding of the service,
+            # cause only a request document can carry the restriction of the
+            # service's allowed areas.
+            secured_request = self.remote_service.get_feature_request(
+                get_feature_request=self.ogc_request.content)
+        except InitialError as e:
+            # a service which advertises no POST endpoint for GetFeature cannot
+            # be asked the secured document at all; that is a property of the
+            # service and not a missing permission of the caller (#1155)
+            logging.error(e, exc_info=True)
+            return MrMapNotImplementedError(
+                service_type=self.ogc_request.service_type.lower(),
+                service_version=self.ogc_request.service_version,
+                message="MrMap secures a GetFeature with the XML POST binding of "
+                        "the service, which the service does not offer for the "
+                        "operation.")
+
+        response = self.remote_service.send_request(secured_request)
         return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):

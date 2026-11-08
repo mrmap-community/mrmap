@@ -11,9 +11,16 @@ from registry.ows_lib.client.exceptions import (MissingBboxParam,
 
 
 def update_queryparams(url: str, params: dict):
-    """Helper function to update query paramase inside an existing url with trailing query params"""
+    """Helper function to update query paramase inside an existing url with trailing query params
+
+    A parameter which the url or the given params carry with an empty value
+    is written back empty: ``parse_qsl`` drops blank values without
+    ``keep_blank_values``, and such a parameter -- the WMS-legal ``STYLES=``
+    above all -- is one the caller sent and upstream has to read (#1154).
+    """
     url_parts = urllib.parse.urlparse(url)
-    query = dict(urllib.parse.parse_qsl(url_parts.query))
+    query = dict(urllib.parse.parse_qsl(
+        url_parts.query, keep_blank_values=True))
     query.update(params)
     return url_parts._replace(query=urllib.parse.urlencode(query=query)).geturl()
 
@@ -38,41 +45,48 @@ def _construct_polygon_from_bbox_query_param_for_wfs(get_dict):
     :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
     """
     try:
-        major_version, minor_version, _ = get_dict["version"].split(
-            ".")
+        # the parameters are collected under the spelling the request class
+        # names them (OGC 10-166r4, Table 11 spells them upper case), so reading
+        # only the lower case names raised for every request and answered the
+        # bbox of a WFS empty (#1155)
+        version = get_dict.get("version") or get_dict.get("VERSION")
+        bbox = get_dict.get("bbox") or get_dict.get("BBOX")
+        major_version, minor_version, _ = version.split(".")
         major_version = int(major_version)
         minor_version = int(minor_version)
-        bbox = get_dict["bbox"]
-        srid = get_dict.get("srs", None)
-        if not srid:
-            srid = get_dict.get("srsname", None)
-            if not srid:
-                raise MissingCrsParam
-
-        xy_order = True
 
         if major_version == 1 and minor_version < 1:
-            min_x, min_y, max_x, max_y = bbox.split(",")
-            min_x = float(min_x)
-            min_y = float(min_y)
-            max_x = float(max_x)
-            max_y = float(max_y)
+            # 6.2.8.2.3: the bbox of the 1.0.0 binding is in the crs the SRS
+            # parameter names and in mathematical order, whatever that crs
+            # defines as its own
+            srs = get_dict.get("srs") or get_dict.get("SRS")
+            if not srs:
+                raise MissingCrsParam
+            _, srid = get_epsg_srid(srs)
+            xy_order = True
+            min_x, min_y, max_x, max_y = (float(value)
+                                          for value in bbox.split(",")[:4])
         else:
             bbox_values = bbox.split(",")
-            registry = Registry()
-            if len(bbox_values) == 4:
-                epsg_sr = registry.get(srid=4326)
-            elif len(bbox_values) == 5:
-                _, srid = get_epsg_srid(bbox_values[4])
-                epsg_sr = registry.get(srid=srid)
-            else:
+            if len(bbox_values) > 5:
                 raise NotImplementedError(
                     "multiple dimension crs is not implemented.")
-            min_x = float(bbox_values[0])
-            min_y = float(bbox_values[1])
-            max_x = float(bbox_values[2])
-            max_y = float(bbox_values[3])
+            if len(bbox_values) == 5:
+                # the corners are "listed in the order of the optional crsuri"
+                _, srid = get_epsg_srid(bbox_values[4])
+            else:
+                # without a crsuri the corners are WGS84: WFS 1.1, 14.3.3 spells
+                # it out ("decimal degrees and WGS84") and WFS 2.0 (Table 11,
+                # note c) wants the DefaultCRS of the service -- which the
+                # DefaultCRS of the harvested feature type is, but which this
+                # analysis of query parameters does not know. 4326 is the default
+                # the mapper of a document without an srsName stamps as well
+                # (see registry/mappers/parsers/value.py)
+                srid = 4326
+            epsg_sr = Registry().get(srid=srid)
             xy_order = epsg_sr.is_xy_order
+            min_x, min_y, max_x, max_y = (float(value)
+                                          for value in bbox_values[:4])
 
         if xy_order:
             return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),

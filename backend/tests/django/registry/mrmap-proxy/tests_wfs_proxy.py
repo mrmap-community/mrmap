@@ -138,3 +138,130 @@ class WebMapServiceProxyTest(XpathTestCase):
             allowed_area.overlaps(bounded_by_geometry),
             msg="configured allowed area does not overlaps the responsed bounding box"
         )
+
+    def assert_feature_collection(self, response, number_matched: str = None,
+                                  number_returned: str = None):
+        """The response is a feature collection answering the numbers given.
+
+        A number which is not passed is not asserted: a service asked for a page
+        of features does not answer how many matched in total at all.
+
+        A refused OGC request answers an exception report instead; the report of
+        the endpoints catch-all is never a feature collection.
+        """
+        self.assertEqual(200, response.status_code, response.content)
+        response_xml = etree.fromstring(response.content)
+        self.assertEqual(
+            "{http://www.opengis.net/wfs/2.0}FeatureCollection",
+            response_xml.tag,
+            response.content,
+        )
+        if number_matched is not None:
+            self.assertXpathValue(
+                response_xml,
+                "/wfs:FeatureCollection/@numberMatched",
+                str(number_matched),
+            )
+        if number_returned is not None:
+            self.assertXpathValue(
+                response_xml,
+                "/wfs:FeatureCollection/@numberReturned",
+                str(number_returned),
+            )
+        return response_xml
+
+    def test_secured_get_feature_of_the_kvp_binding_is_answered_secured(self):
+        """The key value pairing binding is secured like the XML binding.
+
+        The proxy secures the request *document*, so the parameters of this
+        binding are translated into that document before the restriction of the
+        allowed area is applied. Without the translation no document existed to
+        restrict and the request was answered with the permissions report of the
+        catch-all (#1155).
+        """
+        self.client.login(username="User1", password="User1")
+
+        response = self.client.get(self.wfs_url, self.query_params)
+
+        # the answer is the restricted one, not the whole layer
+        self.assert_feature_collection(response, "4")
+
+    def test_secured_get_feature_of_the_kvp_binding_honours_the_requested_bbox(self):
+        # the extent a request asks within is part of the query which is
+        # answered: a translation which dropped it answered features which were
+        # never asked for (#1155). The box is around Australia, outside of the
+        # allowed area of the user, so nothing may match at all
+        self.client.login(username="User1", password="User1")
+
+        response = self.client.get(
+            self.wfs_url,
+            {**self.query_params, "BBOX": "-45,110,-10,180,EPSG:4326"})
+
+        self.assert_feature_collection(response, "0")
+
+    def test_secured_get_feature_of_the_kvp_binding_answers_the_requested_count(self):
+        # the paging of the KVP binding belongs to the translated document: the
+        # service answers the page it was asked, while how many features match in
+        # total it leaves uncomputed for a request which asks a page
+        self.client.login(username="User1", password="User1")
+
+        response = self.client.get(
+            self.wfs_url,
+            {**self.query_params, "COUNT": "2"})
+
+        response_xml = self.assert_feature_collection(response)
+        self.assertXpathCount(
+            response_xml,
+            "/*[local-name()='FeatureCollection']/*[local-name()='member']",
+            2)
+
+    def test_secured_get_feature_is_answered_for_every_media_type_of_the_xml_binding(self):
+        # DRF matches exactly one media type per parser and answers a type no
+        # parser names with UnsupportedMediaType, which the catch-all of the
+        # endpoint reported as a missing permission (#1155)
+        self.client.login(username="User1", password="User1")
+
+        get_feature_request = """
+            <?xml version='1.0' encoding='UTF-8'?>
+            <wfs:GetFeature
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                outputFormat="application/gml+xml; version=3.2"
+                version="2.0.0"
+                service="wfs">
+                <wfs:Query typeNames="ms:Countries"/>
+            </wfs:GetFeature>
+        """
+
+        for content_type in ("text/xml", "application/xml",
+                             "application/gml+xml; version=3.2"):
+            with self.subTest(content_type=content_type):
+                response = self.client.post(
+                    self.wfs_url,
+                    data=get_feature_request.strip(),
+                    content_type=content_type
+                )
+
+                self.assert_feature_collection(response, "4")
+
+    def test_a_kvp_get_feature_with_an_unreadable_parameter_is_refused_by_name(self):
+        # a parameter of the request which cannot be read is a faulty parameter
+        # of the client and answers with the report naming it, not with the
+        # permissions report of the catch-all (#1155)
+        self.client.login(username="User1", password="User1")
+
+        refusals = {
+            "FILTER": "NAME = 'Germany'",
+            "BBOX": "no,a,bbox,EPSG:4326",
+        }
+        for locator, value in refusals.items():
+            with self.subTest(locator=locator):
+                response = self.client.get(
+                    self.wfs_url, {**self.query_params, locator: value})
+
+                self.assertEqual(400, response.status_code, response.content)
+                exception = etree.fromstring(
+                    response.content).find(".//{*}Exception")
+                self.assertIsNotNone(exception, response.content)
+                self.assertEqual(
+                    "InvalidParameterValue", exception.get("exceptionCode"))
+                self.assertEqual(locator, exception.get("locator"))

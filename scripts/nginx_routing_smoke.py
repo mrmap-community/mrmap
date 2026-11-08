@@ -39,11 +39,12 @@ One disposable network and two containers on it:
     and its collectstatic root one stub file - what is under test is which
     `location` answers, not what the built app renders, so nothing has to be
     compiled.
-  * the *backend*: the same image with a three line server that answers 200 with
-    `backend-stub <uri>` for every path, on the name and port the conf resolves
-    (`backend`, port 8001). A proxied URL is then proven by that echo - including
-    the path it was forwarded with - rather than inferred from a 502 that merely
-    says nothing was listening.
+  * the *backend*: the same image with a small server that answers 200 with
+    `backend-stub <port> <uri>` for every path, on the name the conf resolves
+    (`backend`) and on *both* ports it names - 8001 for the proxied mounts and
+    8002 for the websockets of #1032. A proxied URL is then proven by that echo -
+    including the path *and* the port it was forwarded to - rather than inferred
+    from a 502 that merely says nothing was listening.
 
 Everything this harness invents is *staged into* the containers rather than bind
 mounted, so the host tree it draws from stays private: it is the nginx worker, not
@@ -102,13 +103,19 @@ BACKEND_STATIC_BODY = "collectstatic-stub\n"
 BEACON_BODY = BEACON.read_text()
 
 # Answers the conf's proxy target. `$uri` is the decoded path without the query
-# string, so a case states its expectation as the path it requested.
+# string, so a case states its expectation as the path it requested. `$server_port`
+# is in the echo because the conf names two ports of this one name: the mounts on
+# 8001 and the websockets on 8002 (#1032). Without it a row for /ws could not be
+# told apart from a row for /api - the stub answers both with a plain 200, and
+# which of the two servers of the backend answers a websocket is exactly the
+# thing this table has to hold.
 STUB_BACKEND_CONF = """
 server {
     listen 8001;
+    listen 8002;
     location / {
         default_type text/plain;
-        return 200 "backend-stub $uri\\n";
+        return 200 "backend-stub $server_port $uri\\n";
     }
 }
 """
@@ -119,12 +126,20 @@ CONF_MARKER = "mrmap_frontend_error"
 
 SPA = "spa"
 BACKEND = "backend"
+BACKEND_WS = "backend-ws"
 DENY = "deny"
 FILE = "file"
 
+# The two ports of the proxy target, spelled out because a row is about *which*
+# of them answers: 8001 is the HTTP of the backend, 8002 the ASGI server of the
+# websockets (#1032).
+BACKEND_PORT = 8001
+BACKEND_WS_PORT = 8002
+
 # (kind, path, argument) - SPA: the shell answers; BACKEND: the upstream echoes
-# the requested path back, without its query string; DENY: this status answers
-# and it is not the shell; FILE: this body is served from a root of nginx itself.
+# the requested path back on 8001, without its query string; BACKEND_WS: the same
+# echo, on the port of the websockets; DENY: this status answers and it is not the
+# shell; FILE: this body is served from a root of nginx itself.
 CASES = [
     # Application routes belong to the SPA. /csw-client is #1036 itself: it
     # starts with the proxied word "csw" and must still not be proxied.
@@ -148,7 +163,9 @@ CASES = [
     # The way a client actually calls the CSW endpoint. The query string is not
     # part of a location match, and the upstream is asked for the path alone.
     (BACKEND, "/csw?service=CSW&request=GetRecords"),
-    (BACKEND, "/ws/default/"),
+    # The websockets are the one mount the conf forwards to a second port of the
+    # same name (#1032); both of its rows ask that the answer comes from 8002.
+    (BACKEND_WS, "/ws/default/"),
     (BACKEND, "/django-admin/login/"),
     (BACKEND, "/mrmap-proxy/ows/1"),
     (BACKEND, "/media/some-upload"),
@@ -172,7 +189,7 @@ CASES = [
     # to that mount and not to the asset rule.
     (BACKEND, "/api/x.js"),
     (BACKEND, "/csw/x.png"),
-    (BACKEND, "/ws/x.js"),
+    (BACKEND_WS, "/ws/x.js"),
     (BACKEND, "/django-admin/x.css"),
     (BACKEND, "/mrmap-proxy/x.map"),
 
@@ -305,16 +322,25 @@ def wait_until_proxied(base, backend):
 
     `nginx -s reload` returns once the signal is sent, so the first proxied row
     could otherwise still meet the image's default server, which does not listen
-    on 8001 at all, and be reported as a routing failure."""
+    on 8001 at all, and be reported as a routing failure.
+
+    Both ports are waited for, because the conf decides which of the two a path
+    reaches: a row for the websockets is only meaningful once 8002 answers, and
+    the answer of each port names the port, so a mix-up is caught here too."""
     deadline = time.monotonic() + READINESS_TIMEOUT_S
     while True:
-        status, body = fetch(base, "/api/readiness-probe")
-        if status == 200 and body.startswith("backend-stub"):
+        http = fetch(base, "/api/readiness-probe")
+        websocket = fetch(base, "/ws/readiness-probe")
+        if http == (200, f"backend-stub {BACKEND_PORT} /api/readiness-probe\n") \
+                and websocket == (
+                    200,
+                    f"backend-stub {BACKEND_WS_PORT} /ws/readiness-probe\n"):
             return
         if time.monotonic() >= deadline:
             raise HarnessError(
-                f"{backend} never answered as the upstream (last answer {status} "
-                f"{body[:60]!r}); docker logs:\n"
+                f"{backend} never answered as the upstream on both ports "
+                f"(last answers {http[0]} {http[1][:40]!r} and "
+                f"{websocket[0]} {websocket[1][:40]!r}); docker logs:\n"
                 f"{docker('logs', backend, check=False)}")
         time.sleep(0.1)
 
@@ -323,10 +349,12 @@ def judge(kind, path, argument, status, body):
     """Compare one answer with what its kind owes, and say what was seen."""
     if kind == SPA:
         return (status, body) == (200, SPA_BODY), "the SPA shell"
-    if kind == BACKEND:
-        # The stub echoes the path it was asked for, without the query string.
-        wanted = f"backend-stub {path.split('?')[0]}\n"
-        return (status, body) == (200, wanted), f"proxied as {wanted.strip()}"
+    if kind in (BACKEND, BACKEND_WS):
+        # The stub echoes the port it answered on and the path it was asked for,
+        # without the query string.
+        port = BACKEND_PORT if kind == BACKEND else BACKEND_WS_PORT
+        wanted = f"backend-stub {port} {path.split('?')[0]}\n"
+        return (status, body) == (200, wanted), f"proxied to {port}"
     if kind == FILE:
         return ((status, body) == (200, argument),
                 "the file of this url, not the shell")

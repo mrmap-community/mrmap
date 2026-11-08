@@ -39,7 +39,9 @@ const AbortButton = () => {
   );
 };
 
-const StartAgainButton = () => {
+/** starts a new harvest of the same catalogue with the configuration of a run
+ *  which ended; the list of runs offers it where a running row offers a stop */
+export const StartAgainButton = () => {
   const record = useRecordContext();
   const [create, { isPending }] = useCreate();
   const redirect = useRedirect();

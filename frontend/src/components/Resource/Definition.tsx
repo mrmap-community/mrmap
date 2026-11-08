@@ -31,6 +31,8 @@ import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatal
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
+import HarvestingJobRowActions from './HarvestingJob/HarvestingJobRowActions';
+import ListHarvestingJob from './HarvestingJob/ListHarvestingJob';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListHarvestingLog from './HarvestingLog/ListHarvestingLog';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
@@ -114,7 +116,15 @@ const RESOURCES: Array<ResourceProps> = [
   },
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
-  {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},
+  {
+    name: "HarvestingJob", icon: AgricultureIcon, list: ListHarvestingJob, show: ShowHarvestingJob,
+    options: {
+      menu: { group: "CSW", order: 20 },
+      // the row stops a run which did not end and asks for a new harvest of one
+      // which did, beside the show button of the row
+      list: { additionalActions: HarvestingJobRowActions }
+    }
+  },
   // the declared lists of the run's leftovers have no menu entries on purpose:
   // an administrator reaches them from a run, not from a pile of every log
   // line of every catalogue (#1083, #888)

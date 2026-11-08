@@ -175,7 +175,10 @@ class XSDSkeletonBuilder:
             if base:
                 ns, local = self._resolve_qname(base, ext)
                 base_ct = self.types.get((ns, local))
-                if base_ct:
+                # the truth of an element is the truth of its children: this
+                # warned a FutureWarning about the truth-test of an element on
+                # every build of a document (#1155)
+                if base_ct is not None:
                     self._apply_complex_type(xml_el, base_ct)
 
             node = ext
@@ -281,7 +284,10 @@ class XSDSkeletonBuilder:
 
             ns, local = self._resolve_qname(ref, ag)
             group = self.attribute_groups.get((ns, local))
-            if group:
+            # the truth of an element is the truth of its children: this skipped
+            # a group which declares no attribute and warned a FutureWarning
+            # about the truth-test of an element on every build (#1155)
+            if group is not None:
                 self._apply_attribute_group(xml_el, group)
 
     def _apply_attribute_group(self, xml_el, group_node):
@@ -306,7 +312,7 @@ class XSDSkeletonBuilder:
 
             ns, local = self._resolve_qname(ref, nested)
             nested_group = self.attribute_groups.get((ns, local))
-            if nested_group:
+            if nested_group is not None:
                 self._apply_attribute_group(xml_el, nested_group)
 
     def add_foreign_child(self, parent, ns, name, text=None, nsmap=None, **attrs):

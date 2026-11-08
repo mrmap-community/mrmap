@@ -1,3 +1,5 @@
+import copy
+
 from django.contrib.gis.gdal.geometries import OGRGeometry
 from lxml import etree
 from registry.ows_lib.xml.builder import XSDSkeletonBuilder
@@ -18,6 +20,7 @@ class WFSBuilder(XSDSkeletonBuilder):
         *,
         filter_xml: etree._Element | None = None,
         srs_name: str | None = None,
+        output_format: str | None = None,
         count: int | None = None,
         start_index: int | None = None,
     ) -> etree._Element:
@@ -27,7 +30,9 @@ class WFSBuilder(XSDSkeletonBuilder):
         :param type_names: list of feature type QNames (e.g. ["ns:Roads"])
         :param filter_xml: optional FES Filter element (already-built XML)
         :param srs_name: optional srsName
-        :param count: optional max features
+        :param output_format: optional outputFormat of the response
+        :param count: optional max features, the spelling WFS 2.0 names the
+                      limit of answered features (1.x spells it MAXFEATURES)
         :param start_index: optional start index
         """
 
@@ -37,13 +42,11 @@ class WFSBuilder(XSDSkeletonBuilder):
             attributes={
                 "service": "WFS",
                 "version": self.version,
+                "outputFormat": output_format,
+                "count": count,
+                "startIndex": start_index,
             },
         )
-
-        if count is not None:
-            root.set("count", str(count))
-        if start_index is not None:
-            root.set("startIndex", str(start_index))
 
         # ---- Query elements ----
         for type_name in type_names:
@@ -59,7 +62,11 @@ class WFSBuilder(XSDSkeletonBuilder):
 
             # ---- Optional Filter (foreign namespace) ----
             if filter_xml is not None:
-                query.append(filter_xml)
+                # One element has one parent: appending the same node to every
+                # query left it with the last one alone, so every earlier feature
+                # type was answered without the constraint the client asked
+                # (#1155).
+                query.append(copy.deepcopy(filter_xml))
 
         return root
 

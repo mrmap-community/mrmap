@@ -19,12 +19,15 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.test import SimpleTestCase, TestCase, TransactionTestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
-from django_celery_beat.models import IntervalSchedule
+from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
 from guardian.shortcuts import assign_perm
 from MrMap.settings import BASE_DIR
+from registry.apps import (
+    PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME,
+    create_probe_response_artifact_cleanup_task)
 from registry.models.monitoring import (
     GetCapabilitiesProbe, GetCapabilitiesProbeResult, GetMapProbe,
     GetMapProbeResult, WebMapServiceMonitoringRun,
@@ -79,7 +82,12 @@ class MonitoringArtifactTestMixin:
             setting=self.setting)
 
     def override_media(self, media):
-        self.settings(MEDIA_ROOT=media).enable()
+        # enabled for the whole test and disabled on cleanup: an enabled
+        # override which is never disabled leaves MEDIA_ROOT at the deleted
+        # temp dir for every test running later in the same process
+        override = override_settings(MEDIA_ROOT=media)
+        override.enable()
+        self.addCleanup(override.disable)
 
     def setup_capabilities(self):
         """Give the service the capabilities document its client is built of."""
@@ -476,13 +484,18 @@ class ProbeResponseArtifactRetentionTest(MonitoringArtifactTestMixin,
         self.assertFalse(old.has_response_artifact)
 
 
-class ProbeResponseArtifactCleanupTaskTest(
-        MonitoringArtifactTestMixin, TransactionTestCase):
-    """The beat fire of the sweep, with its singleton lock and its summary.
+class ProbeResponseArtifactCleanupTaskTest(MonitoringArtifactTestMixin,
+                                           TestCase):
+    """The body behind the beat task and what it reports.
 
-    A TransactionTestCase because the task is fired as a worker fires it: the
-    singleton lock is an advisory lock of a dedicated database session and a
-    `TestCase` wraps the test in an atomic block which forbids that session.
+    The task is not fired over ``apply()``: its singleton lock is an advisory
+    lock of a dedicated database session and the celery run closes its
+    connections when it ends (``MrMap/celery.py``), so the fire belongs to no
+    ``TestCase`` atomic block - and a ``TransactionTestCase`` would flush all
+    tables and take the rows which ``post_migrate`` created for every test
+    running later in the same process. The lock itself is the subject of the
+    singleton tests of the system app; what belongs to this sweep is the body,
+    called here as ``celery`` would have called it.
     """
 
     def stored_result(self, age_days=0):
@@ -499,13 +512,58 @@ class ProbeResponseArtifactCleanupTaskTest(
         result.save()
         return result
 
-    def test_the_beat_task_reports_what_it_purged(self):
+    def test_the_task_reports_what_it_purged(self):
         old = self.stored_result(age_days=40)
         old_name = old.response_body.name
 
         with self.settings(MONITORING_PROBE_RESPONSE_RETENTION_DAYS=30):
-            summary = delete_expired_probe_response_artifacts.apply().get()
+            # the task is bound, so its body receives the task as self
+            summary = delete_expired_probe_response_artifacts.run(
+                delete_expired_probe_response_artifacts)
 
         self.assertEqual(summary["purged"], 1)
         self.assertEqual(summary["retention_days"], 30)
         self.assertFalse(default_storage.exists(old_name))
+
+
+class ProbeResponseArtifactCleanupScheduleTest(TestCase):
+    """The schedule beat needs, which the application creates while migrating.
+
+    The row is what makes the sweep run at all - the same contract the slow
+    request dump sweep of the system app is tested for.
+    """
+
+    @staticmethod
+    def scheduled():
+        create_probe_response_artifact_cleanup_task(sender=None)
+        return PeriodicTask.objects.filter(
+            name=PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME)
+
+    def test_the_sweep_is_scheduled_hourly(self):
+        tasks = self.scheduled()
+
+        self.assertEqual(tasks.count(), 1)
+        self.assertEqual(
+            tasks.get().task,
+            "registry.tasks.monitoring."
+            "delete_expired_probe_response_artifacts")
+        self.assertEqual(tasks.get().crontab.minute, "20")
+        self.assertEqual(tasks.get().crontab.hour, "*")
+        self.assertTrue(tasks.get().enabled)
+
+    def test_migrating_again_keeps_one_schedule(self):
+        """A deployment migrating repeatedly does not sweep twice an hour."""
+        tasks = self.scheduled()
+
+        self.assertEqual(tasks.count(), 1)
+
+    def test_a_re_scheduled_sweep_keeps_its_schedule(self):
+        """The row is keyed by its name: a schedule chosen over the api of a
+        deployment belongs to the deployment and is not overruled."""
+        every_minute, _ = CrontabSchedule.objects.get_or_create(minute="*")
+        self.scheduled().update(crontab=every_minute)
+
+        tasks = self.scheduled()
+
+        self.assertEqual(tasks.count(), 1)
+        self.assertEqual(tasks.get().crontab_id, every_minute.pk)

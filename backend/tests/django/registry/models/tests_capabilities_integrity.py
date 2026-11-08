@@ -13,7 +13,9 @@ These tests pin the read half of that split, with the calls and queries
 counted: a present document is answered locally; a missing one raises the
 integrity error of the service once (deduplicated, cleared on a verified
 re-read) without touching the row, without reaching the network and without
-being laundered into a per-record import error.
+being laundered into a per-record import error. The last class pins the
+operator half: the refresh probes the storage and the alert row exists
+exactly while the named document is gone (#1044).
 """
 
 import os
@@ -31,13 +33,15 @@ from django.test.utils import CaptureQueriesContext
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.service import CapabilitiesBackupMissing
+from registry.models.alerts import ServiceAlert
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
 from registry.models import service as service_module
-from registry.models.service import CatalogueService
+from registry.models.service import CatalogueService, WebMapService
 from registry.ows_lib.csw.csw import CatalogueServiceClient
+from registry.querys.alerts import refresh_service_alerts
 from registry.tasks.harvest import import_md_metadata_file
 
 TEST_DATA = Path(__file__).parent / '../../test_data'
@@ -334,3 +338,96 @@ class HarvestImportCapabilitiesTest(CapabilitiesReadHarness, TestCase):
             with self.assertRaises(CapabilitiesBackupMissing):
                 job.fetch_total_records()
         send.assert_not_called()
+
+
+class MissingCapabilitiesAlertTest(CapabilitiesReadHarness, TestCase):
+    """The storage incident reaches the operator without reading the service.
+
+    The second half of #1044: `refresh_service_alerts()` probes the storage
+    and writes one alert row for a named-but-missing document - the read of
+    the alerts cannot answer that state because the media storage is no
+    table the annotations could join. The row names the missing path and the
+    recovery, points at the workflow which owns it, and leaves no row behind
+    once a restoration has been refreshed. A service whose field was never
+    set is no such case, and a pending candidate is not alerted of its own
+    storage state.
+    """
+
+    def name_named_document(self, service):
+        """A service whose named document is removed from the storage again."""
+        service.xml_backup_file = SimpleUploadedFile(
+            'capabilities.xml', CAPABILITIES.read_bytes())
+        service.save()
+        os.remove(service.xml_backup_file.path)
+        return service
+
+    def test_refresh_writes_and_clears_the_row_of_a_catalogue(self):
+        """The row exists exactly while the storage misses the document."""
+        catalogue = self.make_catalogue()
+        name = catalogue.xml_backup_file.name
+        path = self.remove_backup_file(catalogue)
+
+        refresh_service_alerts()
+        row = ServiceAlert.objects.get(
+            id=f'capabilities_backup_missing:CatalogueService:{catalogue.pk}')
+        self.assertEqual('error', row.severity)
+        self.assertEqual('CatalogueService', row.resource_type)
+        self.assertIsNone(row.occurred_at,
+                          "the storage incident has no decided moment")
+        self.assertIn(name, row.message)
+        self.assertIn(str(catalogue.pk), row.message)
+        # a CSW update has no settings tab of its own: its overview owns
+        # the recovery - the same rule the other alerts answer for a CSW
+        self.assertEqual(
+            f'/CatalogueService/{catalogue.pk}/show/', row.target_path)
+
+        # nothing heals implicitly: only the refresh after a restoration
+        # answers the state away, and then no row of it survives
+        with open(path, 'wb') as f:
+            f.write(CAPABILITIES.read_bytes())
+        refresh_service_alerts()
+        self.assertFalse(ServiceAlert.objects.filter(
+            category='capabilities_backup_missing').exists())
+
+    def test_a_service_without_a_named_document_reports_nothing(self):
+        """An unset field is no incident - its read answers an empty document."""
+        contact = MetadataContact.objects.create(name='unset alert contact')
+        CatalogueService.objects.create(
+            title='Never stored catalogue', version=202, origin=1,
+            service_url='https://unset.example.org/csw',
+            metadata_contact=contact, service_contact=contact)
+        refresh_service_alerts()
+        self.assertFalse(ServiceAlert.objects.filter(
+            category='capabilities_backup_missing').exists())
+
+    def test_a_map_service_alert_names_its_update_settings(self):
+        """Only the CSW lacks a settings tab; the WMS alert owns its tab."""
+        contact = MetadataContact.objects.create(name='map alert contact')
+        map_service = self.name_named_document(
+            WebMapService.objects.create(
+                title='Integrity map service', version=130, origin=1,
+                service_url='https://integrity.example.org/wms',
+                metadata_contact=contact, service_contact=contact))
+
+        refresh_service_alerts()
+        row = ServiceAlert.objects.get(
+            id=f'capabilities_backup_missing:WebMapService:{map_service.pk}')
+        self.assertEqual(
+            f'/WebMapService/{map_service.pk}/show/WebMapServiceUpdateSetting',
+            row.target_path)
+
+        # a pending candidate with the same incident is not a second alert:
+        # it waits for the decision about the service it hangs below, which
+        # is the rule the annotation branches answer for every category
+        WebMapService.objects.create(
+            title='Integrity candidate', service_url=map_service.service_url,
+            version=map_service.version, origin=map_service.origin,
+            update_candidate_of=map_service,
+            metadata_contact=contact, service_contact=contact)
+        candidate = WebMapService.objects.get(
+            update_candidate_of=map_service)
+        self.name_named_document(candidate)
+        refresh_service_alerts()
+        self.assertEqual(
+            1, ServiceAlert.objects.filter(
+                category='capabilities_backup_missing').count())

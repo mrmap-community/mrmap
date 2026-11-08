@@ -14,7 +14,11 @@ FILTERS = {
     'severity': ('error', 'warning'),
     'category': tuple(ALERT_CATEGORIES) + (
         'monitoring_overdue', 'update_overdue', 'harvest_overdue',
-        'harvest_schedule_too_tight'),
+        'harvest_schedule_too_tight',
+        # the states decided by python at the refresh and not by annotations
+        # of the services - the schedules (#693) and the capabilities
+        # document the storage does not hold (#1044)
+        'capabilities_backup_missing'),
     'serviceType': ('WebMapService', 'WebFeatureService', 'CatalogueService'),
     'service': None,
 }

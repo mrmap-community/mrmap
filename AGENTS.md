@@ -379,6 +379,10 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
+  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+  `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds; those
+  tools have no other check, because they are not reachable from the containerised QA jobs.
 - Add or update tests when behavior changes.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.

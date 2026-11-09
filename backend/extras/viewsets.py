@@ -11,6 +11,7 @@ from django_celery_results.models import TaskResult
 from extras.utils import get_sparse_fields
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
+from notify.tasks import MIRROR_TASK_RESULT_STAMP
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -193,7 +194,18 @@ class AsyncCreateMixin:
             task_id=task_id, task_name=f"{task_function.__class__.__module__}.{
                 task_function.__class__.__name__}"
         )
-        task_function.apply_async(kwargs=task_kwargs, task_id=task_id)
+        # The stamp is the opt-in the mirroring reads from the request of the
+        # task (`mirror_requested` in notify/tasks.py). It belongs to this one
+        # message: celery carries stamped headers to the callbacks and the
+        # chain of a message, never to a task the body publishes of its own,
+        # so children of the registration stay unmarked and the harvesting and
+        # monitoring fan out do no TaskResult sql (#1176).
+        task_function.apply_async(
+            kwargs=task_kwargs,
+            task_id=task_id,
+            stamped_headers=[MIRROR_TASK_RESULT_STAMP],
+            **{MIRROR_TASK_RESULT_STAMP: True},
+        )
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(

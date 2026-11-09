@@ -154,6 +154,21 @@ def step_impl(context, expected_status: int):
         context.response.status_code, int(expected_status))
 
 
+@then('I expect that response header "{header_name}" contains "{expected_value}"')
+def response_header_contains(context, header_name, expected_value):
+    """The answer names a resource through a header, not only in the body.
+
+    A 202 of an async create points the client at its polling resource with
+    `Content-Location`; that header is the contract and is asserted like the
+    json it travels beside (#1177). Named apart from the `step_impl` pile of
+    this file, whose redefinitions flake8 already counts.
+    """
+    value = context.response[header_name]
+    context.test.assertIsNotNone(
+        value, f'the answer carried no "{header_name}" header')
+    context.test.assertIn(expected_value, value)
+
+
 @then('I expect that there is a xpath "{xpath}"')
 @then('I expect that there is a xpath "{xpath}" with value "{expected_value}"')
 def step_impl(context, xpath: str, expected_value: str = None):

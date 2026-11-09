@@ -347,7 +347,7 @@ class WebMapServiceViewSet(
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
 
-        return {
+        return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
@@ -712,7 +712,7 @@ class WebFeatureServiceViewSet(
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
 
-        return {
+        return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
@@ -1006,7 +1006,7 @@ class CatalogueServiceViewSetMixin(
             process_type=ProcessNameEnum.REGISTERING.value,
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
-        return {
+        return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": False,  # CSW has no remote metadata records
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,

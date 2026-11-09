@@ -7,11 +7,10 @@ from django.core.exceptions import ValidationError
 from django.db.models.query import Prefetch, QuerySet
 from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
-from django_celery_results.models import TaskResult
+from drf_spectacular.utils import extend_schema
 from extras.utils import get_sparse_fields
 from guardian.core import ObjectPermissionChecker
-from notify.serializers import TaskResultSerializer
-from notify.tasks import MIRROR_TASK_RESULT_STAMP
+from notify.serializers import BackgroundProcessSerializer
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -166,14 +165,37 @@ class SerializerClassesMixin:
 
 
 class AsyncCreateMixin:
+    """Answers a create whose work is done by a background process.
+
+    The viewset creates the process in `get_task_kwargs` and hands it back
+    together with the kwargs of the task; the process is what the client
+    polls: its status answers the queued, running and terminal states, its
+    related resource names the service as soon as one exists and its logs
+    carry what went wrong. The process is written before the message goes
+    out, so the answer of this POST always points at a resource which exists
+    (#1177).
+
+    The `TaskResult` answer which this mixin gave before is retired with
+    D01/B of #1175: a registration no longer leaves a row of that table
+    behind.
+    """
+
     task_function = None
 
     def get_task_function(self):
         return self.task_function
 
     def get_task_kwargs(self, request, serializer):
+        """The background process and the kwargs to publish its task with.
+
+        Returns:
+            tuple: (BackgroundProcess, dict) — the process which answers how
+                the work goes and the kwargs handed to the task.
+        """
         raise NotImplementedError
 
+    @extend_schema(
+        responses={(202, "application/vnd.api+json"): BackgroundProcessSerializer})
     def create(self, request, *args, **kwargs):
         # followed the jsonapi recommendation for async processing
         # https://jsonapi.org/recommendations/#asynchronous-processing
@@ -181,54 +203,34 @@ class AsyncCreateMixin:
         serializer.is_valid(raise_exception=True)
 
         task_function = self.get_task_function()
-        task_kwargs = self.get_task_kwargs(
+        background_process, task_kwargs = self.get_task_kwargs(
             request=request, serializer=serializer)
-        # The id of the task is chosen here and its row is written before the
-        # message goes out: the worker answering the task mirrors its state into
-        # this very row (see `mirror_task_result` in notify/tasks.py) and has to
-        # find it there. A task which answers quickly, or one which a deployment
-        # runs eagerly, would otherwise always be answered before its row exists
-        # and the outcome of the registration would be lost (#1146).
-        task_id = str(uuid.uuid4())
-        task_result, created = TaskResult.objects.get_or_create(
-            task_id=task_id, task_name=f"{task_function.__class__.__module__}.{
-                task_function.__class__.__name__}"
-        )
-        # The stamp is the opt-in the mirroring reads from the request of the
-        # task (`mirror_requested` in notify/tasks.py). It belongs to this one
-        # message: celery carries stamped headers to the callbacks and the
-        # chain of a message, never to a task the body publishes of its own,
-        # so children of the registration stay unmarked and the harvesting and
-        # monitoring fan out do no TaskResult sql (#1176).
-        task_function.apply_async(
-            kwargs=task_kwargs,
-            task_id=task_id,
-            stamped_headers=[MIRROR_TASK_RESULT_STAMP],
-            **{MIRROR_TASK_RESULT_STAMP: True},
-        )
+        task_function.apply_async(kwargs=task_kwargs)
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
             path=request.build_absolute_uri(
-                reverse("notify:taskresult-detail", args=[task_result.pk])
+                reverse("notify:backgroundprocess-detail",
+                        args=[background_process.pk])
             ),
             data={},
         )
 
         dummy_request.query_params = OrderedDict()
-        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
-        serialized_task_result = TaskResultSerializer(
-            task_result, **{"context": {"request": dummy_request}}
-        )
-        serialized_task_result_data = serialized_task_result.data
-        # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
-        if not serialized_task_result_data.get("meta", None):
-            serialized_task_result_data.update({"meta": {}})
+        serialized_process_data = BackgroundProcessSerializer(
+            background_process, **{"context": {"request": dummy_request}}
+        ).data
 
-        headers = self.get_success_headers(serialized_task_result_data)
+        # the json:api renderer asks the view which type of resource the
+        # answer carries; this answer is a process, not the resource the
+        # create of this endpoint otherwise deals with (#1177)
+        self.resource_name = \
+            BackgroundProcessSerializer.Meta.model.__name__
+
+        headers = self.get_success_headers(serialized_process_data)
 
         return Response(
-            serialized_task_result_data,
+            serialized_process_data,
             status=status.HTTP_202_ACCEPTED,
             headers=headers,
         )

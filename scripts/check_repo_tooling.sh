@@ -27,6 +27,14 @@
 #           suites belongs on a runner with a plain checkout, not inside django.
 #   docker  test_dev_image_* use it where they can; absent it, they skip.
 #
+# ONE RULE FOR THE SUITES
+#
+# A suite that is green here and red on a runner reads something it did not fake.
+# The known case is free disk: agent_capacity measures /, and no fixture can, so
+# its tests pin the disk requirement off and test that dimension with thresholds
+# taken from the host. When suites start disagreeing between machines, look for
+# the input nobody fabricated rather than assuming the runner is broken.
+#
 # Usage: scripts/check_repo_tooling.sh
 
 set -u
@@ -77,7 +85,15 @@ for suite in scripts/test_*.py; do
 		FAILED=$((FAILED + 1))
 		printf '  FAIL  %-38s %4ss  exit %s\n' "$(basename "$suite")" \
 			"$((END - START))" "$STATUS"
-		printf '%s\n' "$OUT" | tail -n 20 | sed 's/^/        /'
+		# Every failing check by name, wherever it sits in the output. Printing
+		# only the tail was tried and is not enough: a suite with 19 failures
+		# and 71 lines of output showed 5 of them, so the log read as a small
+		# local problem while the run was actually broken across the board.
+		printf '%s\n' "$OUT" | grep -n 'FAIL' | head -n 40 | sed 's/^/        /'
+		HIDDEN=$(( $(printf '%s\n' "$OUT" | grep -c 'FAIL') - 40 ))
+		[ "$HIDDEN" -gt 0 ] && echo "        ... and $HIDDEN more failing line(s)"
+		echo "        last lines:"
+		printf '%s\n' "$OUT" | tail -n 12 | sed 's/^/        /'
 	fi
 done
 

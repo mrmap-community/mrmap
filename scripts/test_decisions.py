@@ -731,5 +731,45 @@ results.append(check("a reopen event makes an older answer stop counting",
                      d.reconcile("o/r", 42, (), None, True, False)["ask_states"]["Q7"]["state"]
                      == "Pending"))
 
+# --- which issue does a branch name? (the #1196 class: a prompt echo is not a claim)
+# The rule is scripts/wip's function, not a copy of its pattern, so this checks
+# the reuse holds rather than comparing two strings that could drift.
+results.append(check("the branch rule is scripts/wip's, not a copy of its pattern",
+                     getattr(d, "BRANCH_ISSUE_RE", None) is None
+                     and hasattr(d.wip, "branch_issue")))
+for branch, want in [("ao/issue-123-add-x", 123),        # what the controller asks AO for
+                     ("feature/issue-123-topic", 123),   # the repository convention
+                     ("issue_123", 123), ("issue123", 123), ("#123-topic", 123),
+                     ("ao/implement-github-issue-6/root", None),  # a prompt echo
+                     ("fix-issue-123", None),                      # mid-segment
+                     ("release-2024-issue-3", None),
+                     ("main", None), ("", None), (None, None)]:
+    got = d.wip.branch_issue(branch)
+    results.append(check("branch_issue(%r) is %r" % (branch, want), got == want, f"got={got}"))
+
+
+def infer(branch, explicit):
+    d.cur_branch = lambda: branch
+    return run(d.infer_issue, explicit)
+
+
+code, out, err = infer("ao/issue-9-fix-x", None)
+results.append(check("a convention-shaped branch names its own issue",
+                     code == 0, f"code={code} err={err}"))
+code, out, err = infer("ao/implement-github-issue-6/root", None)
+results.append(check("a branch that only echoes a prompt infers nothing",
+                     code == 1 and "--issue" in err, f"code={code} err={err}"))
+code, out, err = infer("ao/implement-github-issue-6/root", "981")
+results.append(check("an explicit number still works from a prompt-echo branch",
+                     code == 0 and not err.strip(), f"code={code} err={err}"))
+code, out, err = infer("ao/issue-9-fix-x", "42")
+results.append(check("an explicit number over another issue's branch is named, not refused",
+                     code == 0 and "issue 9" in err and "42" in err,
+                     f"code={code} err={err}"))
+code, out, err = infer("main", "not-a-number")
+results.append(check("a non-numeric issue number dies instead of raising",
+                     code == 1 and "not an issue number" in err, f"code={code} err={err}"))
+d.cur_branch = lambda: "main"
+
 print("\n%d/%d passed" % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

@@ -148,11 +148,39 @@ except Exception:  # a frozen identity beats a crashing import
 
 
 def infer_issue(explicit):
+    """The issue to act on. A branch that only echoes a prompt names nothing.
+
+    The number is read with scripts/wip's own `branch_issue`, the same function
+    the board claims go through: only a convention-shaped segment (`issue-<N>`
+    at the start of a path segment) carries an issue. AO names worktree branches
+    from the spawn prompt text, so a slug like `ao/implement-github-issue-6/root`
+    echoes a prompt and declares nothing - #1196 claimed closed issues #5-#7 that
+    way, and a decision request posted on a wrong issue asks a human to decide
+    something for work that is not theirs. Reusing the function rather than
+    copying the pattern is deliberate: two rules that can drift are two rules
+    that will.
+
+    What deliberately differs from `wip claim` is the conflict policy. There, an
+    explicit number that disagrees with a convention-shaped branch is refused,
+    because the branch *is* the claim. Here it is not: recording and reconciling
+    decisions for other issues from a housekeeping branch that names its own
+    issue is a normal maintenance act. So a mismatch is named on stderr and the
+    explicit number - the caller's stated intent - is used.
+    """
+    branch = cur_branch()
+    parsed = wip.branch_issue(branch)
     if explicit:
-        return int(explicit)
-    m = re.search(r"issue-(\d+)", cur_branch())
-    if m:
-        return int(m.group(1))
+        if not re.fullmatch(r"#?\d+", str(explicit)):
+            die("'%s' is not an issue number" % explicit)
+        n = int(str(explicit).lstrip("#"))
+        if parsed is not None and parsed != n:
+            sys.stderr.write(
+                "note: branch %s names issue %d, acting on the given %d; "
+                "pass --issue %d if this work belongs to that branch\n"
+                % (branch, parsed, n, parsed))
+        return n
+    if parsed is not None:
+        return parsed
     die("cannot infer the issue from the branch; pass --issue")
 
 

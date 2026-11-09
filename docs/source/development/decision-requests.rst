@@ -152,6 +152,18 @@ the issue on every run, two agents can run the same commands in parallel
 without any local file to reconcile, and a half-answered request resumes
 exactly where the humans left it.
 
+The issue number may be left out only when the branch really names one.
+``scripts/decisions`` reads it with the same rule as ``scripts/wip``: a
+convention-shaped segment — ``issue-<N>`` (or ``#<N>``) at the start of a path
+segment, as the repository's ``issue-<N>-<topic>`` branches are made. A slug
+which merely contains digits declares nothing, because AO names worktree
+branches from the spawn prompt text and ``ao/implement-github-issue-6/root``
+echoes a prompt rather than an issue — a decision request asked on the wrong
+issue asks a human to decide work which is not theirs. An explicit number is
+used as given, and a number which disagrees with a convention-shaped branch is
+answered with a note naming both, because recording decisions for other issues
+from a housekeeping branch is normal work.
+
 Running the checks
 ==================
 

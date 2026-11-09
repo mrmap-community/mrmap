@@ -77,9 +77,29 @@ def fake_proc_with_processes(root, names):
 
 
 def limits(**kwargs):
-    """Threshold overrides with every knob pinned, so ambient env cannot leak."""
+    """Threshold overrides with every knob pinned, so ambient env cannot leak.
+
+    AGENT_MIN_DISK_GB is pinned OFF, at 0 rather than the gate's 100 GiB default,
+    and that is the one number here that is about the machine and not about the
+    gate. A constant would have to be guessed: pinned to 1 GiB this suite still
+    failed on a host with 0.4 GiB free, so the pin is "no disk requirement", which
+    no host can violate. Disk free is the only metric `agent_capacity` reads from the
+    real host: memory comes from a fabricated /proc, the cgroup from a fabricated
+    tree, stacks from a passed count -- but disk is `shutil.disk_usage("/")`, with
+    no seam to fake it. Pinning the real default here therefore made every check
+    in this file depend on where it happened to run, and it showed: the same 71
+    checks passed on the deployment host (1.7 TiB free) and failed 19 of them on a
+    CI runner (85 GiB free). A check about memory or stacks must fail for the
+    reason it is about.
+
+    The disk dimension itself is not skipped -- see
+    `test_disk_is_measured_not_assumed`, which tests it with thresholds derived
+    from the host, so it behaves the same on a runner and on a server. Do not
+    restore this to 100 to "test the real threshold": that reattaches the whole
+    suite to the machine it runs on.
+    """
     base = {
-        "AGENT_MAX_LOAD_PER_CORE": "1.5", "AGENT_MIN_DISK_GB": "100",
+        "AGENT_MAX_LOAD_PER_CORE": "1.5", "AGENT_MIN_DISK_GB": "0",
         "AGENT_MAX_STACKS": "3", "AGENT_MAX_PROCESSES": "6",
         "AGENT_STACK_MIN_MEM_GB": "6", "AGENT_SUITE_MIN_MEM_GB": "8",
         "AGENT_PROCESS_MIN_MEM_GB": "2",
@@ -92,7 +112,13 @@ def limits(**kwargs):
     return base
 
 
-def decide(cgroup, proc, need="stack", stacks=0, processes=None, env=None, **thresholds):
+def decide(cgroup, proc, need="stack", stacks=0, processes=None, **thresholds):
+    """One verdict against fabricated metrics.
+
+    No `env` parameter: an earlier version took one and dropped it on the floor,
+    because the thresholds below always rebuild the environment. Callers who need
+    a threshold they did not name should pass it as a keyword.
+    """
     return cap.evaluate(need=need, stacks=stacks, processes=processes, env=limits(**thresholds),
                         proc_root=str(proc), cgroup_root=str(cgroup))
 
@@ -313,8 +339,11 @@ def test_cli_contract(tmp):
     env = dict(os.environ)
     for key in [k for k in env if k.startswith("AGENT_")]:
         env.pop(key)
+    # AGENT_MIN_DISK_GB turns the gate's 100 GiB requirement off, because disk is
+    # the one metric read from the machine itself and no constant is small enough
+    # for every host. See limits(): the checks below are about stacks and memory.
     env.update({"AGENT_CGROUP_ROOT": str(cg), "AGENT_PROC_ROOT": str(proc),
-                "AGENT_MAX_STACKS": "3"})
+                "AGENT_MAX_STACKS": "3", "AGENT_MIN_DISK_GB": "0"})
 
     def run(*args):
         return subprocess.run([sys.executable, str(SCRIPTS / "agent_capacity"), *args],
@@ -393,8 +422,11 @@ def test_wait_queues_without_displacing(tmp):
     env = dict(os.environ)
     for key in [k for k in env if k.startswith("AGENT_")]:
         env.pop(key)
+    # AGENT_MIN_DISK_GB turns the gate's 100 GiB requirement off, because disk is
+    # the one metric read from the machine itself and no constant is small enough
+    # for every host. See limits(): the checks below are about stacks and memory.
     env.update({"AGENT_CGROUP_ROOT": str(cg), "AGENT_PROC_ROOT": str(proc),
-                "AGENT_MAX_STACKS": "3"})
+                "AGENT_MAX_STACKS": "3", "AGENT_MIN_DISK_GB": "0"})
 
     def run(*args):
         return subprocess.run([sys.executable, str(SCRIPTS / "agent_capacity"), *args],
@@ -414,6 +446,42 @@ def test_wait_queues_without_displacing(tmp):
           and fits.stderr == "", fits.stderr)
 
 
+def test_disk_is_measured_not_assumed(tmp):
+    """Disk free has no fake root, so the thresholds around it are host-relative.
+
+    Memory, load, pressure and the cgroup come from fixtures and stacks are passed
+    in; disk is `shutil.disk_usage("/")` on the machine running the suite. That is
+    the one input this file cannot fabricate, and a fixed 100 GiB threshold
+    therefore attached every other check to the host as well: 71 green on the
+    deployment host with 1.7 TiB free, 19 red on a CI runner with 85 GiB. The
+    answer is not to skip the dimension but to derive its thresholds from what the
+    host reports, so the checks say the same thing on a runner and on a server.
+    """
+    cg, proc = Path(tmp) / "cg13", Path(tmp) / "proc13"
+    write_cgroup(cg, "/", limit=16 * GB, current=int(2 * GB),
+                 stat={"anon": int(2 * GB), "file": 0, "kernel": 0})
+    write_proc(proc, "/init.scope", mem_available_gb=64.0)
+    free = cap.disk_free_gb()
+    if free is None:                      # / cannot be stat'd: say so, do not divide by it
+        check("disk free is readable on the host running the suite", False, "unreadable")
+        return
+    check("disk free is readable on the host running the suite", free > 0, free)
+    check("enough free disk is not a reason",
+          "disk" not in decide(cg, proc, stacks=0, min_disk_gb=max(0.1, free / 2))["reasons"])
+    tight = decide(cg, proc, stacks=0, min_disk_gb=free + 1)["reasons"]
+    check("too little free disk refuses, and says only that", tight == ["disk"], tight)
+    # The gate's own default is pinned without depending on the host's disk: the
+    # threshold is a number in the verdict, so a CI runner can check the deployment
+    # floor it will never itself satisfy.
+    bare = cap.evaluate(need="stack", stacks=0, env={}, proc_root=str(proc),
+                        cgroup_root=str(cg))
+    check("the gate's disk default is the documented 100 GiB",
+          bare["metrics"]["disk_min_gb"] == 100.0, bare["metrics"]["disk_min_gb"])
+    check("that metric is the host's, not the fixture's",
+          abs(bare["metrics"]["disk_free_gb"] - free) < 0.01,
+          f"{bare['metrics']['disk_free_gb']} vs {free}")
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="agent-capacity-test-") as tmp:
         for fn in (test_parsing, test_host_without_a_limit, test_container_headroom_is_the_binding_metric,
@@ -421,7 +489,7 @@ def main():
                    test_stack_boundary_is_prospective, test_process_class,
                    test_nested_docker_is_reported, test_pressure_threshold_is_configurable,
                    test_cli_contract, test_suite_class, test_agent_stack_counting,
-                   test_wait_queues_without_displacing):
+                   test_wait_queues_without_displacing, test_disk_is_measured_not_assumed):
             fn(tmp)
     failed = 0
     for name, ok, detail in RESULTS:

@@ -113,6 +113,7 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
+- `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
 
 ## Environment
@@ -379,6 +380,11 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
+  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+  `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
+  the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
+  reach these files at all.
 - Add or update tests when behavior changes.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.

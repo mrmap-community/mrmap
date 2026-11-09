@@ -3,6 +3,7 @@ from urllib import parse
 
 from celery import chord, shared_task, states
 from django.conf import settings
+from notify.enums import LogTypeEnum
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from registry.exceptions.metadata import UnknownMetadataKind
 from registry.mappers.factory import OGCServiceXmlMapper
@@ -225,8 +226,12 @@ def fetch_remote_metadata_xml(
             }
         }
     except MaxRetryError:
-        # fetch_remote_content went wrong
-        pass
+        # fetch_remote_content went wrong: the polling client reads it from
+        # the process' logs while the process itself ran to its end (#1177)
+        self.log_process(
+            f"Could not fetch the remote document of RemoteMetadata "
+            f"{remote_metadata.pk}",
+            LogTypeEnum.WARNING)
     except UnknownMetadataKind:
         try:
             kind = remote_metadata.parsed_metadata._hierarchy_level
@@ -234,10 +239,18 @@ def fetch_remote_metadata_xml(
             kind = 'unknown'
         settings.ROOT_LOGGER.warning(
             f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, cause the kind '{kind}' is not supported.")
+        self.log_process(
+            f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, "
+            f"cause the kind '{kind}' is not supported.",
+            LogTypeEnum.WARNING)
 
     except Exception as e:
         settings.ROOT_LOGGER.exception(
             f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
+        self.log_process(
+            f"RemoteMetadata id: {remote_metadata.pk} could not be "
+            f"collected: {e}",
+            LogTypeEnum.WARNING)
 
     self.update_background_process(
         step_done=True

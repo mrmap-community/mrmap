@@ -2,6 +2,7 @@ import json
 
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from drf_spectacular.utils import extend_schema_serializer
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from notify.models import BackgroundProcess, BackgroundProcessLog
@@ -47,6 +48,11 @@ class BackgroundProcessLogSerializer(
         fields = "__all__"
 
 
+@extend_schema_serializer(
+    # the schema names this resource by its json:api type; without it the
+    # component of an answer declared with the class rather than an instance
+    # of this serializer is named after its metaclass (#1177)
+    component_name="BackgroundProcess")
 class BackgroundProcessSerializer(
         StringRepresentationSerializer,
         SystemInfoSerializerMixin,

@@ -1,16 +1,15 @@
-"""The resource the async api points a client at must answer how its task went (#1146).
+"""The legacy mirroring keeps answering the `TaskResult` rows it was given.
 
-A POST which triggers a task is answered with a `TaskResult` resource and the
-client polls that resource to learn the outcome; it has nothing else to look at,
-because the result backend of this deployment is the redis cache
-(`extras.celery:RetryingCacheBackend`), which writes nothing into the table the
-resource reads. The state of a task is therefore mirrored into the row of that
-task by the celery signals connected in notify/tasks.py.
+Before #1177 a POST which triggered a task was answered with a `TaskResult`
+resource and the client polled that resource, whose states were mirrored into
+its row by the celery signals connected in notify/tasks.py. The registration
+contract has since moved to the `BackgroundProcess` (D01/B of #1175) and the
+api publishes no row for new tasks any more; these tests keep the receivers
+honest for the rows and messages of the coexistence window until #1179 retires
+them.
 """
 
 import json
-from pathlib import Path
-from unittest.mock import patch
 from uuid import uuid4
 
 from celery import Celery, states
@@ -19,28 +18,15 @@ from celery.app.trace import build_tracer
 from celery.exceptions import Reject, Retry
 from celery.signals import task_revoked
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TransactionTestCase
 from django.test.utils import CaptureQueriesContext, override_settings
-from django.urls import reverse
 from django_celery_results.models import TaskResult
-from accounts.models import Organization
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess
 from notify.tasks import (MIRROR_TASK_RESULT_STAMP, BackgroundProcessBased,
                           serialize_result)
-from registry.models.service import WebMapService
-from rest_framework import status
-from rest_framework.test import APIClient
-from tests.django.utils import MockResponse
 
-JSONAPI = "application/vnd.api+json"
-CAPABILITIES = Path(
-    __file__).parent.parent / "test_data/capabilities/wms/1.3.0.xml"
-CAPABILITIES_URL = (
-    "http://some-service.de/wms"
-    "?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities")
 TASK_RESULT_TABLE = TaskResult._meta.db_table
 BACKGROUND_PROCESS_TABLE = BackgroundProcess._meta.db_table
 
@@ -54,9 +40,11 @@ class WorkerRunMixin:
     local cache: a broker is not needed to answer a task and must not be reached
     by accident.
 
-    A task which the async api published carries the very stamp
-    `AsyncCreateMixin` puts on the message it publishes; `answer` marks an
-    opted-in task with it and leaves an untracked one unmarked (#1176).
+    A task which the legacy async api published carries the very stamp the
+    api used to put on the message it publishes (#1176); `answer` marks an
+    opted-in task with it and leaves an untracked one unmarked. Since #1177
+    the registration api stamps nothing - the marking is kept so these tests
+    can still tell the mirroring's two paths apart.
     """
 
     def setUp(self):
@@ -397,103 +385,3 @@ class UntrackedTaskTests(WorkerRunMixin, TransactionTestCase):
         process.refresh_from_db()
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
         self.assertEqual(TaskResult.objects.count(), 0)
-
-
-@override_settings(CHANNEL_LAYERS={
-    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
-class AsyncRegistrationTests(TransactionTestCase):
-    """The reproduction of #1146: register a service and poll what the 202 pointed at.
-
-    The task is answered in this process (`CELERY_TASK_ALWAYS_EAGER`), which is
-    the hardest case for its row: the row has to be written before the message is
-    handed to the broker, or the task is answered while its row does not exist
-    yet and the outcome of the registration is lost. The channel layer is the
-    in memory one, because the task reports its progress there and no
-    deployment's redis is asked of here.
-    """
-
-    def setUp(self):
-        self.user = get_user_model().objects.create_superuser(
-            username="registrar", password="test")
-        self.organization = Organization.objects.create(name="Registering Amt")
-        self.client = APIClient()
-        self.client.force_authenticate(self.user)
-        self.client.credentials(HTTP_ACCEPT=JSONAPI)
-
-    def register(self):
-        return self.client.post(
-            reverse("registry:wms-list"),
-            data={
-                "data": {
-                    "type": "WebMapService",
-                    "attributes": {
-                        "get_capabilities_url": CAPABILITIES_URL,
-                        "collect_metadata_records": "false",
-                    },
-                    "relationships": {
-                        "owner": {
-                            "data": {
-                                "type": "Organization",
-                                "id": str(self.organization.pk),
-                            }
-                        }
-                    },
-                }
-            },
-            format="vnd.api+json",
-        )
-
-    def poll(self, pk):
-        response = self.client.get(
-            reverse("notify:taskresult-detail", args=[pk]))
-        self.assertEqual(response.status_code, 200, response.content)
-        return json.loads(response.content)["data"]["attributes"]
-
-    def downloads(self, content):
-        """Serves the document the task of the registration fetches.
-
-        `content` is a path or a string, both of which `MockResponse` answers.
-        """
-        return patch(
-            "registry.tasks.service.Session.send",
-            side_effect=lambda request, *args, **kwargs: MockResponse(
-                status_code=status.HTTP_200_OK, content=content))
-
-    @override_settings(CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
-    def test_the_polling_answers_the_service_the_task_built(self):
-        with self.downloads(CAPABILITIES):
-            response = self.register()
-
-        self.assertEqual(response.status_code, 202, response.content)
-
-        service = WebMapService.objects.get()
-        attributes = self.poll(json.loads(response.content)["data"]["id"])
-        self.assertEqual(attributes["status"], states.SUCCESS)
-        self.assertDictEqual(
-            attributes["result"],
-            {
-                "data": {
-                    "type": "WebMapService",
-                    "id": str(service.pk),
-                    "links": {
-                        "self": reverse(
-                            "registry:wms-detail", args=[service.pk]),
-                    },
-                }
-            })
-        self.assertIsNotNone(attributes["dateStarted"])
-        self.assertIsNotNone(attributes["dateDone"])
-
-    @override_settings(CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
-    def test_the_polling_answers_a_registration_which_could_not_be_built(self):
-        with self.downloads('<html>not a capabilities document</html>'):
-            response = self.register()
-
-        self.assertEqual(response.status_code, 202, response.content)
-
-        attributes = self.poll(json.loads(response.content)["data"]["id"])
-        self.assertEqual(attributes["status"], states.FAILURE)
-        self.assertEqual(WebMapService.objects.count(), 0)
-        # the client learns what went wrong instead of watching a task which
-        # never ends
-        self.assertTrue(attributes["traceback"])

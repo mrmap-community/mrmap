@@ -16,6 +16,24 @@ class BackgroundProcessTaskTests(TestCase):
     def info(self):
         return BackgroundProcess.objects.process_info().get(pk=self.process.pk)
 
+    def assert_process_broadcast_once(self, send):
+        """The process was broadcast once, whatever else the task saved.
+
+        The patch sits on `post_save.send` itself, so while it is active it
+        sees the save of every model: a task which fails leaves a log entry
+        beside the process it reports to (#1177). What must not happen is a
+        process written twice, once by a transition and once by a late report,
+        and that is what the callers of this assert about.
+        """
+        broadcasts = [
+            call for call in send.call_args_list
+            if (call.args[0] if call.args else call.kwargs.get("sender"))
+            is BackgroundProcess]
+        self.assertEqual(
+            len(broadcasts), 1,
+            f"the process was broadcast {len(broadcasts)} times: "
+            f"{send.call_args_list}")
+
     @patch('notify.tasks.post_save.send')
     def test_start_does_not_require_task_results(self, send):
         get_background_process(self.task, kwargs={'background_process_pk': self.process.pk})
@@ -55,7 +73,8 @@ class BackgroundProcessTaskTests(TestCase):
         self.task.update_background_process(phase='late update', step_done=True)
         self.assertEqual(self.info().status, ProcessStatusEnum.FAILED)
         self.assertEqual(self.info().phase, process.phase)
-        send.assert_called_once()
+        # the two later reports of a process which already failed wrote nothing
+        self.assert_process_broadcast_once(send)
 
     @patch('notify.tasks.post_save.send')
     def test_completion_is_terminal(self, send):
@@ -65,7 +84,8 @@ class BackgroundProcessTaskTests(TestCase):
         self.assertEqual(process.status, ProcessStatusEnum.COMPLETED)
         self.assertEqual(process.progress, 100)
         self.assertEqual(process.done_steps, 4)
-        send.assert_called_once()
+        # the failure which arrived after the completion wrote nothing
+        self.assert_process_broadcast_once(send)
 
     @patch('notify.models.app.control.revoke')
     @patch('notify.models.BackgroundProcess.get_related_task_ids', return_value=[])

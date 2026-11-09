@@ -19,22 +19,24 @@ from requests.exceptions import ConnectionError, Timeout
 
 logger: Logger = settings.ROOT_LOGGER
 
-#: The stamp `AsyncCreateMixin` puts on the one message it publishes for a
-#: `TaskResult` row, and which the mirroring below reads from the request of
-#: the task instead of looking a row up (#1176).
+#: The stamp which asked the mirroring below to write a task's states into
+#: its `TaskResult` row. The asynchronous api stamped the messages it
+#: published until the registration contract moved to the `BackgroundProcess`
+#: (#1177, D01/B of #1175); the receivers stay for the rows of that
+#: coexistence window and their removal is #1179/#1180.
 MIRROR_TASK_RESULT_STAMP = 'mirror_task_result'
 
 
 def mirror_requested(request):
     """Whether the publication of a task asked for its states to be mirrored.
 
-    Only a root task published by the asynchronous api has a `TaskResult` row
-    to mirror into, and `AsyncCreateMixin` (extras/viewsets.py) says so by
-    stamping the message it publishes; celery carries stamped headers in the
-    request of the task. Every other task - the harvesting and the monitoring
-    fan out among them - is not asked here and does no `TaskResult` sql at
-    all: an indexed `UPDATE` which matches no row still costs a database round
-    trip per task and signal. Eligibility is therefore read from the message,
+    Historically only a root task published by the asynchronous api had a
+    `TaskResult` row to mirror into, and the api said so by stamping the
+    message it publishes; celery carries stamped headers in the request of
+    the task. Every other task - the harvesting and the monitoring fan out
+    among them - is not asked here and does no `TaskResult` sql at all: an
+    indexed `UPDATE` which matches no row still costs a database round trip
+    per task and signal. Eligibility is therefore read from the message,
     never looked up in the table (#1176).
 
     `request` is celery's request of the task: the `Context` of a running one
@@ -173,10 +175,23 @@ class BackgroundProcessBased(Task):
     max_retries = 10
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
+        self.log_process(f"An error occurred: {exc}"[:512])
         self.update_background_process(
             phase=f"An error occurred: {exc}"[:512],
             failed=True
         )
+
+    def log_process(self, description, log_type=None):
+        """A durable log entry on the process which this task reports to.
+
+        The process is where a polling client looks, so what the worker
+        learned about a step which failed or a run which did not belongs
+        beside its state (#1177). A task which was never given a process
+        logs nowhere, like the reports of the manager.
+        """
+        BackgroundProcess.objects.log(
+            getattr(self, "background_process_pk", None),
+            description, log_type)
 
     def update_state(self, task_id=None, state=None, meta=None, **kwargs):
         pass

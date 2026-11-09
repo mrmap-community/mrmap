@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
 from extras.scheduling import run_overdue
@@ -23,7 +24,8 @@ from registry.models.monitoring import (
     WebMapServiceMonitoringSetting)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
-from rest_framework.fields import DateTimeField, IntegerField, SerializerMethodField
+from rest_framework.fields import (CharField, DateTimeField, DurationField,
+                                   IntegerField, SerializerMethodField)
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
@@ -195,7 +197,70 @@ class WebMapServiceMonitoringRunSerializer(
         )
 
 
+class ProbeResponseSerializerMixin(ModelSerializer):
+    """Mixin which answers the execution summary of a probe result (#682).
+
+    Every probe result shares the metadata of its request and response; the
+    body of a response is never part of this answer - only its size, its
+    content type and the url of the authenticated endpoint which answers the
+    stored body. The model fields of the summary are declared read-only here
+    because they are not editable and DRF would answer their values without
+    the redaction the uri asks for. The mixin is a serializer class of its
+    own because django-rest-framework only collects declared fields of
+    serializer classes; like `ServiceAlertSerializerMixin` it is never used
+    alone, concrete serializers inherit the declarations and list them in
+    their own Meta.fields.
+    """
+
+    status_code = IntegerField(read_only=True, allow_null=True)
+    monitored_uri = SerializerMethodField()
+    request_duration = DurationField(read_only=True, allow_null=True)
+    date_created = DateTimeField(read_only=True, allow_null=True)
+    date_done = DateTimeField(read_only=True, allow_null=True)
+    request_error = CharField(read_only=True, allow_null=True)
+    error_detail = CharField(read_only=True, allow_null=True)
+    response_size = IntegerField(read_only=True, allow_null=True)
+    response_content_type = CharField(read_only=True)
+    has_response_artifact = SerializerMethodField()
+    response_artifact_url = SerializerMethodField()
+
+    def get_monitored_uri(self, obj) -> str:
+        """The uri which was monitored, without any credential it carries."""
+        return obj.redacted_monitored_uri
+
+    def get_has_response_artifact(self, obj) -> bool:
+        return obj.has_response_artifact
+
+    def get_response_artifact_url(self, obj):
+        """The url answering the stored body, None where nothing is stored."""
+        if not obj.has_response_artifact:
+            return None
+        return reverse(
+            "registry:probe-result-response",
+            kwargs={
+                "probe_result_type": obj._meta.model_name,
+                "pk": obj.pk,
+            })
+
+
+#: the execution summary every probe result answers, for its Meta.fields
+PROBE_RESULT_EXECUTION_FIELDS = (
+    'status_code',
+    'monitored_uri',
+    'request_duration',
+    'date_created',
+    'date_done',
+    'request_error',
+    'error_detail',
+    'response_size',
+    'response_content_type',
+    'has_response_artifact',
+    'response_artifact_url',
+)
+
+
 class GetCapabilitiesProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -221,10 +286,11 @@ class GetCapabilitiesProbeResultSerializer(
             'check_response_does_not_contain_message',
             'check_response_does_contain_success',
             'check_response_does_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS
 
 
 class GetMapProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -247,7 +313,7 @@ class GetMapProbeResultSerializer(
             'check_response_image_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS
 
 
 class WebFeatureServiceMonitoringSettingSerializer(
@@ -406,6 +472,7 @@ class WebFeatureServiceGetFeatureProbeSerializer(
 
 
 class WebFeatureServiceGetCapabilitiesProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -430,10 +497,11 @@ class WebFeatureServiceGetCapabilitiesProbeResultSerializer(
             'check_response_does_contain_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS
 
 
 class WebFeatureServiceGetFeatureProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -458,7 +526,7 @@ class WebFeatureServiceGetFeatureProbeResultSerializer(
             'check_response_does_contain_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS
 
 
 class CatalogueServiceMonitoringSettingSerializer(
@@ -604,6 +672,7 @@ class CatalogueServiceGetRecordsProbeSerializer(
 
 
 class CatalogueServiceGetCapabilitiesProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -628,10 +697,11 @@ class CatalogueServiceGetCapabilitiesProbeResultSerializer(
             'check_response_does_contain_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS
 
 
 class CatalogueServiceGetRecordsProbeResultSerializer(
+    ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
@@ -656,4 +726,4 @@ class CatalogueServiceGetRecordsProbeResultSerializer(
             'check_response_does_contain_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
+        ) + PROBE_RESULT_EXECUTION_FIELDS

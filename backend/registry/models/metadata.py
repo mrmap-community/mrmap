@@ -287,9 +287,14 @@ class LegendUrl(models.Model):
                                  editable=False,
                                  help_text=_("contains the location of an image of a map legend appropriate to the "
                                              "enclosing Style."))
+    # both sizes are optional attributes of a WMS <LegendURL> (only Format and
+    # OnlineResource are required), so a valid document may simply not name them
+    # (#1201) - NULL means "the document does not say", no invented 0
     height = models.IntegerField(editable=False,
+                                 null=True,
                                  help_text=_("the size of the image in pixels"))
     width = models.IntegerField(editable=False,
+                                null=True,
                                 help_text=_("the size of the image in pixels"))
     mime_type = models.ForeignKey(to=MimeType,
                                   on_delete=models.RESTRICT,

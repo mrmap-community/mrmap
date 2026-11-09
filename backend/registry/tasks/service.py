@@ -3,9 +3,11 @@ from urllib import parse
 
 from celery import chord, shared_task, states
 from django.conf import settings
+from django.db import IntegrityError
 from notify.enums import LogTypeEnum
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from registry.exceptions.metadata import UnknownMetadataKind
+from registry.exceptions.service import CapabilitiesPersistenceError
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models import CatalogueService, WebFeatureService, WebMapService
@@ -84,7 +86,13 @@ def build_ogc_service(
         data = mapper.xml_to_django()
         db_service = data[0]
         handler = PersistenceHandler(mapper)
-        handler.persist_all()
+        try:
+            handler.persist_all()
+        except IntegrityError as e:
+            # a schema which refuses a row of the document is a defined
+            # failure of the build, not a psycopg dump for the activity
+            # popover and the TaskResult (#1201)
+            raise CapabilitiesPersistenceError(e) from e
         db_service.refresh_from_db()
 
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence

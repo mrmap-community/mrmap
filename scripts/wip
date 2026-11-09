@@ -32,9 +32,13 @@ time or to rebuild it after a refresh that failed. Board and label are generated
 views, the claim comments are the truth.
 
 Client identity: <hostname>:<worktree-dir-name>, override with CLIENT_TAG.
-Issue number: inferred from a branch name containing issue-<N> (or #<N>),
-or passed explicitly. A claim whose heartbeat is older than WIP_STALE_DAYS
-(default 3) is flagged as stale on the board.
+Issue number: an explicit number is trusted; otherwise the branch must name
+one in a convention-shaped segment - `issue-<N>` (or `#<N>`) at the start of
+a path segment, as in `feature/issue-123-topic`. Slugs that merely contain
+the digits, like AO prompt echoes `ao/implement-github-issue-6/root`, infer
+nothing; an explicit number conflicting with a convention-shaped branch is
+refused, and a CLOSED issue is never claimed. A claim whose heartbeat is
+older than WIP_STALE_DAYS (default 3) is flagged as stale on the board.
 """
 
 import json
@@ -120,6 +124,12 @@ def repo():
     return sh(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])
 
 
+def issue_state(R, n):
+    """'OPEN' / 'CLOSED' of an issue, None when it cannot be told."""
+    info = gh_json("issue", "view", str(n), "-R", R, "--json", "state")
+    return info.get("state") if isinstance(info, dict) else None
+
+
 def git_root():
     return sh(["git", "rev-parse", "--show-toplevel"])
 
@@ -138,16 +148,56 @@ def local_host():
     return socket.gethostname().split(".")[0]
 
 
+BRANCH_ISSUE_RE = re.compile(r"(?:^|/)(?:issue[-_]?|#)(\d+)")
+
+
+def branch_issue(branch):
+    """The issue number a branch names, or None.
+
+    Only a convention-shaped branch carries a claim: a path segment starting
+    with `issue-<N>` (or `#<N>`), as this repository's `issue-<N>-<topic>`
+    branch convention produces. AO names worktree branches from the spawn
+    prompt text, so a slug like `ao/implement-github-issue-6/root` echoes a
+    prompt, not an issue: a digit run that is not the start of a segment
+    claims nothing (#1196 filed claims on closed issues #5-#7 that way).
+    """
+    m = BRANCH_ISSUE_RE.search(branch or "")
+    return int(m.group(1)) if m else None
+
+
 def infer_issue(explicit, cmd):
-    if explicit:
-        if re.fullmatch(r"#?\d+", explicit):
-            return int(explicit.lstrip("#"))
-        die(f"'{explicit}' is not an issue number")
+    """Resolve the issue number to act on; None when the sources conflict.
+
+    An explicit number is trusted over the branch - the board integration
+    passes the real number while the branch may be a prompt echo (which
+    `branch_issue` no longer parses anyway). But a branch that is
+    convention-shaped names its issue deliberately: if that differs from the
+    explicit number, one of the two is a mistake and guessing picks a wrong
+    issue either way, so the ambiguity is named instead of resolved.
+    """
     b = cur_branch()
-    m = re.search(r"issue[-_]?(\d+)", b) or re.search(r"#(\d+)", b)
-    if m:
-        return int(m.group(1))
+    parsed = branch_issue(b)
+    if explicit:
+        if not re.fullmatch(r"#?\d+", explicit):
+            die(f"'{explicit}' is not an issue number")
+        n = int(explicit.lstrip("#"))
+        if parsed is not None and parsed != n:
+            sys.stderr.write(
+                f"wip: #{n} was passed explicitly, but branch '{b}' names #{parsed} - "
+                f"refusing to guess which issue is meant\n")
+            return None
+        return n
+    if parsed is not None:
+        return parsed
     die(f"cannot infer issue number from branch '{b}' - run: wip {cmd} <N>")
+
+
+def resolve_issue(explicit, cmd):
+    """infer_issue for commands: no number without an error behind it."""
+    n = infer_issue(explicit, cmd)
+    if n is None:
+        die(f"issue number is ambiguous - check the branch and run: wip {cmd} <N>")
+    return n
 
 
 def issue_url(R, n):
@@ -335,10 +385,26 @@ def guard_others(payloads, cid, n, cmd, force):
                          f"`{h['client']}` (heartbeat {age_short(h['heartbeat'])} ago)\n")
 
 
+def guard_open(R, n, cmd):
+    """Refuse a CLOSED issue at claim time, not after the next board sweep.
+
+    Claiming a closed issue is the signature of a wrong issue number - the
+    #1196 shape, a branch-slug digit landing a claim on an issue closed years
+    ago. `release_claims_on_closed` still cleans up issues closed after a
+    claim, but a refusal that arrives with the board refresh arrives after the
+    board lied; this one arrives before the comment is written.
+    """
+    state = issue_state(R, n)
+    if state and state != "OPEN":
+        die(f"issue #{n} is {state.lower()} - finished work is not claimed; "
+            f"if you hold a stale claim there, release it with `wip done {n}`")
+
+
 def cmd_claim(arg, force=False):
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(arg, "claim")
+    n = resolve_issue(arg, "claim")
+    guard_open(R, n, "claim")
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid]
     own_active = any(p.get("state") in ("wip", "waiting") for _, p in own)
@@ -368,7 +434,7 @@ def cmd_claim(arg, force=False):
 def cmd_done(arg):
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(arg, "done")
+    n = resolve_issue(arg, "done")
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") in ("wip", "waiting")]
     if not own:
@@ -389,7 +455,7 @@ def cmd_wait(reason, force=False, issue=None):
         die('usage: wip wait "<what you need from the user>"')
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(issue, "wait")
+    n = resolve_issue(issue, "wait")
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid and p.get("state") in ("wip", "waiting")]
     ts = now_iso()
@@ -400,6 +466,7 @@ def cmd_wait(reason, force=False, issue=None):
         sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{c_id}", "-f", f"body={claim_body(p)}"])
         action = "marked waiting for user input on"
     else:
+        guard_open(R, n, "wait")
         guard_others(payloads, cid, n, "wait", force)
         p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
              "state": "waiting", "question": reason, "since": ts, "heartbeat": ts, "released": None}
@@ -421,7 +488,7 @@ def cmd_ask(question, issue_arg=None, force=False):
         die('usage: wip ask "<what you need from the user>" [--issue N]')
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(issue_arg, "ask")
+    n = resolve_issue(issue_arg, "ask")
     open_q = [q for q in question_markers(fetch_comments(R, n))
               if q[1] == cid and not q[3]]
     if open_q:
@@ -448,7 +515,7 @@ def cmd_answers(issue_arg=None):
     """
     R, root = repo(), git_root()
     cid = client_id(root)
-    n = infer_issue(issue_arg, "answers")
+    n = resolve_issue(issue_arg, "answers")
     comments = fetch_comments(R, n)
     first = {}
     for q in question_markers(comments):
@@ -481,8 +548,7 @@ def cmd_ls(_arg):
     trees = worktrees()
     wt_issues = {}
     for t in trees:
-        m = re.search(r"issue[-_]?(\d+)", t.get("branch", ""))
-        t["issue"] = int(m.group(1)) if m else None
+        t["issue"] = branch_issue(t.get("branch", ""))
         if t["issue"]:
             wt_issues[t["issue"]] = f"local:{t['branch']}"
     labeled = labeled_issues(R)

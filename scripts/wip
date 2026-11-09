@@ -385,7 +385,7 @@ def guard_others(payloads, cid, n, cmd, force):
                          f"`{h['client']}` (heartbeat {age_short(h['heartbeat'])} ago)\n")
 
 
-def guard_open(R, n, cmd):
+def guard_open(R, n):
     """Refuse a CLOSED issue at claim time, not after the next board sweep.
 
     Claiming a closed issue is the signature of a wrong issue number - the
@@ -404,7 +404,7 @@ def cmd_claim(arg, force=False):
     R, root = repo(), git_root()
     cid = client_id(root)
     n = resolve_issue(arg, "claim")
-    guard_open(R, n, "claim")
+    guard_open(R, n)
     payloads = claim_payloads(fetch_comments(R, n))
     own = [(i, p) for i, p in payloads if p.get("client") == cid]
     own_active = any(p.get("state") in ("wip", "waiting") for _, p in own)
@@ -466,7 +466,7 @@ def cmd_wait(reason, force=False, issue=None):
         sh(["gh", "api", "-X", "PATCH", f"repos/{R}/issues/comments/{c_id}", "-f", f"body={claim_body(p)}"])
         action = "marked waiting for user input on"
     else:
-        guard_open(R, n, "wait")
+        guard_open(R, n)
         guard_others(payloads, cid, n, "wait", force)
         p = {"v": 1, "client": cid, "issue": n, "branch": cur_branch(), "worktree": root,
              "state": "waiting", "question": reason, "since": ts, "heartbeat": ts, "released": None}

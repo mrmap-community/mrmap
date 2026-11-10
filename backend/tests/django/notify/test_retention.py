@@ -1,4 +1,3 @@
-import uuid
 from datetime import timedelta
 
 from django.core.files.base import ContentFile
@@ -6,7 +5,6 @@ from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
 from django_celery_beat.models import PeriodicTask
-from django_celery_results.models import TaskResult
 from notify.apps import BACKGROUND_PROCESS_CLEANUP_TASK_NAME, \
     create_background_process_cleanup_task
 from notify.enums import LogTypeEnum, ProcessNameEnum, ProcessStatusEnum
@@ -123,18 +121,6 @@ class BackgroundProcessRetentionTests(TestCase):
         self.assertEqual(summary, {
             "retention_days": 0, "purged": 0, "logs": 0, "files": 0})
         self.assertEqual(BackgroundProcess.objects.count(), 1)
-
-    def test_the_thread_rows_of_a_purged_process_survive(self):
-        # a TaskResult row belongs to the api which published it (#1176), not
-        # to the history which reports it
-        decided = self.create(ProcessStatusEnum.COMPLETED,
-                              created_days_ago=40, decided_days_ago=40)
-        thread = TaskResult.objects.create(task_id=str(uuid.uuid4()))
-        decided.threads.add(thread)
-
-        purge_expired_background_processes(retention_days=30)
-
-        self.assertTrue(TaskResult.objects.filter(pk=thread.pk).exists())
 
     def test_the_task_reports_what_it_purged(self):
         gone = self.create(ProcessStatusEnum.FAILED, created_days_ago=40,

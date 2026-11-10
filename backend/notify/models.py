@@ -335,9 +335,9 @@ def purge_expired_background_processes(retention_days=None) -> dict:
 
     The log entries of a process go with it by cascade. The files their
     ``extented_description`` names are taken back here, because the cascade
-    deletes rows and never touches the storage. The ``TaskResult`` rows the
-    process was published with stay: they belong to the api which published
-    them (#1176), not to the history which reports them. A retention of 0
+    deletes rows and never touches the storage. The thread mirror of the
+    process was retired with the async-process migration (#1180), so nothing
+    but the process' own reports cascades here. A retention of 0
     keeps every process until an operator removes it.
 
     Returns what was done, which is what the log line and the beat result say.

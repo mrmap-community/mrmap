@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A WFS 1.1.0 GetCapabilities document as served by the endpoints reported
+     in #1210 (geodienste.hamburg.de). Reduced to what matters for the mapper:
+     the 1.1.0 namespace and the version attribute. Mr. Map ships no mapping
+     config for 1.1.0, so no element of this document may be mapped. -->
+<WFS_Capabilities version="1.1.0" serviceVersion="1.1.0" updateSequence="0"
+                  xmlns="http://www.opengis.net/wfs/1.1.0"
+                  xmlns:ows="http://www.opengis.net/ows"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.opengis.net/wfs/1.1.0 http://schemas.opengis.net/wfs/1.1.0/wfs.xsd">
+    <ows:ServiceIdentification>
+        <ows:Title>Bezirksradrouten Hamburg Nord</ows:Title>
+        <ows:Abstract>Radrouten des ADFC im Maßstab 1:39 000, Bezirke Hamburgs nördlich der Elbe.</ows:Abstract>
+        <ows:ServiceType>WFS</ows:ServiceType>
+        <ows:ServiceTypeVersion>1.1.0</ows:ServiceTypeVersion>
+        <ows:Fees>Keine Gebühren</ows:Fees>
+        <ows:AccessConstraints>None</ows:AccessConstraints>
+    </ows:ServiceIdentification>
+    <ows:OperationsMetadata>
+        <ows:Operation name="GetCapabilities">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="https://geodienste.hamburg.de/HH_WFS_Bezirksradrouten_Hamburg_Nord?">
+                        <ows:Constraint name="GetEncoding">
+                            <ows:OnlineResource xlink:href="http://www.opengis.net/ows/get"/>
+                        </ows:Constraint>
+                    </ows:Get>
+                </ows:HTTP>
+            </ows:DCP>
+        </ows:Operation>
+        <ows:Operation name="GetFeature">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="https://geodienste.hamburg.de/HH_WFS_Bezirksradrouten_Hamburg_Nord?"/>
+                </ows:HTTP>
+            </ows:DCP>
+        </ows:Operation>
+    </ows:OperationsMetadata>
+    <FeatureTypeList>
+        <FeatureType>
+            <Name>adh_s:bike_rides_north</Name>
+            <Title>Bezirksradrouten Hamburg Nord</Title>
+            <SRS>EPSG:25832</SRS>
+            <OtherSRS>CRS:84</OtherSRS>
+            <Keywords>Radverkehr</Keywords>
+            <OutputFormats>
+                <Format>text/xml; subtype=gml/3.1.1</Format>
+            </OutputFormats>
+            <ows:WGS84BoundingBox>
+                <ows:LowerCorner>9.8 53.5</ows:LowerCorner>
+                <ows:UpperCorner>10.3 53.9</ows:UpperCorner>
+            </ows:WGS84BoundingBox>
+        </FeatureType>
+    </FeatureTypeList>
+</WFS_Capabilities>

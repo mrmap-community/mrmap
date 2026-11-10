@@ -5,8 +5,9 @@ resource and the client polled that resource, whose states were mirrored into
 its row by the celery signals connected in notify/tasks.py. The registration
 contract has since moved to the `BackgroundProcess` (D01/B of #1175) and the
 api publishes no row for new tasks any more; these tests keep the receivers
-honest for the rows and messages of the coexistence window until #1179 retires
-them.
+honest for the rows and messages of the coexistence window until #1180 retires
+them - the retirement of the `threads` relation (#1179) deliberately leaves
+this mirroring of stamped in-flight messages in place.
 """
 
 import json
@@ -17,7 +18,6 @@ from celery.app.task import Context
 from celery.app.trace import build_tracer
 from celery.exceptions import Reject, Retry
 from celery.signals import task_revoked
-from django.conf import settings
 from django.db import connection
 from django.test import TransactionTestCase
 from django.test.utils import CaptureQueriesContext, override_settings
@@ -36,9 +36,11 @@ class WorkerRunMixin:
 
     The mirroring listens to the signals celery's tracer sends while a task is
     answered, so the tests go through the tracer instead of calling the mirroring
-    with hand made arguments. The app is of its own and its result backend is a
-    local cache: a broker is not needed to answer a task and must not be reached
-    by accident.
+    with hand made arguments. The app is of its own and its result backend is
+    celery's in-process one: a broker is not needed to answer a task, and the
+    deployment's Redis result backend must not be reached by accident here
+    either - these tests are about the mirroring, not about the store the
+    deployment chose in #1178.
 
     A task which the legacy async api published carries the very stamp the
     api used to put on the message it publishes (#1176); `answer` marks an
@@ -51,10 +53,7 @@ class WorkerRunMixin:
         super().setUp()
         self.app = Celery('task-result-test', set_as_current=False)
         self.addCleanup(self.app.close)
-        self.app.conf.update(
-            result_backend=settings.CELERY_RESULT_BACKEND,
-            cache_backend='local-memory',
-        )
+        self.app.conf.result_backend = 'cache+memory://'
         self.task_id = str(uuid4())
 
     def task(self, function, **options):

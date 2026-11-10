@@ -119,3 +119,8 @@ def update_harvesting_job_listeners_on_harvesting_job_save(**kwargs):
         )
     except Exception as e:
         log_exception(e)
+
+
+# the receivers which broadcast a `TaskResult` save into the listeners of the
+# process it was threaded to are retired with the `threads` relation itself,
+# together with that relation (#1179)

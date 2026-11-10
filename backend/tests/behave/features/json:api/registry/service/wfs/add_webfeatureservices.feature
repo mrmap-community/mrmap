@@ -73,4 +73,32 @@ Feature: WebFeatureService Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 400
 
+    Scenario: Capabilities version without mapper refused
+        # A WFS 1.1.0 has no capabilities config (#1210): the POST must be
+        # refused like an unknown version, not answered with a task that dies
+        # on the unmappable document.
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "WebFeatureService",
+                    "attributes": {
+                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=1.1.0",
+                        "collect_metadata_records": "true"
+                    },
+                    "relationships": {
+                        "owner": {
+                            "data": {
+                                "id": "901",
+                                "type": "Organization"
+                            }
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 400
+
 

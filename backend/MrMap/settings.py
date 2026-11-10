@@ -99,7 +99,6 @@ INSTALLED_APPS = [
     "rest_framework_json_api",
     "knox",  # token auth
     "django_celery_beat",
-    "django_celery_results",
     "django_filters",
     "simple_history",
     "mptt2",

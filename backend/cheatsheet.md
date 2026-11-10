@@ -69,7 +69,7 @@ Before the Background Job Center (epic #1203) every celery task announced its
 receiver which did that is retired, and so is every surface behind it: #1179
 removed the `threads` relation which tied a record to a process, #1177 moved
 the answer of an asynchronous registration onto the process, and #1180 retired
-the read-only `/api/v1/notify/task-results/` endpoint together with the
+the read-only `/api/notify/task-results` endpoint together with the
 `django-celery-results` package it answered from. Nothing speaks `TaskResult`
 any more; background work is announced as `BackgroundProcess` records now, per
 the topics above.

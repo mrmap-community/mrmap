@@ -78,9 +78,10 @@ def mirror_task_result(task_id, **values):
     `AsyncCreateMixin` (extras/viewsets.py) answers a POST which triggers a task
     with a `TaskResult` resource, and polling that resource is how a client learns
     the outcome of its registration (#1146). That code only inserts the row; the
-    result backend of this deployment is the redis cache (`extras.celery`), which
-    writes nothing into this table, so the state has to be mirrored here or the
-    row keeps reading PENDING after the worker answered long ago.
+    result backend of this deployment is Celery's native Redis backend
+    (`CELERY_RESULT_BACKEND` in MrMap/settings.py), which writes nothing into
+    this table, so the state has to be mirrored here or the row keeps reading
+    PENDING after the worker answered long ago.
 
     Which tasks may reach this at all is decided by `mirror_requested` before
     any sql is made, and only a row which already exists is written: the api

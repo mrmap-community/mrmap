@@ -66,11 +66,11 @@ class BackgroundProcessSerializer(
     date_created = DateTimeField(
         read_only=True,
         label=_("date created"),
-        help_text=_("the datetime when the first thread was created"))
+        help_text=_("the datetime when this process was created"))
     done_at = DateTimeField(
         read_only=True,
         label=_("date at"),
-        help_text=_("the datetime when the last thread was finished"))
+        help_text=_("the datetime when this process reached its terminal state"))
     progress = FloatField(
         read_only=True,
         label=_("progress"),
@@ -133,9 +133,13 @@ class BackgroundProcessSerializer(
 
     class Meta:
         model = BackgroundProcess
+        # `celery_task_ids` is the internal bookkeeping of which Celery tasks
+        # belong to the process; it is written before a task is published and
+        # read when the process is aborted - no client of the api reads it.
         # the flag behind the action_required state stays behind it: one
-        # question, one answer in the contract (#1207)
-        exclude = ("threads", "celery_task_ids", "action_required")
+        # question, one answer in the contract (#1207). `threads` is gone with
+        # #1223, so it is no longer named here.
+        exclude = ("celery_task_ids", "action_required")
 
     # included_serializers = {
     #    'logs': BackgroundProcessLogSerializer,

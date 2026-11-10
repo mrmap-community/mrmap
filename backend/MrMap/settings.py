@@ -392,11 +392,34 @@ CACHES = {
 # Celery settings
 ################################################################
 CELERY_BROKER_URL = BROKER_URL
-CELERY_RESULT_BACKEND = "extras.celery:RetryingCacheBackend"
-# Chord members must store results. Retry transient cache failures here, after
-# the task body has completed, rather than failing or rerunning the harvest.
+# Celery's native Redis result backend (celery.backends.redis:RedisBackend),
+# on the table the comment above preserves for celery task management: task
+# results, group metadata and the chord bookkeeping live there under celery's
+# own ``celery-task-meta-``/``celery-taskset-meta-`` prefixes, next to the
+# broker's keys and apart from the Django cache in table 1. The former
+# ``extras.celery:RetryingCacheBackend`` wrapper over the package
+# django-celery-results is removed (#1178); the native backend is what keeps
+# results in Redis for the chords of registration and harvesting.
+CELERY_RESULT_BACKEND = f"{BROKER_URL}/0"
+# Chord members must store results. A Redis read or write that fails with a
+# connection error is retried here, after the task body has completed, rather
+# than failing or rerunning the harvest: the native backend treats Redis
+# connection and timeout errors as safe to retry, and any other error - a
+# programming error - is raised at once instead of being retried (#816's
+# regression intent, kept by tests/django/test_celery_backend.py). A write
+# first runs through the backend's own bounded connection-retry loop; these
+# are the retries of the outer loop with exponential backoff, and an exhausted
+# budget surfaces as a BackendStoreError in the worker log, not as a task-body
+# failure.
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
 CELERY_RESULT_BACKEND_MAX_RETRIES = 10
+# How long results and chord bookkeeping live (celery's default of one day,
+# spelled out because the harvest's import chord is the long-running chord
+# this budget must cover): every part returning from the backlog refreshes the
+# expiry of the group's keys, so a chord which keeps working for hours does
+# not lose its bookkeeping, while the keys of a chord that died expire on
+# their own instead of filling Redis.
+CELERY_RESULT_EXPIRES = 60 * 60 * 24
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

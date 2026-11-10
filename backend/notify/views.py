@@ -89,10 +89,12 @@ class TaskResultViewSetMixin:
 
 
 class TaskResultReadOnlyViewSet(TaskResultViewSetMixin, ReadOnlyModelViewSet):
-    pass
+    """Answers the rows of the legacy table until their removal (#1180).
 
-
-class NestedTaskResultReadOnlyViewSet(TaskResultViewSetMixin, NestedModelViewSet):
+    The nested route which listed the rows of one process through the
+    `threads` relation is retired with that relation (#1179); reading the
+    historical rows by their own id stays until D03's transition ends.
+    """
     pass
 
 

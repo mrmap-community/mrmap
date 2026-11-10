@@ -178,6 +178,64 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         # D01/B: no legacy row was made for this registration
         self.assertEqual(TaskResult.objects.count(), 0)
 
+    def test_the_published_root_is_owned_before_a_worker_can_pick_it_up(self):
+        """The abort right after the POST revokes the task by its id (#1179).
+
+        The id of the root task is decided and written with the process
+        before the message goes out - the read below happens inside the
+        publication itself, before celery can have handed the message to
+        anyone. The abort then meets the honest case of a worker which has
+        not seen the message: an inspection which answers nothing. It is the
+        stored id, not worker sight and not a `TaskResult` row, which the
+        revocation targets.
+        """
+        seen_at_publish = {}
+
+        def publish(*args, **kwargs):
+            # the state of the row at the very moment the message is handed
+            # to celery: the id has to be durable already now
+            stored = BackgroundProcess.objects.filter(
+                pk=kwargs["kwargs"]["background_process_pk"]).values_list(
+                    "celery_task_ids", flat=True).get()
+            seen_at_publish["celery_task_ids"] = stored
+            seen_at_publish["task_id"] = kwargs.get("task_id")
+
+        with patch.object(
+                build_ogc_service, "apply_async", autospec=True,
+                side_effect=publish):
+            response = self.register()
+        self.assertEqual(response.status_code, 202, response.content)
+
+        task_id = seen_at_publish["task_id"]
+        self.assertIsNotNone(task_id, "the publication names its task id")
+        self.assertEqual(
+            [str(task_id)],
+            [str(i) for i in seen_at_publish["celery_task_ids"]],
+            "the id the message is published with must be stored with the "
+            "process before the dispatch")
+
+        process = BackgroundProcess.objects.get(
+            pk=json.loads(response.content)["data"]["id"])
+
+        with patch("notify.models.app.control.inspect") as inspect, \
+                patch("notify.models.app.control.revoke") as revoke:
+            for answer in ("active", "reserved", "scheduled"):
+                getattr(inspect.return_value, answer).return_value = None
+
+            self.assertEqual(
+                process.get_related_task_ids(), [task_id],
+                "the queued message is owned although no worker reports it")
+
+            process.phase = "abort"
+            process.save(update_fields=["phase"])
+
+        self.assertEqual(set(revoke.call_args.args[0]), {task_id})
+        self.assertTrue(revoke.call_args.kwargs["terminate"])
+
+        attributes = self.poll_attributes(process.pk)["attributes"]
+        self.assertEqual(attributes["status"], "aborted")
+        self.assertIsNotNone(attributes["doneAt"])
+
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
     def test_a_registration_without_metadata_completes_and_names_the_service(self):
         """collect_metadata_records off: the workflow is over with the service.

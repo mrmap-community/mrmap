@@ -647,6 +647,27 @@ class HarvestingJob(ProcessingData):
             ProcessStatusEnum.FAILED,
             phase=f"An error occurred: {str(error)[:400]}")
 
+    def report_process_attention(self, flag, phase=None):
+        """Tell the process which reports this job that a human is awaited.
+
+        The import watchdog of #1038 decides that a run stands until somebody
+        acts - the backlog is queued and nobody consumes it, or its messages
+        are gone and the supported repair is a command. The verdict is on the
+        job; the flag here is what makes the state of the process answer the
+        same thing for the background job center (#1207).
+
+        Args:
+            flag (bool): whether the run stands for a human
+            phase (str): phase to report with the decision, optional
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        return BackgroundProcess.objects.set_action_required(
+            self.background_process_id, flag, phase=phase)
+
     def save(self, skip_history_when_saving=True, *args, **kwargs):
         if self._state.adding and self.background_process_id is None:
             self.background_process = self.build_process()

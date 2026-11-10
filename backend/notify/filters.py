@@ -53,4 +53,8 @@ class BackgroundProcessFilterSet(FilterSet):
             "process_type": ["exact", "icontains", "contains"],
             "description": ["exact", "icontains", "contains"],
             "phase": ["exact", "icontains", "contains"],
+            # the history screen of the frontend searches the past by its
+            # moments, not only by its words (#1208)
+            "date_created": ["exact", "gt", "gte", "lt", "lte", "range"],
+            "done_at": ["exact", "gt", "gte", "lt", "lte", "range"],
         }

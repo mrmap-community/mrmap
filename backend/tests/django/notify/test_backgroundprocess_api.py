@@ -77,6 +77,57 @@ class BackgroundProcessApiTests(TestCase):
             {str(self.pending.pk), str(self.running.pk)},
             set(self.listed(**{"filter[status]": "pending,running"})))
 
+    # the history screen of the frontend searches the past by its moments, so
+    # both of the moments a process names are filterable facets (#1208). The
+    # api addresses the fields by their camelCase json:api names, as the
+    # frontend sends them
+    def test_filters_the_history_by_the_moment_it_was_created(self):
+        self.assertEqual(
+            [str(self.pending.pk)],
+            self.listed(**{
+                "filter[dateCreated.lt]": self.running.date_created.isoformat()}))
+        self.assertEqual(
+            [str(self.completed.pk), str(self.running.pk)],
+            self.listed(**{
+                "filter[dateCreated.gt]": self.pending.date_created.isoformat()}))
+        # the range includes both of its ends, so the moment of the pending
+        # process as its start still answers that process itself
+        self.assertEqual(
+            [str(self.completed.pk), str(self.running.pk)],
+            self.listed(**{
+                "filter[dateCreated.range]": ",".join([
+                    self.running.date_created.isoformat(),
+                    self.completed.date_created.isoformat()])}))
+
+    def test_filters_the_history_by_the_moment_a_process_decided(self):
+        self.completed.done_at = self.completed.date_created + timedelta(minutes=2)
+        self.completed.save()
+
+        self.assertEqual(
+            [str(self.completed.pk)],
+            self.listed(**{
+                "filter[doneAt.gte]": (now() - timedelta(hours=1)).isoformat()}))
+
+    # the history answers how long a decided process took, which the show
+    # screen of the frontend renders beside its timestamps (#1208)
+    def test_answers_the_duration_of_a_decided_process(self):
+        self.completed.done_at = self.completed.date_created + timedelta(minutes=2)
+        self.completed.save()
+
+        response = self.client.get(reverse(
+            "notify:backgroundprocess-detail", kwargs={"pk": self.completed.pk}))
+
+        self.assertEqual(
+            120.0,
+            json.loads(response.content)["data"]["attributes"]["duration"])
+
+    def test_answers_no_duration_while_the_process_runs(self):
+        response = self.client.get(reverse(
+            "notify:backgroundprocess-detail", kwargs={"pk": self.running.pk}))
+
+        self.assertIsNone(json.loads(
+            response.content)["data"]["attributes"]["duration"])
+
     def test_sorts_the_processes_by_the_time_they_were_created(self):
         expected = [str(self.completed.pk), str(self.running.pk),
                     str(self.pending.pk)]

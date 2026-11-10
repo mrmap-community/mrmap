@@ -70,6 +70,12 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("date at"),
         help_text=_("the datetime when the last thread was finished"))
+    duration = FloatField(
+        read_only=True,
+        label=_("duration"),
+        help_text=_(
+            "the seconds between the creation and the decision of the "
+            "process, empty while it still runs"))
     progress = FloatField(
         read_only=True,
         label=_("progress"),

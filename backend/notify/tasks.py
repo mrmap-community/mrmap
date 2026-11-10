@@ -11,6 +11,7 @@ from django.db.models.functions import Coalesce, Now
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from django_celery_results.models import TaskResult
+from extras.tasks import SingletonTask
 from MrMap import celery_queues
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
@@ -290,3 +291,26 @@ def finish_background_process(
     self.update_background_process(
         completed=True
     )
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def delete_expired_background_processes(self, *args, **kwargs):
+    """Takes back the background processes whose retention has passed (#1208).
+
+    Runs as a singleton on the ``db-routines`` queue like the other
+    housekeeping: two sweeps over the same history have nothing to add to
+    each other. The job history of the deployment grows with every reported
+    operation; this sweep bounds it to the retention window, so the failures
+    of the window stay discoverable while a deployment which ran for years
+    does not answer its whole past. A process which ended after the moment
+    of the retention is simply listed until this sweep reached it.
+    """
+    from notify.models import purge_expired_background_processes
+
+    summary = purge_expired_background_processes()
+    logger.info(
+        "Background processes: %s decided processes deleted with %s of their "
+        "log entries and %s stored files "
+        "(retention %s days).", summary["purged"], summary["logs"],
+        summary["files"], summary["retention_days"])
+    return summary

@@ -145,10 +145,31 @@ class BackgroundProcessLogViewSetMixin(
         "log_type": ["exact", "icontains", "contains"],
         "description": ["exact", "icontains", "contains"],
         "date": ["exact", "icontains", "contains"],
+        # a log line is the error detail of its process, and the history asks
+        # of one process which errors it left behind (#1208)
+        "background_process": ["exact", "in"],
     }
     ordering_fields = [
         "id",
+        "date",
     ]
+
+    def get_queryset(self):
+        """Answer only the log entries of processes the user may see.
+
+        A log entry carries the error detail of the work done on a resource,
+        so it belongs to whoever is permitted to read the process which
+        reports that work - reading the errors of a hidden service must not
+        be easier than reading the service itself. As with the processes,
+        anonymous clients and a superuser read this endpoint as its queryset
+        already says.
+        """
+        queryset = super().get_queryset()
+        user = getattr(self.request, 'user', None)
+        if user is None or not user.is_authenticated or user.is_superuser:
+            return queryset
+        return queryset.filter(background_process__in=BackgroundProcess.objects.visible_for_user(
+            user).values("pk"))
 
 
 class BackgroundProcessLogViewSet(

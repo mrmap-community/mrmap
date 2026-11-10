@@ -548,6 +548,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
+  backgroundJobs: {
+    notification: {
+      failedOne: "Ein Hintergrundprozess ist fehlgeschlagen und erfordert Aufmerksamkeit.",
+      failedMany: "%{count} Hintergrundprozesse sind fehlgeschlagen und erfordern Aufmerksamkeit.",
+    },
+  },
   dashboard: {
     workQueue: {
       title: "Wartende Arbeit",

@@ -166,10 +166,9 @@ describe('BackgroundJobBridge', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(state.notify).toHaveBeenCalledTimes(1);
-    expect(state.notify).toHaveBeenCalledWith(
-      'backgroundJobs.notification.failedMany',
-      expect.objectContaining({ type: 'error', messageArgs: expect.objectContaining({ smart_count: 3 }) }),
-    );
+    expect(state.notify).toHaveBeenCalledWith('backgroundJobs.notification.failedMany', {
+      type: 'error',
+    });
   });
 
   it('does not notify for completions', () => {

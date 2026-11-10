@@ -86,7 +86,7 @@ const BackgroundJobBridge = ({
       .map((record) => toJobInput(record))
       .filter((input): input is NonNullable<typeof input> => input !== undefined);
     store.seed(inputs);
-    // seed the first paint without waiting for the throttle
+    // publish the recovered jobs right away instead of waiting for the throttle
     store.flushNow();
   }, [seedData, store]);
 
@@ -157,15 +157,17 @@ const BackgroundJobBridge = ({
     connection.current = { open, everOpened: previous.everOpened || open };
   }, [realtimeIsReady, refetch]);
 
-  // bridge the aggregated failures to a React-Admin notification, once per batch
+  // bridge the aggregated failures to a React-Admin notification, once per batch.
+  // The translate calls carry the literal keys - a key computed into a variable
+  // cannot be traced back to the i18n files - and the finished text goes to notify.
   useEffect(() => {
     return store.subscribeActionable(({ count }) => {
       if (count <= 0) return;
-      const key =
+      const message =
         count === 1
-          ? 'backgroundJobs.notification.failedOne'
-          : 'backgroundJobs.notification.failedMany';
-      notify(key, { type: 'error', messageArgs: { smart_count: count, _: translate(key, { count }) } });
+          ? translate('backgroundJobs.notification.failedOne', { count })
+          : translate('backgroundJobs.notification.failedMany', { count });
+      notify(message, { type: 'error' });
     });
   }, [store, notify, translate]);
 

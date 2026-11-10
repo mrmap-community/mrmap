@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ('registry', '0040_catalogueservicegetcapabilitiesproberesult_error_detail_and_more'),
+        ('registry', '0041_contact_fields_are_wide_enough_for_real_addresses'),
     ]
 
     operations = [

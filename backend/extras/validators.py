@@ -27,9 +27,13 @@ def _get_request_uri_has_no_version_parameter(value):
     query_params = parse_qs(parsed_url.query)
     query_params = {k.lower(): v for k, v in query_params.items()}
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
-    # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
+    # supported versions for wfs are only 2.0.2 and 2.0.0: the mapper ships a
+    # capabilities config for 2.0.0 (#1210), which also maps a 2.0.2 document
+    # because both share the /wfs/2.0 namespace. A 1.x document carries the
+    # older namespace, maps to nothing and must be refused here, not as a
+    # crashed registration task.
     supported_wms_versions = ["1.3.0", "1.1.1", "1.1.0", "1.0.0"]
-    supported_wfs_versions = ["2.0.2", "2.0.0", "1.1.0", "1.0.0"]
+    supported_wfs_versions = ["2.0.2", "2.0.0"]
     # Todo: append all versions
     supported_csw_versions = [
         "2.0.2",

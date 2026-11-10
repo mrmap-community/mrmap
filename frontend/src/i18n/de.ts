@@ -554,6 +554,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
+  backgroundJobs: {
+    notification: {
+      failedOne: "Ein Hintergrundprozess ist fehlgeschlagen und erfordert Aufmerksamkeit.",
+      failedMany: "%{count} Hintergrundprozesse sind fehlgeschlagen und erfordern Aufmerksamkeit.",
+    },
+  },
   dashboard: {
     workQueue: {
       title: "Wartende Arbeit",
@@ -779,19 +785,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         downloadDuration: "Download-Dauer",
       },
     },
-    BackgroundProcess: {
-      titles: {
-        registering: "Neuen Dienst registrieren",
-        harvesting: "Datenübernahme",
-        harvestingOf: "Datenübernahme von %{id}",
-        monitoring: "Monitoring",
-        runningTask: "Laufende Aufgabe",
-      },
-      states: {
-        completed: "abgeschlossen",
-        waitingForSchedule: "wartet auf den Zeitplan",
-      },
-      stepsDone: "%{done} von %{total} Schritten abgeschlossen.",    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",

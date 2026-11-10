@@ -1,5 +1,8 @@
+from collections import Counter
+
 from mptt2.models import Node, Tree
-from registry.models.service import OperationUrl
+from registry.exceptions.service import DuplicateLayerIdentifiers
+from registry.models.service import Layer, OperationUrl
 
 
 def split(context, value, token):
@@ -10,6 +13,31 @@ def split(context, value, token):
     else:
         values = value.split(token)
     return values
+
+
+def validate_unique_layer_identifiers(mapper):
+    """Refuses a capabilities document which re-lists one layer name.
+
+    A WMS may list the same ``<Name>`` under several parents (swisstopo
+    BGDI, IGN geopf, geodienste.hamburg.de, #1200); ``registry.models.Layer``
+    keeps one row per ``(service, identifier)``, so persisting such a
+    document ended in a raw ``UniqueViolation`` deep inside the bulk insert
+    and the whole registration failed with a constraint dump as the only
+    user-facing message. #1200 decided these services stay refused - so this
+    hook says so itself, naming the duplicated identifiers, before a single
+    row is written.
+
+    A layer without a ``<Name>`` is a legal grouping node; its NULL
+    identifier never collides with another one and is not counted.
+    """
+    identifiers = Counter(
+        inst.identifier
+        for inst in mapper.read_all_from_cache().values()
+        if isinstance(inst, Layer) and inst.identifier
+    )
+    duplicated = [name for name, count in identifiers.items() if count > 1]
+    if duplicated:
+        raise DuplicateLayerIdentifiers(duplicated)
 
 
 def compute_layer_mptt(mapper):

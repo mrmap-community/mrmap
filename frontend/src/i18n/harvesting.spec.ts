@@ -16,7 +16,6 @@ const harvestingBlocks = [
   "resources.TemporaryMdMetadataFile",
   "resources.CatalogueServiceUpdateJob",
   "resources.HarvestedMetadataRelation",
-  "resources.BackgroundProcess",
   "harvestingStats",
   "cronInput",
 ];

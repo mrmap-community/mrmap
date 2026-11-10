@@ -123,6 +123,8 @@ harvesting_jobs_routes.register(r'harvested-dataset-metadata-records', metadata_
                                 basename='harvestingjob-harvesteddatasetmetadata', parents_query_lookups=['harvested_dataset_metadata_relation__harvesting_job'])
 harvesting_jobs_routes.register(r'harvested-service-metadata-records', metadata_views.NestedServiceMetadataViewSet,
                                 basename='harvestingjob-harvestedservicemetadata', parents_query_lookups=['harvested_service_metadata_relation__harvesting_job'])
+harvesting_jobs_routes.register(r'harvested-application-metadata-records', metadata_views.NestedApplicationMetadataViewSet,
+                                basename='harvestingjob-harvestedapplicationmetadata', parents_query_lookups=['harvested_application_metadata_relation__harvesting_job'])
 harvesting_jobs_routes.register(r'harvesting-logs', harvesting_views.NestedHarvestingLogViewSet,
                                 basename='harvestingjob-harvestinglog', parents_query_lookups=['harvesting_job'])
 
@@ -167,6 +169,21 @@ service_metadata_routes.register(r'wms', service_views.NestedWebMapServiceViewSe
                                  basename='servicemetadata-wms', parents_query_lookups=['metadata_relation__service_metadata'])
 service_metadata_routes.register(r'wfs', service_views.NestedWebFeatureServiceViewSet,
                                  basename='servicemetadata-wfs', parents_query_lookups=['metadata_relation__service_metadata'])
+
+application_metadata_routes = router.register(
+    r'application-metadata', metadata_views.ApplicationMetadataViewSet, basename='applicationmetadata')
+application_metadata_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
+                                     basename='applicationmetadata-keywords', parents_query_lookups=['applicationmetadatarecord_metadata'])
+application_metadata_routes.register(r'licence', metadata_views.NestedLicenceViewSet,
+                                     basename='applicationmetadata-licence', parents_query_lookups=['applicationmetadatarecord'])
+application_metadata_routes.register(r'application-contact', metadata_views.NestedApplicationContactViewSet,
+                                     basename='applicationmetadata-applicationcontact', parents_query_lookups=['applicationmetadatarecord_application_contact'])
+application_metadata_routes.register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet,
+                                     basename='applicationmetadata-metadatacontact', parents_query_lookups=['applicationmetadatarecord_metadata_contact'])
+application_metadata_routes.register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet,
+                                     basename='applicationmetadata-referencesystems', parents_query_lookups=['applicationmetadatarecord'])
+application_metadata_routes.register(r'csws', service_views.NestedCatalogueServiceViewSet,
+                                     basename='applicationmetadata-csws', parents_query_lookups=['registry_applicationmetadatarecord_metadata_record'])
 
 
 wms_monitoring_routes = router.register(r'monitoring/wms-monitoring-settings',

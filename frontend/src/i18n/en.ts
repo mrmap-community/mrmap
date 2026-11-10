@@ -574,6 +574,12 @@ const en = lodashMerge(
       },
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
+    backgroundJobs: {
+      notification: {
+        failedOne: "A background task failed and needs attention.",
+        failedMany: "%{count} background tasks failed and need attention.",
+      },
+    },
     dashboard: {
       workQueue: {
         title: "Work which waits",
@@ -1174,19 +1180,6 @@ const en = lodashMerge(
           downloadDuration: "Download duration",
         },
       },
-      BackgroundProcess: {
-        titles: {
-          registering: "Register new Service",
-          harvesting: "Harvesting",
-          harvestingOf: "Harvesting of %{id}",
-          monitoring: "Monitoring",
-          runningTask: "Running Task",
-        },
-        states: {
-          completed: "completed",
-          waitingForSchedule: "waiting for schedule",
-        },
-        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

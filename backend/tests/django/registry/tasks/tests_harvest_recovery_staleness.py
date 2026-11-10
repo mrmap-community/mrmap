@@ -79,6 +79,18 @@ def _broker_connection(client):
 class ImportRunMessageStateTest(TestCase):
     """The broker answer itself: live, stale or unaskable (#972)."""
 
+    def setUp(self):
+        super().setUp()
+        # #1232: `Control.inspect` is a `cached_property`, so an entry an
+        # earlier test of the same process materialized on the shared control
+        # instance would shadow the class-level patch the two worker-report
+        # tests install below - the probe then runs against a real control
+        # which no worker answers. Drop any residue before the test and any
+        # residue the test leaves; this cannot re-bait the trap the way
+        # patching the instance would (mock restores the materialized entry).
+        self.addCleanup(app.control.__dict__.pop, "inspect", None)
+        app.control.__dict__.pop("inspect", None)
+
     def _state_of(self, client, *registered):
         # the workers only reinforce what the queues and unacked keys answer;
         # their broadcasts stay out of these queue tests

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Like the swisstopo BGDI and IGN geopf WMS of #1200: the names
+     "node1.1.1" and "node1.3.1" are each re-listed under a second parent,
+     and the two unnamed group layers carry a NULL identifier, which the
+     unique constraint of registry_layer tolerates and which no validation
+     may flag. -->
+<WMS_Capabilities xmlns:inspire_vs="http://inspire.ec.europa.eu/schemas/inspire_vs/1.0"
+  xmlns:inspire_common="http://inspire.ec.europa.eu/schemas/common/1.0" version="1.3.0" updateSequence="15920"
+  xmlns="http://www.opengis.net/wms"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wms https://maps.dwd.de/geoserver/schemas/wms/1.3.0/capabilities_1_3_0.xsd https://inspire.ec.europa.eu/schemas/inspire_vs/1.0 https://inspire.ec.europa.eu/schemas/inspire_vs/1.0/inspire_vs.xsd">
+  <Service>
+    <Name>WMS</Name>
+    <Title>DWD GeoServer WMS with duplicated layer names</Title>
+    <Abstract>This is the Web Map Server of DWD.</Abstract>
+    <KeywordList>
+      <Keyword>meteorology</Keyword>
+      <Keyword>climatology</Keyword>
+    </KeywordList>
+    <OnlineResource xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/"/>
+    <ContactInformation>
+      <ContactPersonPrimary>
+        <ContactPerson/>
+        <ContactOrganization>Deutscher Wetterdienst</ContactOrganization>
+      </ContactPersonPrimary>
+      <ContactPosition/>
+      <ContactAddress>
+        <AddressType>postal</AddressType>
+        <Address>Frankfurter Strasse 135</Address>
+        <City>Offenbach</City>
+        <StateOrProvince>Hessen</StateOrProvince>
+        <PostCode>63067</PostCode>
+        <Country>Germany</Country>
+      </ContactAddress>
+      <ContactVoiceTelephone/>
+      <ContactFacsimileTelephone/>
+      <ContactElectronicMailAddress>info@dwd.de</ContactElectronicMailAddress>
+    </ContactInformation>
+    <Fees>none</Fees>
+    <AccessConstraints>http://www.dwd.de/DE/service/copyright/copyright_node.html</AccessConstraints>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>text/xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetMap>
+      <GetFeatureInfo>
+        <Format>text/plain</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetFeatureInfo>
+    </Request>
+    <Exception>
+      <Format>XML</Format>
+    </Exception>
+    <Layer queryable="0" opaque="0" cascaded="0">
+      <Title>node1</Title>
+      <Name>node1</Name>
+      <CRS>EPSG:4326</CRS>
+      <Layer>
+        <Title>node1.1</Title>
+        <Name>node1.1</Name>
+        <Layer>
+          <Title>node1.1.1</Title>
+          <Name>node1.1.1</Name>
+        </Layer>
+        <Layer>
+          <Title>node1.1.2</Title>
+          <Name>node1.1.2</Name>
+        </Layer>
+      </Layer>
+      <Layer>
+        <Title>node1.2</Title>
+        <Name>node1.2</Name>
+        <!-- the first re-listing: node1.1.1 already appears under node1.1 -->
+        <Layer>
+          <Title>node1.1.1 under a second parent</Title>
+          <Name>node1.1.1</Name>
+        </Layer>
+        <!-- grouping nodes without a Name are legal and must not collide -->
+        <Layer>
+          <Title>unnamed group one</Title>
+        </Layer>
+        <Layer>
+          <Title>unnamed group two</Title>
+        </Layer>
+        <!-- re-lists node1.3.1, which is defined below under node1.3 -->
+        <Layer>
+          <Title>node1.3.1 under another parent</Title>
+          <Name>node1.3.1</Name>
+        </Layer>
+      </Layer>
+      <Layer>
+        <Title>node1.3</Title>
+        <Name>node1.3</Name>
+        <Layer>
+          <Title>node1.3.1</Title>
+          <Name>node1.3.1</Name>
+        </Layer>
+        <!-- the second re-listing, of a name also re-listed under node1.2 -->
+        <Layer>
+          <Title>node1.1.1 under a third parent</Title>
+          <Name>node1.1.1</Name>
+        </Layer>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMS_Capabilities>

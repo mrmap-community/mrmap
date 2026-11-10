@@ -1,99 +1,10 @@
-from django_celery_results.models import TaskResult
 from extras.viewsets import NestedModelViewSet
 from notify.filters import BackgroundProcessFilterSet
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from notify.permissions import CanChangeRelatedResource
 from notify.serializers import (BackgroundProcessLogSerializer,
-                                BackgroundProcessSerializer,
-                                TaskResultSerializer)
+                                BackgroundProcessSerializer)
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
-
-
-class TaskResultViewSetMixin:
-    queryset = TaskResult.objects.all()
-    serializer_class = TaskResultSerializer
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        'task_id': ['exact', 'icontains', 'contains', 'in'],
-        'periodic_task_name': ['exact', 'icontains', 'contains'],
-        'task_name': ['exact', 'icontains', 'contains'],
-        'task_args': ['exact', 'icontains', 'contains'],
-        'task_kwargs': ['exact', 'icontains', 'contains'],
-        'status': ['exact', 'icontains', 'contains'],
-        'worker': ['exact', 'icontains', 'contains'],
-        'content_type': ['exact', 'icontains', 'contains'],
-        'content_encoding': ['exact', 'icontains', 'contains'],
-        'result': ['exact', 'icontains', 'contains'],
-        'traceback': ['exact', 'icontains', 'contains'],
-        'meta': ['exact', 'icontains', 'contains'],
-        "date_created": ["exact", "gt", "lt", "range"],
-        'date_done': ["exact", "gt", "lt", "range"],
-    }
-    search_fields = [
-        "id",
-        'task_id',
-        'periodic_task_name',
-        'task_name',
-        'task_args',
-        'task_kwargs',
-        'status',
-        'worker',
-        'content_type',
-        'content_encoding',
-        'result',
-        'date_created',
-        'date_done',
-        'traceback',
-        'meta',
-    ]
-    ordering_fields = [
-        "id",
-        'task_id',
-        'periodic_task_name',
-        'task_name',
-        'task_args',
-        'task_kwargs',
-        'status',
-        'worker',
-        'content_type',
-        'content_encoding',
-        'result',
-        'date_created',
-        'date_done',
-        'traceback',
-        'meta',
-    ]
-
-
-"""
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-
-        if instance.status == states.SUCCESS and 'build_ogc_service' or 'fetch_remote_metadata_xml' in instance.task_name:
-            # followed the jsonapi recommendation for async processing
-            # https://jsonapi.org/recommendations/#asynchronous-processing
-            result = json.loads(instance.result)
-            return Response(
-                status=status.HTTP_303_SEE_OTHER,
-                headers={
-                    "Location": str(
-                        self.request.build_absolute_uri(
-                            result["data"]["links"]["self"])
-                    )
-                },
-            )
-        else:
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-"""
-
-
-class TaskResultReadOnlyViewSet(TaskResultViewSetMixin, ReadOnlyModelViewSet):
-    pass
-
-
-class NestedTaskResultReadOnlyViewSet(TaskResultViewSetMixin, NestedModelViewSet):
-    pass
 
 
 class BackgroundProcessViewSetMixin(
@@ -104,11 +15,14 @@ class BackgroundProcessViewSetMixin(
     filterset_class = BackgroundProcessFilterSet
     permission_classes = [CanChangeRelatedResource]
     # the progress of process_info() is a plain annotation of the queryset, so
-    # the overview can order its rows by the percentage it renders (#1035)
+    # the overview can order its rows by the percentage it renders (#1035);
+    # the state of #1207 is its other annotation and the revision its column
     ordering_fields = [
         "id",
         "date_created",
         "progress",
+        "state",
+        "revision",
     ]
 
     def get_queryset(self):

@@ -38,8 +38,6 @@ const renderControls = (initialFeatures: OWSResource[] = []) => render(
   <AdminContext>
     <OwsContextBase initialFeatures={initialFeatures}>
       <MapTransferControls />
-      {/* the entry notice is a standard react-admin notification (#1204) */}
-      <Notification />
       <ContextProbe />
     </OwsContextBase>
     {/* the app renders the notification host through its Layout; here it

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 17:10+0100\n"
+"POT-Creation-Date: 2026-11-10 18:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:284
+#: MrMap/settings.py:283
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:285
+#: MrMap/settings.py:284
 msgid "German"
 msgstr "Deutsch"
 
@@ -318,11 +318,11 @@ msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
 msgid "Select a valid state of a background operation."
 msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
 
-#: notify/filters.py:79 notify/serializers.py:81
+#: notify/filters.py:79 notify/serializers.py:56
 msgid "status"
 msgstr "Status"
 
-#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:88
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:63
 msgid "state"
 msgstr "Zustand"
 
@@ -383,7 +383,7 @@ msgstr "beschreibt, welche Art von Prozess dies ist"
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:98 notify/serializers.py:98
+#: notify/models.py:98 notify/serializers.py:73
 msgid "revision"
 msgstr "Revision"
 
@@ -412,7 +412,7 @@ msgstr ""
 "von einer Aktualisierung, die auf ihre Prüfung wartet, und gelöscht, wenn "
 "die Arbeit weitergeht"
 
-#: notify/models.py:115 notify/serializers.py:110
+#: notify/models.py:115 notify/serializers.py:85
 msgid "retry count"
 msgstr "Anzahl der Wiederholungen"
 
@@ -423,7 +423,7 @@ msgstr ""
 "wie viele Wiederholungen seiner Aufgaben der Prozess seit seiner Anlage "
 "gemeldet hat"
 
-#: notify/models.py:124 notify/serializers.py:116
+#: notify/models.py:124 notify/serializers.py:91
 msgid "retry reason"
 msgstr "Grund der Wiederholung"
 
@@ -433,7 +433,7 @@ msgstr ""
 "woran die zuletzt gemeldete Wiederholung einer Aufgabe dieses Prozesses "
 "gescheitert ist"
 
-#: notify/models.py:132 notify/serializers.py:121
+#: notify/models.py:132 notify/serializers.py:96
 msgid "retry scheduled until"
 msgstr "Wiederholung geplant bis"
 
@@ -474,45 +474,45 @@ msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 msgid "You are not allowed to change the resource of this process."
 msgstr "Sie dürfen die Ressource dieses Prozesses nicht ändern."
 
-#: notify/serializers.py:68
+#: notify/serializers.py:43
 msgid "date created"
 msgstr "Erstellt am"
 
-#: notify/serializers.py:69
+#: notify/serializers.py:44
 msgid "the datetime when this process was created"
 msgstr "der Zeitpunkt, an dem dieser Prozess erstellt wurde"
 
-#: notify/serializers.py:72
+#: notify/serializers.py:47
 msgid "date at"
 msgstr "Datum von"
 
-#: notify/serializers.py:73
+#: notify/serializers.py:48
 msgid "the datetime when this process reached its terminal state"
 msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
-#: notify/serializers.py:76
+#: notify/serializers.py:51
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:77
+#: notify/serializers.py:52
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:82
+#: notify/serializers.py:57
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:84
+#: notify/serializers.py:59
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:86
+#: notify/serializers.py:61
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
 "ihre ID"
 
-#: notify/serializers.py:90
+#: notify/serializers.py:65
 msgid ""
 "the normalized state of the reported operation: queued while it waits for a "
 "worker, running while it works, running_indeterminate while it works without "
@@ -527,7 +527,7 @@ msgstr ""
 "action_required während eine Entscheidung eines Menschen erwartet wird, "
 "sowie die abschließenden failed, completed oder aborted"
 
-#: notify/serializers.py:100
+#: notify/serializers.py:75
 msgid ""
 "the number of the state report which every message about this process "
 "carries; a client which learns states out of order keeps the highest "
@@ -537,11 +537,11 @@ msgstr ""
 "ein Client, der Zustände in falscher Reihenfolge empfängt, behält die "
 "höchste Revision, die er von einem Prozess gesehen hat"
 
-#: notify/serializers.py:104
+#: notify/serializers.py:79
 msgid "error summary"
 msgstr "Fehlerzusammenfassung"
 
-#: notify/serializers.py:106
+#: notify/serializers.py:81
 msgid ""
 "what the last error of the reported operation told, or nothing where it "
 "never reported one"
@@ -549,7 +549,7 @@ msgstr ""
 "was der letzte Fehler der gemeldeten Operation mitgeteilt hat, oder nichts, "
 "wenn sie nie einen gemeldet hat"
 
-#: notify/serializers.py:112
+#: notify/serializers.py:87
 msgid ""
 "how many retries of its tasks the reported operation has reported since it "
 "was made"
@@ -557,11 +557,11 @@ msgstr ""
 "wie viele Wiederholungen ihrer Aufgaben die gemeldete Operation seit ihrer "
 "Anlage gemeldet hat"
 
-#: notify/serializers.py:118
+#: notify/serializers.py:93
 msgid "what the last reported retry of the operation failed on"
 msgstr "woran die zuletzt gemeldete Wiederholung der Operation gescheitert ist"
 
-#: notify/serializers.py:124
+#: notify/serializers.py:99
 msgid ""
 "until when the next attempt of a retried task of the operation is due; while "
 "this window is open the operation reports itself as retrying"

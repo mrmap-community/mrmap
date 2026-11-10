@@ -147,7 +147,7 @@ export const BackgroundJobCenterProvider = ({
         stateRef.current,
         records,
       );
-      if (announce) {
+      if (announce && notifications) {
         transitions.failed.forEach((record) => {
           // once per process: the terminal state is written once and the
           // store never lets a process move back, so the same failure is
@@ -181,7 +181,7 @@ export const BackgroundJobCenterProvider = ({
       }
       commit(next);
     },
-    [commit, notify, translate],
+    [commit, notify, translate, notifications],
   );
 
   // hydration: every fresh page of the two windows rebuilds the store

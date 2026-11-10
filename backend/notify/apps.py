@@ -22,9 +22,13 @@ def create_background_process_cleanup_task(sender, **kwargs):
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
     # at half past the hour: a housekeeping sweep, out of the way of the five
-    # minute metadata import, the hourly dump sweep at five past and the
-    # probe artifact sweep at twenty past
-    schedule, _ = CrontabSchedule.objects.get_or_create(minute="30")
+    # minute metadata import, the hourly dump sweep at five past and the probe
+    # artifact sweep at twenty past. Asked by its whole shape and not by the
+    # minute alone: a deployment which schedules another task at half past
+    # would otherwise make this very lookup answer two rows (#1208)
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="30", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(
         name=BACKGROUND_PROCESS_CLEANUP_TASK_NAME,

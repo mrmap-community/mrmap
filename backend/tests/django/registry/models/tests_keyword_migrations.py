@@ -35,8 +35,9 @@ class KeywordMigrationTest(TransactionTestCase):
     # content-bearing keyword as a survivor of the removal.
     HAS_CONTENT = Q(keyword__regex='\\S') & ~Q(keyword__isnull=True)
 
-    # the fully blank contact, which is the only contact this test creates and the
-    # one shape a fixture of the application also creates
+    # the fully blank contact; this test creates one only where no other case left
+    # a blank one it can reuse, and a fixture of the application creates this shape
+    # too
     BLANK_CONTACT = dict(name='', person_name='', email='', phone='', facsimile='',
                          city='', postal_code='', address_type='', address='',
                          state_or_province='', country='')
@@ -54,7 +55,15 @@ class KeywordMigrationTest(TransactionTestCase):
         story with twelve columns. The links of the removed keywords go with them by
         the same cascade ``0015`` itself relies on.
 
-        Only these two tables are touched. Nothing else in the database is
+        The blank ``MetadataContact`` is the one state this method does not clear:
+        it reuses it instead. A blank contact can be what a service's restricted
+        ``service_contact`` and ``metadata_contact`` point at - the CI failure this
+        text is in was the deletion being refused with ``RestrictedError``, naming
+        the seeded Mr. Map CSW - and the assertion below is indifferent to which
+        blank contact its service carries, so an existing one is exactly as usable
+        as a freshly created one.
+
+        Only the keyword table is touched. Nothing else in the database is
         considered, because nothing else is asserted about.
         """
         keyword_table = apps.get_model('registry', 'Keyword')
@@ -67,7 +76,6 @@ class KeywordMigrationTest(TransactionTestCase):
         self.was = {'keywords': keyword_table.objects.count(),
                     'blank_contacts': blank_contacts.count()}
         keyword_table.objects.all().delete()
-        blank_contacts.delete()
 
     def test_removes_blank_keywords_and_links_before_adding_constraint(self):
         executor = MigrationExecutor(connection)
@@ -78,7 +86,13 @@ class KeywordMigrationTest(TransactionTestCase):
         Contact = apps.get_model('registry', 'MetadataContact')
         Service = apps.get_model('registry', 'WebMapService')
         self.prepare_database(apps)
-        contact = Contact.objects.create()
+        # The twelve-column unique constraint of #1215 lets at most one fully blank
+        # contact exist, and one can exist in the state this case starts from. That
+        # row may be under a restricted reference, so it cannot be deleted to make
+        # room for a new one - it is used, and a new one is created only while
+        # nothing blank is there.
+        contact = (Contact.objects.filter(**self.BLANK_CONTACT).first()
+                   or Contact.objects.create())
         service = Service.objects.create(
             version=1, service_url='https://example.com/wms',
             service_contact=contact, metadata_contact=contact,

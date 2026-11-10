@@ -566,6 +566,12 @@ const en = lodashMerge(
       abort: "Abort process",
       abortAsked: "The process was asked to abort.",
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
+      log: {
+        title: "Job log",
+        empty: "This process reported nothing.",
+        loadError: "Unable to load the log of this process.",
+        type: { error: "Error", warning: "Warning", info: "Note" },
+      },
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
     dashboard: {

@@ -546,6 +546,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abort: "Prozess abbrechen",
     abortAsked: "Der Prozess wurde zum Abbrechen aufgefordert.",
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
+    log: {
+      title: "Protokoll des Auftrags",
+      empty: "Dieser Auftrag hat nichts gemeldet.",
+      loadError: "Das Protokoll dieses Auftrags konnte nicht geladen werden.",
+      type: { error: "Fehler", warning: "Warnung", info: "Hinweis" },
+    },
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
   dashboard: {

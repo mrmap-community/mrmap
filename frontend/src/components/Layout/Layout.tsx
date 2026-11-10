@@ -1,31 +1,23 @@
 import { type ReactNode } from 'react';
-import { Layout, useSidebarState, type Identifier, type LayoutProps } from 'react-admin';
+import { Layout, useSidebarState, type LayoutProps } from 'react-admin';
 
 import { Box, Card } from '@mui/material';
-import { SnackbarProvider } from 'notistack';
 
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
-import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
-import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
+import BackgroundJobCenterProvider from '../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
 import CustomMenu from './Menu';
 
 
-declare module 'notistack' {
-  interface VariantOverrides {
-    // adds `taskProgress` variant and specifies the
-    // "extra" props it takes in options of `enqueueSnackbar`
-    taskProgress: {
-      taskId: Identifier
-    }
-  }
-}
-
-// Dirty hack to append SnackbarObserver
+// The feedback of ordinary user actions runs on react-admin's own
+// notifications (`useNotify`); background work is aggregated in the
+// Background Job Center (#1203). There is deliberately no custom snackbar
+// stack here: a persisting snackbar per background process is exactly the
+// flooding which replaced it.
 const MyLayout = (
   {
     children,
@@ -37,15 +29,9 @@ const MyLayout = (
 
   return (
     <SystemStatusProvider>
-    <SnackbarProvider
-      maxSnack={10}
-      // action={SnackbarCloseButton}
-      Components={{
-          taskProgress: SnackbarContentBackgroundProcess
-      }}
-    >
-      <RealtimeBus/> 
-      <I18Observer/>
+      <BackgroundJobCenterProvider>
+        <RealtimeBus/> 
+        <I18Observer/>
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}
@@ -131,7 +117,6 @@ const MyLayout = (
           }}>
             {children}
           </Box>
-          {<SnackbarObserver />}
         </Box>
         <Card 
           style={{
@@ -144,7 +129,7 @@ const MyLayout = (
           <Footer/>
         </Card>   
       </Layout>
-    </SnackbarProvider>
+      </BackgroundJobCenterProvider>
     </SystemStatusProvider>
 
   )

@@ -1,10 +1,13 @@
+from celery import states
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Case, F, Q, Value, When
-from django.db.models.fields import FloatField
+from django.db.models import (Case, Exists, F, OuterRef, Q, Subquery, Value,
+                              When)
+from django.db.models.fields import FloatField, TextField
 from django.db.models.functions import Coalesce, Greatest, Least, Round
 from django.db.models.signals import post_save
 from django.utils.timezone import now
+from django_celery_results.models import TaskResult
 from guardian.shortcuts import get_objects_for_user
 from notify.enums import ProcessStatusEnum
 
@@ -20,11 +23,30 @@ class BackgroundProcessManager(models.Manager):
         ProcessStatusEnum.ABORTED,
     ]
 
-    def process_info(self):
+    def process_info(self, state=True):
         # related_resource_type is rendered as a JSON:API relationship, so it is
         # always needed; without this the list endpoint and every websocket
         # payload triggers one ContentType query per BackgroundProcess.
+        #
+        # `state` adds the state contract of the Background Job Center (#1207):
+        # whether a worker of this process is currently held in a celery retry,
+        # and the last error which was logged about it. Both are subqueries, so
+        # the list of the drawer answers them without one query per process and
+        # without multiplying rows through the threads many-to-many. Senders
+        # which report a process they do not own (an untracked task mirroring
+        # its start) read the slim queryset: the retry subquery would drag the
+        # table of the task results back into a path which pays for it nothing
+        # (pinned by tests/django/notify/test_task_result_status.py).
         qs = self.get_queryset().select_related("related_resource_type")
+        if state:
+            qs = qs.annotate(
+                is_retrying=Exists(
+                    TaskResult.objects.filter(
+                        process=OuterRef("pk"), status=states.RETRY)),
+                error_summary=Subquery(
+                    self._error_logs().values("description")[:1],
+                    output_field=TextField()),
+            )
         qs = qs.annotate(
             progress=Case(
                 When(
@@ -47,6 +69,20 @@ class BackgroundProcessManager(models.Manager):
             )
         ).order_by('-date_created')
         return qs
+
+    @staticmethod
+    def _error_logs():
+        """The error logs of the outer process, newest first.
+
+        Imported here, because the log lives next to the process which is
+        rendered by this manager (see `log`).
+        """
+        from notify.enums import LogTypeEnum
+        from notify.models import BackgroundProcessLog
+
+        return BackgroundProcessLog.objects.filter(
+            background_process=OuterRef("pk"),
+            log_type=LogTypeEnum.ERROR.value).order_by("-date")
 
     def report(self, pk, status, phase=None, total_steps=None, step_done=False,
                steps_done=0):

@@ -258,8 +258,14 @@ class BackgroundProcessBased(Task):
                         try:
                             # process_info provides the progress annotation and
                             # the related resource type in one go, so the
-                            # post_save receiver doesn't have to reload.
-                            instance = BackgroundProcess.objects.process_info().get(
+                            # post_save receiver doesn't have to reload. The
+                            # state contract is read without its retry
+                            # subquery: a task mirroring its start owns no
+                            # TaskResult row (untracked tasks write none) and
+                            # must not read the table for it - see
+                            # test_task_result_status.UntrackedTaskTests.
+                            instance = BackgroundProcess.objects.process_info(
+                                state=False).get(
                                 pk=self.background_process_pk)
                             post_save.send(
                                 BackgroundProcess,

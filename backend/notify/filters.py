@@ -53,4 +53,10 @@ class BackgroundProcessFilterSet(FilterSet):
             "process_type": ["exact", "icontains", "contains"],
             "description": ["exact", "icontains", "contains"],
             "phase": ["exact", "icontains", "contains"],
+            # the history of the Background Job Center counts and lists the
+            # processes by the time they were created and decided (#1207):
+            # a tile of the drawer answers the completions of the last day,
+            # the history tab pages through them
+            "date_created": ["exact", "gt", "lt", "range"],
+            "done_at": ["exact", "gt", "lt", "range"],
         }

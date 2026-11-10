@@ -1,4 +1,4 @@
-import { AdminContext } from 'react-admin';
+import { AdminContext, Notification } from 'react-admin';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,6 +38,8 @@ const renderControls = (initialFeatures: OWSResource[] = []) => render(
   <AdminContext>
     <OwsContextBase initialFeatures={initialFeatures}>
       <MapTransferControls />
+      {/* the entry notice is a standard react-admin notification (#1204) */}
+      <Notification />
       <ContextProbe />
     </OwsContextBase>
   </AdminContext>

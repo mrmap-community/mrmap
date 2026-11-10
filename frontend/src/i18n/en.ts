@@ -566,7 +566,28 @@ const en = lodashMerge(
       abort: "Abort process",
       abortAsked: "The process was asked to abort.",
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
-      status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+      status: { pending: "Queued", queued: "Queued", running: "Running", retrying: "Retrying", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+      jobCenter: {
+        title: "Background jobs",
+        subtitle: "Long-running and background operations (harvesting, updates, …)",
+        completedInDay: "Completed (24 h)",
+        search: "Search jobs…",
+        searchEmpty: "No process matches this search.",
+        truncated: "Showing the %{shown} most recent of %{total} matching processes.",
+        tracked: "This view covers the %{tracked} most recent processes; the job history answers all of them.",
+        progressUnknownTotal: "Running with an unknown total",
+        tabs: { all: "All", running: "Running", waiting: "Waiting", failed: "Failed", history: "History" },
+        processTypes: {
+          harvesting: "Harvesting",
+          monitoring: "Monitoring",
+          registering: "Registration",
+          update: "Update",
+        },
+        clearCompleted: "Clear completed (%{count})",
+        openHistory: "Open job history",
+        notifyFailed: "%{description} failed. Open the background jobs for the details.",
+        notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
+      },
     },
     dashboard: {
       workQueue: {
@@ -1168,19 +1189,6 @@ const en = lodashMerge(
           downloadDuration: "Download duration",
         },
       },
-      BackgroundProcess: {
-        titles: {
-          registering: "Register new Service",
-          harvesting: "Harvesting",
-          harvestingOf: "Harvesting of %{id}",
-          monitoring: "Monitoring",
-          runningTask: "Running Task",
-        },
-        states: {
-          completed: "completed",
-          waitingForSchedule: "waiting for schedule",
-        },
-        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

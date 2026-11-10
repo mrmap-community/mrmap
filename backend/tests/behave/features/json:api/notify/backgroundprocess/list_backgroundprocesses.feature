@@ -130,3 +130,39 @@ Feature: BackgroundProcess List Endpoint
         When I send the request with GET method
         Then I expect the response status is 400
         Then I expect that response json has an attribute "errors.[0].code" with value "invalid_choice"
+
+    # The Background Job Center renders every row of its drawer from the
+    # logical state of the process (#1207): queued, running, failed - the
+    # stored status with the one decoration the client cannot derive, the
+    # retry of a worker. The retry flag and the error summary belong to the
+    # representation of every process; no thread of the fixture is retried and
+    # no error log was seeded, so both answer empty here.
+    Scenario Outline: Can read the logical state of a process
+        Given I set a queryparam "filter[id]" with value "<id>"
+        When I send the request with GET method
+        Then I expect that response json has an attribute "data.[0].attributes.state" with value "<state>"
+        Then I expect that response json has an attribute "data.[0].attributes.isRetrying" with value "false"
+        Then I expect that response json has an attribute "data.[0].attributes.errorSummary"
+
+        Examples:
+            | id | state    |
+            | 1  | running  |
+            | 2  | failed   |
+            | 4  | queued   |
+
+    # The tile of the completions of the last day counts the processes which
+    # decided about themselves after a time; a process which did not decide
+    # yet has no done_at and never belongs to such a count. The history window
+    # pages the older processes by their creation time; the fixture answers
+    # creation times from 2023-01-01 to 2023-01-04.
+    Scenario Outline: Can window processes by the time they started or decided
+        Given I set a queryparam "<param>" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | param                  | value                | count |
+            | filter[dateCreated.lt] | 2023-01-03T00:00:00Z | 2     |
+            | filter[dateCreated.gt] | 2023-01-03T00:00:00Z | 2     |
+            | filter[doneAt.gt]      | 2023-01-03T00:00:00Z | 0     |

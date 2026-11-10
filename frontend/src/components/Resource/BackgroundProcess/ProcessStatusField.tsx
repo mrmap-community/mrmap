@@ -15,6 +15,10 @@ const STATUS_COLORS: Record<
   completed: "success",
   failed: "error",
   aborted: "warning",
+  // the words of the logical state contract (#1207), which this field also
+  // renders when its source is `state`
+  queued: "default",
+  retrying: "warning",
 };
 
 /**

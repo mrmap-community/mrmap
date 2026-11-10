@@ -99,7 +99,7 @@ const BackgroundJobBridge = ({
       jobs
         .filter((job) => isActiveStatus(job.status))
         .map((job) => String(job.id))
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .join(','),
     [jobs],
   );

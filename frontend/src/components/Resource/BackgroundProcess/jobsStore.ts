@@ -425,7 +425,7 @@ export const createBackgroundJobStore = (options: BackgroundJobStoreOptions = {}
     Array.from(jobs.values())
       .filter((job) => isActiveStatus(job.status))
       .map((job) => keyOf(job.id))
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
 
   /** release every timer and listener - used by the specs and hot reload. */
   const destroy = (): void => {

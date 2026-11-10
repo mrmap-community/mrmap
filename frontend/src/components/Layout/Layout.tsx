@@ -1,29 +1,17 @@
 import { type ReactNode } from 'react';
-import { Layout, useSidebarState, type Identifier, type LayoutProps } from 'react-admin';
+import { Layout, useSidebarState, type LayoutProps } from 'react-admin';
 
 import { Box, Card } from '@mui/material';
-import { SnackbarProvider } from 'notistack';
 
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
-import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
 import CustomMenu from './Menu';
 
-
-declare module 'notistack' {
-  interface VariantOverrides {
-    // adds `taskProgress` variant and specifies the
-    // "extra" props it takes in options of `enqueueSnackbar`
-    taskProgress: {
-      taskId: Identifier
-    }
-  }
-}
 
 // wraps the Admin layout and mounts the renderless observers: the realtime bus,
 // the locale observer and the background-job bridge (#1205) which aggregates the
@@ -39,13 +27,6 @@ const MyLayout = (
 
   return (
     <SystemStatusProvider>
-    <SnackbarProvider
-      maxSnack={10}
-      // action={SnackbarCloseButton}
-      Components={{
-          taskProgress: SnackbarContentBackgroundProcess
-      }}
-    >
       <RealtimeBus/> 
       <I18Observer/>
       <BackgroundJobBridge />
@@ -146,7 +127,6 @@ const MyLayout = (
           <Footer/>
         </Card>   
       </Layout>
-    </SnackbarProvider>
     </SystemStatusProvider>
 
   )

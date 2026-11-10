@@ -23,10 +23,6 @@ const state = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
 
-// the legacy per-event snackbar observer (#1205 retires it); a render of this
-// stand-in means somebody mounted it into the layout again
-const legacyObserverRenders = vi.hoisted(() => vi.fn());
-
 // the react-admin surface the layout and the background-job bridge use; the
 // bridge itself and its store run unmocked, so the wiring is the one shipping
 vi.mock('react-admin', () => ({
@@ -53,9 +49,6 @@ vi.mock('react-admin', () => ({
 
 // the layout chrome: real enough to prove the mount order, light enough to not
 // fetch the system status or build the menu
-vi.mock('notistack', () => ({
-  SnackbarProvider: ({ children }: { children?: ReactNode }) => <>{children}</>,
-}));
 vi.mock('../../context/SystemStatusContext', () => ({
   SystemStatusProvider: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
@@ -64,15 +57,6 @@ vi.mock('../../context/HttpClientContext', () => ({
 }));
 vi.mock('../../jsonapi/components/I18Observer', () => ({ default: () => null }));
 vi.mock('../../jsonapi/components/Realtime/RealtimeBus', () => ({ default: () => null }));
-vi.mock('../../jsonapi/components/Realtime/SnackbarObserver', () => ({
-  default: () => {
-    legacyObserverRenders();
-    return null;
-  },
-}));
-vi.mock('../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess', () => ({
-  default: () => null,
-}));
 vi.mock('./AppBar', () => ({ default: () => null }));
 vi.mock('./Menu', () => ({ default: () => null }));
 vi.mock('./BreadCrump', () => ({ default: () => null }));
@@ -96,7 +80,6 @@ beforeEach(() => {
   state.listData = [];
   state.refetch.mockClear();
   state.notify.mockClear();
-  legacyObserverRenders.mockClear();
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -134,14 +117,5 @@ describe('MyLayout', () => {
     expect(state.notify).toHaveBeenCalledWith('backgroundJobs.notification.failedOne', {
       type: 'error',
     });
-  });
-
-  it('never mounts the legacy per-event snackbar observer', () => {
-    render(
-      <MyLayout>
-        <span />
-      </MyLayout>,
-    );
-    expect(legacyObserverRenders).not.toHaveBeenCalled();
   });
 });

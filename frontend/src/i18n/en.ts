@@ -1174,19 +1174,6 @@ const en = lodashMerge(
           downloadDuration: "Download duration",
         },
       },
-      BackgroundProcess: {
-        titles: {
-          registering: "Register new Service",
-          harvesting: "Harvesting",
-          harvestingOf: "Harvesting of %{id}",
-          monitoring: "Monitoring",
-          runningTask: "Running Task",
-        },
-        states: {
-          completed: "completed",
-          waitingForSchedule: "waiting for schedule",
-        },
-        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

@@ -1,4 +1,13 @@
 # docker compose file for productive useage
+
+x-proxy-env: &proxy-env
+  http_proxy:
+  https_proxy:
+  HTTP_PROXY:
+  HTTPS_PROXY:
+  no_proxy: ${no_proxy:-localhost},backend,celery-worker,flower,pgadmin,docker-api,grafana,victoria-logs
+  NO_PROXY: ${NO_PROXY:-localhost},backend,celery-worker,flower,pgadmin,docker-api,grafana,victoria-logs
+
 services:
 
   postgis:
@@ -121,6 +130,7 @@ services:
       - mrmap-internal
       - docker-status
     environment:
+      <<: *proxy-env
       SYSTEM_STATUS_DOCKER_PROJECT: "${COMPOSE_PROJECT_NAME}"
       SYSTEM_STATUS_DOCKER_URL: "http://docker-api:2375"
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
@@ -172,7 +182,7 @@ services:
     # queues it cannot deliver from at every start.
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO --statedb=/var/run/celery/%n-%i_worker.state"
-    # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
+    # Do not activate tty!!!!! This will freeze the worker process in case of console spamming.
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.
     restart: unless-stopped
@@ -195,6 +205,7 @@ services:
     networks:
       - mrmap-internal
     environment:
+      <<: *proxy-env
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       # deployer knob of Django's host allow-list (#949), ";"/"," separated, empty = presets only
       DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
@@ -294,8 +305,7 @@ services:
     hostname: "nginx"
     restart: unless-stopped
     environment:
-      - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin
-      - NO_PROXY=${NO_PROXY:-localhost},backend,flower,pgadmin
+      <<: *proxy-env
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.conf
@@ -346,6 +356,7 @@ services:
     restart: unless-stopped
     hostname: "grafana"
     environment:
+      <<: *proxy-env
       GF_SERVER_ROOT_URL: "http://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:?Please configure GRAFANA_ADMIN_USER in the .env file}"
@@ -379,7 +390,7 @@ services:
         source: ./docker/pgadmin/servers.json
         target: /pgadmin4/servers.json
     networks:
-      - mrmap-internal    
+      - mrmap-internal
   flower:
     image: mher/flower:2.2
     restart: unless-stopped

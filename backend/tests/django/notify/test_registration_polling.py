@@ -2,15 +2,16 @@
 
 D01/B of #1175: the POST which registers a WMS, WFS or CSW answers the
 `BackgroundProcess` the viewset created and no longer a `TaskResult` - a
-registration leaves no row of that legacy table behind. D02/A: the process
-completes when the whole workflow ran to the end, including the metadata
-collection which was requested; the service it built is named as soon as it
-exists, and metadata steps which failed are readable in the process' logs
-while the service and its link stay.
+registration leaves no row of that legacy table behind, and the table itself
+goes with the package (#1180). D02/A: the process completes when the whole
+workflow ran to the end, including the metadata collection which was
+requested; the service it built is named as soon as it exists, and metadata
+steps which failed are readable in the process' logs while the service and
+its link stay.
 
-The state transitions are answered through celery's tracer, like in
-`test_task_result_status.py`, because the reports into the process run in the
-very same signal handlers a worker pays.
+The state transitions are answered through celery's tracer (`WorkerRunMixin`
+of `tests.django.utils`), because the reports into the process run in the very
+same signal handlers a worker pays.
 """
 
 import json
@@ -22,9 +23,9 @@ from accounts.models import Organization
 from celery.app.trace import build_tracer
 from celery.exceptions import Retry
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
-from django_celery_results.models import TaskResult
 from drf_spectacular.generators import SchemaGenerator
 from guardian.shortcuts import assign_perm
 from notify.enums import LogTypeEnum, ProcessStatusEnum
@@ -35,8 +36,7 @@ from registry.models.metadata import RemoteMetadata
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
 from rest_framework.test import APIClient
-from tests.django.notify.test_task_result_status import WorkerRunMixin
-from tests.django.utils import MockResponse
+from tests.django.utils import MockResponse, WorkerRunMixin
 
 JSONAPI = "application/vnd.api+json"
 CAPABILITIES = Path(
@@ -57,7 +57,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
     """A client which only knows HTTP follows its registration on the process.
 
     A `TransactionTestCase` with the channel layer of the tests: the answers
-    of a task commit for real (see `test_task_result_status.py`) and the
+    of a task commit for real (the tracer of `WorkerRunMixin`) and the
     progress reports of the process broadcast over channels, which no
     deployment's redis is asked of here.
     """
@@ -127,6 +127,29 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         task_kwargs = apply_async.call_args.kwargs["kwargs"]
         return response, task_kwargs
 
+    def assert_no_generic_result_rows(self):
+        """A registration leaves no row in a generic per-task result table.
+
+        Asked of the database catalog and not of a model: the `TaskResult`
+        model is retired as a whole with the package (#1180), so the guard
+        which keeps a per-task bookkeeping from creeping back must not need
+        the import of the package it guards against. While the package is
+        still installed its tables are there and must be empty; once it is
+        uninstalled there is no such table to hold anything and the promise
+        holds by construction.
+        """
+        tables = [
+            table for table in connection.introspection.table_names()
+            if table.startswith("django_celery_results_")]
+        for table in tables:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM %s"
+                    % connection.ops.quote_name(table))
+                self.assertEqual(
+                    cursor.fetchone()[0], 0,
+                    f"{table} holds rows no client was asked about")
+
     def answer_shared(self, task, args=(), kwargs=None):
         """Answers one of the real project tasks the way a worker would.
 
@@ -176,7 +199,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         self.assertIsNone(attributes["doneAt"])
 
         # D01/B: no legacy row was made for this registration
-        self.assertEqual(TaskResult.objects.count(), 0)
+        self.assert_no_generic_result_rows()
 
     def test_the_published_root_is_owned_before_a_worker_can_pick_it_up(self):
         """The abort right after the POST revokes the task by its id (#1179).
@@ -259,7 +282,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
             attributes["relatedResource"],
             {"type": "WebMapService", "id": str(service.pk)})
         self.assertIsNotNone(attributes["doneAt"])
-        self.assertEqual(TaskResult.objects.count(), 0)
+        self.assert_no_generic_result_rows()
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND='memory')
     def test_a_catalogue_registration_names_the_service_it_built(self):
@@ -284,7 +307,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
             {"type": "CatalogueService", "id": str(catalogue.pk)})
         # and it is the service of the document which was served
         self.assertEqual(catalogue.title, "CSW Geoportal Hessen")
-        self.assertEqual(TaskResult.objects.count(), 0)
+        self.assert_no_generic_result_rows()
 
     # -- the milestones of a registration with collection --------------------
 
@@ -380,7 +403,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
             attributes["relatedResource"],
             {"type": "WebMapService",
              "id": str(WebMapService.objects.get().pk)})
-        self.assertEqual(TaskResult.objects.count(), 0)
+        self.assert_no_generic_result_rows()
 
     # -- outcomes which must not be mistaken ---------------------------------
 
@@ -415,8 +438,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
 
         self.answer(
             self.task(registering, base=BackgroundProcessBased),
-            task_kwargs={"background_process_pk": str(process.pk)},
-            opted_in=False)
+            task_kwargs={"background_process_pk": str(process.pk)})
 
         process.refresh_from_db()
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
@@ -440,8 +462,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
 
         self.answer(
             self.task(registering, base=BackgroundProcessBased),
-            task_kwargs={"background_process_pk": str(process.pk)},
-            opted_in=False)
+            task_kwargs={"background_process_pk": str(process.pk)})
 
         process.refresh_from_db()
         self.assertEqual(process.status, ProcessStatusEnum.FAILED)

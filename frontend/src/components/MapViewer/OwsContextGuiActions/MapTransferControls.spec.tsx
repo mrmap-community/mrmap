@@ -42,6 +42,9 @@ const renderControls = (initialFeatures: OWSResource[] = []) => render(
       <Notification />
       <ContextProbe />
     </OwsContextBase>
+    {/* the app renders the notification host through its Layout; here it
+        sits next to the controls, reading the same AdminContext */}
+    <Notification />
   </AdminContext>
 );
 
@@ -143,6 +146,7 @@ describe('map transfer controls', () => {
 
     await waitFor(() => expect(probe().titles).toEqual(['from share']));
     expect(window.location.hash).toBe('');
+    expect(await screen.findByText('mapTransfer.restoredShare')).toBeInTheDocument();
   });
 
   it('restores the draft of the last session on start', async () => {

@@ -1,9 +1,17 @@
 from unittest.mock import patch
 
-from django.test import TestCase
-from notify.enums import ProcessStatusEnum
+from celery.app.task import Context
+from celery.exceptions import Retry
+from celery.signals import task_revoked
+from django.db import connection
+from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
+from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess
 from notify.tasks import BackgroundProcessBased, get_background_process
+from tests.django.utils import WorkerRunMixin
+
+BACKGROUND_PROCESS_TABLE = BackgroundProcess._meta.db_table
 
 
 class BackgroundProcessTaskTests(TestCase):
@@ -102,3 +110,91 @@ class BackgroundProcessTaskTests(TestCase):
         self.task.update_background_process(total_steps=0)
         self.assertEqual(self.info().total_steps, 0)
         self.assertEqual(self.info().progress, 0)
+
+
+class NoPerTaskResultBookkeepingTests(WorkerRunMixin, TransactionTestCase):
+    """No task of the deployment books itself in a generic per-task result table.
+
+    The mirroring of #1164 wrote a `TaskResult` row for the tasks the
+    asynchronous api published, #1176 narrowed it to the opted-in ones, and
+    #1180 removes it together with the package. What stays is the property both
+    guarded and which #1175 names as its completion criterion: a task at no
+    lifecycle stage costs sql against a generic result table, and no per-child
+    model takes its place.
+
+    Asked of the sql a run issues, matched on the name such a table carries,
+    and never of a model: the guard has to outlive the import of the package it
+    guards against.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # the domain table whose reads and writes are told apart from a
+        # per-task bookkeeping: what a harvesting task legitimately does must
+        # stay
+        BackgroundProcess.objects.create(
+            phase='waiting',
+            process_type=ProcessNameEnum.HARVESTING.value,
+            description='an unrelated job')
+
+    def assert_no_per_task_result_sql(self, run):
+        """`run` issues no sql against a generic per-task result table.
+
+        A marker query on a table of the domain runs inside the capture: the
+        worker's own prerun and postrun handlers of this project close the
+        connection around a task, and the marker is what tells a capture which
+        saw the run apart from one which saw nothing - an assertion on an empty
+        capture would prove nothing.
+        """
+        with CaptureQueriesContext(connection) as captured:
+            run()
+            BackgroundProcess.objects.count()
+
+        queries = captured.captured_queries
+        self.assertTrue(
+            any(BACKGROUND_PROCESS_TABLE in q['sql'] for q in queries),
+            'the capture did not see the marker query; asserting the absence '
+            'of per-task result sql on an empty capture means nothing')
+        self.assertEqual(
+            [q['sql'] for q in queries
+             if 'celery_results' in q['sql'].lower()], [],
+            'a task must not book itself in a generic per-task result table')
+
+    def test_a_successful_task_costs_no_per_task_result_sql(self):
+        @self.task
+        def import_record():
+            return 'imported'
+
+        self.assert_no_per_task_result_sql(
+            lambda: self.answer(import_record))
+
+    def test_a_failing_task_costs_no_per_task_result_sql(self):
+        @self.task
+        def import_record():
+            raise ValueError('the endpoint answered garbage')
+
+        self.assert_no_per_task_result_sql(
+            lambda: self.answer(import_record))
+
+    def test_a_retried_task_costs_no_per_task_result_sql(self):
+        @self.task
+        def import_record():
+            raise Retry('the service is currently unreachable')
+
+        self.assert_no_per_task_result_sql(
+            lambda: self.answer(import_record))
+
+    def test_a_revoked_task_costs_no_per_task_result_sql(self):
+        @self.task
+        def import_record():
+            return 'imported'
+
+        # celery builds the request of a revocation from the headers of the
+        # message it revokes
+        self.assert_no_per_task_result_sql(
+            lambda: task_revoked.send(
+                sender=import_record,
+                request=Context({'id': self.task_id}),
+                terminated=True,
+                signum=9,
+                expired=False))

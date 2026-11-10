@@ -224,7 +224,6 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "ReferenceSystem"},
 
-  {name: "TaskResult"},
   {
     name: "BackgroundProcess",
     icon: UpdateIcon,

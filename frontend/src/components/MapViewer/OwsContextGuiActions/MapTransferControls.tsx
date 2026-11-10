@@ -97,7 +97,7 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
     if (shared !== undefined) {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       const result = updateOwsContext(shared);
-      if (!result.hasErrors) notify('mapTransfer.restoredShare', { type: 'info' });
+      if (!result.hasErrors) notify('mapTransfer.restoredShare', { type: 'success' });
       return;
     }
     try {
@@ -107,7 +107,7 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
       const features = (parsed as PlainDocument | null)?.features;
       if (!Array.isArray(features) || features.length === 0) return;
       const result = updateOwsContext(parsed);
-      if (!result.hasErrors) notify('mapTransfer.restoredDraft', { type: 'info' });
+      if (!result.hasErrors) notify('mapTransfer.restoredDraft', { type: 'success' });
     } catch {
       // a broken draft is dropped silently; the next save overwrites it
     }
@@ -127,7 +127,6 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
       if (saveTimer.current !== undefined) clearTimeout(saveTimer.current);
     };
   }, [owsContext, isLoading, persistDrafts]);
-
 };
 
 export const MapTransferControls = ({ persistDrafts = true }: { persistDrafts?: boolean }) => {

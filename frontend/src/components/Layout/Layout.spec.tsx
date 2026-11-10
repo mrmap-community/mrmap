@@ -129,7 +129,6 @@ describe('MyLayout', () => {
       type: 'error',
     });
   });
-
   it('mounts the Background Job Center around the layout', () => {
     render(
       <MyLayout>

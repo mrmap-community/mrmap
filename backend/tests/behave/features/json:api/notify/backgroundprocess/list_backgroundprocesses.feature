@@ -130,7 +130,6 @@ Feature: BackgroundProcess List Endpoint
         When I send the request with GET method
         Then I expect the response status is 400
         Then I expect that response json has an attribute "errors.[0].code" with value "invalid_choice"
-
     # The background job center of the frontend renders one operation by one
     # normalized state (#1207), derived from the status together with the steps,
     # the retry window and the attention flag of the process. Its tabs ask for
@@ -183,6 +182,23 @@ Feature: BackgroundProcess List Endpoint
         Then I expect that response json has an attribute "data.[0].attributes.revision" with value "0"
         Then I expect that response json has an attribute "data.[0].attributes.errorSummary" with value "None"
         Then I expect that response json does not have an attribute "data.[0].attributes.actionRequired"
+
+    # The tile of the completions of the last day counts the processes which
+    # decided about themselves after a time; a process which did not decide
+    # yet has no done_at and never belongs to such a count. The history window
+    # pages the older processes by their creation time; the fixture answers
+    # creation times from 2023-01-01 to 2023-01-04.
+    Scenario Outline: Can window processes by the time they started or decided
+        Given I set a queryparam "<param>" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | param                  | value                | count |
+            | filter[dateCreated.lt] | 2023-01-03T00:00:00Z | 2     |
+            | filter[dateCreated.gt] | 2023-01-03T00:00:00Z | 2     |
+            | filter[doneAt.gt]      | 2023-01-03T00:00:00Z | 0     |
 
     # One group of the job center is the set of operations which report about
     # one resource. The lookup is configured, so it is answered - an unconfigured

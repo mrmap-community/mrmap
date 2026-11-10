@@ -103,6 +103,12 @@ class BackgroundProcessFilterSet(FilterSet):
             # one group of the background job center is the set of operations
             # which report about one resource; the drawer asks for it by id
             "related_id": ["exact", "in"],
+            # the history of the Background Job Center counts and lists the
+            # processes by the time they were created and decided (#1207):
+            # a tile of the drawer answers the completions of the last day,
+            # the history tab pages through them
+            "date_created": ["exact", "gt", "lt", "range"],
+            "done_at": ["exact", "gt", "lt", "range"],
         }
 
     def filter_state(self, queryset, name, value):

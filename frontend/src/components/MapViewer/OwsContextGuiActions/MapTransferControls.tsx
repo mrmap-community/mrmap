@@ -84,6 +84,8 @@ export const decodeShareFragment = (fragment: string): unknown | undefined => {
  */
 export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boolean } = {}) => {
   const { owsContext, updateOwsContext, isLoading } = useOwsContextBase();
+  // ordinary user-facing feedback goes through the standard notification of
+  // react-admin, like every other direct action (#1204)
   const notify = useNotify();
   const entryDone = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

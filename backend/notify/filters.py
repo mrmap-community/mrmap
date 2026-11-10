@@ -103,8 +103,9 @@ class BackgroundProcessFilterSet(FilterSet):
             # one group of the background job center is the set of operations
             # which report about one resource; the drawer asks for it by id
             "related_id": ["exact", "in"],
-            # the history screen of the frontend searches the past by its
-            # moments, not only by its words (#1208)
+            # the Background Job Center counts and lists processes by the
+            # times they were created and decided (#1207); the history
+            # screen of #1208 pages the past by the same moments
             "date_created": ["exact", "gt", "gte", "lt", "lte", "range"],
             "done_at": ["exact", "gt", "gte", "lt", "lte", "range"],
         }

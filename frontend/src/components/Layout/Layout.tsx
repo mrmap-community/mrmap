@@ -7,6 +7,7 @@ import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
+import BackgroundJobCenterProvider from '../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
@@ -15,7 +16,11 @@ import CustomMenu from './Menu';
 
 // wraps the Admin layout and mounts the renderless observers: the realtime bus,
 // the locale observer and the background-job bridge (#1205) which aggregates the
-// background processes and turns only the failures into notifications
+// background processes and turns only the failures into notifications. The
+// Background Job Center (#1203) is mounted here as well; the feedback of
+// ordinary user actions runs on react-admin's own notifications (`useNotify`).
+// There is deliberately no custom snackbar stack: a persisting snackbar per
+// background process is exactly the flooding the Job Center replaced.
 const MyLayout = (
   {
     children,
@@ -27,9 +32,14 @@ const MyLayout = (
 
   return (
     <SystemStatusProvider>
-      <RealtimeBus/> 
-      <I18Observer/>
-      <BackgroundJobBridge />
+      {/* the center feeds drawer, indicator and store; its own announcement
+          bridge is silent here because the BackgroundJobBridge below is the
+          mounted notification path (#1205) — one failure must not become
+          two toasts */}
+      <BackgroundJobCenterProvider notifications={false}>
+        <RealtimeBus/> 
+        <I18Observer/>
+        <BackgroundJobBridge />
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}
@@ -127,6 +137,7 @@ const MyLayout = (
           <Footer/>
         </Card>   
       </Layout>
+      </BackgroundJobCenterProvider>
     </SystemStatusProvider>
 
   )

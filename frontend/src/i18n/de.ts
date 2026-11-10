@@ -773,19 +773,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         downloadDuration: "Download-Dauer",
       },
     },
-    BackgroundProcess: {
-      titles: {
-        registering: "Neuen Dienst registrieren",
-        harvesting: "Datenübernahme",
-        harvestingOf: "Datenübernahme von %{id}",
-        monitoring: "Monitoring",
-        runningTask: "Laufende Aufgabe",
-      },
-      states: {
-        completed: "abgeschlossen",
-        waitingForSchedule: "wartet auf den Zeitplan",
-      },
-      stepsDone: "%{done} von %{total} Schritten abgeschlossen.",    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",

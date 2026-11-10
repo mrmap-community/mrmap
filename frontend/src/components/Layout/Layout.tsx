@@ -1,31 +1,17 @@
 import { type ReactNode } from 'react';
-import { Layout, useSidebarState, type Identifier, type LayoutProps } from 'react-admin';
+import { Layout, useSidebarState, type LayoutProps } from 'react-admin';
 
 import { Box, Card } from '@mui/material';
-import { SnackbarProvider } from 'notistack';
 
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
-import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
-import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
 import CustomMenu from './Menu';
 
 
-declare module 'notistack' {
-  interface VariantOverrides {
-    // adds `taskProgress` variant and specifies the
-    // "extra" props it takes in options of `enqueueSnackbar`
-    taskProgress: {
-      taskId: Identifier
-    }
-  }
-}
-
-// Dirty hack to append SnackbarObserver
 const MyLayout = (
   {
     children,
@@ -37,13 +23,6 @@ const MyLayout = (
 
   return (
     <SystemStatusProvider>
-    <SnackbarProvider
-      maxSnack={10}
-      // action={SnackbarCloseButton}
-      Components={{
-          taskProgress: SnackbarContentBackgroundProcess
-      }}
-    >
       <RealtimeBus/> 
       <I18Observer/>
       <Layout
@@ -131,7 +110,6 @@ const MyLayout = (
           }}>
             {children}
           </Box>
-          {<SnackbarObserver />}
         </Box>
         <Card 
           style={{
@@ -144,7 +122,6 @@ const MyLayout = (
           <Footer/>
         </Card>   
       </Layout>
-    </SnackbarProvider>
     </SystemStatusProvider>
 
   )

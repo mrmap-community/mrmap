@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTranslate } from 'react-admin';
+import { useNotify, useTranslate } from 'react-admin';
 
 import DownloadIcon from '@mui/icons-material/Download';
 import ShareIcon from '@mui/icons-material/Share';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fab, Snackbar, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fab, TextField, Tooltip, Typography } from '@mui/material';
 
 import { serializeOwsContext } from '../../../ows-lib/OwsContext/authentication';
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
@@ -84,7 +84,7 @@ export const decodeShareFragment = (fragment: string): unknown | undefined => {
  */
 export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boolean } = {}) => {
   const { owsContext, updateOwsContext, isLoading } = useOwsContextBase();
-  const [notice, setNotice] = useState<string | undefined>(undefined);
+  const notify = useNotify();
   const entryDone = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -95,7 +95,7 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
     if (shared !== undefined) {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       const result = updateOwsContext(shared);
-      if (!result.hasErrors) setNotice('shared');
+      if (!result.hasErrors) notify('mapTransfer.restoredShare', { type: 'success' });
       return;
     }
     try {
@@ -105,11 +105,11 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
       const features = (parsed as PlainDocument | null)?.features;
       if (!Array.isArray(features) || features.length === 0) return;
       const result = updateOwsContext(parsed);
-      if (!result.hasErrors) setNotice('draft');
+      if (!result.hasErrors) notify('mapTransfer.restoredDraft', { type: 'success' });
     } catch {
       // a broken draft is dropped silently; the next save overwrites it
     }
-  }, [updateOwsContext]);
+  }, [updateOwsContext, notify]);
 
   useEffect(() => {
     if (!persistDrafts || isLoading) return;
@@ -125,8 +125,6 @@ export const useTransferEntry = ({ persistDrafts = true }: { persistDrafts?: boo
       if (saveTimer.current !== undefined) clearTimeout(saveTimer.current);
     };
   }, [owsContext, isLoading, persistDrafts]);
-
-  return { notice, dismissNotice: () => setNotice(undefined) };
 };
 
 export const MapTransferControls = ({ persistDrafts = true }: { persistDrafts?: boolean }) => {
@@ -135,7 +133,7 @@ export const MapTransferControls = ({ persistDrafts = true }: { persistDrafts?: 
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [shareLink, setShareLink] = useState<string | undefined>(undefined);
   const [importErrors, setImportErrors] = useState<string[] | undefined>(undefined);
-  const { notice, dismissNotice } = useTransferEntry({ persistDrafts });
+  useTransferEntry({ persistDrafts });
 
   const exportMap = () => {
     const blob = new Blob([serializeForTransfer(owsContext)], { type: 'application/geo+json' });
@@ -189,13 +187,6 @@ export const MapTransferControls = ({ persistDrafts = true }: { persistDrafts?: 
     <Tooltip title={translate('mapTransfer.share')}>
       <span><Fab size="small" color="secondary" aria-label="share-map" onClick={shareMap}><ShareIcon /></Fab></span>
     </Tooltip>
-
-    <Snackbar
-      open={notice !== undefined}
-      autoHideDuration={6000}
-      onClose={dismissNotice}
-      message={translate(`mapTransfer.restored${notice === 'shared' ? 'Share' : 'Draft'}`)}
-    />
 
     <Dialog open={importErrors !== undefined} onClose={() => setImportErrors(undefined)} maxWidth="sm" fullWidth>
       <DialogTitle>{translate('mapTransfer.import')}</DialogTitle>

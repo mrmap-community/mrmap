@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap.settings import BASE_DIR
-from registry.models.harvest import PeriodicHarvestingJob
+from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
@@ -17,6 +17,15 @@ FIXTURE_TAG_PREFIX = "fixtures:"
 
 #: Tag of a feature that needs no data at all beyond the users ``before_all`` loads.
 NO_FIXTURES_TAG = "no_fixtures"
+
+# rows which only the application record features of #830 declare; the pks belong
+# to test_applicationmetadata.json and test_applicationharvesting.json
+APPLICATION_CONTACT_PKS = [1235, 1236]
+APPLICATION_RECORD_PKS = [
+    "a11c0000-0000-4000-8000-000000000001",
+    "a11c0000-0000-4000-8000-000000000002",
+]
+APPLICATION_HARVESTING_JOB_PKS = [903]
 
 #: Fixture file adding the service and application records of the #829 mixed
 #: ``/csw`` set to the dataset set the ``/csw`` features share.
@@ -180,6 +189,14 @@ def after_feature(context, feature):
     while it runs.
     """
     fixtures = requested_fixtures(feature)
+    if "test_applicationharvesting.json" in fixtures:
+        # deleting the job cascades the harvested relations which hang from it
+        HarvestingJob.objects.filter(pk__in=APPLICATION_HARVESTING_JOB_PKS).delete()
+    if "test_applicationmetadata.json" in fixtures:
+        # the record cascades its own harvested relations; the contact is what
+        # RESTRICTs a deletion, so it goes last
+        ApplicationMetadataRecord.objects.filter(pk__in=APPLICATION_RECORD_PKS).delete()
+        MetadataContact.objects.filter(pk__in=APPLICATION_CONTACT_PKS).delete()
     if MIXED_RECORDS_FIXTURE in fixtures:
         for pk in MIXED_RECORDS_PKS:
             ServiceMetadataRecord.objects.filter(pk=pk).delete()

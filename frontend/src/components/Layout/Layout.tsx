@@ -6,12 +6,16 @@ import { Box, Card } from '@mui/material';
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
+import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
 import CustomMenu from './Menu';
 
 
+// wraps the Admin layout and mounts the renderless observers: the realtime bus,
+// the locale observer and the background-job bridge (#1205) which aggregates the
+// background processes and turns only the failures into notifications
 const MyLayout = (
   {
     children,
@@ -25,6 +29,7 @@ const MyLayout = (
     <SystemStatusProvider>
       <RealtimeBus/> 
       <I18Observer/>
+      <BackgroundJobBridge />
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}

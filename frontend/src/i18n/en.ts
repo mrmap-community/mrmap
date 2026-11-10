@@ -568,6 +568,12 @@ const en = lodashMerge(
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
       status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
     },
+    backgroundJobs: {
+      notification: {
+        failedOne: "A background task failed and needs attention.",
+        failedMany: "%{count} background tasks failed and need attention.",
+      },
+    },
     dashboard: {
       workQueue: {
         title: "Work which waits",

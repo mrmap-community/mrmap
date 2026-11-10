@@ -3,7 +3,8 @@ from extras.serializers import (HistoryInformationSerializer,
                                 StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from guardian.core import ObjectPermissionChecker
-from registry.models.metadata import (DatasetMetadataRecord, IsoCategory, Keyword, Language, Licence,
+from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
+                                      IsoCategory, Keyword, Language, Licence,
                                       MetadataContact, MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
@@ -319,5 +320,75 @@ class ServiceMetadataRecordSerializer(
 
     class Meta:
         model = ServiceMetadataRecord
+        # see DatasetMetadataRecordSerializer.Meta
+        exclude = ("search_vector",)
+
+
+class ApplicationMetadataRecordSerializer(
+        RecordPermissionsSerializerMixin,
+        StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
+        ModelSerializer):
+    """ The application record is shaped like the dataset record (#825), so its answer
+    is the dataset answer without the self pointing resources and with the contact which
+    provides the application in place of the one which provides the dataset.
+
+    A list variant is not declared: like the dataset and the service record this single
+    serializer answers both actions and ``RecordPermissionsSerializerMixin`` drops the
+    permission fields of the list, where they would be asserted per row.
+    """
+
+    url = HyperlinkedIdentityField(view_name="registry:applicationmetadata-detail")
+
+    harvested_through = ResourceRelatedField(
+        queryset=CatalogueService.objects,
+        many=True,
+        related_link_view_name="registry:applicationmetadata-csws-list",
+        related_link_url_kwarg="parent_lookup_registry_applicationmetadatarecord_metadata_record",
+    )
+    metadata_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:applicationmetadata-metadatacontact-list',
+        related_link_url_kwarg='parent_lookup_applicationmetadatarecord_metadata_contact'
+    )
+    application_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:applicationmetadata-applicationcontact-list',
+        related_link_url_kwarg='parent_lookup_applicationmetadatarecord_application_contact'
+    )
+    licence = ResourceRelatedField(
+        queryset=Licence.objects,
+        related_link_view_name='registry:applicationmetadata-licence-list',
+        related_link_url_kwarg='parent_lookup_applicationmetadatarecord'
+    )
+    keywords = ResourceRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name='registry:applicationmetadata-keywords-list',
+        related_link_url_kwarg='parent_lookup_applicationmetadatarecord_metadata'
+    )
+    reference_systems = ResourceRelatedField(
+        queryset=ReferenceSystem.objects,
+        many=True,
+        related_link_view_name='registry:applicationmetadata-referencesystems-list',
+        related_link_url_kwarg='parent_lookup_applicationmetadatarecord'
+    )
+
+    included_serializers = {
+        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "metadata_contact": MetadataContactSerializer,
+        "application_contact": MetadataContactSerializer,
+        "categories": IsoCategorySerializer,
+        "keywords": KeywordSerializer,
+        "licence": LicenceSerializer,
+        "reference_systems": ReferenceSystemDefaultSerializer,
+        "time_extents": TimeExtentSerializer,
+        "languages": LanguageSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
+    }
+
+    class Meta:
+        model = ApplicationMetadataRecord
         # see DatasetMetadataRecordSerializer.Meta
         exclude = ("search_vector",)

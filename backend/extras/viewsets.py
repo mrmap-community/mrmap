@@ -177,7 +177,10 @@ class AsyncCreateMixin:
 
     The `TaskResult` answer which this mixin gave before is retired with
     D01/B of #1175: a registration no longer leaves a row of that table
-    behind.
+    behind. The id of the task which this publication publishes is decided
+    and registered with the process before the message goes out, so an abort
+    issued right after the answer can revoke the task by that id although no
+    worker has read the message yet (#1179).
     """
 
     task_function = None
@@ -205,7 +208,16 @@ class AsyncCreateMixin:
         task_function = self.get_task_function()
         background_process, task_kwargs = self.get_task_kwargs(
             request=request, serializer=serializer)
-        task_function.apply_async(kwargs=task_kwargs)
+
+        # The id of the message is decided here, and stored with the process,
+        # before the message goes out: an abort issued right after this answer
+        # finds the task by that id although no worker has read the message
+        # yet (#1179). The process owns the id directly - not a row of the
+        # retired `TaskResult` table.
+        task_id = uuid.uuid4()
+        background_process.append_celery_task_ids([task_id])
+        task_function.apply_async(
+            kwargs=task_kwargs, task_id=str(task_id))
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(

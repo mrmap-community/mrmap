@@ -12,7 +12,7 @@ from registry.exceptions.service import CapabilitiesPersistenceError
 from registry.models.metadata import (DatasetMetadataRecord, LegendUrl,
                                       ServiceMetadataRecord, Style)
 from registry.models.security import WebMapServiceAuthentication
-from registry.models.service import WebMapService
+from registry.models.service import WebFeatureService, WebMapService
 from registry.tasks.service import build_ogc_service
 from requests.sessions import Session
 from rest_framework import status
@@ -38,6 +38,8 @@ def side_effect(request, *args, **kwargs):
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RADOLAN-W4.xml')))
     elif request.url == 'https://example.com/wms-metadata':
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/wms-service-metadata.xml')))
+    elif request.url == 'https://geodienste.hamburg.de/HH_WFS_Bezirksradrouten_Hamburg_Nord?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/capabilities/wfs/hamburg_1.1.0.xml')))
 
 
 class BuildOgcServiceTaskTest(TransactionTestCase):
@@ -250,6 +252,39 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
         self.assertFalse(
             WebMapService.objects.exists(),
             msg="The failed build left the service row behind.")
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_unmapped_capabilities_version_reports_clear_error(self, mock_send):
+        """A document no mapping config handles names its version (#1210).
+
+        The WFS 1.1.0 document of the reproduction carries a namespace the
+        WFS 2.0.0 config finds nothing in, so the mapping produced no service
+        and ``data[0]`` died as an IndexError. The failure the polling client
+        reads must say what was refused.
+        """
+        with self.assertRaises(ValueError) as ctx:
+            build_ogc_service.delay(
+                get_capabilities_url='https://geodienste.hamburg.de/HH_WFS_Bezirksradrouten_Hamburg_Nord?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities',
+                collect_metadata_records=False,
+                service_auth_pk=None,
+                http_request=self.http_request,
+                background_process_pk=self.background_process.pk,
+                **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
+
+        self.assertNotIsInstance(
+            ctx.exception, IndexError,
+            msg="the task still lets the empty mapping crash on data[0]")
+        self.assertIn("could not be mapped", str(ctx.exception))
+        self.assertIn("1.1.0", str(ctx.exception))
+
+        self.background_process.refresh_from_db()
+        self.assertIn("1.1.0", self.background_process.phase)
+        self.assertEqual(
+            WebFeatureService.objects.count(), 0,
+            msg="no service may be written for an unmapped document")
 
 
 class CapabilitiesPersistenceErrorTest(TestCase):

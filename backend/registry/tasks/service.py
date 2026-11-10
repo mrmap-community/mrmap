@@ -84,6 +84,15 @@ def build_ogc_service(
 
         mapper = OGCServiceXmlMapper.from_xml(response.content)
         data = mapper.xml_to_django()
+        if not data:
+            # No mapping config found an element in the document: it serves a
+            # protocol version no mapper handles, e.g. WFS 1.1.0 (#1210). Say
+            # that instead of letting data[0] raise a bare IndexError.
+            raise ValueError(
+                "The capabilities document could not be mapped to a service. "
+                "The served version "
+                f"'{mapper.xml_root.attrib.get('version')}' is not supported "
+                "from Mr. Map.")
         db_service = data[0]
         handler = PersistenceHandler(mapper)
         try:

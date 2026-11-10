@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('notify', '0005_alter_backgroundprocess_process_type'),
+        ('notify', '0006_remove_backgroundprocess_threads'),
     ]
 
     operations = [

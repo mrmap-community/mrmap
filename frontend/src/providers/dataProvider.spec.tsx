@@ -14,7 +14,7 @@ vi.mock('./i18nProvider', () => ({ default: { getLocale: () => 'en' } }));
 vi.mock('../jsonapi/utils', () => ({
   capsulateJsonApiPrimaryData: (data: unknown) => data,
   encapsulateJsonApiDocumentData: vi.fn(),
-  encapsulateJsonApiPrimaryData: vi.fn(),
+  encapsulateJsonApiPrimaryData: (_: unknown, data: unknown) => data,
 }));
 
 const globalMessage = 'There is an existing harvesting job for this service.';
@@ -96,5 +96,121 @@ describe('JSON:API validation errors', () => {
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
     expect(await screen.findByText(globalMessage)).toBeVisible();
     expect(screen.getByRole('textbox')).toHaveValue('Changed title');
+  });
+});
+
+describe('realtime subscriptions', () => {
+  // the transport contract of issue #1209: the backend only delivers to the
+  // connections which subscribed to a topic (notify/consumers.py), so the
+  // provider has to mirror its local subscriptions onto the socket - and
+  // re-announce them over every new socket, because a reconnect happens on a
+  // fresh connection which knows none of them (RealtimeBus re-attaches).
+  const provider = makeProvider([]);
+
+  type FakeSocket = {
+    readyState: number;
+    send: ReturnType<typeof vi.fn>;
+    onmessage: ((event: MessageEvent) => void) | null;
+  };
+  const socketIn = (readyState: number): FakeSocket => ({
+    readyState,
+    send: vi.fn(),
+    onmessage: null,
+  });
+
+  const framesSent = (socket: FakeSocket) =>
+    socket.send.mock.calls.map(([frame]) => JSON.parse(String(frame)));
+  const subscribedTopics = (socket: FakeSocket) =>
+    framesSent(socket)
+      .filter(frame => frame.action === 'subscribe')
+      .map(frame => frame.topic);
+
+  const attach = (socket: FakeSocket) =>
+    provider.attachRealtimeOnMessage(socket as unknown as WebSocket);
+
+  it('announces a topic subscribed while the socket connects when it opens', async () => {
+    const connecting = socketIn(WebSocket.CONNECTING);
+    await attach(connecting);
+    const observer = vi.fn();
+    const topic = 'resource/BackgroundProcess/11111111-1111-4111-8111-111111111111';
+
+    await provider.subscribe(topic, observer);
+    expect(connecting.send).not.toHaveBeenCalled();
+
+    const opened = socketIn(WebSocket.OPEN);
+    await attach(opened);
+    expect(framesSent(opened)).toEqual([{ action: 'subscribe', topic }]);
+
+    await provider.unsubscribe(topic, observer);
+  });
+
+  it('joins a topic once for all its observers and leaves it with the last', async () => {
+    const socket = socketIn(WebSocket.OPEN);
+    await attach(socket);
+    const first = vi.fn();
+    const second = vi.fn();
+    const topic = 'resource/HarvestingJob';
+
+    await provider.subscribe(topic, first);
+    await provider.subscribe(topic, second);
+    expect(subscribedTopics(socket)).toEqual([topic]);
+
+    await provider.unsubscribe(topic, first);
+    expect(framesSent(socket)).toEqual([{ action: 'subscribe', topic }]);
+
+    await provider.unsubscribe(topic, second);
+    expect(framesSent(socket)).toEqual([
+      { action: 'subscribe', topic },
+      { action: 'unsubscribe', topic },
+    ]);
+  });
+
+  it('dispatches a bus message only to the observers of its topic', async () => {
+    const socket = socketIn(WebSocket.OPEN);
+    await attach(socket);
+    const watcher = vi.fn();
+    const bystander = vi.fn();
+    const record = { type: 'BackgroundProcess', id: '7', attributes: { phase: 'running' } };
+
+    await provider.subscribe('resource/BackgroundProcess/7', watcher);
+    await provider.subscribe('resource/BackgroundProcess/8', bystander);
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        topic: 'resource/BackgroundProcess/7',
+        event: { type: 'updated', payload: { ids: ['7'], records: [record] } },
+      }),
+    } as MessageEvent);
+
+    expect(watcher).toHaveBeenCalledWith({
+      type: 'updated',
+      payload: { ids: ['7'], records: [record] },
+    });
+    expect(bystander).not.toHaveBeenCalled();
+
+    await provider.unsubscribe('resource/BackgroundProcess/7', watcher);
+    await provider.unsubscribe('resource/BackgroundProcess/8', bystander);
+  });
+
+  it('replays every live subscription to each new socket', async () => {
+    const keep = vi.fn();
+    const alsoKeep = vi.fn();
+    const first = socketIn(WebSocket.OPEN);
+    await attach(first);
+    await provider.subscribe('resource/BackgroundProcess/keep', keep);
+    await provider.subscribe('resource/BackgroundProcess/alsoKeep', alsoKeep);
+
+    // the socket of RealtimeBus dies; the hook re-attaches a new one, whose
+    // send is a fresh mock - everything observed must be announced again or
+    // the reloaded screen goes silent until its next refetch
+    const second = socketIn(WebSocket.OPEN);
+    await attach(second);
+    expect(subscribedTopics(second)).toEqual([
+      'resource/BackgroundProcess/keep',
+      'resource/BackgroundProcess/alsoKeep',
+    ]);
+
+    await provider.unsubscribe('resource/BackgroundProcess/keep', keep);
+    await provider.unsubscribe('resource/BackgroundProcess/alsoKeep', alsoKeep);
   });
 });

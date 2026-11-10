@@ -130,3 +130,65 @@ Feature: BackgroundProcess List Endpoint
         When I send the request with GET method
         Then I expect the response status is 400
         Then I expect that response json has an attribute "errors.[0].code" with value "invalid_choice"
+
+    # The background job center of the frontend renders one operation by one
+    # normalized state (#1207), derived from the status together with the steps,
+    # the retry window and the attention flag of the process. Its tabs ask for
+    # the states they render instead of assembling columns of their own. The
+    # fixture answers one queued process (4), two running ones (1 and 3), one
+    # failed one (2) and none which retries, stands for a human or does not
+    # know its steps.
+    Scenario Outline: Can filter processes by their state
+        Given I set a queryparam "filter[<field>]" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | field    | value                 | count |
+            | state    | running               | 2     |
+            | state    | queued                | 1     |
+            | state    | failed                | 1     |
+            | state.in | queued,failed         | 2     |
+            | state    | running_indeterminate | 0     |
+            | state    | retrying              | 0     |
+
+    Scenario: Can't filter by a state which the api does not know
+        Given I set a queryparam "filter[state]" with value "strolling"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        Then I expect that response json has an attribute "errors.[0].code" with value "invalid_choice"
+
+    # The state is no column but an annotation of the overview, so it had to
+    # enter the sort whitelist with the annotation. Its names order the terminal
+    # failed before the queued and the running ones.
+    Scenario Outline: Can sort processes by their state
+        Given I set a queryparam "sort" with value "<ordering>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].id" with value "<first>"
+        Then I expect that response json has an attribute "data.[0].attributes.state" with value "<state>"
+
+        Examples:
+            | ordering | first | state  |
+            | state    | 2     | failed |
+
+    # The newest process of the fixture (4) waits for a worker: the state and
+    # the first revision of its reports are part of every answer.
+    Scenario: Answers the state and the revision of a process
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].id" with value "4"
+        Then I expect that response json has an attribute "data.[0].attributes.state" with value "queued"
+        Then I expect that response json has an attribute "data.[0].attributes.revision" with value "0"
+        Then I expect that response json has an attribute "data.[0].attributes.errorSummary" with value "None"
+        Then I expect that response json does not have an attribute "data.[0].attributes.actionRequired"
+
+    # One group of the job center is the set of operations which report about
+    # one resource. The lookup is configured, so it is answered - an unconfigured
+    # filter of this endpoint is refused with a 400, like the state above.
+    Scenario: Can filter processes by the resource they belong to
+        Given I set a queryparam "filter[relatedId.in]" with value "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "0"

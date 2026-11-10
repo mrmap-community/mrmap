@@ -56,7 +56,11 @@ DISPLAY_SORTED = {
         # #1071, annotated on the way out, so it joins the offer with it (#1130)
         "id", "doneAt", "stringRepresentation", "phase", "totalRecords",
         "dateCreated", "progress"],
-    "/api/notify/background-processes": ["id", "dateCreated", "progress"],
+    # the state of #1207 is the second annotation of the overview and the
+    # revision the column which orders its reports - the drawer of the frontend
+    # sorts its tabs by exactly these two
+    "/api/notify/background-processes": [
+        "id", "dateCreated", "progress", "state", "revision"],
 }
 
 #: list endpoints whose `ordering_fields` tuple stayed an untyped string

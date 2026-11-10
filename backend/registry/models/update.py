@@ -325,8 +325,16 @@ class ServiceUpdateJob(models.Model):
                 self.status, ProcessStatusEnum.RUNNING)
         if phase is None:
             phase = str(UpdateJobStatusEnum(self.status).label)
-        return BackgroundProcess.objects.report(
+        updated = BackgroundProcess.objects.report(
             self.background_process_id, status, phase=phase)
+        # an update whose mapping waits for a review is the epic's operation
+        # which stands until a human decides, not one which works (#1207);
+        # the flag follows the status on every report, so answering the
+        # review clears it without any reporter having to remember
+        BackgroundProcess.objects.set_action_required(
+            self.background_process_id,
+            self.status == UpdateJobStatusEnum.REVIEW_REQUIRED)
+        return updated
 
     @atomic
     def update(self):

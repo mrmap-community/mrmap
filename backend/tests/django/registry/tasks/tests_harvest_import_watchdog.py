@@ -33,6 +33,8 @@ from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from django_celery_beat.models import IntervalSchedule, PeriodicTask
+from notify.enums import OperationStateEnum, ProcessStatusEnum
+from notify.models import BackgroundProcess
 from registry.apps import IMPORT_WATCH_TASK_NAME
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.harvesting import LogLevelEnum
@@ -240,6 +242,120 @@ class WatchImportBacklogTest(TestCase):
         self.assertEqual(closed.import_backlog_seen, 2,
                          'the memory of a closed run is not for the watchdog to clear')
         self.assertEqual(self.job.logs.count() + downloading.logs.count(), 0)
+
+
+class ImportStallReportsTheOperationTest(TestCase):
+    """The stall decision reaches the operation which reports the run (#1207).
+
+    The watchdog answers a standstill on the job - that is the gap #1038
+    closed - while the background job center asks the process which reports
+    that run. Both answers have to come from the one decision, so the watchdog
+    is the only writer of the flag for a harvest: it sets it with the stall,
+    clears it when the backlog drains again, and a run whose process was never
+    made (the beats of a job which came into being by a bulk write) survives
+    every one of those decisions.
+    """
+
+    def setUp(self):
+        self.media = TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        media_settings = override_settings(MEDIA_ROOT=self.media.name)
+        media_settings.enable()
+        self.addCleanup(media_settings.disable)
+        with patch('celery.canvas.Signature.apply_async'):
+            self.job = HarvestingJob.objects.create(
+                total_records=2, phase=Phase.RECORDS_TO_DB)
+        self.records = []
+        for _ in range(2):
+            record = TemporaryMdMetadataFile(job=self.job)
+            record.md_metadata_file.save(
+                'record.xml', ContentFile(b'<record/>'), save=False)
+            self.records.append(record)
+        TemporaryMdMetadataFile.objects.bulk_create(self.records)
+        # by the moment a backlog can strand, the import reported the run as
+        # working - that is the state the stall moves the operation away from
+        BackgroundProcess.objects.report(
+            self.job.background_process_id, ProcessStatusEnum.RUNNING,
+            total_steps=2)
+
+    def reported(self):
+        return BackgroundProcess.objects.process_info().get(
+            pk=self.job.background_process_id)
+
+    def stalled(self, at=None):
+        """the two looks which decide a stall: measured, then untouched for a
+        whole interval while the broker still holds the work
+
+        The broker answers the same on both looks: the baseline never asks it,
+        but a repeated call of this helper must not let an unpatched look take
+        the repair branch and publish the backlog again.
+        """
+        at = at or timezone.now()
+        with patch('registry.tasks.harvest.import_run_message_state',
+                   return_value=True), \
+                patch('registry.tasks.harvest.chord_publish_message_state',
+                      return_value=False), \
+                patch.object(call_chord_md_metadata_file_to_db, 'delay'):
+            watch_import_backlog(self.job.pk, at=at)
+            watch_import_backlog(self.job.pk, at=at + INTERVAL)
+
+    def test_the_stall_stands_the_operation_for_a_human(self):
+        self.stalled()
+
+        process = self.reported()
+        self.assertTrue(process.action_required)
+        self.assertEqual(
+            OperationStateEnum.ACTION_REQUIRED.value, process.state)
+        self.assertIn('import backlog stalled', process.phase)
+
+    def test_the_stall_is_one_state_report_and_no_second_one(self):
+        """the watchdog fires per beat over the same stall; the operation
+        stands once and its listeners hear about it once (#1205)"""
+        self.stalled()
+        before = BackgroundProcess.objects.get(
+            pk=self.job.background_process_id).revision
+
+        self.stalled(at=timezone.now() + INTERVAL)
+
+        process = self.reported()
+        self.assertEqual(before, process.revision)
+        self.assertEqual(
+            OperationStateEnum.ACTION_REQUIRED.value, process.state)
+
+    def test_the_drain_of_the_backlog_ends_the_stand(self):
+        """the first look which finds fewer waiting files ends the stall on the
+        job; the operation it reports leaves action-required with it, without
+        anybody reporting the progress of a run which still does not move"""
+        self.stalled()
+        self.records[0].delete()
+
+        with patch('registry.tasks.harvest.import_run_message_state') as ask:
+            watch_import_backlog(self.job.pk, at=timezone.now())
+
+        ask.assert_not_called()
+        process = self.reported()
+        self.assertFalse(process.action_required)
+        # the run works again as far as the last report knows: back to the
+        # state of a running operation which knows its steps
+        self.assertEqual(OperationStateEnum.RUNNING.value, process.state)
+
+    def test_a_run_without_a_process_survives_the_decision(self):
+        """the flag of the stall is a report about a process which a job made
+        by a bulk write never got - the beat must not die on the missing one"""
+        job = HarvestingJob(total_records=2, phase=Phase.RECORDS_TO_DB)
+        HarvestingJob.objects.bulk_create([job])
+        self.assertIsNone(job.background_process_id)
+
+        watch_import_backlog(job.pk, at=timezone.now())
+        with patch('registry.tasks.harvest.import_run_message_state',
+                   return_value=True), \
+                patch('registry.tasks.harvest.chord_publish_message_state',
+                      return_value=False), \
+                patch.object(call_chord_md_metadata_file_to_db, 'delay'):
+            watch_import_backlog(job.pk, at=timezone.now() + INTERVAL)
+
+        job.refresh_from_db()
+        self.assertIsNotNone(job.import_stalled_at)
 
 
 class WatchImportBacklogsTest(TestCase):

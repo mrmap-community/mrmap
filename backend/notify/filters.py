@@ -6,6 +6,11 @@ from notify.enums import OperationStateEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess
 
 
+#: the help of every filter of this api which takes more than one value in one
+#: parameter: the same question is answered the same way, in one string
+MULTIPLE_VALUES = _('Multiple values may be separated by commas.')
+
+
 class ProcessStatusForm(forms.CharField):
     """Form field which accepts a status of a background process by its name."""
 
@@ -73,20 +78,20 @@ class BackgroundProcessFilterSet(FilterSet):
     status = ProcessStatusFilter(
         label=_('status'),
         field_name='status',
-        help_text=_('Multiple values may be separated by commas.'))
+        help_text=MULTIPLE_VALUES)
     # the state is no column but the annotation of process_info(), so this
     # filter answers on the queryset of the overview, which reads it
     state = OperationStateFilter(
         label=_('state'),
         method='filter_state',
-        help_text=_('Multiple values may be separated by commas.'))
+        help_text=MULTIPLE_VALUES)
     # the lookup of the annotation is no model field, so it is not generated
     # from Meta.fields like the `id.in` of an overview. The tabs of the job
     # center ask for a set of states the same way they ask for a set of ids.
     state__in = OperationStateFilter(
         label=_('state'),
         method='filter_state',
-        help_text=_('Multiple values may be separated by commas.'))
+        help_text=MULTIPLE_VALUES)
 
     class Meta:
         model = BackgroundProcess

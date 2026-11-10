@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 05:33+0100\n"
+"POT-Creation-Date: 2026-11-10 06:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -306,23 +306,23 @@ msgstr "MapBender-Kompatibilität"
 msgid "Notify"
 msgstr "Benachrichtigung"
 
-#: notify/filters.py:13
-msgid "Select a valid status of a background process."
-msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
-
-#: notify/filters.py:47
-msgid "Select a valid state of a background operation."
-msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
-
-#: notify/filters.py:74 notify/serializers.py:81
-msgid "status"
-msgstr "Status"
-
-#: notify/filters.py:76 notify/filters.py:82 notify/filters.py:89
+#: notify/filters.py:11
 msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
-#: notify/filters.py:80 notify/filters.py:87 notify/serializers.py:88
+#: notify/filters.py:18
+msgid "Select a valid status of a background process."
+msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
+
+#: notify/filters.py:52
+msgid "Select a valid state of a background operation."
+msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
+
+#: notify/filters.py:79 notify/serializers.py:81
+msgid "status"
+msgstr "Status"
+
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:88
 msgid "state"
 msgstr "Zustand"
 

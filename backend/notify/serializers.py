@@ -1,7 +1,4 @@
-import json
-
 from django.utils.translation import gettext_lazy as _
-from django_celery_results.models import TaskResult
 from drf_spectacular.utils import extend_schema_serializer
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
@@ -11,28 +8,6 @@ from rest_framework.fields import (CharField, DateTimeField, FloatField,
                                    IntegerField, SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
-
-
-class TaskResultSerializer(SystemInfoSerializerMixin, ModelSerializer):
-
-    task_meta = SerializerMethodField()
-    result = SerializerMethodField()
-
-    url = HyperlinkedIdentityField(
-        view_name='notify:taskresult-detail',
-    )
-
-    class Meta:
-
-        model = TaskResult
-        # meta field clashes with json:api meta field. We use alternate naming. See task_meta above.
-        exclude = ("meta", )
-
-    def get_task_meta(self, obj):
-        return json.loads(obj.meta if obj.meta else '{}')
-
-    def get_result(self, obj):
-        return json.loads(obj.result if obj.result else '{}')
 
 
 class BackgroundProcessLogSerializer(

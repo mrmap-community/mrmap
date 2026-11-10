@@ -352,8 +352,9 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
 
 
 class CapabilitiesPersistenceErrorTest(TestCase):
-    """The message the error class answers is what the activity popover and
-    the TaskResult show of a database refusal (#1201).
+    """The message the error class answers is what the activity popover of a
+    database refusal answers (#1201; the `TaskResult` show which also answered
+    it is retired with the resource, #1180)
     """
 
     def test_names_the_refused_column_of_a_real_violation(self):

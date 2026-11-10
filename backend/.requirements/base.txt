@@ -45,8 +45,6 @@ redis==8.1.0
 celery==5.7.0
 # BLOCKING: django-celery-beat 2.9.0 depends on Django<6.1 and >=2.2
 django-celery-beat==2.9.0
-# adds database results for celery tasks
-django-celery-results==2.6.0
 # adds websockets
 websockets==17.4
 channels==4.3.2

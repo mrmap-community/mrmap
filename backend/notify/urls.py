@@ -12,9 +12,9 @@ background_process_routes.register(r'logs', views.NestedBackgroundProcessLogView
 # is retired with the `threads` relation itself; D01/B of #1175 decided the
 # breaking cutover, so no nested replacement is announced (#1179)
 
-# jobs
-router.register(r'task-results',
-                views.TaskResultReadOnlyViewSet, basename='taskresult')
+# the top level `task-results` route which answered the legacy `TaskResult`
+# rows is retired with the D01/B cutover: the announcement named this release,
+# so no read-only replacement for historical rows is offered (#1180)
 
 # background prcesses
 router.register(r'background-processes-log',

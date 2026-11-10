@@ -460,7 +460,7 @@
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextgroupobjectpermission",
     "pk": 1,
     "fields": {
       "permission": [
@@ -468,18 +468,14 @@
         "registry",
         "mapcontext"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "1",
       "group": [
         "Group1"
-      ]
+      ],
+      "content_object": 1
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextgroupobjectpermission",
     "pk": 2,
     "fields": {
       "permission": [
@@ -487,18 +483,14 @@
         "registry",
         "mapcontext"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "1",
       "group": [
         "Group1"
-      ]
+      ],
+      "content_object": 1
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextgroupobjectpermission",
     "pk": 3,
     "fields": {
       "permission": [
@@ -506,18 +498,14 @@
         "registry",
         "mapcontext"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "2",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 2
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextgroupobjectpermission",
     "pk": 4,
     "fields": {
       "permission": [
@@ -525,18 +513,14 @@
         "registry",
         "mapcontext"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "2",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 2
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 5,
     "fields": {
       "permission": [
@@ -544,18 +528,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "6",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 6
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 6,
     "fields": {
       "permission": [
@@ -563,18 +543,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "7",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 7
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 7,
     "fields": {
       "permission": [
@@ -582,18 +558,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontext"
-      ],
-      "object_pk": "8",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 8
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 8,
     "fields": {
       "permission": [
@@ -601,18 +573,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "9",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 9
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 9,
     "fields": {
       "permission": [
@@ -620,18 +588,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "10",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 10
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 10,
     "fields": {
       "permission": [
@@ -639,18 +603,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "11",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 11
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 11,
     "fields": {
       "permission": [
@@ -658,18 +618,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "6",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 6
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 12,
     "fields": {
       "permission": [
@@ -677,18 +633,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "7",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 7
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 13,
     "fields": {
       "permission": [
@@ -696,18 +648,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "8",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 8
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 14,
     "fields": {
       "permission": [
@@ -715,18 +663,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "9",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 9
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 15,
     "fields": {
       "permission": [
@@ -734,18 +678,14 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "10",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 10
     }
   },
   {
-    "model": "guardian.groupobjectpermission",
+    "model": "registry.mapcontextlayergroupobjectpermission",
     "pk": 16,
     "fields": {
       "permission": [
@@ -753,14 +693,10 @@
         "registry",
         "mapcontextlayer"
       ],
-      "content_type": [
-        "registry",
-        "mapcontextlayer"
-      ],
-      "object_pk": "11",
       "group": [
         "Group2"
-      ]
+      ],
+      "content_object": 11
     }
   }
 ]

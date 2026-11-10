@@ -791,7 +791,10 @@ class HarvestingRunCountersQueryPerformance(QueryMeasurementMixin, TestCase):
                 'existingDatasetMetadataCount', 'duplicatedDatasetMetadataCount',
                 'newServiceMetadataCount', 'updatedServiceMetadataCount',
                 'existingServiceMetadataCount',
-                'duplicatedServiceMetadataCount')
+                'duplicatedServiceMetadataCount',
+                'newApplicationMetadataCount', 'updatedApplicationMetadataCount',
+                'existingApplicationMetadataCount',
+                'duplicatedApplicationMetadataCount')
 
     # The records the measured run collected, per kind and state. `existing` of the
     # service records is answered by no row at all, because the empty range of a
@@ -859,6 +862,10 @@ class HarvestingRunCountersQueryPerformance(QueryMeasurementMixin, TestCase):
             # the range of that counter is empty and the counter answers its 0
             'existingServiceMetadataCount': 0,
             'duplicatedServiceMetadataCount': cls.SERVICE_DUPLICATED,
+            'newApplicationMetadataCount': 0,
+            'updatedApplicationMetadataCount': 0,
+            'existingApplicationMetadataCount': 0,
+            'duplicatedApplicationMetadataCount': 0,
         }
         relations = [
             HarvestedMetadataRelation(

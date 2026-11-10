@@ -1,17 +1,20 @@
-from registry.filters.metadata import DatasetMetadataRecordSpatialFilterSet, ServiceMetadataRecordSpatialFilterSet
+from registry.filters.metadata import (ApplicationMetadataRecordSpatialFilterSet,
+                                       DatasetMetadataRecordSpatialFilterSet,
+                                       ServiceMetadataRecordSpatialFilterSet)
 from django.db.models import F
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
-from registry.models.metadata import (DatasetMetadataRecord, IsoCategory,
+from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord, IsoCategory,
                                       Keyword, Language, Licence,
                                       MetadataContact, MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
-from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
+from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
+                                           DatasetMetadataRecordSerializer,
                                            IsoCategorySerializer, LanguageSerializer,
                                            MetadataRelationSerializer, TimeExtentSerializer,
                                            KeywordSerializer,
@@ -160,6 +163,31 @@ class NestedStyleViewSet(
     pass
 
 
+# Non-included record relations only need their identifiers for JSON:API linkage.
+METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES = {
+    "harvested_through": [
+        Prefetch(
+            "harvested_through",
+            queryset=CatalogueService.objects.only("id"),
+        )
+    ],
+    "keywords": [
+        Prefetch("keywords", queryset=Keyword.objects.only("id"))
+    ],
+    "reference_systems": [
+        Prefetch(
+            "reference_systems", queryset=ReferenceSystem.objects.only("id")
+        )
+    ],
+    "time_extents": [
+        Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+    ],
+    "languages": [
+        Prefetch("languages", queryset=Language.objects.only("value"))
+    ],
+}
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
@@ -291,26 +319,7 @@ class DatasetMetadataViewSetMixin(
                 queryset=FeatureType.objects.only("id", "service_id"),
             )
         ],
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -410,6 +419,13 @@ class NestedDatasetContactViewSet(
     resource_name = 'DatasetContact'
 
 
+class NestedApplicationContactViewSet(
+    MetadataContactViewSetMixin,
+    NestedModelViewSet
+):
+    resource_name = 'ApplicationContact'
+
+
 class ServiceMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin
@@ -442,26 +458,7 @@ class ServiceMetadataViewSetMixin(
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
         "self_pointing_wms": [
             Prefetch(
                 "self_pointing_wms",
@@ -506,6 +503,84 @@ class ServiceMetadataViewSet(
 
 class NestedServiceMetadataViewSet(
     ServiceMetadataViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class ApplicationMetadataViewSetMixin(
+    HistoryInformationViewSetMixin,
+    PreloadNotIncludesMixin,
+):
+    # the application record mirrors the dataset record (see the model docstring of
+    # registry.models.metadata.ApplicationMetadataRecord): the same answer of that
+    # shape, with the providing contact named after the application
+    queryset = ApplicationMetadataRecord.objects \
+        .select_related("licence") \
+        .defer("search_vector")
+    serializer_class = ApplicationMetadataRecordSerializer
+    filterset_class = ApplicationMetadataRecordSpatialFilterSet
+    search_fields = ("title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    select_for_includes = {
+        "metadata_contact": ["metadata_contact"],
+        "licence": ["licence"],
+        "application_contact": ["application_contact"],
+    }
+    prefetch_for_includes = {
+        "categories": ["categories"],
+        "harvested_through": [
+            Prefetch(
+                "harvested_through",
+                queryset=CatalogueService.objects.prefetch_related(
+                    "keywords",
+                    "registry_applicationmetadatarecord_metadata_records",
+                ),
+            )
+        ],
+        "keywords": ["keywords"],
+        "time_extents": ["time_extents"],
+        "languages": ["languages"],
+        "reference_systems": ["reference_systems"],
+    }
+    prefetch_for_not_includes = {
+        "categories": [
+            Prefetch("categories", queryset=IsoCategory.objects.only("value"))
+        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
+    }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        include = self.request.GET.get("include", None)
+        if not include or "metadataContact" not in include:
+            defer = [
+                f"metadata_contact__{field.name}"
+                for field in MetadataContact._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("metadata_contact").defer(*defer)
+        if not include or "applicationContact" not in include:
+            defer = [
+                f"application_contact__{field.name}"
+                for field in MetadataContact._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("application_contact").defer(*defer)
+
+        return qs
+
+
+class ApplicationMetadataViewSet(
+        ApplicationMetadataViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedApplicationMetadataViewSet(
+    ApplicationMetadataViewSetMixin,
     NestedModelViewSet
 ):
     pass

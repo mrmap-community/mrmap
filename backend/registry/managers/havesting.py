@@ -37,7 +37,7 @@ CLOSED_PHASES = [HarvestingPhaseEnum.ABORT.value,
 # (`with_metadata_record_counts`) and the aggregation of many runs at once
 # (`HarvestingJobViewSetMixin.with_harvesting_stats`) - read this, so a counter
 # cannot answer one thing on the screen of a run and something else on the list
-# of them. There is no counter for application records: the api answers none.
+# of them, including the application records exposed by #830.
 METADATA_RECORD_COUNTS = {
     "newDatasetMetadataCount": ("dataset", CollectingStatenEnum.NEW),
     "updatedDatasetMetadataCount": ("dataset", CollectingStatenEnum.UPDATED),
@@ -47,6 +47,10 @@ METADATA_RECORD_COUNTS = {
     "updatedServiceMetadataCount": ("service", CollectingStatenEnum.UPDATED),
     "existingServiceMetadataCount": ("service", CollectingStatenEnum.EXISTING),
     "duplicatedServiceMetadataCount": ("service", CollectingStatenEnum.DUPLICATED),
+    "newApplicationMetadataCount": ("application", CollectingStatenEnum.NEW),
+    "updatedApplicationMetadataCount": ("application", CollectingStatenEnum.UPDATED),
+    "existingApplicationMetadataCount": ("application", CollectingStatenEnum.EXISTING),
+    "duplicatedApplicationMetadataCount": ("application", CollectingStatenEnum.DUPLICATED),
 }
 
 

@@ -311,6 +311,14 @@ class BackgroundProcessManager(models.Manager):
         by a resource permission and stay visible - a registration for example
         only learns the service it belongs to while it runs.
 
+        Every type which can be named here is a kind of service, and every kind
+        of service is answered from a guardian table of its own
+        (``registry/models/guardian.py``). That is what keeps this loop away
+        from the shared table, whose text column a lookup of a uuid primary key
+        casts for the rows of every model in it (#863). A new kind of resource
+        which is looked up here needs such a table - see
+        ``tests/django/registry/tests_guardian_object_permission_tables.py``.
+
         Args:
             user: the user which looks at the processes
             queryset: the processes to narrow down, this manager's by default

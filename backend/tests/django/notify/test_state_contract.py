@@ -2,10 +2,10 @@
 
 The drawer renders one row per background process. The state, the retry flag
 and the error summary of that row are no columns of their own: they are
-derived from the stored status, the celery states of the threads of the
-process and its error logs, and read through the annotated queryset of
-`process_info()` - which both the list endpoint and the websocket payloads go
-through.
+derived from the stored status, the celery states of the tasks the process
+owns (`celery_task_ids`, #1179) and its error logs, and read through the
+annotated queryset of `process_info()` - which both the list endpoint and the
+websocket payloads go through.
 """
 import json
 
@@ -59,12 +59,12 @@ class JobStateTests(TestCase):
                 state.value, self.serialized(instance)["state"],
                 f"{status.label} must answer {state}")
 
-    def test_answers_a_running_process_as_retrying_while_a_thread_retries(self):
+    def test_answers_a_running_process_as_retrying_while_a_task_retries(self):
         task_result = TaskResult.objects.create(
             task_id="11111111-1111-1111-1111-111111111111",
             status=states.RETRY)
+        self.process.append_celery_task_ids([task_result.task_id])
         self.report(ProcessStatusEnum.RUNNING)
-        self.process.threads.add(task_result)
 
         instance = BackgroundProcess.objects.process_info().get(
             pk=self.process.pk)
@@ -73,12 +73,12 @@ class JobStateTests(TestCase):
         self.assertTrue(answer["is_retrying"])
         self.assertEqual(JobStateEnum.RETRYING.value, answer["state"])
 
-    def test_answers_a_finished_thread_as_plain_running(self):
+    def test_answers_a_running_process_with_a_finished_task_as_plain_running(self):
         task_result = TaskResult.objects.create(
             task_id="22222222-2222-2222-2222-222222222222",
             status=states.SUCCESS)
+        self.process.append_celery_task_ids([task_result.task_id])
         self.report(ProcessStatusEnum.RUNNING)
-        self.process.threads.add(task_result)
 
         instance = BackgroundProcess.objects.process_info().get(
             pk=self.process.pk)

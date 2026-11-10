@@ -589,6 +589,12 @@ const en = lodashMerge(
         notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
       },
     },
+    backgroundJobs: {
+      notification: {
+        failedOne: "A background task failed and needs attention.",
+        failedMany: "%{count} background tasks failed and need attention.",
+      },
+    },
     dashboard: {
       workQueue: {
         title: "Work which waits",

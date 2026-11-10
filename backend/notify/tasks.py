@@ -22,8 +22,10 @@ logger: Logger = settings.ROOT_LOGGER
 #: The stamp which asked the mirroring below to write a task's states into
 #: its `TaskResult` row. The asynchronous api stamped the messages it
 #: published until the registration contract moved to the `BackgroundProcess`
-#: (#1177, D01/B of #1175); the receivers stay for the rows of that
-#: coexistence window and their removal is #1179/#1180.
+#: (#1177, D01/B of #1175); the receivers stay for the rows and in-flight
+#: messages of that coexistence window, and their removal is #1180 - the
+#: `threads` relation which cancellation used to read is retired by #1179
+#: without touching this mirroring.
 MIRROR_TASK_RESULT_STAMP = 'mirror_task_result'
 
 
@@ -78,9 +80,10 @@ def mirror_task_result(task_id, **values):
     `AsyncCreateMixin` (extras/viewsets.py) answers a POST which triggers a task
     with a `TaskResult` resource, and polling that resource is how a client learns
     the outcome of its registration (#1146). That code only inserts the row; the
-    result backend of this deployment is the redis cache (`extras.celery`), which
-    writes nothing into this table, so the state has to be mirrored here or the
-    row keeps reading PENDING after the worker answered long ago.
+    result backend of this deployment is Celery's native Redis backend
+    (`CELERY_RESULT_BACKEND` in MrMap/settings.py), which writes nothing into
+    this table, so the state has to be mirrored here or the row keeps reading
+    PENDING after the worker answered long ago.
 
     Which tasks may reach this at all is decided by `mirror_requested` before
     any sql is made, and only a row which already exists is written: the api
@@ -167,7 +170,6 @@ def mirror_task_result_revoked(sender, request, **kwargs):
 
 
 class BackgroundProcessBased(Task):
-    thread_appended = False
     autoretry_for = (Timeout, ConnectionError, InternalServerError)
     retry_backoff = 30
     retry_backoff_max = 5 * 60

@@ -6,6 +6,7 @@ import { Box, Card } from '@mui/material';
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
+import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
 import BackgroundJobCenterProvider from '../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
@@ -13,11 +14,13 @@ import Footer from './Footer';
 import CustomMenu from './Menu';
 
 
-// The feedback of ordinary user actions runs on react-admin's own
-// notifications (`useNotify`); background work is aggregated in the
-// Background Job Center (#1203). There is deliberately no custom snackbar
-// stack here: a persisting snackbar per background process is exactly the
-// flooding which replaced it.
+// wraps the Admin layout and mounts the renderless observers: the realtime bus,
+// the locale observer and the background-job bridge (#1205) which aggregates the
+// background processes and turns only the failures into notifications. The
+// Background Job Center (#1203) is mounted here as well; the feedback of
+// ordinary user actions runs on react-admin's own notifications (`useNotify`).
+// There is deliberately no custom snackbar stack: a persisting snackbar per
+// background process is exactly the flooding the Job Center replaced.
 const MyLayout = (
   {
     children,
@@ -29,9 +32,14 @@ const MyLayout = (
 
   return (
     <SystemStatusProvider>
-      <BackgroundJobCenterProvider>
+      {/* the center feeds drawer, indicator and store; its own announcement
+          bridge is silent here because the BackgroundJobBridge below is the
+          mounted notification path (#1205) — one failure must not become
+          two toasts */}
+      <BackgroundJobCenterProvider notifications={false}>
         <RealtimeBus/> 
         <I18Observer/>
+        <BackgroundJobBridge />
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}

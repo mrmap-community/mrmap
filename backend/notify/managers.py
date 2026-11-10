@@ -1,10 +1,12 @@
 from celery import states
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
-from django.db.models import (Case, Exists, F, OuterRef, Q, Subquery, Value,
-                              When)
+from django.db.models import (BooleanField, Case, F, Func, OuterRef, Q,
+                              Subquery, Value, When)
 from django.db.models.fields import FloatField, TextField
-from django.db.models.functions import Coalesce, Greatest, Least, Round
+from django.db.models.functions import (Cast, Coalesce, Greatest, Least,
+                                        Round)
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from django_celery_results.models import TaskResult
@@ -31,18 +33,34 @@ class BackgroundProcessManager(models.Manager):
         # `state` adds the state contract of the Background Job Center (#1207):
         # whether a worker of this process is currently held in a celery retry,
         # and the last error which was logged about it. Both are subqueries, so
-        # the list of the drawer answers them without one query per process and
-        # without multiplying rows through the threads many-to-many. Senders
-        # which report a process they do not own (an untracked task mirroring
-        # its start) read the slim queryset: the retry subquery would drag the
-        # table of the task results back into a path which pays for it nothing
-        # (pinned by tests/django/notify/test_task_result_status.py).
+        # the list of the drawer answers them without one query per process.
+        # Since #1179 a process knows its tasks through the `celery_task_ids`
+        # array and the `threads` many-to-many is retired, so the retry is
+        # asked as the overlap of that array with the ids currently retrying.
+        # Senders which report a process they do not own (an untracked task
+        # mirroring its start) read the slim queryset: the retry subquery would
+        # drag the table of the task results back into a path which pays for it
+        # nothing (pinned by tests/django/notify/test_task_result_status.py).
         qs = self.get_queryset().select_related("related_resource_type")
         if state:
+            # the ids of the single task attempts which are currently held in
+            # a celery retry; the worker mirrors the state `RETRY` of a stamped
+            # task into its `TaskResult` row, and `task_id` is stored as text,
+            # so the ids are cast to the uuid type of the processes'
+            # `celery_task_ids` to be comparable with them at all. Built here,
+            # not at import: touching a model's manager while the app registry
+            # is still populated answers AppRegistryNotReady.
+            retry_task_ids = ArraySubquery(
+                TaskResult.objects.filter(status=states.RETRY)
+                .annotate(task_uuid=Cast("task_id", models.UUIDField()))
+                .values_list("task_uuid", flat=True))
             qs = qs.annotate(
-                is_retrying=Exists(
-                    TaskResult.objects.filter(
-                        process=OuterRef("pk"), status=states.RETRY)),
+                is_retrying=Coalesce(
+                    Func(
+                        F("celery_task_ids"), retry_task_ids,
+                        arg_joiner=" && ", template="(%(expressions)s)",
+                        output_field=BooleanField()),
+                    Value(False), output_field=BooleanField()),
                 error_summary=Subquery(
                     self._error_logs().values("description")[:1],
                     output_field=TextField()),

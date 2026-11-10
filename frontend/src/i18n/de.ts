@@ -569,6 +569,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       notifyCompleted: "%{count} Hintergrundprozess abgeschlossen. |||| %{count} Hintergrundprozesse abgeschlossen.",
     },
   },
+  backgroundJobs: {
+    notification: {
+      failedOne: "Ein Hintergrundprozess ist fehlgeschlagen und erfordert Aufmerksamkeit.",
+      failedMany: "%{count} Hintergrundprozesse sind fehlgeschlagen und erfordern Aufmerksamkeit.",
+    },
+  },
   dashboard: {
     workQueue: {
       title: "Wartende Arbeit",

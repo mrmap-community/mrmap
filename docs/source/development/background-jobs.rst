@@ -119,8 +119,9 @@ Troubleshooting
    * - The pill counters lag by a few seconds
      - By design: the counts are polled every ten seconds and not pushed.
    * - A retrying process shows "running"
-     - Either the deployment's api does not answer ``state`` yet (old backend, new frontend) or the
-       retry is not in the process' log; ``isRetrying`` is derived from the worker's retry log lines.
+     - Either the deployment's api does not answer ``state`` yet (old backend, new frontend) or no
+       ``TaskResult`` row of the process' own task ids reads ``RETRY``; ``isRetrying`` is the
+       overlap of ``celery_task_ids`` with the task attempts held in a retry (#1179).
    * - One process stopped updating in the drawer
      - It is older than the newest hundred active processes, or its terminal transition was already
        folded in: the store's terminal state never moves back. The api page and the reload answer.

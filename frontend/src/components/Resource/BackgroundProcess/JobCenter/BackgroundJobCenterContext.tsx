@@ -92,8 +92,14 @@ export const useBackgroundJobCenter =
  */
 export const BackgroundJobCenterProvider = ({
   children,
+  notifications = true,
 }: {
   children: ReactNode;
+  /** whether this provider speaks its transitions through `useNotify`; a
+   *  deployment which mounts another notification bridge for the same
+   *  processes (the `BackgroundJobBridge` of #1205 in the Layout) passes
+   *  false, so one failure never becomes two toasts */
+  notifications?: boolean;
 }): ReactNode => {
   const dataProvider = useDataProvider();
   const notify = useNotify();

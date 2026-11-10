@@ -35,3 +35,30 @@ class CapabilitiesBackupMissing(Exception):
             f"'{missing_path}'. Reads never fall back to the remote service: "
             f"restore the document on the storage or run a "
             f"{self.service_type} update job for {self.service_pk}.")
+
+
+class CapabilitiesPersistenceError(Exception):
+    """A capabilities document whose rows the database refused to store.
+
+    The document parsed and the build reached persistence, but the schema
+    rejected a row the document describes. #1201 lost a WMS over a
+    ``LegendURL`` without the optional ``width``/``height`` attributes while
+    ``registry.models.LegendUrl`` required them; the raw psycopg
+    ``IntegrityError`` - constraint name, ``DETAIL: Failing row contains
+    (...)`` and all - was the only thing the activity popover and the
+    ``TaskResult`` showed. This class names the refusal as a defined failure
+    of the build, keeping the driver's full dump in the cause it is raised
+    from, which the worker log still carries.
+    """
+
+    def __init__(self, integrity_error: Exception):
+        self.integrity_error = integrity_error
+        # Django wraps the driver error and keeps it as the cause; the
+        # psycopg diagnostic names the refused row precisely, without the
+        # DETAIL blob which the stringified IntegrityError appends
+        diagnostic = getattr(
+            getattr(integrity_error, "__cause__", None), "diag", None)
+        detail = (getattr(diagnostic, "message_primary", None)
+                  or str(integrity_error).splitlines()[0])
+        super().__init__(
+            f"The capabilities document could not be persisted: {detail}")

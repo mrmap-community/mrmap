@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('auth', '0012_alter_user_first_name_max_length'),
-        ('registry', '0041_contact_fields_are_wide_enough_for_real_addresses'),
+        ('registry', '0042_alter_legendurl_height_alter_legendurl_width'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -1,7 +1,7 @@
 """Moves the object permissions of the remaining models into the tables of
 their own.
 
-Migration 0043 gives the map applications, their layers, the monitoring settings
+Migration 0044 gives the map applications, their layers, the monitoring settings
 of a web map service and the catalogues a table of their own for their object
 permissions, because guardian's shared table names an object by the text of its
 primary key while a lookup for a model with a uuid primary key casts that column
@@ -33,7 +33,7 @@ SHARED = {
     'group': 'GroupObjectPermission',
 }
 
-#: the model which migration 0043 gave a table of its own and, for every kind of
+#: the model which migration 0044 gave a table of its own and, for every kind of
 #: actor, the name of that actor and the table it moves into
 MOVED = [
     ('catalogueservice', 'user', 'CatalogueServiceUserObjectPermission'),
@@ -147,7 +147,7 @@ def backwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0043_more_dedicated_guardian_object_permission_tables'),
+        ('registry', '0044_more_dedicated_guardian_object_permission_tables'),
     ]
 
     operations = [

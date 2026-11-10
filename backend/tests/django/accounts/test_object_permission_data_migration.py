@@ -2,7 +2,7 @@
 
 The migrations ``registry/0031`` and ``accounts/0003`` carry the rows which a
 deployment already stored in guardian's shared tables into the dedicated tables
-of their model, and ``registry/0044`` does the same for the models #863 left
+of their model, and ``registry/0045`` does the same for the models #863 left
 open: the map applications, their layers, the monitoring settings of a web map
 service and the catalogues. Guardian answers a model with such a table only from
 it, so a row which does not move is a grant which stops working, and a row naming
@@ -44,7 +44,7 @@ ACCOUNTS_MOVE = importlib.import_module(
     "accounts.migrations.0003_move_generic_object_permissions_to_direct_tables")
 REMAINING_MOVE = importlib.import_module(
     "registry.migrations."
-    "0044_move_generic_object_permissions_of_the_remaining_models")
+    "0045_move_generic_object_permissions_of_the_remaining_models")
 
 #: an organization which the deployment does not have
 GONE = "999999"
@@ -243,7 +243,7 @@ class ObjectPermissionMoveTestCase(TestCase):
 class RemainingModelsMoveTestCase(TestCase):
     """What the move of the models of #863 carries and what it leaves.
 
-    The tables of these models are new with ``registry/0043``, so a deployment
+    The tables of these models are new with ``registry/0044``, so a deployment
     which has grants on them - or a fixture which wrote them the way
     ``test_mapcontext.json`` did - answers them from the shared table until this
     migration moves them. Two readings of a row matter here:
@@ -282,7 +282,7 @@ class RemainingModelsMoveTestCase(TestCase):
         """
         rows = [
             # a catalogue: named by a uuid, granted on by no code today and
-            # answered from its own table since 0043
+            # answered from its own table since 0044
             GroupObjectPermission.objects.create(
                 group=self.group,
                 permission=self.permission(

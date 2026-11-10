@@ -21,14 +21,17 @@ const formatDuration = (seconds: number): string => {
 };
 
 /**
- * The time a background process took, as seconds of the record in a clock form.
+ * The time a decided background process needed until its decision, as
+ * seconds of the record in a clock form.
  *
- * The api answers the duration of a decided process in seconds, which is a
- * number no reader compares at a glance; this field renders it as the clock
- * form the operation itself would have shown ("1 d 02:03:04" or "02:03:04"),
- * without inventing a precision the timestamps do not have. Nothing is shown
- * for a process which did not decide about itself yet: the duration of a
- * running process is not known, not zero.
+ * The api answers the seconds between the creation and the decision of a
+ * process, the waiting, retry and scheduling intervals of its tasks
+ * included - the number reads as "how long the request waited for its
+ * decision", not as the time the work spent running. It is rendered here
+ * as the clock form the operation itself would have shown ("1 d 02:03:04"
+ * or "02:03:04"), without inventing a precision the timestamps do not
+ * have. Nothing is shown for a process which did not decide about itself
+ * yet: the time until a running process decides is not known, not zero.
  */
 const DurationField = ({ source }: DurationFieldProps) => {
   const seconds = useFieldValue({ source });

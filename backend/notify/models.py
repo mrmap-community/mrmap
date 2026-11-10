@@ -166,13 +166,21 @@ class BackgroundProcess(models.Model):
 
     @property
     def duration(self):
-        """The seconds this process took from its creation to its decision.
+        """The seconds from the creation of this process to its decision.
 
-        Answered from the two timestamps the process stores itself, so it also
-        answers for an instance which was not read through ``process_info()`` -
-        a websocket payload or the answer of a registration. A process which
-        did not decide about itself yet took no time to finish, and the answer
-        of a process which names no creation moment would be a guess.
+        This is the wall-clock span between the two timestamps the process
+        stores itself: it answers how long the request waited for its
+        decision, the waiting, retry and scheduling intervals of the related
+        celery tasks included - tasks of one process are scheduled
+        independently, not exactly one after another. It is NOT the time the
+        work spent running: per-task running times are no longer persisted
+        since the ``TaskResult`` mirror was retired (#1180), so no better
+        answer is derivable from this model, and the api therefore labels it
+        as the time until the process decided rather than a work duration.
+
+        A process which did not decide about itself yet took no time to
+        finish, and the answer of a process which names no creation moment
+        would be a guess - both answer ``None``.
         """
         if self.done_at is None or self.date_created is None:
             return None

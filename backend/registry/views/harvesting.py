@@ -24,8 +24,8 @@ from registry.managers.havesting import (METADATA_RECORD_COUNTS,
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
-                                      ServiceMetadataRecord)
+from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
+                                      Keyword, Language, ServiceMetadataRecord)
 from registry.models.monitoring import CatalogueServiceMonitoringSetting
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
@@ -581,8 +581,10 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
         "dataset_metadata_record": ["isnull"],
         "service_metadata_record": ["isnull"],
+        "application_metadata_record": ["isnull"],
         "dataset_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
+        "application_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
         "harvesting_job": ["harvesting_job"],
@@ -598,6 +600,14 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
             Prefetch(
                 "service_metadata_record",
                 queryset=ServiceMetadataRecord.objects.only(
+                    "id"
+                ),
+            )
+        ],
+        "application_metadata_record": [
+            Prefetch(
+                "application_metadata_record",
+                queryset=ApplicationMetadataRecord.objects.only(
                     "id"
                 ),
             )

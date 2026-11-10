@@ -2,8 +2,8 @@
 
 The sums a harvesting run answers over its records were built for the dataset and
 the service record; the application record arrived with #827 and the run still
-answered nothing about it. The counts of all three kinds now share one CTE helper
-of ``registry.views.harvesting`` - which makes two promises worth pinning:
+answered nothing about it. The counts of all three kinds now share the counter
+definitions of ``registry.managers.havesting`` - with two promises worth pinning:
 
 * the application counts answer with the states the relations carry, gated on the
   sparse fieldsets like every other aggregated field, and
@@ -104,20 +104,24 @@ class HarvestingApplicationCountsTest(TestCase):
         HarvestedMetadataRelation.objects.bulk_create(relations)
         return job
 
-    def counts(self, job, fields=ALL_COUNTS):
+    def counts(self, job, fields=ALL_COUNTS, *, detail=False):
         """The attributes the endpoint answers for the given run.
 
         Args:
             job: the run to ask the counts of
             fields: the sparse fieldset of the request
+            detail: whether to read the run's detail endpoint instead of the list
 
         Returns:
             dict: the answered attributes of the run
         """
         response = self.client.get(
+            reverse('registry:harvestingjob-detail', args=[job.pk]) if detail else
             reverse('registry:harvestingjob-list'),
             {'filter[service__id]': CATALOGUE, 'fields[HarvestingJob]': fields})
         self.assertEqual(response.status_code, 200, response.content)
+        if detail:
+            return response.json()['data']['attributes']
         answered = {
             row['id']: row['attributes'] for row in response.json()['data']}
         return answered[str(job.pk)]
@@ -181,6 +185,18 @@ class HarvestingApplicationCountsTest(TestCase):
         self.assertEqual(answered['newApplicationMetadataCount'], 0)
         self.assertEqual(answered['duplicatedApplicationMetadataCount'], 0)
 
+    def test_detail_and_list_answer_the_same_counts_for_one_run(self):
+        """The detail subqueries and list aggregation count only this run's rows."""
+        job = self.new_run(
+            dataset_states=('new', 'updated'),
+            service_states=('existing',),
+            application_states=('new', 'updated', 'existing', 'duplicated'))
+        self.new_run(application_states=('new', 'new', 'duplicated'))
+        detail = self.counts(job, detail=True)
+        self.assertEqual(detail, self.counts(job))
+        for state in ('new', 'updated', 'existing', 'duplicated'):
+            self.assertEqual(detail[f'{state}ApplicationMetadataCount'], 1)
+
     def test_the_application_counts_answer_only_to_those_who_ask(self):
         """the aggregation over the application records is gated on the fields
 
@@ -188,10 +204,12 @@ class HarvestingApplicationCountsTest(TestCase):
         their aggregation - the promise the dataset counts already made.
         """
         job = self.new_run(application_states=('new',))
-        answered = self.counts(
-            job, fields='id,new_dataset_metadata_count')
-        self.assertNotIn('newApplicationMetadataCount', answered)
-        self.assertIn('newDatasetMetadataCount', answered)
+        for detail in (False, True):
+            with self.subTest(detail=detail):
+                answered = self.counts(
+                    job, fields='id,new_dataset_metadata_count', detail=detail)
+                self.assertNotIn('newApplicationMetadataCount', answered)
+                self.assertIn('newDatasetMetadataCount', answered)
 
     def test_the_run_answers_its_application_records_below_itself(self):
         """the nested endpoint of the run lists the application records of it"""

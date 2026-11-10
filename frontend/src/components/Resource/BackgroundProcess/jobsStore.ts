@@ -183,6 +183,20 @@ const emptySummary = (): BackgroundJobSummary => ({
   aggregateProgress: null,
 });
 
+/**
+ * the mean progress over the active jobs, or null when no active job is
+ * meaningful: none running, one without progress data, or none known.
+ */
+const computeAggregate = (
+  active: number,
+  progressUnknown: boolean,
+  progressKnown: number,
+  progressSum: number,
+): number | null => {
+  if (active === 0 || progressUnknown || progressKnown === 0) return null;
+  return progressSum / progressKnown;
+};
+
 const summarize = (jobs: Iterable<BackgroundJob>): BackgroundJobSummary => {
   const summary = emptySummary();
   let progressSum = 0;
@@ -222,12 +236,12 @@ const summarize = (jobs: Iterable<BackgroundJob>): BackgroundJobSummary => {
     }
     if (job.actionable) summary.actionable += 1;
   }
-  summary.aggregateProgress =
-    summary.active === 0
-      ? null
-      : progressUnknown || progressKnown === 0
-        ? null
-        : progressSum / progressKnown;
+  summary.aggregateProgress = computeAggregate(
+    summary.active,
+    progressUnknown,
+    progressKnown,
+    progressSum,
+  );
   return summary;
 };
 
@@ -257,7 +271,7 @@ export const createBackgroundJobStore = (options: BackgroundJobStoreOptions = {}
   let renderTimer: ReturnType<typeof setTimeout> | undefined;
   let notifyTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const keyOf = (id: Identifier): string => String(id);
+  const keyOf = String;
 
   const schedule = (
     current: ReturnType<typeof setTimeout> | undefined,
@@ -285,7 +299,7 @@ export const createBackgroundJobStore = (options: BackgroundJobStoreOptions = {}
     const notified: BackgroundJob[] = [];
     pendingActionable.forEach((key) => {
       const job = jobs.get(key);
-      if (job && job.actionable) notified.push(job);
+      if (job?.actionable) notified.push(job);
     });
     pendingActionable.clear();
     if (notified.length === 0) return;
@@ -330,7 +344,7 @@ export const createBackgroundJobStore = (options: BackgroundJobStoreOptions = {}
     input: BackgroundJobInput,
     origin: 'live' | 'seed' = 'live',
   ): 'applied' | 'duplicate' | 'outdated' => {
-    if (input === null || input === undefined || input.id === undefined || input.id === null) {
+    if (input?.id === undefined || input?.id === null) {
       return 'outdated';
     }
     const key = keyOf(input.id);
@@ -459,7 +473,7 @@ export type BackgroundJobStore = ReturnType<typeof createBackgroundJobStore>;
 
 /** read the fields the store keeps off a BackgroundProcess record or message. */
 export const toJobInput = (record: RaRecord): BackgroundJobInput | undefined => {
-  if (record === null || record === undefined || record.id === undefined) return undefined;
+  if (record?.id === undefined) return undefined;
   return {
     id: record.id,
     status: typeof record.status === 'string' ? record.status : undefined,

@@ -37,6 +37,44 @@ class CapabilitiesBackupMissing(Exception):
             f"{self.service_type} update job for {self.service_pk}.")
 
 
+class DuplicateLayerIdentifiers(Exception):
+    """A capabilities document which lists one layer name more than once.
+
+    ``registry.models.Layer`` keeps one row per ``(service, identifier)``
+    while a document may re-list the same ``<Name>`` under several parents -
+    swisstopo BGDI 169, IGN geopf 35, 41 further services in one demo run
+    (#1200). Persisting such a document died with a raw psycopg
+    ``UniqueViolation`` on ``unique_identifer_per_wms``: the whole
+    registration disappeared and the activity popover showed the constraint
+    dump. The decision on #1200 keeps the unique constraint - services with
+    duplicated layers are not allowed - so this error refuses the document
+    with the duplicated identifiers named, while the worker is still
+    processing the document instead of the database refusing rows.
+    """
+
+    # The message travels into the ``phase`` of the background process, a
+    # 512 char column composed with "An error occurred: " on failure; a
+    # document with hundreds of duplicates may not overflow it.
+    MAX_NAMED_IDENTIFIERS = 5
+    MAX_IDENTIFIER_LENGTH = 60
+
+    def __init__(self, duplicated):
+        self.duplicated = sorted(duplicated)
+        named = [
+            name if len(name) <= self.MAX_IDENTIFIER_LENGTH
+            else name[:self.MAX_IDENTIFIER_LENGTH - 1] + "…"
+            for name in self.duplicated[:self.MAX_NAMED_IDENTIFIERS]]
+        message = (
+            "The capabilities document contains duplicate layer names: "
+            + ", ".join(f"'{name}'" for name in named))
+        remaining = len(self.duplicated) - len(named)
+        if remaining > 0:
+            message += f" and {remaining} more"
+        message += (". Mr. Map does not build services whose capabilities "
+                    "list a layer name more than once.")
+        super().__init__(message)
+
+
 class CapabilitiesPersistenceError(Exception):
     """A capabilities document whose rows the database refused to store.
 

@@ -1,9 +1,10 @@
 from datetime import timedelta
 
-from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
+from camel_converter import to_snake
+from django.db.models import Case, Count, F, Prefetch, Q, Sum, When
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.fields import DurationField, FloatField
-from django.db.models.functions import Ceil, Coalesce, Round
+from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
 from django_cte import CTE, with_cte
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -12,29 +13,31 @@ from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.expressions.durations import DurationSeconds
-from registry.filters.harvesting import HarvestingJobFilterSet
+from registry.filters.harvesting import (HarvestingJobFilterSet,
+                                         HarvestingLogFilterSet)
+from registry.filters.scheduling import NextRunOrderingFilter
+from registry.filters.search import SearchVectorSearchFilter
+from registry.managers.havesting import (METADATA_RECORD_COUNTS,
+                                         RUN_PROGRESS_FIELDS,
+                                         metadata_count_annotation,
+                                         metadata_count_range)
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
-from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
-                                      Keyword, Language, ServiceMetadataRecord)
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
+                                      ServiceMetadataRecord)
 from registry.models.monitoring import CatalogueServiceMonitoringSetting
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
-    HarvestingJobSerializer, HarvestingLogSerializer,
-    PeriodicHarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
+    HarvestingJobSerializer, HarvestingLogListSerializer,
+    HarvestingLogSerializer, PeriodicHarvestingJobSerializer,
+    TemporaryMdMetadataFileSerializer)
+from rest_framework.filters import OrderingFilter
+from rest_framework_json_api.django_filters.backends import DjangoFilterBackend
+from rest_framework_json_api.filters import (IncludedResourcesFilter,
+                                             QueryParameterValidationFilter)
 from rest_framework_json_api.views import ModelViewSet
-
-# the kinds of records a harvesting distinguishes, by the relation name of
-# HarvestedMetadataRelation and the name the api counts of: one helper drives the
-# sums CTE for all of them, so a fourth record kind is a row here and nothing else
-# (#830 replaces the boolean dataset/service switch of the two copies it was).
-HARVESTED_RECORD_KINDS = {
-    "dataset": "dataset_metadata_record",
-    "service": "service_metadata_record",
-    "application": "application_metadata_record",
-}
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
     Prefetch(
@@ -110,17 +113,27 @@ BACKGROUND_PROCESS_PREFETCHES = [
 
 
 class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
-    queryset = HarvestingJob.objects.all()
+    # the annotation carries the display string of the serializer, so the sort
+    # the generic pickers send is answered like the list they render (#1035);
+    # the display string names the catalogue of the run, so the service rides
+    # the select and str(job) answers without a read per row (#1045)
+    queryset = HarvestingJob.objects \
+        .with_string_representation() \
+        .select_related("service")
     serializer_class = HarvestingJobSerializer
     serializer_classes = {
         "default": HarvestingJobSerializer,
         "create": CreateHarvestingJobSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # the runs which finished are ordered by their end: the harvesting never sets the creation of
-    # a run, so `date_created` cannot tell the runs of a year apart, and the throughput of a
-    # catalogue is measured by the runs which ended last (#692)
-    ordering_fields = ["id", 'date_created', 'done_at']
+    # `date_created` is orderable again: #1079 filled the column, which #1080 had withdrawn from
+    # the sort offers while it was still empty. The end of a run stays orderable - the throughput
+    # of a catalogue is measured by the runs which ended last, and a run which never ended has no
+    # end to order by (#692, #1080). The progress of a run joins the offer now that #1071 answers
+    # it: it is no column of the row but the annotation of the run's own work, which the request
+    # has to carry before anything can be ordered by it (`with_unhandled_records`) (#1071, #1130)
+    ordering_fields = ["id", "date_created", "done_at", "string_representation", "phase",
+                       "total_records", "progress"]
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -206,45 +219,54 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         # ],
     }
 
-    def _get_cte_annotation_kwargs(self, record_kind):
-        """The count annotations one record kind contributes to the sums CTE.
+    def _metadata_count_answers_asked(self):
+        """The counters of the collected records which this request reads.
 
-        The counts a run answers are gated on the sparse fieldsets of the request:
-        a screen which never shows the records of one kind does not pay for their
-        aggregation. The collecting states are the same for every kind, only the
-        relation which guards the count differs - which is why one helper answers
-        all kinds of HARVESTED_RECORD_KINDS instead of a copy per kind (#830).
+        The sparse fieldset names the answers a screen renders, and a request
+        without one renders all of them (`check_sparse_fields_contains`). Which
+        rows answer each of them is defined once, in `METADATA_RECORD_COUNTS`.
         """
-        string = record_kind.capitalize()
-        relation_filter_kwargs = {
-            f"{HARVESTED_RECORD_KINDS[record_kind]}__isnull": False
-        }
-        cte_annotation = {}
-        for state in ("new", "updated", "existing", "duplicated"):
-            if self.check_sparse_fields_contains(f"{state}{string}MetadataCount"):
-                cte_annotation.update({
-                    f"{state}_{record_kind}_metadata_count": Count("id", filter=Q(collecting_state=CollectingStatenEnum[state.upper()].value, **relation_filter_kwargs))
-                })
+        return {name for name in METADATA_RECORD_COUNTS
+                if self.check_sparse_fields_contains(name)}
 
+    def _names_one_run(self):
+        """Whether the url of the request names one run by its id.
+
+        Only such a request can answer the counters of the run from the ranges of
+        its own rows; a list has to answer the counters of many runs at once, and
+        that is what the aggregation of the relation table is for (#1037, #885).
+        """
+        pk = getattr(self, "kwargs", {}).get("pk")
+        return str(pk or "").isdigit()
+
+    def _cte_count_annotation_kwargs(self, counts_asked):
+        """The counters as answers of the aggregation of the relation table.
+
+        A request which names one run has its counters answered by the ranges of
+        that run's rows (`with_metadata_record_counts`) and reaches this with
+        nothing left to answer: the FILTER of such a count is applied to every row
+        of the run, which is what the poll of a running harvest must not pay
+        (#1037).
+        """
+        cte_annotation = {}
+        for name, (kind, state) in METADATA_RECORD_COUNTS.items():
+            if name in counts_asked:
+                cte_annotation[metadata_count_annotation(kind, state)] = Count(
+                    "id", filter=metadata_count_range(kind, state))
         return cte_annotation
 
-    def _prepare_qs_for_harvesting_stats(self, qs, sums):
+    def _prepare_qs_for_harvesting_stats(self, qs, sums, counts_asked=()):
         if self.check_sparse_fields_contains("fetchRecordDuration"):
             qs = qs.annotate(
                 fetch_record_duration=sums.col.fetch_record_duration)
         if self.check_sparse_fields_contains("mdMetadataFileToDbDuration"):
             qs = qs.annotate(
                 md_metadata_file_to_db_duration=sums.col.md_metadata_file_to_db_duration)
-        for record_kind in HARVESTED_RECORD_KINDS:
-            string = record_kind.capitalize()
-            for state in ("new", "updated", "existing", "duplicated"):
-                if self.check_sparse_fields_contains(f"{state}{string}MetadataCount"):
-                    field = f"{state}_{record_kind}_metadata_count"
-                    # a run which harvested no record of the kind has no row in the
-                    # sums, the answer of the api is zero
-                    qs = qs.annotate(**{
-                        field: Coalesce(getattr(sums.col, field), 0)
-                    })
+        for name, (kind, state) in METADATA_RECORD_COUNTS.items():
+            if name in counts_asked:
+                annotation = metadata_count_annotation(kind, state)
+                qs = qs.annotate(**{
+                    annotation: Coalesce(getattr(sums.col, annotation), 0)})
         if self.check_sparse_fields_contains("recordsPerMinute"):
             qs = qs.annotate(
                 harvested_records=Coalesce(sums.col.harvested_records, 0),
@@ -268,10 +290,31 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
 
         return qs
 
+    def _statistics_range(self):
+        """The runs whose records the statistics aggregate.
+
+        The ``sums`` CTE aggregates the whole table of the harvested metadata
+        relations and is joined ``LEFT OUTER``, which answers one row per job
+        anyway (#885). A request whose url names one run can only answer that run,
+        so the aggregation is bounded to the records of this very run: they are
+        read out of the index over the rows of a job instead of as the whole table
+        - which is the table the import of a big run is writing into while its
+        diagnostics are polled every few seconds (#1071, cf. #1037).
+        """
+        pk = getattr(self, "kwargs", {}).get("pk")
+        return Q(harvesting_job_id=pk) if self._names_one_run() else Q()
+
     def with_harvesting_stats(self, qs):
-        record_count_annotation = {}
-        for record_kind in HARVESTED_RECORD_KINDS:
-            record_count_annotation.update(self._get_cte_annotation_kwargs(record_kind))
+        counts_asked = self._metadata_count_answers_asked()
+        if counts_asked and self._names_one_run():
+            # The counters of one run are the records its import decided about, and
+            # they are answered by exactly the rows each of them counts - not by an
+            # aggregation over all records of the run, which is what made the screen
+            # that watches a harvest slower the further that harvest had come
+            # (#1037). Only the measurements below still need the rows themselves.
+            qs = HarvestingJob.objects.with_metadata_record_counts(
+                qs, answer=counts_asked)
+            counts_asked = set()
         cte_annotation = {}
         if self.check_sparse_fields_contains("fetchRecordDuration"):
             cte_annotation.update({
@@ -296,11 +339,13 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                     + Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
                 ),
             })
+        cte_annotation.update(self._cte_count_annotation_kwargs(counts_asked))
         sums = None
-        if record_count_annotation or cte_annotation:
+        if cte_annotation:
             sums = CTE(
-                queryset=HarvestedMetadataRelation.objects.values('harvesting_job_id').annotate(
-                    **record_count_annotation, **cte_annotation),
+                queryset=HarvestedMetadataRelation.objects.filter(
+                    self._statistics_range()).values('harvesting_job_id').annotate(
+                    **cte_annotation),
                 name="sums"
             )
 
@@ -310,105 +355,77 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                                  id=sums.col.harvesting_job_id,
                                  _join_type=LOUTER)
             )
-            qs = self._prepare_qs_for_harvesting_stats(qs, sums)
+            qs = self._prepare_qs_for_harvesting_stats(qs, sums, counts_asked)
 
         return qs
+
+    def _progress_answers_asked(self):
+        """The answers of ``RUN_PROGRESS_FIELDS`` which this request reads.
+
+        The sparse fieldset names the answers a screen renders. A ``sort`` names
+        the answer the list is ordered by, and that one is read as much as a
+        column is: the offer of #1130 orders the runs of a catalogue by their
+        progress whether or not the screen shows a number of it, and an answer
+        which was not annotated is nothing to order by. The alerts list reads the
+        annotations of a request the very same way (`querys/alerts.py`).
+        """
+        asked = {
+            field for field in RUN_PROGRESS_FIELDS
+            if self.check_sparse_fields_contains(field)}
+        terms = {term.strip().lstrip("-")
+                 for term in self.request.GET.get("sort", "").split(",")}
+        # a client names an answer as the api names it, while the ordering is
+        # answered as the database names it - a term may arrive either way
+        asked |= {
+            field for field in RUN_PROGRESS_FIELDS
+            if field in terms or to_snake(field) in terms}
+        return asked
 
     def with_unhandled_records(self, qs):
-        import_error_count_needed = self.check_sparse_fields_contains(
-            "importErrorCount")
-        unhandled_records_count_needed = self.check_sparse_fields_contains(
-            "unhandledRecordsCount")
-        progress_needed = self.check_sparse_fields_contains("progress")
-        done_steps_needed = self.check_sparse_fields_contains(
-            "doneSteps") or progress_needed
-        total_steps_needed = self.check_sparse_fields_contains(
-            "totalSteps") or done_steps_needed
-        download_tasks_count_needed = total_steps_needed or done_steps_needed
+        """Answer what a run reports about its own work.
 
-        counts = {}
-        qs_annotation_kwargs = {}
-        if import_error_count_needed:
-            counts.update({
-                "import_error_count": Count("id", filter=Q(has_import_error=True))
-            })
-        if unhandled_records_count_needed:
-            counts.update({
-                "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
-            })
-        if download_tasks_count_needed:
-            qs_annotation_kwargs.update({
-                "download_tasks_count": Ceil(F("total_records") / F("max_step_size")),
-            })
-        if total_steps_needed:
-            qs_annotation_kwargs.update({
-                # + 1 for call_fetch_total_records
-                "total_steps": F("download_tasks_count") + F("total_records") + 1
-            })
-        if done_steps_needed:
-            counts.update({
-                "records_count": Count("id")
-            })
-
-            qs_annotation_kwargs.update({
-                "done_steps": Case(
-                    When(
-                        condition=Q(
-                            phase__gte=HarvestingPhaseEnum.COMPLETED.value),
-                        then=F("total_steps")
-                    ),
-                    When(
-                        condition=Q(
-                            phase=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
-                        then=1 + Ceil(F("records_count") /
-                                      F("max_step_size"))
-                    ),
-                    When(
-                        condition=Q(
-                            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value),
-                        then=1 + F("download_tasks_count") +
-                        F("total_records") -
-                        F("records_count")
-                    ),
-                    default=0
-                ),
-            })
-        if progress_needed:
-            qs_annotation_kwargs.update({
-                "progress": Case(
-                    When(
-                        ~Q(phase=HarvestingPhaseEnum.ABORTED.value) & Q(
-                            done_at__isnull=False),
-                        then=Value(100.0)
-                    ),
-                    default=Case(
-                        # TODO: does not provide floatingfield
-                        When(
-                            total_steps__gt=0,
-                            then=Round(
-                                F("done_steps") * 1.0 /
-                                F("total_steps") * 100.0,
-                                precision=2,
-                                output_field=FloatField()
-                            ),
-                        ),
-                        default=0.0
-                    ),
-                    output_field=FloatField()
-                )
-            })
-
-        if counts:
-            qs = HarvestingJob.objects.with_temporary_file_counts(qs, **counts)
-        if qs_annotation_kwargs:
-            qs = qs.annotate(**qs_annotation_kwargs)
-        return qs
+        The steps, the progress and the measurements of a run are annotations, so
+        the request decides which of them are answered: a screen which shows no
+        throughput pays for no aggregation of the records (#692) and a screen
+        which shows no measurement pays for no measurement (#1071). What a client
+        asks the list to be ordered by belongs to that decision as much as what it
+        asks to see - an offered sort whose annotation was left out would answer
+        one request in the order it asked for and the next with an error (#1130).
+        The annotations themselves live with the aggregate
+        (`HarvestingJobManager.with_run_progress`), because the websocket payload
+        of a run is built from the very same numbers: a field which was only
+        annotated here would answer once and empty with the first push.
+        """
+        return HarvestingJob.objects.with_run_progress(
+            qs, answer=self._progress_answers_asked())
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
         qs = self.with_unhandled_records(qs)
         return qs
+
+    def filter_queryset_without_ordering(self, queryset):
+        """Apply the filters of the request and leave out the order it asked for.
+
+        ``filter_queryset`` has to be given a queryset which carries the annotations
+        the sort names - an answer which cannot resolve its own order raises a
+        ``FieldError``. For the number of rows that requirement is a cost without a
+        benefit: the order of the rows changes nothing about how many they are, and
+        the answers of a run are read from the files it left behind, which the
+        overview of a deployment must not read a second time only to be told how many
+        runs it lists (#870, #1130).
+
+        The backends are asked in the order they are configured, exactly as
+        ``GenericAPIView.filter_queryset`` does; only the ordering is left out. The
+        page itself is still filtered with it, so an order which is not offered is
+        still answered with a bad request.
+        """
+        for backend in self.filter_backends:
+            if issubclass(backend, OrderingFilter):
+                continue
+            queryset = backend().filter_queryset(self.request, queryset, self)
+        return queryset
 
     def paginate_queryset(self, queryset, *args, **kwargs):
         """Count the jobs of the answer without the statistics of a job.
@@ -426,10 +443,14 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
         of the request are applied to the queryset without them, which is the same
         answer without the annotations, and the page itself is still taken from the
         annotated queryset. The statistics cost one materialization per request.
+        Without the order of the request: the progress of a run joins the sort offer
+        of #1130 as an annotation, and the queryset before the statistics does not
+        carry it, so ordering it by the terms of the request would answer such a
+        request with an error instead of with a number of rows.
         """
         if getattr(queryset.query, '_with_ctes', None):
             queryset = queryset.with_cached_count(
-                self.filter_queryset(
+                self.filter_queryset_without_ordering(
                     super().get_queryset()).count())
         return super().paginate_queryset(queryset, *args, **kwargs)
 
@@ -450,7 +471,7 @@ class NestedHarvestingJobViewSet(
     pass
 
 
-class PeriodicHarvestingJobViewSetMixin:
+class PeriodicHarvestingJobViewSetMixin(SparseFieldMixin):
     """ Endpoints for resource `PeriodicHarvestingJob`
 
         create:
@@ -465,18 +486,42 @@ class PeriodicHarvestingJobViewSetMixin:
             Endpoint to remove a registered `PeriodicHarvestingJob` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = PeriodicHarvestingJob.objects.all()
+    # the display string names the catalogue of the schedule, so the service
+    # rides the select instead of one read per row (#1045); the crontab rides
+    # it likewise, because the next run and its reading are answered per row
+    # and both ask the crontab of the schedule (#1082)
+    queryset = PeriodicHarvestingJob.objects.all().select_related(
+        "service", "crontab")
     serializer_class = PeriodicHarvestingJobSerializer
     select_for_includes = {
         "service": ["service"],
     }
+    # the backends of every endpoint, with the ordering asked of this one by
+    # the filter which answers the sort by the next run of a schedule (#1082)
+    filter_backends = [
+        QueryParameterValidationFilter,
+        IncludedResourcesFilter,
+        NextRunOrderingFilter,
+        DjangoFilterBackend,
+        SearchVectorSearchFilter,
+    ]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'service__id': ['exact', 'icontains', 'contains', 'in'],
         'service__title': ['exact', 'icontains', 'contains'],
+        # enabled is the one answer every row of the schedules shows, so the
+        # screen of all schedules facets by it as well (#1082)
+        'enabled': ['exact'],
     }
     search_fields = ("id", "service", "service__title")
-    ordering_fields = ["id", "name", "service"]
+    # `name` is a uuid the system generates for the uniqueness of the celery
+    # task, not a label an administrator orders schedules by; the readable
+    # ordering of the schedules is by the catalogue they harvest (#1080). The
+    # states of the row which an administrator sorts are the enabled flag, the
+    # last dispatch and the next one - the last decided by the database, the
+    # next by the ordering filter of `registry/filters/scheduling.py` (#1082)
+    ordering_fields = ["id", "enabled", "last_run_at", "next_run_at",
+                       "service__title"]
 
 
 class PeriodicHarvestingJobViewSet(
@@ -497,10 +542,14 @@ class TemporaryMdMetadataFileViewSetMixin:
     queryset = TemporaryMdMetadataFile.objects.all()
     serializer_class = TemporaryMdMetadataFileSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
+    ordering_fields = ["id", "request_id"]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'job__id': ['exact', 'icontains', 'contains', 'in'],
+        # the files of one catalogue: the run is only interesting through the
+        # catalogue it belongs to, so the collection answers its service too (#1080)
+        'job__service': ['exact', 'in'],
+        'job__service__id': ['exact', 'in'],
         'has_import_error': ['exact'],
         'import_error': ['exact', 'icontains', 'contains', 'in', 'isnull'],
     }
@@ -532,10 +581,8 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
         "dataset_metadata_record": ["isnull"],
         "service_metadata_record": ["isnull"],
-        "application_metadata_record": ["isnull"],
         "dataset_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
-        "application_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
         "harvesting_job": ["harvesting_job"],
@@ -551,14 +598,6 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
             Prefetch(
                 "service_metadata_record",
                 queryset=ServiceMetadataRecord.objects.only(
-                    "id"
-                ),
-            )
-        ],
-        "application_metadata_record": [
-            Prefetch(
-                "application_metadata_record",
-                queryset=ApplicationMetadataRecord.objects.only(
                     "id"
                 ),
             )
@@ -580,14 +619,22 @@ class NestedHarvestedMetadataRelationViewSet(
     pass
 
 
-class HarvestingLogViewSetMixin(PreloadNotIncludesMixin):
+class HarvestingLogViewSetMixin(PreloadNotIncludesMixin,
+                                SerializerClassesMixin):
     queryset = HarvestingLog.objects.all()
     serializer_class = HarvestingLogSerializer
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
+    # the list of lines answers the description and whether an extended one
+    # is stored; the content of the stored response is read per line, not
+    # fetched for every row of the list (#1083)
+    serializer_classes = {
+        "default": HarvestingLogSerializer,
+        "list": HarvestingLogListSerializer,
     }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # every line really carries the time it was written, so the list answers
+    # both directions of it and the run log reads in the order it happened (#1080)
+    ordering_fields = ["id", "timestamp"]
+    filterset_class = HarvestingLogFilterSet
 
 
 class HarvestingLogViewSet(

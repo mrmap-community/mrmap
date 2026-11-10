@@ -16,7 +16,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/periodic_updates.py` | periodic WFS/CSW job creation and unfinished-job reuse assertions |
 | `steps/automatic_updates.py` | WMS/WFS additions, removals and reviewed identifier renames |
 | `steps/service_alerts.py` | failed update and object visibility setup for cross-service attention |
-| `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
+| `steps/object_permissions.py` | global and group object grants of the service and application record change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/harvesting.py` | Two runs of one catalogue with known starts, for the ordering and the time range of the harvesting job list; rolled back like `statistical.py` does |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |

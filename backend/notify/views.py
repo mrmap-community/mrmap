@@ -106,11 +106,14 @@ class BackgroundProcessViewSetMixin(
     filterset_class = BackgroundProcessFilterSet
     permission_classes = [CanChangeRelatedResource]
     # the progress of process_info() is a plain annotation of the queryset, so
-    # the overview can order its rows by the percentage it renders (#1035)
+    # the overview can order its rows by the percentage it renders (#1035);
+    # the state of #1207 is its other annotation and the revision its column
     ordering_fields = [
         "id",
         "date_created",
         "progress",
+        "state",
+        "revision",
     ]
 
     def get_queryset(self):

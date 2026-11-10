@@ -87,6 +87,53 @@ class BackgroundProcess(models.Model):
         ct_field='related_resource_type',
         fk_field='related_id')
 
+    # the normalized operation reporting of #1207: what a client of the
+    # background job center needs to follow one logical operation from the
+    # moment it was made until it decided about itself. All of it is written
+    # by the reporters through BackgroundProcessManager, never by a client,
+    # so every field below is not editable.
+    revision = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_('revision'),
+        help_text=_(
+            'counter of the state reports of this process; every message '
+            'about the process carries the revision it reported, so a client '
+            'which receives an older one out of order can drop it'))
+    action_required = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_('action required'),
+        help_text=_(
+            'a reporter decided that this process stands until a human '
+            'acts; it is set by the watchdog of a stalled import and by an '
+            'update which waits for its review and cleared when the work '
+            'goes on'))
+    retry_count = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_('retry count'),
+        help_text=_(
+            'how many retries of its tasks the process has reported since '
+            'it was created'))
+    retry_reason = models.CharField(
+        max_length=512,
+        blank=True,
+        default='',
+        editable=False,
+        verbose_name=_('retry reason'),
+        help_text=_(
+            'what the last reported retry of a task of this process '
+            'failed on'))
+    retry_scheduled_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_('retry scheduled until'),
+        help_text=_(
+            'until when the next attempt of the retried task is due; while '
+            'this window is open the process reports itself as retrying'))
+
     class Meta:
         verbose_name = _('Background Process')
         verbose_name_plural = _('Background Processes')
@@ -180,7 +227,21 @@ class BackgroundProcess(models.Model):
             if kwargs.get("update_fields") is not None:
                 kwargs["update_fields"] = set(kwargs["update_fields"]) | {"status", "done_at"}
 
+        # every write of an existing process is a new report of its state, and
+        # the revision which orders the reports is counted by the database so
+        # that concurrent writers cannot read each other's write away (#1207)
+        bump = not self._state.adding
+        if bump:
+            self.revision = F("revision") + 1
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"revision"}
+
         saved = super(BackgroundProcess, self).save(*args, **kwargs)
+
+        if bump:
+            # the database computed the expression; the listeners and the
+            # response of an abort have to read the number, not the formula
+            self.refresh_from_db(fields=["revision"])
 
         if aborted:
             # finding the tasks costs one blocking broadcast round trip per

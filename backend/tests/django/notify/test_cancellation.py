@@ -15,10 +15,18 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from django.test import TestCase
+from MrMap.celery import app
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 
-INSPECT = "notify.models.app.control.inspect"
+# The inspection is patched on the class, not on the app's shared control
+# instance: `Control.inspect` is a `cached_property` (celery 5.7.0), so the
+# lookup a patch of the instance path performs to save the original
+# materializes the real factory onto that instance, and the exit then restores
+# it there as a plain attribute - permanently shadowing every later class-level
+# patch of the same process (#1232). `revoke` is an ordinary method, so its
+# instance patch never materializes anything and restores cleanly.
+INSPECT = "celery.app.control.Control.inspect"
 REVOKE = "notify.models.app.control.revoke"
 
 
@@ -193,3 +201,38 @@ class CancellationOwnershipTests(TestCase):
 
         self.assertEqual(stored["status"], ProcessStatusEnum.ABORTED)
         self.assertIsNotNone(stored["done_at"])
+
+
+class SharedControlIsolationTests(TestCase):
+    """The patches of this module stay inside the test which installed them.
+
+    #1232: with the inspection patched on the instance path, the shared
+    `app.control` keeps an `inspect` entry after the patch exits - the mock
+    restores what its own lookup materialized from the `cached_property` -
+    and every later test of the same process which patches the class, as the
+    harvest staleness tests do, then silently talks to the real control
+    instead of its mock. Pin both sides of the class-level target: it is the
+    one production calls, and the shared instance is untouched afterwards.
+    """
+
+    def test_an_abort_leaves_nothing_on_the_shared_control(self):
+        process = BackgroundProcess.objects.create(
+            process_type="registering", phase="queued",
+            description="a process aborted through the shared app")
+        task_id = uuid4()
+        process.append_celery_task_ids([task_id])
+
+        with patch(INSPECT) as inspect, patch(REVOKE) as revoke:
+            no_worker_answers(inspect)
+            process.phase = "abort"
+            process.save(update_fields=["phase"])
+
+        inspect.assert_called_once()
+        revoke.assert_called_once()
+        self.assertNotIn(
+            "inspect", vars(app.control),
+            "the patched inspection leaked onto the shared control "
+            "instance and shadows later class-level patches (#1232)")
+        self.assertNotIn(
+            "revoke", vars(app.control),
+            "the patched revocation leaked onto the shared control instance")

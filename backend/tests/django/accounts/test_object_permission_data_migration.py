@@ -1,13 +1,15 @@
 """Moves the permissions guardian shared into the tables of their own.
 
-The migrations ``registry/0022`` and ``accounts/0003`` carry the rows which a
+The migrations ``registry/0031`` and ``accounts/0003`` carry the rows which a
 deployment already stored in guardian's shared tables into the dedicated tables
-of their model. Guardian answers a model with such a table only from it, so a
-row which does not move is a grant which stops working, and a row naming an
-object which is gone may not move either: the dedicated table has a real foreign
-key, the shared one never had one.
+of their model, and ``registry/0045`` does the same for the models #863 left
+open: the map applications, their layers, the monitoring settings of a web map
+service and the catalogues. Guardian answers a model with such a table only from
+it, so a row which does not move is a grant which stops working, and a row naming
+an object which is gone may not move either: the dedicated table has a real
+foreign key, the shared one never had one.
 
-Both migrations are called with the live app registry here. ``forwards`` and
+All three migrations are called with the live app registry here. ``forwards`` and
 ``backwards`` take ``apps`` as their first argument and do nothing to the
 database which this test does not run inside the transaction that Django rolls
 back for every test.
@@ -17,6 +19,7 @@ import importlib
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from guardian.models import GroupObjectPermission, UserObjectPermission
 
@@ -25,17 +28,33 @@ from accounts.models.guardian import (
     OrganizationGroupObjectPermission, OrganizationUserObjectPermission)
 from accounts.models.groups import Organization
 from registry.models.guardian import (
-    WebMapServiceGroupObjectPermission, WebMapServiceUserObjectPermission)
-from registry.models.service import WebMapService
+    CatalogueServiceGroupObjectPermission, MapContextGroupObjectPermission,
+    MapContextLayerGroupObjectPermission, MapContextUserObjectPermission,
+    WebMapServiceGroupObjectPermission,
+    WebMapServiceMonitoringSettingGroupObjectPermission,
+    WebMapServiceUserObjectPermission)
+from registry.models.mapcontext import MapContext, MapContextLayer
+from registry.models.monitoring import WebMapServiceMonitoringSetting
+from registry.models.service import CatalogueService, WebMapService
 
-#: the two migrations which move the rows, by their module name
+#: the migrations which move the rows, by their module name
 REGISTRY_MOVE = importlib.import_module(
     "registry.migrations.0031_move_generic_object_permissions_to_direct_tables")
 ACCOUNTS_MOVE = importlib.import_module(
     "accounts.migrations.0003_move_generic_object_permissions_to_direct_tables")
+REMAINING_MOVE = importlib.import_module(
+    "registry.migrations."
+    "0045_move_generic_object_permissions_of_the_remaining_models")
 
 #: an organization which the deployment does not have
 GONE = "999999"
+
+#: the catalogue, the map application and its layer, and the monitoring setting
+#: of the fixtures, which the second move test grants on
+CATALOGUE = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+MAPCONTEXT = 1
+LAYER = 6
+MONITORING_SETTING = 1
 
 
 class ObjectPermissionMoveTestCase(TestCase):
@@ -219,3 +238,220 @@ class ObjectPermissionMoveTestCase(TestCase):
             + OrganizationUserObjectPermission.objects.count()
             + GroupGroupObjectPermission.objects.count()
             + GroupUserObjectPermission.objects.count(), 0)
+
+
+class RemainingModelsMoveTestCase(TestCase):
+    """What the move of the models of #863 carries and what it leaves.
+
+    The tables of these models are new with ``registry/0044``, so a deployment
+    which has grants on them - or a fixture which wrote them the way
+    ``test_mapcontext.json`` did - answers them from the shared table until this
+    migration moves them. Two readings of a row matter here:
+
+    * a lookup of a model narrows the shared table by ``permission__content_type``,
+      so the model whose table a row moves into is the one of the *permission*.
+      The fixtures of this repository hold rows whose two content types disagree -
+      a permission of a layer naming a map application - and those rows really
+      grant on the layer;
+    * a text the primary key of that model cannot read names nothing, and stays
+      behind like the grant of an object which is gone.
+    """
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json", "test_mapcontext.json",
+                "test_monitoring.json"]
+
+    def setUp(self):
+        self.user = get_user_model().objects.get(username="User2")
+        self.group = Group.objects.get(name="Group1")
+        self.catalogue = CatalogueService.objects.get(pk=CATALOGUE)
+        self.mapcontext = MapContext.objects.get(pk=MAPCONTEXT)
+        self.layer = MapContextLayer.objects.get(pk=LAYER)
+        self.setting = WebMapServiceMonitoringSetting.objects.get(
+            pk=MONITORING_SETTING)
+
+    def permission(self, codename, model):
+        return Permission.objects.get(
+            codename=codename, content_type__model=model)
+
+    def shared_rows(self):
+        """One row of every shape this migration has to tell apart
+
+        Returns:
+            list: the rows which were written
+        """
+        rows = [
+            # a catalogue: named by a uuid, granted on by no code today and
+            # answered from its own table since 0044
+            GroupObjectPermission.objects.create(
+                group=self.group,
+                permission=self.permission(
+                    "view_catalogueservice", "catalogueservice"),
+                content_object=self.catalogue),
+            # a map application: named by an integer, the shape which breaks the
+            # lookup of a model with a uuid primary key
+            UserObjectPermission.objects.create(
+                user=self.user,
+                permission=self.permission("change_mapcontext", "mapcontext"),
+                content_object=self.mapcontext),
+            # the monitoring setting of a web map service
+            GroupObjectPermission.objects.create(
+                group=self.group,
+                permission=self.permission(
+                    "change_webmapservicemonitoringsetting",
+                    "webmapservicemonitoringsetting"),
+                content_object=self.setting),
+        ]
+        # A layer grant as ``test_mapcontext.json`` wrote it: the permission
+        # names the layer, the ``content_type`` of the row names the map
+        # application and the text names the layer. Guardian's own save()
+        # refuses this shape - it insists a permission is designed for the
+        # object it points at - so the row is written the way a loaded fixture
+        # writes it: created as a grant of the map application and rewritten
+        # with an update, which does not ask the model.
+        mismatch = GroupObjectPermission.objects.create(
+            group=self.group,
+            permission=self.permission("change_mapcontext", "mapcontext"),
+            content_object=self.mapcontext)
+        GroupObjectPermission.objects.filter(pk=mismatch.pk).update(
+            permission=self.permission(
+                "change_mapcontextlayer", "mapcontextlayer"),
+            content_type=ContentType.objects.get_for_model(MapContext),
+            object_pk=str(LAYER))
+        mismatch.refresh_from_db()
+        rows.append(mismatch)
+        # a map application which the deployment deleted before the migration
+        gone = GroupObjectPermission.objects.create(
+            group=self.group,
+            permission=self.permission("change_mapcontext", "mapcontext"),
+            content_object=self.mapcontext)
+        GroupObjectPermission.objects.filter(pk=gone.pk).update(object_pk=GONE)
+        gone.object_pk = GONE
+        rows.append(gone)
+        # a user: a uuid, but no model which got a table, so no row which moves
+        rows.append(UserObjectPermission.objects.create(
+            user=self.user,
+            permission=self.permission("view_user", "user"),
+            content_object=self.user))
+        return rows
+
+    def move_forwards(self):
+        REMAINING_MOVE.forwards(django_apps, None)
+
+    def move_backwards(self):
+        REMAINING_MOVE.backwards(django_apps, None)
+
+    def test_forwards_moves_the_grants_into_the_tables_of_their_model(self):
+        """Every row of a model with a new table answers from it afterwards"""
+        self.shared_rows()
+
+        self.move_forwards()
+
+        self.assertTrue(CatalogueServiceGroupObjectPermission.objects.filter(
+            group=self.group, content_object=self.catalogue,
+            permission__codename="view_catalogueservice").exists())
+        self.assertTrue(MapContextUserObjectPermission.objects.filter(
+            user=self.user, content_object=self.mapcontext,
+            permission__codename="change_mapcontext").exists())
+        self.assertTrue(
+            WebMapServiceMonitoringSettingGroupObjectPermission.objects.filter(
+                group=self.group, content_object=self.setting,
+                permission__codename="change_webmapservicemonitoringsetting")
+            .exists())
+
+    def test_a_row_whose_content_types_disagree_moves_with_its_permission(self):
+        """The layer grant of a row naming the map application is a layer grant
+
+        A lookup of a layer filters the shared table by the content type of the
+        permission, so the row was always read as a grant on the layer named by
+        its text - which is what the fixture meant and what its wrong
+        ``content_type`` never said.
+        """
+        self.shared_rows()
+
+        self.move_forwards()
+
+        self.assertTrue(MapContextLayerGroupObjectPermission.objects.filter(
+            group=self.group, content_object=self.layer,
+            permission__codename="change_mapcontextlayer").exists())
+
+    def test_forwards_leaves_what_cannot_move(self):
+        """A model without a table of its own and an object which is gone stay
+
+        Both would lose their meaning in a dedicated table: the first has no
+        table at all, the second can not be named by a foreign key.
+        """
+        self.shared_rows()
+
+        self.move_forwards()
+
+        self.assertTrue(UserObjectPermission.objects.filter(
+            object_pk=str(self.user.pk),
+            permission__codename="view_user").exists(),
+            "the grant of a model without a dedicated table was moved away")
+        self.assertTrue(GroupObjectPermission.objects.filter(
+            object_pk=GONE).exists(),
+            "the grant of an object which does not exist was moved away")
+
+    def test_nothing_moves_twice(self):
+        """The shared tables hold the moved rows no longer
+
+        A row which stayed behind would be answered a second time by the lookup
+        of a model which does have a table of its own, and a second run of the
+        migration would find nothing to do.
+        """
+        rows = self.shared_rows()
+        moved = [row.pk for row in rows
+                 if str(row.object_pk) not in (GONE, str(self.user.pk))]
+
+        self.move_forwards()
+        left = set(GroupObjectPermission.objects.filter(
+            pk__in=moved).values_list("pk", flat=True)) | set(
+            UserObjectPermission.objects.filter(
+                pk__in=moved).values_list("pk", flat=True))
+
+        self.assertEqual(left, set())
+
+        tables = [
+            CatalogueServiceGroupObjectPermission,
+            MapContextGroupObjectPermission, MapContextUserObjectPermission,
+            MapContextLayerGroupObjectPermission,
+            WebMapServiceMonitoringSettingGroupObjectPermission]
+        moved_count = sum(table.objects.count() for table in tables)
+        self.move_forwards()
+        self.assertEqual(moved_count, sum(
+            table.objects.count() for table in tables))
+
+    def shape_of_shared_table(self):
+        """The rows of guardian's shared tables in a comparable shape
+
+        Returns:
+            set: one tuple per row, without the primary key - a row which moves
+                and comes back does not keep it
+        """
+        return {(getattr(row, "user_id", None), getattr(row, "group_id", None),
+                 row.permission_id, str(row.object_pk))
+                for row in list(UserObjectPermission.objects.all())
+                + list(GroupObjectPermission.objects.all())}
+
+    def test_backwards_moves_the_grants_back(self):
+        """The reverse is what a deployment needs to undo the move"""
+        self.shared_rows()
+        wanted = self.shape_of_shared_table()
+
+        self.move_forwards()
+        self.move_backwards()
+
+        now = self.shape_of_shared_table()
+        # the grants the fixtures of this test write live in the dedicated tables
+        # already, so the reverse brings those back as well: what this test
+        # seeded has to be back, and nothing may stay in the dedicated tables
+        self.assertTrue(wanted <= now,
+                        f"missing after the reverse: {wanted - now}")
+        self.assertEqual(
+            CatalogueServiceGroupObjectPermission.objects.count()
+            + MapContextGroupObjectPermission.objects.count()
+            + MapContextUserObjectPermission.objects.count()
+            + MapContextLayerGroupObjectPermission.objects.count()
+            + WebMapServiceMonitoringSettingGroupObjectPermission.objects.count(),
+            0)

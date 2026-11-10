@@ -217,7 +217,10 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         process = BackgroundProcess.objects.get(
             pk=json.loads(response.content)["data"]["id"])
 
-        with patch("notify.models.app.control.inspect") as inspect, \
+        # patch the class, not the shared control instance - see #1232 in
+        # test_cancellation.py for why an instance patch of the cached_property
+        # leaks onto every later test of the process
+        with patch("celery.app.control.Control.inspect") as inspect, \
                 patch("notify.models.app.control.revoke") as revoke:
             for answer in ("active", "reserved", "scheduled"):
                 getattr(inspect.return_value, answer).return_value = None

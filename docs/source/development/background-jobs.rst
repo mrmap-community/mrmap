@@ -29,17 +29,26 @@ The api answers a process by its ``status`` (``pending``, ``running``, ``complet
    * - Field
      - Meaning
    * - ``state``
-     - The logical state: ``queued``, ``running``, ``retrying``, ``failed``, ``completed``,
-       ``aborted``. It is ``status`` with one difference: a ``running`` process whose last log line is
-       an error and which will be retried answers ``retrying`` instead of ``running``.
-   * - ``isRetrying``
-     - Whether the process is currently in a retry - derived from the worker's own retry log, not from
-       a client heuristic.
+     - The logical state of the operation, derived from the stored fields by the backend:
+       ``queued``, ``running``, ``running_indeterminate`` (a worker works without knowing its total
+       number of steps), ``retrying`` (a retried task waits for its next attempt),
+       ``action_required`` (a human decision is awaited) and the terminal ``failed``,
+       ``completed``, ``aborted``. The python mirror of the annotation is
+       ``OperationStateEnum.derive``; the contract is #1207.
+   * - ``revision``
+     - The number of the state report which every message about the process carries; a client
+       which learns states out of order keeps the highest revision it has seen.
+   * - ``retryCount``, ``retryReason``, ``retryScheduledUntil``
+     - What the tasks of the process reported about retries: how many, why, and until when the
+       next attempt is due. While that window is open the state answers ``retrying`` - the drawer
+       never derives a retry from elapsed time.
    * - ``errorSummary``
      - The first line of the most recent error log, or nothing. Enough to tell *why* in a list row;
        the full log stays on the process' own screen.
 
-The fields are serializer methods over the process' log - the model and its migrations are unchanged.
+The state is annotated over the stored fields by ``process_info()``; the summary is one subquery.
+``revision``, ``retry_count``, ``retry_reason`` and ``retry_scheduled_until`` are columns of the
+model (#1207) - the derivation stays a view on them, never a second stored truth.
 ``date_created`` and ``done_at`` are filterable (``exact``, ``gt``, ``lt``, ``range``) because the
 drawer's "completed in the last 24 h" tile asks with ``doneAt_filter_lookup_gt``.
 
@@ -119,9 +128,9 @@ Troubleshooting
    * - The pill counters lag by a few seconds
      - By design: the counts are polled every ten seconds and not pushed.
    * - A retrying process shows "running"
-     - Either the deployment's api does not answer ``state`` yet (old backend, new frontend) or no
-       ``TaskResult`` row of the process' own task ids reads ``RETRY``; ``isRetrying`` is the
-       overlap of ``celery_task_ids`` with the task attempts held in a retry (#1179).
+     - Either the deployment's api does not answer ``state`` yet (old backend, new frontend) or
+       the retry was never reported: the state reads ``retrying`` only while
+       ``retryScheduledUntil`` names a future attempt (#1207).
    * - One process stopped updating in the drawer
      - It is older than the newest hundred active processes, or its terminal transition was already
        folded in: the store's terminal state never moves back. The api page and the reload answer.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 15:16+0100\n"
+"POT-Creation-Date: 2026-11-10 17:10+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -306,20 +306,28 @@ msgstr "MapBender-Kompatibilität"
 msgid "Notify"
 msgstr "Benachrichtigung"
 
-#: notify/filters.py:13
-msgid "Select a valid status of a background process."
-msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
-
-#: notify/filters.py:45 notify/serializers.py:92
-msgid "status"
-msgstr "Status"
-
-#: notify/filters.py:47
+#: notify/filters.py:11
 msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
-#: notify/models.py:47 notify/models.py:226 registry/models/harvest.py:74
-#: registry/models/harvest.py:132 registry/models/harvest.py:1451
+#: notify/filters.py:18
+msgid "Select a valid status of a background process."
+msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
+
+#: notify/filters.py:52
+msgid "Select a valid state of a background operation."
+msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
+
+#: notify/filters.py:79 notify/serializers.py:81
+msgid "status"
+msgstr "Status"
+
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:88
+msgid "state"
+msgstr "Zustand"
+
+#: notify/models.py:47 notify/models.py:287 registry/models/harvest.py:74
+#: registry/models/harvest.py:132 registry/models/harvest.py:1472
 #: registry/models/monitoring.py:149 registry/models/monitoring.py:397
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -375,28 +383,90 @@ msgstr "beschreibt, welche Art von Prozess dies ist"
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:91
+#: notify/models.py:98 notify/serializers.py:98
+msgid "revision"
+msgstr "Revision"
+
+#: notify/models.py:100
+msgid ""
+"counter of the state reports of this process; every message about the "
+"process carries the revision it reported, so a client which receives an "
+"older one out of order can drop it"
+msgstr ""
+"Zähler der Statusmeldungen dieses Prozesses; jede Nachricht über ihn nennt "
+"die Revision, die sie gemeldet hat, damit ein Client eine ältere, die ihn "
+"verspätet erreicht, verwerfen kann"
+
+#: notify/models.py:106
+msgid "action required"
+msgstr "Handlung erforderlich"
+
+#: notify/models.py:108
+msgid ""
+"a reporter decided that this process stands until a human acts; it is set by "
+"the watchdog of a stalled import and by an update which waits for its review "
+"and cleared when the work goes on"
+msgstr ""
+"eine meldende Stelle hat entschieden, dass dieser Prozess steht, bis ein "
+"Mensch handelt; gesetzt wird er vom Watchdog eines blockierten Imports und "
+"von einer Aktualisierung, die auf ihre Prüfung wartet, und gelöscht, wenn "
+"die Arbeit weitergeht"
+
+#: notify/models.py:115 notify/serializers.py:110
+msgid "retry count"
+msgstr "Anzahl der Wiederholungen"
+
+#: notify/models.py:117
+msgid ""
+"how many retries of its tasks the process has reported since it was created"
+msgstr ""
+"wie viele Wiederholungen seiner Aufgaben der Prozess seit seiner Anlage "
+"gemeldet hat"
+
+#: notify/models.py:124 notify/serializers.py:116
+msgid "retry reason"
+msgstr "Grund der Wiederholung"
+
+#: notify/models.py:126
+msgid "what the last reported retry of a task of this process failed on"
+msgstr ""
+"woran die zuletzt gemeldete Wiederholung einer Aufgabe dieses Prozesses "
+"gescheitert ist"
+
+#: notify/models.py:132 notify/serializers.py:121
+msgid "retry scheduled until"
+msgstr "Wiederholung geplant bis"
+
+#: notify/models.py:134
+msgid ""
+"until when the next attempt of the retried task is due; while this window is "
+"open the process reports itself as retrying"
+msgstr ""
+"bis wann der nächste Versuch der wiederholten Aufgabe fällig ist; solange "
+"dieses Fenster offen ist, meldet sich der Prozess als wiederholend"
+
+#: notify/models.py:138
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:92
+#: notify/models.py:139
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:215 registry/models/harvest.py:1467
+#: notify/models.py:276 registry/models/harvest.py:1488
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:227 registry/models/harvest.py:1452
+#: notify/models.py:288 registry/models/harvest.py:1473
 #: registry/models/monitoring.py:398
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:231 registry/models/harvest.py:1472
+#: notify/models.py:292 registry/models/harvest.py:1493
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:232 registry/models/harvest.py:1473
+#: notify/models.py:293 registry/models/harvest.py:1494
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -404,69 +474,101 @@ msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 msgid "You are not allowed to change the resource of this process."
 msgstr "Sie dürfen die Ressource dieses Prozesses nicht ändern."
 
-#: notify/serializers.py:79
+#: notify/serializers.py:68
 msgid "date created"
 msgstr "Erstellt am"
 
-#: notify/serializers.py:80
+#: notify/serializers.py:69
 msgid "the datetime when this process was created"
 msgstr "der Zeitpunkt, an dem dieser Prozess erstellt wurde"
 
-#: notify/serializers.py:83
+#: notify/serializers.py:72
 msgid "date at"
 msgstr "Datum von"
 
-#: notify/serializers.py:84
+#: notify/serializers.py:73
 msgid "the datetime when this process reached its terminal state"
 msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
-#: notify/serializers.py:87
+#: notify/serializers.py:76
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:88
+#: notify/serializers.py:77
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:93
+#: notify/serializers.py:82
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:95
+#: notify/serializers.py:84
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:97
+#: notify/serializers.py:86
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
 "ihre ID"
 
-#: notify/serializers.py:99
-msgid "state"
-msgstr "Zustand"
+#: notify/serializers.py:90
+msgid ""
+"the normalized state of the reported operation: queued while it waits for a "
+"worker, running while it works, running_indeterminate while it works without "
+"knowing its total number of steps, retrying while a retried task waits for "
+"its next attempt, action_required while a human decision is awaited, and the "
+"terminal failed, completed or aborted"
+msgstr ""
+"der normalisierte Zustand der gemeldeten Operation: queued während sie auf "
+"einen Worker wartet, running während sie arbeitet, running_indeterminate "
+"während sie arbeitet, ohne ihre Gesamtzahl an Schritten zu kennen, retrying "
+"während eine wiederholte Aufgabe auf ihren nächsten Versuch wartet, "
+"action_required während eine Entscheidung eines Menschen erwartet wird, "
+"sowie die abschließenden failed, completed oder aborted"
 
-#: notify/serializers.py:101
-msgid "the logical state of the job for the Background Job Center"
-msgstr "der logische Zustand des Auftrags für das Hintergrund-Job-Center"
-
-#: notify/serializers.py:103
-msgid "is retrying"
-msgstr "Wiederholung läuft"
+#: notify/serializers.py:100
+msgid ""
+"the number of the state report which every message about this process "
+"carries; a client which learns states out of order keeps the highest "
+"revision it has seen of each process"
+msgstr ""
+"die Nummer der Statusmeldung, die jede Nachricht über diesen Prozess trägt; "
+"ein Client, der Zustände in falscher Reihenfolge empfängt, behält die "
+"höchste Revision, die er von einem Prozess gesehen hat"
 
 #: notify/serializers.py:104
-msgid "whether a task of this process is held in a retry"
-msgstr "ob eine Aufgabe dieses Prozesses sich in einer Wiederholung befindet"
-
-#: notify/serializers.py:106
 msgid "error summary"
 msgstr "Fehlerzusammenfassung"
 
-#: notify/serializers.py:108
-msgid "the description of the last error which was logged about this process"
+#: notify/serializers.py:106
+msgid ""
+"what the last error of the reported operation told, or nothing where it "
+"never reported one"
 msgstr ""
-"die Beschreibung des letzten Fehlers, der über diesen Prozess protokolliert "
-"wurde"
+"was der letzte Fehler der gemeldeten Operation mitgeteilt hat, oder nichts, "
+"wenn sie nie einen gemeldet hat"
+
+#: notify/serializers.py:112
+msgid ""
+"how many retries of its tasks the reported operation has reported since it "
+"was made"
+msgstr ""
+"wie viele Wiederholungen ihrer Aufgaben die gemeldete Operation seit ihrer "
+"Anlage gemeldet hat"
+
+#: notify/serializers.py:118
+msgid "what the last reported retry of the operation failed on"
+msgstr "woran die zuletzt gemeldete Wiederholung der Operation gescheitert ist"
+
+#: notify/serializers.py:124
+msgid ""
+"until when the next attempt of a retried task of the operation is due; while "
+"this window is open the operation reports itself as retrying"
+msgstr ""
+"bis wann der nächste Versuch einer wiederholten Aufgabe der Operation fällig "
+"ist; solange dieses Fenster offen ist, meldet sich die Operation als "
+"wiederholend"
 
 #: registry/admin/harvest.py:17
 msgid "unknown HierachyLevel"
@@ -912,8 +1014,8 @@ msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 #: registry/models/security.py:449 registry/models/security.py:460
 #: registry/models/service.py:773 registry/models/service.py:1026
 #: registry/models/update.py:120 registry/models/update.py:163
-#: registry/models/update.py:206 registry/models/update.py:464
-#: registry/models/update.py:708 registry/models/update.py:901
+#: registry/models/update.py:206 registry/models/update.py:472
+#: registry/models/update.py:716 registry/models/update.py:909
 msgid "service"
 msgstr "Dienst"
 
@@ -956,7 +1058,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:122 registry/models/harvest.py:1137
+#: registry/models/harvest.py:122 registry/models/harvest.py:1158
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -1048,7 +1150,7 @@ msgstr ""
 "hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
 "bewegt hat"
 
-#: registry/models/harvest.py:329 registry/serializers/harvesting.py:225
+#: registry/models/harvest.py:329 registry/serializers/harvesting.py:229
 msgid "import stalled at"
 msgstr "Import steht still seit"
 
@@ -1075,35 +1177,35 @@ msgstr "Ernteaufgaben"
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:1108
+#: registry/models/harvest.py:1129
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:1113
+#: registry/models/harvest.py:1134
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:1115
+#: registry/models/harvest.py:1136
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:1119
+#: registry/models/harvest.py:1140
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:1123
+#: registry/models/harvest.py:1144
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:1126
+#: registry/models/harvest.py:1147
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:1127
+#: registry/models/harvest.py:1148
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:1138
+#: registry/models/harvest.py:1159
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -1113,22 +1215,22 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1493 registry/models/metadata.py:621
+#: registry/models/harvest.py:1514 registry/models/metadata.py:621
 #: registry/models/monitoring.py:129 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:542
 #: registry/serializers/service.py:987 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1494
+#: registry/models/harvest.py:1515
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1521
+#: registry/models/harvest.py:1542
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1522
+#: registry/models/harvest.py:1543
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -2287,25 +2389,25 @@ msgstr "Aktualisierungskonfiguration Web Catalogue Service"
 msgid "Web Catalogue Service Update Configs"
 msgstr "Aktualisierungskonfigurationen Web Catalogue Service"
 
-#: registry/models/update.py:465
+#: registry/models/update.py:473
 msgid "the wms this job is running for"
 msgstr "der WMS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:471
+#: registry/models/update.py:479
 msgid "Web Map Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Map Service"
 
-#: registry/models/update.py:472
+#: registry/models/update.py:480
 msgid "Web Map Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Map Service"
 
-#: registry/models/update.py:686 registry/models/update.py:879
-#: registry/models/update.py:975
+#: registry/models/update.py:694 registry/models/update.py:887
+#: registry/models/update.py:983
 msgid "Can only resume a job with status REVIEW_REQUIRED"
 msgstr ""
 "Nur eine Aufgabe mit dem Status REVIEW_REQUIRED kann fortgesetzt werden"
 
-#: registry/models/update.py:690
+#: registry/models/update.py:698
 msgid ""
 "Cannot resume the job, because not all layers are updateable. Please review "
 "the layer mappings first."
@@ -2313,19 +2415,19 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Ebenen "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Ebenen-Zuordnungen."
 
-#: registry/models/update.py:709
+#: registry/models/update.py:717
 msgid "the WFS this job is running for"
 msgstr "der WFS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:715
+#: registry/models/update.py:723
 msgid "Web Feature Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Feature Service"
 
-#: registry/models/update.py:716
+#: registry/models/update.py:724
 msgid "Web Feature Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Feature Service"
 
-#: registry/models/update.py:883
+#: registry/models/update.py:891
 msgid ""
 "Cannot resume the job, because not all featuretypes are updateable. Please "
 "review the featuretype mappings first."
@@ -2333,27 +2435,27 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Featuretypes "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Featuretype-Zuordnungen."
 
-#: registry/models/update.py:902
+#: registry/models/update.py:910
 msgid "the CSW this job is running for"
 msgstr "der CSW, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:908
+#: registry/models/update.py:916
 msgid "Web Catalogue Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Catalogue Service"
 
-#: registry/models/update.py:909
+#: registry/models/update.py:917
 msgid "Web Catalogue Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Catalogue Service"
 
-#: registry/models/update.py:1040
+#: registry/models/update.py:1048
 msgid "Layer Mapping"
 msgstr "Ebenen-Zuordnung"
 
-#: registry/models/update.py:1041
+#: registry/models/update.py:1049
 msgid "Layer Mappings"
 msgstr "Ebenen-Zuordnungen"
 
-#: registry/models/update.py:1047
+#: registry/models/update.py:1055
 msgid ""
 "A new layer can only be mapped once. Please adjust the layer mappings "
 "accordingly."
@@ -2361,15 +2463,15 @@ msgstr ""
 "Eine neue Ebene kann nur einmal zugeordnet werden. Bitte passen Sie die "
 "Ebenen-Zuordnungen entsprechend an."
 
-#: registry/models/update.py:1081
+#: registry/models/update.py:1089
 msgid "Feature Type Mapping"
 msgstr "Featuretype-Zuordnung"
 
-#: registry/models/update.py:1082
+#: registry/models/update.py:1090
 msgid "Feature Type Mappings"
 msgstr "Featuretype-Zuordnungen"
 
-#: registry/models/update.py:1088
+#: registry/models/update.py:1096
 msgid ""
 "A new feature type can only be mapped once. Please adjust the feature type "
 "mappings accordingly."
@@ -2447,11 +2549,11 @@ msgstr "Gesamtanzahl der Läufe"
 msgid "how often this schedule fired in all."
 msgstr "wie oft dieser Zeitplan insgesamt ausgelöst wurde."
 
-#: registry/serializers/harvesting.py:175
+#: registry/serializers/harvesting.py:179
 msgid "records per minute"
 msgstr "Datensätze pro Minute"
 
-#: registry/serializers/harvesting.py:177
+#: registry/serializers/harvesting.py:181
 msgid ""
 "how many records this run stored per minute of measured work, at the step "
 "size it asked the catalogue with. Only a run which finished answers one, "
@@ -2468,11 +2570,11 @@ msgstr ""
 "deren Datensätze verteilt: die Zahl vergleicht Schrittgrößen miteinander, "
 "sie ist kein Versprechen über einen einzelnen Lauf."
 
-#: registry/serializers/harvesting.py:186
+#: registry/serializers/harvesting.py:190
 msgid "elapsed seconds"
 msgstr "verstrichene Sekunden"
 
-#: registry/serializers/harvesting.py:188
+#: registry/serializers/harvesting.py:192
 msgid ""
 "how long this run has been working, in seconds: from the moment the run was "
 "made to its end, or to the moment of the request while it still works. The "
@@ -2487,11 +2589,11 @@ msgstr ""
 "erste Zeile seiner Historie; ein Lauf, der zu keinem beantwortbaren Moment "
 "angelegt wurde, beantwortet nichts."
 
-#: registry/serializers/harvesting.py:195
+#: registry/serializers/harvesting.py:199
 msgid "records per minute so far"
 msgstr "Datensätze pro Minute bisher"
 
-#: registry/serializers/harvesting.py:197
+#: registry/serializers/harvesting.py:201
 msgid ""
 "how many records per minute this run has stored so far, against the time it "
 "has worked: the records it downloaded while it downloads, the records it "
@@ -2507,11 +2609,11 @@ msgstr ""
 "er misst, ist der beobachtete Lauf, nicht die Größe der Seiten, mit der eine "
 "Ernte fragt."
 
-#: registry/serializers/harvesting.py:204
+#: registry/serializers/harvesting.py:208
 msgid "estimated seconds remaining"
 msgstr "geschätzte verbleibende Sekunden"
 
-#: registry/serializers/harvesting.py:206
+#: registry/serializers/harvesting.py:210
 msgid ""
 "how long this run estimates itself to still take, in seconds: its elapsed "
 "time against the progress its steps already answer, scaled to the part which "
@@ -2526,11 +2628,11 @@ msgstr ""
 "bekannt sind, der noch nichts getan hat oder der geschlossen ist, "
 "beantwortet nichts, weil dann nichts bekannt oder nichts übrig ist."
 
-#: registry/serializers/harvesting.py:213
+#: registry/serializers/harvesting.py:217
 msgid "expected done at"
 msgstr "voraussichtliches Ende"
 
-#: registry/serializers/harvesting.py:215
+#: registry/serializers/harvesting.py:219
 msgid ""
 "the moment this run is expected to end: its `estimatedSecondsRemaining` "
 "added to the moment of the request. Where no estimate is answered, no end is "
@@ -2540,7 +2642,7 @@ msgstr ""
 "`estimatedSecondsRemaining` addiert auf den Moment der Anfrage. Wo keine "
 "Schätzung beantwortet wird, wird auch kein Ende beantwortet."
 
-#: registry/serializers/harvesting.py:227
+#: registry/serializers/harvesting.py:231
 msgid ""
 "since when the import watchdog sees the backlog of this run untouched: as "
 "many records are waiting for their import as on the watchdog's look before. "
@@ -2552,15 +2654,15 @@ msgstr ""
 "Watchdogs zuvor. Ein Lauf, der importiert, beantwortet nichts, und was der "
 "Watchdog gegen den Stillstand getan hat, steht im Ernteprotokoll des Laufs."
 
-#: registry/serializers/harvesting.py:276
+#: registry/serializers/harvesting.py:280
 msgid "There is an existing running harvesting job for this service."
 msgstr "Für diesen Dienst existiert eine laufende Ernteaufgabe."
 
-#: registry/serializers/harvesting.py:326
+#: registry/serializers/harvesting.py:330
 msgid "has extended description"
 msgstr "hat erweiterte Beschreibung"
 
-#: registry/serializers/harvesting.py:328
+#: registry/serializers/harvesting.py:332
 msgid ""
 "whether this log line has a stored response behind it; the content of the "
 "file is answered on the line itself, never in a list"

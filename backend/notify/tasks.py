@@ -1,9 +1,11 @@
 import json
+from datetime import datetime, timedelta
 from logging import Logger
 
 from celery import Task, shared_task, states
 from celery.signals import (task_failure, task_postrun, task_prerun,
-                            task_revoked)
+                            task_retry, task_revoked)
+from celery.utils.time import get_exponential_backoff_interval
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import F
@@ -169,6 +171,72 @@ def mirror_task_result_revoked(sender, request, **kwargs):
         date_done=Now())
 
 
+@task_retry.connect
+def report_process_retry(sender, request, reason, **kwargs):
+    """Mirror one retry of a task onto the process which reports its work.
+
+    A retrying task neither failed nor progressed: the operation waits for
+    its next attempt, and the process which reports it would otherwise keep
+    answering plain running for the whole backoff window - the state the
+    overview of the background activity is asked to tell apart (#1207).
+
+    Which process a task reports to is read from the kwargs the broker
+    transports - the same seam the ``get_background_process`` above uses for
+    the start of a task.
+    """
+    pk = (getattr(request, "kwargs", None) or {}).get(
+        "background_process_pk")
+    if pk is None:
+        # a task which was never given a process retries invisibly, like the
+        # progress reports of a process-less task
+        return
+    try:
+        # celery's Retry carries the textual answer of what the task failed
+        # on in `excs` (its safe_repr of the exception) and a context message;
+        # str of the exception itself would answer the constructor tuple
+        reason_text = (
+            getattr(reason, "excs", None)
+            or getattr(reason, "message", None)
+            or str(reason))
+        BackgroundProcess.objects.report_retry(
+            pk, reason=reason_text,
+            until=retry_scheduled_at(sender, request, reason))
+    except Exception as e:
+        # the retry itself does not depend on this report; the window closes
+        # on its own and the next report of the task answers the state again
+        logger.warning(
+            "can't report the retry of a task to the process %s: %s", pk, e)
+
+
+def retry_scheduled_at(sender, request, reason):
+    """When the retried attempt of a task is due.
+
+    Whoever asked for the retry handed a delay to ``retry`` whenever it knew
+    one: celery carries it on the ``Retry`` exception the signal answers with
+    - the seconds of an exponential backoff the autoretry decorator computed
+    before calling ``retry``, or an explicit countdown or eta. Only a retry
+    which ran without any of them has to have its window answered from the
+    task's own retry policy, and then with the very helper and formula celery
+    uses for the backoff, not an invented one.
+
+    A window which is estimated is a window which may be a little wrong: an
+    attempt which fails again rewrites it, a terminal outcome decides about
+    the process anyway, and the state of an operation whose window ran out
+    without a report reads running again by itself.
+    """
+    when = getattr(reason, "when", None)
+    if isinstance(when, datetime):
+        return when
+    if isinstance(when, (int, float)):
+        return now() + timedelta(seconds=float(when))
+    backoff = getattr(sender, "retry_backoff", False) or 1
+    return now() + timedelta(seconds=get_exponential_backoff_interval(
+        factor=int(max(1.0, float(backoff))),
+        retries=getattr(request, "retries", 0) or 0,
+        maximum=int(getattr(sender, "retry_backoff_max", 600) or 600),
+        full_jitter=bool(getattr(sender, "retry_jitter", False))))
+
+
 class BackgroundProcessBased(Task):
     autoretry_for = (Timeout, ConnectionError, InternalServerError)
     retry_backoff = 30
@@ -248,26 +316,31 @@ class BackgroundProcessBased(Task):
                     active_query = query.filter(
                         done_at__isnull=True,
                         status__in=[ProcessStatusEnum.PENDING, ProcessStatusEnum.RUNNING])
-                    if kwargs == {"status": ProcessStatusEnum.RUNNING}:
-                        # get_background_process fires on every task start; for a
-                        # process which is already running this writes nothing and
-                        # must not broadcast anything either.
+                    bare_running = kwargs == {"status": ProcessStatusEnum.RUNNING}
+                    if kwargs.get("status") == ProcessStatusEnum.RUNNING:
+                        # any report of a task which works ends the window of a
+                        # reported retry: the operation works again (#1207)
+                        kwargs["retry_scheduled_until"] = None
+                    if bare_running:
+                        # get_background_process fires on every task start; a
+                        # process which is already running and has no retry
+                        # window to close answers nothing to write and must not
+                        # broadcast anything either.
                         active_query = active_query.exclude(
-                            status=ProcessStatusEnum.RUNNING)
+                            status=ProcessStatusEnum.RUNNING,
+                            retry_scheduled_until__isnull=True)
+                    # every write of this path is a state report, and the
+                    # revision which orders the reports is counted in the same
+                    # UPDATE (#1207)
+                    kwargs["revision"] = F("revision") + 1
                     updated = active_query.update(**kwargs)
 
                     if updated:
                         try:
                             # process_info provides the progress annotation and
                             # the related resource type in one go, so the
-                            # post_save receiver doesn't have to reload. The
-                            # state contract is read without its retry
-                            # subquery: a task mirroring its start owns no
-                            # TaskResult row (untracked tasks write none) and
-                            # must not read the table for it - see
-                            # test_task_result_status.UntrackedTaskTests.
-                            instance = BackgroundProcess.objects.process_info(
-                                state=False).get(
+                            # post_save receiver doesn't have to reload.
+                            instance = BackgroundProcess.objects.process_info().get(
                                 pk=self.background_process_pk)
                             post_save.send(
                                 BackgroundProcess,

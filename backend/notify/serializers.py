@@ -115,10 +115,22 @@ class BackgroundProcessSerializer(
 
     class Meta:
         model = BackgroundProcess
+        # the fields are declared instead of `fields = "__all__"`: what the
+        # Background Job Center reads (#1207) is a contract, and an implicit
+        # all would hand the next column of this model to every client without
+        # a decision. The read-only mirror of the remaining model columns:
+        fields = (
+            "id", "date_created", "done_at", "progress", "status",
+            "related_resource", "related_resource_type", "state",
+            "is_retrying", "error_summary", "history_url", "logs_url",
+            "abort_url")
         # `celery_task_ids` is the internal bookkeeping of which Celery tasks
         # belong to the process; it is written before a task is published and
         # read when the process is aborted - no client of the api reads it.
-        exclude = ("celery_task_ids", )
+        # `celery_task_name` is the model's own answer of which task type the
+        # process was created for (#1179); it names an internal task and is
+        # not a client's business either.
+        exclude = ("celery_task_ids", "celery_task_name")
 
     # included_serializers = {
     #    'logs': BackgroundProcessLogSerializer,

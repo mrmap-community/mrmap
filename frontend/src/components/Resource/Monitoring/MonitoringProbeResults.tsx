@@ -24,6 +24,10 @@ import {
   Typography,
 } from "@mui/material";
 
+import ProbeResponseInspector, {
+  type ProbeExecution,
+} from "./ProbeResponseInspector";
+
 const definitions = {
   GetCapabilities: [
     { label: "validXml", field: "checkResponseIsValidXml" },
@@ -57,14 +61,28 @@ interface Probe {
   type: ProbeType;
   checks: Check[];
   status: Status;
+  execution: ProbeExecution;
 }
+const toExecution = (record: RaRecord): ProbeExecution => ({
+  statusCode: record.statusCode ?? null,
+  monitoredUri: record.monitoredUri ?? null,
+  requestDuration: record.requestDuration ?? null,
+  dateCreated: record.dateCreated ?? null,
+  dateDone: record.dateDone ?? null,
+  requestError: record.requestError ?? null,
+  errorDetail: record.errorDetail ?? null,
+  responseSize: record.responseSize ?? null,
+  responseContentType: record.responseContentType ?? null,
+  hasResponseArtifact: Boolean(record.hasResponseArtifact),
+  responseArtifactUrl: record.responseArtifactUrl ?? null,
+});
 const styles = {
   failed: { color: "error", Icon: ErrorOutlineIcon },
   passed: { color: "success", Icon: CheckCircleOutlineIcon },
   notRecorded: { color: "default", Icon: HelpOutlineIcon },
 } as const;
 
-function toProbe(record: RaRecord, type: ProbeType): Probe {
+const toProbe = (record: RaRecord, type: ProbeType): Probe => {
   const checks = definitions[type].map(({ label, field }) => ({
     label,
     success: record[`${field}Success`] ?? null,
@@ -75,17 +93,22 @@ function toProbe(record: RaRecord, type: ProbeType): Probe {
     : checks.some((check) => check.success === true)
       ? "passed"
       : "notRecorded";
-  return { id: record.id, type, checks, status };
-}
+  return { id: record.id, type, checks, status, execution: toExecution(record) };
+};
 
-function ProbeCard({ probe }: { probe: Probe }) {
+const ProbeCard = ({ probe }: { probe: Probe }) => {
   const translate = useTranslate();
+  // the card of a failed probe opens so its explanation is seen without a
+  // click; the stored response is only read while the card is open, so a
+  // list of results never fetches the body of every probe at once (#682)
+  const [expanded, setExpanded] = useState(probe.status === "failed");
   const { color, Icon } = styles[probe.status];
   const failedChecks = probe.checks.filter((check) => check.success === false);
   const passedChecks = probe.checks.filter((check) => check.success === true);
   return (
     <Accordion
-      defaultExpanded={probe.status === "failed"}
+      expanded={expanded}
+      onChange={() => setExpanded((open) => !open)}
       disableGutters
       variant="outlined"
       sx={{ "&:before": { display: "none" } }}
@@ -168,10 +191,15 @@ function ProbeCard({ probe }: { probe: Probe }) {
               );
             })}
         </Stack>
+        <Divider />
+        <ProbeResponseInspector
+          execution={probe.execution}
+          active={expanded}
+        />
       </AccordionDetails>
     </Accordion>
   );
-}
+};
 
 export interface ProbeResultsGroup {
   resource: string;

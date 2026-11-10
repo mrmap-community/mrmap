@@ -4,6 +4,28 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   cronInput: {
     openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
     minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
+    editorTitle: "Cron-Ausdruck bearbeiten",
+    minute: "Minute",
+    hour: "Stunde",
+    dayOfMonth: "Monatstag",
+    month: "Monat",
+    weekday: "Wochentag (0=So)",
+    every: "* (alle)",
+    preview: "Vorschau / manuelle Eingabe",
+    apply: "Anwenden",
+  },
+  // was ein Cron-Zeitplan der Erntezeitpläne in Worten sagt; der Ausdruck bleibt
+  // daneben stehen, und ein Ausdruck, den diese Sätze nicht abdecken, wird nur
+  // durch den Ausdruck selbst beantwortet (#1082)
+  cronReading: {
+    everyMinute: "Jede Minute",
+    everyNMinutes: "Alle %{every} Minuten",
+    everyNHours: "Alle %{every} Stunden bei Minute %{minute}",
+    hourly: "Einmal pro Stunde, bei Minute %{minute}",
+    daily: "Jeden Tag um %{time} Uhr",
+    weekly: "Jeden %{days} um %{time} Uhr",
+    monthly: "Jeden Monat am Tag %{day} um %{time} Uhr",
+    yearly: "Jedes Jahr am %{day}. %{month} um %{time} Uhr",
   },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
@@ -342,6 +364,45 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     missingCoverage: "Keine Ausdehnung erfasst"
   },
   harvestRun: {
+    list: {
+      listDescription: "Jeden Lauf, den ein Katalog gemacht hat – und was die laufenden gerade tun.",
+      runHeading: "Katalog · Lauf",
+      runCaption: "Lauf #%{id}",
+      stepSizeCaption: "Schrittgröße %{size}",
+      stepSizeUnknown: "Schrittgröße nicht ermittelt",
+      phaseHeading: "Phase",
+      progressHeading: "Fortschritt",
+      stepsCaption: "%{done} von %{total} Phasen",
+      totalUnknown: "Gesamtzahl unbekannt",
+      queued: "wartet auf einen Worker",
+      queuedTooltip: "Der Lauf ist eingeplant; noch hat ihn kein Worker begonnen.",
+      throughputHeading: "Durchsatz",
+      throughputValue: "%{count} Datensätze / min",
+      throughputCaption: "gemessen bei Schrittgröße %{size}",
+      noThroughput: "kein Durchsatz gemessen",
+      throughputTooltip: "Wie viele Einträge ein abgeschlossener Lauf pro Minute gemessener Arbeit gespeichert hat. Ein laufender Lauf antwortet nichts: nur ein geendeter Lauf hat die ganze Ernte gemessen (#692).",
+      timeHeading: "Zeit",
+      elapsedTooltip: "Angelegt %{created} · läuft seit %{elapsed}",
+      createdUnknown: "Der Moment, in dem dieser Lauf angelegt wurde, ist nicht aufgezeichnet; seine Laufzeit beginnt mit dem ersten Fortschritt.",
+      endedTimeTooltip: "Angelegt %{created} · beendet %{finished}",
+      endedCaption: "beendet %{at}",
+      noEstimate: "keine Schätzung",
+      noEstimateTotal: "keine Schätzung: die Gesamtzahl ist unbekannt",
+      recordsHeading: "Datensätze",
+      recordsValue: "%{count} Datensatz |||| %{count} Datensätze",
+      recordsUnknown: "Anzahl läuft",
+      recordsTooltip: "Wie viele Einträge der Katalog für diesen Lauf geantwortet hat. Die Zahl gehört zu diesem Lauf und ist nicht die Zahl der Einträge im MrMap-Katalog.",
+      awaitingChip: "%{count} wartet auf Import |||| %{count} warten auf Import",
+      importErrorChip: "%{count} Importfehler |||| %{count} Importfehler",
+      selectUnfinished: "Nur Läufe, die noch nicht geendet haben, sind auswählbar – zu beenden gibt es nichts mehr.",
+      stopConfirmTitle: "Diese Datenübernahme stoppen?",
+      stopConfirmContent: "Der Lauf stoppt mit seinem nächsten Schritt; was er schon gespeichert hat, bleibt gespeichert.",
+      stopAsked: "Stoppen angefordert.",
+      bulkStopTitle: "Auswahl stoppen",
+      bulkStopContent: "%{smart_count} Datenübernahme stoppen? Läufe, die zwischenzeitlich geendet haben, bleiben unberührt. |||| %{smart_count} Datenübernahmen stoppen? Läufe, die zwischenzeitlich geendet haben, bleiben unberührt.",
+      bulkStopped: "%{count} Datenübernahme gestoppt. |||| %{count} Datenübernahmen gestoppt.",
+      bulkStopRefused: "Die API hat das Stoppen nicht angenommen für: %{ids}.",
+    },
       stopFailed: "Datenübernahme konnte nicht gestoppt werden.",
     "title": "Datenübernahme #%{id}",
     "stop": "Datenübernahme stoppen",
@@ -353,6 +414,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "services": "Dienste",
     "unhandled": "Unverarbeitete Einträge",
     "errors": "Importfehler",
+    "importStalled": "Der Import dieses Laufs steht still seit",
     "viewLogs": "Protokoll anzeigen",
     "overview": "Übersicht",
     "configuration": "Konfiguration",
@@ -362,8 +424,59 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "diagnostics": "Diagnose",
     "downloadTimings": "Download-Zeiten",
     "databaseTimings": "Datenbank-Zeiten",
+    "measurements": "Messwerte dieses Laufs",
+    "measuredDownload": "Gemessene Download-Zeit",
+    "measuredDatabase": "Gemessene Datenbank-Zeit",
+    "throughputRunning": "Datensätze pro Minute bisher",
+    "estimateRemaining": "Geschätzte verbleibende Zeit",
+    "expectedEnd": "Voraussichtliches Ende",
+    "estimateUnknown": "Noch keine Schätzung möglich",
+    "estimateNote": "Dauer, Download- und Datenbank-Zeit sowie der bisher erzielte Durchsatz werden von diesem Lauf gemessen; verbleibende Zeit und voraussichtliches Ende sind Schätzungen auf Grundlage des bisherigen Fortschritts.",
     "terminated": "Diese Datenübernahme ist beendet.",
-    "refresh": "Wird alle 5 Sekunden aktualisiert"
+    "refresh": "Wird alle 5 Sekunden aktualisiert",
+    "failedRecords": "Einträge, die nicht gespeichert werden konnten",
+    "refusedByImport": "Was der Import abgelehnt hat",
+    "collectedStates": "Was aus den gelesenen Einträgen geworden ist",
+    "collectedRecord": "Eintrag",
+    "collectedState": "Zustand",
+    "collectedAt": "Gespeichert am",
+    "collectingStates": {
+      "duplicated": "Dupliziert",
+      "new": "Neu",
+      "updated": "Aktualisiert",
+      "existing": "Vorhanden",
+      "removed": "Entfernt"
+    },
+    "failing": {
+      "request": "Angefragt am",
+      "page": "Seite",
+      "refusedWith": "Abgelehnt mit",
+      "downloadDuration": "Download-Zeit"
+    },
+    "logLine": "Zeile",
+    "logTimestamp": "Zeitpunkt",
+    "logLevelLabel": "Stufe",
+    "logKind": "Art",
+    "logDescription": "Meldung",
+    "storedResponse": "Gespeicherte Antwort",
+    "logLevelFacets": "Protokollstufe",
+    "logFacets": {
+      "all": "Alle",
+      "infoAndAbove": "Info und wichtiger",
+      "warningsAndAbove": "Warnungen und wichtiger"
+    },
+    "runLogLevel": "Dieser Lauf protokolliert auf Stufe %{level}",
+    "logLevels": {
+      "fatal": "fatal",
+      "error": "Fehler",
+      "warning": "Warnung",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "logKinds": {
+      "remoteError": "Fehler der Gegenstelle",
+      "countMismatch": "Abweichende Anzahl"
+    }
   },
   harvestingActivity: {
     started: "Gestartet",
@@ -404,6 +517,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     disabledMessage: "Die Zeitpläne sind deaktiviert. Aktivieren Sie einen Zeitplan für die automatische Datenübernahme.",
     nextRun: "Nächster Lauf in %{time}",
     loadError: "Zeitpläne konnten nicht geladen werden.",
+    runs: "Läufe ansehen",
+    neverRan: "Noch nie ausgeführt",
+    noNextRun: "Kein nächster Lauf",
+    attentionTitle: "Zeitpläne, die Aufmerksamkeit brauchen",
+  },
+  harvestingStats: {
+    records: "Datensätze",
+    day: "Tag",
   },
   harvestThroughput: {
     basis: "Gemessen an den %{count} abgeschlossenen Datenübernahmen dieses Katalogs:",
@@ -427,13 +548,21 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
     status: { pending: "Wartend", running: "Läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
   },
+  backgroundJobs: {
+    notification: {
+      failedOne: "Ein Hintergrundprozess ist fehlgeschlagen und erfordert Aufmerksamkeit.",
+      failedMany: "%{count} Hintergrundprozesse sind fehlgeschlagen und erfordern Aufmerksamkeit.",
+    },
+  },
   dashboard: {
     workQueue: {
       title: "Wartende Arbeit",
       scope: "Gezählt über alles, was Sie sehen dürfen",
       alerts: "Dienste mit einer Meldung",
       updateReviews: "Aktualisierungen zur Prüfung",
+      harvestAlerts: "Kataloge mit Harvesting-Meldungen",
       runningWork: "Laufende Hintergrundarbeit",
+      runningHarvests: "Laufende Harvestings (alle Kataloge)",
       failedWork: "Fehlgeschlagene Hintergrundarbeit",
     },
   },
@@ -484,16 +613,24 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       monitoringFailed: "Monitoring fehlgeschlagen",
       updateFailed: "Aktualisierung fehlgeschlagen",
       updateReviewRequired: "Prüfung nötig",
+      harvestAborted: "Harvesting abgebrochen",
+      harvestIncomplete: "Harvesting unvollständig",
     },
     tiles: {
       total: "Dienste in dieser Ansicht",
       noAlerts: "Keine Warnungen",
       runningUpdates: "Aktualisierungen laufen (alle Dienste)",
+      runningHarvests: "Harvesting läuft (alle Dienste)",
+      harvestAborted: "Harvesting abgebrochen",
+      harvestIncomplete: "Harvesting unvollständig",
       needsAttention: "Aufmerksamkeit nötig",
       hints: {
         total: "Die Dienste, die diese Ansicht beantwortet - dieselbe Zahl wie die Zeilen der Liste.",
-        noAlerts: "Dienste dieser Ansicht, deren letztes Monitoring, deren letzte Aktualisierung und deren letzte Ernte keinen Fehler gemeldet haben. Das sagt nicht, dass ein Dienst kürzlich geprüft wurde.",
+        noAlerts: "Dienste dieser Ansicht, die keine Warnung melden. Ein Dienst, dessen Monitoring nie lief und dessen Harvesting nie lief, meldet ebenfalls keine Warnung - in dieser Zahl stehen also auch Dienste, die nie geprüft wurden.",
         runningUpdates: "Aktualisierungsprozesse aller Dienstarten, die gerade warten oder laufen - für das gesamte Registry gezählt und nicht für diese Ansicht.",
+        runningHarvests: "Harvesting-Prozesse, die gerade warten oder laufen - für das gesamte Registry gezählt und nicht für diese Ansicht, weil ein Harvesting-Prozess keinen Katalog nennt. Diese Zahl öffnet die Liste der Läufe, die arbeiten.",
+        harvestAborted: "Dienste dieser Ansicht, deren letztes Harvesting vor dem Abschluss abgebrochen wurde. Harvesting betrifft nur Kataloge, deshalb beantwortet nur eine Ansicht von Katalogen diese Zahl.",
+        harvestIncomplete: "Dienste dieser Ansicht, deren letztes Harvesting nicht alle Datensätze übernehmen konnte. Harvesting betrifft nur Kataloge, deshalb beantwortet nur eine Ansicht von Katalogen diese Zahl.",
         needsAttention: "Dienste dieser Ansicht, die ein fehlgeschlagenes Monitoring, eine fehlgeschlagene oder ungeklärte Aktualisierung oder eine abgebrochene oder unvollständige Ernte melden.",
       },
     },
@@ -502,6 +639,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       abstract: "Beschreibung",
       id: "ID",
       lastUpdate: "Letzte Aktualisierung",
+      harvest: "Harvesting",
       service: "Dienst",
       status: "Status",
       layers: "Ebenen",
@@ -512,7 +650,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       actions: "Aktionen",
     },
     secured: "Gesichert",
-    noUpdates: "Noch keine Aktualisierungen",
+    nothingReported: "Nichts gemeldet",
     inactive: "Inaktiv",
     details: "Details des ausgewählten Dienstes",
     noSelection: "Wähle einen Dienst aus, um seine Details zu sehen.",
@@ -538,11 +676,128 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         occurredAt: "Zeitpunkt",
       },
     },
+    // The changelog labels lived in a `resources` block nested under `ra`, where
+    // no translation lookup ever reached them; they live here now (#1085).
+    ChangeLog: {
+      historyDate: "Zeitstempel",
+      historyUser: "Nutzer",
+      historyType: "Aktion",
+      historyRelation: "Objekt",
+      lastChanges: "Letzte Änderungen",
+    },
+    CatalogueService: {
+      singular: "Katalogdienst",
+      plural: "Katalogdienste",
+      listSubheader: "Registrierte Katalogdienste (CSW) verwalten",
+    },
+    CatalogueServiceMonitoringSetting: {
+      singular: "Monitoringeinstellung des Katalogdiensts",
+      plural: "Monitoringeinstellungen der Katalogdienste",
+    },
+    HarvestingJob: {
+      name: "Datenübernahme",
+      name_plural: "Datenübernahmen",
+      singular: "Datenübernahme",
+      plural: "Datenübernahmen",
+      listSubheader: "Läufe, die die Kataloge übernommen haben, laufende und beendete",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Gestartet",
+        doneAt: "Beendet",
+        phase: "Phase",
+        phaseLabel: "Status",
+        progress: "Fortschritt",
+        totalRecords: "Datensätze",
+        unhandledRecordsCount: "Warten auf Import",
+        importErrorCount: "Importfehler",
+        maxStepSize: "Schrittgröße",
+        recordsPerMinute: "Datensätze pro Minute",
+      },
+    },
+    PeriodicHarvestingJob: {
+      singular: "Zeitplan für Datenübernahme",
+      plural: "Zeitpläne für Datenübernahme",
+      listSubheader: "Zeitpläne, die festlegen, wann welcher Katalog übernommen wird",
+      fields: {
+        service: "Katalog",
+        enabled: "Aktiviert",
+        scheduling: "Zeitplan",
+        timeUntilNextRun: "Zeit bis zum nächsten Lauf",
+        lastRunAt: "Letzter Lauf",
+        nextRunAt: "Nächster Lauf",
+        totalRunCount: "Läufe",
+      },
+    },
+    HarvestingLog: {
+      singular: "Protokolleintrag der Datenübernahme",
+      plural: "Protokolleinträge der Datenübernahme",
+      listSubheader: "Was die Läufe bei der Datenübernahme gemeldet haben",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        timestamp: "Zeit",
+        level: "Stufe",
+        kind: "Art",
+        description: "Beschreibung",
+      },
+    },
+    TemporaryMdMetadataFile: {
+      singular: "Heruntergeladene Metadatendatei",
+      plural: "Heruntergeladene Metadatendateien",
+      fields: {
+        job: "Datenübernahme",
+        reSchedule: "Neu eingeplant",
+        hasImportError: "Hat Importfehler",
+        importError: "Importfehler",
+      },
+    },
+    CatalogueServiceUpdateJob: {
+      name: "Katalog-Aktualisierungen",
+      singular: "Aktualisierungslauf eines Katalogdiensts",
+      plural: "Aktualisierungsläufe der Katalogdienste",
+      running: "Noch nicht beendet",
+      status: "Zustand",
+      updateCandidate: "Aktualisierungskandidat",
+      notEndedMessage: "Diese Aktualisierung ist noch nicht beendet. Ihr Ergebnis steht noch nicht fest.",
+      reviewRequiredMessage: "Diese Aktualisierung wartet auf eine Entscheidung über sie. Was der Katalog meldet, wird erst mit dieser Entscheidung übernommen.",
+      listSubheader: "Aktualisierungsaufträge der registrierten Katalogdienste",
+      fields: {
+        service: "Katalog",
+        dateCreated: "Erstellt",
+        doneAt: "Abgeschlossen",
+        statusCode: "Statuscode",
+      },
+    },
+    HarvestedMetadataRelation: {
+      singular: "Übernommener Metadatensatz",
+      plural: "Übernommene Metadatensätze",
+      fields: {
+        harvestingJob: "Datenübernahme",
+        datasetMetadataRecord: "Datensatz",
+        serviceMetadataRecord: "Dienst",
+        applicationMetadataRecord: "Anwendung",
+        collectingState: "Sammlungsstatus",
+        downloadDuration: "Download-Dauer",
+      },
+    },
+    BackgroundProcess: {
+      titles: {
+        registering: "Neuen Dienst registrieren",
+        harvesting: "Datenübernahme",
+        harvestingOf: "Datenübernahme von %{id}",
+        monitoring: "Monitoring",
+        runningTask: "Laufende Aufgabe",
+      },
+      states: {
+        completed: "abgeschlossen",
+        waitingForSchedule: "wartet auf den Zeitplan",
+      },
+      stepsDone: "%{done} von %{total} Schritten abgeschlossen.",    },
   },
   serviceAlerts: {
     title: "Handlungsbedarf",
     count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
     viewAll: "Alle Hinweise anzeigen",
+    viewCatalogueAlerts: "Hinweise der Kataloge anzeigen",
     error: "Fehler",
     warning: "Warnung",
     categories: {
@@ -555,6 +810,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       update_overdue: "Aktualisierung überfällig",
       harvest_overdue: "Harvesting überfällig",
       harvest_schedule_too_tight: "Harvesting-Zeitplan zu eng",
+      capabilities_backup_missing: "Capabilities-Dokument fehlt",
     },
   },
   serviceAttention: {
@@ -615,7 +871,24 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "duration": "Dauer",
       "setting": "Monitoringeinstellung",
       "settingUnavailable": "Die Monitoringeinstellung ist nicht mehr verfügbar.",
-      "probeResults": "Prüfergebnisse"
+      "probeResults": "Prüfergebnisse",
+      response: {
+        title: "Antwort der Prüfung",
+        status: "HTTP-Status",
+        duration: "Dauer",
+        size: "Größe",
+        contentType: "Content-Type",
+        uri: "Überwachte URI",
+        notStored: "Der Body dieser Antwort wurde nicht gespeichert.",
+        notRenderable: "Ein Body des Typs %{type} wird hier nicht dargestellt.",
+        loading: "Die gespeicherte Antwort wird geladen.",
+        image: "Bild der Prüfung",
+        download: "Body herunterladen",
+        truncated: "Nur der Anfang des Dokuments wird angezeigt.",
+        missing: "Der gespeicherte Body dieser Antwort ist nicht mehr vorhanden.",
+        expired: "Die Aufbewahrungsfrist dieser Antwort ist abgelaufen; ihr Body ist gelöscht.",
+        unavailable: "Die gespeicherte Antwort konnte nicht geladen werden.",
+      }
 },
     wfsUpdateReview: {
       tree: "Eingehende Feature-Typen",
@@ -796,6 +1069,21 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     configure: "Verwalten",
     loadError: "Konfiguration konnte nicht geladen werden.",
     readOnly: "Diese Konfiguration ist schreibgeschützt.",
+  },
+  // Menschliche Labels für Filteroptionen, deren Schema-Parameter weder ein
+  // Lookup-Label noch eine Beschreibung trägt (#945); die Keys sind die
+  // Filternamen aus dem `filter[...]`-Query-Parameter, "." durch
+  // "_filter_lookup_" ersetzt. Ohne Eintrag zeigt der Filter den humanisierten
+  // Feldnamen (siehe humaniseFilterName).
+  filterFields: {
+    has_coverage: "Hat geografische Abdeckung",
+    has_insufficient_quality: "Hat unzureichende Qualität",
+    has_licence: "Hat Lizenz",
+    harvested_dataset_metadata_relation__harvesting_job: "Geerntet durch Harvesting-Auftrag",
+    bbox_lat_lon__intersects: "Begrenzungsrahmen überschneidet",
+    bbox_lat_lon__contains: "Begrenzungsrahmen ist enthalten in",
+    bbox_lat_lon__covers: "Begrenzungsrahmen überdeckt",
+    bbox_lat_lon__equals: "Begrenzungsrahmen entspricht",
   },
   systemInfo: {
     "title": "Systeminformationen",
@@ -1059,15 +1347,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
         secondaryText: "Sekundärtext",
         tertiaryText: "Tertiärtext"
       },
-    },
-    resources: {
-      ChangeLog: {
-        historyDate: "Zeitstempel",
-        historyUser: "Nutzer",
-        historyType: "Aktion",
-        historyRelation: "Objekt",
-        lastChanges: "Letzte Änderungen",
-      }
     }
   }
 }

@@ -1,8 +1,14 @@
 from celery import chain, group, shared_task
 from django.apps import apps
+from django.conf import settings
 from django.utils import timezone
+from extras.tasks import SingletonTask
+from logging import Logger
+from MrMap import celery_queues
 from notify.enums import ProcessStatusEnum
 from notify.utils import invalidate_service_alerts
+
+logger: Logger = settings.ROOT_LOGGER
 
 WMS_RUN_MODEL = "registry.webmapservicemonitoringrun"
 
@@ -138,3 +144,24 @@ def create_csw_monitoring_run(self, name, *args, **kwargs):
         name=name)
     run = CatalogueServiceMonitoringRun(setting=setting)
     run.save()
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def delete_expired_probe_response_artifacts(self, *args, **kwargs):
+    """Takes back the stored probe responses whose retention has passed (#682).
+
+    Runs as a singleton on the ``db-routines`` queue like the other
+    housekeeping: two sweeps over the same artifacts have nothing to add to
+    each other. Only the bodies leave; the rows of the probe results and their
+    check answers stay, so the monitoring history keeps answering what ran and
+    when, while an expired body is refused as gone by the artifact endpoint
+    from its retention moment on and not from the moment this sweep ran.
+    """
+    from registry.models.monitoring import \
+        purge_expired_probe_response_artifacts
+
+    summary = purge_expired_probe_response_artifacts()
+    logger.info(
+        "Monitoring probe response artifacts: %s bodies purged "
+        "(retention %s days).", summary["purged"], summary["retention_days"])
+    return summary

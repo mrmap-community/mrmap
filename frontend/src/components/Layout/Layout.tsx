@@ -7,7 +7,7 @@ import { SnackbarProvider } from 'notistack';
 import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
-import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
+import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
@@ -25,7 +25,9 @@ declare module 'notistack' {
   }
 }
 
-// Dirty hack to append SnackbarObserver
+// wraps the Admin layout and mounts the renderless observers: the realtime bus,
+// the locale observer and the background-job bridge (#1205) which aggregates the
+// background processes and turns only the failures into notifications
 const MyLayout = (
   {
     children,
@@ -46,6 +48,7 @@ const MyLayout = (
     >
       <RealtimeBus/> 
       <I18Observer/>
+      <BackgroundJobBridge />
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}
@@ -131,7 +134,6 @@ const MyLayout = (
           }}>
             {children}
           </Box>
-          {<SnackbarObserver />}
         </Box>
         <Card 
           style={{

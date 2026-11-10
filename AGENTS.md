@@ -37,6 +37,73 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
   scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
   the host capacity gate described under "Check host capacity before starting another stack".
+  An orchestrator that already tracks its own jobs asks the gate with `--stacks` and
+  `--processes`, so the count that decides is the count of jobs it actually runs.
+  Nothing in this repository starts, schedules or supervises an agent: development
+  orchestration is external, done by Agent Orchestrator (AO), whose worker sessions run
+  against a checkout of this repository the way a human's session does. The in-repository
+  supervisor that did this before the migration is retired and removed (#1052 retired by
+  #1102); do not bring back a scheduler, a daemon, a systemd unit or a CI watcher here.
+  What the migration leaves untouched is who holds the authority: only a person applies
+  `agent: approved` to an issue, only a person reviews a pull request and decides its
+  merge, and a thread a human raised stays open until that human resolves it. An agent
+  asked for an act it may not do (approve, merge, resolve threads, rewrite an open branch,
+  change branch protection or CI, grant access, commit a secret) hands that ask to a
+  person as a question on the issue through `scripts/wip ask` instead of trying it.
+  `scripts/nginx_routing_smoke.py` asserts which URLs the nginx of the frontend answers with the
+  SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
+  of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
+  with a proxied prefix belongs in its table, which is how #1036 would have been caught.
+  `scripts/static_mounts_smoke.py` asserts that no compose mount shadows the static roots the
+  frontend image serves (`python3 scripts/static_mounts_smoke.py`; it reads `docker compose
+  config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
+  removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
+  stop reaching the browser.
+  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ master) still
+  has one leaf per app (`python3 scripts/migration_graph_smoke.py`; host Python plus the `git`
+  CLI, no docker, no `gh`, no network, a fifth of a second). Two branches which each add a
+  `0038` are green alone and red in the merge queue, because two leaf nodes of one app is what
+  `makemigrations` refuses with "Conflicting migrations detected"; run it before pushing a branch
+  that adds a migration and it names both leaves, the file of each and the number to renumber to.
+  Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
+  one throw-away git repository; needs neither docker nor the network).
+  `scripts/decisions` is the decision-request protocol described under "Asking for human
+  decisions": numbered questions, `Q7: C` answers verified against GitHub's
+  `author_association`, append-only audit-trail comments and a generated view of the issue's
+  Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
+  GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
+  hand when touching either tool.
+
+### Asking for human decisions
+
+Design questions an agent cannot answer itself — normative ISO/OGC readings,
+product scope, migration risk appetite — are asked with `scripts/decisions`, not
+as prose, so the answers stay findable. A human answers `Q7: C`; `record` verifies
+via GitHub's `author_association` that the answer came from an OWNER, MEMBER or
+COLLABORATOR and not a Bot, appends audit-trail comments, and `register` syncs the
+issue's "Decision register" table from that trail.
+
+- Answering a design question is a design decision. It is not the `agent: approved`
+  label and not a pull-request review; those stay with people, and no recorded answer
+  may be presented as if it granted either.
+- Ask with a stated recommendation and only a handful of questions at a time (the tool
+  refuses more). Requests posted through the tool carry a machine marker; a hand-written
+  request in the same shape is still read, but the tool warns that its provenance cannot
+  be verified.
+- After answers arrive: `scripts/decisions --issue N record --write` (idempotent —
+  re-running records nothing twice), then `scripts/decisions --issue N register --write`.
+  A body a human edited while the write was prepared stops the write; rerun.
+- When a named owner keeps the decision (e.g. @armin11 for standards reviews), record
+  with `--gate 'Q1-Q6=@armin11:reason'`: answers are kept as preferences and the row
+  reads `Awaiting @armin11`, never `Accepted`, until that owner answers or overrides.
+- Silence records nothing; a row never reads `Accepted` while its evidence names an
+  unanswered question; prose run together or naming two options is flagged for
+  clarification, never guessed. A human can undo a recorded outcome with `reopen` or
+  `override --outcome ... --source <comment-url>`, which verify the cited comment the
+  same way answers are.
+- After a context loss an agent resumes from the issue alone:
+  `scripts/decisions --issue N scan` says what is asked, answered and open. Schema,
+  reaction rules and the offline checks: `docs/source/development/decision-requests.rst`.
 
 ## Authoritative sources
 
@@ -46,6 +113,7 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
+- `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
 
 ## Environment
@@ -139,7 +207,9 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   override above, so backend checks need no job-local override file. The resolver uses a matching
   local image, else pulls the pinned tag, else — with `--build` — runs the sanctioned local fallback
   build under the same immutable tag; it exits `3` when the tag was never published, `4` on a
-  transient registry failure, `0` on a hit.
+  transient registry failure, `0` on a hit. To decide between pulling and building without paying
+  for either, `--exists` answers the publish question in about half a second (no docker, nothing
+  downloaded) — existence only, never a substitute for the resolve when the image is really wanted.
 
 - Frontend checks — layer the dependency image that seeds the project's `node_modules` volume
   instead of running `npm ci` on every start:
@@ -182,16 +252,22 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   for the check itself rather than `up` for test services. `--rm` removes the one-off container when
   it exits; dependencies, project networks and named volumes can remain until the end of the job.
 - Never run `down`, `--remove-orphans` or volume removal against a project this job did not create,
-  in particular the developer's.
+  in particular the developer's. Never run `down` or `up` from a directory whose `.env` or compose
+  file belongs to another project — a copied `.env` still carries the developer's
+  `COMPOSE_PROJECT_NAME`; pass `-p <exact-project>` and make sure the compose files are the ones
+  this job copied.
 - Before creating temporary resources, register shell cleanup with `trap` for normal exit, failure
   and interruption (`EXIT`, `INT`, `TERM`), or use the runner's equivalent `finally` mechanism. Keep
   cleanup active for the full lifetime of background checks and preserve their exit status. For a
-  verified job-owned disposable project, clean up using the same project name and Compose files:
-  `docker compose down --volumes --remove-orphans` with the override still in `COMPOSE_FILE`. This
-  volume removal is only for that disposable project's data; retain shared volumes and reusable
-  images and build caches.
-- After checks and before handing the task back, verify that this job's containers, networks and
-  volumes are gone. Clean up on failed checks too.
+  verified job-owned disposable project, tear down with `docker compose -p <exact-project> down
+  --volumes` using the same project name and Compose files, the override still in `COMPOSE_FILE` —
+  **never add `--remove-orphans`**: it matches orphans by compose-file path, not project, and once
+  wiped a foreign stack despite an exact `-p`. Before the `down`, counter-check the labeling with
+  `docker ps -a --filter label=com.docker.compose.project=<exact-project>`: only own resources may
+  be labeled. This volume removal is only for that disposable project's data; retain shared volumes
+  and reusable images and build caches.
+- After checks and before handing the task back, verify zero leftovers by exact name — containers,
+  networks and volumes. Clean up on failed checks too.
   Report any leftovers with their exact names and the reason they remain. After an interrupted
   session, recover ownership from the job's recorded project/container names before removing
   anything; a stopped container or matching name prefix alone does not establish ownership. Never use
@@ -201,18 +277,44 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
 #### Check host capacity before starting another stack
 
 Isolation keeps jobs from corrupting each other, but it does not make the host
-bigger. Before starting a new agent Compose stack — as a nightly runner deciding
-whether to launch one more job, or before any `docker compose up` in a fresh
-worktree — run `scripts/agent_capacity`. It is host-only Python with no network
-and no application dependency: it reports the 15-minute load per core,
-`MemAvailable`, free disk on `/` and the number of running `mrmap-agent-*`
-Compose stacks, prints a single verdict line and exits `0` when the host still
-fits a job or `1` when it is busy. The thresholds are environment overrides so a
-job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE`
-(default 1.5), `AGENT_MIN_MEM_GB` (16), `AGENT_MIN_DISK_GB` (100) and
-`AGENT_MAX_STACKS` (3). It never opens a socket and caps its `docker ps` call
-with a timeout, so a host that is merely offline or whose docker daemon is stuck
-still gets a verdict instead of hanging.
+bigger — and on an agent host the jobs do not own the machine either: the
+OpenCode session and the dockerd that starts its test stacks share one container
+cgroup, so the room that matters is the cgroup's, not the machine's. Before
+starting a new agent Compose stack — as a nightly runner deciding whether to
+launch one more job, or before any `docker compose up` in a fresh worktree — run
+`scripts/agent_capacity`. It is host-only Python with no network and no
+application dependency: it reports the 15-minute load per core, the **effective**
+memory (the smaller of `MemAvailable` and the headroom of this cgroup and every
+parent, counting what cannot be reclaimed), free disk on `/`, the running
+`mrmap-agent-*` stacks and agent processes and the memory pressure, prints a
+single verdict line and exits `0` when the job still fits or `1` when it does
+not. It refuses newcomers; it never pauses, renices or kills a running job.
+
+Ask for the class of work you are about to start: `scripts/agent_capacity`
+decides about a heavy Compose test stack (the default), `--need suite` about a
+stack that runs the full unit suite (measured heavier than a targeted check),
+`--need process` about one more agent worker without a stack, `--json` answers
+for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
+`--wait N` queues up to N seconds for a refusal to clear instead of exiting
+busy; it never displaces a running job. The counts are
+prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
+and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
+job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE` (1.5),
+`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
+`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
+(16, the floor when no memory limit of this cgroup is visible),
+`AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
+`AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)
+and `AGENT_MAX_PROCESSES` (6); inside a 16 GiB agent container `AGENT_MAX_STACKS=1`
+is the honest setting. It never opens a socket and caps its `docker ps` call with
+a timeout, so a host that is merely offline or whose docker daemon is stuck still
+gets a verdict instead of hanging. What each metric means, why page cache is not
+charged against a cgroup, how to read the same numbers by hand, the measured
+before/after, and the operator runbook for the ceiling itself — raise the agent
+container's limit or move the docker daemon out of it, and what to measure either
+way (#1054): `docs/source/development/agent-capacity.rst`. The admission rules
+have offline checks — `python3 scripts/test_agent_capacity.py`, which needs
+neither docker nor the network.
 
 ## Development guidelines
 
@@ -278,6 +380,11 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
+  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+  `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
+  the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
+  reach these files at all.
 - Add or update tests when behavior changes.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.
@@ -299,10 +406,20 @@ identifier itself is not an option — it breaks document matching against upstr
 - Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
   `housekeeping/cleanup-frontend-src`.
 - Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
-  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`.
-- Before opening a pull request and before every push while it is under review, merge current
-  `origin/master` into the branch; rebase only on a private, un-reviewed branch. Never force-push a
-  branch under review — bring master in with a merge commit instead.
+  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`. Being current
+  matters exactly here: once the branch exists, the merge queue is what tests it together with
+  master.
+- Do not merge `origin/master` into a branch before opening the pull request, and not before every
+  push while it is under review. Bring master in only when the branch actually needs it — a real
+  conflict, a change from master this branch depends on to build or test, or a stated
+  compatibility reason — and name which one in the merge commit. An unconditional pre-push merge
+  re-runs the entire CI set for a commit that changes nothing about the change, and the merge
+  queue already tests the integration of this head with master on a merge commit it builds itself.
+- Never force-push or rebase a branch that is open for review: review comments and inline findings
+  are anchored to commits, and a rewritten branch loses the diff a reviewer is reading. Rebase
+  freely while a branch is still private. When master moves under a reviewed branch, push the new
+  work as ordinary commits on top; if there is a genuine conflict, resolve it with a merge commit
+  and let the queue re-test the combination.
 - Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
   "implements ...".
 - Keep unrelated formatting or refactoring out of a change.

@@ -42,6 +42,35 @@ const whoAmI = async (url: string, authToken: string): Promise<UserIdentity> => 
   }
   return {id: 0}
 }
+/**
+ * Asks the backend to revoke the presented token (#832).
+ *
+ * knox's LogoutView deletes the ``AuthToken`` row the ``Authorization`` header
+ * it authenticates hashes to, so a credential copied out of this browser
+ * before the logout - by XSS, a shared browser or leaked JS state - stops
+ * answering anything. The view implements ``post`` only, so that is the verb
+ * the endpoint at ``logoutUrl`` speaks; a ``DELETE`` is answered with 405 and
+ * revokes nothing, which ``tests/django/accounts/test_logout_revokes_token.py``
+ * pins.
+ *
+ * Neither a rejected request nor an unreachable backend is reported: the
+ * caller clears the local state either way, because a logout which depends on
+ * the server would leave the user signed in with a token their browser no
+ * longer carries.
+ */
+const revokeToken = async (logoutUrl: string, token: string) => {
+  const request = new Request(logoutUrl, {
+    method: 'POST',
+    headers: new Headers({ Authorization: `Token ${token}` })
+  })
+
+  try {
+    await fetch(request)
+  } catch {
+    // offline: the local logout below is all that can happen
+  }
+}
+
 export const AUTH_TOKEN_LOCAL_STORAGE_NAME = "mrmap.auth"
 
 export const getAuthToken = (): AuthToken | undefined => {
@@ -64,7 +93,7 @@ export const setAuthToken = (props: AuthToken | undefined) => {
 
 const tokenAuthProvider = (
     loginUrl = `${API_BASE_URL}/api/auth/login`,
-    _logoutUrl = `${API_BASE_URL}/api/auth/logout`,
+    logoutUrl = `${API_BASE_URL}/api/auth/logout`,
     identityUrl = `${API_BASE_URL}/api/accounts/who-am-i/`,
 ): AuthProvider => {
   return {
@@ -89,7 +118,13 @@ const tokenAuthProvider = (
       throw new Error(error ?? response.statusText)
     },
     logout: async () => {
-      // TODO: call logoutUrl with token
+      const storedToken = getAuthToken()
+      if (storedToken?.token) {
+        await revokeToken(logoutUrl, storedToken.token)
+      }
+      // Revocation is best effort: an unreachable backend or a refused
+      // request still ends the local session, which is what react-admin
+      // needs in order to redirect to the login page.
       setAuthToken(undefined)
       return Promise.resolve();
     },

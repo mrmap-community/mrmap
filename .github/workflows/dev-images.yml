@@ -1,19 +1,25 @@
 name: Dev Images
 
 # Prebuilt backend dev/test images for parallel agent worktrees (epic #959,
-# issue #960). PR runs only prove the image builds; pushes to ghcr.io happen
-# exclusively from push to master and manual dispatch.
+# issue #960). PR runs only prove the image builds - and since #1057 only when
+# the checkout's fingerprint is not published yet, because then there is
+# something to prove. Pushes to ghcr.io happen exclusively from push to master
+# and manual dispatch.
 
 on:
   workflow_dispatch:
   push:
+    branches: [master]
+  merge_group:
+    types: [checks_requested]
     branches: [master]
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Keep speculative merge-group runs independent from PR and branch runs.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # pull_request (NOT pull_request_target): fork code runs with the default
@@ -28,7 +34,7 @@ env:
 
 jobs:
   backend-dev-build:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     name: backend-dev-build
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -49,10 +55,26 @@ jobs:
             echo "build_args=$(python3 scripts/dev_image_id.py --print-build-args)"
           } >> "$GITHUB_OUTPUT"
 
+      - name: skip the build when this fingerprint is already published
+        id: gate
+        # Issue #1057. The gate's probe IS the resolver (`--resolve`, never
+        # `--build`, so a validation run never builds and never pushes); only
+        # its exit 0 - this immutable tag is published and pulled intact -
+        # skips the build. Every other code, including 4 for a transient
+        # failure or a private-repository denial, keeps the build. The gate is
+        # a step, not an `if:` on this job, so backend-dev-build always runs
+        # and always reports a status for the merge queue. The gated steps ask
+        # `!= 'false'`: only a gate that positively answered "already published"
+        # may skip a build, so a gate that crashed or could not write
+        # $GITHUB_OUTPUT leaves the build running instead of skipping it.
+        run: python3 scripts/dev_image_gate.py --image backend
+
       - name: set up buildx
+        if: steps.gate.outputs.needs_build != 'false'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: build backend dev/test image (no push)
+        if: steps.gate.outputs.needs_build != 'false'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./backend
@@ -98,7 +120,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: log in to ghcr.io
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -126,10 +148,12 @@ jobs:
   # frontend dependency image (epic #959, #963 Dockerfile, #962 fingerprint
   # extension). Mirror of the backend pair: PR runs build without pushing,
   # only pushes to master and manual dispatch publish, packages: write stays
-  # on the publish job. The fingerprint generation is not re-implemented
-  # here - scripts/dev_image_id.py --image frontend is the single source.
+  # on the publish job, and the same fingerprint gate (#1057) keeps an
+  # unchanged image from being rebuilt. The fingerprint generation is not
+  # re-implemented here - scripts/dev_image_id.py --image frontend is the
+  # single source.
   frontend-dev-build:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     name: frontend-dev-build
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -143,10 +167,22 @@ jobs:
         id: image_id
         run: echo "fp=$(python3 scripts/dev_image_id.py --image frontend)" >> "$GITHUB_OUTPUT"
 
+      - name: skip the build when this fingerprint is already published
+        id: gate
+        # Issue #1057, same rule as the backend job: only the resolver's exit 0
+        # (this immutable tag is published and pulled intact) skips the build;
+        # 3 means a dependency input changed here and 4 means nobody could
+        # look - both keep the build, as does a gate that produced no output at
+        # all, because these steps ask `!= 'false'`. frontend-dev-build itself
+        # never gets an `if:`, so its required status always reports.
+        run: python3 scripts/dev_image_gate.py --image frontend
+
       - name: set up buildx
+        if: steps.gate.outputs.needs_build != 'false'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: build frontend dependency image (no push)
+        if: steps.gate.outputs.needs_build != 'false'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -192,7 +228,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: log in to ghcr.io
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

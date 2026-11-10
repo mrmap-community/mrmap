@@ -3,6 +3,7 @@ import zoneinfo
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import resolve
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -10,7 +11,8 @@ from guardian.core import ObjectPermissionChecker
 from rest_framework_json_api.relations import \
     SerializerMethodResourceRelatedField
 from rest_framework_json_api.serializers import (ModelSerializer,
-                                                 SerializerMethodField)
+                                                 SerializerMethodField,
+                                                 ValidationError)
 
 
 class StringRepresentationSerializer(ModelSerializer):
@@ -123,6 +125,53 @@ class HistoryInformationSerializer(ModelSerializer):
         return instance.last_history[0].history_user if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
 
 
+class CheckConstraintSerializerMixin:
+    """Ask the model about its own ``Meta.constraints`` while the request is validated.
+
+    Django evaluates check constraints in :meth:`django.db.models.Model.full_clean`, which a
+    DRF ``ModelSerializer`` never calls. Without this the constraint is only met or violated by
+    the row the database writes, and a violated one surfaces as an ``IntegrityError`` with an
+    HTTP 500 (#1148). Applying the validated data to an instance and validating its constraints
+    answers the same payload with a 400 naming the violated constraint.
+
+    A condition which is a database function (:class:`django.db.models.Func`, as in
+    ``NOT st_isempty``) is answered by the same query too, but it can only name the constraint. A
+    single field whose value that function looks at is better served by a validator next to the
+    field: it names the member the client has to fix and costs no query, see
+    :mod:`extras.validators`.
+    """
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        try:
+            self.pending_instance(attrs).validate_constraints()
+        except DjangoValidationError as error:
+            # the messages of Django's constraints name the violated constraint, which is what a
+            # client of a refused combination can act on; the code says why, as every other
+            # refusal of these endpoints does
+            raise ValidationError(error.messages, code="invalid")
+        return attrs
+
+    def pending_instance(self, attrs):
+        """The object as the write would leave it: the loaded values of the object under update
+        with the validated data applied.
+
+        Values which are not concrete fields are left out: a related collection cannot be
+        assigned to an object without a row, and a check constraint cannot span one either.
+        """
+        opts = self.Meta.model._meta
+        instance = self.Meta.model()
+        if self.instance is not None:
+            for field in opts.concrete_fields:
+                if field.attname in self.instance.__dict__:
+                    instance.__dict__[field.attname] = self.instance.__dict__[field.attname]
+        concrete_fields = {field.name for field in opts.concrete_fields}
+        for name, value in attrs.items():
+            if name in concrete_fields:
+                setattr(instance, name, value)
+        return instance
+
+
 class SystemInfoSerializerMixin:
     def get_root_meta(self, resource, many):
 
@@ -150,7 +199,11 @@ class TimeUntilNextRunMixin:
         remaining = schedule.remaining_estimate(
             now_tz) if schedule is not None else None
         if remaining is None:
-            return "unbekannt"
+            # A schedule which answers no next run answers nothing - and never a
+            # word. A translated word inside the JSON:API answer of an English
+            # deployment is a bug on its own right: no client can translate it,
+            # and the screen which shows the attribute names its empty (#1082).
+            return None
 
         total_seconds = int(remaining.total_seconds())
         hours, remainder = divmod(total_seconds, 3600)

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   DashboardMenuItem,
   MenuItemLink,
+  type ResourceDefinition,
   MenuProps,
   useResourceDefinitions,
   useSidebarState,
@@ -30,6 +31,20 @@ const groupIcons: Record<string, React.ReactElement> = {
     Metadata: <FeedIcon />,
     Accounts: <PeopleAltIcon />,
     Admin: <DisplaySettingsIcon />,
+};
+
+/**
+ * The label one menu entry shows for its resource: the key an explicit
+ * `options.label` names, else the translated plural of the resource's
+ * `resources` block, else the resource name itself. A menu entry never
+ * renders a translation key (#1085).
+ */
+const menuLabel = (resource: ResourceDefinition, translate: (key: string, options?: { _: string }) => string) => {
+    const configured = resource.options?.label as string | undefined;
+    if (configured !== undefined && configured !== resource.name) {
+        return translate(configured);
+    }
+    return translate(`resources.${resource.name}.plural`, { _: resource.name });
 };
 
 const CustomMenu = ({ dense = false }: MenuProps) => {
@@ -93,7 +108,7 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
                                     key={resource.name}
                                     to={`/${resource.name}`}
                                     state={{ _scrollToTop: true }}
-                                    primaryText={resource.options?.label ?? resource.name}
+                                    primaryText={menuLabel(resource, translate)}
                                     leftIcon={createElementIfDefined(resource.icon)}
                                     dense={dense}
                                 />

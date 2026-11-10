@@ -117,8 +117,19 @@ services:
     # Do not activate tty!!!!! Analog issues as for celery-worker.. it can cause auto attaching issues..
     #tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    # --parallel=4 runs the suite in forked workers. Measured on this checkout (1312 tests, same
+    # stack each time): 655 s in one process, 356 s with two (355 s on a repeat), 225 s with four;
+    # the peak of the container's memory cgroup was 12.5 GiB serial and 12.1 GiB with four, so the
+    # workers are not paid for in memory. The count is written out instead of left to the default
+    # (the machine's cpu count), because Django brings up one PostGIS test database per worker:
+    # a 20-core host would clone the schema twenty times.
+    # COVERAGE_FILE is not a duplicate of --data-file. A forked worker inherits the environment of
+    # its parent but not its command line, so without this the workers write data files the report
+    # step never looks for and every line only a worker executed is silently missing from the XML
+    # that CI uploads - the command still exits 0. Together with `concurrency = multiprocessing`
+    # in backend/setup.cfg, both facts are pinned by scripts/test_coverage_parallel_data.py.
     command: >
-      /bin/sh -c "python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
+      /bin/sh -c "COVERAGE_FILE=.coverage.unit python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput --parallel=4 && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
@@ -164,7 +175,23 @@ services:
       - docker/backend/.mrmap.env
     ports:
       - "0.0.0.0:8001:8001"
-    command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
+    # The websockets of #1032. The development server of the frontend answers
+    # without nginx and points at port 8001 of this service (frontend/.env), so
+    # that flow needs nothing here. The stack of the "mrmap startup" task does:
+    # its frontend is the same nginx container with the same
+    # docker/nginx/mrmap.conf which docker-compose.yml bind-mounts and this file
+    # only rebuilds, and the bundle that container serves takes its addresses
+    # from the VITE_API_* build args which docker-compose.yml derives from
+    # EXTERNAL_* - so that page asks the edge, for its api as for its socket,
+    # and the conf of the edge names port 8002 for /ws in every stack. Without
+    # this, the notification bus of a page on EXTERNAL_PORT answers 502 while
+    # runserver waits on 8001 for a question that page does not ask.
+    # The autoreloader of runserver does not reach this second process: restart
+    # the service after changing a consumer.
+    # The autoreloader of runserver does not reach this second process: restart
+    # the service after changing a consumer.
+    command: >
+      /bin/sh -c "/opt/mrmap/.bash_scripts/startup_ws.sh & python manage.py runserver 0.0.0.0:8001"
     depends_on:
       postgis:
         condition: service_started
@@ -181,7 +208,7 @@ services:
     env_file:
       - ./docker/backend/.mrmap.env
     command: >
-      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines,harvest-import,monitoring,update  --statedb=/var/run/celery/%n-%i_worker.state"
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG --statedb=/var/run/celery/%n-%i_worker.state"
     depends_on:
       postgis:
         condition: service_started

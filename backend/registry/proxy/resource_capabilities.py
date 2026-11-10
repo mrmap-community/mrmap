@@ -127,6 +127,22 @@ class ServiceElementCapabilitiesMixin:
             request.META["QUERY_STRING"] = params.urlencode(safe="/:")
         return super().initialize_request(request, *args, **kwargs)
 
+    def get_and_post(self, request, *args, **kwargs):
+        """The proxy decisioning of the service, answered narrowed to one resource.
+
+        The proxy reads "service" before it answers -- including the check that the
+        service is active -- and the url of this endpoint names the resource instead
+        of the service, so reading the service raises the resource error of
+        ``element``. A ``CapabilitiesError`` which escapes the proxy flow is answered
+        with the exception report the endpoint owes for it, like the one escaped by
+        the document generation in :meth:`get_capabilities`; left to the proxy's
+        exception handler it would answer the forbidden report of an unknown caller.
+        """
+        try:
+            return super().get_and_post(request, *args, **kwargs)
+        except CapabilitiesError as error:
+            return self.element_capabilities_exception(error)
+
     def get_capabilities(self):
         """The capabilities of the service, advertising only the requested resource."""
         try:

@@ -53,13 +53,16 @@ class NestedMimeTypeViewSet(
 
 
 class KeywordViewSetMixin:
-    queryset = Keyword.objects.all()
+    # the pickers of the frontend render and sort by the display string the
+    # serializer answers, which for a keyword is its text (#1035)
+    queryset = Keyword.objects.annotate(string_representation=F("keyword"))
     serializer_class = KeywordSerializer
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         "keyword": ["exact", "icontains", "contains"],
     }
     search_fields = ("keyword",)
+    ordering_fields = ["id", "keyword", "string_representation"]
 
 
 class KeywordViewSet(
@@ -196,7 +199,13 @@ class DatasetMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # a record is searched by the words its vector holds -- the title, the abstract
+    # and every keyword of it are tokenized into that column -- because matching it
+    # is one probe into its GIN index. Searching the three texts instead asks a
+    # UPPER(...) LIKE per word and joins the keyword relation of the whole
+    # catalogue, which is where a searched list spent its time (#1029); see
+    # registry/filters/search.py
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
@@ -427,7 +436,8 @@ class ServiceMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # see DatasetMetadataViewSetMixin.search_fields
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
 
@@ -577,8 +587,12 @@ class NestedApplicationMetadataViewSet(
 
 
 class TimeExtentViewSet(ReadOnlyModelViewSet):
-    queryset = TimeExtent.objects.all()
+    # the annotation makes the display string of the serializer sortable, which
+    # is the sort the generic pickers send when they render this resource (#1035)
+    queryset = TimeExtent.objects.with_string_representation()
     serializer_class = TimeExtentSerializer
+    ordering_fields = ["id", "begin", "end", "resolution", "is_relative",
+                       "string_representation"]
 
 
 class LanguageViewSet(ReadOnlyModelViewSet):

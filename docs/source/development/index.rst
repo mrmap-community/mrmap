@@ -17,7 +17,12 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    getting-started
    project-structure
    environment
+   celery-queues
+   celery-result-backend
+   background-notifications
    prebuilt-images
+   agent-capacity
+   decision-requests
    code-quality
    definition_of_done
    vscode-configuration

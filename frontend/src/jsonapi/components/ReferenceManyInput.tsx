@@ -4,9 +4,13 @@ import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form
 
 import _ from 'lodash';
 import {
-  CreateMutationFunction, HttpError,
+  HttpError,
+  type CreateParams,
+  type CreateResult,
   type Middleware,
   RaRecord, useCreate, useDelete,
+  type UpdateParams,
+  type UpdateResult,
   useInfiniteGetList,
   useLocation,
   useNavigate,
@@ -82,6 +86,17 @@ interface ReferenceManyInputProps {
   target: string
 }
 
+/**
+ * react-admin v5 calls a registered mutation middleware as `(resource, params, next)`.
+ * `next` runs the remaining middleware chain and finally the data provider function,
+ * so it resolves to the data provider's result envelope `{ data: record }`; the
+ * mutation hook unwraps `data` only after all middlewares have returned.
+ */
+type ParentMutationFunction = (
+  resource: string,
+  params: CreateParams | UpdateParams
+) => Promise<CreateResult | UpdateResult>
+
 export const ReferenceManyInput = (
   {
     reference,
@@ -156,21 +171,21 @@ export const ReferenceManyInput = (
 
 
 
-  const memoizedMiddleWare = useCallback<Middleware<CreateMutationFunction>>(async (
+  const memoizedMiddleWare = useCallback<Middleware<ParentMutationFunction>>(async (
       resource,
       params,
-      options,
       next,
   ) => {
 
-      // Call the next middleware
-      const result = await next(resource, params, { ...options, returnPromise: true });
+      // Call the rest of the middleware chain and the data provider mutation;
+      // this resolves to the provider's result envelope `{ data: record }`.
+      const result = await next(resource, params);
       if (!result) return result;
 
        // create/update all nested records and wait for all to finish
       const promises = (values ?? []).map((rec: RaRecord) => {
         // ensure target relation points to parent result
-        const data = { ...rec, [target]: { id: result.id } } as RaRecord;
+        const data = { ...rec, [target]: { id: result.data.id } } as RaRecord;
 
         // ask react-admin to return a promise for the mutation
         const createOpts = { returnPromise: true as const };

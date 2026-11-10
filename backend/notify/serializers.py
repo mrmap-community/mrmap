@@ -2,6 +2,7 @@ import json
 
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from drf_spectacular.utils import extend_schema_serializer
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from notify.models import BackgroundProcess, BackgroundProcessLog
@@ -47,6 +48,11 @@ class BackgroundProcessLogSerializer(
         fields = "__all__"
 
 
+@extend_schema_serializer(
+    # the schema names this resource by its json:api type; without it the
+    # component of an answer declared with the class rather than an instance
+    # of this serializer is named after its metaclass (#1177)
+    component_name="BackgroundProcess")
 class BackgroundProcessSerializer(
         StringRepresentationSerializer,
         SystemInfoSerializerMixin,
@@ -59,11 +65,11 @@ class BackgroundProcessSerializer(
     date_created = DateTimeField(
         read_only=True,
         label=_("date created"),
-        help_text=_("the datetime when the first thread was created"))
+        help_text=_("the datetime when this process was created"))
     done_at = DateTimeField(
         read_only=True,
         label=_("date at"),
-        help_text=_("the datetime when the last thread was finished"))
+        help_text=_("the datetime when this process reached its terminal state"))
     progress = FloatField(
         read_only=True,
         label=_("progress"),
@@ -86,7 +92,10 @@ class BackgroundProcessSerializer(
 
     class Meta:
         model = BackgroundProcess
-        exclude = ("threads", "celery_task_ids")
+        # `celery_task_ids` is the internal bookkeeping of which Celery tasks
+        # belong to the process; it is written before a task is published and
+        # read when the process is aborted - no client of the api reads it.
+        exclude = ("celery_task_ids", )
 
     # included_serializers = {
     #    'logs': BackgroundProcessLogSerializer,

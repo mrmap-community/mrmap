@@ -7,10 +7,10 @@ from django.core.exceptions import ValidationError
 from django.db.models.query import Prefetch, QuerySet
 from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
-from django_celery_results.models import TaskResult
+from drf_spectacular.utils import extend_schema
 from extras.utils import get_sparse_fields
 from guardian.core import ObjectPermissionChecker
-from notify.serializers import TaskResultSerializer
+from notify.serializers import BackgroundProcessSerializer
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -24,6 +24,23 @@ from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 
 class ObjectPermissionCheckerViewSetMixin:
     """add a ObjectPermissionChecker based on the accessing user to the serializer context."""
+
+    # the objects the answer was already selected with, remembered by
+    # `paginate_queryset` so that the permissions are prefetched for exactly
+    # the objects the answer shows, without asking the database again
+    page_for_permissions = None
+
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Remember the objects of the page the answer shows.
+
+        A list action already filters and slices the queryset to read its
+        page. The permissions are prefetched for these very objects instead
+        of filtering and paginating the queryset a second time, which would
+        answer a second COUNT and select the page a second time.
+        """
+        page = super().paginate_queryset(queryset, *args, **kwargs)
+        self.page_for_permissions = page if page is not None else queryset
+        return page
 
     def get_serializer_context(self):
         """adds perm checker with prefetched permissions for objects of the current page to the serializer context."""
@@ -42,14 +59,22 @@ class ObjectPermissionCheckerViewSetMixin:
             perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:
-
-                # Include filters may add prefetches; permission checks only need ids.
-                objects = self.filter_queryset(queryset).select_related(
-                    None).prefetch_related(None).only("pk")
-                # if self.request.method == "GET":
-                if self.action == 'list':
-
-                    objects = self.paginate_queryset(objects)
+                if self.action == 'list' and \
+                        self.page_for_permissions is not None:
+                    # `paginate_queryset` already selected and read the page
+                    objects = self.page_for_permissions
+                elif getattr(self, 'object', None) is not None:
+                    # a detail action answers one object which it has read
+                    # into self.object
+                    objects = [self.object]
+                elif self.action == 'create':
+                    # the object a create answers did not exist when the
+                    # serializer was built, nothing can be prefetched for it
+                    objects = []
+                else:
+                    # Include filters may add prefetches; permission checks only need ids.
+                    objects = self.filter_queryset(queryset).select_related(
+                        None).prefetch_related(None).only("pk")
                 if objects:
                     perm_checker.prefetch_perms(objects)
             # the json:api renderer does not hand the serializer context to the
@@ -140,14 +165,40 @@ class SerializerClassesMixin:
 
 
 class AsyncCreateMixin:
+    """Answers a create whose work is done by a background process.
+
+    The viewset creates the process in `get_task_kwargs` and hands it back
+    together with the kwargs of the task; the process is what the client
+    polls: its status answers the queued, running and terminal states, its
+    related resource names the service as soon as one exists and its logs
+    carry what went wrong. The process is written before the message goes
+    out, so the answer of this POST always points at a resource which exists
+    (#1177).
+
+    The `TaskResult` answer which this mixin gave before is retired with
+    D01/B of #1175: a registration no longer leaves a row of that table
+    behind. The id of the task which this publication publishes is decided
+    and registered with the process before the message goes out, so an abort
+    issued right after the answer can revoke the task by that id although no
+    worker has read the message yet (#1179).
+    """
+
     task_function = None
 
     def get_task_function(self):
         return self.task_function
 
     def get_task_kwargs(self, request, serializer):
+        """The background process and the kwargs to publish its task with.
+
+        Returns:
+            tuple: (BackgroundProcess, dict) — the process which answers how
+                the work goes and the kwargs handed to the task.
+        """
         raise NotImplementedError
 
+    @extend_schema(
+        responses={(202, "application/vnd.api+json"): BackgroundProcessSerializer})
     def create(self, request, *args, **kwargs):
         # followed the jsonapi recommendation for async processing
         # https://jsonapi.org/recommendations/#asynchronous-processing
@@ -155,35 +206,43 @@ class AsyncCreateMixin:
         serializer.is_valid(raise_exception=True)
 
         task_function = self.get_task_function()
-        task = self.get_task_function().delay(
-            **self.get_task_kwargs(request=request, serializer=serializer))
-        task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id, task_name=f"{task_function.__class__.__module__}.{
-                task_function.__class__.__name__}"
-        )
+        background_process, task_kwargs = self.get_task_kwargs(
+            request=request, serializer=serializer)
+
+        # The id of the message is decided here, and stored with the process,
+        # before the message goes out: an abort issued right after this answer
+        # finds the task by that id although no worker has read the message
+        # yet (#1179). The process owns the id directly - not a row of the
+        # retired `TaskResult` table.
+        task_id = uuid.uuid4()
+        background_process.append_celery_task_ids([task_id])
+        task_function.apply_async(
+            kwargs=task_kwargs, task_id=str(task_id))
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
             path=request.build_absolute_uri(
-                reverse("notify:taskresult-detail", args=[task_result.pk])
+                reverse("notify:backgroundprocess-detail",
+                        args=[background_process.pk])
             ),
             data={},
         )
 
         dummy_request.query_params = OrderedDict()
-        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
-        serialized_task_result = TaskResultSerializer(
-            task_result, **{"context": {"request": dummy_request}}
-        )
-        serialized_task_result_data = serialized_task_result.data
-        # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
-        if not serialized_task_result_data.get("meta", None):
-            serialized_task_result_data.update({"meta": {}})
+        serialized_process_data = BackgroundProcessSerializer(
+            background_process, **{"context": {"request": dummy_request}}
+        ).data
 
-        headers = self.get_success_headers(serialized_task_result_data)
+        # the json:api renderer asks the view which type of resource the
+        # answer carries; this answer is a process, not the resource the
+        # create of this endpoint otherwise deals with (#1177)
+        self.resource_name = \
+            BackgroundProcessSerializer.Meta.model.__name__
+
+        headers = self.get_success_headers(serialized_process_data)
 
         return Response(
-            serialized_task_result_data,
+            serialized_process_data,
             status=status.HTTP_202_ACCEPTED,
             headers=headers,
         )

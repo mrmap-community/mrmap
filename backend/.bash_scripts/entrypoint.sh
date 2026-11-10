@@ -2,19 +2,32 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
-/opt/mrmap/.bash_scripts/wait_db.sh
+if ! /opt/mrmap/.bash_scripts/wait_db.sh; then
+  printf "${RED}database never started accepting connections - giving up${NOCOLOR}\n"
+  exit 1
+fi
 
 if [[ $(hostname -s) = *backend* ]]; then 
-  echo "django migrate"
-  python manage.py migrate
-
-  if [ $? != 0 ]; 
-  then
-    exit 1
-    printf "${RED}failed to migrate database${NOCOLOR}\n"
-  else
-    printf "${GREEN}database migrations applied${NOCOLOR}\n"
-  fi
+  # migrate is the true readiness test (#901): the pg_isready probe above can
+  # pass and the server can still refuse the next connection a moment later,
+  # so retry a bounded number of times before letting the container exit.
+  MIGRATE_ATTEMPTS="${MIGRATE_ATTEMPTS:-5}"
+  MIGRATE_RETRY_DELAY="${MIGRATE_RETRY_DELAY:-10}"
+  attempt=1
+  while true; do
+    echo "django migrate (attempt $attempt/$MIGRATE_ATTEMPTS)"
+    if python manage.py migrate; then
+      printf "${GREEN}database migrations applied${NOCOLOR}\n"
+      break
+    fi
+    if [ "$attempt" -ge "$MIGRATE_ATTEMPTS" ]; then
+      printf "${RED}failed to migrate database after $attempt attempts${NOCOLOR}\n"
+      exit 1
+    fi
+    printf "${RED}migrate failed, retrying in ${MIGRATE_RETRY_DELAY}s${NOCOLOR}\n"
+    attempt=$((attempt + 1))
+    sleep "$MIGRATE_RETRY_DELAY"
+  done
 fi
 
 echo '

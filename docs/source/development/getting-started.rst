@@ -132,6 +132,12 @@ Run the whole suite with the ``behave`` container:
 The commands for single scenarios, the step vocabulary and the conventions of those scenarios are
 documented in ``backend/tests/behave/AGENTS.md``.
 
+That container runs the suite with ``--simple``, which is the runner the suite is standardized on:
+every other runner finishes a scenario with a flush of the whole database, and that deletes the
+fixtures which the feature hooks load once per feature. A hand written ``manage.py behave`` call
+therefore needs the same flag; ``backend/tests/behave/environment.py`` stops a run that misses it
+and names the command to run instead.
+
 
 Test documentation builds properly
 ==================================

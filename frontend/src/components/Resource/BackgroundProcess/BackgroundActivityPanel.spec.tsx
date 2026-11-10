@@ -15,6 +15,13 @@ const state = vi.hoisted(() => ({
   queryOptions: undefined as
     | { refetchInterval?: number | false }
     | undefined,
+  listProps: undefined as
+    | {
+        resource?: string;
+        perPage?: number;
+        sort?: { field: string; order: string };
+      }
+    | undefined,
 }));
 // ReadyState.OPEN ist 1, ReadyState.CONNECTING ist 0
 const realtime = vi.hoisted(() => ({ ready: 1 }));
@@ -25,11 +32,16 @@ vi.mock("../../../jsonapi/components/Realtime/RealtimeListBase", () => ({
   default: ({
     children,
     queryOptions,
+    ...props
   }: {
     children: ReactNode;
     queryOptions?: { refetchInterval?: number | false };
+    resource?: string;
+    perPage?: number;
+    sort?: { field: string; order: string };
   }) => {
     state.queryOptions = queryOptions;
+    state.listProps = props;
     return <>{children}</>;
   },
 }));
@@ -55,6 +67,7 @@ beforeEach(() => {
   state.isPending = false;
   state.error = null;
   state.queryOptions = undefined;
+  state.listProps = undefined;
   realtime.ready = ReadyState.OPEN;
   vi.clearAllMocks();
 });
@@ -145,5 +158,59 @@ describe("BackgroundActivityPanel", () => {
     realtime.ready = ReadyState.CONNECTING;
     rerender(<BackgroundActivityPanel />);
     expect(state.queryOptions?.refetchInterval).toBe(20000);
+  });
+  it("asks for the ten newest processes, bounded, while the bus floods", () => {
+    // a thousand running processes may not make the panel render a thousand
+    // rows: the server page is the bound and the transport is the flood -
+    // the panel only ever shows the ten most recent (epic #1203 acceptance)
+    render(<BackgroundActivityPanel />);
+    expect(state.listProps).toMatchObject({
+      resource: "BackgroundProcess",
+      perPage: 10,
+      sort: { field: "id", order: "DESC" },
+    });
+
+    state.data = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      status: "running",
+      description: `process ${index + 1}`,
+    }));
+    openPanel();
+    expect(screen.getAllByText(/^process \d+$/)).toHaveLength(10);
+    expect(screen.getByText("backgroundActivity.recent")).toBeInTheDocument();
+  });
+  it("opens from the keyboard, announces its state and closes on Escape", () => {
+    render(<BackgroundActivityPanel />);
+    const trigger = screen.getByRole("button", {
+      name: "backgroundActivity.title",
+    });
+    trigger.focus();
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(
+      "backgroundActivity.title",
+    );
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+  it("caps the panel at the viewport and scrolls its list", () => {
+    // on a phone the panel must not run past the screen and the long list
+    // must scroll inside the panel - both are pure style bounds which live
+    // in the injected styles of the rendered panel
+    const { container } = render(<BackgroundActivityPanel />);
+    openPanel();
+    const styles = [...document.querySelectorAll("style")].map(
+      (style) => style.textContent ?? "",
+    );
+    const css = styles.join("") + container.ownerDocument.documentElement.innerHTML;
+    expect(css).toMatch(/max-width:\s*calc\(100vw\s*-\s*32px\)/);
+    expect(css).toMatch(/max-height:\s*60vh/);
+    expect(css).toMatch(/overflow-y:\s*auto/);
   });
 });

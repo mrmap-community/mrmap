@@ -13,9 +13,11 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # build python dependencies    
 COPY ./.requirements /.requirements
-RUN /usr/local/bin/python -m pip install --upgrade pip && \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r ./.requirements/base.txt
-RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements/dev.txt && pip install -r ./.requirements/docs.txt; fi
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements/dev.txt && pip install -r ./.requirements/docs.txt; fi
 
 ################################
 # MrMap Image

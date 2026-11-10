@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 23:25+0100\n"
+"POT-Creation-Date: 2026-11-10 00:34+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,7 +70,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:93 notify/models.py:64
+#: accounts/models/groups.py:93 notify/models.py:76
 #: registry/models/mapcontext.py:312 registry/models/security.py:252
 msgid "description"
 msgstr "Beschreibung"
@@ -190,71 +190,71 @@ msgstr "Wert"
 msgid "Unknown"
 msgstr "Unbekannt"
 
-#: extras/schema.py:18
+#: extras/schema.py:17
 msgid "is exactly"
 msgstr "ist genau"
 
-#: extras/schema.py:19
+#: extras/schema.py:18
 msgid "is exactly (case-insensitive)"
 msgstr "ist genau (Groß-/Kleinschreibung egal)"
 
-#: extras/schema.py:20
+#: extras/schema.py:19
 msgid "contains"
 msgstr "beinhaltet"
 
-#: extras/schema.py:21
+#: extras/schema.py:20
 msgid "contains (case-insensitive)"
 msgstr "beinhaltet (Groß-/Kleinschreibung egal)"
 
-#: extras/schema.py:22
+#: extras/schema.py:21
 msgid "starts with"
 msgstr "beginnt mit"
 
-#: extras/schema.py:23
+#: extras/schema.py:22
 msgid "starts with (case-insensitive)"
 msgstr "beginnt mit (Groß-/Kleinschreibung egal)"
 
-#: extras/schema.py:24
+#: extras/schema.py:23
 msgid "ends with"
 msgstr "endet mit"
 
-#: extras/schema.py:25
+#: extras/schema.py:24
 msgid "ends with (case-insensitive)"
 msgstr "endet mit (Groß-/Kleinschreibung egal)"
 
-#: extras/schema.py:26
+#: extras/schema.py:25
 msgid "greater than"
 msgstr "größer als"
 
-#: extras/schema.py:27
+#: extras/schema.py:26
 msgid "greater than or equal to"
 msgstr "größer oder gleich"
 
-#: extras/schema.py:28
+#: extras/schema.py:27
 msgid "less than"
 msgstr "kleiner als"
 
-#: extras/schema.py:29
+#: extras/schema.py:28
 msgid "less than or equal to"
 msgstr "kleiner oder gleich"
 
-#: extras/schema.py:30
+#: extras/schema.py:29
 msgid "is one of"
 msgstr "ist eines von"
 
-#: extras/schema.py:31
+#: extras/schema.py:30
 msgid "is empty"
 msgstr "ist leer"
 
-#: extras/schema.py:32
+#: extras/schema.py:31
 msgid "is between"
 msgstr "liegt zwischen"
 
-#: extras/schema.py:33
+#: extras/schema.py:32
 msgid "matches regex"
 msgstr "entspricht regulärem Ausdruck"
 
-#: extras/schema.py:34
+#: extras/schema.py:33
 msgid "matches regex (case-insensitive)"
 msgstr "entspricht regulärem Ausdruck (Groß-/Kleinschreibung egal)"
 
@@ -310,7 +310,7 @@ msgstr "Benachrichtigung"
 msgid "Select a valid status of a background process."
 msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
 
-#: notify/filters.py:45 notify/serializers.py:74
+#: notify/filters.py:45 notify/serializers.py:80
 msgid "status"
 msgstr "Status"
 
@@ -318,85 +318,85 @@ msgstr "Status"
 msgid "Multiple values may be separated by commas."
 msgstr "Mehrere Werte können durch Kommas getrennt werden."
 
-#: notify/models.py:35 notify/models.py:170 registry/models/harvest.py:74
+#: notify/models.py:47 notify/models.py:226 registry/models/harvest.py:74
 #: registry/models/harvest.py:132 registry/models/harvest.py:1451
 #: registry/models/monitoring.py:149 registry/models/monitoring.py:397
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
-#: notify/models.py:36 registry/models/harvest.py:75
+#: notify/models.py:48 registry/models/harvest.py:75
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
-#: notify/models.py:40 registry/models/harvest.py:79
+#: notify/models.py:52 registry/models/harvest.py:79
 #: registry/models/monitoring.py:402
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
-#: notify/models.py:41 registry/models/harvest.py:80
+#: notify/models.py:53 registry/models/harvest.py:80
 msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
-#: notify/models.py:46 registry/models/harvest.py:59
+#: notify/models.py:58 registry/models/harvest.py:59
 #: registry/models/harvest.py:282
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:47 registry/models/harvest.py:60
+#: notify/models.py:59 registry/models/harvest.py:60
 #: registry/models/harvest.py:283
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:49
+#: notify/models.py:61
 msgid "total"
 msgstr "Gesamt"
 
-#: notify/models.py:50
+#: notify/models.py:62
 msgid "total steps of processing"
 msgstr "Gesamtzahl der Verarbeitungsschritte"
 
-#: notify/models.py:54
+#: notify/models.py:66
 msgid "done"
 msgstr "Erledigt"
 
-#: notify/models.py:55
+#: notify/models.py:67
 msgid "done steps of processing"
 msgstr "Erledigte Verarbeitungsschritte"
 
-#: notify/models.py:60
+#: notify/models.py:72
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:61
+#: notify/models.py:73
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:65
+#: notify/models.py:77
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:79
+#: notify/models.py:91
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:80
+#: notify/models.py:92
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:159 registry/models/harvest.py:1467
+#: notify/models.py:215 registry/models/harvest.py:1467
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:171 registry/models/harvest.py:1452
+#: notify/models.py:227 registry/models/harvest.py:1452
 #: registry/models/monitoring.py:398
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:175 registry/models/harvest.py:1472
+#: notify/models.py:231 registry/models/harvest.py:1472
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:176 registry/models/harvest.py:1473
+#: notify/models.py:232 registry/models/harvest.py:1473
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -404,39 +404,39 @@ msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 msgid "You are not allowed to change the resource of this process."
 msgstr "Sie dürfen die Ressource dieses Prozesses nicht ändern."
 
-#: notify/serializers.py:61
+#: notify/serializers.py:67
 msgid "date created"
 msgstr "Erstellt am"
 
-#: notify/serializers.py:62
-msgid "the datetime when the first thread was created"
-msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
+#: notify/serializers.py:68
+msgid "the datetime when this process was created"
+msgstr "der Zeitpunkt, an dem dieser Prozess erstellt wurde"
 
-#: notify/serializers.py:65
+#: notify/serializers.py:71
 msgid "date at"
 msgstr "Datum von"
 
-#: notify/serializers.py:66
-msgid "the datetime when the last thread was finished"
-msgstr "der Zeitpunkt, an dem der letzte Thread beendet wurde"
+#: notify/serializers.py:72
+msgid "the datetime when this process reached its terminal state"
+msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
-#: notify/serializers.py:69
+#: notify/serializers.py:75
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:70
+#: notify/serializers.py:76
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:75
+#: notify/serializers.py:81
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:77
+#: notify/serializers.py:83
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:79
+#: notify/serializers.py:85
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
@@ -1777,8 +1777,7 @@ msgstr "Fehler der Anfrage"
 
 #: registry/models/monitoring.py:434
 msgid "the failure which prevented the request from being answered"
-msgstr ""
-"der Fehler, der verhindert hat, dass die Anfrage beantwortet wurde"
+msgstr "der Fehler, der verhindert hat, dass die Anfrage beantwortet wurde"
 
 #: registry/models/monitoring.py:439
 msgid "error detail"
@@ -1786,8 +1785,7 @@ msgstr "Fehlerdetail"
 
 #: registry/models/monitoring.py:441
 msgid "an excerpt of the body which answered a failed request"
-msgstr ""
-"ein Auszug des Body, der eine fehlgeschlagene Anfrage beantwortet hat"
+msgstr "ein Auszug des Body, der eine fehlgeschlagene Anfrage beantwortet hat"
 
 #: registry/models/monitoring.py:543 registry/models/monitoring.py:579
 #: registry/models/monitoring.py:612
@@ -3234,6 +3232,9 @@ msgstr "Diese Ressource ist deaktiviert."
 #: system/apps.py:102
 msgid "System"
 msgstr "System"
+
+#~ msgid "the datetime when the last thread was finished"
+#~ msgstr "der Zeitpunkt, an dem der letzte Thread beendet wurde"
 
 #~ msgid ""
 #~ "the maximum step size this csw can handle by a single GetRecords request."

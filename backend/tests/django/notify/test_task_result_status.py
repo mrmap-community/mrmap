@@ -5,8 +5,9 @@ resource and the client polled that resource, whose states were mirrored into
 its row by the celery signals connected in notify/tasks.py. The registration
 contract has since moved to the `BackgroundProcess` (D01/B of #1175) and the
 api publishes no row for new tasks any more; these tests keep the receivers
-honest for the rows and messages of the coexistence window until #1179 retires
-them.
+honest for the rows and messages of the coexistence window until #1180 retires
+them - the retirement of the `threads` relation (#1179) deliberately leaves
+this mirroring of stamped in-flight messages in place.
 """
 
 import json

@@ -9,7 +9,6 @@ from channels.db import database_sync_to_async
 from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase, override_settings
-from django_celery_results.models import TaskResult
 from notify.models import BackgroundProcess, ProcessNameEnum
 from notify.routing import websocket_urlpatterns
 from rest_framework.test import APIRequestFactory
@@ -44,24 +43,21 @@ class SignalsTestCase(TransactionTestCase):
         return BackgroundProcess.objects.process_info().get(
             pk=background_process.pk)
 
+    def report_progress(self, background_process):
+        """Move the process on the way the maintained reporting moves it.
+
+        The progress of a process is written by the work it reports for, not
+        by a row of the retired `TaskResult` table (#1179); the manager's
+        report is what a running task pays.
+        """
+        from notify.enums import ProcessStatusEnum
+        return BackgroundProcess.objects.report(
+            background_process.pk, ProcessStatusEnum.RUNNING,
+            phase="one step done")
+
     def get_background_process(self, pk):
         return BackgroundProcess.objects.process_info().get(
             pk=pk)
-
-    def create_thread(self, background_process):
-        task_result = TaskResult.objects.create(task_id=123)
-        task_result.processes.add(background_process)
-        return task_result
-
-    def update_thread(self):
-        task_result = TaskResult.objects.get(task_id=123)
-        task_result.status = "STARTED"
-        task_result.meta = "{ \"done\": \"1\", \"total\": \"3\"}"
-        task_result.save()
-        return task_result
-
-    def delete_pending_task(self):
-        return TaskResult.objects.get(task_id=123).delete()
 
     @skip("Cause of non reproduceable test results caused by deadlock code. We don't know how to test it for now.")
     @async_to_sync
@@ -90,9 +86,9 @@ class SignalsTestCase(TransactionTestCase):
                 self.assertEqual(response['type'],
                                  "backgroundProcesses/created")
 
-                # if a thread is updated, we shall receive a update event
-                await database_sync_to_async(self.create_thread, thread_sensitive=False)(background_process)
-                await database_sync_to_async(self.update_thread, thread_sensitive=False)()
+                # if the reported work moves the process on, we shall receive
+                # an update event
+                await database_sync_to_async(self.report_progress, thread_sensitive=False)(background_process)
                 await database_sync_to_async(self.get_background_process, thread_sensitive=False)(background_process.pk)
 
                 response = await communicator.receive_json_from()

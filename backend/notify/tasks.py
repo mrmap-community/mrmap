@@ -22,8 +22,10 @@ logger: Logger = settings.ROOT_LOGGER
 #: The stamp which asked the mirroring below to write a task's states into
 #: its `TaskResult` row. The asynchronous api stamped the messages it
 #: published until the registration contract moved to the `BackgroundProcess`
-#: (#1177, D01/B of #1175); the receivers stay for the rows of that
-#: coexistence window and their removal is #1179/#1180.
+#: (#1177, D01/B of #1175); the receivers stay for the rows and in-flight
+#: messages of that coexistence window, and their removal is #1180 - the
+#: `threads` relation which cancellation used to read is retired by #1179
+#: without touching this mirroring.
 MIRROR_TASK_RESULT_STAMP = 'mirror_task_result'
 
 
@@ -168,7 +170,6 @@ def mirror_task_result_revoked(sender, request, **kwargs):
 
 
 class BackgroundProcessBased(Task):
-    thread_appended = False
     autoretry_for = (Timeout, ConnectionError, InternalServerError)
     retry_backoff = 30
     retry_backoff_max = 5 * 60

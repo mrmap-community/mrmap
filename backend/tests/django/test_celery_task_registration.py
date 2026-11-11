@@ -31,8 +31,10 @@ import ast
 import functools
 import json
 import os
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from django.test import SimpleTestCase
@@ -133,31 +135,67 @@ def worker_registered_tasks():
     return _replay_cache["tasks"]
 
 
-def _dotted(path):
+#: the file name pattern of ``tempfile.mkstemp`` and its friends: "tmp" plus
+#: eight random characters; a ``.py`` file of this name belongs to a test
+#: which is running right now, never to the application
+TRANSIENT_ARTIFACT = re.compile(r"tmp[a-z0-9_]{8}\.py\Z")
+
+
+def read_application_source(path):
+    """The text of a file the scans below discovered, or None when a
+    transient artifact of a parallel test vanished between listing and read.
+
+    A ``test_api_renderers`` deployment probe which the other worker
+    unlinks while this scan is between its listing and its read is the race
+    the FileNotFoundError of the #1270 CI run reported; only a name matching
+    TRANSIENT_ARTIFACT is forgiven over it. A source file of the application
+    which is not there to be read is a real problem and raises.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        if TRANSIENT_ARTIFACT.fullmatch(path.name):
+            return None
+        raise
+
+
+def _dotted(path, root=BACKEND_DIR):
     """The import name of a source file inside the backend, e.g.
     ``registry.tasks.alerts`` for ``registry/tasks/alerts.py``."""
-    parts = list(path.relative_to(BACKEND_DIR).parts)
+    parts = list(path.relative_to(root).parts)
     parts[-1] = parts[-1][:-len(".py")]
     if parts[-1] == "__init__":
         parts.pop()
     return ".".join(parts)
 
 
-def _task_files():
+def _task_files(root=BACKEND_DIR):
     """Every source module the worker's autodiscover can arrive at: the
     ``tasks.py`` of an app and the modules of a ``tasks/`` package."""
-    files = list(BACKEND_DIR.glob("*/tasks.py"))
-    for package in BACKEND_DIR.glob("*/tasks"):
+    files = list(root.glob("*/tasks.py"))
+    for package in root.glob("*/tasks"):
         files.extend(entry for entry in package.rglob("*.py")
                      if "__pycache__" not in entry.parts)
     return sorted(files)
 
 
-def _source_files():
-    """Every application source file, the tests and the migrations aside."""
+def _source_files(root=BACKEND_DIR):
+    """Every application source file, the tests and the migrations aside.
+
+    A file lying directly in the backend root is not among them: it belongs
+    to no application package, which no start-up import of the worker can
+    arrive at — the only one there is ``manage.py``, the launcher. This is
+    also what keeps the scan away from the deployment probes which
+    ``test_api_renderers`` writes into the backend root with
+    ``mkstemp(suffix=".py", dir=BACKEND_DIR)``: those exist for the seconds
+    of their subprocess and are unlinked when it answers, and reading one of
+    them raced with the removal — the FileNotFoundError which broke this
+    module's own check under ``--parallel`` in the #1270 CI run.
+    """
     return sorted(
-        path for path in BACKEND_DIR.rglob("*.py")
-        if not {"tests", "migrations", "__pycache__"} & set(path.parts))
+        path for path in root.rglob("*.py")
+        if path.parent != root
+        and not {"tests", "migrations", "__pycache__"} & set(path.parts))
 
 
 def _decorates_task(node):
@@ -195,13 +233,16 @@ def _wire_name(decorator, module, function):
 
 
 @functools.lru_cache(maxsize=None)
-def task_definitions():
+def task_definitions(root=BACKEND_DIR):
     """The tasks the sources define, keyed by defining module and function,
     valued by the name the task has on the queue."""
     definitions = {}
-    for path in _task_files():
-        module = _dotted(path)
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for path in _task_files(root):
+        module = _dotted(path, root)
+        text = read_application_source(path)
+        if text is None:
+            continue
+        tree = ast.parse(text, filename=str(path))
         for node in tree.body:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 decorator = _decorates_task(node)
@@ -224,7 +265,7 @@ def _func_path(node):
 
 
 @functools.lru_cache(maxsize=None)
-def published_references():
+def published_references(root=BACKEND_DIR):
     """The task names the sources publish.
 
     Two shapes are read out of the application code: the names a call site
@@ -238,12 +279,15 @@ def published_references():
     Returns ``(published, scheduled)``: the names of the first group, the
     names of the second group.
     """
-    definitions = task_definitions()
+    definitions = task_definitions(root)
     task_modules = {module for module, _ in definitions}
     published, scheduled = set(), set()
-    for path in _source_files():
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        module = _dotted(path)
+    for path in _source_files(root):
+        text = read_application_source(path)
+        if text is None:
+            continue
+        tree = ast.parse(text, filename=str(path))
+        module = _dotted(path, root)
         # what a plain name means at a call site in this file: the task it
         # was imported from, aliased or not, plus the tasks defined here
         names = {
@@ -385,3 +429,156 @@ class WorkerImportTests(SimpleTestCase):
             missing, [],
             "beat fires these tasks but a worker without them discards "
             "every fire: %s" % ", ".join(missing))
+
+
+class SourceDiscoveryTests(SimpleTestCase):
+    """The scans read the application, not whatever lies next to it.
+
+    ``test_api_renderers`` runs its deployment probe from a script file —
+    the interpreter puts the script's own directory on the import path, so
+    the probe has to lie in the backend root — and removes it once the
+    probe has answered. Under ``--parallel`` that file therefore lives for
+    the seconds of a Django start-up inside a directory the scan of this
+    module walks; it used to be enumerated as an application source, and
+    its read raced with the unlink of the other worker: the
+    FileNotFoundError of the #1270 CI run. Both halves of the answer are
+    kept below — the backend root is no application directory, and a file
+    which vanished between listing and read is forgiven only when its name
+    says "tempfile of a test which is running right now".
+    """
+
+    def test_the_backend_root_itself_is_not_an_application_directory(self):
+        files = _source_files()
+        # manage.py is the only .py lying directly in the backend root; it
+        # belongs to no app and publishes no task
+        self.assertNotIn(BACKEND_DIR / "manage.py", files)
+        # application sources are still read: a view which imports a task
+        # the worker reaches only through it, and the shared DRF layer
+        self.assertIn(BACKEND_DIR / "registry" / "views" / "service.py", files)
+        self.assertIn(BACKEND_DIR / "extras" / "viewsets.py", files)
+
+    def test_a_probe_script_in_the_backend_root_changes_nothing(self):
+        # the shape of the probe of test_api_renderers to the letter: a
+        # .py which mkstemp places in the backend root and which is gone
+        # when its subprocess has answered. It carries a publication the
+        # scan would report if the root were still scanned.
+        published, scheduled = published_references()
+        descriptor, script_path = tempfile.mkstemp(
+            suffix=".py", dir=str(BACKEND_DIR), text=True)
+        try:
+            with os.fdopen(descriptor, "w") as handle:
+                handle.write(
+                    "from celery import Celery\n"
+                    "\n"
+                    "app = Celery()\n"
+                    "\n"
+                    "app.send_task('probe.must.not.be.scanned')\n")
+            self.assertNotIn(Path(script_path), _source_files())
+            # a recomputation with the litter in place answers exactly what
+            # the scan answered without it — and still finds the real
+            # publications, so nothing was lost with the root
+            with_litter = published_references(BACKEND_DIR)
+            self.assertEqual(with_litter, (published, scheduled))
+            self.assertIn(ALERT_REFRESH_TASK, with_litter[0])
+        finally:
+            os.unlink(script_path)
+
+    def test_a_transient_artifact_which_vanished_while_reading_is_skipped(self):
+        # the listing held the file, the read finds nothing: the window the
+        # FileNotFoundError of #1270 fell into, replayed on the name the
+        # race really produced
+        vanished = BACKEND_DIR / "registry" / "tmp0gq1s5bf.py"
+        self.assertFalse(vanished.exists())
+        self.assertIsNone(read_application_source(vanished))
+
+    def test_a_missing_application_source_is_not_forgiven(self):
+        # a name which says application must still answer the missing file
+        with self.assertRaises(FileNotFoundError):
+            read_application_source(
+                BACKEND_DIR / "registry" / "no_such_task_module.py")
+
+
+class ScanOfAFakeBackendTests(SimpleTestCase):
+    """What the scans answer for a small tree of known contents.
+
+    A hand-built backend of a few files answers which references the scans
+    find, what their transient artifacts do on the way and what must still
+    fail. Everything lies below a temporary directory, so these tests stay
+    valid whatever the real applications grow to.
+    """
+
+    TASKS_SOURCE = (
+        "from celery import shared_task\n"
+        "\n"
+        "\n"
+        "@shared_task\n"
+        "def work():\n"
+        "    pass\n"
+        "\n"
+        "\n"
+        "@shared_task(name='renamed.work')\n"
+        "def named_work():\n"
+        "    pass\n")
+
+    VIEWS_SOURCE = (
+        "from celery import Celery\n"
+        "\n"
+        "from app.tasks import work\n"
+        "\n"
+        "app = Celery()\n"
+        "\n"
+        "\n"
+        "def publish():\n"
+        "    work.delay()\n"
+        "    work.apply_async()\n"
+        "    app.send_task('renamed.work')\n"
+        "    app.send_task('app.tasks.never_registered')\n")
+
+    SEEDER_SOURCE = (
+        "def seed(sender, **kwargs):\n"
+        "    PeriodicTask.objects.create(name='work', task='renamed.work')\n"
+        "    PeriodicTask.objects.get_or_create(\n"
+        "        name='late',\n"
+        "        defaults={'name': 'late', 'task': 'app.tasks.never_registered'})\n")
+
+    @classmethod
+    def _fake_backend(cls, root):
+        """An app with tasks, publications and seeds, plus the transient
+        artifacts of a parallel test run: one probe script which stays in
+        the root and must not be read at all — its content would not even
+        parse — and one artifact which vanished between listing and read —
+        a dangling symlink is the listing with nothing behind it."""
+        (root / "app").mkdir()
+        (root / "app" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "app" / "tasks.py").write_text(cls.TASKS_SOURCE, encoding="utf-8")
+        (root / "app" / "views.py").write_text(cls.VIEWS_SOURCE, encoding="utf-8")
+        (root / "app" / "seeder.py").write_text(cls.SEEDER_SOURCE, encoding="utf-8")
+        staying = root / "tmpaaaaaaaa.py"
+        staying.write_text("def (():\n", encoding="utf-8")
+        os.symlink(str(root / "gone-with-the-test.py"),
+                   str(root / "app" / "tmpbbbbbbbb.py"))
+        return root
+
+    def test_the_references_of_the_fake_backend_are_found_despite_the_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._fake_backend(Path(directory))
+            published, scheduled = published_references(root)
+            self.assertEqual(
+                published,
+                {"app.tasks.work", "renamed.work", "app.tasks.never_registered"})
+            self.assertEqual(
+                scheduled, {"renamed.work", "app.tasks.never_registered"})
+            # the guard of the registration checks is intact: the name no
+            # task module defines is in the published set, so the
+            # difference against a worker's registration still reports it
+            self.assertIn("app.tasks.never_registered", published)
+
+    def test_a_vanished_file_of_a_real_name_is_not_forgiven(self):
+        # the same dangling listing, but under a name which says
+        # application: here the FileNotFoundError is the report, not noise
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._fake_backend(Path(directory))
+            os.symlink(str(root / "gone-with-the-test.py"),
+                       str(root / "app" / "vanished_module.py"))
+            with self.assertRaises(FileNotFoundError):
+                published_references(root)

@@ -419,6 +419,15 @@ class HarvestingJob(ProcessingData):
         # ids are dead with it and go. The creation id stays (see
         # append_celery_task_ids).
         self.celery_task_ids.filter(creation=False).delete()
+        # What this run stored but never imported is definitively not consumed
+        # anymore: a job which is aborted never resumes, so its backlog is not
+        # the recovery material of a running one. The deletion of the stored
+        # records goes behind the commit of this terminal state - a storage
+        # file must not be gone before the row which references it is
+        # committedly gone with the abort (#1237).
+        from registry.tasks.harvest import \
+            schedule_cleanup_of_harvest_temp_files  # to avoid circular import errors
+        schedule_cleanup_of_harvest_temp_files(self.pk)
         # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
         # but there will be a memory limit which is 50000 by default.
         # But Harvesting jobs can have a way far more tasks that are currently in the queue.
@@ -1116,9 +1125,15 @@ class HarvestingJobTaskId(models.Model):
     creation = models.BooleanField(default=False)
 
 
+#: The subdirectory of MEDIA_ROOT under which a harvesting run stores the
+#: records it downloaded; the cleanup in ``registry/tasks/harvest.py`` knows
+#: no other place these files live and never deletes outside it (#1237)
+TEMPORARY_MD_METADATA_FILE_SUBDIR = "temporary_md_metadata_file"
+
+
 def response_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
-    return f'temporary_md_metadata_file/{instance.job_id}/{filename}'
+    # file will be uploaded to MEDIA_ROOT/temporary_md_metadata_file/<job_id>/<filename>
+    return f'{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{instance.job_id}/{filename}'
 
 
 class TemporaryMdMetadataFile(models.Model):

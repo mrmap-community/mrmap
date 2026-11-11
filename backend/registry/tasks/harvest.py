@@ -660,6 +660,19 @@ def recover_harvesting_jobs():
             else:
                 recover_records_to_db_job(job)
 
+    try:
+        # the harvests which ended are not what this recovery came for, but
+        # the same start which re-publishes their running colleagues' chords
+        # is the moment the cleanup of a lost publish or of a cleanup which
+        # died with its worker gets its second chance (#1237)
+        dispatch_cleanup_of_ended_harvest_backlogs()
+    except Exception:
+        # a housekeeping which cannot be dispatched here waits for the hourly
+        # sweep instead of ending the recovery of the open harvests
+        logger.error(
+            f"could not dispatch the temporary file cleanup of ended "
+            f"harvests: {traceback.format_exc()}")
+
 
 def recover_records_to_db_job(job):
     """Decide about a job whose database shadow says an import run is live.
@@ -901,6 +914,461 @@ def watch_import_backlogs(*args, **kwargs):
             logger.error(
                 f"could not watch the import backlog of harvesting job "
                 f"{job_id}: {traceback.format_exc()}")
+
+
+# ---------------------------------------------------------------------------
+# The stored records of a harvest which has ended (#1237)
+#
+# A run stores every record it downloads as a ``TemporaryMdMetadataFile`` row
+# and a file below ``MEDIA_ROOT/temporary_md_metadata_file/<job_id>/``. The
+# import deletes what it consumed, so whatever a job in a terminal phase still
+# holds is definitively not consumed anymore: recovery and the watchdog only
+# ever look at open jobs, and every late message of an ended run is guarded
+# against the job's phase. Nothing deleted these leftovers - on the rig of
+# #1237 the rows of 45 ended jobs filled 14 GB of the media volume. The
+# cleanup below takes them back; it runs
+#
+# * scheduled by the transition itself (``complete_harvest`` and
+#   ``HarvestingJob.abort`` publish it on the commit of the terminal state),
+# * as the backstop of a lost publish on every worker start (end of
+#   ``recover_harvesting_jobs``) and on the beat schedule of
+#   ``sweep_ended_harvest_temp_files``,
+# * and as the supported operator path through
+#   ``manage.py cleanup_temporary_harvest_files``.
+#
+# Any of these may run beside each other: the cleanup deletes each batch of
+# rows in a transaction of its own and afterwards the files the batch named,
+# so a second run over the same job simply finds them gone - which is what it
+# wants. The order is the one of ``purge_expired_background_processes``
+# (#1208): rows first, files after their commit. A database rollback cannot
+# undo a deleted file, while a file whose storage deletion failed is exactly
+# the leftover a repeated cleanup signs off: once the rows are gone, the
+# sweep of the job's own storage directory takes back what no row references
+# anymore - the failure mode which would otherwise turn a crashed cleanup into
+# a permanent, now invisible leak.
+# ---------------------------------------------------------------------------
+
+#: The phases a harvesting job cannot leave anymore; its stored records are
+#: out of consumption in exactly these (#1237)
+TERMINAL_HARVESTING_PHASES = [
+    HarvestingPhaseEnum.COMPLETED.value,
+    HarvestingPhaseEnum.ABORTED.value,
+]
+
+#: The prefix of the harvesting log entry which a cleanup of a completed run
+#: with import errors leaves on it. The error rows go with the cleanup, but
+#: their exclusion of the run from a complete snapshot
+#: (``registry.querys.harvest_history.complete_snapshots`` reads the ERROR
+#: logs of a run) must outlive them (#1237).
+TEMP_FILE_CLEANUP_LOG_PREFIX = "Temporary files cleaned up:"
+
+#: How often one cleanup may hand itself over for the next bounded run; at
+#: the default of 25,000 rows per run this carries a backlog of over a
+#: million records and the demo rig's 163k of a single aborted job. What outlives
+#: the chain is answered by the worker-start recovery and the hourly sweep (#1237).
+TEMP_FILE_CLEANUP_MAX_CONTINUATIONS = 60
+
+
+def _temp_files_storage():
+    """The storage backend which holds the stored records of a harvest (#1237).
+
+    Asked from the field, so a deployment which moves the media to another
+    backend is cleaned by the backend which actually holds the files.
+    """
+    from registry.models.harvest import TemporaryMdMetadataFile  # avoid circular import
+    return TemporaryMdMetadataFile._meta.get_field("md_metadata_file").storage
+
+
+def _delete_temp_files(storage, names):
+    """Delete the named storage files, tolerant of what is already gone.
+
+    A file which is not there is the state this cleanup wants, not a failure;
+    a file whose deletion refuses is counted - its bytes stay in the job's own
+    directory until the sweep or a later run takes them. Nothing here logs per
+    file except the exceptions which are no storage refusal: a real catalogue
+    leaves hundreds of thousands of names to delete and the log of this is the
+    summary, not the file list (#1237).
+
+    Returns:
+        tuple: how many files were deleted, found already gone, refused
+    """
+    deleted = missing = failed = 0
+    for name in names:
+        try:
+            storage.delete(name)
+            deleted += 1
+        except FileNotFoundError:
+            missing += 1
+        except OSError:
+            failed += 1
+        except Exception:
+            failed += 1
+            logger.warning(
+                f"the storage answered a cleanup delete with an unexpected "
+                f"{type(Exception).__name__}: {traceback.format_exc()}")
+    return deleted, missing, failed
+
+
+def _sweep_harvest_temp_dir(storage, harvesting_job_id):
+    """Take back what still lies in the storage directory of one ended job.
+
+    While rows exist the directory is not swept - every file in it is still
+    referenced by a row and goes batch by batch with its row. What this
+    answers is the file without a row anymore: a deletion which failed after
+    the row committed, a cleanup which died between the two, a job deleted
+    around its leftovers - none of which the database can point at again
+    (#1237). Only the job's own directory is read and emptied; a storage
+    which cannot list is told instead of guessed at, and the directory itself
+    is removed with ``rmdir`` alone, which never takes a non-empty tree.
+
+    Returns:
+        dict: files deleted, found gone, refused, and whether anything is left
+    """
+    from registry.models.harvest import (  # avoid circular import
+        TEMPORARY_MD_METADATA_FILE_SUBDIR)
+    summary = {"files": 0, "missing": 0, "failed": 0, "remaining": False}
+    subdir = f"{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{harvesting_job_id}"
+    try:
+        if not storage.exists(subdir):
+            return summary
+        entries, found = storage.listdir(subdir)
+    except (NotImplementedError, FileNotFoundError):
+        # no listdir (or the directory is gone with the race of a parallel
+        # cleanup) - the rows are cleaned regardless, this only cannot see the
+        # bytes which are not
+        return summary
+    except Exception:
+        logger.warning(
+            f"could not list the storage directory of harvesting job "
+            f"{harvesting_job_id}: {traceback.format_exc()}")
+        summary["remaining"] = True
+        return summary
+    deleted, missing, failed = _delete_temp_files(
+        storage, [f"{subdir}/{name}" for name in found])
+    summary.update(files=deleted, missing=missing, failed=failed)
+    if entries or failed:
+        # a subdirectory the flat sweep does not reach, or a refused file:
+        # the directory stays and the next sweep looks again
+        summary["remaining"] = True
+        return summary
+    location = getattr(storage, "location", None)
+    if location is not None:
+        try:
+            # rmdir only ever removes the EMPTY directory; a parallel cleanup
+            # which just filled it loses its race with an OSError, not with a
+            # deleted file (#1237)
+            os.rmdir(os.path.join(location, subdir))
+        except OSError:
+            pass  # not empty, already gone, or not a local directory
+    return summary
+
+
+def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
+                                      max_rows=None):
+    """Delete the stored records of a harvest which definitely ended (#1237).
+
+    The job must have reached COMPLETED or ABORTED; a job which is not in a
+    terminal phase keeps every row and file - a running import, a retry and
+    the recovery of #891/#972 all read the backlog of an open job, and this
+    function never touches it. The answer of the phase is read again under
+    the lock of the first transaction, so a cleanup published beside a
+    recovery cannot delete what a job consumes again.
+
+    The rows go in batches of ``batch_size``, each in a transaction of its
+    own - a single 163k-row delete would hold its locks for minutes, and no
+    transaction here is longer than the ids it names - and at most
+    ``max_rows`` rows are handled per call, which keeps every task bounded;
+    ``capped`` answers that a continuation is due. After a batch committed,
+    its files are deleted (see ``_delete_temp_files``); a name outside the
+    temporary storage tree of this job is refused and its row stays, so the
+    cleanup can never reach a file of another job or of the permanent records.
+    Once the rows are gone, the job's own storage directory is swept of
+    whatever no row references anymore.
+
+    A completed run which had import errors keeps those rows for the snapshot
+    math of ``complete_snapshots``; the cleanup logs their count as an ERROR
+    harvesting log entry first - once, guarded by its prefix - so the run
+    stays excluded from the complete snapshots after its error rows are gone.
+    An aborted run never enters that math (the phase filter answers it) and
+    is logged not at all.
+
+    Returns:
+        dict: the aggregated answer - rows, files, missing, failed, rejected
+            (names the cleanup refused to delete), the sweep numbers,
+            ``remaining_rows``, ``capped`` and the wall seconds it took
+    """
+    from registry.models.harvest import (  # avoid circular import
+        HarvestingJob, HarvestingLog, TEMPORARY_MD_METADATA_FILE_SUBDIR,
+        TemporaryMdMetadataFile)
+
+    started = time.monotonic()
+    batch = max(1, int(batch_size or getattr(
+        settings, "HARVEST_TEMP_FILE_CLEANUP_BATCH_SIZE", 500)))
+    limit = max(0, int(getattr(
+        settings, "HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN", 25000))
+        if max_rows is None else max(0, int(max_rows)))
+
+    summary = {
+        "job": harvesting_job_id, "skipped": False, "rows": 0, "files": 0,
+        "missing": 0, "failed": 0, "rejected": 0, "swept_files": 0,
+        "swept_missing": 0, "swept_failed": 0, "sweep_remaining": False,
+        "remaining_rows": False, "capped": False,
+    }
+
+    job = HarvestingJob.objects.filter(pk=harvesting_job_id).first()
+    if job is not None and job.phase not in TERMINAL_HARVESTING_PHASES:
+        # a job which may still consume these files keeps them: the publish
+        # of a terminal transition which raced with a recovery, or a hand
+        # scheduled task of an old date, must never reach a running backlog
+        # (#1237)
+        summary["skipped"] = True
+        return summary
+
+    if job is not None and job.phase == HarvestingPhaseEnum.COMPLETED.value:
+        # the ledger of the run outlives the rows which spelled it: an ERROR
+        # harvesting log entry is what keeps a run with import errors out of
+        # the complete snapshots once its error rows are gone (#1237). The
+        # job row is locked while the decision is taken, so two cleanups which
+        # meet here still write the entry once.
+        with transaction.atomic():
+            locked = HarvestingJob.objects.select_for_update().filter(
+                pk=harvesting_job_id).first()
+            if (locked is not None
+                    and locked.phase == HarvestingPhaseEnum.COMPLETED.value):
+                errors = TemporaryMdMetadataFile.objects.filter(
+                    job_id=harvesting_job_id, has_import_error=True)
+                if (errors.exists() and not HarvestingLog.objects.filter(
+                        harvesting_job_id=harvesting_job_id,
+                        description__startswith=(
+                            TEMP_FILE_CLEANUP_LOG_PREFIX)).exists()):
+                    locked.log(
+                        description=(
+                            f"{TEMP_FILE_CLEANUP_LOG_PREFIX} "
+                            f"{errors.count()} stored records of this run had "
+                            "import errors; their rows and files are taken "
+                            "back now (#1237)"),
+                        level=LogLevelEnum.ERROR.value)
+
+    storage = _temp_files_storage()
+    own_prefix = f"{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{harvesting_job_id}/"
+    # the layout which upload_to answered while the instance was unsaved: the
+    # files of many runs share the literal "None" directory, and each row
+    # names its own file inside it - the same deletion right as a file below
+    # the job's own directory, and the only legacy layout which ever existed
+    legacy_prefix = f"{TEMPORARY_MD_METADATA_FILE_SUBDIR}/None/"
+
+    cursor = 0
+    processed = 0
+    while processed < limit:
+        batch_rows = list(
+            TemporaryMdMetadataFile.objects
+            .filter(job_id=harvesting_job_id, pk__gt=cursor)
+            .order_by("pk")
+            # the batch never runs past the bound of this run: an operator
+            # who said --limit 1 gets one row back, not one batch
+            .values_list("pk", "md_metadata_file")[:min(batch, limit - processed)])
+        if not batch_rows:
+            break
+        cursor = batch_rows[-1][0]
+        processed += len(batch_rows)
+        deletable, names = [], []
+        for pk, name in batch_rows:
+            if name and not (name.startswith(own_prefix)
+                             or name.startswith(legacy_prefix)):
+                # a row whose file lives somewhere else than the temporary
+                # tree of this run: deleting it could reach the media of a
+                # permanent record or the backlog of a running job, so the
+                # name is refused, the row stays, and the answer counts it for
+                # whoever has to look at this row by hand (#1237)
+                summary["rejected"] += 1
+                continue
+            deletable.append(pk)
+            if name:
+                names.append(name)
+        if deletable:
+            with transaction.atomic():
+                TemporaryMdMetadataFile.objects.filter(
+                    pk__in=deletable).delete()
+            summary["rows"] += len(deletable)
+            deleted, missing, failed = _delete_temp_files(storage, names)
+            summary["files"] += deleted
+            summary["missing"] += missing
+            summary["failed"] += failed
+
+    summary["remaining_rows"] = TemporaryMdMetadataFile.objects.filter(
+        job_id=harvesting_job_id).exists()
+    if not summary["remaining_rows"]:
+        swept = _sweep_harvest_temp_dir(storage, harvesting_job_id)
+        summary["swept_files"] = swept["files"]
+        summary["swept_missing"] = swept["missing"]
+        summary["swept_failed"] = swept["failed"]
+        summary["sweep_remaining"] = swept["remaining"]
+    elif processed >= limit:
+        summary["capped"] = True
+
+    summary["seconds"] = round(time.monotonic() - started, 1)
+    return summary
+
+
+def cleanup_needs_continuation(summary):
+    """Whether the answer of a cleanup asks for another run.
+
+    Rows which the bounded run did not reach (``capped``), rows which stayed
+    behind (a late import of an aborted run flagged one after the cursor
+    passed it, or a refused name), and files which the sweep could not take -
+    all of them are work for the next run, and none of them may go unnoticed
+    until a human asks: the task continues itself bounded, the worker start
+    and the hourly sweep continue what the chain could not (#1237).
+    """
+    return bool(summary["remaining_rows"] or summary["failed"]
+                or summary["swept_failed"] or summary["sweep_remaining"])
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True)
+def cleanup_harvesting_job_temp_files_task(
+        self, harvesting_job_id, batch_size=None, max_rows=None,
+        continuation=0):
+    """Clean the stored records of one ended harvest, bounded per fire (#1237).
+
+    One run of this task takes at most ``HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN``
+    rows, so the task which completes a harvest of half a million records is
+    not itself the half-million-row monster the issue refuses; what is left
+    hands the task over to itself until the job is clean. A continuation
+    because the bound was hit goes out immediately, a stalled storage waits a
+    minute before the next look. The chain is bounded
+    (``TEMP_FILE_CLEANUP_MAX_CONTINUATIONS``); what outlives it is retried by
+    the worker-start recovery and the hourly sweep, and is told on the log of
+    the fire which ends the chain.
+    """
+    summary = cleanup_harvesting_job_temp_files(
+        harvesting_job_id, batch_size=batch_size, max_rows=max_rows)
+    if summary["skipped"]:
+        return summary
+    logger.info(
+        "Temporary harvesting files of job %s: %s rows and %s files deleted, "
+        "%s already gone, %s refused, %s rejected names, sweep took %s files "
+        "(%s refused), %s rows left, %s s.",
+        harvesting_job_id, summary["rows"], summary["files"],
+        summary["missing"], summary["failed"], summary["rejected"],
+        summary["swept_files"], summary["swept_failed"],
+        summary["remaining_rows"], summary["seconds"])
+    if cleanup_needs_continuation(summary):
+        if continuation < TEMP_FILE_CLEANUP_MAX_CONTINUATIONS:
+            cleanup_harvesting_job_temp_files_task.apply_async(
+                kwargs={
+                    "harvesting_job_id": harvesting_job_id,
+                    "batch_size": batch_size,
+                    "max_rows": max_rows,
+                    "continuation": continuation + 1,
+                },
+                countdown=5 if summary["capped"] else 60)
+        else:
+            logger.warning(
+                f"the cleanup of harvesting job {harvesting_job_id} still "
+                f"holds {summary['remaining_rows']} rows after "
+                f"{continuation + 1} runs; the worker start and the hourly "
+                "sweep keep trying, and the operator path is: manage.py "
+                f"cleanup_temporary_harvest_files --job-id {harvesting_job_id} "
+                "--confirm")
+    return summary
+
+
+def dispatch_cleanup_of_ended_harvest_backlogs():
+    """Schedule the cleanup of every ended harvest which still holds records.
+
+    The rows answer which ended job keeps its backlog; the storage directory
+    answers what the rows cannot: the files which no row references
+    anymore - a cleanup which died between the row delete and the file
+    deletes, a job deleted around its leftovers (#1237). A directory which
+    names a job that is not terminal is the material of a running harvest and
+    stays out, and a name which is no job id at all is nobody's to delete
+    here: the "None" directory of the old unsaved-instance layout holds the
+    files of open jobs side by side with the ones of ended runs, and only a
+    row may point at its own file inside it.
+    """
+    from registry.models.harvest import (  # avoid circular import
+        HarvestingJob, TEMPORARY_MD_METADATA_FILE_SUBDIR)
+
+    pending = set(HarvestingJob.objects.filter(
+        phase__in=TERMINAL_HARVESTING_PHASES,
+        temporary_md_metadata_file__isnull=False,
+    ).values_list("id", flat=True))
+
+    storage = _temp_files_storage()
+    try:
+        entries, _files = storage.listdir(TEMPORARY_MD_METADATA_FILE_SUBDIR)
+    except Exception:
+        # the row-based half of the discovery does not wait for a storage
+        # which cannot answer the question
+        logger.warning(
+            "could not list the temporary file storage root for the cleanup "
+            f"of ended harvests: {traceback.format_exc()}")
+        entries = []
+    directories = {int(entry) for entry in entries
+                   if str(entry).isdigit()}
+    if directories:
+        open_ids = set(HarvestingJob.objects.filter(
+            pk__in=list(directories)).exclude(
+                phase__in=TERMINAL_HARVESTING_PHASES).values_list(
+                    "id", flat=True))
+        # a directory whose job is gone (its rows cascaded with it) is orphaned
+        # by definition; a directory of a terminal job without rows is the
+        # file leftover the rows cannot name
+        pending |= directories - open_ids
+
+    dispatched = sorted(pending)
+    for job_id in dispatched:
+        try:
+            cleanup_harvesting_job_temp_files_task.delay(
+                harvesting_job_id=job_id)
+        except Exception:
+            logger.warning(
+                f"could not schedule the temporary file cleanup of harvesting "
+                f"job {job_id}: {traceback.format_exc()}")
+    return dispatched
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, base=SingletonTask)
+def sweep_ended_harvest_temp_files(*args, **kwargs):
+    """Take the stored records of ended harvests back on a schedule (#1237).
+
+    The transitions schedule their own cleanup and the worker start recovers
+    what a crash lost; this sweep is the answer of a deployment which does
+    neither restart nor notice: every hour it looks for an ended job which
+    still holds its backlog - a broker which swallowed the publish, a storage
+    which was briefly dark, a cleanup whose worker died - and hands each one
+    to ``cleanup_harvesting_job_temp_files_task``, which is idempotent and
+    bounded per fire. ``SingletonTask`` keeps two sweeps from reading the
+    same backlog twice at once.
+    """
+    dispatched = dispatch_cleanup_of_ended_harvest_backlogs()
+    if dispatched:
+        logger.info(
+            f"the sweep of ended harvests scheduled the temporary file "
+            f"cleanup of {len(dispatched)} job(s): {dispatched[:50]}")
+    return dispatched
+
+
+def schedule_cleanup_of_harvest_temp_files(harvesting_job_id):
+    """Publish the cleanup of a harvest whose terminal state is about to commit.
+
+    Registered with ``transaction.on_commit`` - outside an active transaction
+    it fires at once - so no storage file of the run is touched before the
+    database says the run ended. A publish the broker refuses must not fail
+    the harvest whose commit it rides: the next worker start and the hourly
+    sweep are the backstop of the lost message (#1237).
+    """
+    def _publish():
+        try:
+            cleanup_harvesting_job_temp_files_task.delay(
+                harvesting_job_id=harvesting_job_id)
+        except Exception:
+            logger.warning(
+                f"could not schedule the temporary file cleanup of harvesting "
+                f"job {harvesting_job_id}; the worker start and the hourly "
+                f"sweep will: {traceback.format_exc()}")
+
+    transaction.on_commit(_publish)
 
 
 @shared_task(queue="default", bind=True, base=HarvestingTask)

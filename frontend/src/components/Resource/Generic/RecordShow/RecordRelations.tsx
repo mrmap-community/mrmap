@@ -41,20 +41,23 @@ import "@xyflow/react/dist/style.css";
 // MetadataRelation for it (see registry.models.metadata.MetadataRelation): its
 // relation section stays an empty list of groups and the screen renders the
 // catalogues which harvested it, which every record kind has
+const DATASET_GROUPS = [
+  { source: "layer", resource: "Layer" },
+  { source: "featureType", resource: "FeatureType" },
+  { source: "csw", resource: "CatalogueService" },
+];
+const SERVICE_GROUPS = [
+  { source: "wms", resource: "WebMapService" },
+  { source: "wfs", resource: "WebFeatureService" },
+  { source: "csw", resource: "CatalogueService" },
+];
+const RELATION_GROUPS: Record<string, typeof SERVICE_GROUPS> = {
+  ApplicationMetadataRecord: [],
+  DatasetMetadataRecord: DATASET_GROUPS,
+};
+
 export const relationGroups = (resource: string) =>
-  resource === "ApplicationMetadataRecord"
-    ? []
-    : resource === "DatasetMetadataRecord"
-      ? [
-          { source: "layer", resource: "Layer" },
-          { source: "featureType", resource: "FeatureType" },
-          { source: "csw", resource: "CatalogueService" },
-        ]
-      : [
-          { source: "wms", resource: "WebMapService" },
-          { source: "wfs", resource: "WebFeatureService" },
-          { source: "csw", resource: "CatalogueService" },
-        ];
+  RELATION_GROUPS[resource] ?? SERVICE_GROUPS;
 
 const TargetLink = ({
   source,

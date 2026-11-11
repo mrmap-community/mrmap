@@ -132,7 +132,7 @@ describe("application metadata explorer", () => {
   });
   it("offers the detail screen only where the resource has one", () => {
     render(<ListApplicationMetadataRecord />);
-    expect(screen.getAllByRole("button", { name: "Show" }).length).toBe(2);
+    expect(screen.getAllByRole("button", { name: "Show" })).toHaveLength(2);
   });
   it("leaves the result rows actionless without a show screen", () => {
     definitions.hasShow = false;

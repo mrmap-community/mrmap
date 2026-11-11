@@ -251,7 +251,8 @@ export interface JobGroup {
 
 /**
  * Groups processes for the drawer: processes of one related resource share a
- * collapsible group, processes without one share the group of their type.
+ * group, processes without one share the group of their type; the drawer
+ * collapses the processes within the groups to their first line (#1206).
  * Groups are ordered by their most recent process.
  */
 export const groupJobs = (records: BackgroundJobRecord[]): JobGroup[] => {

@@ -13,6 +13,8 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SearchIcon from "@mui/icons-material/Search";
@@ -100,20 +102,39 @@ interface GroupedJobListProps {
  * the only action the backend supports on a running process. There is no
  * retry: no api endpoint restarts a decided process, so the drawer offers no
  * such button (#1208).
+ *
+ * The row collapses per the approved mockup of #1206: the chevron folds the
+ * details - progress, steps, status chip and actions - behind the first
+ * line, which always carries the title, the reason line (an error summary
+ * stays visible) and the moment. Running work and failures are open when
+ * they appear because their story is the point of the drawer; decided
+ * successes and queued work start collapsed, which is also what keeps a
+ * history page of dozens of rows light.
  */
 const JobEntry = (): ReactNode => {
   const record = useRecordContext<BackgroundJobRecord>();
   const translate = useTranslate();
   const createPath = useCreatePath();
 
-  if (record === undefined) {
+  const state = record === undefined ? undefined : jobStateOf(record);
+  // running work and failures are open when they appear because their story
+  // is the point of the drawer; queued and decided processes start collapsed
+  const [expanded, setExpanded] = useState(
+    () =>
+      state === "running" ||
+      state === "retrying" ||
+      state === "failed" ||
+      state === "aborted",
+  );
+
+  if (record === undefined || state === undefined) {
     return null;
   }
 
-  const state = jobStateOf(record);
   const hasTotal = hasProgressTotal(record);
   const isFailed = state === "failed" || state === "aborted";
   const isActiveRow = state !== "completed" && !isFailed;
+  const detailsId = `background-job-details-${record.id}`;
 
   return (
     <Box
@@ -130,6 +151,24 @@ const JobEntry = (): ReactNode => {
       }}
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
+        <IconButton
+          size="small"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          aria-label={translate(
+            expanded
+              ? "backgroundActivity.jobCenter.collapseJob"
+              : "backgroundActivity.jobCenter.expandJob",
+          )}
+          sx={{ mt: 0.25 }}
+        >
+          {expanded ? (
+            <ExpandLessIcon fontSize="small" />
+          ) : (
+            <ExpandMoreIcon fontSize="small" />
+          )}
+        </IconButton>
         <Box sx={{ pt: 0.25 }} aria-hidden>
           {STATE_ICONS[state]}
         </Box>
@@ -174,36 +213,51 @@ const JobEntry = (): ReactNode => {
                   { _: record.processType },
                 )}${record.phase ? ` · ${record.phase}` : ""}`}
           </Typography>
-          {isActiveRow && (
-            <Box sx={{ mt: 0.5 }}>
-              <ProgressField
-                source="progress"
-                indeterminate={!hasTotal}
-                aria-label={translate(
-                  hasTotal
-                    ? "backgroundActivity.progress"
-                    : "backgroundActivity.jobCenter.progressUnknownTotal",
-                )}
-              />
-            </Box>
-          )}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: "center", mt: 0.5 }}
-          >
-            <ProcessStatusField source="state" />
-            {hasTotal && (
-              <Typography variant="caption" color="text.secondary">
-                {translate("backgroundActivity.steps", {
-                  done: record.doneSteps ?? 0,
-                  total: record.totalSteps,
-                })}
-              </Typography>
+          <Box id={detailsId} hidden={!expanded}>
+            {isActiveRow && (
+              <Box sx={{ mt: 0.5 }}>
+                <ProgressField
+                  source="progress"
+                  indeterminate={!hasTotal}
+                  aria-label={translate(
+                    hasTotal
+                      ? "backgroundActivity.progress"
+                      : "backgroundActivity.jobCenter.progressUnknownTotal",
+                  )}
+                />
+              </Box>
             )}
-            <Box sx={{ flex: 1 }} />
-            <AbortBackgroundProcessButton />
-          </Stack>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", mt: 0.5 }}
+            >
+              <ProcessStatusField source="state" />
+              {hasTotal && (
+                <Typography variant="caption" color="text.secondary">
+                  {translate("backgroundActivity.steps", {
+                    done: record.doneSteps ?? 0,
+                    total: record.totalSteps,
+                  })}
+                </Typography>
+              )}
+              <Box sx={{ flex: 1 }} />
+              {isFailed && (
+                <Button
+                  size="small"
+                  component={Link}
+                  to={createPath({
+                    resource: "BackgroundProcess",
+                    type: "show",
+                    id: record.id,
+                  })}
+                >
+                  {translate("backgroundActivity.viewDetails")}
+                </Button>
+              )}
+              <AbortBackgroundProcessButton />
+            </Stack>
+          </Box>
         </Box>
       </Stack>
     </Box>

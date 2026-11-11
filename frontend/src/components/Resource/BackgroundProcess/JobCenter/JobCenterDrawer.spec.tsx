@@ -70,7 +70,9 @@ vi.mock("../AbortBackgroundProcessButton", () => ({
 }));
 
 vi.mock("../ProcessStatusField", () => ({
-  default: ({ source }: { source: string }) => <span>{`chip:${source}`}</span>,
+  default: ({ source }: { source: string }) => (
+    <span role="status">{`chip:${source}`}</span>
+  ),
 }));
 
 vi.mock("react-admin", async () => {
@@ -199,6 +201,75 @@ describe("JobCenterDrawer", () => {
     expect(bars[0]).toHaveAttribute("data-indeterminate", "true");
     expect(bars[1]).toHaveAttribute("data-indeterminate", "false");
     expect(panel().getAllByText("chip:state")).toHaveLength(2);
+  });
+
+  it("opens the running and failed rows and collapses the decided success", () => {
+    state.store = storeOf([
+      job({ id: 1, description: "Register weather service" }),
+      job({
+        id: 2,
+        status: "failed",
+        state: "failed",
+        description: "Harvest counties",
+        errorSummary: "connection refused",
+        doneAt: "2026-11-10T11:00:00Z",
+      }),
+      job({
+        id: 3,
+        status: "completed",
+        state: "completed",
+        description: "Index counties",
+        doneAt: "2026-11-10T12:00:00Z",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    // running work and failures are open when they appear; only the
+    // completed row sits collapsed behind its chevron
+    expect(rows.getAllByRole("status")).toHaveLength(2);
+    expect(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.expandJob",
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
+    // the failure offers the persistent details of the decided process
+    expect(
+      rows.getByRole("link", { name: "backgroundActivity.viewDetails" }),
+    ).toHaveAttribute("href", "/BackgroundProcess/2/show");
+  });
+
+  it("folds the details of a row behind its chevron", () => {
+    state.store = storeOf([
+      job({
+        id: 3,
+        status: "completed",
+        state: "completed",
+        description: "Index counties",
+        doneAt: "2026-11-10T12:00:00Z",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    // the first line stays while the details are folded away
+    expect(rows.getByText("Index counties")).toBeInTheDocument();
+    expect(rows.queryByRole("status")).toBeNull();
+    const expand = rows.getByRole("button", {
+      name: "backgroundActivity.jobCenter.expandJob",
+    });
+    fireEvent.click(expand);
+    expect(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.collapseJob",
+      }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(rows.getByRole("status")).toHaveTextContent("chip:state");
+    fireEvent.click(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.collapseJob",
+      }),
+    );
+    expect(rows.queryByRole("status")).toBeNull();
+    expect(rows.getByText("Index counties")).toBeInTheDocument();
   });
 
   it("narrows the rows through the search and says so when none match", () => {

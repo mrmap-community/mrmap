@@ -154,17 +154,18 @@ by the review answers of §8:
 1. **Fix the two bugs first.** `case "LayerRemoteMetadata"` (A) and the position of `step_done` (B) are two
    one-line changes plus a test that calls `fetch_remote_metadata_xml` with each of the four reference kinds.
    This alone turns a silent total loss for WFS into a visible, correct run.
-2. **Give a collecting run a truthful end state** the way harvesting and an update waiting for review do it:
-   `BackgroundProcess.objects.set_action_required()` plus a stored summary the serializer exposes
-   (`references_total / stored / failed / skipped`). The chord body stays as it is; what it must stop doing
-   is answering `completed` while references failed (§8 item 1). The flag needs its way back: nothing in
-   production clears it today, so the acknowledge action (#1277) belongs to this step.
+2. **Give a collecting run a truthful end state** the way harvesting does it: a stored summary the
+   serializer exposes (`references_total / stored / failed / skipped`), reported while the run works, so
+   the chord body stops answering plain `completed` while references failed (§8 item 1). D9 asks the
+   presentation question and recommends harvesting's own answer — stored COMPLETED plus the errors named
+   in the summary, the flag reserved for runs that stand while a human is awaited.
 3. **Give the collection a landing row per reference**, in the shape of `TemporaryMdMetadataFile`: the run
    stores how many references it expects before the fan-out, each row keeps the URL, what it describes, an
    error flag, an error text and a re-schedule switch; the counters of the run are answered the way #886
    taught. `RemoteMetadata` is not that table — its own docstring calls it the registration's staging list
    (`registry/models/metadata.py:492-495`) and the review rejected it for this purpose (§8 item 2). Whether
-   to reuse `TemporaryMdMetadataFile` itself or write its registration sibling is #1263's open question.
+   to reuse `TemporaryMdMetadataFile` itself or write its registration sibling is asked as D7, with the
+   session's direction as the recommendation: no new model, one added nullable FK and constraints.
 4. **Make transient failures retryable, terminal ones terminal**, in the fetch task the way the import task
    does it (§8 item 3, `registry/tasks/harvest.py:1186-1190`) — which is also the fix of defect E — and
    expose the model's existing retry as an endpoint and a button, not a new mechanism.
@@ -222,10 +223,13 @@ An answer is a design decision — it is not `agent: approved` and not a pull re
    which puts a flagged run under *Running*, not *Waiting*.
    > **Answered:** „distinguishable state. use equivalent way to harvesting and update"
    > ([r4541817433](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541817433)) — so the
-   > flag, not a new state; what the flag needs from the derivation is #1259's open detail. One cost the
-   > code adds on top of the option's note: nothing in production ever clears the flag — the only
-   > `flag=False` calls live in tests (`backend/tests/django/notify/test_operation_states.py:399-400`) —
-   > so the acknowledge action the option demanded became the epic's child #1277.
+   > flag, not a new state. A claim this document shared while working that in — that production never
+   > clears the flag — is wrong: harvesting's watchdog clears it when a stalled backlog drains or goes out
+   > again (`registry/tasks/harvest.py:799`, `:856`) and the update's reports tie it to the review status
+   > (`registry/models/update.py:329-337`). The flag reads as *stands while a human is awaited*; whether a
+   > **finished** run with recorded errors uses it at all is the follow-up D9, recommended: it does not —
+   > completed-with-import-errors is how harvesting shows it (`registry/managers/havesting.py:520-528`,
+   > `frontend/src/i18n/en.ts:457-458`), and #1277's acknowledge is released to #1104 under that answer.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps
    history across re-registrations.
@@ -282,6 +286,10 @@ The findings are published as **[epic #1256](https://github.com/mrmap-community/
 `slug: metadata-collection`, with fourteen children (#1257–#1268, #1274 and #1277) whose sub-issue and
 blocking relations are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport
 bounds are #1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263.
-The six decision rows above are recorded as Accepted (2026-11-11) in the epic's register. Nothing in this
+The six decision rows above are recorded as Accepted (2026-11-11) in the epic's register; the three
+follow-ups they left — the model shape (D7, #1263), the position in the update (D8, #1274) and the
+presentation of a finished run (D9, #1259 and #1277) — are asked as Q7–Q9
+([request](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6806981240)), each with the
+direction stated in the working session of 2026-11-11 as its recommended option. Nothing in this
 document was implemented, and no `agent: approved` was applied.
 

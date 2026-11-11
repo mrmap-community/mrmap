@@ -19,6 +19,11 @@ SERVICE_ALERT_REFRESH_SECONDS = 20
 #: the tests look the row up by it
 IMPORT_WATCH_TASK_NAME = "watch for harvesting imports which do not drain"
 
+#: the name the sweep of the stored probe response artifacts has in the
+#: schedule of beat; the tests look the row up by it
+PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME = (
+    "delete expired monitoring probe response artifacts")
+
 
 def create_choice_model_entries(sender, **kwargs):
     """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
@@ -123,6 +128,34 @@ def create_import_watch_task(sender, **kwargs):
     )
 
 
+def create_probe_response_artifact_cleanup_task(sender, **kwargs):
+    """Creates the periodic task which takes the stored probe responses back.
+
+    The monitoring keeps the body of every stored probe response as an
+    artifact of the execution so that an inspector can look at the run and not
+    at whatever the service answers today (#682). Nothing but this task takes
+    those bodies back, so without the row they would grow with every run of
+    every probe. Beat reads its schedule out of the database, so the sweep
+    needs a row of ``PeriodicTask`` like the import of the metadata files
+    does. Keyed by its name: a deployment which re-scheduled the row over the
+    api keeps what it chose.
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at twenty past the hour: a housekeeping sweep, out of the way of the
+    # five minute metadata import and the hourly dump sweep at five past
+    schedule, _ = CrontabSchedule.objects.get_or_create(minute="20")
+
+    PeriodicTask.objects.get_or_create(
+        name=PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": ("registry.tasks.monitoring."
+                     "delete_expired_probe_response_artifacts"),
+        }
+    )
+
+
 def find_orphan_metadata_objects(sender, **kwargs):
     import logging
     logger = logging.getLogger(__name__)
@@ -162,6 +195,10 @@ class RegistryConfig(AppConfig):
         )
         post_migrate.connect(
             create_import_watch_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_probe_response_artifact_cleanup_task,
             sender=self
         )
         post_migrate.connect(

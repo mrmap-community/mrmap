@@ -16,7 +16,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/periodic_updates.py` | periodic WFS/CSW job creation and unfinished-job reuse assertions |
 | `steps/automatic_updates.py` | WMS/WFS additions, removals and reviewed identifier renames |
 | `steps/service_alerts.py` | failed update and object visibility setup for cross-service attention |
-| `steps/object_permissions.py` | global and group object grants of the service change scenarios, plus the title revert they owe the shared fixture |
+| `steps/object_permissions.py` | global and group object grants of the service and application record change scenarios, plus the title revert they owe the shared fixture |
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/harvesting.py` | Two runs of one catalogue with known starts, for the ordering and the time range of the harvesting job list; rolled back like `statistical.py` does |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
@@ -114,8 +114,8 @@ State of `tests/behave/features` on this checkout:
 
 | | passed | failed | error | skipped |
 | --- | --- | --- | --- | --- |
-| features (72) | 72 | 0 | 0 | 0 |
-| scenarios | 528 | 0 | 0 | 0 |
+| features (73) | 73 | 0 | 0 | 0 |
+| scenarios | 542 | 0 | 0 | 0 |
 
 Behave **is** therefore a green/red gate: a red T3 run belongs to the change that made it red, and
 `definition_of_done.rst` is answered by the four counts. No scenario is skipped; how a refused
@@ -256,7 +256,7 @@ hand written method**, not one row per parameter:
 | GIS lookups `contains`, `covers`, `intersects`, `equals` | `registry/service/wms/layer/list_layers.feature`, `registry/service/wms/list_webmapservices.feature` | one whole-world polygon and one small rectangle is what separates the four; the counts differ per lookup |
 | choice and relation filters | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | a filter whose model field has choices answers `invalid_choice`, not an empty list |
 | hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/harvesting/filter_harvestingjobs.feature` (`is_running`, `has_import_error`, `unhandled_records`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
-| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
+| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/sort_harvestingjobs.feature` (`±progress`), `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
 
 Three rules make such a table worth having:
 
@@ -326,7 +326,7 @@ reads like the existing ones is what keeps the scenarios reviewable.
 | request target | `I use the endpoint {url}`, `I set the content type of the request to {content_type}`, `I set the request payload to:`, `I set a queryparam "{param}" with value "{value}"`, `I set the header "{name}" with value "{value}"`, `I set the cookie "{name}" with value "{value}"` |
 | authentication | `I am logged in as {user} with password {password}`, `I am an anonymous user`, `I use token based authentication for user "{user}"`, `I use token authentication as {user}`, `I enforce csrf checks`, `I logout the current user` |
 | execution | `I send the request with GET/POST/PATCH/DELETE method` |
-| assertions | `I expect the response status is {status}`, `I expect that response json has an attribute "{path}"[ with value "{value}"]`, `I expect that there is a xpath "{xpath}"[ with value "{value}"]`, `I expect that response xml content is:`, `I expect that "{n}" queries where made` |
+| assertions | `I expect the response status is {status}`, `I expect that response json has an attribute "{path}"[ with value "{value}"]`, `I expect that response json does not have an attribute "{attribute}"`, `I expect that response header "{name}" contains "{value}"`, `I expect that there is a xpath "{xpath}"[ with value "{value}"]`, `I expect that response xml content is:`, `I expect that "{n}" queries where made` |
 | mocking | `I mock the function "{func}" of the module "{module}" with return value as object` (stopped in `after_scenario`) |
 
 - Add a **generic** step to `steps.py` only when it works without knowledge of a model.
@@ -418,7 +418,9 @@ any scenario. Nothing covers the WFS and CSW update jobs and settings, `layer-ma
 `featuretype-mappings`, the `*-proxy-settings` and `*-authentication` records, the monitoring probes,
 probe results and `wms-monitoring-runs`, the harvesting sub-resources, `service-metadata`,
 `metadata-contacts`, `mime-types`, `licences`, `referencesystems`, `historical-wfs`, `historical-csw`
-and `historical-featuretypes`. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
+and `historical-featuretypes`. Of the proxy settings only the WMS add endpoint answers a scenario
+(`add_webmapserviceproxysettings.feature`, since #1148); its update, list and retrieve endpoints and
+the whole WFS side are still open. `/csw` answers its `GetRecords` in `features/csw/get_records.feature`
 since #855 and every refused `/csw` request since #908 (see above); #907 added
 `features/csw/describe_record.feature` for the mandatory `DescribeRecord` and
 `features/csw/operation_dispatch.feature` for the unknown-operation fallback and
@@ -443,7 +445,11 @@ the column, and `sort=dateCreated` is asserted by the two runs `steps/harvesting
 rolls back in `list_harvestingjobs.feature` — not from a fixture row, because the loaded jobs belong
 to two different catalogues while the harvesting screens are about the runs of one. That assertion
 is about the endpoint: the card itself still orders by `doneAt`, which is the value its throughput
-measure is about.
+measure is about. The `sort=progress` of #1130 is asserted by `sort_harvestingjobs.feature`, which
+loads the states fixture rather than joining `list_harvestingjobs.feature`: the progress of a run is
+an annotation of its steps (#1071), and only the states fixture answers a run which is half way
+through them — `test_harvesting_states.json` is removed again by `after_feature`, so the counts of
+the `test_csw.json` feature stay what they are.
 
 To re-check that list without a database:
 

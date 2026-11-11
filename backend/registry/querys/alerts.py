@@ -19,7 +19,10 @@ of re-evaluating it (#1030). Only the states of the schedules stay calculated
 in python, because a crontab occurrence is not answered by the database - the
 schedule which missed its time and the schedule which is tighter than the run
 it schedules - see `extras/scheduling.py`; they are calculated by the same
-refresh and not by every read of the alerts.
+refresh and not by every read of the alerts. The capabilities document which
+the database names but the media storage does not hold is decided the same
+way: the storage is no table an annotation could join, so its absence is
+probed by `missing_capabilities_rows()` at the refresh (#1044).
 
 A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
@@ -546,9 +549,12 @@ def refresh_service_alerts():
 
     The rows of the services are answered by `service_alert_rows()` - the very
     union of the annotations which the services themselves answer, so the
-    stored rows and the services cannot drift apart - and the rows of the
-    schedules by `schedule_alert_rows()`. Both replace the content of the table
-    in one transaction: a reader sees the rows of one full refresh or those of
+    stored rows and the services cannot drift apart - the rows of the
+    schedules by `schedule_alert_rows()` and the capabilities documents which
+    the storage does not hold by `missing_capabilities_rows()`; the latter two
+    are decided in python because neither a crontab nor the media storage is
+    answered by the database. All of them replace the content of the table in
+    one transaction: a reader sees the rows of one full refresh or those of
     the previous one, never a half of either. The row of an alert exists only
     while the state behind it does, and its identity is made by
     `service_alert()`, so an alert which stays open keeps its identifier
@@ -567,6 +573,7 @@ def refresh_service_alerts():
             for column, value in row.items()})
         for row in service_alert_rows()]
     rows += [ServiceAlert(**row) for row in schedule_alert_rows()]
+    rows += [ServiceAlert(**row) for row in missing_capabilities_rows()]
     with transaction.atomic():
         ServiceAlert.objects.all().delete()
         ServiceAlert.objects.bulk_create(rows)
@@ -632,6 +639,53 @@ def harvest_schedule_alert(setting, estimate):
                 'schedule': CrontabStringField().to_representation(
                     setting.crontab),
                 'duration': format_duration(estimate['average'])})
+
+
+def missing_capabilities_rows():
+    """The services whose stored capabilities document is gone from storage.
+
+    The database names an ``xml_backup_file`` which the media storage does
+    not hold. For a single read this is the integrity error of
+    `CapabilitiesBackupMissing` (#1044); as the state of the deployment it
+    cannot be an annotation, because whether a named file is there is
+    decided by the storage and not by the database - the same reason the
+    schedules are answered here and not at the poll (#1030). A service
+    whose field is simply unset is no such case: its read answers an empty
+    document by design, so only a named-but-missing file is projected. The
+    alert points at the update settings which own the recovery - the
+    workflow which fetches ``remote_capabilities`` explicitly and stages
+    the answer as a candidate - and the row exists only while the storage
+    misses the file: the refresh after a restoration leaves no row behind.
+
+    Returns:
+        list: the alert row of every active service naming a document the
+            storage does not hold, of every kind of service
+    """
+    rows = []
+    for model in SERVICE_KIND_OF:
+        # candidates are never alerted of their own storage state - they
+        # wait for the decision about the service they hang below, which is
+        # the same rule `alert_branch()` answers for the annotations
+        services = model.objects.filter(
+            update_candidate_of__isnull=True).exclude(xml_backup_file='')
+        for service in services:
+            document = service.xml_backup_file
+            if document.storage.exists(document.name):
+                continue
+            rows.append(service_alert(
+                service, 'capabilities_backup_missing', 'error', None,
+                model.__name__ + 'UpdateSetting',
+                # the message names what is missing and how it comes back -
+                # the same answer the integrity error of the read gives
+                message=_(
+                    'The %(type)s service %(pk)s names the capabilities '
+                    'document "%(path)s" which the storage does not hold: '
+                    'restore the original document on the storage or run '
+                    'the update workflow of the service, which fetches the '
+                    'document from the remote and stages it as a candidate.') % {
+                        'type': service.service_type,
+                        'pk': service.pk, 'path': document.name}))
+    return rows
 
 
 def service_alert(service, category, severity, occurred_at, target, source=None,

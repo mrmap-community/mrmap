@@ -66,8 +66,11 @@ GET_RECORDS = {
 class AssertsExceptionReport:
     """The parts of an OWS Common ExceptionReport which carry a refusal."""
 
-    def assertExceptionReport(self, response, exception_code, locator=None):
-        self.assertEqual(response.status_code, 400, response.content)
+    def assertExceptionReport(self, response, exception_code, locator=None,
+                              status=400):
+        # status: 400 is the refusal of a faulty request; a report of a
+        # failure the request is not to blame for names its own code
+        self.assertEqual(response.status_code, status, response.content)
         self.assertEqual(response["Content-Type"], "application/xml")
 
         root = etree.fromstring(response.content)
@@ -186,6 +189,70 @@ class CswConstraintRefusalTests(AssertsExceptionReport, TestCase):
         text = etree.fromstring(response.content).find(
             f"{{{OWS_NS}}}Exception/{{{OWS_NS}}}ExceptionText")
         self.assertIn("unknownfield", text.text)
+
+
+class CswPagingRefusalTests(AssertsExceptionReport, TestCase):
+    """The paging attributes of a GetRecords (#1149).
+
+    Table 65 hands ``startPosition`` and ``maxRecords`` as attributes of the
+    request element: a position of a result set is a positiveInteger (the
+    first position is 1), the size of a page a nonNegativeInteger. A value
+    which is neither names no page and is refused with the report naming the
+    attribute -- the bare ``int()`` these reads used raised its ValueError out
+    of the handler, which answered the request with HTTP 500 and an HTML error
+    page. Both bounds belong to the same refusal: a negative page offset would
+    reach the record sources as a negative slice, a position beyond the value
+    space of xsd:integer as a LIMIT the database can not carry.
+
+    The refusal answers before any record of the result set is read; the
+    handler runs the operation inside a transaction, so the class is asked
+    with a database.
+    """
+
+    def get_records(self, **params):
+        return self.client.get("/csw", {**GET_RECORDS, **params})
+
+    def test_non_numeric_max_records_names_the_attribute(self):
+        # the probe of the issue, on the KVP binding: maxrecords=abc
+        response = self.get_records(resultType="results", maxRecords="abc")
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "maxRecords")
+        # the text names the refused value so the client can correct it
+        text = etree.fromstring(response.content).find(
+            f"{{{OWS_NS}}}Exception/{{{OWS_NS}}}ExceptionText")
+        self.assertIn("'abc'", text.text)
+
+    def test_non_numeric_start_position_names_the_attribute(self):
+        response = self.get_records(resultType="results",
+                                    startPosition="1,5")
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "startPosition")
+
+    def test_negative_max_records_names_the_attribute(self):
+        response = self.get_records(resultType="results", maxRecords="-1")
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "maxRecords")
+
+    def test_start_position_below_the_first_position_names_the_attribute(self):
+        # Table 65 counts positions from 1; position 0 names no record of the
+        # set and its offset would reach the record sources as a negative slice
+        response = self.get_records(resultType="results", startPosition="0")
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "startPosition")
+
+    def test_start_position_beyond_the_value_space_names_the_attribute(self):
+        # xsd:integer bounds its value space at 10^18; a position beyond it is
+        # no page and would reach the sources as a LIMIT the database can not
+        # carry
+        response = self.get_records(
+            resultType="results", startPosition="1" + "0" * 18)
+
+        self.assertExceptionReport(
+            response, "InvalidParameterValue", "startPosition")
 
 
 class OwsExceptionReportFallbackTests(AssertsExceptionReport, SimpleTestCase):

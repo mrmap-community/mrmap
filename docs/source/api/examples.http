@@ -8,6 +8,9 @@
 @csrf_token = UUzFqz1CxDjxgFJSaXH6BM3Ha5md8KIhXYS2CHtZHXgVpC6EPB1vtlrgOWDNeoLH
 
 # @name postOgcService
+# A valid registration of a WMS, WFS or CSW is answered with HTTP 202 whose
+# body is the `BackgroundProcess` of the registration - see # @name getProcess
+# below - and no longer a `TaskResult` (#1177).
 POST {{host}}api/v1/registry/csw/ HTTP/1.1
 content-type: application/vnd.api+json
 Referer: {{host}}api/v1/registry/csw/
@@ -39,17 +42,23 @@ Referer: {{host}}api/v1/registry/wms/
 
 ###
 
-# @name getTaskList
-GET {{host}}api/v1/registry/task-results/
+# @name getProcessList
+GET {{host}}api/notify/background-processes/
 Content-Type: application/vnd.api+json
-Referer: {{host}}api/v1/registry/task-results/
+Referer: {{host}}api/registry/wms/
 
 ###
 
-# @name getTask
-GET {{host}}api/v1/registry/task-results/1/
+# @name getProcess
+# The 202 answer of a service registration names its polling resource: the
+# `BackgroundProcess` in `data`, addressed absolutely by the `Content-Location`
+# header. Polling it alone answers the queued, running and terminal states of
+# the registration and, as soon as it exists, the service it built in
+# `relatedResource`; metadata steps which failed are readable in the `logs`
+# of the process (#1177, D01/B and D02/A of #1175).
+GET {{host}}api/notify/background-processes/1/
 Content-Type: application/vnd.api+json
-Referer: {{host}}api/v1/registry/task-results/
+Referer: {{host}}api/registry/wms/
 
 
 ###

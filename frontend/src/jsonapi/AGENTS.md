@@ -21,7 +21,7 @@ Paths in this file are relative to `frontend/src/jsonapi/`. Frontend-wide rules 
   `PaginatedSingleFieldList`, `Count`, `SimpleUpdateButton`,
   `SelectedRecordContext` (the record a list screen selected, for asides and detail panes).
 - `components/Realtime/` — WebSocket driven list and show updates (`RealtimeBus`, `RealtimeListBase`,
-  `RealtimeList`, `RealtimeShowContextProvider`, `SnackbarObserver`).
+  `RealtimeList`, `RealtimeShowContextProvider`).
 - `utils.tsx` — shared helpers of this layer.
 
 ## Rules

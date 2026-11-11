@@ -41,3 +41,41 @@ class MissingCrsParam(MissingQueryParam):
 
     def __init__(self, msg="'SRS', 'CRS' or 'srsName' query parameter was missed", *args, **kwargs):
         super().__init__(msg, *args, **kwargs)
+
+
+class InvalidQueryParam(Exception):
+    """ Base class for query parameters which are there but carry no readable value.
+
+    The ``param`` names the parameter the exception report of the endpoint has to
+    point at.
+    """
+
+    param = ""
+
+
+class InvalidFilterParam(InvalidQueryParam):
+    """Raised when the "FILTER" query param carries no parsable filter document
+
+    The KVP encoding hands a filter over as escaped XML within a query parameter
+    (OGC 10-166r4, Table 11). A parameter which is not a document is a faulty
+    parameter of the request and says so, instead of raising the parser's
+    XMLSyntaxError up to the endpoint's catch-all (#1155).
+    """
+
+    param = "FILTER"
+
+    def __init__(self, msg="'FILTER' query parameter is no parsable document", *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+
+
+class InvalidPagingParam(InvalidQueryParam):
+    """Raised when a paging query param (COUNT, MAXFEATURES, startIndex) is no integer
+
+    The parameters of the KVP binding arrive as text, so a value which is no
+    number is a faulty parameter of the request and not a failure of the proxy.
+    """
+
+    def __init__(self, param, msg=None, *args, **kwargs):
+        self.param = param
+        super().__init__(
+            msg or f"'{param}' query parameter is no integer", *args, **kwargs)

@@ -60,7 +60,17 @@ DEDICATED_TABLES = {
         "WebMapServiceUserObjectPermission",
         "WebMapServiceGroupObjectPermission",
         "WebFeatureServiceUserObjectPermission",
-        "WebFeatureServiceGroupObjectPermission"),
+        "WebFeatureServiceGroupObjectPermission",
+        # the third kind of service, which the reads look up although no code
+        # grants on it, and the models of the grants the fixtures write (#863)
+        "CatalogueServiceUserObjectPermission",
+        "CatalogueServiceGroupObjectPermission",
+        "MapContextUserObjectPermission",
+        "MapContextGroupObjectPermission",
+        "MapContextLayerUserObjectPermission",
+        "MapContextLayerGroupObjectPermission",
+        "WebMapServiceMonitoringSettingUserObjectPermission",
+        "WebMapServiceMonitoringSettingGroupObjectPermission"),
 }
 
 #: a service of ``test_wms.json``, only used to copy the fields a service needs

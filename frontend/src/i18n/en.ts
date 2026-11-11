@@ -17,6 +17,19 @@ const en = lodashMerge(
       preview: "Preview / manual edit",
       apply: "Apply",
     },
+    // what a crontab of a harvesting schedule says in words; the expression
+    // itself stays beside it, and an expression these sentences do not cover is
+    // answered by the expression alone (#1082)
+    cronReading: {
+      everyMinute: "Every minute",
+      everyNMinutes: "Every %{every} minutes",
+      everyNHours: "Every %{every} hours at minute %{minute}",
+      hourly: "Once an hour, at minute %{minute}",
+      daily: "Every day at %{time}",
+      weekly: "Every %{days} at %{time}",
+      monthly: "Every month on day %{day} at %{time}",
+      yearly: "Every year on %{month} %{day} at %{time}",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",
@@ -401,7 +414,89 @@ const en = lodashMerge(
       "estimateUnknown": "Nothing to estimate yet",
       "estimateNote": "The elapsed time, the durations and the throughput so far are measured by this run; the remaining time and the expected end are estimates from the progress so far.",
       "terminated": "This harvesting run has ended.",
-      "refresh": "Updates automatically every 5 seconds"
+      "refresh": "Updates automatically every 5 seconds",
+      list: {
+        listDescription: "Every run a catalogue has made, and what the running ones are doing right now.",
+        runHeading: "Catalogue · run",
+        runCaption: "Run #%{id}",
+        stepSizeCaption: "page size %{size}",
+        stepSizeUnknown: "page size not probed",
+        phaseHeading: "Phase",
+        progressHeading: "Progress",
+        stepsCaption: "%{done} of %{total} steps",
+        totalUnknown: "total unknown",
+        queued: "waiting for a worker",
+        queuedTooltip: "The run is queued; no worker has started it yet.",
+        throughputHeading: "Throughput",
+        throughputValue: "%{count} rec / min",
+        throughputCaption: "measured at page size %{size}",
+        noThroughput: "no throughput measured",
+        throughputTooltip: "How many records a finished run stored per minute of measured work. A run which is still working answers none: only a run which ended measured the harvest as a whole (#692).",
+        timeHeading: "Time",
+        elapsedTooltip: "Made %{created} · running since %{elapsed}",
+        createdUnknown: "The moment this run was made is not recorded, so its elapsed time starts with its first progress.",
+        endedTimeTooltip: "Made %{created} · ended %{finished}",
+        endedCaption: "ended %{at}",
+        noEstimate: "no estimate",
+        noEstimateTotal: "no estimate: the total is unknown",
+        recordsHeading: "Records",
+        recordsValue: "%{count} record |||| %{count} records",
+        recordsUnknown: "counting",
+        recordsTooltip: "How many records the catalogue answered for this run. The count belongs to this run and is not the number of records the MrMap catalogue holds.",
+        awaitingChip: "%{count} awaiting import",
+        importErrorChip: "%{count} import error |||| %{count} import errors",
+        selectUnfinished: "Only runs which have not ended are selectable - there is nothing left to stop.",
+        stopConfirmTitle: "Stop this harvesting run?",
+        stopConfirmContent: "The run stops with its next step; what it already stored stays stored.",
+        stopAsked: "Asked the run to stop.",
+        bulkStopTitle: "Stop selected runs",
+        bulkStopContent: "Stop %{smart_count} run? Runs which ended in the meantime are left untouched. |||| Stop %{smart_count} runs? Runs which ended in the meantime are left untouched.",
+        bulkStopped: "%{count} harvesting run stopped. |||| %{count} harvesting runs stopped.",
+        bulkStopRefused: "The api did not accept the stop for: %{ids}."
+      },
+      "failedRecords": "Records it could not store",
+      "refusedByImport": "What the import refused",
+      "collectedStates": "What became of the records it read",
+      "collectedRecord": "Record",
+      "collectedState": "State",
+      "collectedAt": "Stored at",
+      "collectingStates": {
+        "duplicated": "Duplicated",
+        "new": "New",
+        "updated": "Updated",
+        "existing": "Already there",
+        "removed": "Gone"
+      },
+      "failing": {
+        "request": "Requested at",
+        "page": "Page",
+        "refusedWith": "Refused with",
+        "downloadDuration": "Download duration"
+      },
+      "logLine": "Line",
+      "logTimestamp": "Timestamp",
+      "logLevelLabel": "Level",
+      "logKind": "Kind",
+      "logDescription": "Message",
+      "storedResponse": "Stored response",
+      "logLevelFacets": "Log level",
+      "logFacets": {
+        "all": "All",
+        "infoAndAbove": "Info and above",
+        "warningsAndAbove": "Warnings and above"
+      },
+      "runLogLevel": "This run logs at %{level}",
+      "logLevels": {
+        "fatal": "fatal",
+        "error": "error",
+        "warning": "warning",
+        "info": "info",
+        "debug": "debug"
+      },
+      "logKinds": {
+        "remoteError": "Remote error",
+        "countMismatch": "Count mismatch"
+      }
     },
     harvestingActivity: {
       started: "Started",
@@ -442,6 +537,10 @@ const en = lodashMerge(
       disabledMessage: "Harvesting schedules are disabled. Enable a schedule to harvest automatically.",
       nextRun: "Next run in %{time}",
       loadError: "Unable to load harvesting schedules.",
+      runs: "View runs",
+      neverRan: "Never ran",
+      noNextRun: "No next run",
+      attentionTitle: "Schedules which need attention",
     },
     harvestingStats: {
       records: "Records",
@@ -467,7 +566,40 @@ const en = lodashMerge(
       abort: "Abort process",
       abortAsked: "The process was asked to abort.",
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
-      status: { pending: "Queued", running: "Running", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+      log: {
+        title: "Job log",
+        empty: "This process reported nothing.",
+        loadError: "Unable to load the log of this process.",
+        type: { error: "Error", warning: "Warning", info: "Note" },
+      },
+      status: { pending: "Queued", queued: "Queued", running: "Running", retrying: "Retrying", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+      jobCenter: {
+        title: "Background jobs",
+        subtitle: "Long-running and background operations (harvesting, updates, …)",
+        completedInDay: "Completed (24 h)",
+        search: "Search jobs…",
+        searchEmpty: "No process matches this search.",
+        truncated: "Showing the %{shown} most recent of %{total} matching processes.",
+        tracked: "This view covers the %{tracked} most recent processes; the job history answers all of them.",
+        progressUnknownTotal: "Running with an unknown total",
+        tabs: { all: "All", running: "Running", waiting: "Waiting", failed: "Failed", history: "History" },
+        processTypes: {
+          harvesting: "Harvesting",
+          monitoring: "Monitoring",
+          registering: "Registration",
+          update: "Update",
+        },
+        clearCompleted: "Clear completed (%{count})",
+        openHistory: "Open job history",
+        notifyFailed: "%{description} failed. Open the background jobs for the details.",
+        notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
+      },
+    },
+    backgroundJobs: {
+      notification: {
+        failedOne: "A background task failed and needs attention.",
+        failedMany: "%{count} background tasks failed and need attention.",
+      },
     },
     dashboard: {
       workQueue: {
@@ -475,7 +607,9 @@ const en = lodashMerge(
         scope: "Counted over everything you are allowed to see",
         alerts: "Services with an alert",
         updateReviews: "Updates awaiting review",
+        harvestAlerts: "Catalogues with harvesting alerts",
         runningWork: "Background work running",
+        runningHarvests: "Harvestings running (all catalogues)",
         failedWork: "Background work failed",
       },
     },
@@ -581,6 +715,7 @@ const en = lodashMerge(
       title: "Attention required",
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
+      viewCatalogueAlerts: "View catalogue alerts",
       error: "Error",
       warning: "Warning",
       categories: {
@@ -593,6 +728,7 @@ const en = lodashMerge(
         update_overdue: "Update overdue",
         harvest_overdue: "Harvesting overdue",
         harvest_schedule_too_tight: "Harvesting schedule too tight",
+        capabilities_backup_missing: "Capabilities document missing",
       },
     },
     serviceAttention: {
@@ -653,7 +789,24 @@ const en = lodashMerge(
       "duration": "Duration",
       "setting": "Monitoring setting",
       "settingUnavailable": "Monitoring setting is no longer available.",
-      "probeResults": "Probe results"
+      "probeResults": "Probe results",
+      response: {
+        title: "Response of the probe",
+        status: "HTTP status",
+        duration: "Duration",
+        size: "Size",
+        contentType: "Content type",
+        uri: "Monitored uri",
+        notStored: "The body of this response was not stored.",
+        notRenderable: "A body of the type %{type} is not rendered here.",
+        loading: "Loading the stored response.",
+        image: "Image which the probe received",
+        download: "Download the body",
+        truncated: "Only the beginning of the document is shown.",
+        missing: "The stored body of this response is gone.",
+        expired: "The retention of this response has expired; its body is gone.",
+        unavailable: "The stored response could not be loaded.",
+      }
 },
     wfsUpdateReview: {
       tree: "Incoming feature types",
@@ -835,6 +988,21 @@ const en = lodashMerge(
       loadError: "Unable to load configuration.",
       readOnly: "This configuration is read-only.",
     },
+    // Human labels for filter options whose schema parameter carries no lookup
+    // expression label and no description (#945); the keys are the filter names
+    // as they appear in the `filter[...]` query parameter, with "." replaced by
+    // "_filter_lookup_". Without an entry here a filter still renders, but with
+    // the humanised field name instead (see humaniseFilterName).
+    filterFields: {
+      has_coverage: "Has geographic coverage",
+      has_insufficient_quality: "Has insufficient quality",
+      has_licence: "Has licence",
+      harvested_dataset_metadata_relation__harvesting_job: "Harvested by harvesting job",
+      bbox_lat_lon__intersects: "Bounding box intersects",
+      bbox_lat_lon__contains: "Bounding box is contained by",
+      bbox_lat_lon__covers: "Bounding box covers",
+      bbox_lat_lon__equals: "Bounding box equals",
+    },
     systemInfo: {
       "title": "System information",
       "unavailable": "System information is unavailable.",
@@ -949,6 +1117,8 @@ const en = lodashMerge(
         plural: "Catalogue service monitoring settings",
       },
       HarvestingJob: {
+        name: "Harvesting run",
+        name_plural: "Harvesting runs",
         singular: "Harvesting run",
         plural: "Harvesting runs",
         listSubheader: "Runs which harvested the catalogues, running and finished",
@@ -975,6 +1145,9 @@ const en = lodashMerge(
           enabled: "Enabled",
           scheduling: "Schedule",
           timeUntilNextRun: "Time until next run",
+          lastRunAt: "Last run",
+          nextRunAt: "Next run",
+          totalRunCount: "Runs",
         },
       },
       HarvestingLog: {
@@ -1028,19 +1201,6 @@ const en = lodashMerge(
           downloadDuration: "Download duration",
         },
       },
-      BackgroundProcess: {
-        titles: {
-          registering: "Register new Service",
-          harvesting: "Harvesting",
-          harvestingOf: "Harvesting of %{id}",
-          monitoring: "Monitoring",
-          runningTask: "Running Task",
-        },
-        states: {
-          completed: "completed",
-          waitingForSchedule: "waiting for schedule",
-        },
-        stepsDone: "%{done} of %{total} steps done.",      },
     }
   }
 );

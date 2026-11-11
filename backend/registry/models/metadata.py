@@ -287,9 +287,14 @@ class LegendUrl(models.Model):
                                  editable=False,
                                  help_text=_("contains the location of an image of a map legend appropriate to the "
                                              "enclosing Style."))
+    # both sizes are optional attributes of a WMS <LegendURL> (only Format and
+    # OnlineResource are required), so a valid document may simply not name them
+    # (#1201) - NULL means "the document does not say", no invented 0
     height = models.IntegerField(editable=False,
+                                 null=True,
                                  help_text=_("the size of the image in pixels"))
     width = models.IntegerField(editable=False,
+                                null=True,
                                 help_text=_("the size of the image in pixels"))
     mime_type = models.ForeignKey(to=MimeType,
                                   on_delete=models.RESTRICT,
@@ -385,31 +390,34 @@ class MetadataContact(models.Model):
     person_name = models.CharField(max_length=200,
                                    default='',
                                    verbose_name=_("Contact person"))
-    email = models.EmailField(max_length=100,
+    # the contact values of a Capabilities or ISO record are free text and
+    # easily exceed 100 characters - a real-world address of 159 chars made the
+    # registration of a WMS fail with a raw DataError (#1211)
+    email = models.EmailField(max_length=255,
                               default='',
                               verbose_name=_('E-Mail'))
-    phone = models.CharField(max_length=100,
+    phone = models.CharField(max_length=255,
                              default='',
                              verbose_name=_('Phone'))
-    facsimile = models.CharField(max_length=100,
+    facsimile = models.CharField(max_length=255,
                                  default='',
                                  verbose_name=_("Facsimile"))
-    city = models.CharField(max_length=100,
+    city = models.CharField(max_length=255,
                             default='',
                             verbose_name=_("City"))
-    postal_code = models.CharField(max_length=100,
+    postal_code = models.CharField(max_length=255,
                                    default='',
                                    verbose_name=_("Postal code"))
-    address_type = models.CharField(max_length=100,
+    address_type = models.CharField(max_length=255,
                                     default='',
                                     verbose_name=_("Address type"))
-    address = models.CharField(max_length=100,
+    address = models.CharField(max_length=255,
                                default='',
                                verbose_name=_("Address"))
-    state_or_province = models.CharField(max_length=100,
+    state_or_province = models.CharField(max_length=255,
                                          default='',
                                          verbose_name=_("State or province"))
-    country = models.CharField(max_length=100,
+    country = models.CharField(max_length=255,
                                default='',
                                verbose_name=_("Country"))
 

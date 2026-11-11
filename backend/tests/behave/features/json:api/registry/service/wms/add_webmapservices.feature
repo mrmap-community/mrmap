@@ -38,6 +38,9 @@ Feature: WebMapService Add Endpoint
         Given I am logged in as User1 with password User1
         When I send the request with POST method
         Then I expect the response status is 202
+        Then I expect that response json has an attribute "data.type" with value "BackgroundProcess"
+        Then I expect that response json has an attribute "data.attributes.status" with value "pending"
+        Then I expect that response header "Content-Location" contains "/api/notify/background-processes/"
 
     Scenario: Can't add as anonymous user
         Given I am an anonymous user

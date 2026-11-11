@@ -794,6 +794,9 @@ def watch_import_backlog(harvesting_job_id, at=None):
                     description=(
                         f"{HARVEST_IMPORT_WATCH_ORIGIN}: the import backlog of this "
                         f"job drains again; {waiting} records are left to import"))
+                # the process which reported the stall reports the drain with
+                # it, so the operation leaves action-required on its own (#1207)
+                job.report_process_attention(False)
             HarvestingJob.objects.filter(pk=job.pk).update(
                 import_backlog_seen=waiting,
                 import_backlog_seen_at=at,
@@ -813,6 +816,11 @@ def watch_import_backlog(harvesting_job_id, at=None):
             # waiting on work which somebody is doing (#1038)
             HarvestingJob.objects.filter(pk=job.pk).update(
                 import_stalled_at=untouched_since)
+            # and the process which reports the run says the same to the
+            # background job center: this one stands until a human acts (#1207)
+            job.report_process_attention(
+                True,
+                phase=f"{HARVEST_IMPORT_WATCH_ORIGIN}: import backlog stalled")
         # what the waiting costs decides the broker and never a guess: a second
         # publish of a backlog which is still queued is #891
         if state is None or publish_state is None:
@@ -843,6 +851,9 @@ def watch_import_backlog(harvesting_job_id, at=None):
                 import_backlog_seen=None,
                 import_backlog_seen_at=None,
                 import_stalled_at=None)
+            # the work went out again: whatever the human was awaited for,
+            # this run does not stand for it anymore (#1207)
+            job.report_process_attention(False)
             resume_stale_import_run(
                 job, registered, origin=HARVEST_IMPORT_WATCH_ORIGIN)
             return

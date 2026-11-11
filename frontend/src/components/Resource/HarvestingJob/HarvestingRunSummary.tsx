@@ -24,7 +24,12 @@ import HarvestingJobActions from "./HarvestingJobActions";
 import HarvestingPhaseStepper from "./HarvestingPhaseStepper";
 import { formatSeconds } from "./runDurations";
 
-const HarvestingRunSummary = () => {
+const HarvestingRunSummary = ({
+  logTabAllowed = true,
+}: {
+  /** whether the caller knows this caller may read the log lines of the run */
+  logTabAllowed?: boolean;
+} = {}) => {
   const run = useRecordContext();
   const translate = useTranslate();
   const createPath = useCreatePath();
@@ -43,9 +48,11 @@ const HarvestingRunSummary = () => {
       ? formatSeconds(run.elapsedSeconds)
       : translate("harvestRun.notRecorded");
   const counters = [
-    { resource: "DatasetMetadataRecord", label: "datasets" },
-    { resource: "ServiceMetadataRecord", label: "services" },
-    { resource: "TemporaryMdMetadataFile", label: "unhandled" },
+    { resource: "DatasetMetadataRecord", label: "datasets", tab: "DatasetMetadataRecord" },
+    { resource: "ServiceMetadataRecord", label: "services", tab: "ServiceMetadataRecord" },
+    // the tab which names the records a run could not store answers both
+    // numbers of its files: the refused ones and the ones still waiting (#1083)
+    { resource: "TemporaryMdMetadataFile", label: "unhandled", tab: "failed-records" },
   ];
   return (
     <Stack spacing={2}>
@@ -103,9 +110,13 @@ const HarvestingRunSummary = () => {
           </Typography>
           {run.unhandledRecordsCount != null && (
             <Typography variant="body2" color="text.secondary">
-              {translate("harvestingActivity.awaitingImport", {
-                count: run.unhandledRecordsCount,
-              })}
+              {/* the records awaiting import are named by the same tab which
+                  names the refused ones (#1083) */}
+              <Link to={`${path}/failed-records`}>
+                {translate("harvestingActivity.awaitingImport", {
+                  count: run.unhandledRecordsCount,
+                })}
+              </Link>
             </Typography>
           )}
           <Stack
@@ -150,7 +161,7 @@ const HarvestingRunSummary = () => {
             <Card variant="outlined">
               <CardActionArea
                 component={Link}
-                to={`${path}/${counter.resource}`}
+                to={`${path}/${counter.tab}`}
                 sx={{ p: 2 }}
               >
                 <Typography variant="body2" color="text.secondary">
@@ -172,7 +183,7 @@ const HarvestingRunSummary = () => {
           <Card variant="outlined">
             <CardActionArea
               component={Link}
-              to={`${path}/TemporaryMdMetadataFile?filter=${encodeURIComponent(JSON.stringify({ hasImportError: true }))}`}
+              to={`${path}/failed-records`}
               sx={{ p: 2 }}
             >
               <Typography variant="body2" color="text.secondary">
@@ -192,9 +203,11 @@ const HarvestingRunSummary = () => {
         <Alert
           severity="warning"
           action={
-            <Link to={`${path}/HarvestingLog`}>
-              {translate("harvestRun.viewLogs")}
-            </Link>
+            logTabAllowed ? (
+              <Link to={`${path}/log`}>
+                {translate("harvestRun.viewLogs")}
+              </Link>
+            ) : undefined
           }
         >
           {translate("harvestRun.importStalled")}{" "}
@@ -209,9 +222,11 @@ const HarvestingRunSummary = () => {
         <Alert
           severity="warning"
           action={
-            <Link to={`${path}/HarvestingLog`}>
-              {translate("harvestRun.viewLogs")}
-            </Link>
+            logTabAllowed ? (
+              <Link to={`${path}/log`}>
+                {translate("harvestRun.viewLogs")}
+              </Link>
+            ) : undefined
           }
         >
           {translate("harvestingActivity.importErrors", {

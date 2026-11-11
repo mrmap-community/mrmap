@@ -16,7 +16,8 @@ const harvestingBlocks = [
   "resources.TemporaryMdMetadataFile",
   "resources.CatalogueServiceUpdateJob",
   "resources.HarvestedMetadataRelation",
-  "resources.BackgroundProcess",
+  // `resources.BackgroundProcess` was read only by the snackbar alert, which
+  // the Job Center (#1203) replaced together with the block.
   "harvestingStats",
   "cronInput",
 ];

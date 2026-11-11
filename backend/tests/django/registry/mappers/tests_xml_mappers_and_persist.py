@@ -7,8 +7,10 @@ from uuid import uuid4
 from django.test import TestCase
 from lxml import etree
 from registry.enums.iso import CategoryChoices
+from registry.enums.metadata import ReferenceSystemPrefixChoices
 from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
-from registry.mappers.parsers.iso import parse_topic_category
+from registry.mappers.parsers.iso import (parse_reference_system,
+                                          parse_topic_category)
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.xml_mapper import XmlMapper
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
@@ -785,6 +787,116 @@ class ParseTopicCategoryNodeTest(TestCase):
             CategoryChoices.BIOTA.value)
         self.assertIsNone(
             parse_topic_category(None, self._element("no category defined till now!")))
+
+
+class ReferenceSystemEmptyElementRegressionTest(TestCase):
+    """An empty <gco:CharacterString/> of a reference system is a missing
+    value, not an import error (#1074).
+
+    This is #989 one function further up in the same parser module: the
+    reference system spec of the metadata mapping selects the character string
+    below <gmd:code> and hands it to the parser, which called .strip() on the
+    None lxml answers for an element without character content. The exception
+    travelled out of the mapping and aborted the import of the whole record, so
+    one cosmetically empty element cost the record. An empty element costs its
+    own reference system at most, never the record.
+    """
+
+    XML = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+    NAMESPACES = {'gmd': 'http://www.isotc211.org/2005/gmd',
+                  'gco': 'http://www.isotc211.org/2005/gco'}
+    # the fixture names two reference systems, both as an EPSG URL
+    CRS_XPATH = ('.//gmd:referenceSystemInfo'
+                 '/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier'
+                 '/gmd:RS_Identifier/gmd:code/gco:CharacterString')
+
+    def _record_with_reference_systems(self, *texts):
+        """The dataset fixture with its reference system strings replaced.
+
+        A None text empties the element, which is the shape of the issue: lxml
+        answers None for the character content of <gco:CharacterString/>.
+        """
+        root = etree.fromstring(self.XML.read_bytes())
+        elements = root.findall(self.CRS_XPATH, self.NAMESPACES)
+        self.assertEqual(len(elements), len(texts),
+                         "the fixture must carry one element per given text")
+        for element, text in zip(elements, texts):
+            element.text = text
+        mapper = MDMetadataXmlMapper.from_xml(root)[0]
+        mapper.xml_to_django()
+        PersistenceHandler(mapper).persist_all()
+        return DatasetMetadataRecord.objects.get(
+            file_identifier='de.dwd.geoserver.fach.RBSN_FF')
+
+    def test_an_empty_reference_system_element_costs_the_record_nothing(self):
+        # both elements carry no character content: lxml gives None for their text
+        record = self._record_with_reference_systems(None, None)
+        self.assertEqual(record.title, EXPECTED_DATASET_DATA["title"])
+        self.assertFalse(
+            record.reference_systems.exists(),
+            "an unusable reference system must not produce a row")
+        # the rest of the record is untouched
+        self.assertTrue(record.keywords.exists())
+        self.assertTrue(record.languages.exists())
+        self.assertIsNotNone(record.bounding_geometry)
+
+    def test_an_empty_reference_system_element_keeps_the_others(self):
+        record = self._record_with_reference_systems(
+            None, 'http://www.opengis.net/def/crs/EPSG/0/4326')
+        self.assertCountEqual(
+            record.reference_systems.values_list('code', flat=True), ['4326'])
+
+    def test_valid_reference_systems_still_map_after_the_fix(self):
+        record = self._record_with_reference_systems(
+            'http://www.opengis.net/def/crs/EPSG/0/4258',
+            'http://www.opengis.net/def/crs/EPSG/0/4326')
+        self.assertCountEqual(
+            record.reference_systems.values_list('code', flat=True),
+            EXPECTED_DATASET_DATA["reference_systems"])
+
+
+class ParseReferenceSystemNodeTest(TestCase):
+    """The parser's contract on the two node types its signature names (#1074).
+
+    An element without character content answers like the empty case of the
+    character branch: a reference system without a code is a missing value, so
+    the answer is None and the mapping of the record continues. Everything the
+    parser could read before keeps its answer.
+    """
+
+    def _element(self, text):
+        """A character string element carrying `text` as its character content;
+        None builds the empty <gco:CharacterString/> of the issue."""
+        ns = 'xmlns:gco="http://www.isotc211.org/2005/gco"'
+        if text is None:
+            xml = f'<gco:CharacterString {ns}/>'
+        else:
+            xml = f'<gco:CharacterString {ns}>{text}</gco:CharacterString>'
+        return etree.fromstring(xml.encode())
+
+    def test_element_without_character_content_answers_none(self):
+        for text in (None, "", "  \n "):
+            with self.subTest(text=text):
+                self.assertIsNone(
+                    parse_reference_system(None, self._element(text)))
+
+    def test_empty_text_node_answers_none(self):
+        element = self._element("http://www.opengis.net/def/crs/EPSG/0/4258")
+        element.text = ""
+        text_node = element.xpath("./text()")[0]
+        self.assertIsNone(parse_reference_system(None, text_node))
+
+    def test_readable_crs_answers_as_before(self):
+        for crs, code in (
+            ("http://www.opengis.net/def/crs/EPSG/0/4258", "4258"),
+            ("urn:ogc:def:crs:EPSG::4326", "4326"),
+            ("EPSG:31467", "31467"),
+        ):
+            with self.subTest(crs=crs):
+                instance = parse_reference_system(None, self._element(crs))
+                self.assertEqual(instance.code, code)
+                self.assertEqual(
+                    instance.prefix, ReferenceSystemPrefixChoices.EPSG)
 
 
 class MetadataRecordRepublishRegressionTest(TestCase):

@@ -59,6 +59,51 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
   removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
   stop reaching the browser.
+  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ master) still
+  has one leaf per app (`python3 scripts/migration_graph_smoke.py`; host Python plus the `git`
+  CLI, no docker, no `gh`, no network, a fifth of a second). Two branches which each add a
+  `0038` are green alone and red in the merge queue, because two leaf nodes of one app is what
+  `makemigrations` refuses with "Conflicting migrations detected"; run it before pushing a branch
+  that adds a migration and it names both leaves, the file of each and the number to renumber to.
+  Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
+  one throw-away git repository; needs neither docker nor the network).
+  `scripts/decisions` is the decision-request protocol described under "Asking for human
+  decisions": numbered questions, `Q7: C` answers verified against GitHub's
+  `author_association`, append-only audit-trail comments and a generated view of the issue's
+  Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
+  GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
+  hand when touching either tool.
+
+### Asking for human decisions
+
+Design questions an agent cannot answer itself — normative ISO/OGC readings,
+product scope, migration risk appetite — are asked with `scripts/decisions`, not
+as prose, so the answers stay findable. A human answers `Q7: C`; `record` verifies
+via GitHub's `author_association` that the answer came from an OWNER, MEMBER or
+COLLABORATOR and not a Bot, appends audit-trail comments, and `register` syncs the
+issue's "Decision register" table from that trail.
+
+- Answering a design question is a design decision. It is not the `agent: approved`
+  label and not a pull-request review; those stay with people, and no recorded answer
+  may be presented as if it granted either.
+- Ask with a stated recommendation and only a handful of questions at a time (the tool
+  refuses more). Requests posted through the tool carry a machine marker; a hand-written
+  request in the same shape is still read, but the tool warns that its provenance cannot
+  be verified.
+- After answers arrive: `scripts/decisions --issue N record --write` (idempotent —
+  re-running records nothing twice), then `scripts/decisions --issue N register --write`.
+  A body a human edited while the write was prepared stops the write; rerun.
+- When a named owner keeps the decision (e.g. @armin11 for standards reviews), record
+  with `--gate 'Q1-Q6=@armin11:reason'`: answers are kept as preferences and the row
+  reads `Awaiting @armin11`, never `Accepted`, until that owner answers or overrides.
+- Silence records nothing; a row never reads `Accepted` while its evidence names an
+  unanswered question; prose run together or naming two options is flagged for
+  clarification, never guessed. A human can undo a recorded outcome with `reopen` or
+  `override --outcome ... --source <comment-url>`, which verify the cited comment the
+  same way answers are.
+- After a context loss an agent resumes from the issue alone:
+  `scripts/decisions --issue N scan` says what is asked, answered and open. Schema,
+  reaction rules and the offline checks: `docs/source/development/decision-requests.rst`.
 
 ## Authoritative sources
 
@@ -68,6 +113,7 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
+- `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
 
 ## Environment
@@ -245,13 +291,17 @@ single verdict line and exits `0` when the job still fits or `1` when it does
 not. It refuses newcomers; it never pauses, renices or kills a running job.
 
 Ask for the class of work you are about to start: `scripts/agent_capacity`
-decides about a heavy Compose test stack (the default), `--need process` about
-one more agent worker without a stack, `--json` answers for a program, and
-`--stacks`/`--processes` pass counts a caller already keeps. The counts are
+decides about a heavy Compose test stack (the default), `--need suite` about a
+stack that runs the full unit suite (measured heavier than a targeted check),
+`--need process` about one more agent worker without a stack, `--json` answers
+for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
+`--wait N` queues up to N seconds for a refusal to clear instead of exiting
+busy; it never displaces a running job. The counts are
 prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
 and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
 job can tune the gate without editing the file: `AGENT_MAX_LOAD_PER_CORE` (1.5),
-`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
+`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
+`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
 (16, the floor when no memory limit of this cgroup is visible),
 `AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
 `AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)
@@ -330,6 +380,11 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
+  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+  `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
+  the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
+  reach these files at all.
 - Add or update tests when behavior changes.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.

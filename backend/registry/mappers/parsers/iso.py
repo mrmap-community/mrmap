@@ -14,8 +14,17 @@ logger: Logger = settings.ROOT_LOGGER
 
 def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeResult):
 
-    crs_str = el.text.strip() if isinstance(
+    # An element without character content is a missing value, not an import
+    # error: lxml answers None for the text of an empty
+    # <gco:CharacterString/>, which a publisher leaves inside
+    # <gmd:referenceSystemInfo> the same way #989 found it inside
+    # <gmd:topicCategory>. It is read as the empty text the character branch
+    # already answers, and a reference system without a code is skipped - that
+    # costs the reference system at most, never the record (#1074).
+    crs_str = (el.text or "").strip() if isinstance(
         el, etree._Element) else el.strip()
+    if not crs_str:
+        return
 
     code = ""
     prefix = ""

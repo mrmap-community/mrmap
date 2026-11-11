@@ -1,12 +1,81 @@
 from django.db import DataError, IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
+from django.db.models import Q
 from django.test import TransactionTestCase
 from registry.expressions.search import TEXT_CONFIGURATION_NAME
 
 
 class KeywordMigrationTest(TransactionTestCase):
+    """``0015``/``0016``: blank keywords go away, and then the schema refuses them.
+
+    ``TransactionTestCase`` rather than ``TestCase``, and that choice is what forces
+    this class to prepare its own database. A migration is DDL and
+    ``MigrationExecutor`` commits, so the rollback which ends a ``TestCase`` method
+    cannot undo any of what happens here; and a ``TransactionTestCase`` cleans the
+    database *after* a test, never before it. Whatever the case that ran earlier on
+    this parallel worker left behind is therefore present when this one starts, and
+    with ``--parallel=4`` and a shuffled order "which case that was" changes every
+    run. Two symptoms of exactly that, on one and the same tree (#1215): the blank
+    ``MetadataContact`` this test creates colliding with one a fixture had loaded
+    (``UniqueViolation`` on a constraint which covers every field the model has),
+    and 160 keywords of ``test_keywords.json`` answering an assertion which compared
+    the whole keyword table. Nothing raced and no host was involved: the test
+    assumed a database it never prepared.
+    """
+
     migrate_from = [('registry', '0014_catalogueservicemonitoringrun_background_process_and_more')]
     migrate_to = [('registry', '0016_enforce_non_blank_keywords')]
+
+    # the same test postgres applies in 0015 and 0016, spelled as a Django Q. Named
+    # for what it selects, because the migration states its condition the other way
+    # round: 0015 removes what `NOT (keyword ~ <non-whitespace>)` matches, so a
+    # keyword is blank when this Q does NOT match it. Reading it the other way round
+    # is the easiest mistake in this file — a name like "blank" over a condition
+    # which selects every keyword that HAS content makes the assertion below report a
+    # content-bearing keyword as a survivor of the removal.
+    HAS_CONTENT = Q(keyword__regex='\\S') & ~Q(keyword__isnull=True)
+
+    # the fully blank contact; this test creates one only where no other case left
+    # a blank one it can reuse, and a fixture of the application creates this shape
+    # too
+    BLANK_CONTACT = dict(name='', person_name='', email='', phone='', facsimile='',
+                         city='', postal_code='', address_type='', address='',
+                         state_or_province='', country='')
+
+    def prepare_database(self, apps):
+        """Puts the tables this test is about into the state its assertion assumes.
+
+        The original premise was not wrong, it was only never established: the
+        assertion compared the whole keyword table, which could hold only while no
+        other case had loaded keywords before. Establishing it instead of hoping for
+        it is what makes the run deterministic, and both unique constraints involved
+        leave no other choice — ``keyword`` is unique, so a keyword from
+        ``test_keywords.json`` cannot exist next to this test's own rows and cannot
+        be skipped over by an assertion either; the contact constraint is the same
+        story with twelve columns. The links of the removed keywords go with them by
+        the same cascade ``0015`` itself relies on.
+
+        The blank ``MetadataContact`` is the one state this method does not clear:
+        it reuses it instead. A blank contact can be what a service's restricted
+        ``service_contact`` and ``metadata_contact`` point at - the CI failure this
+        text is in was the deletion being refused with ``RestrictedError``, naming
+        the seeded Mr. Map CSW - and the assertion below is indifferent to which
+        blank contact its service carries, so an existing one is exactly as usable
+        as a freshly created one.
+
+        Only the keyword table is touched. Nothing else in the database is
+        considered, because nothing else is asserted about.
+        """
+        keyword_table = apps.get_model('registry', 'Keyword')
+        blank_contacts = apps.get_model('registry', 'MetadataContact').objects.filter(
+            **self.BLANK_CONTACT)
+        # Recorded because this case answered itself oppositely on two runs and the
+        # failure text named neither of the two states it had started from: the one
+        # which raises is on the worker and no log holds it. Naming it in the failure
+        # is the cheapest way for the next occurrence to explain itself.
+        self.was = {'keywords': keyword_table.objects.count(),
+                    'blank_contacts': blank_contacts.count()}
+        keyword_table.objects.all().delete()
 
     def test_removes_blank_keywords_and_links_before_adding_constraint(self):
         executor = MigrationExecutor(connection)
@@ -16,7 +85,14 @@ class KeywordMigrationTest(TransactionTestCase):
         Keyword = apps.get_model('registry', 'Keyword')
         Contact = apps.get_model('registry', 'MetadataContact')
         Service = apps.get_model('registry', 'WebMapService')
-        contact = Contact.objects.create()
+        self.prepare_database(apps)
+        # The twelve-column unique constraint of #1215 lets at most one fully blank
+        # contact exist, and one can exist in the state this case starts from. That
+        # row may be under a restricted reference, so it cannot be deleted to make
+        # room for a new one - it is used, and a new one is created only while
+        # nothing blank is there.
+        contact = (Contact.objects.filter(**self.BLANK_CONTACT).first()
+                   or Contact.objects.create())
         service = Service.objects.create(
             version=1, service_url='https://example.com/wms',
             service_contact=contact, metadata_contact=contact,
@@ -30,6 +106,9 @@ class KeywordMigrationTest(TransactionTestCase):
         Keyword = apps.get_model('registry', 'Keyword')
         Service = apps.get_model('registry', 'WebMapService')
         service = Service.objects.get(pk=service.pk)
+        self.assertFalse(Keyword.objects.filter(~self.HAS_CONTENT).exists(),
+                         f'a keyword without content survived the migration which '
+                         f'exists to remove it (started from {self.was})')
         self.assertEqual(list(Keyword.objects.values_list('keyword', flat=True)), ['  valid  '])
         self.assertEqual(list(service.keywords.values_list('keyword', flat=True)), ['  valid  '])
         with self.assertRaises(IntegrityError), transaction.atomic():

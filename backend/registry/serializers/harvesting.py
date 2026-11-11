@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from extras.scheduling import next_run_expected_at
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
                                 TimeUntilNextRunMixin)
@@ -42,14 +43,56 @@ class PeriodicHarvestingJobSerializer(
     )
     scheduling = CrontabStringField(source='crontab')
     time_until_next_run = SerializerMethodField(label=_("time until next run"))
+    next_run_at = SerializerMethodField(
+        label=_("next run at"),
+        help_text=_(
+            "the moment this schedule is expected to fire next, as an aware "
+            "instant: the same rule which decides that a schedule is overdue. "
+            "A schedule which is disabled, expired or without a crontab "
+            "answers nothing."),
+        allow_null=True)
+    last_run_at = DateTimeField(
+        label=_("last run at"),
+        help_text=_(
+            "the moment this schedule last fired; nothing, while it never "
+            "fired."),
+        read_only=True,
+        allow_null=True)
+    total_run_count = IntegerField(
+        label=_("total run count"),
+        help_text=_("how often this schedule fired in all."),
+        read_only=True)
 
     class Meta:
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
-                  'time_until_next_run', 'enabled')
+                  'time_until_next_run', 'next_run_at',
+                  'enabled', 'last_run_at', 'total_run_count')
 
     def validate_service(self, value):
         return validate_harvestable_service(value)
+
+    def _answers_next_run(self, name):
+        """Whether the request of these schedules asks the named next-run answer.
+
+        Both the human reading and the instant of the next run are decided in
+        python, so the sparse fieldset of the request decides whether they are
+        calculated at all: a screen which shows no next run pays for no
+        estimate (#1082, cf. the annotations of the harvesting jobs).
+        """
+        view = self.context.get("view")
+        check = getattr(view, "check_sparse_fields_contains", None)
+        return True if check is None else check(name)
+
+    def get_time_until_next_run(self, obj):
+        if not self._answers_next_run("timeUntilNextRun"):
+            return None
+        return super().get_time_until_next_run(obj)
+
+    def get_next_run_at(self, obj):
+        if not self._answers_next_run("nextRunAt"):
+            return None
+        return next_run_expected_at(obj)
 
 
 class HarvestedMetadataRelationSerializer(
@@ -122,6 +165,10 @@ class HarvestingJobSerializer(
     updated_service_metadata_count = IntegerField(read_only=True)
     existing_service_metadata_count = IntegerField(read_only=True)
     duplicated_service_metadata_count = IntegerField(read_only=True)
+    new_application_metadata_count = IntegerField(read_only=True)
+    updated_application_metadata_count = IntegerField(read_only=True)
+    existing_application_metadata_count = IntegerField(read_only=True)
+    duplicated_application_metadata_count = IntegerField(read_only=True)
 
     import_error_count = IntegerField(read_only=True)
     unhandled_records_count = IntegerField(read_only=True)
@@ -262,15 +309,48 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
         return attrs
 
 
-class HarvestingLogSerializer(
+class HarvestingLogListSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     ModelSerializer
 ):
+    """The rows of a log list: the message of the line and whether an
+    extended description is stored behind it.
+
+    The detail of a failed page - the response content - sits in
+    ``extented_description``, a FileField: a list which shows it answers a
+    download per row, a list which hides it shows nothing. So the list
+    answers the existence of the file and the content is read per log line,
+    by a caller allowed to read the run; these files are the pile #888
+    bounds and the list must not widen their read access (#1083).
+    """
     url = HyperlinkedIdentityField(
         view_name="registry:harvestinglog-detail",)
+    has_extended_description = SerializerMethodField(
+        label=_("has extended description"),
+        help_text=_(
+            "whether this log line has a stored response behind it; the "
+            "content of the file is answered on the line itself, never in "
+            "a list"),
+        read_only=True)
 
     class Meta:
         model = HarvestingLog
-        fields = "__all__"
+        exclude = ("extented_description",)
+
+    def get_has_extended_description(self, obj) -> bool:
+        return bool(obj.extented_description)
+
+
+class HarvestingLogSerializer(HarvestingLogListSerializer):
+    """One log line, read on its own: it answers its stored response too.
+
+    Reading one line is the act of a caller who reads the run; the list
+    above is not that act and keeps the file out of its rows (#1083).
+    """
+
+    # a fresh Meta rather than an inherited one: DRF refuses a serializer
+    # which sets `fields` while a parent's `exclude` still applies
+    class Meta:
+        model = HarvestingLog
         fields = "__all__"

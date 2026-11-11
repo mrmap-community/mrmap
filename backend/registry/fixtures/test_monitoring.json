@@ -101,7 +101,7 @@
         }
     },
     {
-        "model": "guardian.groupobjectpermission",
+        "model": "registry.webmapservicemonitoringsettinggroupobjectpermission",
         "pk": 1,
         "fields": {
             "permission": [
@@ -109,14 +109,10 @@
                 "registry",
                 "webmapservicemonitoringsetting"
             ],
-            "content_type": [
-                "registry",
-                "webmapservicemonitoringsetting"
-            ],
-            "object_pk": "1",
             "group": [
                 "Group1"
-            ]
+            ],
+            "content_object": 1
         }
     }
 ]

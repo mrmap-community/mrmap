@@ -74,12 +74,34 @@ describe("harvesting run summary", () => {
     const links = screen
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
+    // the cards lead to the tabs of the run screen which name those records;
+    // the guessed tables are gone and with them the raw resource urls (#1083)
     expect(links).toContain("/HarvestingJob/1/show/DatasetMetadataRecord");
     expect(links).toContain("/HarvestingJob/1/show/ServiceMetadataRecord");
-    expect(links).toContain("/HarvestingJob/1/show/TemporaryMdMetadataFile");
-    expect(links).toContain("/HarvestingJob/1/show/HarvestingLog");
+    expect(links).toContain("/HarvestingJob/1/show/failed-records");
+    expect(links).toContain("/HarvestingJob/1/show/log");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "harvestingActivity.importErrors",
+    );
+  });
+  it("still shows the counts when the log lines are denied, without the way to them", () => {
+    state.run.importStalledAt = "2026-10-08T12:00:00Z";
+    render(<HarvestingRunSummary logTabAllowed={false} />);
+    const links = screen
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(links).not.toContain("/HarvestingJob/1/show/log");
+    expect(links).toContain("/HarvestingJob/1/show/failed-records");
+    expect(
+      screen.queryByText("harvestRun.viewLogs"),
+    ).not.toBeInTheDocument();
+  });
+  it("leads the records awaiting import to the tab which names them", () => {
+    render(<HarvestingRunSummary />);
+    const awaiting = screen.getByText("harvestingActivity.awaitingImport");
+    expect(awaiting.closest("a")).toHaveAttribute(
+      "href",
+      "/HarvestingJob/1/show/failed-records",
     );
   });
   it("says on the run when the watchdog sees the import backlog untouched", () => {

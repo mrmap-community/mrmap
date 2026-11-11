@@ -67,6 +67,13 @@ const ServiceListActions = (props: CustomListActionsProps) => (
  * annotations, as the column of the updates does, is not ordered by only one of
  * them.
  *
+ * The rows of the table are the answer of this screen and nothing aggregates
+ * over them: the states above the rows are counted by the tiles of the header
+ * (`ServiceSummaryTiles`), whose links narrow these very rows. A second,
+ * aggregate view of the same registry was built beside the table and removed
+ * again - two tables of one query drift and the tiles already answer the
+ * question an aggregate would ask (#1086).
+ *
  * The caller renders these props on the ListGuesser directly or through the
  * ListWithDialogs, which keeps the routes of the create and edit dialogs of the
  * resource alive beside the list.
@@ -156,9 +163,6 @@ export const serviceListProps = (
       },
     },
   },
-  //empty: <ServiceListExplorer config={config} />,
   ActionsComponent: ServiceListActions,
-  aside: <ServiceListAside protocol={config.protocol} />
-        
-  //listContent: <ServiceListExplorer config={config} />,
+  aside: <ServiceListAside protocol={config.protocol} />,
 });

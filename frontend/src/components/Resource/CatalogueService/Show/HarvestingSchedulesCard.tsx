@@ -15,7 +15,7 @@ import { alpha, Alert, Chip, Stack, Typography } from "@mui/material";
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import SimpleCard from "../../../MUI/SimpleCard";
-import RunHarvestingButton from "./RunHarvestingButton";
+import RunHarvestingButton from "../../Generic/ServiceShow/RunHarvestingButton";
 
 const HarvestingSchedulesCardBase = ({ children }: PropsWithChildren) => {
   const { data, total, isPending, error } = useListContext();

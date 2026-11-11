@@ -41,7 +41,9 @@ Working with the triggers
 
 The definitions live in ``backend/registry/triggers.py`` and are registered on
 their models when the app registry is ready (``registry/apps.py`` imports the
-module). To change what a trigger does, edit its class there and run::
+module). The three record types share trigger classes; table and foreign-key
+names come from their Django model metadata. To change a rule, edit its class
+there and run::
 
     python manage.py makemigrations registry
 
@@ -57,15 +59,18 @@ Three facts matter when reading or extending this:
     database are named ``pgtrigger_<name>_<hash>``, not by the ``name``
     attribute alone. The legacy names (``registry_sync_metadatarecord_
     keywords_list`` and friends) are gone after ``0039``.
-*   A trigger on a keywords **relation** sits on the unmanaged
-    ``*KeywordsLink`` models of ``registry/models/metadata.py``. Django never
-    puts the auto-created through model of a ``ManyToManyField`` into the
-    migration state, and a trigger which the autodetector cannot see is a
-    trigger without migrations -- the link models only make the existing
-    relation tables addressable and never create, alter or drop them. New
-    keyword relations which need a trigger declare it the same way; the
-    operation ``AddKeywordsLinkTrigger`` exists because Django's migrate
-    otherwise skips every operation for an unmanaged model.
+*   A trigger on a keywords **relation** sits on the explicit, managed
+    ``*KeywordsLink`` through models of ``registry/models/metadata.py``.
+    Each record's ``keywords`` field names its through model; that model owns
+    the existing relation table, including the unique record/keyword pair,
+    and uses ordinary ``pgtrigger.migrations.AddTrigger`` operations.
+    The conversion preserves the existing table names, columns, relations and
+    triggers through the state-only migration
+    ``0046_explicit_keyword_through_models``. Other metadata types retain
+    their automatic keywords relations. Migration ``0039`` originally used
+    unmanaged mappings to expose these tables to the autodetector, which
+    cannot track automatic through models. ``AddKeywordsLinkTrigger`` remains
+    available solely for applying and reversing that historical migration.
 *   The reverse of a trigger migration drops the trigger but leaves the
     ``pgtrigger_`` function behind (this is how the package removes triggers);
     a later forward migration or ``manage.py pgtrigger uninstall`` removes it.
@@ -75,43 +80,33 @@ Three facts matter when reading or extending this:
     path.
 
 
-Why this was possible only now: pgviews and pgtrigger
-=====================================================
+Migration compatibility
+=======================
 
-The historic attempt (December 2023) is in git: the commit which added
-``django-pgtrigger==4.11.0`` together with pgtrigger operations in the
-squashed ``0001``, then churn migrations named
-``remove_datasetmetadatarecordkeywords_sync_keywords_list_and_more``, and the
-revert ``84509afc2`` which replaced the package with
-``django-pgviews-redux==0.9.4``. The symptom recorded there -- triggers
-disappearing from ``makemigrations`` -- is reproducible today, and its root
-cause is *not* a package incompatibility:
+``django-pgtrigger`` patches Django's standard ``makemigrations`` and
+``migrate`` commands. Its migration integration is enabled by default.
+No project-specific commands or combined autodetector are needed now that
+``django_pgviews`` is no longer an installed app.
 
-``django-pgviews-redux`` ships its own ``makemigrations`` and ``migrate``
-management commands whose ``autodetector`` is ``PGViewsAutodetector``.
-``django-pgtrigger`` does not ship a command of its own; it patches
-Django's *base* command classes with ``MigrationAutodetectorMixin``. Because
-the app command shadows the patched base command, pgviews' autodetector wins
-and pgtrigger's mixin never runs: seven triggers can be registered and
-installed in the database while ``makemigrations --check`` reports no drift
-and generates no trigger operations -- the triggers are silently invisible.
-Django's ``commands.E001`` system check then forbids the obvious repair of
-declaring both mixins on two commands: ``makemigrations`` and ``migrate`` must
-share the *same* autodetector class.
+The earlier workaround in commit ``7db0a0ebc`` combined pgviews' autodetector
+with pgtrigger's because pgviews' commands shadowed Django's patched commands.
+The consumers of pgviews have all been retired: ``e05e171d3`` removed the
+searchable projections, ``1711ab1ec`` removed the statistics materialized views,
+and ``1b1db1855`` replaced the final alerts view with stored rows. The combined
+autodetector, command wrappers, missing-view startup hook and view settings
+are therefore obsolete.
 
-The fix is a single project-level autodetector combining both mixins
-(``backend/MrMap/migration_detection.py``:
-``ViewsAndTriggersAutodetector(MigrationAutodetectorMixin,
-PGViewsAutodetector)``) plus thin ``makemigrations``/``migrate`` command
-wrappers in ``backend/MrMap/management/commands/`` which select it. App
-commands are looked up in *reverse* ``INSTALLED_APPS`` order, so ``MrMap``,
-which is listed before ``django_pgviews``, wins without reordering anything.
+Keep ``django-pgviews-redux`` as a dependency until a first-release
+migration reset: historical registry migrations still import its view
+operations. Those migrations carry the SQL needed to restore the old views
+on rollback, independently of an installed pgviews app or startup hook.
+Likewise, the old keyword SQL and ``AddKeywordsLinkTrigger`` remain necessary
+for applying and reversing the existing migration chain.
 
-Materialized views are unaffected: ``ServiceAlertView`` remains a pgviews
-``ReadOnlyView`` which is ``managed = False`` and created by the post-migrate
-hook of ``system/apps.py``, and
-``MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE`` stays on. No matview refresh
-is reintroduced anywhere by this.
+The live tests check installation through pgtrigger's status API and retain
+the keyword value, fixture, history and long-keyword regressions. Historical
+object replacement and rollback are tested in
+``tests/django/registry/models/tests_keyword_migrations.py``.
 
 
 Writing a new trigger

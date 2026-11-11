@@ -1275,6 +1275,15 @@ class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.DatasetMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     self_pointing_layers = models.ManyToManyField(to="registry.Layer",
                                                   through=MetadataRelation,
                                                   editable=False,
@@ -1350,6 +1359,15 @@ class ServiceMetadataRecord(MetadataRecord):
 
     """
 
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.ServiceMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     self_pointing_wms = models.ManyToManyField(to="registry.WebMapService",
                                                   through=MetadataRelation,
                                                   editable=False,
@@ -1412,6 +1430,15 @@ class ApplicationMetadataRecord(MetadataRecord):
     and nothing writes onto them until a catalogue actually publishes them.
     """
 
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.ApplicationMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     application_contact = models.ForeignKey(to=MetadataContact,
                                             on_delete=models.RESTRICT,
                                             related_name="%(class)s_application_contact",
@@ -1449,66 +1476,65 @@ class ApplicationMetadataRecord(MetadataRecord):
         ] + AbstractMetadata.Meta.indexes
 
 
-#: The keyword side of the three keywords relation models below, named once;
-#: a module constant because a class attribute of a model clashes with the
-#: ``keyword`` field it would sit next to (#1009).
-KEYWORD_TARGET = "registry.Keyword"
-
-
 class DatasetMetadataRecordKeywordsLink(models.Model):
-    """The keywords relation of the dataset records as an unmanaged model.
+    """The explicit through model of ``DatasetMetadataRecord.keywords``.
 
-    The table is the one of the auto-created through model of
-    ``DatasetMetadataRecord.keywords`` and stays created by it; this model only
-    makes that table addressable by the migration autodetector, which is what a
-    trigger of ``registry.triggers`` needs: triggers are declared on a model and
-    the auto-created through models never enter the migration state (#1009).
-    Being unmanaged, Django never creates, alters or drops the table through it.
+    Keep the table, columns and pair uniqueness of the original automatic M2M
+    relation. This model owns its schema and the trigger in ``registry.triggers``.
     """
 
+    # Registry defaults to BigAutoField; keep the existing AutoField columns.
+    id = models.AutoField(primary_key=True)
     datasetmetadatarecord = models.ForeignKey(
-        to="registry.DatasetMetadataRecord",
+        to=DatasetMetadataRecord,
         on_delete=models.CASCADE,
-        related_name="d_keywords_link+")
+        related_name="+")
     keyword = models.ForeignKey(
-        to=KEYWORD_TARGET,
+        to=Keyword,
         on_delete=models.CASCADE,
-        related_name="d_keywords_link+")
+        related_name="+")
 
     class Meta:
+        # Preserve the old automatic M2M table until migrations are reset for
+        # the first release. Then remove these db_table overrides to use
+        # Django's default through-model table names.
         db_table = "registry_datasetmetadatarecord_keywords"
-        managed = False
+        unique_together = (("datasetmetadatarecord", "keyword"),)
 
 
 class ServiceMetadataRecordKeywordsLink(models.Model):
     """The keywords relation of the service records, see the dataset one above."""
 
+    id = models.AutoField(primary_key=True)
     servicemetadatarecord = models.ForeignKey(
-        to="registry.ServiceMetadataRecord",
+        to=ServiceMetadataRecord,
         on_delete=models.CASCADE,
-        related_name="s_keywords_link+")
+        related_name="+")
     keyword = models.ForeignKey(
-        to=KEYWORD_TARGET,
+        to=Keyword,
         on_delete=models.CASCADE,
-        related_name="s_keywords_link+")
+        related_name="+")
 
     class Meta:
+        # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_servicemetadatarecord_keywords"
-        managed = False
+        unique_together = (("servicemetadatarecord", "keyword"),)
 
 
 class ApplicationMetadataRecordKeywordsLink(models.Model):
     """The keywords relation of the application records, see the dataset one above."""
 
+    id = models.AutoField(primary_key=True)
     applicationmetadatarecord = models.ForeignKey(
-        to="registry.ApplicationMetadataRecord",
+        to=ApplicationMetadataRecord,
         on_delete=models.CASCADE,
-        related_name="a_keywords_link+")
+        related_name="+")
     keyword = models.ForeignKey(
-        to=KEYWORD_TARGET,
+        to=Keyword,
         on_delete=models.CASCADE,
-        related_name="a_keywords_link+")
+        related_name="+")
 
     class Meta:
+        # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_applicationmetadatarecord_keywords"
-        managed = False
+        unique_together = (("applicationmetadatarecord", "keyword"),)

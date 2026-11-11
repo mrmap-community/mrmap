@@ -111,11 +111,6 @@ INSTALLED_APPS = [
     "system",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
-    "django_pgviews",
-    # the keyword maintenance of the records is declared as pgtrigger triggers
-    # and travels through the migrations of the registry (#1009); the commands
-    # of this package find the view detection of django_pgviews combined with
-    # its own in MrMap/management/commands
     "pgtrigger",
 ]
 
@@ -858,16 +853,6 @@ REST_FRAMEWORK = {
 #     'TOKEN_TTL': timedelta(hours=1),
 #     'AUTO_REFRESH': True,
 # }
-MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE = True
-MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
-
-# the keyword maintenance triggers of the registry travel through the
-# migrations of the project and are not installed as a side effect of migrate
-# (this is the default of the package; it is written down because a deployment
-# which turns it off silently stops maintaining the keywords of the records
-# through the migrations - see docs/source/development/keyword-triggers.rst)
-PGTRIGGER_MIGRATIONS = True
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

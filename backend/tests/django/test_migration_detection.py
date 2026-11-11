@@ -1,67 +1,69 @@
-"""The makemigrations of this project sees triggers *and* views (#1009).
+"""Django's standard migration commands detect the registered triggers.
 
-``django-pgviews-redux`` ships ``makemigrations`` and ``migrate`` commands whose
-autodetector only knows the views of that package; ``django-pgtrigger`` patches
-Django's base commands instead and ships no command of its own. App commands
-are looked up in reverse ``INSTALLED_APPS`` order, so pgviews' commands shadow
-the patched base and pgtrigger's autodetector mixin never runs -- triggers
-then stay invisible to ``makemigrations`` while the database holds them, which
-is the failure that reverted the first pgtrigger attempt in 2023. The project
-answers with one shared autodetector combining both mixins
-(``MrMap/migration_detection.py``) selected by thin command wrappers; Django's
-``commands.E001`` check requires ``makemigrations`` and ``migrate`` to share
-exactly that class. These guards fail the day either side of that arrangement
-breaks.
+The retired pgviews app previously shadowed pgtrigger's command integration.
+Historical view operations still load from the dependency without activating
+that app or requiring project-specific commands.
 """
+
+from types import SimpleNamespace
 
 from django.apps import apps
 from django.core.management import get_commands, load_command_class
+from django.db import connection
+from django.db.migrations.loader import MigrationLoader
+from django.db.migrations.state import ProjectState
 from django.test import SimpleTestCase
-from django_pgviews.management.commands.makemigrations import (
-    Command as PgViewsMakeMigrationsCommand)
-from pgtrigger.migrations import MigrationAutodetectorMixin
-
-from MrMap.migration_detection import ViewsAndTriggersAutodetector
+from pgtrigger import Insert, Protect
+from pgtrigger.migrations import AddTrigger, MigrationAutodetectorMixin
+from pgtrigger.registry import registered
 
 
 class CommandLookupTest(SimpleTestCase):
-    """The commands which run are the ones with the combined autodetector."""
+    """The standard commands use pgtrigger's migration integration."""
 
-    def test_the_project_commands_win_the_lookup(self):
-        self.assertEqual(get_commands().get('makemigrations'), 'MrMap')
-        self.assertEqual(get_commands().get('migrate'), 'MrMap')
+    def test_the_standard_commands_win_the_lookup(self):
+        self.assertEqual(get_commands().get('makemigrations'), 'django.core')
+        self.assertEqual(get_commands().get('migrate'), 'django.core')
 
-    def test_both_commands_share_the_combined_autodetector(self):
-        makemigrations = load_command_class('MrMap', 'makemigrations')
-        migrate = load_command_class('MrMap', 'migrate')
-        self.assertIs(makemigrations.autodetector, ViewsAndTriggersAutodetector)
+    def test_both_commands_share_the_trigger_autodetector(self):
+        makemigrations = load_command_class('django.core', 'makemigrations')
+        migrate = load_command_class('django.core', 'migrate')
         self.assertIs(migrate.autodetector, makemigrations.autodetector)
-
-    def test_the_autodetector_combines_both_packages(self):
-        self.assertTrue(issubclass(ViewsAndTriggersAutodetector,
+        self.assertTrue(issubclass(makemigrations.autodetector,
                                    MigrationAutodetectorMixin))
-        self.assertTrue(issubclass(ViewsAndTriggersAutodetector,
-                                   PgViewsMakeMigrationsCommand.autodetector))
 
-    def test_the_pgviews_command_would_shadow_the_patched_base(self):
-        """Documents the hazard this arrangement repairs: the command of the
-        views package alone has no trigger detection -- without the wrappers
-        above, it is the command which would run."""
-        self.assertFalse(issubclass(
-            PgViewsMakeMigrationsCommand.autodetector,
-            MigrationAutodetectorMixin))
+    def test_historical_view_migrations_load_without_the_retired_app(self):
+        self.assertFalse(apps.is_installed('django_pgviews'))
+        loader = MigrationLoader(None)
+        old_state = loader.project_state([('registry', '0017_auto_20261022_1331')])
+        self.assertIn(('registry', 'servicealertview'), old_state.models)
+        self.assertNotIn(('registry', 'servicealertview'), loader.project_state().models)
 
 
 class TriggerRegistrationTest(SimpleTestCase):
     """The keyword maintenance is registered on the models when ready()."""
 
+    def test_other_metadata_keeps_its_automatic_keywords_relations(self):
+        for name in ('WebMapService', 'WebFeatureService', 'CatalogueService',
+                     'Layer', 'FeatureType'):
+            with self.subTest(model=name):
+                model = apps.get_model('registry', name)
+                self.assertTrue(model.keywords.through._meta.auto_created)
+
+    def test_registered_sql_matches_the_existing_migrations(self):
+        state = MigrationLoader(None).project_state()
+        for model, trigger in registered():
+            with self.subTest(model=model._meta.label, trigger=trigger.name):
+                stored = state.models[model._meta.app_label, model._meta.model_name]
+                self.assertIn(trigger.compile(model), stored.options['triggers'])
+
     def test_every_maintenance_trigger_is_registered_on_its_model(self):
         from registry.models.metadata import (ApplicationMetadataRecord,
-                                              DatasetMetadataRecord, Keyword,
-                                              ServiceMetadataRecord)
-        from registry.triggers import (ApplicationMetadataRecordKeywordsLink,
-                                       DatasetMetadataRecordKeywordsLink,
-                                       ServiceMetadataRecordKeywordsLink)
+                                              ApplicationMetadataRecordKeywordsLink,
+                                              DatasetMetadataRecord,
+                                              DatasetMetadataRecordKeywordsLink,
+                                              Keyword, ServiceMetadataRecord,
+                                              ServiceMetadataRecordKeywordsLink)
 
         expected = {
             DatasetMetadataRecordKeywordsLink: 1,
@@ -79,10 +81,71 @@ class TriggerRegistrationTest(SimpleTestCase):
                 # the makemigrations autodetector reads the original attrs
                 self.assertIn('triggers', model._meta.original_attrs)
 
-        # the unmanaged link models are registered but create nothing
-        for link in (DatasetMetadataRecordKeywordsLink,
-                     ServiceMetadataRecordKeywordsLink,
-                     ApplicationMetadataRecordKeywordsLink):
-            self.assertFalse(link._meta.managed)
+        for record, link in (
+                (DatasetMetadataRecord, DatasetMetadataRecordKeywordsLink),
+                (ServiceMetadataRecord, ServiceMetadataRecordKeywordsLink),
+                (ApplicationMetadataRecord, ApplicationMetadataRecordKeywordsLink)):
+            self.assertTrue(link._meta.managed)
+            self.assertIs(record.keywords.through, link)
             self.assertIs(apps.get_model('registry', link.__name__),
                           link)
+
+
+class KeywordThroughMigrationStateTest(SimpleTestCase):
+    """The ownership transfer changes Django's state without issuing DDL."""
+
+    def test_the_transfer_preserves_table_definitions_in_both_directions(self):
+        loader = MigrationLoader(None)
+        migration = loader.get_migration('registry', '0046_explicit_keyword_through_models')
+        before = loader.project_state(migration.dependencies)
+        # No schema-editor methods are available: any attempted database operation fails.
+        schema_editor = SimpleNamespace(atomic_migration=True)
+        after = migration.apply(before.clone(), schema_editor)
+        reversed_state = migration.unapply(before.clone(), schema_editor)
+
+        for name in ('DatasetMetadataRecord', 'ServiceMetadataRecord',
+                     'ApplicationMetadataRecord'):
+            with self.subTest(record=name):
+                automatic = before.apps.get_model('registry', name).keywords.through
+                managed = after.apps.get_model('registry', name).keywords.through
+                reversed_model = reversed_state.apps.get_model('registry', name).keywords.through
+                self.assertTrue(managed._meta.managed)
+                self.assertFalse(managed._meta.auto_created)
+                self.assertTrue(reversed_model._meta.auto_created)
+                for link in (managed, reversed_model):
+                    self.assertEqual(link._meta.db_table, automatic._meta.db_table)
+                    self.assertEqual(set(link._meta.unique_together),
+                                     set(automatic._meta.unique_together))
+                    self.assertEqual(
+                        [(field.column, field.get_internal_type(), field.primary_key,
+                          field.null) for field in link._meta.fields],
+                        [(field.column, field.get_internal_type(), field.primary_key,
+                          field.null) for field in automatic._meta.fields])
+                self.assertEqual(len(managed._meta.triggers), 1)
+
+    def test_future_link_triggers_use_ordinary_migration_operations(self):
+        loader = MigrationLoader(None)
+        future = ProjectState.from_apps(apps)
+        link_names = {
+            'datasetmetadatarecordkeywordslink',
+            'servicemetadatarecordkeywordslink',
+            'applicationmetadatarecordkeywordslink',
+        }
+        for name in link_names:
+            model_state = future.models['registry', name]
+            model_state.options['triggers'] = [
+                *model_state.options['triggers'],
+                Protect(name='protect_link_probe', operation=Insert),
+            ]
+        command = load_command_class(get_commands()['makemigrations'], 'makemigrations')
+        changes = command.autodetector(loader.project_state(), future).changes(
+            graph=loader.graph)
+        operations = [operation for migration in changes['registry']
+                      for operation in migration.operations]
+        self.assertEqual(len(operations), 3)
+        self.assertEqual({operation.model_name for operation in operations}, link_names)
+        for operation in operations:
+            self.assertIs(type(operation), AddTrigger)
+            model = apps.get_model('registry', operation.model_name)
+            self.assertTrue(operation.allow_migrate_model_trigger(
+                SimpleNamespace(connection=connection), model))

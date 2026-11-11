@@ -30,10 +30,9 @@ and the migrate command read them. There are three kinds:
     which hold the keyword. This is a set based update and meant to be rare:
     an administrative edit, not a harvesting path.
 
-The sync triggers are registered on the unmanaged models
-``registry.models.metadata....KeywordsLink``: a trigger is declared on a model,
-and the auto-created through model of an ``ManyToManyField`` never enters the
-migration state, so the autodetector cannot see a trigger on it (#1009).
+The sync triggers are registered on the explicit through models
+``registry.models.metadata....KeywordsLink``. These managed models own the
+existing keywords relation tables and expose their triggers to migrations.
 
 Trigger objects in the database are named ``pgtrigger_<name>_<hash>``, not by
 the legacy names -- the package manages its objects under that prefix and reads
@@ -46,22 +45,24 @@ from pgtrigger import (After, Before, Delete, Insert, Trigger, Update,
 from pgtrigger.migrations import AddTrigger
 
 from registry.models.metadata import (ApplicationMetadataRecord,
-                                      ApplicationMetadataRecordKeywordsLink,
-                                      DatasetMetadataRecord,
-                                      DatasetMetadataRecordKeywordsLink,
-                                      Keyword, ServiceMetadataRecord,
-                                      ServiceMetadataRecordKeywordsLink)
+                                      DatasetMetadataRecord, Keyword,
+                                      ServiceMetadataRecord)
+
+
+METADATA_RECORD_MODELS = (
+    DatasetMetadataRecord, ServiceMetadataRecord, ApplicationMetadataRecord,
+)
 
 
 class AddKeywordsLinkTrigger(AddTrigger):
-    """The AddTrigger of the keywords relation triggers.
+    """Historical operation used by the unmanaged link models in migration 0039.
 
-    Django's migrate skips every operation of an unmanaged model, and the link
-    models carrying the sync triggers are unmanaged on purpose -- their table
-    belongs to the keywords field, not to them. Their trigger must nevertheless
-    reach the database from the migration, so this operation asks only the
-    vendor, exactly as its parent does for a managed model (#1009). The reverse
-    of the operation -- the trigger removal -- goes through the same check.
+    The link models in that migration were unmanaged: their tables belonged to
+    the automatic keywords relations. Django skipped their database operations,
+    so this operation checked only the database vendor to install the triggers
+    (#1009). Its reverse uses the same check.
+    Keep this class for applying and reversing that migration; the managed
+    through models now use the ordinary pgtrigger operations.
     """
 
     def allow_migrate_model_trigger(self, schema_editor, model):
@@ -89,13 +90,10 @@ class SyncKeywordsList(Trigger):
     operation = Insert | Update | Delete
     declare = [("record_id", "uuid")]
 
-    # set by the subclasses: (record table, relation table, foreign key) as
-    # the triples of MAINTAINED_RECORD_TYPES in 0021 name them
-    RECORD_TABLE = ""
-    RELATION_TABLE = ""
-    FOREIGN_KEY = ""
-
     def get_func(self, model):
+        record_field = next(field for field in model._meta.fields
+                            if field.is_relation
+                            and field.related_model._meta.label_lower != Keyword._meta.label_lower)
         return """
     -- the key is read through jsonb: which side of the relation the trigger
     -- row is depends on the operation
@@ -112,32 +110,11 @@ class SyncKeywordsList(Trigger):
 
     RETURN NULL;
 """.format(
-            foreign_key=self.FOREIGN_KEY,
-            record=self.RECORD_TABLE,
+            foreign_key=record_field.column,
+            record=record_field.related_model._meta.db_table,
             aggregate=AGGREGATE.format(
-                relation=self.RELATION_TABLE,
-                foreign_key=self.FOREIGN_KEY))
-
-
-class DatasetMetadataRecordKeywordsListSync(SyncKeywordsList):
-    name = "datasetmetadatarecord_keywords_list_sync"
-    RECORD_TABLE = "registry_datasetmetadatarecord"
-    RELATION_TABLE = "registry_datasetmetadatarecord_keywords"
-    FOREIGN_KEY = "datasetmetadatarecord_id"
-
-
-class ServiceMetadataRecordKeywordsListSync(SyncKeywordsList):
-    name = "servicemetadatarecord_keywords_list_sync"
-    RECORD_TABLE = "registry_servicemetadatarecord"
-    RELATION_TABLE = "registry_servicemetadatarecord_keywords"
-    FOREIGN_KEY = "servicemetadatarecord_id"
-
-
-class ApplicationMetadataRecordKeywordsListSync(SyncKeywordsList):
-    name = "applicationmetadatarecord_keywords_list_sync"
-    RECORD_TABLE = "registry_applicationmetadatarecord"
-    RELATION_TABLE = "registry_applicationmetadatarecord_keywords"
-    FOREIGN_KEY = "applicationmetadatarecord_id"
+                relation=model._meta.db_table,
+                foreign_key=record_field.column))
 
 
 class KeepKeywordsList(Trigger):
@@ -148,12 +125,8 @@ class KeepKeywordsList(Trigger):
     operation = Update
     declare = [("maintained", "text[]")]
 
-    # set by the subclasses, as in SyncKeywordsList
-    RECORD_TABLE = ""
-    RELATION_TABLE = ""
-    FOREIGN_KEY = ""
-
     def get_func(self, model):
+        keywords = model._meta.get_field("keywords")
         return """
     -- the array belongs to the database, so a value which differs from the stored
     -- one is not a change but a write which did not read the column: answered from
@@ -170,31 +143,10 @@ class KeepKeywordsList(Trigger):
 
     RETURN NEW;
 """.format(
-            record=self.RECORD_TABLE,
+            record=model._meta.db_table,
             aggregate=AGGREGATE.format(
-                relation=self.RELATION_TABLE,
-                foreign_key=self.FOREIGN_KEY))
-
-
-class DatasetMetadataRecordKeywordsListKeep(KeepKeywordsList):
-    name = "datasetmetadatarecord_keywords_list_keep"
-    RECORD_TABLE = "registry_datasetmetadatarecord"
-    RELATION_TABLE = "registry_datasetmetadatarecord_keywords"
-    FOREIGN_KEY = "datasetmetadatarecord_id"
-
-
-class ServiceMetadataRecordKeywordsListKeep(KeepKeywordsList):
-    name = "servicemetadatarecord_keywords_list_keep"
-    RECORD_TABLE = "registry_servicemetadatarecord"
-    RELATION_TABLE = "registry_servicemetadatarecord_keywords"
-    FOREIGN_KEY = "servicemetadatarecord_id"
-
-
-class ApplicationMetadataRecordKeywordsListKeep(KeepKeywordsList):
-    name = "applicationmetadatarecord_keywords_list_keep"
-    RECORD_TABLE = "registry_applicationmetadatarecord"
-    RELATION_TABLE = "registry_applicationmetadatarecord_keywords"
-    FOREIGN_KEY = "applicationmetadatarecord_id"
+                relation=keywords.remote_field.through._meta.db_table,
+                foreign_key=keywords.m2m_column_name()))
 
 
 class SyncKeywordRenameToMetadatarecords(Trigger):
@@ -206,27 +158,18 @@ class SyncKeywordRenameToMetadatarecords(Trigger):
     when = After
     operation = UpdateOf("keyword")
 
-    # the record types a rename reaches, as 0033 lists them
-    MAINTAINED_RECORD_TYPES = [
-        ("registry_datasetmetadatarecord",
-         "registry_datasetmetadatarecord_keywords", "datasetmetadatarecord_id"),
-        ("registry_servicemetadatarecord",
-         "registry_servicemetadatarecord_keywords", "servicemetadatarecord_id"),
-        ("registry_applicationmetadatarecord",
-         "registry_applicationmetadatarecord_keywords",
-         "applicationmetadatarecord_id"),
-    ]
-
     def get_func(self, model):
         updates = ""
-        for record, relation, foreign_key in self.MAINTAINED_RECORD_TYPES:
+        for record in METADATA_RECORD_MODELS:
+            keywords = record._meta.get_field("keywords")
             updates += """        UPDATE {record} AS record
            SET keywords_list = {aggregate};
 
 """.format(
-                record=record,
+                record=record._meta.db_table,
                 aggregate=AGGREGATE.format(
-                    relation=relation, foreign_key=foreign_key))
+                    relation=keywords.remote_field.through._meta.db_table,
+                    foreign_key=keywords.m2m_column_name()))
 
         return """
     IF OLD.keyword IS DISTINCT FROM NEW.keyword THEN
@@ -236,19 +179,13 @@ class SyncKeywordRenameToMetadatarecords(Trigger):
 """.format(updates=updates)
 
 
-# the registration: on the relation tables it is the unmanaged link models
-# which carry it (see the module docstring), on the record tables and the
-# keyword the maintained models themselves.
-register(DatasetMetadataRecordKeywordsListSync())(
-    DatasetMetadataRecordKeywordsLink)
-register(ServiceMetadataRecordKeywordsListSync())(
-    ServiceMetadataRecordKeywordsLink)
-register(ApplicationMetadataRecordKeywordsListSync())(
-    ApplicationMetadataRecordKeywordsLink)
-
-register(DatasetMetadataRecordKeywordsListKeep())(DatasetMetadataRecord)
-register(ServiceMetadataRecordKeywordsListKeep())(ServiceMetadataRecord)
-register(ApplicationMetadataRecordKeywordsListKeep())(
-    ApplicationMetadataRecord)
+# Register relation triggers on the through models and the remaining triggers
+# on the record and keyword models themselves.
+for record_model in METADATA_RECORD_MODELS:
+    register(SyncKeywordsList(
+        name=f"{record_model._meta.model_name}_keywords_list_sync"))(
+            record_model.keywords.through)
+    register(KeepKeywordsList(
+        name=f"{record_model._meta.model_name}_keywords_list_keep"))(record_model)
 
 register(SyncKeywordRenameToMetadatarecords())(Keyword)

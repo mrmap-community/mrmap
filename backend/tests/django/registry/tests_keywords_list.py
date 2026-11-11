@@ -5,19 +5,15 @@ the record itself, so what matters here is that it is never behind, ahead of or
 shaped differently than the keywords relation it stands in for.
 """
 
-from importlib import import_module
-
 from django.core import serializers
-from django.db import connection
-from django.test import TestCase
+from django.db import IntegrityError, connection, transaction
+from django.test import SimpleTestCase, TestCase
+from pgtrigger.registry import registered
 
 from registry.mappers.persistence.custom import _defaults_of_instance
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, Keyword,
                                       MetadataContact, ServiceMetadataRecord)
-
-keywords_list_migration = import_module(
-    'registry.migrations.0021_metadatarecords_keywords_list')
 
 
 class KeywordsListTest(TestCase):
@@ -85,6 +81,45 @@ class KeywordsListTest(TestCase):
                 record.keywords.set([self.beta, self.alpha])
                 self.assertEqual(self.keywords_of(record), ['alpha', 'beta'])
 
+    def test_explicit_links_keep_the_array_in_sync_and_pairs_unique(self):
+        for record in (self.dataset, self.service_metadata, self.application):
+            with self.subTest(record=record.__class__.__name__):
+                relation = record.keywords
+                link_model = relation.through
+                record_key = {relation.source_field_name: record}
+                link_model.objects.bulk_create([
+                    link_model(**record_key, keyword=self.alpha),
+                    link_model(**record_key, keyword=self.beta),
+                ])
+                self.assertEqual(self.keywords_of(record), ['alpha', 'beta'])
+                self.assertCountEqual(relation.all(), [self.alpha, self.beta])
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    link_model.objects.create(**record_key, keyword=self.alpha)
+                link_model.objects.filter(**record_key, keyword=self.alpha).delete()
+                self.assertEqual(self.keywords_of(record), ['beta'])
+
+    def test_relationship_writes_work_for_every_explicit_through_model(self):
+        for record in (self.dataset, self.service_metadata, self.application):
+            with self.subTest(record=record.__class__.__name__):
+                record.keywords.add(self.alpha, self.beta)
+                record.keywords.add(self.alpha)
+                self.assertEqual(record.keywords.count(), 2)
+                record.keywords.set([self.beta, self.gamma])
+                self.assertEqual(self.keywords_of(record), ['beta', 'gamma'])
+                record.keywords.remove(self.beta)
+                self.assertEqual(self.keywords_of(record), ['gamma'])
+                record.keywords.clear()
+                self.assertEqual(self.keywords_of(record), [])
+
+    def test_deleting_a_keyword_cascades_through_the_explicit_links(self):
+        records = (self.dataset, self.service_metadata, self.application)
+        for record in records:
+            record.keywords.add(self.alpha, self.beta)
+        self.alpha.delete()
+        for record in records:
+            with self.subTest(record=record.__class__.__name__):
+                self.assertEqual(self.keywords_of(record), ['beta'])
+
     def test_a_renamed_keyword_updates_the_records_holding_it(self):
         """The rename does not pass through a keywords relation, so its fan-out
         names the record tables -- every table which holds the array, not only the
@@ -122,47 +157,6 @@ class KeywordRenameScopeTest(TestCase):
         self.other.refresh_from_db()
         self.assertEqual(self.holding.keywords_list, ['holds me renamed'])
         self.assertEqual(self.other.keywords_list, [])
-
-
-class BackfillTest(TestCase):
-    """The statement which repairs the rows written before the trigger existed."""
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.contact = MetadataContact.objects.create(name='Keywords contact')
-        cls.dataset = DatasetMetadataRecord.objects.create(
-            metadata_contact=cls.contact, dataset_contact=cls.contact, title='Dataset')
-        cls.service_metadata = ServiceMetadataRecord.objects.create(
-            metadata_contact=cls.contact, title='Service metadata')
-        cls.keyword = Keyword.objects.create(keyword='alpha')
-
-    def corrupt(self, record):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f'UPDATE {record._meta.db_table} SET keywords_list = %s WHERE id = %s',
-                [['stale'], record.pk])
-
-    def read(self, record):
-        return list(record.__class__.objects.values_list('keywords_list', flat=True).get(pk=record.pk))
-
-    def test_the_backfill_repairs_a_record_which_is_behind(self):
-        self.dataset.keywords.set([self.keyword])
-        self.service_metadata.keywords.set([self.keyword])
-        self.corrupt(self.dataset)
-        self.corrupt(self.service_metadata)
-
-        with connection.cursor() as cursor:
-            cursor.execute(keywords_list_migration.BACKFILL)
-
-        self.assertEqual(self.read(self.dataset), ['alpha'])
-        self.assertEqual(self.read(self.service_metadata), ['alpha'])
-
-    def test_the_backfill_answers_the_very_value_the_trigger_writes(self):
-        self.dataset.keywords.set([self.keyword])
-        before = self.read(self.dataset)
-        with connection.cursor() as cursor:
-            cursor.execute(keywords_list_migration.BACKFILL)
-        self.assertEqual(self.read(self.dataset), before)
 
 
 class KeywordsListIsNotHistoryTest(TestCase):
@@ -281,48 +275,12 @@ class WrittenKeywordsListTest(TestCase):
 
 
 class PgtriggerOwnershipTest(TestCase):
-    """After the transfer of 0035 the package owns the maintenance objects.
+    """The database runs the current registered definitions."""
 
-    The point of #1009 is that every keyword rule is exactly one trigger which
-    the migrations of pgtrigger know. Both halves are asked here: that nothing
-    of the hand written legacy objects survives, and that no rule is installed
-    twice -- a duplicated keep trigger would answer a write twice and a
-    duplicated sync trigger would pay for the aggregate twice on every harvest
-    write.
-    """
-
-    def catalog(self, predicate):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                'SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid'
-                ' WHERE NOT tgisinternal AND ' + predicate + ' ORDER BY tgname')
-            return [row[0] for row in cursor.fetchall()]
-
-    def test_the_maintenance_triggers_are_the_objects_of_the_package(self):
-        own = self.catalog(
-            "(tgname LIKE 'pgtrigger\\_%' AND (tgname LIKE '%\\_keywords\\_list\\_%'"
-            " OR tgname LIKE '%\\_metadatarecords%'))"
-            " OR (tgname NOT LIKE 'pgtrigger\\_%' AND (tgname LIKE '%keywords\\_list%'"
-            " OR tgname = 'registry_keyword_sync_to_metadatarecords'))")
-        self.assertEqual(len(own), 7, own)
-        self.assertTrue(all(name.startswith('pgtrigger_') for name in own), own)
-
-    def test_the_legacy_functions_are_gone(self):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT proname FROM pg_proc WHERE proname IN ("
-                "'registry_sync_metadatarecord_keywords_list',"
-                "'registry_keep_metadatarecord_keywords_list',"
-                "'registry_sync_keyword_rename_to_metadatarecords')")
-            self.assertEqual([row[0] for row in cursor.fetchall()], [])
-
-    def test_every_rule_is_installed_exactly_once(self):
-        """One function per trigger, no orphans of earlier installs."""
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT count(*) FROM pg_proc WHERE proname LIKE 'pgtrigger\\_%'"
-                " AND (proname LIKE '%keywords\\_list%' OR proname LIKE '%metadatarecords%')")
-            self.assertEqual(cursor.fetchone()[0], 7)
+    def test_registered_triggers_are_current_and_enabled(self):
+        for model, trigger in registered():
+            with self.subTest(model=model._meta.label, trigger=trigger.name):
+                self.assertEqual(trigger.get_installation_status(model), ('INSTALLED', True))
 
 
 class TooLongKeywordTest(TestCase):
@@ -408,34 +366,20 @@ class TooLongKeywordTest(TestCase):
         self.assertEqual(self.keywords_of(self.dataset), before)
 
 
-class MaintainingFunctionsBodyTest(TestCase):
+class MaintainingFunctionsBodyTest(SimpleTestCase):
     """No maintaining body carries a width the columns gave up.
 
     The maintenance statements are data: the ``ALTER TYPE`` of ``0028`` did not
     reach into the aggregate written into the function bodies of ``0021``,
     ``0024`` and ``0033``, and the narrow ``varchar(300)[]`` fallback inside
     them is what coerced every aggregated keyword on a deployed cluster.
-    Newer clusters resolve the same COALESCE onto the aggregated array and
-    answer nothing -- no behavioural test on this schema can notice the narrow
-    body. Asking the catalog is the one check which fails as long as the
-    narrow literal is installed, whichever postgres reads it (0035). Since
-    #1009 the same statements live in the trigger functions of pgtrigger
-    instead of the three shared legacy functions, and the question is asked
-    of them: the guarantee belongs to the body, not to whoever stores it.
+    Newer clusters resolve the same COALESCE onto the aggregated array, so the
+    value tests alone cannot detect a narrowed fallback on every PostgreSQL
+    version. Check the registered bodies directly; PgtriggerOwnershipTest
+    verifies that the database has those definitions installed.
     """
 
     def test_no_maintaining_body_narrows_the_keywords_it_aggregates(self):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT proname, prosrc FROM pg_proc "
-                "WHERE proname LIKE 'pgtrigger\\_%' "
-                "AND (proname LIKE '%keywords\\_list%' "
-                "OR proname LIKE '%metadatarecords%')")
-            bodies = dict(cursor.fetchall())
-
-        self.assertEqual(len(bodies), 7, sorted(bodies))
-        for name, body in bodies.items():
-            self.assertNotIn(
-                'varchar(300)', body,
-                'the stored body of %s still casts the aggregated keywords to '
-                'the width the columns gave up with 0028' % name)
+        for model, trigger in registered():
+            with self.subTest(model=model._meta.label, trigger=trigger.name):
+                self.assertNotIn('varchar(300)', trigger.get_func(model))

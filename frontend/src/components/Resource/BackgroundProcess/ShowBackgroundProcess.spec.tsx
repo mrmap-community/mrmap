@@ -49,6 +49,8 @@ vi.mock("react-admin", () => ({
 
 vi.mock("../../Field/ProgressField", () => ({ default: () => null }));
 vi.mock("../../Field/RelatedResourceField", () => ({ default: () => null }));
+vi.mock("../../Field/DurationField", () => ({ default: () => null }));
+vi.mock("./BackgroundProcessLogs", () => ({ default: () => null }));
 vi.mock("./ProcessStatusField", () => ({ default: () => null }));
 
 /** the tick of the provider, in milliseconds - the interval of seconds it is

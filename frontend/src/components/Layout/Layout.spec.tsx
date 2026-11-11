@@ -23,6 +23,10 @@ const state = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
 
+// the Background Job Center (#1203): a counting stand-in proves the mount
+// without its store joining the bus or notifying in this spec
+const jobCenterMounts = vi.hoisted(() => vi.fn());
+
 // the react-admin surface the layout and the background-job bridge use; the
 // bridge itself and its store run unmocked, so the wiring is the one shipping
 vi.mock('react-admin', () => ({
@@ -57,6 +61,12 @@ vi.mock('../../context/HttpClientContext', () => ({
 }));
 vi.mock('../../jsonapi/components/I18Observer', () => ({ default: () => null }));
 vi.mock('../../jsonapi/components/Realtime/RealtimeBus', () => ({ default: () => null }));
+vi.mock('../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext', () => ({
+  default: ({ children }: { children?: ReactNode }) => {
+    jobCenterMounts();
+    return <>{children}</>;
+  },
+}));
 vi.mock('./AppBar', () => ({ default: () => null }));
 vi.mock('./Menu', () => ({ default: () => null }));
 vi.mock('./BreadCrump', () => ({ default: () => null }));
@@ -80,6 +90,7 @@ beforeEach(() => {
   state.listData = [];
   state.refetch.mockClear();
   state.notify.mockClear();
+  jobCenterMounts.mockClear();
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -117,5 +128,18 @@ describe('MyLayout', () => {
     expect(state.notify).toHaveBeenCalledWith('backgroundJobs.notification.failedOne', {
       type: 'error',
     });
+  });
+
+  it('mounts the Background Job Center around the layout', () => {
+    render(
+      <MyLayout>
+        <span />
+      </MyLayout>,
+    );
+    expect(jobCenterMounts).toHaveBeenCalled();
+    // the legacy per-event snackbar observer retired with notistack (#1203):
+    // there is no module left to mount, the bridge above is the notification
+    // path — so this spec can no longer stand one in, it can only pin the
+    // bridge and the center
   });
 });

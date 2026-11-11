@@ -1,8 +1,10 @@
 import { DateField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField } from 'react-admin';
 
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
+import DurationField from '../../Field/DurationField';
 import ProgressField from '../../Field/ProgressField';
 import RelatedResourceField from '../../Field/RelatedResourceField';
+import BackgroundProcessLogs from './BackgroundProcessLogs';
 import ProcessStatusField from './ProcessStatusField';
 
 /** how often the show screen looks whether the record it shows went stale,
@@ -37,13 +39,19 @@ const ShowBackgroundProcess = () => {
         <SimpleShowLayout>
           <ProcessStatusField source="status" />
           <RelatedResourceField source="relatedResource" />
+          <TextField source="description" />
           <TextField source="phase" />
           <DateField source="dateCreated" showTime/>
           <DateField source="doneAt" showTime/>
+          <DurationField source="duration" />
           <NumberField source="totalSteps"/>
           <NumberField source="doneSteps"/>
           <ProgressField source="progress"/>
         </SimpleShowLayout>
+        {/* the errors the worker wrote survive the notification which announced
+            them: they are read from the api of the process, not from a bus
+            message which is gone on reload (#1208) */}
+        <BackgroundProcessLogs />
         </ShowView>
       </RealtimeShowContextProvider>
     )

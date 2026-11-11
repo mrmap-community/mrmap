@@ -1,10 +1,13 @@
 import uuid
+from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.core.files.storage import default_storage
 from django.db import models
-from django.db.models import F, Func, Value
+from django.db.models import F, Func, Q, Value
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from MrMap.celery import app
@@ -27,6 +30,16 @@ class AppendTaskIds(Func):
 
 
 class BackgroundProcess(models.Model):
+    """The durable report of one background operation (#1208).
+
+    A process outlives the moment it was created: it is how the job history
+    of the frontend answers what the deployment did, what failed and how long
+    it took, after the snackbar which announced it is gone. Rows of decided
+    processes are taken back by ``purge_expired_background_processes`` after
+    the retention of the deployment; processes which did not end yet are
+    never of that kind.
+    """
+
     status = models.PositiveSmallIntegerField(
         choices=ProcessStatusEnum.choices,
         default=ProcessStatusEnum.PENDING,
@@ -150,6 +163,28 @@ class BackgroundProcess(models.Model):
 
     def __str__(self):
         return f"{self.process_type} {self.related_id}"
+
+    @property
+    def duration(self):
+        """The seconds from the creation of this process to its decision.
+
+        This is the wall-clock span between the two timestamps the process
+        stores itself: it answers how long the request waited for its
+        decision, the waiting, retry and scheduling intervals of the related
+        celery tasks included - tasks of one process are scheduled
+        independently, not exactly one after another. It is NOT the time the
+        work spent running: per-task running times are no longer persisted
+        since the ``TaskResult`` mirror was retired (#1180), so no better
+        answer is derivable from this model, and the api therefore labels it
+        as the time until the process decided rather than a work duration.
+
+        A process which did not decide about itself yet took no time to
+        finish, and the answer of a process which names no creation moment
+        would be a guess - both answer ``None``.
+        """
+        if self.done_at is None or self.date_created is None:
+            return None
+        return (self.done_at - self.date_created).total_seconds()
 
     def append_celery_task_ids(self, task_ids):
         """Register task ids as belonging to this process, durably.
@@ -292,3 +327,65 @@ class BackgroundProcessLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+
+def purge_expired_background_processes(retention_days=None) -> dict:
+    """Takes back the background processes whose retention has passed (#1208).
+
+    The rows a decided process leaves are the job history itself: services,
+    catalogues and monitoring settings delete their own records, but nothing
+    but this sweep takes the reports of the work done on them back, so the
+    history would grow with every operation of the deployment. Only processes
+    which decided about themselves go: ``done_at`` is the moment of that
+    decision, and a terminal process which names none falls back onto the
+    moment it was created. A process which did not end yet is never of that
+    kind - the history is bounded, a running job is not deleted out of it.
+
+    The log entries of a process go with it by cascade. The files their
+    ``extented_description`` names are taken back here, because the cascade
+    deletes rows and never touches the storage. The thread mirror of the
+    process was retired with the async-process migration (#1180), so nothing
+    but the process' own reports cascades here. A retention of 0
+    keeps every process until an operator removes it.
+
+    Returns what was done, which is what the log line and the beat result say.
+    """
+    days = (settings.BACKGROUND_PROCESS_RETENTION_DAYS
+            if retention_days is None else retention_days)
+    if days <= 0:
+        return {"retention_days": days, "purged": 0, "logs": 0, "files": 0}
+
+    cutoff = now() - timedelta(days=days)
+    expired = BackgroundProcess.objects.filter(
+        Q(done_at__lt=cutoff)
+        | Q(done_at__isnull=True,
+            status__in=BackgroundProcessManager.TERMINAL_STATUS,
+            date_created__lt=cutoff))
+    pks = list(expired.values_list("pk", flat=True))
+    if not pks:
+        return {"retention_days": days, "purged": 0, "logs": 0, "files": 0}
+
+    # the names before the rows: after the cascade there is nothing left
+    # pointing at the stored files anymore
+    stored_files = [
+        name for name in BackgroundProcessLog.objects.filter(
+            background_process_id__in=pks)
+        .exclude(extented_description="")
+        .exclude(extented_description=None)
+        .values_list("extented_description", flat=True)]
+
+    logs = BackgroundProcessLog.objects.filter(
+        background_process_id__in=pks).delete()[1].get(
+            "notify.BackgroundProcessLog", 0)
+    purged = expired.delete()[1].get("notify.BackgroundProcess", 0)
+
+    files = 0
+    for name in stored_files:
+        try:
+            default_storage.delete(name)
+            files += 1
+        except (FileNotFoundError, OSError):
+            pass  # the storage does not hold it - which is what this sweep wants
+
+    return {"retention_days": days, "purged": purged, "logs": logs,
+            "files": files}

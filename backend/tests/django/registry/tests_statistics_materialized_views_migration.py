@@ -2,12 +2,10 @@
 
 The nine views of #857 answered the per-day statistics of a resource; the
 endpoints answer the same aggregation over the audit records themselves since
-that issue. A view is not part of the migration state -- django-pgviews creates
-it from its model, see ``system.apps.sync_pg_views_if_missing`` -- and the models
-which answered these nine are gone from the code, so the hook which watches for
-missing views cannot help on the way back either: the migration carries the
-statement of both directions itself, and that statement is what this test asks
-for.
+that issue. A view is not part of the migration state -- django-pgviews used to
+create it from its model -- and its models and startup hook are gone. The
+migration carries the statement of both directions itself, and that statement
+is what this test asks for.
 
 Which rows the way back recreates matters as much as the fact that it recreates
 them: a definition which no longer answers the audit rows it aggregated is a

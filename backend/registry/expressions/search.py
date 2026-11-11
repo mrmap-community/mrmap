@@ -19,7 +19,7 @@ normal in a query are ruled out by that:
 What these expressions answer are the words a record is found by: the text a record
 answers its consumers with, tokenized into words, plus the words of every keyword of
 the record. The keywords reach the vector through the array which the database
-maintains for them (:mod:`registry.migrations.0021_metadatarecords_keywords_list`), so
+maintains for them (:mod:`registry.triggers`), so
 that a record which was just written is searchable without anything rebuilt.
 """
 from django.contrib.postgres.search import SearchQuery, SearchVectorField

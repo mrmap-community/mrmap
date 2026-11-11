@@ -300,9 +300,9 @@ busy; it never displaces a running job. The counts are
 prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
 and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
 job can tune the gate without editing the file: `AGENT_MAX_CPU_PRESSURE` (10,
-the cgroup's own CPU stall — the host load average decides only where no
-`cpu.pressure` is readable, because on a shared host it counts tenants this
-cgroup does not control), `AGENT_MAX_LOAD_PER_CORE` (1.5),
+the container cgroup's own CPU stall — the outer host's load average decides
+only where no `cpu.pressure` is readable, because it counts tenants this
+container does not control), `AGENT_MAX_LOAD_PER_CORE` (1.5),
 `AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
 `AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
 (16, the floor when no memory limit of this cgroup is visible),

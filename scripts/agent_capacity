@@ -45,15 +45,19 @@ timeouts.
 
 Why the CPU metric is not the load average
 ------------------------------------------
-Load average has no cgroup scope: `/proc/loadavg` counts the runnable threads
-of every tenant of the machine. On the 2026-11-11 host the agent cgroup idled
-at ~1 core while the host carried load 34 (1.7 per core) from workloads
-outside the cgroup's PID and cgroup view, and the gate refused its own first
-stack over load it neither caused nor could end. So the gate reads the
-cgroup's own CPU pressure (`cpu.pressure` "some avg10" of this level and every
-parent): the stalls this job's future tasks would actually meet. The host-wide
-load average decides only where no `cpu.pressure` is readable - the
-unshared-host and cgroup-v1 cases the number was originally written for.
+Load average has no cgroup scope. This deployment is a Docker container on a
+shared outer host, and `/proc/loadavg` is not namespaced: it reports the outer
+host's runnable threads, while the container's own cgroup (the namespace root
+the gate walks) says nothing about them. On the 2026-11-11 host the agent
+container idled at ~1 core of its quota while the outer host carried load 34
+(1.7 per core) from work outside this container's PID and cgroup view, and the
+gate refused its own first stack over load it neither caused nor could end.
+So the gate reads the container's own CPU pressure (`cpu.pressure` "some
+avg10" of this level and every parent; inside the namespace this aggregates
+the whole container subtree, nested test stacks included): the stalls this
+job's future tasks would actually meet. The host-wide load average decides
+only where no `cpu.pressure` is readable - the unshared-host and cgroup-v1
+cases the number was originally written for.
 
 Nested docker is accounted for, not trusted: containers started by an in-container
 dockerd are children of this cgroup (reported as `docker GiB`), so their memory

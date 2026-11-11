@@ -97,16 +97,18 @@ have. Swap is deliberately not counted - a stack that has reached swap misses
 its own timeouts.
 
 The CPU decision reads the cgroup's own stall, not the host's load average.
-Load average has no cgroup scope: ``/proc/loadavg`` counts the runnable
-threads of every tenant of the machine, and there is no per-cgroup load
-average to read instead. On 2026-11-11 the agent cgroup idled at ~1 core of
-its 20-core quota while the host carried load 34 - 1.7 per core, over the
-1.5 gate - from work outside the cgroup's view entirely, and the gate refused
-its own first stack over load it neither caused nor could end. The verdict
-still reports the host number (``host load 1.7/core unscoped``) so a shared
-host is visible, but admission uses ``cpu.pressure`` ``some avg10`` - the
-stall percentage the tasks of *this* cgroup actually experienced, worst of
-this level and its parents. The load average decides only where no
+Load average has no cgroup scope, and the agent's `/proc/loadavg` is not
+namespaced: it counts the runnable threads of the *outer* host even though
+the agent runs inside a Docker container whose cgroup (the namespace root the
+gate walks) contains only this session, its dockerd and the nested test
+stacks. On 2026-11-11 the agent container idled at ~1 core of its quota while
+the outer host carried load 34 - 1.7 per core, over the 1.5 gate - from work
+outside the container's view entirely, and the gate refused its own first
+stack over load it neither caused nor could end. The verdict still reports
+the host number (``host load 1.7/core unscoped``) so the outer host stays
+visible, but admission uses ``cpu.pressure`` ``some avg10`` - the stall
+percentage the tasks of *this container* actually experienced, worst of this
+level and its parents. The load average decides only where no
 ``cpu.pressure`` is readable (cgroup v1, kernels without PSI): the case the
 1.5-per-core number was originally written for.
 

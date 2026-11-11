@@ -60,6 +60,9 @@ export const StartAgainButton = () => {
             data: {
               harvestDatasets: record?.harvestDatasets,
               harvestServices: record?.harvestServices,
+              // a restart which silently re-enabled the applications a run
+              // had switched off would harvest records the curator refused
+              harvestApplications: record?.harvestApplications,
               maxStepSize: record?.maxStepSize,
               service: { id: record?.service?.id },
             },

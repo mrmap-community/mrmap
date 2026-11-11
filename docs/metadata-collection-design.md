@@ -157,7 +157,8 @@ by the review answers of §8:
 2. **Give a collecting run a truthful end state** the way harvesting and an update waiting for review do it:
    `BackgroundProcess.objects.set_action_required()` plus a stored summary the serializer exposes
    (`references_total / stored / failed / skipped`). The chord body stays as it is; what it must stop doing
-   is answering `completed` while references failed (§8 item 1).
+   is answering `completed` while references failed (§8 item 1). The flag needs its way back: nothing in
+   production clears it today, so the acknowledge action (#1277) belongs to this step.
 3. **Give the collection a landing row per reference**, in the shape of `TemporaryMdMetadataFile`: the run
    stores how many references it expects before the fan-out, each row keeps the URL, what it describes, an
    error flag, an error text and a re-schedule switch; the counters of the run are answered the way #886
@@ -200,12 +201,15 @@ See [`images/metadata-collection/README.md`](images/metadata-collection/README.m
 ## 8. Decisions this needs from a human — and what the review answered
 
 All six were asked as the numbered decision request on the epic
-([Q1–Q6](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6796247548)) and answered inline
-in [the review of PR #1255](https://github.com/mrmap-community/mrmap/pull/1255). The answers are quoted
-because their wording is the decision; the epic's children carry the consequence. They are **not yet in
-the Decision register** — `scripts/decisions` records an answer from a comment on the issue that names its
-question, and a review comment on a pull request does neither, so the register still reads *open* until
-the answers are given on #1256 in the `Q1: B` grammar. Recording them is not implementation approval.
+([Q1–Q6](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6796247548)), answered inline
+in [the review of PR #1255](https://github.com/mrmap-community/mrmap/pull/1255) and confirmed on the epic
+([the answer comment](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6805769801)). The
+answers are quoted below because their wording is the decision; the epic's children carry the consequence.
+They are **recorded**: `scripts/decisions --issue 1256 record --write` and `register --write` moved them
+into the audit trail on 2026-11-11, the register on the epic now reads **Accepted** for D1–D6 with options
+B, B, A, A, B, A, and the audit trail carries the six recorded events
+([#issuecomment-6805796503](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6805796503)).
+An answer is a design decision — it is not `agent: approved` and not a pull request approval.
 
 1. **Terminal state.** Should a collection that ended with findings stay `completed` plus a summary, or get a
    distinguishable state? The vocabulary for that state exists: `action_required` is a derived
@@ -213,12 +217,15 @@ the answers are given on #1256 in the `Q1: B` grammar. Recording them is not imp
    through `BackgroundProcess.objects.set_action_required()` — harvesting (`registry/models/harvest.py:668`)
    and an update waiting for its review (`registry/models/update.py:334`) already use it, registration
    does not. The obstacle is the derivation order: `OperationStateEnum.derive()` answers `completed`
-   before it looks at the flag (`notify/enums.py:80-90`), so a run cannot be both finished and awaiting
-   attention unless the stored status stays non-terminal (which parks it in the drawer's *Waiting* tab,
-   whose filter is `status: pending` — `JobCenter/counts.ts:12-17`) or the shared derivation changes.
+   before it looks at the flag (`notify/enums.py:80-90`), so `ACTION_REQUIRED` is only derivable while the
+   stored status stays `running` — and the drawer's tabs filter that raw status (`JobCenter/counts.ts:13-17`),
+   which puts a flagged run under *Running*, not *Waiting*.
    > **Answered:** „distinguishable state. use equivalent way to harvesting and update"
    > ([r4541817433](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541817433)) — so the
-   > flag, not a new state; what the flag needs from the derivation is #1259's open detail.
+   > flag, not a new state; what the flag needs from the derivation is #1259's open detail. One cost the
+   > code adds on top of the option's note: nothing in production ever clears the flag — the only
+   > `flag=False` calls live in tests (`backend/tests/django/notify/test_operation_states.py:399-400`) —
+   > so the acknowledge action the option demanded became the epic's child #1277.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps
    history across re-registrations.
@@ -255,7 +262,7 @@ the answers are given on #1256 in the `Q1: B` grammar. Recording them is not imp
    > (`registry/tasks/service.py:34`, `:145`; `registry/views/service.py:352`, `:717`, `:1011`); neither
    > `registry/tasks/update.py` nor `registry/models/update.py` names it or `build_ogc_service`, while the
    > update maps the new capabilities through the same configs that declare the reference models
-   > (`registry/mappers/configs/wms130.py:229`, `wfs200.py:202`). The new child of the epic takes this.
+   > (`registry/mappers/configs/wms130.py:229`, `wfs200.py:202`). The epic's child #1274 takes this.
 6. **Naming.** The German label of the option (defect K) and the vocabulary of the outcomes
    (reuse `harvestRun.collectingStates` or a registration-specific set?).
    > **Answered with a correction of the premise:** „i dont understand the question right. The function
@@ -272,8 +279,9 @@ the answers are given on #1256 in the `Q1: B` grammar. Recording them is not imp
 ## 9. Where this went
 
 The findings are published as **[epic #1256](https://github.com/mrmap-community/mrmap/issues/1256)**,
-`slug: metadata-collection`, with thirteen children (#1257–#1268 and #1274) whose sub-issue and blocking relations
-are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport bounds are
-#1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263. Nothing
-in this document was implemented, and no `agent: approved` was applied.
+`slug: metadata-collection`, with fourteen children (#1257–#1268, #1274 and #1277) whose sub-issue and
+blocking relations are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport
+bounds are #1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263.
+The six decision rows above are recorded as Accepted (2026-11-11) in the epic's register. Nothing in this
+document was implemented, and no `agent: approved` was applied.
 

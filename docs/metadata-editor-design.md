@@ -135,10 +135,10 @@ Record editor, as observed:
 | extent | map/draw editors | GeoJSON text field | bbox/polygon map widget + temporal extent |
 | relations | associated panel → process XSLTs | read-only table + graph (#981/#984 family) | editor writes relations through #985's API |
 | XML view | line-numbered source editor | download link only | XML source view with explicit write-back semantics |
-| validation | schematron families, on save | none callable | backend endpoint, machine-readable, publish gate |
-| editorial state | draft/approved/submitted/retired + board | published flag + `is_customized` | draft vs published per record, no workflow engine (v1) |
-| batch editing | 3-step wizard | none | batch edit over a selection with per-record preview |
-| concurrency | none (last write wins) | harvest overwrite gated by `date_stamp` | harvest-conflict resolution per section |
+| validation | schematron families, on save | none callable | profile rules on PUT/PATCH, json:api errors, ISO in v1 (decided) |
+| editorial state | draft/approved/submitted/retired + board | published flag + `is_customized` | atomic publishing, no draft state (decided); workflow engine out |
+| batch editing | 3-step wizard | none | synchronous frontend bulk edit over a selection, react-admin only (decided) |
+| concurrency | none (last write wins) | harvest overwrite gated by `date_stamp` | last-write-wins (decided); harvest gate unchanged |
 | locking | none | none | out of scope for v1, stated explicitly |
 | permission model | groups/profiles + access manager | guardian `canEdit` | reuse `canEdit`; no new role concept |
 
@@ -153,17 +153,21 @@ validated raw-XML endpoint is the only path that may write unmapped content.
 rule sets belong to a profile record the API can serve, layered on the existing mapper configs.
 v1 ships `iso19139-generic`; `iso19139-gdi-de` follows as data.
 
-**Validation is server-side only.** One endpoint answers `{severity, rule, message, xpath,
-field}` so editor, batch edit and a future CSW `Transaction` handler get the same verdict. Errors
-gate publishing, never saving. No raw XSLT/stack text is surfaced.
+**Validation runs on the normal CRUD request** (decided in review): MrMap only provides json:api
+CRUD endpoints, which validate on PUT/PATCH; the frontend pre-validates from rules the backend
+exposes, so editor, batch edit and a future CSW `Transaction` handler share one enforcement path.
+A rejected write changes nothing. How rules reach the client (OpenAPI extension vs profile
+resource) is still open. No raw XSLT/stack text is surfaced.
 
-**Drafts and harvest conflicts.** Saving produces a draft distinct from *published to search*.
-A harvest arriving during editing is resolved per section instead of silently replacing the
-document; `is_customized` keeps protecting curated content as today.
+**Atomic publishing** (decided): in v1 a validated save *is* the publish — one atomic
+transaction, no draft document next to the served one. Concurrency is last-write-wins; the harvest
+overwrite gate (`is_customized`/`date_stamp`) is untouched. A draft/conflict UI (per-section
+resolve, mockup `proposed-12`) is deferred to a later epic, like template administration.
 
-**Frontend.** New screen family under `frontend/src/components/Resource/Generic/MetadataEditor/`
-reusing the `RecordShow` cards and `SchemaFormFields` — no forked cards. The editor is a route,
-not a dialog, so section rail, sticky toolbar and validation rail fit.
+**Frontend.** New screen family under `frontend/src/components/Resource/Generic/MetadataEditor/`,
+built from **React Admin components, extended only where needed — no fully new React components**
+(decided in review), reusing the `RecordShow` cards and `SchemaFormFields` — no forked cards. The
+editor is a route, not a dialog, so section rail, sticky toolbar and findings rail fit.
 
 ## 6. Mockups
 
@@ -172,7 +176,9 @@ CURRENT — rendered from `master` source (no live MrMap demo was reachable):
 ![MrMap record detail today](images/metadata-editor/current-record-show.png)
 ![MrMap edit dialog today](images/metadata-editor/current-edit-dialog.png)
 
-PROPOSED (labels in the images say "PROPOSED"):
+PROPOSED (labels in the images say "PROPOSED"). Read them together with the review decisions:
+the draft/publish toolbar split (`proposed-01/03/12`) is superseded by atomic publishing; the
+template list in `proposed-09` activates with the v2 templates epic.
 
 | file | shows |
 | --- | --- |
@@ -189,20 +195,22 @@ PROPOSED (labels in the images say "PROPOSED"):
 | `proposed-11-batch-edit.png` | batch edit one element over a selection with per-record validity preview |
 | `proposed-12-harvest-conflict.png` | harvest-during-edit conflict resolved per section |
 
-## 7. Open questions for maintainers
+## 7. Decisions (review of PR #1238)
 
-To be settled per child issue, not silently in implementation:
+The questions this document originally listed as open were answered by the maintainer in the
+inline review of this PR; the audit trail is the review threads themselves:
 
-1. **Draft storage** — may a published record carry a draft document (served + draft), or is
-   editing in-place with publish as an atomic step? Decides second state column vs version table.
-2. **Profile registry** — Django model (seeded by migration, editable per deployment) or
-   settings-file config?
-3. **Rule sets in v1** — ISO 19139 schematron only, or also GDI-DE 1.0 and INSPIRE (separate
-   families in GeoNetwork; INSPIRE needs the ETF)? #919 already covers one keyword rule that
-   belongs to a profile rule set.
-4. **Batch edit execution** — synchronous per-record result list, or the existing
-   background-process machinery as harvesting uses?
-5. **Templates** — is template administration (templates as records, like GeoNetwork) a later
-   epic?
-6. **Concurrency** — accept last-write-wins plus the conflict dialog for v1, or add an editing
-   lock (overlaps with #985)?
+1. **Draft storage** → atomic publishing only in v1 ([r4537429688](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537429688)).
+2. **Profile registry** → Django model ([r4537433349](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537433349)).
+3. **Rule sets in v1** → ISO 19139 only ([r4537437616](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537437616)).
+4. **Batch edit execution** → synchronous, frontend-side, react-admin functionality only ([r4537448116](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537448116)).
+5. **Templates** → separate epic for v2 ([r4537453636](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537453636)).
+6. **Concurrency** → last-write-wins ([r4537458987](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537458987)).
+
+Cross-cutting: endpoint implementations always follow the json:api default CRUD behaviour
+([r4537341050](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537341050)) — this
+rejected the standalone validate endpoint sketched in earlier drafts of §5 — and frontend features
+build on React Admin components ([r4537359916](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537359916)).
+
+**Still open:** how validation rules are transported to the frontend (OpenAPI extension vs profile
+resource) — investigated on issue #1243.

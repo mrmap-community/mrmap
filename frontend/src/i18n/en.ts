@@ -591,6 +591,8 @@ const en = lodashMerge(
         },
         clearCompleted: "Clear completed (%{count})",
         openHistory: "Open job history",
+        expandJob: "Show process details",
+        collapseJob: "Hide process details",
         notifyFailed: "%{description} failed. Open the background jobs for the details.",
         notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
       },

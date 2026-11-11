@@ -571,6 +571,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       },
       clearCompleted: "Abgeschlossene ausblenden (%{count})",
       openHistory: "Job-Verlauf öffnen",
+      expandJob: "Prozessdetails einblenden",
+      collapseJob: "Prozessdetails ausblenden",
       notifyFailed: "%{description} ist fehlgeschlagen. Öffnen Sie die Hintergrundjobs für die Einzelheiten.",
       notifyCompleted: "%{count} Hintergrundprozess abgeschlossen. |||| %{count} Hintergrundprozesse abgeschlossen.",
     },

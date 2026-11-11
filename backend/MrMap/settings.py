@@ -743,6 +743,15 @@ MONITORING_PROBE_RESPONSE_MAX_SIZE = int(
 MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
     os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_RETENTION_DAYS", "30"))
 
+# how many days a decided background process stays part of the job history;
+# the sweep which notify/tasks.py names deletes the processes which ended
+# before this many days, together with their log entries, so the history of
+# the job drawer stays bounded while the failures of the retention window
+# remain discoverable (#1208). Processes which did not end yet are never
+# touched. 0 keeps every process until an operator removes it
+BACKGROUND_PROCESS_RETENTION_DAYS = int(
+    os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
+
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
 # record (#859): a harvest of 70,000 records publishes ~280 broker messages, task

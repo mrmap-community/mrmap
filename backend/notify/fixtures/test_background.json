@@ -22,7 +22,8 @@
             "description": "description 2",
             "total_steps": 4,
             "done_steps": 2,
-            "date_created": "2023-01-02T12:00:00+00:00"
+            "date_created": "2023-01-02T12:00:00+00:00",
+            "done_at": "2023-01-02T13:00:00+00:00"
         }
     },
     {
@@ -46,6 +47,36 @@
             "process_type": "process 4",
             "description": "description 4",
             "date_created": "2023-01-04T12:00:00+00:00"
+        }
+    },
+    {
+        "model": "notify.backgroundprocesslog",
+        "pk": 1,
+        "fields": {
+            "background_process": 2,
+            "log_type": "error",
+            "description": "process 2 failed here",
+            "date": "2023-01-02T12:59:00+00:00"
+        }
+    },
+    {
+        "model": "notify.backgroundprocesslog",
+        "pk": 2,
+        "fields": {
+            "background_process": 2,
+            "log_type": "warning",
+            "description": "process 2 retried",
+            "date": "2023-01-02T13:01:00+00:00"
+        }
+    },
+    {
+        "model": "notify.backgroundprocesslog",
+        "pk": 3,
+        "fields": {
+            "background_process": 3,
+            "log_type": "info",
+            "description": "process 3 reported",
+            "date": "2023-01-03T12:30:00+00:00"
         }
     }
 ]

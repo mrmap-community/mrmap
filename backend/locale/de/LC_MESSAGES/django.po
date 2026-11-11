@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 18:30+0100\n"
+"POT-Creation-Date: 2026-11-10 20:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,7 +70,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:93 notify/models.py:76
+#: accounts/models/groups.py:93 notify/models.py:89
 #: registry/models/mapcontext.py:312 registry/models/security.py:252
 msgid "description"
 msgstr "Beschreibung"
@@ -302,7 +302,7 @@ msgstr ""
 msgid "MapBender Compatibility"
 msgstr "MapBender-Kompatibilität"
 
-#: notify/apps.py:9
+#: notify/apps.py:46
 msgid "Notify"
 msgstr "Benachrichtigung"
 
@@ -318,76 +318,76 @@ msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
 msgid "Select a valid state of a background operation."
 msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
 
-#: notify/filters.py:79 notify/serializers.py:56
+#: notify/filters.py:79 notify/serializers.py:63
 msgid "status"
 msgstr "Status"
 
-#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:63
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:70
 msgid "state"
 msgstr "Zustand"
 
-#: notify/models.py:47 notify/models.py:287 registry/models/harvest.py:74
+#: notify/models.py:60 notify/models.py:322 registry/models/harvest.py:74
 #: registry/models/harvest.py:132 registry/models/harvest.py:1472
 #: registry/models/monitoring.py:149 registry/models/monitoring.py:397
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
-#: notify/models.py:48 registry/models/harvest.py:75
+#: notify/models.py:61 registry/models/harvest.py:75
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
-#: notify/models.py:52 registry/models/harvest.py:79
+#: notify/models.py:65 registry/models/harvest.py:79
 #: registry/models/monitoring.py:402
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
-#: notify/models.py:53 registry/models/harvest.py:80
+#: notify/models.py:66 registry/models/harvest.py:80
 msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
-#: notify/models.py:58 registry/models/harvest.py:59
+#: notify/models.py:71 registry/models/harvest.py:59
 #: registry/models/harvest.py:282
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:59 registry/models/harvest.py:60
+#: notify/models.py:72 registry/models/harvest.py:60
 #: registry/models/harvest.py:283
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:61
+#: notify/models.py:74
 msgid "total"
 msgstr "Gesamt"
 
-#: notify/models.py:62
+#: notify/models.py:75
 msgid "total steps of processing"
 msgstr "Gesamtzahl der Verarbeitungsschritte"
 
-#: notify/models.py:66
+#: notify/models.py:79
 msgid "done"
 msgstr "Erledigt"
 
-#: notify/models.py:67
+#: notify/models.py:80
 msgid "done steps of processing"
 msgstr "Erledigte Verarbeitungsschritte"
 
-#: notify/models.py:72
+#: notify/models.py:85
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:73
+#: notify/models.py:86
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:77
+#: notify/models.py:90
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:98 notify/serializers.py:73
+#: notify/models.py:111 notify/serializers.py:80
 msgid "revision"
 msgstr "Revision"
 
-#: notify/models.py:100
+#: notify/models.py:113
 msgid ""
 "counter of the state reports of this process; every message about the "
 "process carries the revision it reported, so a client which receives an "
@@ -397,11 +397,11 @@ msgstr ""
 "die Revision, die sie gemeldet hat, damit ein Client eine ältere, die ihn "
 "verspätet erreicht, verwerfen kann"
 
-#: notify/models.py:106
+#: notify/models.py:119
 msgid "action required"
 msgstr "Handlung erforderlich"
 
-#: notify/models.py:108
+#: notify/models.py:121
 msgid ""
 "a reporter decided that this process stands until a human acts; it is set by "
 "the watchdog of a stalled import and by an update which waits for its review "
@@ -412,32 +412,32 @@ msgstr ""
 "von einer Aktualisierung, die auf ihre Prüfung wartet, und gelöscht, wenn "
 "die Arbeit weitergeht"
 
-#: notify/models.py:115 notify/serializers.py:85
+#: notify/models.py:128 notify/serializers.py:92
 msgid "retry count"
 msgstr "Anzahl der Wiederholungen"
 
-#: notify/models.py:117
+#: notify/models.py:130
 msgid ""
 "how many retries of its tasks the process has reported since it was created"
 msgstr ""
 "wie viele Wiederholungen seiner Aufgaben der Prozess seit seiner Anlage "
 "gemeldet hat"
 
-#: notify/models.py:124 notify/serializers.py:91
+#: notify/models.py:137 notify/serializers.py:98
 msgid "retry reason"
 msgstr "Grund der Wiederholung"
 
-#: notify/models.py:126
+#: notify/models.py:139
 msgid "what the last reported retry of a task of this process failed on"
 msgstr ""
 "woran die zuletzt gemeldete Wiederholung einer Aufgabe dieses Prozesses "
 "gescheitert ist"
 
-#: notify/models.py:132 notify/serializers.py:96
+#: notify/models.py:145 notify/serializers.py:103
 msgid "retry scheduled until"
 msgstr "Wiederholung geplant bis"
 
-#: notify/models.py:134
+#: notify/models.py:147
 msgid ""
 "until when the next attempt of the retried task is due; while this window is "
 "open the process reports itself as retrying"
@@ -445,28 +445,28 @@ msgstr ""
 "bis wann der nächste Versuch der wiederholten Aufgabe fällig ist; solange "
 "dieses Fenster offen ist, meldet sich der Prozess als wiederholend"
 
-#: notify/models.py:138
+#: notify/models.py:151
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:139
+#: notify/models.py:152
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:276 registry/models/harvest.py:1488
+#: notify/models.py:311 registry/models/harvest.py:1488
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:288 registry/models/harvest.py:1473
+#: notify/models.py:323 registry/models/harvest.py:1473
 #: registry/models/monitoring.py:398
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:292 registry/models/harvest.py:1493
+#: notify/models.py:327 registry/models/harvest.py:1493
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:293 registry/models/harvest.py:1494
+#: notify/models.py:328 registry/models/harvest.py:1494
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -491,28 +491,41 @@ msgid "the datetime when this process reached its terminal state"
 msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
 #: notify/serializers.py:51
+msgid "time until decided"
+msgstr "Zeit bis zur Entscheidung"
+
+#: notify/serializers.py:53
+msgid ""
+"the seconds between the creation and the decision of the process, the "
+"waiting and retry intervals of its tasks included; empty while it still runs"
+msgstr ""
+"die Sekunden zwischen der Erstellung und der Entscheidung des Prozesses, "
+"die Warte- und Wiederholungsintervalle seiner Aufgaben eingeschlossen; leer "
+"solange er noch läuft"
+
+#: notify/serializers.py:58
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:52
+#: notify/serializers.py:59
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:57
+#: notify/serializers.py:64
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:59
+#: notify/serializers.py:66
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:61
+#: notify/serializers.py:68
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
 "ihre ID"
 
-#: notify/serializers.py:65
+#: notify/serializers.py:72
 msgid ""
 "the normalized state of the reported operation: queued while it waits for a "
 "worker, running while it works, running_indeterminate while it works without "
@@ -527,7 +540,7 @@ msgstr ""
 "action_required während eine Entscheidung eines Menschen erwartet wird, "
 "sowie die abschließenden failed, completed oder aborted"
 
-#: notify/serializers.py:75
+#: notify/serializers.py:82
 msgid ""
 "the number of the state report which every message about this process "
 "carries; a client which learns states out of order keeps the highest "
@@ -537,11 +550,11 @@ msgstr ""
 "ein Client, der Zustände in falscher Reihenfolge empfängt, behält die "
 "höchste Revision, die er von einem Prozess gesehen hat"
 
-#: notify/serializers.py:79
+#: notify/serializers.py:86
 msgid "error summary"
 msgstr "Fehlerzusammenfassung"
 
-#: notify/serializers.py:81
+#: notify/serializers.py:88
 msgid ""
 "what the last error of the reported operation told, or nothing where it "
 "never reported one"
@@ -549,7 +562,7 @@ msgstr ""
 "was der letzte Fehler der gemeldeten Operation mitgeteilt hat, oder nichts, "
 "wenn sie nie einen gemeldet hat"
 
-#: notify/serializers.py:87
+#: notify/serializers.py:94
 msgid ""
 "how many retries of its tasks the reported operation has reported since it "
 "was made"
@@ -557,11 +570,11 @@ msgstr ""
 "wie viele Wiederholungen ihrer Aufgaben die gemeldete Operation seit ihrer "
 "Anlage gemeldet hat"
 
-#: notify/serializers.py:93
+#: notify/serializers.py:100
 msgid "what the last reported retry of the operation failed on"
 msgstr "woran die zuletzt gemeldete Wiederholung der Operation gescheitert ist"
 
-#: notify/serializers.py:99
+#: notify/serializers.py:106
 msgid ""
 "until when the next attempt of a retried task of the operation is due; while "
 "this window is open the operation reports itself as retrying"
@@ -3360,6 +3373,9 @@ msgstr "Diese Ressource ist deaktiviert."
 #: system/apps.py:102
 msgid "System"
 msgstr "System"
+
+#~ msgid "duration"
+#~ msgstr "Dauer"
 
 #~ msgid "the datetime when the last thread was finished"
 #~ msgstr "der Zeitpunkt, an dem der letzte Thread beendet wurde"

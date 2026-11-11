@@ -6,6 +6,7 @@ import { type AlertColor } from "@mui/material/Alert";
 
 import { useHttpClientContext } from "../../../context/HttpClientContext";
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
+import DurationField from "../../Field/DurationField";
 import ProgressField from "../../Field/ProgressField";
 import RelatedResourceField from "../../Field/RelatedResourceField";
 import ProcessStatusField from "./ProcessStatusField";
@@ -47,6 +48,8 @@ const ListBackgroundProcess = (): ReactNode => {
         "status",
         "progress",
         "dateCreated",
+        "doneAt",
+        "duration",
         "relatedResource",
         "actions",
       ]}
@@ -58,6 +61,10 @@ const ListBackgroundProcess = (): ReactNode => {
         {
           component: ProcessStatusField,
           props: { source: "status" },
+        },
+        {
+          component: DurationField,
+          props: { source: "duration" },
         },
         {
           component: RelatedResourceField,

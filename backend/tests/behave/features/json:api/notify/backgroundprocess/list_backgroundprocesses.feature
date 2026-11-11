@@ -85,6 +85,46 @@ Feature: BackgroundProcess List Endpoint
             | id       | 1     |
             | -id      | 4     |
 
+    # The history screen of the frontend searches the past by its moments: the
+    # fixture answers the four processes with a date_created on 2023-01-01, -02,
+    # -03 and -04 and the failed one (id 2) with a done_at on 2023-01-02T13:00.
+    Scenario Outline: Can filter processes by <field>
+        Given I set a queryparam "<param>" with value "<value>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "<count>"
+
+        Examples:
+            | field         | param                    | value                       | count |
+            | created since | filter[dateCreated.gt]   | 2023-01-03T00:00:00+00:00   | 2     |
+            | created until | filter[dateCreated.lt]   | 2023-01-03T00:00:00+00:00   | 2     |
+            | created       | filter[dateCreated.range] | 2023-01-02T00:00:00+00:00,2023-01-03T23:59:59+00:00 | 2 |
+            | decided since | filter[doneAt.gt]        | 2023-01-01T00:00:00+00:00   | 1     |
+
+    # The history answers how long a decided process took, in seconds; the row
+    # of the failed process is the third of the newest-first default page.
+    Scenario: Can read the duration of a decided process
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[2].id" with value "2"
+        Then I expect that response json has an attribute "data.[2].attributes.duration" with value "3600.0"
+        Then I expect that response json has an attribute "data.[0].attributes.duration" with value "None"
+
+    # The list of the frontend pages its rows; the default page is the newest
+    # first, so the second page of two holds the two older processes 2 and 1.
+    Scenario Outline: Can page through the processes
+        Given I set a queryparam "page[size]" with value "2"
+        And I set a queryparam "page[number]" with value "<page>"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "4"
+        Then I expect that response json has an attribute "data.[0].id" with value "<first>"
+
+        Examples:
+            | page | first |
+            | 1    | 4     |
+            | 2    | 2     |
+
     # The overview of the frontend orders its rows by the progress it renders.
     # The progress is no column but an annotation of the queryset - completed
     # processes at 100, processes without steps at 0 and the rest at the share

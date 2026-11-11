@@ -156,8 +156,11 @@ v1 ships `iso19139-generic`; `iso19139-gdi-de` follows as data.
 **Validation runs on the normal CRUD request** (decided in review): MrMap only provides json:api
 CRUD endpoints, which validate on PUT/PATCH; the frontend pre-validates from rules the backend
 exposes, so editor, batch edit and a future CSW `Transaction` handler share one enforcement path.
-A rejected write changes nothing. How rules reach the client (OpenAPI extension vs profile
-resource) is still open. No raw XSLT/stack text is surfaced.
+A rejected write changes nothing. Rules reach the client by transport class (decided after the
+review, Q1 option C on #1243): attribute-level constraints keep riding the OpenAPI schema — the
+SPA already maps its maxLength/pattern/required/format to react-admin validators — while ISO
+structural rules travel as a rules field on the Profile resource, fetched with the record.
+No raw XSLT/stack text is surfaced.
 
 **Atomic publishing** (decided): in v1 a validated save *is* the publish — one atomic
 transaction, no draft document next to the served one. Concurrency is last-write-wins; the harvest
@@ -212,5 +215,6 @@ Cross-cutting: endpoint implementations always follow the json:api default CRUD 
 rejected the standalone validate endpoint sketched in earlier drafts of §5 — and frontend features
 build on React Admin components ([r4537359916](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537359916)).
 
-**Still open:** how validation rules are transported to the frontend (OpenAPI extension vs profile
-resource) — investigated on issue #1243.
+**Decided after the review (2026-11-11):** rule transport to the frontend — asked as Q1 on #1243,
+answered **option C (hybrid)** ([audit](https://github.com/mrmap-community/mrmap/issues/1243#issuecomment-6804023599)):
+OpenAPI for attribute constraints, the Profile resource for ISO structural rules.

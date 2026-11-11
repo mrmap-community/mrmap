@@ -4,6 +4,7 @@ import os
 import threading
 import time
 import traceback
+from datetime import timedelta
 from os import walk
 from uuid import UUID, uuid4
 
@@ -25,7 +26,9 @@ from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
-from registry.ows_lib.client.exceptions import InitialError
+from registry.exceptions.service import CapabilitiesBackupMissing
+from registry.ows_lib.client.exceptions import (InitialError,
+                                                RedirectChainError)
 from requests.exceptions import RequestException
 
 logger = get_task_logger(__name__)
@@ -73,7 +76,13 @@ class HarvestingTask(Task):
                         f"{getattr(self.request, 'retries', 0)} retries\n"
                         f"{type(exc).__name__}: {exc}"),
                     level=LogLevelEnum.ERROR.value,
-                    kind=LogKindEnum.REMOTE_ERROR.value,
+                    # the loss of a stored document is an integrity error of
+                    # the deployment, not an error of the remote (#1044); the
+                    # uncategorized kind keeps it out of the remote-error
+                    # reading of the harvest history
+                    kind=(
+                        None if isinstance(exc, CapabilitiesBackupMissing)
+                        else LogKindEnum.REMOTE_ERROR.value),
                 )
                 job.phase = HarvestingPhaseEnum.ABORT.value
                 job.fail_process(f"{type(exc).__name__}: {exc}")
@@ -116,14 +125,15 @@ class HarvestingTask(Task):
 class MetadataFileImportTask(HarvestingTask):
     """Base of the tasks which write stored metadata files to the database (#895).
 
-    Building the client of the catalogue answers the request of the constructor with
-    a live round trip of the stored capabilities URL, so importing a record can end
-    in a read timeout or a 5xx of the remote - a failure of the infrastructure, not
-    of the record. These tasks retry those errors too: what the harvest retries is
-    extended by the InitialError which a 5xx or a non-xml answer of that round trip
-    raises, so a catalogue hiccup redelivers the file with the existing backoff
-    instead of the per-file catch of `import_md_metadata_file` ending it and silently
-    losing the records it carries.
+    Building the client of the catalogue reads the stored capabilities
+    document only (#1044), so a running import asks the remote nothing at
+    all; the ``InitialError`` which a broken stored document can still raise
+    when an advertised operation is missing stays retried here the way #895
+    decided, so a file is redelivered with the backoff of the harvest
+    instead of being lost to the marking below. A service whose stored
+    document is gone from the storage is no catalogue hiccup: the
+    ``CapabilitiesBackupMissing`` of its reads ends the run visibly instead
+    of being paid per record.
     """
 
     autoretry_for = HarvestingTask.autoretry_for + (InitialError,)
@@ -690,6 +700,209 @@ def recover_records_to_db_job(job):
     resume_stale_import_run(job, registered, origin="worker restart recovery")
 
 
+# Who the harvesting log of a job is told decided about it: "worker restart
+# recovery" and "manage.py resume_harvesting_job" name themselves the same way
+# when they resume a backlog (#1038).
+HARVEST_IMPORT_WATCH_ORIGIN = "import watchdog"
+
+
+def import_watch_interval():
+    """The time an import backlog may stand still before the watchdog acts.
+
+    The beat row of ``watch_import_backlogs`` fires on this very interval (see
+    ``registry/apps.py``), so a backlog which is answered with the same amount of
+    waiting files on two looks is one which stood still for a whole watchdog
+    interval. Standing still is a readable question, because a working import
+    cannot hide: a chunk commits its records one by one and every committed record
+    deletes its own row (see ``import_md_metadata_file``), so the count of the
+    waiting files moves while the import works (#859, #1038).
+    """
+    return timedelta(minutes=max(1, int(getattr(
+        settings, "HARVEST_IMPORT_WATCH_INTERVAL_MINUTES", 5))))
+
+
+def watch_import_backlog(harvesting_job_id, at=None):
+    """Bound the wait of one open job whose import backlog does not drain.
+
+    The end of an import chord is not observable by the code which depends on it:
+    the wait of the chord is bounded by the budget this project hands to celery
+    (``max_retries=300, interval=1`` at the publishing in
+    ``call_chord_md_metadata_file_to_db``) and when that budget runs out, celery
+    raises inside its own builtin ``chord_unlock`` task. The callback of the chord
+    is what sets ``done_at``, reports the final statistics and raises the alert of
+    the catalogue, and it is simply never called - which leaves the job open, its
+    records unimported, and the whole failure in one worker log line (#1038).
+
+    So the wait is bounded here, in mrmap's own terms and out of the durable state
+    a harvest keeps anyway: the count of the files which still wait for their
+    import, the task ids the job registered and has not seen report in, and what
+    the broker answers about them. The decision needs all three, because the same
+    standing backlog has two causes and only the broker tells them apart:
+
+    * nothing of the run is on the broker anymore - its messages are gone, be it a
+      flushed broker, a purge, or an unlock which gave up after the last header
+      reported in. The backlog is stranded and goes out again as one fresh chord,
+      which is also what completes a run whose chord came in while its callback
+      was lost: ``publish_import_chord`` builds no chord and completes the harvest
+      when nothing waits anymore (#891).
+    * the broker still holds a message of the run - the work is queued and nobody
+      consumes it, which is what a queue without a worker on its end turns into
+      (#970 measured ten hours of that). Publishing over it is the pile-up #891
+      forbids, so nothing goes out here; the job says on itself that its import
+      does not move, which is what the api could not answer at all while the run
+      reported "records to db".
+
+    A backlog which moved since the last look is left alone and becomes the
+    baseline of the next one, so an import which works is never asked about the
+    broker. What the watchdog decides is written to the harvesting log like every
+    other decision about the backlog, and it is told once per stall: the reported
+    state on the job is the memory of that, and it is gone as soon as the backlog
+    drains again.
+
+    Args:
+        harvesting_job_id: the job to look at
+        at: the moment of the look; the tests wind this one instead of letting the
+            beat interval pass for real
+    """
+    from registry.models.harvest import (HarvestingJob,  # avoid circular import
+                                         TemporaryMdMetadataFile)
+
+    at = at or timezone.now()
+    with transaction.atomic():
+        job = HarvestingJob.objects.select_for_update().filter(
+            pk=harvesting_job_id, done_at__isnull=True,
+            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value).first()
+        if job is None:
+            # the run ended, was aborted, or never reached its import while this
+            # watchdog was reading; there is no wait to bound
+            return
+        waiting = TemporaryMdMetadataFile.objects.filter(
+            job_id=job.pk, has_import_error=False).count()
+        untouched_since = (
+            job.import_backlog_seen_at
+            if job.import_backlog_seen == waiting
+            and job.import_backlog_seen_at is not None
+            and at - job.import_backlog_seen_at >= import_watch_interval()
+            else None)
+        if untouched_since is None:
+            # the backlog moved since the last look, or this is the first look at
+            # it: nothing is overdue, and a stall the watchdog had reported is
+            # over with the drain. The count is the baseline of the next look.
+            if job.import_stalled_at is not None:
+                job.log(
+                    level=LogLevelEnum.WARNING.value,
+                    description=(
+                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: the import backlog of this "
+                        f"job drains again; {waiting} records are left to import"))
+                # the process which reported the stall reports the drain with
+                # it, so the operation leaves action-required on its own (#1207)
+                job.report_process_attention(False)
+            HarvestingJob.objects.filter(pk=job.pk).update(
+                import_backlog_seen=waiting,
+                import_backlog_seen_at=at,
+                import_stalled_at=None)
+            return
+
+        registered = {
+            str(_id) for _id in
+            job.celery_task_ids.filter(creation=False).values_list(
+                "task_id", flat=True)}
+        state = import_run_message_state(registered)
+        publish_state = chord_publish_message_state(job.pk)
+        waited = int((at - untouched_since).total_seconds() // 60)
+        not_reported_yet = job.import_stalled_at is None
+        if not_reported_yet:
+            # the job itself answers what the watchdog sees: this run is no longer
+            # waiting on work which somebody is doing (#1038)
+            HarvestingJob.objects.filter(pk=job.pk).update(
+                import_stalled_at=untouched_since)
+            # and the process which reports the run says the same to the
+            # background job center: this one stands until a human acts (#1207)
+            job.report_process_attention(
+                True,
+                phase=f"{HARVEST_IMPORT_WATCH_ORIGIN}: import backlog stalled")
+        # what the waiting costs decides the broker and never a guess: a second
+        # publish of a backlog which is still queued is #891
+        if state is None or publish_state is None:
+            if not_reported_yet:
+                job.log(
+                    level=LogLevelEnum.WARNING.value,
+                    description=(
+                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                        f"waiting for their import for {waited} minutes and the "
+                        "broker could not answer whether a message of this run is "
+                        "still live, so nothing was published. Once the broker "
+                        f"answers again, resume with: manage.py "
+                        f"resume_harvesting_job {job.pk}"))
+            return
+        if state is False and publish_state is False:
+            if not_reported_yet:
+                job.log(
+                    level=LogLevelEnum.WARNING.value,
+                    description=(
+                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                        f"waiting for their import for {waited} minutes while the "
+                        f"broker holds no message of the run ({len(registered)} "
+                        "registered task ids) and no publish of its import chord; "
+                        "the backlog goes out again as one chord"))
+            # the fresh chord is measured from now on, so the next look asks about
+            # the new run instead of finding the old stall a second time
+            HarvestingJob.objects.filter(pk=job.pk).update(
+                import_backlog_seen=None,
+                import_backlog_seen_at=None,
+                import_stalled_at=None)
+            # the work went out again: whatever the human was awaited for,
+            # this run does not stand for it anymore (#1207)
+            job.report_process_attention(False)
+            resume_stale_import_run(
+                job, registered, origin=HARVEST_IMPORT_WATCH_ORIGIN)
+            return
+        if not_reported_yet:
+            job.log(
+                level=LogLevelEnum.WARNING.value,
+                description=(
+                    f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                    f"waiting for their import for {waited} minutes although the "
+                    "broker still holds a message of this run: the work is queued "
+                    "and nothing imports it. Check that the workers consume the "
+                    f"'{celery_queues.HARVEST_IMPORT}' queue the import backlog is "
+                    "routed to; nothing was published over it (#891)"))
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, base=SingletonTask)
+def watch_import_backlogs(*args, **kwargs):
+    """Watch the harvests whose import backlog does not drain (beat).
+
+    The recovery of #891 and #972 asks its question when a worker starts, so a
+    deployment which does not restart its containers never looks again at the
+    harvests which are not making progress - and the chord of a stranded job does
+    not report itself dead, because its retry budget ends inside celery's builtin
+    unlock (#1038). This asks the same question on a beat interval instead of on a
+    start: which open job waits for an import which nothing is doing, and may it
+    be resumed without publishing a backlog a second time.
+    ``watch_import_backlog`` answers that per job, through the recovery paths
+    which already exist for it.
+
+    The message stays on db-routines like every other beat task of a harvest
+    (#970), and a fire which finds an earlier one still reading the broker is
+    skipped instead of stacked onto it.
+    """
+    from registry.models.harvest import HarvestingJob  # avoid circular import
+
+    for job_id in HarvestingJob.objects.filter(
+        done_at__isnull=True,
+        phase=HarvestingPhaseEnum.RECORDS_TO_DB.value,
+    ).values_list("pk", flat=True).iterator():
+        try:
+            watch_import_backlog(job_id)
+        except Exception:
+            # one job which cannot be read must not keep the others unwatched,
+            # and its next fire is the answer to a broker which was briefly dark
+            logger.error(
+                f"could not watch the import backlog of harvesting job "
+                f"{job_id}: {traceback.format_exc()}")
+
+
 @shared_task(queue="default", bind=True, base=HarvestingTask)
 def create_harvesting_job(self, *args, **kwargs):
     from registry.models.harvest import HarvestingJob
@@ -755,7 +968,12 @@ def call_fetch_total_records(*args, **kwargs):
             harvesting_job.handle_total_records_defined(recovering=recovering)
             harvesting_job.save(skip_history_when_saving=False)
             return harvesting_job.total_records
-    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError):
+    except (RequestException, OperationalError, BrokerOperationalError, InternalServerError,
+            RedirectChainError):
+        # the redirect chain of the endpoint is as explained as the remote errors above: its
+        # own error names the URL asked and the target it stopped at, so the report below of
+        # a something-which-went-wrong would read like a crash of MrMap instead of a
+        # catalogue which does not answer (#1100, read together with #1088)
         raise
     except Exception:
         from registry.enums.harvesting import LogLevelEnum
@@ -934,7 +1152,10 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
 
     Only errors of the record itself are terminal and documented on the file. Everything the
     task base of the importing tasks retries is re-raised, so the file is redelivered with the
-    backoff of the harvest instead of being lost to a remote or storage outage (#895).
+    backoff of the harvest instead of being lost to a remote or storage outage (#895). The
+    integrity error of a service whose stored capabilities document is gone (#1044) is
+    re-raised too: it is one broken service, not a broken record, and it must end the run
+    once instead of marking every file of the backlog.
 
     `on_handled` is called once the file left the backlog for good - imported and committed, or
     documented as an import error and kept for inspection (#958). It names a transition which
@@ -965,6 +1186,15 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
         # Infrastructure outages and remote failures are retryable, not record import
         # errors: what the task base promises to retry must reach it, or its autoretry
         # is laundered into a terminal has_import_error by the marking below (#895).
+        raise
+    except CapabilitiesBackupMissing:
+        # The catalogue's stored capabilities document is gone from the
+        # storage: an integrity error of the service, not of this record.
+        # Marking every file of such a run with the same traceback would
+        # repeat the per-record multiplication of #1044 as error rows
+        # instead of warnings - let the task give up, so the job ends with
+        # one loud report naming the missing document and the recovery
+        # status, and the backlog stays unflagged for the resumed run.
         raise
     except Exception as e:
         TemporaryMdMetadataFile.objects.filter(pk=md_metadata_file_id).update(

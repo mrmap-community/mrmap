@@ -6,7 +6,6 @@ from django.urls.exceptions import Resolver404
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
-from extras.viewsets import NestedModelViewSet
 from rest_framework.filters import OrderingFilter as DRFOrderingFilter
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
@@ -44,6 +43,11 @@ class CustomOperationId(JsonApiAutoSchema):
             action = self.method_mapping[self.method.lower()]
         resource_name = get_resource_name(context={"view": self.view})
 
+        # the viewsets are asked of here and not imported at the top: this module
+        # is what DEFAULT_SCHEMA_CLASS names, and drf-spectacular resolves that
+        # setting while a view module is being imported — a viewset which
+        # declares a schema with @extend_schema would otherwise close the circle
+        from extras.viewsets import NestedModelViewSet
         is_nested_view = isinstance(self.view, NestedModelViewSet)
         if is_nested_view:
             related_base_resource_path = self.path.split("{")[0]

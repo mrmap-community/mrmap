@@ -358,11 +358,9 @@ class SearchableViewsMigrationTest(TransactionTestCase):
     The projections of a record are what a search was answered from before a record
     answered its keywords and its vector as columns of its own; the CSW and the MapBender
     search answer the record tables themselves since #855. A projection is not part of
-    the migration state -- django-pgviews creates it from the model, see
-    ``system.apps.sync_pg_views_if_missing`` -- and the models which answered it are gone
-    from the code, so the hook which creates missing projections cannot help on the way
-    back either: the migration carries the statement of both itself, and that statement is
-    what this test asks for.
+    the migration state -- django-pgviews used to create it from the model -- and its
+    models and startup hook are gone. The migration carries the statement of both
+    projections itself, and that statement is what this test asks for.
 
     Rolling further back, below the migration which gave a record its vector, drops both
     projections again -- 0022 answers that -- and nothing creates them anymore, because

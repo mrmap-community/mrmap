@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches: [master, develop]
+  merge_group:
+    types: [checks_requested]
+    branches: [master, develop]
   pull_request:
     branches: [master, develop]
   schedule:
     - cron: '30 5 * * 1'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Keep speculative merge-group runs independent from PR and branch runs.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -40,3 +44,22 @@ jobs:
       - uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+
+  # Branch protection requires a check named exactly "CodeQL". The matrix
+  # above only reports "CodeQL (python)" and "CodeQL (javascript-typescript)".
+  # Always publish a single aggregate result, including when a scan fails.
+  codeql-required:
+    name: CodeQL
+    needs: analyze
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require both language analyses to succeed
+        env:
+          ANALYZE_RESULT: ${{ needs.analyze.result }}
+        run: |
+          if [ "$ANALYZE_RESULT" != "success" ]; then
+            echo "::error::CodeQL language analyses finished with result: $ANALYZE_RESULT"
+            exit 1
+          fi

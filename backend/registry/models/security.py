@@ -2,7 +2,6 @@ import time
 
 from cryptography.fernet import Fernet
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
@@ -551,15 +550,14 @@ class HttpResponseLog(models.Model):
             adding = True
         super().save(*args, **kwargs)
         if adding:
+            # The label of the concrete model belongs in the task: the response
+            # logs are one concrete model per service type, so the primary key
+            # alone does not say which table the row is in (#1153). Nothing else
+            # is carried -- a task which had to look a user up here would fail
+            # the commit which answers the proxied request.
             transaction.on_commit(
                 lambda: async_analyze_log.apply_async(
-                    args=(self.pk,),
-                    kwargs={
-                        "created_by_user_pk": get_user_model()
-                        .objects.values_list("pk", flat=True)
-                        .get(username="system"),
-                        "owner_pk": self.request.service.owner_id,
-                    },
+                    args=(self.pk, self._meta.label_lower),
                 )
             )
 
@@ -612,21 +610,30 @@ class WebMapServiceAnalyzedResponseLog(AnalyzedResponseLog):
     )
 
     def analyze_response(self):
-        img = Image.open(self.response.content.open(mode="rb"))
-        tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
-        tmp.paste(img)
-        img = tmp
+        # the analysis counts the pixels of the map which was returned. A logged
+        # response which is no image -- the document of a GetFeatureInfo, an
+        # exception report, or a remote service which never answered at all --
+        # carries nothing to count, and the counts stay unset for it (#1153).
+        if not self.response.content:
+            return
+        try:
+            img = Image.open(self.response.content.open(mode="rb"))
+            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            tmp.paste(img)
+            img = tmp
 
-        # Get alpha channel pixel values as list
-        all_pixel_vals = list(img.getdata(3))
-        # Count all alpha pixel (value == 0)
-        num_alpha_pixels = all_pixel_vals.count(0)
+            # Get alpha channel pixel values as list
+            all_pixel_vals = list(img.getdata(3))
+            # Count all alpha pixel (value == 0)
+            num_alpha_pixels = all_pixel_vals.count(0)
 
-        # Compute data pixels
-        self.entity_count = round(
-            (len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
-        # Compute full image pixel count (including transparent pixels)
-        self.entity_total_count = round((img.height * img.width) / 1000000, 4)
+            # Compute data pixels
+            self.entity_count = round(
+                (len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
+            # Compute full image pixel count (including transparent pixels)
+            self.entity_total_count = round((img.height * img.width) / 1000000, 4)
+        except OSError:
+            return
 
         # TODO: implement GetFeatureInfo analyzing
 

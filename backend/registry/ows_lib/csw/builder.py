@@ -105,8 +105,13 @@ class CSWBuilder(XSDSkeletonBuilder):
         # a GetRecords which arrives as GET query parameters names typeNames only
         # optionally, and its caller passes exactly what the request answered: without
         # the parameter the default of this signature is never reached, so the default
-        # of the specification is answered here rather than by an absent argument
+        # of the specification is answered here rather than by an absent argument.
+        # The KVP binding carries the list as one comma separated value (Table 65),
+        # and joining that string directly joins its characters -- a single name is
+        # answered as the one-element list of that name (#866)
         type_names = type_names or ("csw:Record",)
+        if isinstance(type_names, str):
+            type_names = type_names.replace(",", " ").split()
         root = self.build_element(
             "GetRecords",
             attributes={
@@ -228,13 +233,15 @@ class CSWBuilder(XSDSkeletonBuilder):
         return esn
 
     def _build_query(self, root, type_names):
+        # add_foreign_child takes its attributes as keyword arguments, not as
+        # the ``attributes`` dict of build_element: passing that spelling here
+        # wrote a ``attributes="{'typeNames': ...}"`` attribute carrying the
+        # repr of the dict and named no typeNames at all (#866)
         query_el = self.add_foreign_child(
             root,
             NAMESPACE_LOOKUP["csw_2_0_2"],
             "Query",
-            attributes={
-                "typeNames": " ".join(type_names),
-            },
+            typeNames=" ".join(type_names),
         )
         return query_el
 
@@ -243,7 +250,7 @@ class CSWBuilder(XSDSkeletonBuilder):
             query_el,
             NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
-            attributes={"version": "1.1.0"},
+            version="1.1.0",
         )
 
         self.add_foreign_child(
@@ -258,7 +265,7 @@ class CSWBuilder(XSDSkeletonBuilder):
             query_el,
             NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
-            attributes={"version": "1.1.0"},
+            version="1.1.0",
         )
 
         self.add_foreign_child(
@@ -275,7 +282,7 @@ class CSWBuilder(XSDSkeletonBuilder):
             query,
             NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
-            attributes={"version": "1.1.0"},
+            version="1.1.0",
         )
 
         filt = self.add_foreign_child(
@@ -301,7 +308,7 @@ class CSWBuilder(XSDSkeletonBuilder):
             bbox_el,
             NAMESPACE_LOOKUP["gml_3_1_1"],
             "Envelope",
-            attributes={"srsName": "EPSG:4326"},
+            srsName="EPSG:4326",
         )
 
         self.add_foreign_child(

@@ -1,5 +1,5 @@
 
-import { AutocompleteInput, BooleanInput, NullableBooleanInput, NumberInput, TextInput, useResourceContext } from 'react-admin';
+import { AutocompleteInput, BooleanInput, NullableBooleanInput, NumberInput, TextInput, useResourceContext, useTranslate, type TranslateFunction } from 'react-admin';
 
 import { type OpenAPIV3 } from 'openapi-client-axios';
 
@@ -9,7 +9,23 @@ import { FieldDefinition } from '../utils';
 import useOperation from './useOperation';
 
 
-export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, resource: string | undefined): FieldDefinition | undefined => {
+export const humaniseFilterName = (name: string): string => {
+  // Renders a raw filter name as readable words: "bbox_lat_lon__intersects" becomes
+  // "Bbox lat lon intersects". Used whenever the schema has no human label for the
+  // filter, so an unlabeled field degrades to readable text, never to "(undefined)" (#945).
+  const words = name
+    .replaceAll('_filter_lookup_', ' ') // the source mangled relation path separators; undo it for the label
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[^A-Za-z0-9]+/)
+    .filter((word) => word.length > 0);
+  if (words.length === 0) {
+    return name;
+  }
+  const [first, ...rest] = words;
+  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(' ');
+};
+
+export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, resource: string | undefined, translate?: TranslateFunction): FieldDefinition | undefined => {
   const filterExtensions = schema as OpenAPIV3.ParameterObject & Record<string, unknown>;
   
   const filterRelatedResourceType = filterExtensions['x-jsonapi-related-resource-type'] as string | undefined;
@@ -23,8 +39,19 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
   .replaceAll('filter[', '')
   .replaceAll(']', '')
   .replaceAll('.', '_filter_lookup_');
-  
-  const label = `${filterFieldParts?.join('.') ?? name} ${filterLookupExpressionLabel || '(' + schema.description + ')'}`;
+
+  // the operation suffix the schema documents for this filter; the extension is
+  // English-only, a parameter without any of both is one the backend could not
+  // label (#945), so its option label is completed by the fallback below
+  const operationLabel = filterLookupExpressionLabel ?? (schema.description !== undefined && schema.description !== '' ? `(${schema.description})` : '');
+  const fallbackLabel = [filterFieldParts?.join('.') ?? humaniseFilterName(name), operationLabel].filter(Boolean).join(' ');
+  // react-admin would resolve this string as a translation key with the key
+  // itself as fallback, which would print raw names for every filter the
+  // translations do not know; resolving it here lets the `filterFields`
+  // translations (en + de) win while unknown fields stay readable
+  const label = operationLabel === '' && translate !== undefined
+    ? translate(`filterFields.${name}`, { _: fallbackLabel })
+    : fallbackLabel;
 
   const commonProps = {
     source: name,
@@ -33,25 +60,12 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
     helperText: schema.description
   }
 
-  if (filterRelatedResourceType && filterRelatedResourceField && filterLookupExpression == "exact"){
+  if (filterRelatedResourceType && filterRelatedResourceField && ['exact', 'in'].includes(filterLookupExpression ?? '')){
     const props = {
         ...commonProps,
         reference: filterRelatedResourceType,
         relatedResourceType: resource,
-        multiple: false,
-        parse: undefined, // resets the default behaviour to react-admins default
-        format: undefined, // resets the default behaviour to react-admins default
-    }
-    return {
-      component: SchemaAutocompleteInput,
-      props: props
-    }
-  } else if (filterRelatedResourceType && filterRelatedResourceField && filterLookupExpression == "in"){
-    const props = {
-        ...commonProps,
-        reference: filterRelatedResourceType,
-        relatedResourceType: resource,
-        multiple: true,
+        multiple: filterLookupExpression === 'in',
         parse: undefined, // resets the default behaviour to react-admins default
         format: undefined, // resets the default behaviour to react-admins default
     }
@@ -105,10 +119,11 @@ export const useFilterInputForOperation = (
 ): FieldDefinition[] => {
   const operation = useOperation(operationId)
   const resource = useResourceContext()
+  const translate = useTranslate()
   const parameters = operation?.parameters as OpenAPIV3.ParameterObject[]
   return parameters?.filter((parameter) => parameter.name.includes('filter['))
     .filter((filter) => !filter.name.includes(orderMarker))
     .map((parameter) => {
-      return getFilterInputDefinitions(parameter, resource)
+      return getFilterInputDefinitions(parameter, resource, translate)
     }).filter(def => def !== undefined) ?? []
 }

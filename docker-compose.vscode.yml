@@ -20,8 +20,12 @@ services:
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
     #   /opt/mrmap/manage.py dumpdata --natural-foreign --natural-primary registry
     #   > fixture.json"
+    # Same websocket server beside the debugged runserver as in
+    # docker-compose.dev.yml, for the reason written there: a page served by the
+    # edge of this stack asks /ws of it, and the conf of that edge names port
+    # 8002 in every stack (#1032).
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
+      /bin/sh -c "/opt/mrmap/.bash_scripts/startup_ws.sh & python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
 
     ports:
       - "0.0.0.0:3001:5678"
@@ -29,10 +33,12 @@ services:
 
   celery-worker:
     # command: >
-    #   /bin/sh -c "celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines --autoscale=10,1"
+    #   /bin/sh -c "celery -A MrMap worker --task-events --loglevel DEBUG --autoscale=10,1"
+    # no --queues on either command: the worker consumes what the app
+    # declares (see docs/source/development/celery-queues.rst, #1040)
 
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines,harvest-import,monitoring,update --statedb=/var/run/celery/%n-%i_worker.state"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker --task-events --loglevel DEBUG --statedb=/var/run/celery/%n-%i_worker.state"
 
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"

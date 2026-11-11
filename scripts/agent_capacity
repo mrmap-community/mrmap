@@ -1,63 +1,207 @@
 #!/usr/bin/env python3
-"""agent_capacity: does this host have room for one more agent stack?
+"""agent_capacity: is there room here for one more agent job?
 
 Host-side gate to run before starting another parallel agent job. Standard
-library only and entirely local - it reads /proc, the filesystem and `docker
-ps`, and opens no network connection, so it can never hang on a missing or
-slow network. It prints one verdict line and exits 0 when the host fits another
-job, or 1 when it is already busy.
+library only and entirely local - it reads /proc, the cgroup filesystem, the
+filesystem and `docker ps`, and opens no network connection, so it can never
+hang on a missing or slow network. It prints one verdict line (or one JSON
+object with `--json`) and exits 0 when the host still fits the job, or 1 when
+it does not. Exit 2 is a usage error.
 
-Run it from anywhere: `scripts/agent_capacity` (or `python3
-scripts/agent_capacity`). Every threshold is overridable from the environment so
-a job can tighten or relax the gate without editing the file:
+The gate is read-only and stateless: it never starts, pauses, renices or kills
+anything. Admission control means refusing to *add* work; a job that is
+already running keeps its resources.
 
-  AGENT_MAX_LOAD_PER_CORE  most 15-minute load average per core  (default 1.5)
-  AGENT_MIN_MEM_GB         least MemAvailable, in GiB            (default 16)
-  AGENT_MIN_DISK_GB        least free disk on /, in GiB          (default 100)
-  AGENT_MAX_STACKS         most running mrmap-agent-* stacks     (default 3)
+Classes of job
+--------------
+`--need stack` (default) one heavy Docker Compose test stack: postgis, redis,
+    mapserver plus a one-off test container. Default, because most checks
+    AGENTS.md documents are stack checks.
+`--need suite` one stack that runs the *full* Django suite (--parallel=4, the
+    command docker-compose.dev.yml defines). Same stack shape, measurably
+    heavier: #1055 saw the container cgroup peak at 12.1 GiB for such a run,
+    far above what a targeted check charges. A caller that means to run the
+    whole suite asks this class, so the gate refuses a second heavy job while
+    the suite is charging instead of admitting it against the lighter rule.
+`--need process` one more agent process (an OpenCode worker that runs no
+    stack). Light, so it needs far less memory than a stack.
+`--need none` report the metrics and the host-wide checks, no class need.
 
-A missing metric (unreadable /proc entry, or docker not present) is reported as
-n/a and never makes the host look busy - the gate only blocks on what it can
-actually see over budget.
+Why the memory metric is not `MemAvailable`
+-------------------------------------------
+An agent can run inside a container whose cgroup is much smaller than the
+machine: on the 2026-11-05 host the OpenCode container and its nested dockerd
+shared a 16 GiB `memory.max` while `/proc/meminfo` still reported ~99 GiB
+total and ~68 GiB available, and the container ended that day with 153 OOM
+events and 11 OOM kills - of the OpenCode server, not of a runaway stack,
+because the host looked idle. So the gate takes the *effective* headroom: the
+smaller of `MemAvailable` and the cgroup headroom of this process and every
+parent cgroup, where a cgroup's used memory is its unreclaimable charge
+(`memory.stat` anon, kernel and unreclaimable slab), not `memory.current`.
+`memory.current` includes page cache a new job can reclaim; charging a new job
+against it would refuse work the cgroup could easily still serve. Swap is
+deliberately not counted: a stack swapped out is a stack that fails its own
+timeouts.
+
+Why the CPU metric is not the load average
+------------------------------------------
+Load average has no cgroup scope. This deployment is a Docker container on a
+shared outer host, and `/proc/loadavg` is not namespaced: it reports the outer
+host's runnable threads, while the container's own cgroup (the namespace root
+the gate walks) says nothing about them. On the 2026-11-11 host the agent
+container idled at ~1 core of its quota while the outer host carried load 34
+(1.7 per core) from work outside this container's PID and cgroup view, and the
+gate refused its own first stack over load it neither caused nor could end.
+So the gate reads the container's own CPU pressure (`cpu.pressure` "some
+avg10" of this level and every parent; inside the namespace this aggregates
+the whole container subtree, nested test stacks included): the stalls this
+job's future tasks would actually meet. The host-wide load average decides
+only where no `cpu.pressure` is readable - the unshared-host and cgroup-v1
+cases the number was originally written for.
+
+Nested docker is accounted for, not trusted: containers started by an in-container
+dockerd are children of this cgroup (reported as `docker GiB`), so their memory
+is already inside the headroom being measured here, and a test stack can never
+be given memory the container does not have.
+
+Thresholds are environment overrides so a job can tune the gate without
+editing the file:
+
+  AGENT_MAX_LOAD_PER_CORE      most 15-minute load average per core   (default 1.5)
+                               (only consulted when no cpu.pressure is readable -
+                               a shared host's loadavg counts tenants this
+                               cgroup does not control)
+  AGENT_MAX_CPU_PRESSURE       most CPU PSI "some avg10" percent of   (default 10)
+                               this cgroup and its worst parent
+  AGENT_STACK_MIN_MEM_GB       effective GiB one heavy stack needs    (default 6)
+  AGENT_SUITE_MIN_MEM_GB       effective GiB a `--need suite` stack   (default 8)
+                               needs: the full-suite arm of #1055, heavier
+                               than a targeted check
+  AGENT_PROCESS_MIN_MEM_GB     effective GiB one agent process needs  (default 2)
+  AGENT_MIN_MEM_GB             floor for a stack when no memory limit (default 16)
+                               of this cgroup is visible (the host case)
+  AGENT_MEM_RESERVE_GB         GiB kept out of reach, always          (default 2)
+  AGENT_MEM_NEAR_CEILING_PCT   refuse stacks at/above this % of the   (default 90)
+                               cgroup limit charged to unreclaimable
+                               memory - the recovery hysteresis
+  AGENT_MAX_MEM_PRESSURE       most memory PSI "some avg10" percent   (default 10)
+                               for a new stack
+  AGENT_MIN_DISK_GB            least free disk on /, in GiB           (default 100)
+  AGENT_MAX_STACKS             most running mrmap-agent-*/mrmap-ao-*  (default 3)
+                               stacks
+  AGENT_MAX_PROCESSES          most running agent processes           (default 6)
+  AGENT_PROCESS_MATCH          process name to count as an agent      (default opencode)
+
+Test and integration seams: `AGENT_CGROUP_ROOT` and `AGENT_PROC_ROOT` point the
+metrics at another filesystem root (offline tests fabricate a cgroup),
+`--stacks` and `--processes` pass counts a caller already knows (a supervisor
+that tracks its own jobs), `--json` gives the machine-readable form and
+`evaluate()` is importable for callers that would rather not fork. `--wait N`
+turns a refusal into a queue: the gate re-reads its metrics for up to N seconds
+and exits when a verdict says fits, so a caller that can afford to be late does
+not have to poll the gate itself - waiting is still admission control, a running
+job is never displaced for the newcomer.
+
+Counting is *prospective*: the reported stack and process counts are the ones
+already running, and the job being decided about is added before comparing with
+the maximum. So `stacks 3 (max 3)` refuses a fourth - the count that fits is
+`stacks 2 (max 3)`.
 """
 
+import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 
 GB = 1024 ** 3
-STACK_PREFIX = "mrmap-agent-"
+# An agent Compose stack is named after its job. The repository convention is
+# mrmap-agent-<issue>-<run>; an Agent Orchestrator host generates
+# mrmap-ao-<worktree-hash> per worktree (its wrapper pins it in .env and checks
+# it before every run). Both name agent stacks, so both are counted; anything
+# else - a developer's own project among them - is not an agent stack and the
+# caller that knows better passes --stacks.
+STACK_PREFIXES = ("mrmap-agent-", "mrmap-ao-")
 PROJECT_LABEL = "com.docker.compose.project"
+CGROUP_ROOT = os.environ.get("AGENT_CGROUP_ROOT", "/sys/fs/cgroup")
+PROC_ROOT = os.environ.get("AGENT_PROC_ROOT", "/proc")
+# memory.stat keys that a new job cannot reclaim away: anonymous memory, kernel
+# charges and unreclaimable slab. "file" and slab_reclaimable are deliberately
+# left out - they are exactly the memory a new allocation evicts.
+COMMITTED_KEYS = ("anon", "slab_unreclaimable")
+COMMITTED_KERNEL_KEYS = ("kernel_stack", "pagetables", "sec_pagetables",
+                         "percpu", "vmalloc")
 
 
-def env_num(name, default):
+def read_text(path):
+    """Contents of a pseudo file, or None if it is not there or unreadable."""
     try:
-        return float(os.environ.get(name, "").strip())
+        with open(path) as f:
+            return f.read()
+    except (OSError, ValueError):
+        return None
+
+
+def read_int(path):
+    text = read_text(path)
+    if text is None:
+        return None
+    try:
+        return int(text.strip())
     except ValueError:
-        return default
+        return None
 
 
-def load_per_core():
-    """15-minute load average divided by core count, or None if unreadable."""
+def read_bytes(path):
     try:
-        with open("/proc/loadavg") as f:
-            load15 = float(f.read().split()[2])
-    except (OSError, ValueError, IndexError):
+        with open(path, "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def parse_limit(text):
+    """A cgroup limit value: bytes, or None for the literal "max"."""
+    if text is None:
+        return None
+    text = text.strip()
+    if text in ("", "max"):
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def load_per_core(proc_root=PROC_ROOT):
+    """15-minute load average divided by core count, or None if unreadable."""
+    text = read_text(os.path.join(proc_root, "loadavg"))
+    try:
+        load15 = float(text.split()[2])
+    except (AttributeError, IndexError, ValueError):
         return None
     cores = os.cpu_count() or 1
     return load15 / cores
 
 
-def mem_available_gb():
-    """MemAvailable from /proc/meminfo in GiB, or None if unreadable."""
-    try:
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    return int(line.split()[1]) * 1024 / GB
-    except (OSError, ValueError, IndexError):
+def mem_available_gb(proc_root=PROC_ROOT):
+    """MemAvailable from /proc/meminfo in GiB, or None if unreadable.
+
+    Host-wide, so inside a container with a memory limit this is the machine's
+    number, not the container's - see the module docstring for why using it
+    alone got the 2026-11-05 host OOM-killed.
+    """
+    text = read_text(os.path.join(proc_root, "meminfo"))
+    if text is None:
         return None
+    for line in text.splitlines():
+        if line.startswith("MemAvailable:"):
+            try:
+                return int(line.split()[1]) * 1024 / GB
+            except (IndexError, ValueError):
+                return None
     return None
 
 
@@ -69,8 +213,198 @@ def disk_free_gb():
         return None
 
 
+def self_cgroup_path(proc_root=PROC_ROOT):
+    """cgroup-v2 path of this process, "/" for a namespace root, None if unknown."""
+    text = read_text(os.path.join(proc_root, "self", "cgroup"))
+    if text is None:
+        return None
+    for line in text.splitlines():
+        parts = line.split("::")
+        if len(parts) == 2 and parts[0] == "0":
+            return parts[1].strip() or "/"
+    return None
+
+
+def cgroup_levels(proc_root=PROC_ROOT, cgroup_root=CGROUP_ROOT):
+    """Directories of this cgroup and every parent, leaf first.
+
+    Walking to the root is what catches a limit set above the container: a
+    container can be unlimited inside and still be confined by the slice the
+    runtime itself runs in, and the smallest headroom is the one that OOMs.
+    """
+    path = self_cgroup_path(proc_root)
+    if path is None:
+        return []
+    levels, seen = [], set()
+    cur = path
+    while True:
+        # lstrip: an absolute cgroup path would otherwise swallow the root in
+        # os.path.join and the metrics would silently read nothing.
+        d = os.path.normpath(os.path.join(cgroup_root, cur.lstrip("/")))
+        if d not in seen:
+            levels.append((cur if cur else "/", d))
+            seen.add(d)
+        if cur in ("", "/"):
+            break
+        cur = os.path.dirname(cur.rstrip("/")) or "/"
+    return levels
+
+
+def parse_kv(text):
+    """Parse "key value" lines into a dict of ints; {} when unreadable."""
+    out = {}
+    if text is None:
+        return out
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        try:
+            out[parts[0]] = int(parts[1])
+        except ValueError:
+            continue
+    return out
+
+
+def psi_some_avg10(path):
+    """PSI "some avg10" percentage from a pressure file, or None."""
+    text = read_text(path)
+    if text is None:
+        return None
+    for line in text.splitlines():
+        if line.startswith("some"):
+            for field in line.split():
+                if field.startswith("avg10="):
+                    try:
+                        return float(field.split("=", 1)[1])
+                    except ValueError:
+                        return None
+    return None
+
+
+def cgroup_cpu_pressure(proc_root=PROC_ROOT, cgroup_root=CGROUP_ROOT):
+    """CPU PSI "some avg10" of this cgroup and its parents, worst level.
+
+    On a host shared with workloads outside this cgroup, `/proc/loadavg`
+    counts the runnable threads of every tenant - there is no cgroup-scoped
+    load average to read - and a gate built on it refuses its own idle jobs
+    over load the jobs did not cause and cannot end. The cgroup's own stall
+    percentage is the room a new job would actually meet. The worst of this
+    level and every parent answers, because a stalling parent stalls every
+    task below it. None when no `cpu.pressure` is readable (cgroup v1, no
+    PSI), where the caller falls back to the host-wide load average.
+    """
+    worst = None
+    for _rel, d in cgroup_levels(proc_root, cgroup_root):
+        p = psi_some_avg10(os.path.join(d, "cpu.pressure"))
+        if p is not None and (worst is None or p > worst):
+            worst = p
+    return worst
+
+
+def committed_bytes(stat_path):
+    """Unreclaimable charge of a cgroup from memory.stat, or None without it.
+
+    The kernel documents `kernel` as already covering the kernel_stack,
+    pagetables, percpu and vmalloc charges on some versions and not on others,
+    so the kernel side is taken as the larger of the aggregate and the sum of
+    its parts instead of the sum of both, which would over-count.
+    """
+    stat = parse_kv(read_text(stat_path))
+    if not stat:
+        return None
+    try:
+        total = sum(stat.get(k, 0) for k in COMMITTED_KEYS)
+        parts = sum(stat.get(k, 0) for k in COMMITTED_KERNEL_KEYS)
+        return total + max(stat.get("kernel", 0), parts)
+    except TypeError:
+        return None
+
+
+def cgroup_memory(proc_root=PROC_ROOT, cgroup_root=CGROUP_ROOT):
+    """Memory of this cgroup and its parents.
+
+    Returns a dict with: headroom_gb (effective, smallest across levels),
+    limit_gb, current_gb, committed_gb, peak_gb, used_pct, path (the binding
+    level), pressure (memory PSI some avg10), oom (memory.events), limited
+    (False when no level in sight caps memory) and available (False when no
+    cgroup file could be read at all, i.e. an unrestricted host).
+    """
+    out = {"available": False, "limited": False, "headroom_gb": None,
+           "limit_gb": None, "current_gb": None, "committed_gb": None,
+           "peak_gb": None, "used_pct": None, "path": None, "pressure": None,
+           "oom": {}, "nested_gb": None}
+    best = None
+    diag = None
+    for rel, d in cgroup_levels(proc_root, cgroup_root):
+        limit = parse_limit(read_text(os.path.join(d, "memory.max")))
+        current = read_int(os.path.join(d, "memory.current"))
+        committed = committed_bytes(os.path.join(d, "memory.stat"))
+        if limit is None and current is None and committed is None:
+            continue
+        out["available"] = True
+        if diag is None:
+            diag = (rel, d, limit, current, committed)
+        used = committed if committed is not None else current
+        headroom = None
+        if limit is not None and used is not None:
+            headroom = max(0, limit - used)
+        if headroom is not None and (best is None or headroom < best[0]):
+            best = (headroom, rel, d, limit, current, committed)
+    if best is None:
+        # Nothing in sight caps memory: the unrestricted host case, where the
+        # host's own MemAvailable is the right metric. Keep the diagnostics of
+        # the level we could actually read.
+        if diag is not None:
+            rel, d, limit, current, committed = diag
+            out.update({"path": rel, "limit_gb": None if limit is None else limit / GB,
+                        "current_gb": None if current is None else current / GB,
+                        "committed_gb": None if committed is None else committed / GB})
+            peak = read_int(os.path.join(d, "memory.peak"))
+            out["peak_gb"] = None if peak is None else peak / GB
+            out["oom"] = parse_kv(read_text(os.path.join(d, "memory.events")))
+            out["pressure"] = psi_some_avg10(os.path.join(d, "memory.pressure"))
+        return _nested_docker(out, cgroup_root)
+    headroom, rel, d, limit, current, committed = best
+    out.update({
+        "limited": True,
+        "headroom_gb": headroom / GB,
+        "path": rel,
+        "limit_gb": limit / GB,
+        "current_gb": None if current is None else current / GB,
+        "committed_gb": None if committed is None else committed / GB,
+    })
+    peak = read_int(os.path.join(d, "memory.peak"))
+    out["peak_gb"] = None if peak is None else peak / GB
+    out["oom"] = parse_kv(read_text(os.path.join(d, "memory.events")))
+    out["pressure"] = psi_some_avg10(os.path.join(d, "memory.pressure"))
+    if committed is not None and limit:
+        out["used_pct"] = 100.0 * committed / limit
+    return _nested_docker(out, cgroup_root)
+
+
+def _nested_docker(out, cgroup_root):
+    """Memory an in-container dockerd currently holds, for diagnostics.
+
+    Those containers are children of this cgroup, so their memory is already
+    inside headroom_gb; the number is reported to explain where it went.
+    """
+    for name in ("docker", "docker.service"):
+        cur = read_int(os.path.join(cgroup_root, name, "memory.current"))
+        if cur is not None:
+            out["nested_gb"] = cur / GB
+            break
+    return out
+
+
+def count_stacks(projects):
+    """How many of the compose project names belong to agent stacks."""
+    return len([p for p in projects
+                if any(p.startswith(prefix) for prefix in STACK_PREFIXES)])
+
+
 def agent_stacks():
-    """Running mrmap-agent-* Compose stacks, or None if docker is unusable.
+    """Running agent Compose stacks, or None if docker is unusable.
 
     Counted by compose project (one per agent job), not per container, so the
     limit reads in stacks the way AGENT_MAX_STACKS says. A fixed timeout keeps a
@@ -85,41 +419,254 @@ def agent_stacks():
     if r.returncode != 0:
         return None
     projects = {ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()}
-    return len([p for p in projects if p.startswith(STACK_PREFIX)])
+    return count_stacks(projects)
 
 
-def num(v):
+def agent_processes(proc_root=PROC_ROOT, match=None):
+    """Running agent processes, or None if /proc cannot be read.
+
+    A cheap, network-free proxy for "how many workers are on this host": the
+    number of processes whose argv[0] is the agent executable. A supervisor
+    that tracks its own workers passes --processes and does not rely on this.
+    """
+    match = match or os.environ.get("AGENT_PROCESS_MATCH", "opencode")
+    try:
+        entries = [p for p in os.listdir(proc_root) if p.isdigit()]
+    except OSError:
+        return None
+    me = str(os.getpid())
+    count = 0
+    for pid in entries:
+        if pid == me:
+            continue
+        raw = read_bytes(os.path.join(proc_root, pid, "cmdline"))
+        if not raw:
+            continue
+        argv = raw.split(b"\0")
+        if not argv or not argv[0]:
+            continue
+        if os.path.basename(argv[0].decode("utf-8", "replace")) == match:
+            count += 1
+    return count
+
+
+def pids(cgroup_root=CGROUP_ROOT):
+    """pids.current and pids.max of this cgroup, for diagnostics only.
+
+    The 2026-11-05 diagnosis recorded a PID peak far below the limit, so the
+    gate reports this and does not gate on it; a PID shortage looks like a
+    docker failure long before it looks like a memory problem.
+    """
+    cur = read_int(os.path.join(cgroup_root, "pids.current"))
+    max_ = parse_limit(read_text(os.path.join(cgroup_root, "pids.max")))
+    if cur is None and max_ is None:
+        return None
+    return {"current": cur, "max": max_}
+
+
+def fmt(v):
     return "n/a" if v is None else f"{v:.1f}"
 
 
-def main():
-    max_load = env_num("AGENT_MAX_LOAD_PER_CORE", 1.5)
-    min_mem = env_num("AGENT_MIN_MEM_GB", 16)
-    min_disk = env_num("AGENT_MIN_DISK_GB", 100)
-    max_stacks = env_num("AGENT_MAX_STACKS", 3)
+def evaluate(need="stack", stacks=None, processes=None, env=None,
+             proc_root=PROC_ROOT, cgroup_root=CGROUP_ROOT):
+    """Decide one admission. Returns a plain dict; the only source of truth.
 
-    load, mem, disk, stacks = load_per_core(), mem_available_gb(), disk_free_gb(), agent_stacks()
+    `need` is the class of the job being started, `stacks` and `processes` the
+    counts that are already running (None: measure them here). Counts are
+    prospective: this job is added before comparing with the maxima.
+    `env`, `proc_root` and `cgroup_root` are the seams the offline tests use to
+    decide thresholds and metrics without a real cgroup.
+    """
+    e = os.environ if env is None else env
+
+    def threshold(name, default):
+        try:
+            return float(e.get(name, "").strip())
+        except ValueError:
+            return default
+
+    max_load = threshold("AGENT_MAX_LOAD_PER_CORE", 1.5)
+    min_disk = threshold("AGENT_MIN_DISK_GB", 100)
+    max_stacks = threshold("AGENT_MAX_STACKS", 3)
+    max_processes = threshold("AGENT_MAX_PROCESSES", 6)
+    stack_need = threshold("AGENT_STACK_MIN_MEM_GB", 6)
+    suite_need = threshold("AGENT_SUITE_MIN_MEM_GB", 8)
+    process_need = threshold("AGENT_PROCESS_MIN_MEM_GB", 2)
+    host_floor = threshold("AGENT_MIN_MEM_GB", 16)
+    reserve = threshold("AGENT_MEM_RESERVE_GB", 2)
+    near_ceiling = threshold("AGENT_MEM_NEAR_CEILING_PCT", 90)
+    max_pressure = threshold("AGENT_MAX_MEM_PRESSURE", 10)
+    max_cpu_pressure = threshold("AGENT_MAX_CPU_PRESSURE", 10)
+
+    load = load_per_core(proc_root)
+    cpu_pressure = cgroup_cpu_pressure(proc_root, cgroup_root)
+    host_mem = mem_available_gb(proc_root)
+    disk = disk_free_gb()
+    cg = cgroup_memory(proc_root, cgroup_root)
+    if stacks is None:
+        stacks = agent_stacks()
+    if processes is None and need == "process":
+        processes = agent_processes(proc_root)
+
+    # Effective headroom: the tighter of the machine's free memory and the
+    # cgroup this job would be born into, minus the reserve.
+    candidates = [v for v in (host_mem, cg["headroom_gb"]) if v is not None]
+    effective = (min(candidates) - reserve) if candidates else None
+
+    if need == "stack":
+        required = stack_need if cg["limited"] else max(stack_need, host_floor)
+    elif need == "suite":
+        required = suite_need if cg["limited"] else max(suite_need, host_floor)
+    elif need == "process":
+        required = process_need
+    else:
+        required = 0.0
 
     problems = []
-    if load is not None and load > max_load:
+    # CPU admission reads the cgroup's own stall signal where it exists: on a
+    # host shared with tenants outside this cgroup /proc/loadavg counts all of
+    # them, and refusing over load this cgroup neither causes nor can end
+    # starves the jobs the gate exists to protect. The host-wide load average
+    # is the fallback for cgroup trees without CPU PSI.
+    if cpu_pressure is not None:
+        if cpu_pressure > max_cpu_pressure:
+            problems.append("cpu")
+    elif load is not None and load > max_load:
         problems.append("load")
-    if mem is not None and mem < min_mem:
+    if effective is not None and effective < required:
         problems.append("mem")
     if disk is not None and disk < min_disk:
         problems.append("disk")
-    if (stacks or 0) > max_stacks:
-        problems.append("stacks")
+    if need in ("stack", "suite"):
+        # Under pressure or at the ceiling the cgroup is already thrashing;
+        # a new stack would be the one that OOMs. Recovery is automatic: as
+        # soon as the charge or the pressure drops the verdict flips.
+        if cg["pressure"] is not None and cg["pressure"] > max_pressure:
+            problems.append("pressure")
+        if cg["limited"] and cg["used_pct"] is not None and cg["used_pct"] >= near_ceiling:
+            problems.append("ceiling")
+        if stacks is not None and stacks + 1 > max_stacks:
+            problems.append("stacks")
+    if need == "process" and processes is not None and processes + 1 > max_processes:
+        problems.append("processes")
 
-    print(
-        f"agent_capacity: load {num(load)}/core (max {max_load:g}), "
-        f"mem {num(mem)}G (min {min_mem:g}), "
-        f"disk {num(disk)}G (min {min_disk:g}), "
-        f"stacks {stacks if stacks is not None else 'n/a'} (max {max_stacks:g})"
-        + (" [docker unavailable]" if stacks is None else "")
-        + f" -> {'BUSY: ' + ','.join(problems) if problems else 'fits'}"
-    )
-    sys.exit(1 if problems else 0)
+    return {
+        "need": need,
+        "fits": not problems,
+        "reasons": problems,
+        "metrics": {
+            "load_per_core": load, "load_max": max_load,
+            "cpu_pressure_avg10": cpu_pressure,
+            "cpu_pressure_max": max_cpu_pressure,
+            "mem_effective_gb": effective, "mem_required_gb": required,
+            "mem_reserve_gb": reserve, "mem_source": (
+                "cgroup" if cg["limited"] else "host" if host_mem is not None else None),
+            "mem_host_available_gb": host_mem,
+            "mem_cgroup_available": cg["available"], "mem_cgroup_limited": cg["limited"],
+            "mem_cgroup_path": cg["path"], "mem_cgroup_limit_gb": cg["limit_gb"],
+            "mem_cgroup_current_gb": cg["current_gb"],
+            "mem_cgroup_committed_gb": cg["committed_gb"],
+            "mem_cgroup_headroom_gb": cg["headroom_gb"], "mem_cgroup_peak_gb": cg["peak_gb"],
+            "mem_cgroup_used_pct": cg["used_pct"], "mem_nested_docker_gb": cg["nested_gb"],
+            "mem_pressure_avg10": cg["pressure"], "mem_pressure_max": max_pressure,
+            "mem_near_ceiling_pct": near_ceiling,
+            "disk_free_gb": disk, "disk_min_gb": min_disk,
+            "stacks": stacks, "stacks_max": max_stacks, "docker_available": stacks is not None,
+            "processes": processes, "processes_max": max_processes,
+            "oom_events": {k: v for k, v in cg["oom"].items() if k in ("max", "oom", "oom_kill")},
+            "pids": pids(cgroup_root),
+        },
+    }
+
+
+def verdict_line(r):
+    m = r["metrics"]
+    if m.get("cpu_pressure_avg10") is not None:
+        cpu_part = (f"cpu {fmt(m['cpu_pressure_avg10'])}% stall "
+                    f"(max {m['cpu_pressure_max']:g})")
+    else:
+        cpu_part = (f"load {fmt(m['load_per_core'])}/core "
+                    f"(max {m['load_max']:g})")
+    parts = [
+        f"need {r['need']}",
+        cpu_part,
+        f"mem {fmt(m['mem_effective_gb'])}G effective of "
+        f"{fmt(m['mem_cgroup_headroom_gb'])}G cgroup / "
+        f"{fmt(m['mem_host_available_gb'])}G host "
+        f"(need {m['mem_required_gb']:g}, reserve {m['mem_reserve_gb']:g})",
+        f"disk {fmt(m['disk_free_gb'])}G (min {m['disk_min_gb']:g})",
+        f"stacks {m['stacks'] if m['stacks'] is not None else 'n/a'}+1 "
+        f"(max {m['stacks_max']:g})",
+        f"processes {m['processes'] if m['processes'] is not None else 'n/a'} "
+        f"(max {m['processes_max']:g})",
+        f"pressure {fmt(m['mem_pressure_avg10'])}% (max {m['mem_pressure_max']:g})",
+    ]
+    detail = []
+    if m.get("cpu_pressure_avg10") is not None and m["load_per_core"] is not None:
+        # report the unscoped number too, so the reader can tell a shared
+        # host's tenants apart from a cgroup that is out of room
+        detail.append(f"host load {fmt(m['load_per_core'])}/core unscoped")
+    if m["mem_cgroup_limited"]:
+        detail.append(f"cgroup {m['mem_cgroup_path']} limit "
+                      f"{fmt(m['mem_cgroup_limit_gb'])}G "
+                      f"committed {fmt(m['mem_cgroup_committed_gb'])}G "
+                      f"current {fmt(m['mem_cgroup_current_gb'])}G")
+    else:
+        detail.append("cgroup unlimited" if m["mem_cgroup_available"] else "cgroup n/a")
+    if m["mem_nested_docker_gb"] is not None:
+        detail.append(f"docker {fmt(m['mem_nested_docker_gb'])}G of it")
+    if m["mem_cgroup_peak_gb"] is not None:
+        detail.append(f"peak {fmt(m['mem_cgroup_peak_gb'])}G")
+    oom = m["oom_events"]
+    if oom:
+        detail.append(f"oom {oom.get('oom', 0)}/{oom.get('oom_kill', 0)} kill")
+    if m["pids"] and m["pids"].get("max"):
+        detail.append(f"pids {m['pids']['current']}/{m['pids']['max']}")
+    if m["stacks"] is None:
+        detail.append("docker unavailable")
+    return ("agent_capacity: " + ", ".join(parts) + " [" + "; ".join(detail) + "] -> "
+            + ("BUSY: " + ",".join(r["reasons"]) if r["reasons"] else "fits"))
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        prog="agent_capacity", description=__doc__.splitlines()[0],
+        epilog="exit 0 fits, 1 busy, 2 usage")
+    ap.add_argument("--need", choices=("stack", "suite", "process", "none"),
+                    default="stack",
+                    help="class of the job about to start (default stack)")
+    ap.add_argument("--json", action="store_true", help="print the verdict as one JSON object")
+    ap.add_argument("--stacks", type=int, default=None,
+                    help="stacks already running, instead of counting with docker ps")
+    ap.add_argument("--processes", type=int, default=None,
+                    help="agent processes already running, instead of scanning /proc")
+    ap.add_argument("--wait", type=int, default=0, metavar="SECONDS",
+                    help="queue for up to SECONDS seconds for a refusal to clear "
+                         "before exiting busy; progress goes to stderr")
+    args = ap.parse_args(argv)
+
+    def ask():
+        return evaluate(need=args.need, stacks=args.stacks, processes=args.processes)
+
+    result = ask()
+    deadline = time.monotonic() + max(0, args.wait)
+    while not result["fits"] and time.monotonic() < deadline:
+        # A refusal clears on its own - another job finishing, a charge being
+        # reclaimed - so queueing for room is legitimate waiting, while
+        # displacing a running job is not. Progress goes to stderr, so a
+        # --json caller still reads exactly one object on stdout.
+        left = deadline - time.monotonic()
+        print(f"agent_capacity: waiting {int(left)}s for "
+              + ",".join(result["reasons"]), file=sys.stderr, flush=True)
+        time.sleep(min(15.0, max(0.0, left)))
+        result = ask()
+    if args.json:
+        print(json.dumps(result))
+    else:
+        print(verdict_line(result))
+    return 1 if not result["fits"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

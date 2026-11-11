@@ -11,7 +11,12 @@ payload built from the instance post_save hands over would not carry them and
 the frontend, which replaces its record with the record of the message, would
 show the job at 0 %. The receiver therefore selects the job through
 HarvestingJob.objects.with_process_info() after the save, which is what the
-payload assertions of these tests are about.
+payload assertions of these tests are about. Since #1071 the same holds for the
+measurements of a working run (elapsedSeconds, recordsPerMinuteRunning,
+estimatedSecondsRemaining, expectedDoneAt): a push which drops them blanks the
+diagnostics of an open run screen every few seconds. Those measurements answer
+from the clock of the query which asks for them, so the test which compares them
+between the push and the endpoint holds one instant for both reads (#1133).
 
 Run with:
 
@@ -21,7 +26,9 @@ Run with:
 """
 
 from collections import OrderedDict
+from datetime import timedelta
 from unittest.mock import patch
+from uuid import uuid4
 
 from channels.layers import BaseChannelLayer
 from django.test import TestCase
@@ -32,6 +39,8 @@ from simple_history.models import HistoricalRecords
 from notify.utils import group_name
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.metadata import MetadataContact
+from registry.models.service import CatalogueService
 from tests.django.notify.test_consumer_fanout import RecordingChannelLayer
 
 
@@ -75,6 +84,18 @@ class HarvestingJobSignalsTest(TestCase):
 
     def attributes_of(self, message):
         return message["json"]["event"]["payload"]["records"][0]["attributes"]
+
+    def job_message(self, published, job):
+        """The message of the job among everything the save published.
+
+        A service backed job additionally invalidates the service alerts on
+        every save, and that message carries no records to read.
+        """
+        topic = f"resource/HarvestingJob/{job.pk}"
+        _, message = next(
+            (group, message) for group, message in published
+            if message["json"]["topic"] == topic)
+        return message
 
     def test_created_job_is_announced_on_the_resource_wide_topic(self):
         self.publish_during(lambda: HarvestingJob.objects.create(
@@ -146,6 +167,62 @@ class HarvestingJobSignalsTest(TestCase):
                 attributes[field], value,
                 "the message must not tell a different progress than the "
                 "endpoint the frontend reads the record from")
+
+    def test_the_announcement_carries_the_measurements_of_a_working_run(self):
+        """the run screen is open while the run works, so the push carries them too
+
+        RealtimeShowContextProvider replaces the fetched record with the pushed
+        one: a measurement which only the endpoint annotated would answer once
+        and empty with the first push (#1071).
+
+        The run belongs to a catalogue: only a service backed creation goes
+        through `handle_adding` and so writes the first row of the change log,
+        which is where the moment the run was made is read from.
+        """
+        contact = MetadataContact.objects.create(name='Push test contact')
+        catalogue = CatalogueService(
+            id=uuid4(), title='Push test catalogue', version=202, origin=1,
+            service_url='https://example.com/csw',
+            metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([catalogue])
+
+        # the creation schedules the fetch of the total records on commit
+        with patch("registry.tasks.harvest.call_fetch_total_records"):
+            job = self.job(service=catalogue)
+        self.unhandled(job)
+        job = HarvestingJob.objects.get(pk=job.pk)
+
+        # The measurements answer from the clock of the query which asks for
+        # them (`ends_at` of `run_measurements` is its `now()`), so the push and
+        # the re-read below are two statements answering two moments. That they
+        # nevertheless agree is what this test is about - a client replacing its
+        # record with the push must not see the elapsed time jump - so the clock
+        # is held for both reads. Left to the wall clock the gap between them
+        # measured 1.15 s on a loaded runner, against a delta of 1 (#1133).
+        # Frozen 30 s into the run, so that the elapsed time is a positive number
+        # and the estimate is answered at all.
+        instant = now() + timedelta(seconds=30)
+        with patch("registry.managers.havesting.now", return_value=instant):
+            published = self.publish_during(lambda: job.save())
+            message = self.job_message(published, job)
+            attributes = self.attributes_of(message)
+            annotated = HarvestingJob.objects.with_process_info().get(pk=job.pk)
+
+        for field in ("elapsedSeconds", "recordsPerMinuteRunning",
+                      "estimatedSecondsRemaining"):
+            self.assertIsNotNone(
+                attributes[field],
+                f"the push of a working run answers {field}")
+        self.assertIsNotNone(
+            attributes["expectedDoneAt"],
+            "the expected end travels as the timestamp the endpoint answers")
+        self.assertEqual(
+            attributes["elapsedSeconds"], annotated.elapsed_seconds,
+            msg="the push must not tell a different time than the endpoint")
+        self.assertEqual(
+            attributes["estimatedSecondsRemaining"],
+            annotated.estimated_seconds_remaining,
+            msg="the push must not tell a different estimate than the endpoint")
 
     def test_the_terminal_state_is_announced_immediately(self):
         job = self.job()

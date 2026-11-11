@@ -1,0 +1,58 @@
+[
+    {
+        "model": "registry.metadatacontact",
+        "pk": 2468,
+        "fields": {
+            "name": "Beispiel Trägerkontakt",
+            "person_name": "",
+            "email": "kontakt@example.org",
+            "phone": "",
+            "facsimile": "",
+            "city": "Berlin",
+            "postal_code": "10115",
+            "country": "Deutschland",
+            "address": "Beispielstraße 1",
+            "address_type": "",
+            "state_or_province": "Berlin"
+        }
+    },
+    {
+        "model": "registry.servicemetadatarecord",
+        "pk": "f4ac83a9-3d1e-4b2f-9c6a-9f2e7d1c5b0a",
+        "fields": {
+            "code_space": "de.beispiel.",
+            "code": "dienst-1",
+            "file_identifier": "de.beispiel.dienst-1",
+            "title": "Wartungsdienst Beispiel",
+            "abstract": "Ein Dienst fuer den gemischten CSW-Datensatz.",
+            "metadata_contact": 2468,
+            "origin": 5,
+            "origin_url": "https://example.org/csw/GetRecordById?id=de.beispiel.dienst-1",
+            "hits": 0,
+            "is_searchable": false,
+            "is_broken": false,
+            "is_customized": true,
+            "xml_backup_file": "xml_documents/f4ac83a9-3d1e-4b2f-9c6a-9f2e7d1c5b0a/md_metadata.xml"
+        }
+    },
+    {
+        "model": "registry.applicationmetadatarecord",
+        "pk": "c0ffee00-7a11-4c1d-8f2b-3e9d5a2b6c01",
+        "fields": {
+            "code_space": "de.beispiel.",
+            "code": "anwendung-1",
+            "file_identifier": "de.beispiel.anwendung-1",
+            "title": "Luftbeobachtung Anwendung Beispiel",
+            "abstract": "Eine Anwendung fuer den gemischten CSW-Datensatz.",
+            "metadata_contact": 2468,
+            "application_contact": 2468,
+            "origin": 5,
+            "origin_url": "https://example.org/csw/GetRecordById?id=de.beispiel.anwendung-1",
+            "hits": 0,
+            "is_searchable": false,
+            "is_broken": false,
+            "is_customized": true,
+            "xml_backup_file": "xml_documents/c0ffee00-7a11-4c1d-8f2b-3e9d5a2b6c01/md_metadata.xml"
+        }
+    }
+]

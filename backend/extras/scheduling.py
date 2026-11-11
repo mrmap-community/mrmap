@@ -1,3 +1,4 @@
+from django.db.models import Case, DateTimeField, Value, When
 from django.utils import timezone
 
 
@@ -106,3 +107,43 @@ def run_overdue(setting):
         return False
     expected_at = next_run_expected_at(setting)
     return expected_at is not None and expected_at < current_time
+
+
+def with_next_run_at(qs):
+    """Answer the next run of every scheduled setting as one annotation.
+
+    The next run of a schedule is no column: a crontab occurrence is decided in
+    python (`next_run_expected_at`), so a request which sorts the schedules by
+    their next run cannot ask the database for that order directly. The moments
+    are therefore decided row by row - a deployment has as many schedules as it
+    has services to schedule, which is the number this is affordable for - and
+    answered back as one CASE over the pks of the rows: the page, the filters
+    and the count of the request stay in the database and only the decision of
+    the order is python's (#1082).
+
+    A row which answers no next run is answered as no moment, which the
+    database sorts after its siblings ascending and before them descending.
+
+    Args:
+        qs: the queryset of scheduled settings to answer on
+
+    Returns:
+        the same kind of rows, each answering `next_run_at`
+    """
+    rows = list(qs.select_related("crontab")) \
+        if hasattr(qs, "select_related") else list(qs)
+    moments = {
+        row.pk: next_run_expected_at(row) for row in rows}
+    if not hasattr(qs, "annotate"):
+        for row in rows:
+            row.next_run_at = moments[row.pk]
+        return rows
+    cases = [
+        When(pk=pk, then=Value(moment, output_field=DateTimeField()))
+        for pk, moment in moments.items() if moment is not None]
+    if not cases:
+        return qs.annotate(
+            next_run_at=Value(None, output_field=DateTimeField()))
+    return qs.annotate(next_run_at=Case(
+        *cases, default=Value(None, output_field=DateTimeField()),
+        output_field=DateTimeField()))

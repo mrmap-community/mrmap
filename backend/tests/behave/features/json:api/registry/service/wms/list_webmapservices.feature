@@ -11,7 +11,10 @@ Feature: WebMapService List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
-        Then I expect that "17" queries where made
+        Then I expect that "15" queries where made
+        # The permission checker prefetched its objects from a second filtered
+        # and paginated queryset, which cost a second COUNT and a second page
+        # selection until #1031 removed them.
 
     Scenario Outline: Can <action>
         Given I set a queryparam "<param>" with value "<value>"

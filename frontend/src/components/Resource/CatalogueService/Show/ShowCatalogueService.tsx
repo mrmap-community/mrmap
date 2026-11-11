@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { useRecordContext, useTranslate } from "react-admin";
+import { DateField, useRecordContext, useTranslate } from "react-admin";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -24,6 +24,38 @@ const HarvestingTab = ({ children }: PropsWithChildren) => {
   return service?.isHarvestable === false
     ? <Alert severity="info">{translate("harvestingSchedules.unavailable")}</Alert>
     : children;
+};
+
+/**
+ * The runs of this catalogue. The moment a run was made is answered as `dateCreated`
+ * - the tab declared it as `createdAt` for ages, a key no field of a harvesting job
+ * answers, which left the column silently empty for every run (#1078). Its header is
+ * titled through the translations here because the resource answers no titles of its
+ * own yet (#1085), and a run whose start cannot be known shows the empty text.
+ */
+const HarvestingRunsTab = () => {
+  const translate = useTranslate();
+  return (
+    <HarvestingTab>
+      <ServiceRelatedTab
+        resource="HarvestingJob"
+        realtime
+        refetchInterval={20000}
+        defaultSelectedColumns={["id", "phase", "progress", "dateCreated", "doneAt"]}
+        updateFieldDefinitions={[
+          {
+            component: DateField,
+            props: {
+              source: "dateCreated",
+              label: translate("harvestingActivity.started"),
+              showTime: true,
+              emptyText: "—",
+            },
+          },
+        ]}
+      />
+    </HarvestingTab>
+  );
 };
 
 const tabs: ServiceTab[] = [
@@ -74,22 +106,7 @@ const tabs: ServiceTab[] = [
     label: "serviceShow.harvesting",
     resource: "HarvestingJob",
     operation: "list_related_HarvestingJob_of_CatalogueService",
-    content: (
-      <HarvestingTab>
-        <ServiceRelatedTab
-          resource="HarvestingJob"
-          realtime
-          refetchInterval={20000}
-          defaultSelectedColumns={[
-            "id",
-            "phase",
-            "progress",
-            "createdAt",
-            "doneAt",
-          ]}
-        />
-      </HarvestingTab>
-    ),
+    content: <HarvestingRunsTab />,
   },
   {
     path: "PeriodicHarvestingJob/*",

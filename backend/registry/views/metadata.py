@@ -53,13 +53,16 @@ class NestedMimeTypeViewSet(
 
 
 class KeywordViewSetMixin:
-    queryset = Keyword.objects.all()
+    # the pickers of the frontend render and sort by the display string the
+    # serializer answers, which for a keyword is its text (#1035)
+    queryset = Keyword.objects.annotate(string_representation=F("keyword"))
     serializer_class = KeywordSerializer
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         "keyword": ["exact", "icontains", "contains"],
     }
     search_fields = ("keyword",)
+    ordering_fields = ["id", "keyword", "string_representation"]
 
 
 class KeywordViewSet(
@@ -160,6 +163,31 @@ class NestedStyleViewSet(
     pass
 
 
+# Non-included record relations only need their identifiers for JSON:API linkage.
+METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES = {
+    "harvested_through": [
+        Prefetch(
+            "harvested_through",
+            queryset=CatalogueService.objects.only("id"),
+        )
+    ],
+    "keywords": [
+        Prefetch("keywords", queryset=Keyword.objects.only("id"))
+    ],
+    "reference_systems": [
+        Prefetch(
+            "reference_systems", queryset=ReferenceSystem.objects.only("id")
+        )
+    ],
+    "time_extents": [
+        Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
+    ],
+    "languages": [
+        Prefetch("languages", queryset=Language.objects.only("value"))
+    ],
+}
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
@@ -171,7 +199,13 @@ class DatasetMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # a record is searched by the words its vector holds -- the title, the abstract
+    # and every keyword of it are tokenized into that column -- because matching it
+    # is one probe into its GIN index. Searching the three texts instead asks a
+    # UPPER(...) LIKE per word and joins the keyword relation of the whole
+    # catalogue, which is where a searched list spent its time (#1029); see
+    # registry/filters/search.py
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
@@ -285,26 +319,7 @@ class DatasetMetadataViewSetMixin(
                 queryset=FeatureType.objects.only("id", "service_id"),
             )
         ],
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -421,7 +436,8 @@ class ServiceMetadataViewSetMixin(
         .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
-    search_fields = ("title", "abstract", "keywords__keyword")
+    # see DatasetMetadataViewSetMixin.search_fields
+    search_fields = ("search_vector",)
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
 
@@ -442,26 +458,7 @@ class ServiceMetadataViewSetMixin(
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
         "self_pointing_wms": [
             Prefetch(
                 "self_pointing_wms",
@@ -550,26 +547,7 @@ class ApplicationMetadataViewSetMixin(
         "categories": [
             Prefetch("categories", queryset=IsoCategory.objects.only("value"))
         ],
-        "harvested_through": [
-            Prefetch(
-                "harvested_through",
-                queryset=CatalogueService.objects.only("id"),
-            )
-        ],
-        "keywords": [
-            Prefetch("keywords", queryset=Keyword.objects.only("id"))
-        ],
-        "reference_systems": [
-            Prefetch(
-                "reference_systems", queryset=ReferenceSystem.objects.only("id")
-            )
-        ],
-        "time_extents": [
-            Prefetch("time_extents", queryset=TimeExtent.objects.only("id"))
-        ],
-        "languages": [
-            Prefetch("languages", queryset=Language.objects.only("value"))
-        ],
+        **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -609,8 +587,12 @@ class NestedApplicationMetadataViewSet(
 
 
 class TimeExtentViewSet(ReadOnlyModelViewSet):
-    queryset = TimeExtent.objects.all()
+    # the annotation makes the display string of the serializer sortable, which
+    # is the sort the generic pickers send when they render this resource (#1035)
+    queryset = TimeExtent.objects.with_string_representation()
     serializer_class = TimeExtentSerializer
+    ordering_fields = ["id", "begin", "end", "resolution", "is_relative",
+                       "string_representation"]
 
 
 class LanguageViewSet(ReadOnlyModelViewSet):

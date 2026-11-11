@@ -99,7 +99,6 @@ INSTALLED_APPS = [
     "rest_framework_json_api",
     "knox",  # token auth
     "django_celery_beat",
-    "django_celery_results",
     "django_filters",
     "simple_history",
     "mptt2",
@@ -112,7 +111,7 @@ INSTALLED_APPS = [
     "system",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
-    "django_pgviews",
+    "pgtrigger",
 ]
 
 MIDDLEWARE = [
@@ -392,11 +391,34 @@ CACHES = {
 # Celery settings
 ################################################################
 CELERY_BROKER_URL = BROKER_URL
-CELERY_RESULT_BACKEND = "extras.celery:RetryingCacheBackend"
-# Chord members must store results. Retry transient cache failures here, after
-# the task body has completed, rather than failing or rerunning the harvest.
+# Celery's native Redis result backend (celery.backends.redis:RedisBackend),
+# on the table the comment above preserves for celery task management: task
+# results, group metadata and the chord bookkeeping live there under celery's
+# own ``celery-task-meta-``/``celery-taskset-meta-`` prefixes, next to the
+# broker's keys and apart from the Django cache in table 1. The former
+# ``extras.celery:RetryingCacheBackend`` wrapper over the package
+# django-celery-results is removed (#1178); the native backend is what keeps
+# results in Redis for the chords of registration and harvesting.
+CELERY_RESULT_BACKEND = f"{BROKER_URL}/0"
+# Chord members must store results. A Redis read or write that fails with a
+# connection error is retried here, after the task body has completed, rather
+# than failing or rerunning the harvest: the native backend treats Redis
+# connection and timeout errors as safe to retry, and any other error - a
+# programming error - is raised at once instead of being retried (#816's
+# regression intent, kept by tests/django/test_celery_backend.py). A write
+# first runs through the backend's own bounded connection-retry loop; these
+# are the retries of the outer loop with exponential backoff, and an exhausted
+# budget surfaces as a BackendStoreError in the worker log, not as a task-body
+# failure.
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
 CELERY_RESULT_BACKEND_MAX_RETRIES = 10
+# How long results and chord bookkeeping live (celery's default of one day,
+# spelled out because the harvest's import chord is the long-running chord
+# this budget must cover): every part returning from the backlog refreshes the
+# expiry of the group's keys, so a chord which keeps working for hours does
+# not lose its bookkeeping, while the keys of a chord that died expire on
+# their own instead of filling Redis.
+CELERY_RESULT_EXPIRES = 60 * 60 * 24
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -411,6 +433,20 @@ CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# the number of slots a celery worker process runs; docker-compose.yml hands
+# the variable of the same name from the .env of the deployment to
+# celery-worker. Unset keeps celery's own default of one slot per core;
+# "auto" lets celery size the prefork pool by the cgroup quota of the
+# container. It is the knob for a bigger worker, so that changing worker
+# concurrency never makes a deployment restate the queue list of the
+# release and thereby half-install it (#1040).
+_CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
+if _CELERY_WORKER_CONCURRENCY == "auto":
+    CELERY_WORKER_CONCURRENCY = "auto"
+elif _CELERY_WORKER_CONCURRENCY:
+    CELERY_WORKER_CONCURRENCY = int(_CELERY_WORKER_CONCURRENCY)
+else:
+    CELERY_WORKER_CONCURRENCY = None
 CELERY_TASK_QUEUES = (
     Queue(
         name=celery_queues.DEFAULT,
@@ -677,9 +713,11 @@ except socket.gaierror:
 LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS = int(
     os.getenv("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
 
-# every record the syslog handler formats leaves a json dump with the details of
-# the record below the media root, see system/logging/formatter.py. Nothing used
-# to take them back, so they grew with every slow request (#888). The sweep which
+# the records which the syslog handler formats and which carry detail beyond
+# their code position leave a json dump with that detail below the media root,
+# see system/logging/formatter.py; an ordinary record is answered by its syslog
+# line alone (#1033). While the formatter wrote one per record, nothing used to
+# take them back, so they grew with every log record (#888). The sweep which
 # system/tasks.py names deletes them after this many days, aligned with the
 # -retentionPeriod of the log store which keeps the syslog line pointing at them:
 # a dropped dump loses the per request sql detail, nothing else. 0 keeps them
@@ -691,6 +729,28 @@ SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
 # answers no cap, which leaves the age bound alone
 SLOW_REQUEST_DUMP_MAX_FILES = int(
     os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
+
+# the largest response body a monitoring probe keeps as an artifact of the
+# execution; the size of a response is recorded either way, so the inspector
+# can say why a body was not stored (#682)
+MONITORING_PROBE_RESPONSE_MAX_SIZE = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_MAX_SIZE", "5242880"))
+# how many days a stored probe response stays inspectable; the sweep which
+# registry/tasks/monitoring.py names takes the bodies back after this many
+# days while the result rows and their check answers stay, and the artifact
+# endpoint refuses an older body as gone before the sweep reached it. 0 keeps
+# every artifact until an operator removes it (#682)
+MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_RETENTION_DAYS", "30"))
+
+# how many days a decided background process stays part of the job history;
+# the sweep which notify/tasks.py names deletes the processes which ended
+# before this many days, together with their log entries, so the history of
+# the job drawer stays bounded while the failures of the retention window
+# remain discoverable (#1208). Processes which did not end yet are never
+# touched. 0 keeps every process until an operator removes it
+BACKGROUND_PROCESS_RETENTION_DAYS = int(
+    os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
 
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
@@ -710,6 +770,17 @@ HARVEST_IMPORT_PROGRESS_STEPS = int(
     os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_STEPS", "200"))
 HARVEST_IMPORT_PROGRESS_SECONDS = int(
     os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS", "30"))
+# The interval of the beat task which watches the harvests whose import backlog
+# does not drain, in minutes (``registry.tasks.harvest.watch_import_backlogs``).
+# The wait for an import chord is bounded by the retry budget this project hands
+# celery, and when that budget runs out the chord's callback is dropped without
+# any mrmap code being able to see it: the job stays open, its records unimported,
+# and the only trace is a line in the worker log (#1038). The watchdog asks its
+# question on this interval instead, and a backlog which stands still for one of
+# them is reported on the job itself. The beat row of the task fires on the same
+# value (see ``registry/apps.py``).
+HARVEST_IMPORT_WATCH_INTERVAL_MINUTES = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_WATCH_INTERVAL_MINUTES", "5"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
@@ -764,7 +835,12 @@ REST_FRAMEWORK = {
         "rest_framework_json_api.filters.OrderingFilter",
         # "extras.filter_backend.CustomDjangoFilterBackend",
         "rest_framework_json_api.django_filters.backends.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
+        # DRF's search, but asked of the search vector of a metadata record where a
+        # view names one: the LIKE construction of the base is not indexable and,
+        # joined over the keywords of a record, is the most expensive statement of a
+        # searched list -- including the COUNT(*) of the pagination (#1029). See
+        # registry/filters/search.py.
+        "registry.filters.search.SearchVectorSearchFilter",
     ),
     "SEARCH_PARAM": "filter[search]",
     "TEST_REQUEST_RENDERER_CLASSES": (
@@ -777,9 +853,6 @@ REST_FRAMEWORK = {
 #     'TOKEN_TTL': timedelta(hours=1),
 #     'AUTO_REFRESH': True,
 # }
-MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE = True
-MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

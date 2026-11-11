@@ -119,6 +119,54 @@ def search_records(model, hierarchy_level: str):
     ).order_by("pk").distinct()
 
 
+def count_records(queryset) -> int:
+    """The number of records a record queryset matches, counted over primary keys.
+
+    This is ``numberOfRecordsMatched``, asked in the shape the database can
+    use. The querysets of this module are ``distinct()`` over a join, and
+    Django's ``count()`` of a distinct queryset wraps the *whole select list*
+    in the ``SELECT DISTINCT`` subquery it needs -- for these models every
+    column of the record table, the stored XML document among them -- so the
+    database hashed full records to answer a number (#1188 measured 7.7 s for
+    one count of the service table). Projecting the primary key first keeps
+    exactly the distinctness which is asked for: a matched *record* is
+    distinct by its key, the keyword duplicates the docstring of
+    :func:`search_records` names are rows sharing one key. The joins and the
+    constraint of the request are untouched; the same number is hashed over
+    ids only.
+    """
+    return queryset.values("pk").distinct().count()
+
+
+#: The records of one kind, keyed by the value of the ``type`` queryable which
+#: selects them -- the mapping the three querysets above spell out one by one.
+RECORD_MODELS = {
+    HIERARCHY_LEVEL_DATASET: DatasetMetadataRecord,
+    HIERARCHY_LEVEL_SERVICE: ServiceMetadataRecord,
+    HIERARCHY_LEVEL_APPLICATION: ApplicationMetadataRecord,
+}
+
+
+def page_records(rows) -> list:
+    """The records the projected rows of a merged page are, as themselves.
+
+    :func:`csw.elementsets.merged_page` answers a page as rows projected over
+    all three record tables -- one of which names no record of the others --
+    and this turns the kind, pk, identifier and backup document each row
+    carries back into an unsaved instance of the model the row came out of. A
+    ``GetRecords`` reads the stored document off the instance and names it by
+    its identifier when that document cannot be served; both are fields the row
+    already carries, so nothing of the record is re-read.
+    """
+    records = []
+    for row in rows:
+        record = RECORD_MODELS[row["hierarchy_level"]](pk=row["pk"])
+        record.file_identifier = row["file_identifier"]
+        record.xml_backup_file = row["xml_backup_file"]
+        records.append(record)
+    return records
+
+
 def search_filter(constraint: Q) -> Q:
     """The constraint of a request, asked of a metadata record.
 

@@ -325,8 +325,16 @@ class ServiceUpdateJob(models.Model):
                 self.status, ProcessStatusEnum.RUNNING)
         if phase is None:
             phase = str(UpdateJobStatusEnum(self.status).label)
-        return BackgroundProcess.objects.report(
+        updated = BackgroundProcess.objects.report(
             self.background_process_id, status, phase=phase)
+        # an update whose mapping waits for a review is the epic's operation
+        # which stands until a human decides, not one which works (#1207);
+        # the flag follows the status on every report, so answering the
+        # review clears it without any reporter having to remember
+        BackgroundProcess.objects.set_action_required(
+            self.background_process_id,
+            self.status == UpdateJobStatusEnum.REVIEW_REQUIRED)
+        return updated
 
     @atomic
     def update(self):
@@ -470,6 +478,11 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
     class Meta(ServiceUpdateJob.Meta):
         verbose_name = _("Web Map Service Update Job")
         verbose_name_plural = _("Web Map Service Update Jobs")
+        # the newest job of one service answers its update alerts - this
+        # composite keeps the top-N of the alert rules an index read (#1030)
+        indexes = ServiceUpdateJob.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
 
     @property
     def default_change_reason(self):
@@ -709,6 +722,11 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
     class Meta(ServiceUpdateJob.Meta):
         verbose_name = _("Web Feature Service Update Job")
         verbose_name_plural = _("Web Feature Service Update Jobs")
+        # the newest job of one service answers its update alerts - this
+        # composite keeps the top-N of the alert rules an index read (#1030)
+        indexes = ServiceUpdateJob.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
 
     @cached_property
     def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
@@ -897,6 +915,11 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
     class Meta(ServiceUpdateJob.Meta):
         verbose_name = _("Web Catalogue Service Update Job")
         verbose_name_plural = _("Web Catalogue Service Update Jobs")
+        # the newest job of one service answers its update alerts - this
+        # composite keeps the top-N of the alert rules an index read (#1030)
+        indexes = ServiceUpdateJob.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
 
     @cached_property
     def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:

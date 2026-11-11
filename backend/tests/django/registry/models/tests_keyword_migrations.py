@@ -1,12 +1,81 @@
 from django.db import DataError, IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
+from django.db.models import Q
 from django.test import TransactionTestCase
 from registry.expressions.search import TEXT_CONFIGURATION_NAME
 
 
 class KeywordMigrationTest(TransactionTestCase):
+    """``0015``/``0016``: blank keywords go away, and then the schema refuses them.
+
+    ``TransactionTestCase`` rather than ``TestCase``, and that choice is what forces
+    this class to prepare its own database. A migration is DDL and
+    ``MigrationExecutor`` commits, so the rollback which ends a ``TestCase`` method
+    cannot undo any of what happens here; and a ``TransactionTestCase`` cleans the
+    database *after* a test, never before it. Whatever the case that ran earlier on
+    this parallel worker left behind is therefore present when this one starts, and
+    with ``--parallel=4`` and a shuffled order "which case that was" changes every
+    run. Two symptoms of exactly that, on one and the same tree (#1215): the blank
+    ``MetadataContact`` this test creates colliding with one a fixture had loaded
+    (``UniqueViolation`` on a constraint which covers every field the model has),
+    and 160 keywords of ``test_keywords.json`` answering an assertion which compared
+    the whole keyword table. Nothing raced and no host was involved: the test
+    assumed a database it never prepared.
+    """
+
     migrate_from = [('registry', '0014_catalogueservicemonitoringrun_background_process_and_more')]
     migrate_to = [('registry', '0016_enforce_non_blank_keywords')]
+
+    # the same test postgres applies in 0015 and 0016, spelled as a Django Q. Named
+    # for what it selects, because the migration states its condition the other way
+    # round: 0015 removes what `NOT (keyword ~ <non-whitespace>)` matches, so a
+    # keyword is blank when this Q does NOT match it. Reading it the other way round
+    # is the easiest mistake in this file — a name like "blank" over a condition
+    # which selects every keyword that HAS content makes the assertion below report a
+    # content-bearing keyword as a survivor of the removal.
+    HAS_CONTENT = Q(keyword__regex='\\S') & ~Q(keyword__isnull=True)
+
+    # the fully blank contact; this test creates one only where no other case left
+    # a blank one it can reuse, and a fixture of the application creates this shape
+    # too
+    BLANK_CONTACT = dict(name='', person_name='', email='', phone='', facsimile='',
+                         city='', postal_code='', address_type='', address='',
+                         state_or_province='', country='')
+
+    def prepare_database(self, apps):
+        """Puts the tables this test is about into the state its assertion assumes.
+
+        The original premise was not wrong, it was only never established: the
+        assertion compared the whole keyword table, which could hold only while no
+        other case had loaded keywords before. Establishing it instead of hoping for
+        it is what makes the run deterministic, and both unique constraints involved
+        leave no other choice — ``keyword`` is unique, so a keyword from
+        ``test_keywords.json`` cannot exist next to this test's own rows and cannot
+        be skipped over by an assertion either; the contact constraint is the same
+        story with twelve columns. The links of the removed keywords go with them by
+        the same cascade ``0015`` itself relies on.
+
+        The blank ``MetadataContact`` is the one state this method does not clear:
+        it reuses it instead. A blank contact can be what a service's restricted
+        ``service_contact`` and ``metadata_contact`` point at - the CI failure this
+        text is in was the deletion being refused with ``RestrictedError``, naming
+        the seeded Mr. Map CSW - and the assertion below is indifferent to which
+        blank contact its service carries, so an existing one is exactly as usable
+        as a freshly created one.
+
+        Only the keyword table is touched. Nothing else in the database is
+        considered, because nothing else is asserted about.
+        """
+        keyword_table = apps.get_model('registry', 'Keyword')
+        blank_contacts = apps.get_model('registry', 'MetadataContact').objects.filter(
+            **self.BLANK_CONTACT)
+        # Recorded because this case answered itself oppositely on two runs and the
+        # failure text named neither of the two states it had started from: the one
+        # which raises is on the worker and no log holds it. Naming it in the failure
+        # is the cheapest way for the next occurrence to explain itself.
+        self.was = {'keywords': keyword_table.objects.count(),
+                    'blank_contacts': blank_contacts.count()}
+        keyword_table.objects.all().delete()
 
     def test_removes_blank_keywords_and_links_before_adding_constraint(self):
         executor = MigrationExecutor(connection)
@@ -16,7 +85,14 @@ class KeywordMigrationTest(TransactionTestCase):
         Keyword = apps.get_model('registry', 'Keyword')
         Contact = apps.get_model('registry', 'MetadataContact')
         Service = apps.get_model('registry', 'WebMapService')
-        contact = Contact.objects.create()
+        self.prepare_database(apps)
+        # The twelve-column unique constraint of #1215 lets at most one fully blank
+        # contact exist, and one can exist in the state this case starts from. That
+        # row may be under a restricted reference, so it cannot be deleted to make
+        # room for a new one - it is used, and a new one is created only while
+        # nothing blank is there.
+        contact = (Contact.objects.filter(**self.BLANK_CONTACT).first()
+                   or Contact.objects.create())
         service = Service.objects.create(
             version=1, service_url='https://example.com/wms',
             service_contact=contact, metadata_contact=contact,
@@ -30,6 +106,9 @@ class KeywordMigrationTest(TransactionTestCase):
         Keyword = apps.get_model('registry', 'Keyword')
         Service = apps.get_model('registry', 'WebMapService')
         service = Service.objects.get(pk=service.pk)
+        self.assertFalse(Keyword.objects.filter(~self.HAS_CONTENT).exists(),
+                         f'a keyword without content survived the migration which '
+                         f'exists to remove it (started from {self.was})')
         self.assertEqual(list(Keyword.objects.values_list('keyword', flat=True)), ['  valid  '])
         self.assertEqual(list(service.keywords.values_list('keyword', flat=True)), ['  valid  '])
         with self.assertRaises(IntegrityError), transaction.atomic():
@@ -162,3 +241,153 @@ class KeywordLengthMigrationTest(TransactionTestCase):
     def restore_schema(self):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class KeywordTriggerTransferTest(TransactionTestCase):
+    """0039 hands the keyword maintenance from hand written sql to pgtrigger.
+
+    Forward the legacy functions and triggers must be gone and the package
+    objects installed; backwards the very state 0035 left behind must return,
+    which since #1075 means the legacy bodies with the empty array of the
+    widened element type. Both directions are asked because the harvesting
+    writers run against these triggers in production and a deployment must be
+    able to roll back.
+    """
+
+    #: the objects as 0021, 0024 and 0033 named them
+    LEGACY = sorted([
+        'registry_datasetmetadatarecord_keywords_keywords_list_sync',
+        'registry_servicemetadatarecord_keywords_keywords_list_sync',
+        'registry_applicationmetadatarecord_keywords_keywords_list_sync',
+        'registry_datasetmetadatarecord_keywords_list_keep',
+        'registry_servicemetadatarecord_keywords_list_keep',
+        'registry_applicationmetadatarecord_keywords_list_keep',
+        'registry_keyword_sync_to_metadatarecords',
+    ])
+
+    def tearDown(self):
+        # leave the schema at the tip whatever the test did
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def keyword_triggers(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal"
+                " AND (tgname LIKE '%keywords\\_list\\_sync%'"
+                " OR tgname LIKE '%keywords\\_list\\_keep%'"
+                " OR tgname LIKE '%keyword\\_sync\\_to\\_metadatarecords%')"
+                " ORDER BY tgname")
+            return [row[0] for row in cursor.fetchall()]
+
+    def keyword_bodies(self):
+        """The stored sources of the three legacy functions, by name"""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname, prosrc FROM pg_proc WHERE proname IN"
+                " ('registry_sync_metadatarecord_keywords_list',"
+                " 'registry_keep_metadatarecord_keywords_list',"
+                " 'registry_sync_keyword_rename_to_metadatarecords')")
+            return dict(cursor.fetchall())
+
+    def migrate_to(self, targets):
+        MigrationExecutor(connection).migrate(targets)
+
+    def test_the_transfer_swaps_the_objects_in_both_directions(self):
+        self.migrate_to([
+            ('registry',
+             '0035_a_too_long_keyword_does_not_take_a_record_down')])
+        self.assertEqual(self.keyword_triggers(), self.LEGACY)
+        bodies = self.keyword_bodies()
+        self.assertEqual(len(bodies), 3, sorted(bodies))
+        for name, body in bodies.items():
+            self.assertNotIn(
+                'varchar(300)', body,
+                'reversing 0039 did not restore the body 0035 left on %s' % name)
+
+        self.migrate_to([
+            ('registry', '0039_the_keyword_maintenance_is_managed_by_pgtrigger')])
+        installed = self.keyword_triggers()
+        self.assertEqual(len(installed), 7, installed)
+        self.assertTrue(all(name.startswith('pgtrigger_') for name in installed),
+                        installed)
+        self.assertEqual(self.keyword_bodies(), {})
+
+
+class KeywordThroughModelMigrationTest(TransactionTestCase):
+    """Taking ownership of the M2M tables preserves links and installed triggers."""
+
+    migrate_from = [
+        ('registry', '0039_the_keyword_maintenance_is_managed_by_pgtrigger'),
+        ('registry', '0045_move_generic_object_permissions_of_the_remaining_models'),
+    ]
+    migrate_to = [('registry', '0046_explicit_keyword_through_models')]
+    record_types = (
+        ('DatasetMetadataRecord', 'dataset_contact'),
+        ('ServiceMetadataRecord', None),
+        ('ApplicationMetadataRecord', 'application_contact'),
+    )
+
+    def restore_schema(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    def table_objects(self):
+        """OIDs detect table replacement even when names and rows were copied."""
+        tables = [f'registry_{name.lower()}_keywords' for name, _ in self.record_types]
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT c.relname, c.oid, t.tgname, pg_get_triggerdef(t.oid)'
+                ' FROM pg_class c JOIN pg_trigger t ON t.tgrelid = c.oid'
+                ' WHERE c.relname = ANY(%s) AND NOT t.tgisinternal'
+                ' ORDER BY c.relname, t.tgname', [tables])
+            return cursor.fetchall()
+
+    def test_links_and_triggers_survive_forward_and_reverse(self):
+        self.addCleanup(self.restore_schema)
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        Contact = old_apps.get_model('registry', 'MetadataContact')
+        Keyword = old_apps.get_model('registry', 'Keyword')
+        contact = Contact.objects.create(name='Keyword through migration contact')
+        keyword = Keyword.objects.create(keyword='through migration keyword')
+        extra = Keyword.objects.create(keyword='through migration extra keyword')
+        records = []
+        for name, contact_field in self.record_types:
+            Record = old_apps.get_model('registry', name)
+            values = {'metadata_contact': contact, 'title': 'Through migration'}
+            if contact_field:
+                values[contact_field] = contact
+            record = Record.objects.create(**values)
+            record.keywords.add(keyword)
+            records.append((name, record.pk, record.keywords.through.objects.get(
+                keyword=keyword).pk))
+        before = self.table_objects()
+        self.assertEqual(len(before), 3)
+
+        # Both directions must keep the physical tables and their original link IDs.
+        for target in (self.migrate_to, self.migrate_from):
+            executor = MigrationExecutor(connection)
+            executor.migrate(target)
+            state_apps = executor.loader.project_state(target).apps
+            self.assertEqual(self.table_objects(), before)
+            for name, record_id, link_id in records:
+                with self.subTest(target=target, record=name):
+                    Record = state_apps.get_model('registry', name)
+                    record = Record.objects.get(pk=record_id)
+                    self.assertEqual(
+                        record.keywords.through.objects.get(keyword_id=keyword.pk).pk,
+                        link_id)
+                    self.assertEqual(list(record.keywords.values_list('pk', flat=True)),
+                                     [keyword.pk])
+                    self.assertEqual(record.keywords_list, [keyword.keyword])
+                    # A migration which preserves the objects must preserve their effect too.
+                    record.keywords.add(extra.pk)
+                    record.refresh_from_db()
+                    self.assertEqual(record.keywords_list,
+                                     sorted([keyword.keyword, extra.keyword]))
+                    record.keywords.remove(extra.pk)
+                    record.refresh_from_db()
+                    self.assertEqual(record.keywords_list, [keyword.keyword])

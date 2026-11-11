@@ -1,12 +1,15 @@
 import json
 from datetime import timedelta
 from io import BytesIO
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models.fields import BooleanField, CharField
 from django.utils.timezone import now
@@ -23,6 +26,42 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from requests import Request, Response
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
+
+#: content types whose response body a probe keeps as an artifact of the
+#: execution (#682). Everything else stays out of the storage on purpose:
+#: the artifact endpoint serves what it stores inline and a stored document
+#: must never carry active content, so html, svg and unknown types are not
+#: kept even though their size would fit
+STORED_RESPONSE_CONTENT_TYPES = frozenset({
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "application/xml",
+    "text/xml",
+    "application/gml+xml",
+    "application/json",
+    "text/plain",
+})
+
+#: query parameters whose value names the caller rather than the request;
+#: the uri of a probe is answered to the monitoring UI with these values
+#: replaced (#682)
+SENSITIVE_QUERY_PARAMS = frozenset({
+    "token", "apikey", "api_key", "api-key", "key", "password", "passwd",
+    "secret", "bearer", "signature",
+})
+
+
+def probe_response_artifact_path(instance, filename):
+    """Where the stored response body of one probe result lives.
+
+    The name below the result directory is fixed: nothing derived from a
+    remote response - neither its filename nor its content type - reaches the
+    path of the storage, the route names the result and the stored content
+    type names the body (#682).
+    """
+    return 'probe_responses/{0}.{1}/{2}/response'.format(
+        instance._meta.app_label, instance._meta.model_name, instance.pk)
 
 
 class MonitoringSettingMixin:
@@ -229,6 +268,12 @@ class WebMapServiceMonitoringRun(MonitoringRun):
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
+
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_wms_monitoring
 
@@ -256,6 +301,12 @@ class WebFeatureServiceMonitoringRun(MonitoringRun):
         to=WebFeatureServiceMonitoringSetting,
         on_delete=models.CASCADE,
     )
+
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
 
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_wfs_monitoring
@@ -285,6 +336,12 @@ class CatalogueServiceMonitoringRun(MonitoringRun):
         to=CatalogueServiceMonitoringSetting,
         on_delete=models.CASCADE,
     )
+
+    class Meta:
+        # the newest run of one service answers its monitoring alerts - the
+        # join over the setting leaves the index of this run table sorted for
+        # the `ORDER BY date_created DESC LIMIT 1` of the top-N (#1030)
+        indexes = [models.Index(fields=["setting", "-date_created"])]
 
     def dispatch_run(self) -> None:
         from registry.tasks.monitoring import run_csw_monitoring
@@ -345,10 +402,107 @@ class ProbeResult(models.Model):
         verbose_name=_('Completed DateTime'),
         help_text=_('Datetime field when the task was completed in UTC'))
 
+    response_body = models.FileField(
+        upload_to=probe_response_artifact_path,
+        max_length=1024,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("response body"),
+        help_text=_(
+            "the body of the response as the service answered it at "
+            "execution time, if it was safe and small enough to keep"))
+    response_content_type = models.CharField(
+        max_length=256,
+        blank=True,
+        default="",
+        editable=False,
+        verbose_name=_("response content type"),
+        help_text=_("the content type the service answered with"))
+    response_size = models.BigIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("response size"),
+        help_text=_("the amount of bytes the response body carried"))
+    request_error = models.TextField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("request error"),
+        help_text=_(
+            "the failure which prevented the request from being answered"))
+    error_detail = models.TextField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("error detail"),
+        help_text=_(
+            "an excerpt of the body which answered a failed request"))
+
     class Meta:
         abstract = True
         ordering = ['-date_done', ]
         get_latest_by = ('date_done')
+
+    @property
+    def has_response_artifact(self) -> bool:
+        """Whether the body of this response is stored as an artifact.
+
+        The stored name answers this; whether the storage still holds the
+        file is the question of the artifact endpoint itself (#1150 showed
+        that a name without a file happens).
+        """
+        return bool(self.response_body)
+
+    @property
+    def response_artifact_expired(self) -> bool:
+        """Whether the retention of the stored artifact has passed.
+
+        The sweep which takes the artifacts back runs on its schedule, so
+        between the retention moment and the sweep the artifact is still
+        there but already of no use; the artifact endpoint refuses it as
+        gone. A retention of 0 keeps the artifacts until an operator
+        removes them.
+        """
+        retention_days = settings.MONITORING_PROBE_RESPONSE_RETENTION_DAYS
+        if retention_days <= 0 or not self.has_response_artifact:
+            return False
+        if self.date_created is None:
+            return False
+        return self.date_created < now() - timedelta(days=retention_days)
+
+    @property
+    def redacted_monitored_uri(self) -> str:
+        """The uri which was monitored, without the values which name a caller.
+
+        The uri of a probe is the request an inspector may want to copy; a
+        service may carry its credentials in the userinfo of the authority
+        or in a query parameter, and those values do not belong into the
+        answer of an api (#682).
+        """
+        if not self.monitored_uri:
+            return ""
+        parsed = urlparse(self.monitored_uri)
+        netloc = parsed.netloc
+        if "@" in netloc:
+            userinfo, _, host = netloc.rpartition("@")
+            user, sep, password = userinfo.partition(":")
+            if sep and password:
+                # the user may stay to name the account which hit the
+                # service, the password never: without the separator there
+                # is no secret in the userinfo to hide (#682)
+                netloc = f"{user}:***@{host}"
+            else:
+                netloc = f"{userinfo}@{host}"
+        if parsed.query:
+            pairs = parse_qsl(parsed.query, keep_blank_values=True)
+            query = urlencode([
+                (name, "***" if name.lower() in SENSITIVE_QUERY_PARAMS
+                 else value)
+                for name, value in pairs])
+            parsed = parsed._replace(query=query)
+        return urlunparse(parsed._replace(netloc=netloc))
 
 
 class XmlContentCheckResult(models.Model):
@@ -517,6 +671,32 @@ class Probe(models.Model):
         """Apply the configured checks on the response of the probe."""
         raise NotImplementedError
 
+    #: the amount of characters of a failed response body which are kept as
+    #: the detail of the failure; an inspector reads an excerpt, the whole
+    #: body belongs to the artifact when it is stored as one
+    ERROR_DETAIL_MAX_LENGTH = 2048
+
+    def store_response_artifact(self, result: ProbeResult, response: Response) -> None:
+        """Keep what the service answered, as far as it is safe to keep.
+
+        The size and the content type of the response are always recorded -
+        they answer why a body was not kept. The body itself is stored only
+        for the content types the inspector renders and only up to the
+        configured maximum size; the stored bytes are exactly the bytes the
+        probe saw, so an inspector looks at the execution and not at whatever
+        the service answers today (#682).
+        """
+        body = response.content or b""
+        result.response_size = len(body)
+        content_type = response.headers.get(
+            "Content-Type", "").split(";")[0].strip().lower()
+        result.response_content_type = content_type
+        if not body or content_type not in STORED_RESPONSE_CONTENT_TYPES:
+            return
+        if len(body) > settings.MONITORING_PROBE_RESPONSE_MAX_SIZE:
+            return
+        result.response_body = ContentFile(body, name="response")
+
     def check_does_not_contain(self, response: Response):
         self.result.check_response_does_not_contain_message = ""
         for string in self.check_response_does_not_contain.split(','):
@@ -573,21 +753,25 @@ class Probe(models.Model):
                 request=request, timeout=self.timeout)
 
             if response.status_code != 200:
-                result.error_msg = response.text
+                # an excerpt of the body which refused: the full body is only
+                # kept where it is safe to keep it, see store_response_artifact
+                result.error_detail = (
+                    (response.text or "")[:self.ERROR_DETAIL_MAX_LENGTH]
+                    or None)
             result.status_code = response.status_code
 
             self.run_response_checks(response=response)
 
             result.monitored_uri = response.url
             result.request_duration = response.elapsed if response else None
+            self.store_response_artifact(result=result, response=response)
 
         except ConnectTimeout:
-            result.message = f"The request timed out in {self.timeout} seconds while trying to connect to the remote server."  # noqa
+            result.request_error = f"The request timed out in {self.timeout} seconds while trying to connect to the remote server."  # noqa
         except ReadTimeout:
-            self.error_msg = f"The server did not send any data in the allotted amount of time ({self.timeout} seconds)."  # noqa
+            result.request_error = f"The server did not send any data in the allotted amount of time ({self.timeout} seconds)."  # noqa
         except RequestException as exception:
-            self.status_code = response.status_code if response.status_code else None
-            self.error_msg = str(exception)
+            result.request_error = str(exception)
         finally:
             result.save()
         return result
@@ -854,3 +1038,51 @@ class CatalogueServiceGetRecordsProbe(CatalogueServiceProbe):
             element_set_name=self.element_set_name,
             max_records=self.max_records,
         )
+
+
+#: every concrete probe result model which can carry a response artifact;
+#: the retention sweep walks it and the artifact route answers bodies for it
+PROBE_RESULT_MODELS = (
+    GetCapabilitiesProbeResult,
+    GetMapProbeResult,
+    WebFeatureServiceGetCapabilitiesProbeResult,
+    WebFeatureServiceGetFeatureProbeResult,
+    CatalogueServiceGetCapabilitiesProbeResult,
+    CatalogueServiceGetRecordsProbeResult,
+)
+
+#: the result models by the lowercased model name which the artifact route
+#: addresses them with; the serializers reverse their artifact url through it
+PROBE_RESULT_MODELS_BY_NAME = {
+    model._meta.model_name: model for model in PROBE_RESULT_MODELS}
+
+
+def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
+    """Takes back the stored probe responses whose retention has passed.
+
+    The rows of the probe results stay: the lists of the monitoring history
+    answer their checks and the recorded content type and size of the
+    response, only the body and its name in the storage go (#682). A row
+    whose file the storage does not hold anymore (#1150) is cleared as well -
+    the name of a missing file guards nothing worth keeping. A retention of
+    0 keeps every artifact until an operator removes it.
+    """
+    days = (settings.MONITORING_PROBE_RESPONSE_RETENTION_DAYS
+            if retention_days is None else retention_days)
+    if days <= 0:
+        return {"retention_days": days, "purged": 0}
+
+    cutoff = now() - timedelta(days=days)
+    purged = 0
+    for result_model in PROBE_RESULT_MODELS:
+        named = result_model.objects.exclude(response_body="").exclude(
+            response_body=None)
+        for result in named.filter(date_created__lt=cutoff):
+            try:
+                result.response_body.delete(save=False)
+            except (FileNotFoundError, OSError):
+                pass  # the storage does not hold it - which is what to clear
+            result.response_body = None
+            result.save(update_fields=["response_body"])
+            purged += 1
+    return {"retention_days": days, "purged": purged}

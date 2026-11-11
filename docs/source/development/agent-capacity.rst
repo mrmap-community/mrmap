@@ -38,9 +38,14 @@ What the gate measures
    * - Metric
      - Read from
      - What it answers
+   * - CPU pressure
+     - ``some avg10`` of ``cpu.pressure`` (PSI), this cgroup **and every
+       parent**, worst level
+     - are the tasks of *this cgroup* already stalling for CPU
    * - load per core
      - ``/proc/loadavg`` divided by ``os.cpu_count()``
-     - is the machine already busy for fifteen minutes
+     - fallback for the CPU check while no ``cpu.pressure`` is readable; on a
+       shared host this counts every tenant, not this cgroup
    * - host memory
      - ``MemAvailable`` in ``/proc/meminfo``
      - how much the *machine* has free - the misleading half inside a container
@@ -90,6 +95,22 @@ in-container dockerd are children of the same cgroup (the gate reports them as
 measured and a test stack can never be handed memory the container does not
 have. Swap is deliberately not counted - a stack that has reached swap misses
 its own timeouts.
+
+The CPU decision reads the cgroup's own stall, not the host's load average.
+Load average has no cgroup scope, and the agent's `/proc/loadavg` is not
+namespaced: it counts the runnable threads of the *outer* host even though
+the agent runs inside a Docker container whose cgroup (the namespace root the
+gate walks) contains only this session, its dockerd and the nested test
+stacks. On 2026-11-11 the agent container idled at ~1 core of its quota while
+the outer host carried load 34 - 1.7 per core, over the 1.5 gate - from work
+outside the container's view entirely, and the gate refused its own first
+stack over load it neither caused nor could end. The verdict still reports
+the host number (``host load 1.7/core unscoped``) so the outer host stays
+visible, but admission uses ``cpu.pressure`` ``some avg10`` - the stall
+percentage the tasks of *this container* actually experienced, worst of this
+level and its parents. The load average decides only where no
+``cpu.pressure`` is readable (cgroup v1, kernels without PSI): the case the
+1.5-per-core number was originally written for.
 
 Three classes of job
 ====================
@@ -146,9 +167,13 @@ without editing the file:
    * - Variable
      - Default
      - Meaning
+   * - ``AGENT_MAX_CPU_PRESSURE``
+     - 10
+     - most CPU PSI ``some avg10`` percent of this cgroup and its worst parent
    * - ``AGENT_MAX_LOAD_PER_CORE``
      - 1.5
-     - most 15-minute load average per core
+     - most 15-minute load average per core, consulted only where no
+       ``cpu.pressure`` is readable
    * - ``AGENT_STACK_MIN_MEM_GB``
      - 6
      - effective GiB one heavy Compose stack needs, sized from a targeted run

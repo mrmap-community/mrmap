@@ -37,7 +37,7 @@ def check(name, ok, detail=""):
 # ------------------------------------------------------------------ fixtures
 
 def write_cgroup(root, rel, limit=None, current=None, stat=None, peak=None,
-                 events=None, pressure=None):
+                 events=None, pressure=None, cpu_pressure=None):
     """One fabricated cgroup level; None means the file is not there at all."""
     d = root / rel.lstrip("/")
     d.mkdir(parents=True, exist_ok=True)
@@ -53,6 +53,10 @@ def write_cgroup(root, rel, limit=None, current=None, stat=None, peak=None,
     if pressure is not None:
         (d / "memory.pressure").write_text(
             f"some avg10={pressure} avg60={pressure} avg300={pressure} total=0\n"
+            f"full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")
+    if cpu_pressure is not None:
+        (d / "cpu.pressure").write_text(
+            f"some avg10={cpu_pressure} avg60={cpu_pressure} avg300={cpu_pressure} total=0\n"
             f"full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")
 
 
@@ -100,6 +104,7 @@ def limits(**kwargs):
     """
     base = {
         "AGENT_MAX_LOAD_PER_CORE": "1.5", "AGENT_MIN_DISK_GB": "0",
+        "AGENT_MAX_CPU_PRESSURE": "10",
         "AGENT_MAX_STACKS": "3", "AGENT_MAX_PROCESSES": "6",
         "AGENT_STACK_MIN_MEM_GB": "6", "AGENT_SUITE_MIN_MEM_GB": "8",
         "AGENT_PROCESS_MIN_MEM_GB": "2",
@@ -482,6 +487,64 @@ def test_disk_is_measured_not_assumed(tmp):
           f"{bare['metrics']['disk_free_gb']} vs {free}")
 
 
+def test_cpu_admission_is_cgroup_scoped(tmp):
+    """The 2026-11-11 scenario, reversed: the cgroup is idle, the host is not.
+
+    `/proc/loadavg` has no cgroup scope - a shared host's tenants run the gate
+    down while this cgroup has the machine's CPU waiting unused. CPU PSI of
+    this cgroup (and, worst-case, its parents) is what a new job would meet;
+    the load average keeps deciding only where no cpu.pressure is readable.
+    """
+    cg, proc = Path(tmp) / "cg14", Path(tmp) / "proc14"
+    write_cgroup(cg, "/", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0},
+                 cpu_pressure=4.0)
+    # load 1000 refuses at max_load on any core count this suite runs on
+    write_proc(proc, "/init.scope", mem_available_gb=64.0, load15=1000.0)
+    r = decide(cg, proc, stacks=0)
+    check("an idle cgroup on a busy host admits", r["fits"], r["reasons"])
+    check("the stall number is reported",
+          r["metrics"]["cpu_pressure_avg10"] == 4.0
+          and r["metrics"]["cpu_pressure_max"] == 10.0)
+    line = cap.verdict_line(r)
+    check("the verdict reads the cgroup's stall, not the host's load",
+          "cpu 4.0% stall" in line and "host load" in line, line)
+
+    scg, sproc = Path(tmp) / "cg14s", Path(tmp) / "proc14s"
+    write_cgroup(scg, "/", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0}, cpu_pressure=60.0)
+    write_proc(sproc, "/init.scope", mem_available_gb=64.0, load15=1.0)
+    r = decide(scg, sproc, stacks=0)
+    check("a stalling cgroup refuses a new stack",
+          "cpu" in r["reasons"] and "load" not in r["reasons"], r["reasons"])
+    r = decide(cg, proc, stacks=0, max_cpu_pressure=2)
+    check("the CPU pressure threshold is configurable",
+          "cpu" in r["reasons"], r["reasons"])
+
+    # a parent stalling at 30% stalls every task below it, whatever the
+    # container itself reports
+    pcg, pproc = Path(tmp) / "cg14p", Path(tmp) / "proc14p"
+    write_cgroup(pcg, "/", limit=64 * GB, current=8 * GB,
+                 stat={"anon": 8 * GB, "file": 0, "kernel": 0}, cpu_pressure=2.0)
+    write_cgroup(pcg, "/slice.slice", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0}, cpu_pressure=30.0)
+    write_proc(pproc, "/slice.slice", mem_available_gb=64.0, load15=1.0)
+    r = decide(pcg, pproc, stacks=0)
+    check("the worst parent's stall binds the child",
+          "cpu" in r["reasons"], r["reasons"])
+
+    # without cpu.pressure the host-wide load average still decides
+    ocg, oproc = Path(tmp) / "cg14f", Path(tmp) / "proc14f"
+    write_cgroup(ocg, "/", limit=16 * GB, current=2 * GB,
+                 stat={"anon": 2 * GB, "file": 0, "kernel": 0})
+    write_proc(oproc, "/init.scope", mem_available_gb=64.0, load15=1000.0)
+    r = decide(ocg, oproc, stacks=0)
+    check("no cpu.pressure falls back to the load average",
+          "load" in r["reasons"], r["reasons"])
+    check("the fallback reports no stall number",
+          r["metrics"]["cpu_pressure_avg10"] is None)
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="agent-capacity-test-") as tmp:
         for fn in (test_parsing, test_host_without_a_limit, test_container_headroom_is_the_binding_metric,
@@ -489,7 +552,8 @@ def main():
                    test_stack_boundary_is_prospective, test_process_class,
                    test_nested_docker_is_reported, test_pressure_threshold_is_configurable,
                    test_cli_contract, test_suite_class, test_agent_stack_counting,
-                   test_wait_queues_without_displacing, test_disk_is_measured_not_assumed):
+                   test_wait_queues_without_displacing, test_disk_is_measured_not_assumed,
+                   test_cpu_admission_is_cgroup_scoped):
             fn(tmp)
     failed = 0
     for name, ok, detail in RESULTS:

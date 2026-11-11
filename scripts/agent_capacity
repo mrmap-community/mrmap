@@ -43,6 +43,18 @@ against it would refuse work the cgroup could easily still serve. Swap is
 deliberately not counted: a stack swapped out is a stack that fails its own
 timeouts.
 
+Why the CPU metric is not the load average
+------------------------------------------
+Load average has no cgroup scope: `/proc/loadavg` counts the runnable threads
+of every tenant of the machine. On the 2026-11-11 host the agent cgroup idled
+at ~1 core while the host carried load 34 (1.7 per core) from workloads
+outside the cgroup's PID and cgroup view, and the gate refused its own first
+stack over load it neither caused nor could end. So the gate reads the
+cgroup's own CPU pressure (`cpu.pressure` "some avg10" of this level and every
+parent): the stalls this job's future tasks would actually meet. The host-wide
+load average decides only where no `cpu.pressure` is readable - the
+unshared-host and cgroup-v1 cases the number was originally written for.
+
 Nested docker is accounted for, not trusted: containers started by an in-container
 dockerd are children of this cgroup (reported as `docker GiB`), so their memory
 is already inside the headroom being measured here, and a test stack can never
@@ -52,6 +64,11 @@ Thresholds are environment overrides so a job can tune the gate without
 editing the file:
 
   AGENT_MAX_LOAD_PER_CORE      most 15-minute load average per core   (default 1.5)
+                               (only consulted when no cpu.pressure is readable -
+                               a shared host's loadavg counts tenants this
+                               cgroup does not control)
+  AGENT_MAX_CPU_PRESSURE       most CPU PSI "some avg10" percent of   (default 10)
+                               this cgroup and its worst parent
   AGENT_STACK_MIN_MEM_GB       effective GiB one heavy stack needs    (default 6)
   AGENT_SUITE_MIN_MEM_GB       effective GiB a `--need suite` stack   (default 8)
                                needs: the full-suite arm of #1055, heavier
@@ -261,6 +278,26 @@ def psi_some_avg10(path):
     return None
 
 
+def cgroup_cpu_pressure(proc_root=PROC_ROOT, cgroup_root=CGROUP_ROOT):
+    """CPU PSI "some avg10" of this cgroup and its parents, worst level.
+
+    On a host shared with workloads outside this cgroup, `/proc/loadavg`
+    counts the runnable threads of every tenant - there is no cgroup-scoped
+    load average to read - and a gate built on it refuses its own idle jobs
+    over load the jobs did not cause and cannot end. The cgroup's own stall
+    percentage is the room a new job would actually meet. The worst of this
+    level and every parent answers, because a stalling parent stalls every
+    task below it. None when no `cpu.pressure` is readable (cgroup v1, no
+    PSI), where the caller falls back to the host-wide load average.
+    """
+    worst = None
+    for _rel, d in cgroup_levels(proc_root, cgroup_root):
+        p = psi_some_avg10(os.path.join(d, "cpu.pressure"))
+        if p is not None and (worst is None or p > worst):
+            worst = p
+    return worst
+
+
 def committed_bytes(stat_path):
     """Unreclaimable charge of a cgroup from memory.stat, or None without it.
 
@@ -456,8 +493,10 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
     reserve = threshold("AGENT_MEM_RESERVE_GB", 2)
     near_ceiling = threshold("AGENT_MEM_NEAR_CEILING_PCT", 90)
     max_pressure = threshold("AGENT_MAX_MEM_PRESSURE", 10)
+    max_cpu_pressure = threshold("AGENT_MAX_CPU_PRESSURE", 10)
 
     load = load_per_core(proc_root)
+    cpu_pressure = cgroup_cpu_pressure(proc_root, cgroup_root)
     host_mem = mem_available_gb(proc_root)
     disk = disk_free_gb()
     cg = cgroup_memory(proc_root, cgroup_root)
@@ -481,7 +520,15 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
         required = 0.0
 
     problems = []
-    if load is not None and load > max_load:
+    # CPU admission reads the cgroup's own stall signal where it exists: on a
+    # host shared with tenants outside this cgroup /proc/loadavg counts all of
+    # them, and refusing over load this cgroup neither causes nor can end
+    # starves the jobs the gate exists to protect. The host-wide load average
+    # is the fallback for cgroup trees without CPU PSI.
+    if cpu_pressure is not None:
+        if cpu_pressure > max_cpu_pressure:
+            problems.append("cpu")
+    elif load is not None and load > max_load:
         problems.append("load")
     if effective is not None and effective < required:
         problems.append("mem")
@@ -506,6 +553,8 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
         "reasons": problems,
         "metrics": {
             "load_per_core": load, "load_max": max_load,
+            "cpu_pressure_avg10": cpu_pressure,
+            "cpu_pressure_max": max_cpu_pressure,
             "mem_effective_gb": effective, "mem_required_gb": required,
             "mem_reserve_gb": reserve, "mem_source": (
                 "cgroup" if cg["limited"] else "host" if host_mem is not None else None),
@@ -529,9 +578,15 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
 
 def verdict_line(r):
     m = r["metrics"]
+    if m.get("cpu_pressure_avg10") is not None:
+        cpu_part = (f"cpu {fmt(m['cpu_pressure_avg10'])}% stall "
+                    f"(max {m['cpu_pressure_max']:g})")
+    else:
+        cpu_part = (f"load {fmt(m['load_per_core'])}/core "
+                    f"(max {m['load_max']:g})")
     parts = [
         f"need {r['need']}",
-        f"load {fmt(m['load_per_core'])}/core (max {m['load_max']:g})",
+        cpu_part,
         f"mem {fmt(m['mem_effective_gb'])}G effective of "
         f"{fmt(m['mem_cgroup_headroom_gb'])}G cgroup / "
         f"{fmt(m['mem_host_available_gb'])}G host "
@@ -544,6 +599,10 @@ def verdict_line(r):
         f"pressure {fmt(m['mem_pressure_avg10'])}% (max {m['mem_pressure_max']:g})",
     ]
     detail = []
+    if m.get("cpu_pressure_avg10") is not None and m["load_per_core"] is not None:
+        # report the unscoped number too, so the reader can tell a shared
+        # host's tenants apart from a cgroup that is out of room
+        detail.append(f"host load {fmt(m['load_per_core'])}/core unscoped")
     if m["mem_cgroup_limited"]:
         detail.append(f"cgroup {m['mem_cgroup_path']} limit "
                       f"{fmt(m['mem_cgroup_limit_gb'])}G "

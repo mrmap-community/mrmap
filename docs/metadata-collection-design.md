@@ -35,7 +35,7 @@ sequenceDiagram
     API->>DB: create process REGISTERING, status pending<br/>registry/views/service.py:344
     API->>B: apply_async(task_id=uuid) (task id stored first)<br/>extras/viewsets.py:217-220
     API-->>U: 202 + the serialized process + Content-Location
-    Note over U: the client shows a "created" snackbar and refetches the list<br/>useDialogMutationSuccess.ts:10-28<br/>the process in the answer is dropped
+    Note over U: the client shows a "created" snackbar and refetches the list<br/>components/Dialog/useDialogMutationSuccess.ts:18-27<br/>the process in the answer is dropped
     B->>B: GetCapabilities, map, persist service + layers<br/>+ RemoteMetadata rows (one transaction)
     B->>DB: phase='collecting metadata records...', total_steps=N<br/>registry/tasks/service.py:177-181
     B->>F: chord(header=N tasks)(body)
@@ -75,8 +75,8 @@ sequenceDiagram
 | F | `fetch_remote_content` sends the request **without a timeout**, while the capabilities request of the same flow passes `timeout=15` | `registry/models/metadata.py:530` vs `registry/tasks/service.py:63-65` | One slow or hung metadata endpoint occupies a worker of the `download` queue indefinitely; the `Retry` adapter only covers connection errors, not a silent server | **verified** |
 | G | The per-step increment is unbounded (`F("done_steps") + 1`) while a task may be delivered more than once | `notify/tasks.py:157-160` (contrast the capping in `notify/managers.py:144-153`, which this path does not use) | `done_steps` can exceed `total_steps` → `progress` above 100 % | **suspicion** (needs a duplicate-delivery run) |
 | H | The answer for `metadata_record=None` still builds a payload: `"id": "None"` and a `"self"` link of the string `"None"` | `registry/tasks/service.py:236-244` | A collection that parsed a document but found no `file_identifier` produces a record reference which is a stringified `None` | **verified** |
-| I | A FeatureType never shows its records: `ElementInspection` renders the metadata section for layers only, and `metadataIds` is hardcoded to `[]` for feature types | `Generic/ServiceShow/ElementInspection.tsx:110-113`, `:263` | The relation rows exist (`MetadataRelation.feature_type` is filled) but nothing reads them for a WFS element | **verified gap** |
-| J | `remove_metadata_relation` is never called from anywhere | `registry/models/metadata.py` (definition), no callers in `grep` | Relations survive a re-registration and can stack up per (record, element) pair - visible as duplicate links in the graph | **verified** (the duplicate consequence is a suspicion until measured) |
+| I | A FeatureType never shows its records: `ElementInspection` renders the metadata section for layers only, and `metadataIds` is hardcoded to `[]` for feature types | `Generic/ServiceShow/ElementInspection.tsx:110-113`, `:260-263` | The relation rows exist (`MetadataRelation.feature_type` is filled) but nothing reads them for a WFS element | **verified gap** |
+| J | `remove_metadata_relation` is never called from anywhere | `registry/models/metadata.py:1250-1270` (definition), no callers in `grep` | Relations survive a re-registration. Whether they *stack* is not settled by reading: `add_metadata_relation` is a `select_for_update().get_or_create()` over the filled columns plus `is_internal` (`:1241-1245`), so the same record and element cannot produce a second row — a duplicate needs a second record instance for the same identifier, which depends on #982's identity rules | **verified** (the duplicate consequence is a **suspicion** until measured) |
 | K | The German label of the create option reads "Metadaten wiederherstellen" ("restore metadata") | `backend/locale/de/LC_MESSAGES/django.po:3129-3130` for `registry/serializers/service.py:617` | The option is named after a different action in the German UI | **verified** |
 
 A–C together are the reason the collection is described as "silent": a WFS operator loses the metadata of
@@ -129,9 +129,10 @@ Registration should adopt it rather than add a parallel mechanism.
 | Need | Existing pattern to copy | Where it lives today |
 | --- | --- | --- |
 | one row per expected item, with a state | `HarvestedMetadataRelation` + `collecting_state` | `registry/models/harvest.py`, `registry/enums/harvesting.py` |
-| phases a run goes through | `HarvestingJob.phase` + `HarvestingPhaseStepper` | `registry/tasks/harvest.py`, `frontend/.../HarvestingJob/` |
+| phases a run goes through | `HarvestingJob.phase` + `HarvestingPhaseStepper` | `registry/tasks/harvest.py`, `frontend/src/components/Resource/HarvestingJob/` |
 | counters which must not be re-aggregated per poll | stored counters, not annotations (measured in #1037: annotations on a live run cost 5.85 s cold / 12.2 s worst) | `docs/architecture.md:100-172` |
-| run summary screen | `HarvestingRunSummary` + `harvestRun.collectedStates` vocabulary | `frontend/.../HarvestingJob/`, `i18n/en.ts:459-468` |
+| run summary screen | `HarvestingRunSummary` + `harvestRun.collectingStates` vocabulary (rendered by `HarvestingRunMissingRecords.tsx:111`) | `frontend/src/components/Resource/HarvestingJob/`, `frontend/src/i18n/en.ts:459-469` |
+| a run card on the object's own page | `HarvestingActivityCard` | `frontend/src/components/Resource/CatalogueService/Show/` |
 | normalized progress and states for the browser | `OperationStateEnum`, `revision`, `error_summary` | `notify/enums.py`, `notify/managers.py` (#1207) |
 | live updates without polling storms | topic websocket + bounded poll fallback | `notify/consumers.py`, Job Center (#1203/#1205/#1206) |
 
@@ -176,15 +177,35 @@ See [`images/metadata-collection/README.md`](images/metadata-collection/README.m
 ## 8. Decisions this needs from a human
 
 1. **Terminal state.** Should a collection that ended with findings stay `completed` plus a summary, or get a
-   distinguishable state (`action_required` exists in `OperationStateEnum` but no process uses it yet)?
+   distinguishable state? The vocabulary for that state exists: `action_required` is a derived
+   `OperationStateEnum` value (#1207) driven by the stored flag `BackgroundProcess.action_required`, set
+   through `BackgroundProcess.objects.set_action_required()` — harvesting (`registry/models/harvest.py:668`)
+   and an update waiting for its review (`registry/models/update.py:334`) already use it, registration
+   does not. The obstacle is the derivation order: `OperationStateEnum.derive()` answers `completed`
+   before it looks at the flag (`notify/enums.py:80-90`), so a run cannot be both finished and awaiting
+   attention unless the stored status stays non-terminal (which parks it in the drawer's *Waiting* tab,
+   whose filter is `status: pending` — `JobCenter/counts.ts:12-17`) or the shared derivation changes.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps
    history across re-registrations.
 3. **Retry semantics.** A per-reference "collect now" action needs an endpoint that starts work for one
-   reference; today nothing but abort exists (`JobCenterDrawer.tsx:93-102`: no api restarts a decided process).
+   reference; today nothing but abort exists (`JobCenterDrawer.tsx:94-103`: no api restarts a decided
+   process, `:205` is the only action).
 4. **The "applies to" direction.** Add a relation kind (and what ISO element it mirrors), or state in the UI
    that MrMap's relations always mean "describes"?
 5. **Backfill.** Existing services have `RemoteMetadata` rows without outcome, and duplicate rows from every
    update. Migrate, or accept and let the next registration rewrite them?
 6. **Naming.** The German label of the option (defect K) and the vocabulary of the outcomes
    (reuse `harvestRun.collectingStates` or a registration-specific set?).
+
+These six are asked as the numbered decision request on the epic — answering them is a design decision,
+not implementation approval.
+
+## 9. Where this went
+
+The findings are published as **[epic #1256](https://github.com/mrmap-community/mrmap/issues/1256)**,
+`slug: metadata-collection`, with twelve children (#1257–#1268) whose sub-issue and blocking relations
+are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport bounds are
+#1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263. Nothing
+in this document was implemented, and no `agent: approved` was applied.
+

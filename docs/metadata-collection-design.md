@@ -128,34 +128,57 @@ Registration should adopt it rather than add a parallel mechanism.
 
 | Need | Existing pattern to copy | Where it lives today |
 | --- | --- | --- |
-| one row per expected item, with a state | `HarvestedMetadataRelation` + `collecting_state` | `registry/models/harvest.py`, `registry/enums/harvesting.py` |
+| one landing row per expected item, with its outcome and a retry switch | `TemporaryMdMetadataFile`: `requested_url`, `has_import_error`, `import_error`, `re_schedule` | `registry/models/harvest.py:1124-1161`, manager `registry/managers/havesting.py:473-518` |
+| the number expected, known **before** the fan-out | `HarvestingJob.total_records` is a stored field, filled from the answer of the catalogue | `registry/models/harvest.py:254`, `:733-748` |
+| counters which must not be re-aggregated per poll | stored counters (measured in #1037: annotations on a live run cost 5.85 s cold / 12.2 s worst), answered by index-backed correlated subqueries — a `COUNT FILTER` in front of the whole backlog read the rows of all 411,518 files of one job on every request which rendered its progress | `registry/managers/havesting.py:105-125` (#870, #886), `docs/architecture.md:100-172` |
+| a retry of one item which reports into the same run | `re_schedule` makes `save()` clear the error and schedule the import task again — today only the admin action sets it | `registry/models/harvest.py:1177-1202`, `registry/admin/harvest.py:7-13` |
+| a transient failure which must not become a terminal one | the import task re-raises what its base promises to retry, „or its autoretry is laundered into a terminal has_import_error" (#895) | `registry/tasks/harvest.py:1186-1190` |
+| the per-item table of one run, on the run's screen | `NestedTemporaryMdMetadataFileViewSet` | `registry/urls.py:118-119`, `registry/views/harvesting.py` |
 | phases a run goes through | `HarvestingJob.phase` + `HarvestingPhaseStepper` | `registry/tasks/harvest.py`, `frontend/src/components/Resource/HarvestingJob/` |
-| counters which must not be re-aggregated per poll | stored counters, not annotations (measured in #1037: annotations on a live run cost 5.85 s cold / 12.2 s worst) | `docs/architecture.md:100-172` |
 | run summary screen | `HarvestingRunSummary` + `harvestRun.collectingStates` vocabulary (rendered by `HarvestingRunMissingRecords.tsx:111`) | `frontend/src/components/Resource/HarvestingJob/`, `frontend/src/i18n/en.ts:459-469` |
 | a run card on the object's own page | `HarvestingActivityCard` | `frontend/src/components/Resource/CatalogueService/Show/` |
 | normalized progress and states for the browser | `OperationStateEnum`, `revision`, `error_summary` | `notify/enums.py`, `notify/managers.py` (#1207) |
 | live updates without polling storms | topic websocket + bounded poll fallback | `notify/consumers.py`, Job Center (#1203/#1205/#1206) |
 
-Concretely, as a proposal for a follow-up implementation (each step is independently shippable):
+One property of that pattern deserves notice before it is copied, because it decides where the answer to
+„which reference produced which record" may live: **a successful import deletes its landing row** —
+„Successful imports delete the row. Errors remain for inspection." (`registry/tasks/harvest.py:1174`). The
+landing table is a work queue that keeps its failures, not a ledger. The durable statement „this record
+describes that element" is what §4 already says it is — `MetadataRelation` — and the landing rows answer
+only „what went wrong, and may it be tried again". This is also what the review of this PR decided for
+§8 items 2 and 3.
+
+Concretely, as a proposal for a follow-up implementation (each step is independently shippable), shaped
+by the review answers of §8:
 
 1. **Fix the two bugs first.** `case "LayerRemoteMetadata"` (A) and the position of `step_done` (B) are two
    one-line changes plus a test that calls `fetch_remote_metadata_xml` with each of the four reference kinds.
    This alone turns a silent total loss for WFS into a visible, correct run.
-2. **Give a collecting run a truthful end state.** Either a distinct terminal state for "ended with findings"
-   (which `OperationStateEnum` does not have yet — needs a decision, see §8), or a stored per-process summary
-   (`references_total / stored / failed / skipped`) that the serializer exposes. The chord body stays as it is.
-3. **Persist the outcome per reference**, in the `RemoteMetadata` subclass rows (or one table for all kinds,
-   as `HarvestedMetadataRelation` does): the reference keeps `link` + `describes` and gains
-   `collecting_state`, `collected_at`, `error_kind`, `error_detail`, and a nullable FK to the created record.
-   That answers §5 rows 3-5 without heuristic matching, and makes a per-reference retry possible.
-   **Never** derive a counter per request — store it (see the #1037 measurement above).
-4. **Deduplicate references** by making `link` unique per described object (the `TODO` in
-   `registry/models/metadata.py:502-504` already asks for it), so re-registration updates instead of stacking.
-5. **Close the relation gap**: let `ElementInspection` use the same data for both element kinds (the branch at
+2. **Give a collecting run a truthful end state** the way harvesting and an update waiting for review do it:
+   `BackgroundProcess.objects.set_action_required()` plus a stored summary the serializer exposes
+   (`references_total / stored / failed / skipped`). The chord body stays as it is; what it must stop doing
+   is answering `completed` while references failed (§8 item 1).
+3. **Give the collection a landing row per reference**, in the shape of `TemporaryMdMetadataFile`: the run
+   stores how many references it expects before the fan-out, each row keeps the URL, what it describes, an
+   error flag, an error text and a re-schedule switch; the counters of the run are answered the way #886
+   taught. `RemoteMetadata` is not that table — its own docstring calls it the registration's staging list
+   (`registry/models/metadata.py:492-495`) and the review rejected it for this purpose (§8 item 2). Whether
+   to reuse `TemporaryMdMetadataFile` itself or write its registration sibling is #1263's open question.
+4. **Make transient failures retryable, terminal ones terminal**, in the fetch task the way the import task
+   does it (§8 item 3, `registry/tasks/harvest.py:1186-1190`) — which is also the fix of defect E — and
+   expose the model's existing retry as an endpoint and a button, not a new mechanism.
+5. **Backfill by collecting during an update** instead of migrating: the update path never collects today
+   (`collect_metadata_records` appears only in the registration flow — §8 item 5), but an update already maps
+   the new capabilities through the configs that declare the reference models, so collecting there reaches
+   every existing service without a data migration. The epic's child for this is #1274.
+6. **Deduplicate references** by making `link` unique per described object (the `TODO` in
+   `registry/models/metadata.py:502-504` already asks for it), so re-registration updates instead of stacking
+   — only after #1261 measured whether they actually stack.
+7. **Close the relation gap**: let `ElementInspection` use the same data for both element kinds (the branch at
    `:110-113` is the only thing that differs), and show *which* element a record describes rather than only
-   "related". Adding the "applies to" direction needs a model decision (§8) — until then the graph should say
-   what it does *not* know instead of drawing one undirected "related" edge.
-6. **Make the 100-relation cap a facet, not a ceiling**: the tables already filter per group, so a count per
+   "related" — with the existing relation kinds only; RFC #992 owns the vocabulary of relations and the
+   review decided against adding "applies to" or "source" here (§8 item 4).
+8. **Make the 100-relation cap a facet, not a ceiling**: the tables already filter per group, so a count per
    group plus a link "show all of this group" removes the only place where a user sees a truncated set.
 
 ## 7. Mockups
@@ -172,9 +195,17 @@ See [`images/metadata-collection/README.md`](images/metadata-collection/README.m
 | `proposed-registration-collection-card.png` | one card per registration on the service overview: phases, progress, per-outcome counters |
 | `proposed-collection-outcome.png` | the per-reference table on the process screen, with the skipped references of defect A visible |
 | `proposed-featuretype-metadata-relations.png` | the element inspection with the metadata section for a feature type, showing which record describes what |
-| `proposed-dataset-relationship-graph.png` | the relations graph grouped by what a relation actually means, including the directions it cannot express today |
+| `proposed-dataset-relationship-graph.png` | the relations graph grouped by what a relation actually means — with the existing relation kinds only, per RFC #992 and the review of this PR |
 
-## 8. Decisions this needs from a human
+## 8. Decisions this needs from a human — and what the review answered
+
+All six were asked as the numbered decision request on the epic
+([Q1–Q6](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6796247548)) and answered inline
+in [the review of PR #1255](https://github.com/mrmap-community/mrmap/pull/1255). The answers are quoted
+because their wording is the decision; the epic's children carry the consequence. They are **not yet in
+the Decision register** — `scripts/decisions` records an answer from a comment on the issue that names its
+question, and a review comment on a pull request does neither, so the register still reads *open* until
+the answers are given on #1256 in the `Q1: B` grammar. Recording them is not implementation approval.
 
 1. **Terminal state.** Should a collection that ended with findings stay `completed` plus a summary, or get a
    distinguishable state? The vocabulary for that state exists: `action_required` is a derived
@@ -185,26 +216,63 @@ See [`images/metadata-collection/README.md`](images/metadata-collection/README.m
    before it looks at the flag (`notify/enums.py:80-90`), so a run cannot be both finished and awaiting
    attention unless the stored status stays non-terminal (which parks it in the drawer's *Waiting* tab,
    whose filter is `status: pending` — `JobCenter/counts.ts:12-17`) or the shared derivation changes.
+   > **Answered:** „distinguishable state. use equivalent way to harvesting and update"
+   > ([r4541817433](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541817433)) — so the
+   > flag, not a new state; what the flag needs from the derivation is #1259's open detail.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps
    history across re-registrations.
+   > **Answered:** „Maybe we could use the existing TemporaryMDFile model instead of RemoteMetadata model.
+   > We only temporary need this model for background import. Final relations between Metadata records and
+   > registered resources lives in MetadataRelation model"
+   > ([r4541842215](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541842215)). The model
+   > is `TemporaryMdMetadataFile` (`registry/models/harvest.py:1124-1161`); `RemoteMetadata` is rejected as
+   > the outcome store — which its own docstring agrees with: it exists „to store linked iso metadata
+   > records **while registration processing**" (`registry/models/metadata.py:492-495`). #1263 carries the
+   > remaining question: reuse that model or build its sibling for registration runs.
 3. **Retry semantics.** A per-reference "collect now" action needs an endpoint that starts work for one
    reference; today nothing but abort exists (`JobCenterDrawer.tsx:94-103`: no api restarts a decided
    process, `:205` is the only action).
+   > **Answered:** „yes we need a retry functionality. TemporaryMDFile model already has this retry in the
+   > model implemented." ([r4541851548](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541851548))
+   > — verified: `re_schedule` makes `save()` clear the error and schedule the import task again
+   > (`registry/models/harvest.py:1177-1202`); today only the admin action sets it
+   > (`registry/admin/harvest.py:7-13`). So the work is an endpoint and a button, not a mechanism.
 4. **The "applies to" direction.** Add a relation kind (and what ISO element it mirrors), or state in the UI
    that MrMap's relations always mean "describes"?
+   > **Answered:** „only use the existing relations. See also the open rfc
+   > [#992](https://github.com/mrmap-community/mrmap/issues/992) which answers all relations we need."
+   > ([r4541861570](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541861570)) and, on the
+   > graph mockup: „the relation types of applies to and source are not needed currently."
+   > ([r4538304447](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4538304447)) — no new
+   > relation kind in this epic; #1268 keeps only what a relation can say with the columns it has.
 5. **Backfill.** Existing services have `RemoteMetadata` rows without outcome, and duplicate rows from every
    update. Migrate, or accept and let the next registration rewrite them?
+   > **Answered:** „just 'harvest' again inside the update processing. That will backfill all existing
+   > services" ([r4541870176](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541870176)).
+   > Worth knowing before that is built: the update path never collects today.
+   > `collect_metadata_records` appears only in the registration flow
+   > (`registry/tasks/service.py:34`, `:145`; `registry/views/service.py:352`, `:717`, `:1011`); neither
+   > `registry/tasks/update.py` nor `registry/models/update.py` names it or `build_ogc_service`, while the
+   > update maps the new capabilities through the same configs that declare the reference models
+   > (`registry/mappers/configs/wms130.py:229`, `wfs200.py:202`). The new child of the epic takes this.
 6. **Naming.** The German label of the option (defect K) and the vocabulary of the outcomes
    (reuse `harvestRun.collectingStates` or a registration-specific set?).
-
-These six are asked as the numbered decision request on the epic — answering them is a design decision,
-not implementation approval.
+   > **Answered with a correction of the premise:** „i dont understand the question right. The function
+   > behind restore metadata is to discard all changes by user and restore to the original harvested
+   > content." ([r4541888319](https://github.com/mrmap-community/mrmap/pull/1255#discussion_r4541888319)).
+   > That function exists and is described at `registry/serializers/service.py:514` — „the original xml
+   > backup file as secured url to restore the xml field". What remains of the finding is smaller than the
+   > question suggested and is stated on #1267: in the whole German catalog
+   > „Metadaten wiederherstellen" occurs **once**, as the translation of the msgid
+   > `collect metadata records` (`backend/locale/de/LC_MESSAGES/django.po:3128-3130`), and the frontend
+   > catalog has no such string at all — so the registration dialog offers the restore function's name for
+   > the collection option.
 
 ## 9. Where this went
 
 The findings are published as **[epic #1256](https://github.com/mrmap-community/mrmap/issues/1256)**,
-`slug: metadata-collection`, with twelve children (#1257–#1268) whose sub-issue and blocking relations
+`slug: metadata-collection`, with thirteen children (#1257–#1268 and #1274) whose sub-issue and blocking relations
 are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport bounds are
 #1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263. Nothing
 in this document was implemented, and no `agent: approved` was applied.

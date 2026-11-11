@@ -31,7 +31,7 @@ that specifies it.
 | `proposed-registration-collection-card.png` | one card per registration on the service overview: phases, progress, counters per outcome |
 | `proposed-collection-outcome.png` | the background process screen with one row per metadata reference and its outcome, next to the log as it looks today |
 | `proposed-featuretype-metadata-relations.png` | element inspection with the metadata section for a feature type, showing which record describes what |
-| `proposed-dataset-relationship-graph.png` | the relations graph grouped by what a relation means, including the directions the model cannot express yet |
+| `proposed-dataset-relationship-graph.png` | the relations graph grouped by what a relation means — with the existing relation kinds only, per RFC #992 and the review of PR #1255 |
 
 ## How they were made
 

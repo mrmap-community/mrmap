@@ -176,24 +176,24 @@ CURRENT — rendered from `master` source (no live MrMap demo was reachable):
 ![MrMap record detail today](images/metadata-editor/current-record-show.png)
 ![MrMap edit dialog today](images/metadata-editor/current-edit-dialog.png)
 
-PROPOSED (labels in the images say "PROPOSED"). Read them together with the review decisions:
-the draft/publish toolbar split (`proposed-01/03/12`) is superseded by atomic publishing; the
-template list in `proposed-09` activates with the v2 templates epic.
+PROPOSED (labels in the images say "PROPOSED"). The mockups were re-rendered after the review
+decisions: single **Save & publish** action everywhere, profile chip *Generic*, validation
+findings as save blockers, and `proposed-12` badged **v2 candidate**.
 
 | file | shows |
 | --- | --- |
-| `proposed-01-editor-simple.png` | editor shell: profile/state chips, Simple mode, section rail with per-section findings, sticky toolbar, validation rail |
+| `proposed-01-editor-simple.png` | editor shell: profile chips, Simple mode, section rail with per-section findings, sticky toolbar (Validate · Save & publish), findings rail |
 | `proposed-02-editor-advanced.png` | Advanced mode: ISO element groups with cardinality, keyword sets per thesaurus, add-element |
-| `proposed-03-publish-gate.png` | publish blocked by errors, per-error jump to field, save-as-draft-anyway |
+| `proposed-03-save-rejected.png` | save refused by 2 errors, per-error jump to field, served document untouched |
 | `proposed-04-xml-source.png` | XML source view, changed lines marked, write-back rule stated |
 | `proposed-05-keyword-picker.png` | thesaurus search grouped by registry, `gmx:Anchor` preview |
 | `proposed-06-contact-chooser.png` | pick existing Contact + `CI_RoleCode`, reuse count, create-new |
 | `proposed-07-extent-editor.png` | bbox/polygon/GeoJSON modes, bbox fields, temporal extent error inline |
 | `proposed-08-relations-editor.png` | relation table with ISO element it writes, origin, add/remove (round trip is #985) |
-| `proposed-09-create-record.png` | create wizard: profile + origin + file identifier, template list incl. *blank* |
-| `proposed-10-list.png` | metadata list with editorial state, selection, batch edit, create |
-| `proposed-11-batch-edit.png` | batch edit one element over a selection with per-record validity preview |
-| `proposed-12-harvest-conflict.png` | harvest-during-edit conflict resolved per section |
+| `proposed-09-create-record.png` | create wizard: profile + origin + file identifier, start blank; template row disabled (v2) |
+| `proposed-10-list.png` | metadata list with serving/validation column, selection, batch edit, create |
+| `proposed-11-batch-edit.png` | batch edit one element over a selection; per-record preview, synchronous per-record PATCH |
+| `proposed-12-harvest-conflict.png` | **v2 candidate**: harvest-during-edit conflict resolved per section |
 
 ## 7. Decisions (review of PR #1238)
 

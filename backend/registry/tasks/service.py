@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import IntegrityError
 from notify.enums import LogTypeEnum
 from notify.tasks import BackgroundProcessBased, finish_background_process
+from registry.enums.metadata import CollectionStepOutcome
 from registry.exceptions.metadata import (MetadataFetchTimeout,
                                           MetadataFetchUnreachable,
                                           UnknownMetadataKind)
@@ -240,15 +241,33 @@ def fetch_remote_metadata_xml(
 
         metadata_record = remote_metadata.create_metadata_instance()
         self.update_state(state=states.STARTED, meta={'done': 2, 'total': 2})
-        result = {
-            "data": {
-                "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
-                "id": f"{metadata_record.pk if metadata_record else None}",
-                "links": {
-                    "self": f"{reverse(viewname=f'registry:{"datasetmetadata" if isinstance(metadata_record, DatasetMetadataRecord) else "servicemetadata"}-detail', args=[metadata_record.pk]) if metadata_record else None}"
-                }
+
+        if metadata_record is None:
+            # the document was fetched and mapped, but its file identifier
+            # resolved to no record: the answer must not name one - it used
+            # to read "id": "None", which a client cannot tell apart from a
+            # created record (#1261). Like any other final outcome the
+            # reference logs here and falls through to the shared report.
+            self.log_process(
+                f"RemoteMetadata {remote_metadata.pk} was fetched and "
+                f"parsed, but its document carries no identifiable record.",
+                LogTypeEnum.WARNING)
+            result = {
+                "data": None,
+                "outcome": CollectionStepOutcome.NO_IDENTIFIABLE_RECORD.value,
             }
-        }
+        else:
+            is_dataset = isinstance(metadata_record, DatasetMetadataRecord)
+            result = {
+                "data": {
+                    "type": "DatasetMetadataRecord" if is_dataset else "ServiceMetadata",
+                    "id": f"{metadata_record.pk}",
+                    "links": {
+                        "self": f"{reverse(viewname=f'registry:{"datasetmetadata" if is_dataset else "servicemetadata"}-detail', args=[metadata_record.pk])}"
+                    }
+                },
+                "outcome": CollectionStepOutcome.RECORD_CREATED.value,
+            }
     except (MetadataFetchTimeout, MetadataFetchUnreachable) as e:
         # Nothing was answered, so this document is not decided yet - and this
         # attempt is not the one which decides it. Raised back, that is what

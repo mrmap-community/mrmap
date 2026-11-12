@@ -31,6 +31,23 @@ class MetadataOriginEnum(SmartIntegerChoices):
     CATALOGUE = 5, _("Catalogue")
 
 
+class CollectionStepOutcome(TextChoices):
+    """The verdict of collecting one reference of a service's capabilities.
+
+    The task which fetches and maps one ``RemoteMetadata`` answer carries
+    this outcome so a reader can tell "a record was created" from "the
+    document was parsed, but no record could be identified in it" without
+    inferring it from the presence of an id (#1261). Where the outcome is
+    stored per reference is the subject of #1263.
+
+    Note: This is no choice of a model field and is only used to report the
+    outcome of one collected step, thats why the labels are not translated.
+    """
+    RECORD_CREATED = "record_created", "Record created"
+    NO_IDENTIFIABLE_RECORD = (
+        "no_identifiable_record", "Parsed, but no identifiable record")
+
+
 class MetadataRelationPublicationEnum(SmartIntegerChoices):
     """ Defines how a MetadataRelation contributes to the xml which MrMap publishes.
 

@@ -11,6 +11,23 @@ from notify.enums import (LogTypeEnum, OperationStateEnum,
                           ProcessStatusEnum)
 
 
+def capped_done_steps(steps):
+    """Expression which adds ``steps`` to the done steps of a process, capped.
+
+    GREATEST keeps a report which would count past the total from pulling a
+    further reported progress back, and Coalesce answers the NULL which Least
+    leaves behind when there is no total to cap at - a process which does not
+    know its total cannot exceed it. Shared by this manager's ``report`` and
+    the task-side update path of ``notify/tasks.py``, so no step reporter can
+    push a process beyond 100 % (#1261, #1258).
+    """
+    return Coalesce(
+        Greatest(
+            F("done_steps"),
+            Least(F("done_steps") + steps, F("total_steps"))),
+        F("done_steps") + steps)
+
+
 class BackgroundProcessManager(models.Manager):
 
     #: statuses a process can still be moved away from
@@ -143,14 +160,7 @@ class BackgroundProcessManager(models.Manager):
             values["total_steps"] = total_steps
         steps = (1 if step_done else 0) + max(int(steps_done or 0), 0)
         if steps:
-            # GREATEST keeps a report which would count past the total from
-            # pulling a further done process back, and Coalesce answers the
-            # NULL which Least leaves behind when there is no total to cap at.
-            values["done_steps"] = Coalesce(
-                Greatest(
-                    F("done_steps"),
-                    Least(F("done_steps") + steps, F("total_steps"))),
-                F("done_steps") + steps)
+            values["done_steps"] = capped_done_steps(steps)
         if status == ProcessStatusEnum.COMPLETED:
             values["done_steps"] = Coalesce(
                 F("total_steps"), F("done_steps"))

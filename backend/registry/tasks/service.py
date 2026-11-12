@@ -212,6 +212,9 @@ def fetch_remote_metadata_xml(
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
 
     remote_metadata = None
+    # the handled failures below reach the shared report at the end without
+    # a result of their own; such a reference reports None, like before
+    result = None
     try:
         # the pattern is the class name of the row the fan-out handed in;
         # every kind it can produce must name its own model, and a name it
@@ -237,7 +240,7 @@ def fetch_remote_metadata_xml(
 
         metadata_record = remote_metadata.create_metadata_instance()
         self.update_state(state=states.STARTED, meta={'done': 2, 'total': 2})
-        return {
+        result = {
             "data": {
                 "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
                 "id": f"{metadata_record.pk if metadata_record else None}",
@@ -296,6 +299,13 @@ def fetch_remote_metadata_xml(
             f"collected: {e}",
             LogTypeEnum.WARNING)
 
+    # One step per reference which reached an outcome, success included: the
+    # report used to sit only behind the except branches, which the success
+    # path left by returning, so a healthy collection never moved done_steps
+    # (#1258). Every path through the body passes here exactly once; an
+    # attempt which dies before this line (a retry, a failed lookup) reports
+    # nothing, so a retried reference is not counted twice.
     self.update_background_process(
         step_done=True
     )
+    return result

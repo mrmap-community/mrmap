@@ -13,6 +13,7 @@ from django.utils.timezone import now
 from extras.tasks import SingletonTask
 from MrMap import celery_queues
 from notify.enums import ProcessStatusEnum
+from notify.managers import capped_done_steps
 from notify.models import BackgroundProcess
 from registry.exceptions.harvesting import InternalServerError
 from requests.exceptions import ConnectionError, Timeout
@@ -156,7 +157,10 @@ class BackgroundProcessBased(Task):
                     })
                 if step_done:
                     kwargs.update({
-                        "done_steps": F("done_steps") + 1
+                        # the capped increment shared with the manager's
+                        # report, so a duplicated step report cannot push
+                        # this path beyond 100 % either (#1258, #1261)
+                        "done_steps": capped_done_steps(1)
                     })
                 if failed:
                     kwargs.update({"status": ProcessStatusEnum.FAILED, "done_at": now()})

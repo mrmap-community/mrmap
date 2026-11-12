@@ -7,7 +7,7 @@ from django.test.utils import override_settings
 from django.urls.base import reverse
 from lxml import etree
 from notify.enums import LogTypeEnum, ProcessStatusEnum
-from notify.models import BackgroundProcess
+from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.exceptions.service import (CapabilitiesPersistenceError,
                                          DuplicateLayerIdentifiers)
@@ -15,9 +15,9 @@ from registry.mappers.extensions import \
     validate_unique_layer_identifiers
 from registry.models.metadata import (DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata, LegendUrl,
-                                      LayerRemoteMetadata, MetadataRelation,
-                                      ServiceMetadataRecord, Style,
-                                      WebFeatureServiceRemoteMetadata,
+                                      LayerRemoteMetadata, MetadataContact,
+                                      MetadataRelation, ServiceMetadataRecord,
+                                      Style, WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
@@ -28,6 +28,7 @@ from registry.tasks.service import (build_ogc_service,
 from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse
+from urllib3.exceptions import MaxRetryError
 
 
 def side_effect(request, *args, **kwargs):
@@ -498,6 +499,123 @@ class ValidateUniqueLayerIdentifiersTest(TestCase):
         ])
 
         self.assertIsNone(validate_unique_layer_identifiers(mapper))
+
+
+class CollectionStepAccountingTest(TransactionTestCase):
+    """Each metadata reference of a collection reports exactly one step (#1258).
+
+    The step report of ``fetch_remote_metadata_xml`` used to sit only behind
+    the ``except`` branches, which the success path left by returning: a
+    healthy run sat at 0 % until the chord completed and jumped to done. The
+    process here is the one the registration fan-out leaves behind: a known
+    total of as many references as tasks went into the chord, and these tests
+    run that very task over it - with all references succeeding, all failing
+    and half failing - and assert the accounting closes.
+
+    A TransactionTestCase because the tasks are the ones of the deployment:
+    its celery signal handlers close the database connection around a task,
+    which is only survivable outside the atomic block of a TestCase.
+    """
+
+    def setUp(self):
+        contact = MetadataContact.objects.create(name='collection contact')
+        service = WebMapService.objects.create(
+            title='Collection progress service', version=130, origin=1,
+            service_url='https://collection.example.org/wms',
+            metadata_contact=contact, service_contact=contact)
+        self.references = [
+            WebMapServiceRemoteMetadata.objects.create(
+                link=f'https://collection.example.org/md/{i}',
+                describes=service)
+            for i in range(4)]
+        self.process = BackgroundProcess.objects.create(
+            process_type='registering',
+            description='',
+            phase='collecting metadata records...',
+            total_steps=len(self.references))
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
+                       CELERY_TASK_EAGER_PROPAGATES=True,
+                       BROKER_BACKEND='memory')
+    def _collect(self, failing=()):
+        """Run the task of the chord once per reference, eager as a worker.
+
+        The boundary is the remote endpoint: the HTTP call inside
+        ``fetch_remote_content`` answers the document on success and the very
+        ``MaxRetryError`` the real client raises on refusal, while the
+        mapping behind ``create_metadata_instance`` is replaced by a record
+        the persistence could not file (``None``) - its shape is not what is
+        accounted here, the reference reaching an outcome is.
+        """
+        failing_urls = {self.references[i].link for i in failing}
+
+        def send(session, request):
+            if request.url in failing_urls:
+                raise MaxRetryError(
+                    None, request.url, reason='connection refused')
+            return MockResponse(status_code=200, content='<Metadata/>')
+
+        with patch.object(Session, 'send', side_effect=send), \
+                patch.object(WebMapServiceRemoteMetadata,
+                             'create_metadata_instance', return_value=None):
+            for reference in self.references:
+                fetch_remote_metadata_xml.delay(
+                    reference.pk, 'WebMapServiceRemoteMetadata',
+                    background_process_pk=self.process.pk)
+
+        return BackgroundProcess.objects.process_info().get(
+            pk=self.process.pk)
+
+    def test_all_successes_count_their_steps(self):
+        """The defect: the success path returned past the only step report,
+        so a healthy collection never moved ``done_steps`` at all."""
+        process = self._collect()
+
+        self.assertEqual(process.done_steps, len(self.references))
+        self.assertEqual(process.total_steps, len(self.references))
+        self.assertEqual(
+            process.progress, 100,
+            msg="the progress of a completed collection shows without "
+                "the chord body having marked the process COMPLETED")
+
+    def test_all_failures_count_their_steps(self):
+        process = self._collect(failing=range(len(self.references)))
+
+        self.assertEqual(process.done_steps, len(self.references))
+        self.assertEqual(process.progress, 100)
+        # the refused fetches are visible on the process, not only counted
+        self.assertEqual(
+            BackgroundProcessLog.objects.filter(
+                background_process_id=self.process.pk).count(),
+            len(self.references))
+
+    def test_half_failures_count_their_steps(self):
+        process = self._collect(failing=(1, 3))
+
+        self.assertEqual(process.done_steps, len(self.references))
+        self.assertEqual(process.progress, 100)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
+                       CELERY_TASK_EAGER_PROPAGATES=True,
+                       BROKER_BACKEND='memory')
+    def test_an_unresolvable_reference_counts_its_step(self):
+        """A class the task can't resolve is a final outcome too.
+
+        The fan-out counted the reference into total_steps; the task used to
+        return ``None`` over it without any report, so such references left
+        the progress permanently short of its total.
+        """
+        fetch_remote_metadata_xml.delay(
+            self.references[0].pk, 'CatalogueServiceRemoteMetadata',
+            background_process_pk=self.process.pk)
+
+        process = BackgroundProcess.objects.process_info().get(
+            pk=self.process.pk)
+        self.assertEqual(process.done_steps, 1)
+        self.assertTrue(
+            BackgroundProcessLog.objects.filter(
+                background_process_id=self.process.pk).exists(),
+            msg="the skipped reference is invisible on the process")
 
 
 class WfsFeatureTypeMetadataFanOutTest(TransactionTestCase):

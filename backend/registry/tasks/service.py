@@ -209,25 +209,27 @@ def fetch_remote_metadata_xml(
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
 
-    match(class_name):
-        case "WebMapServiceRemoteMetadata":
-            remote_metadata = WebMapServiceRemoteMetadata.objects.get(
-                pk=remote_metadata_id)
-        case "LayerRemoteMetadata":
-            remote_metadata = LayerRemoteMetadata.objects.get(
-                pk=remote_metadata_id)
-        case "WebFeatureServiceRemoteMetadata":
-            remote_metadata = WebFeatureServiceRemoteMetadata.objects.get(
-                pk=remote_metadata_id)
-        case "LayerRemoteMetadata":
-            remote_metadata = FeatureTypeRemoteMetadata.objects.get(
-                pk=remote_metadata_id)
-        case _:
-            remote_metadata = None
-
-    if not remote_metadata:
-        return None
+    remote_metadata = None
     try:
+        # the pattern is the class name of the row the fan-out handed in;
+        # every kind it can produce must name its own model, and a name it
+        # does not know is a failure to report, not a step to skip (#1257)
+        match(class_name):
+            case "WebMapServiceRemoteMetadata":
+                remote_metadata = WebMapServiceRemoteMetadata.objects.get(
+                    pk=remote_metadata_id)
+            case "LayerRemoteMetadata":
+                remote_metadata = LayerRemoteMetadata.objects.get(
+                    pk=remote_metadata_id)
+            case "WebFeatureServiceRemoteMetadata":
+                remote_metadata = WebFeatureServiceRemoteMetadata.objects.get(
+                    pk=remote_metadata_id)
+            case "FeatureTypeRemoteMetadata":
+                remote_metadata = FeatureTypeRemoteMetadata.objects.get(
+                    pk=remote_metadata_id)
+            case _:
+                raise UnknownMetadataKind(class_name)
+
         remote_metadata.fetch_remote_content()
         self.update_state(state=states.STARTED, meta={'done': 1, 'total': 2})
 
@@ -249,23 +251,25 @@ def fetch_remote_metadata_xml(
             f"Could not fetch the remote document of RemoteMetadata "
             f"{remote_metadata.pk}",
             LogTypeEnum.WARNING)
-    except UnknownMetadataKind:
-        try:
-            kind = remote_metadata.parsed_metadata._hierarchy_level
-        except Exception:
-            kind = 'unknown'
+    except UnknownMetadataKind as e:
+        # raised by the match above for a class name it does not know: no
+        # row is resolved under a name this task was handed, so the id and
+        # the name it got are all the report can name (#1257)
         settings.ROOT_LOGGER.warning(
-            f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, cause the kind '{kind}' is not supported.")
+            f"Can't handle RemoteMetadata with id: {remote_metadata_id}, "
+            f"cause the kind '{e}' is not supported.")
         self.log_process(
-            f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, "
-            f"cause the kind '{kind}' is not supported.",
+            f"Can't handle RemoteMetadata with id: {remote_metadata_id}, "
+            f"cause the kind '{e}' is not supported.",
             LogTypeEnum.WARNING)
 
     except Exception as e:
+        # the id of the reference, not of a resolved row: the resolution
+        # itself may be what failed (#1257)
         settings.ROOT_LOGGER.exception(
-            f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
+            f"RemoteMetadata id: {remote_metadata_id}", e, stack_info=True, exc_info=True)
         self.log_process(
-            f"RemoteMetadata id: {remote_metadata.pk} could not be "
+            f"RemoteMetadata id: {remote_metadata_id} could not be "
             f"collected: {e}",
             LogTypeEnum.WARNING)
 

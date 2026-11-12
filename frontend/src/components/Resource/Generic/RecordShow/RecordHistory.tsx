@@ -53,6 +53,14 @@ const HarvestCatalogue = ({ source }: { source: string; label?: string }) => (
   </ReferenceField>
 );
 
+// the harvested relation names the record by its kind (see the columns of
+// registry.models.harvest.HarvestedMetadataRelation)
+const RELATION_RECORD_FILTER: Record<string, string> = {
+  DatasetMetadataRecord: "dataset_metadata_record__id",
+  ApplicationMetadataRecord: "application_metadata_record__id",
+  ServiceMetadataRecord: "service_metadata_record__id",
+};
+
 const RecordHistory = ({ harvests = false }: { harvests?: boolean }) => {
   const resource = useResourceContext();
   const record = useRecordContext();
@@ -80,9 +88,7 @@ const RecordHistory = ({ harvests = false }: { harvests?: boolean }) => {
       <ListGuesser
         resource="HarvestedMetadataRelation"
         filter={{
-          [resource === "DatasetMetadataRecord"
-            ? "dataset_metadata_record__id"
-            : "service_metadata_record__id"]: record.id,
+          [RELATION_RECORD_FILTER[resource ?? ""]]: record.id,
         }}
         listContent={
           <Datagrid bulkActionButtons={false} rowClick={false}>

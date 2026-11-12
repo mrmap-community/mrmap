@@ -66,7 +66,8 @@ const PortalSearch = (): ReactNode => {
 
       <Grid>
         <ResourceSearchAccordion name="WebMapService" filter={filter}/>
-        <ResourceSearchAccordion name="DatasetMetadata" filter={filter}/>
+        <ResourceSearchAccordion name="DatasetMetadataRecord" filter={filter}/>
+        <ResourceSearchAccordion name="ApplicationMetadataRecord" filter={filter}/>
       </Grid>
     </Grid>
   )

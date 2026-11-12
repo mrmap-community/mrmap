@@ -50,6 +50,7 @@ const HarvestingRunSummary = ({
   const counters = [
     { resource: "DatasetMetadataRecord", label: "datasets", tab: "DatasetMetadataRecord" },
     { resource: "ServiceMetadataRecord", label: "services", tab: "ServiceMetadataRecord" },
+    { resource: "ApplicationMetadataRecord", label: "applications", tab: "ApplicationMetadataRecord" },
     // the tab which names the records a run could not store answers both
     // numbers of its files: the refused ones and the ones still waiting (#1083)
     { resource: "TemporaryMdMetadataFile", label: "unhandled", tab: "failed-records" },
@@ -157,7 +158,7 @@ const HarvestingRunSummary = ({
       </Card>
       <Grid container spacing={2}>
         {counters.map((counter) => (
-          <Grid key={counter.resource} size={{ xs: 6, md: 3 }}>
+          <Grid key={counter.resource} size={{ xs: 6, md: 4 }}>
             <Card variant="outlined">
               <CardActionArea
                 component={Link}
@@ -179,7 +180,7 @@ const HarvestingRunSummary = ({
             </Card>
           </Grid>
         ))}
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Card variant="outlined">
             <CardActionArea
               component={Link}

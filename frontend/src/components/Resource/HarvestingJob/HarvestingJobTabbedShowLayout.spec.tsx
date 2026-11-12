@@ -18,8 +18,17 @@ const state = vi.hoisted(() => ({
   },
 }));
 vi.mock("react-admin", () => {
-  const Container = ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
+  const Container = ({
+    children,
+    label,
+  }: {
+    children: ReactNode;
+    label?: string;
+  }) => (
+    <div>
+      {typeof label === "string" ? label : null}
+      {children}
+    </div>
   );
   return {
     useShowContext: () => state,
@@ -56,7 +65,9 @@ vi.mock("react-admin", () => {
         {source}: {state.record?.[source] ?? emptyText}
       </span>
     ),
-    NumberField: () => null,
+    // the result-count table names its columns and rows by the source of
+    // each field, so the mock answers it — the values stay behind the label
+    NumberField: ({ source }: { source: string }) => <span>{source}</span>,
     // the measurements of a run are derived values, so the field answers its
     // source together with the rendered number (#1071) - a render which
     // answers an element renders it, which is how the count links arrive (#1083)
@@ -112,6 +123,22 @@ describe("harvesting run detail layout", () => {
     expect(screen.getByText("harvestRun.configuration")).toBeInTheDocument();
     expect(screen.getAllByText("Timing chart")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("counts every collected kind by collecting state and tabs the application records", () => {
+    render(<HarvestingJobTabbedShowLayout />);
+    expect(screen.getByText("harvestRun.resultCounts")).toBeInTheDocument();
+    for (const kind of ["Dataset", "Service", "Application"]) {
+      for (const stateName of ["new", "updated", "existing", "duplicated"]) {
+        expect(
+          screen.getByText(`${stateName}${kind}MetadataCount`),
+        ).toBeInTheDocument();
+      }
+    }
+    // the applications appear both as a result-count row and as a tab of the
+    // records the run collected
+    expect(
+      screen.getAllByText("harvestRun.applications").length,
+    ).toBeGreaterThan(1);
   });
   it("names the records the run could not store in a tab of their own", () => {
     // the question the summary cards ask is answered by the tab, not by a

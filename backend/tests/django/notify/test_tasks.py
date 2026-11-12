@@ -111,6 +111,24 @@ class BackgroundProcessTaskTests(TestCase):
         self.assertEqual(self.info().total_steps, 0)
         self.assertEqual(self.info().progress, 0)
 
+    @patch('notify.tasks.post_save.send')
+    def test_step_reports_are_capped_at_the_total(self, send):
+        """A step report never moves the progress past the total (#1258, #1261).
+
+        This path used to write a bare `F("done_steps") + 1`, so a duplicated
+        delivery of one step pushed the process beyond 100 %; it now shares
+        the capped increment of the manager's report. The cap must not eat
+        ordinary steps either: with a total of 4 and one step already done,
+        the first three of these six reports still count.
+        """
+        for _ in range(6):
+            self.task.update_background_process(step_done=True)
+
+        process = self.info()
+        self.assertEqual(process.total_steps, 4)
+        self.assertEqual(process.done_steps, 4)
+        self.assertEqual(process.progress, 100)
+
 
 class NoPerTaskResultBookkeepingTests(WorkerRunMixin, TransactionTestCase):
     """No task of the deployment books itself in a generic per-task result table.

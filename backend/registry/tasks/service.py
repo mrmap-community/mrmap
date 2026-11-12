@@ -226,14 +226,28 @@ def fetch_remote_metadata_xml(
             remote_metadata = None
 
     if not remote_metadata:
+        # the chord counted this reference into total_steps, and a class the
+        # task can't resolve is its final outcome: like the handled failures
+        # below it logs and reports its one step (#1258)
+        settings.ROOT_LOGGER.warning(
+            f"Can't handle RemoteMetadata with id: {remote_metadata_id}, "
+            f"cause the class '{class_name}' is not known.")
+        self.log_process(
+            f"Can't handle RemoteMetadata with id: {remote_metadata_id}, "
+            f"cause the class '{class_name}' is not known.",
+            LogTypeEnum.WARNING)
+        self.update_background_process(step_done=True)
         return None
+    # the handled failures below reach the shared report at the end without
+    # a result of their own; such a reference reports None, like before
+    result = None
     try:
         remote_metadata.fetch_remote_content()
         self.update_state(state=states.STARTED, meta={'done': 1, 'total': 2})
 
         metadata_record = remote_metadata.create_metadata_instance()
         self.update_state(state=states.STARTED, meta={'done': 2, 'total': 2})
-        return {
+        result = {
             "data": {
                 "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
                 "id": f"{metadata_record.pk if metadata_record else None}",
@@ -269,6 +283,13 @@ def fetch_remote_metadata_xml(
             f"collected: {e}",
             LogTypeEnum.WARNING)
 
+    # One step per reference which reached an outcome, success included: the
+    # report used to sit only behind the except branches, which the success
+    # path left by returning, so a healthy collection never moved done_steps
+    # (#1258). Every path through the body passes here exactly once; an
+    # attempt which dies before this line (a retry, a failed lookup) reports
+    # nothing, so a retried reference is not counted twice.
     self.update_background_process(
         step_done=True
     )
+    return result

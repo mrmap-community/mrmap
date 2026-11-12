@@ -26,6 +26,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    agent-capacity
    decision-requests
    code-quality
+   keyword-triggers
    definition_of_done
    vscode-configuration
    

@@ -45,6 +45,7 @@ beforeEach(() => {
     service: { id: "csw-1" },
     harvestDatasets: false,
     harvestServices: true,
+    harvestApplications: false,
     maxStepSize: 25,
     doneAt: null,
   };
@@ -74,6 +75,9 @@ describe("harvesting run actions", () => {
           service: { id: "csw-1" },
           harvestDatasets: false,
           harvestServices: true,
+          // the restart keeps the kinds the run collected: a disabled
+          // applications flag must not silently come back enabled
+          harvestApplications: false,
           maxStepSize: 25,
         },
       },

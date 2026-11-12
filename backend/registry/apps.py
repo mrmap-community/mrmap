@@ -208,6 +208,12 @@ class RegistryConfig(AppConfig):
     verbose_name = _('Registry')
 
     def ready(self):
+        # the keyword maintenance of the records: the trigger definitions of
+        # registry/triggers.py are registered on their models, which needs the
+        # app registry populated; from there the migrations of pgtrigger carry
+        # them into the database (#1009)
+        import registry.triggers  # noqa: F401
+
         # Implicitly connect signal handlers decorated with @receiver.
         post_migrate.connect(
             create_choice_model_entries,

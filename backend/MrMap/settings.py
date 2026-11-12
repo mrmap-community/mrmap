@@ -111,7 +111,7 @@ INSTALLED_APPS = [
     "system",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
-    "django_pgviews",
+    "pgtrigger",
 ]
 
 MIDDLEWARE = [
@@ -874,9 +874,6 @@ REST_FRAMEWORK = {
 #     'TOKEN_TTL': timedelta(hours=1),
 #     'AUTO_REFRESH': True,
 # }
-MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE = True
-MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

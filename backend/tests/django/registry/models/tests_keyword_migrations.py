@@ -241,3 +241,153 @@ class KeywordLengthMigrationTest(TransactionTestCase):
     def restore_schema(self):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class KeywordTriggerTransferTest(TransactionTestCase):
+    """0039 hands the keyword maintenance from hand written sql to pgtrigger.
+
+    Forward the legacy functions and triggers must be gone and the package
+    objects installed; backwards the very state 0035 left behind must return,
+    which since #1075 means the legacy bodies with the empty array of the
+    widened element type. Both directions are asked because the harvesting
+    writers run against these triggers in production and a deployment must be
+    able to roll back.
+    """
+
+    #: the objects as 0021, 0024 and 0033 named them
+    LEGACY = sorted([
+        'registry_datasetmetadatarecord_keywords_keywords_list_sync',
+        'registry_servicemetadatarecord_keywords_keywords_list_sync',
+        'registry_applicationmetadatarecord_keywords_keywords_list_sync',
+        'registry_datasetmetadatarecord_keywords_list_keep',
+        'registry_servicemetadatarecord_keywords_list_keep',
+        'registry_applicationmetadatarecord_keywords_list_keep',
+        'registry_keyword_sync_to_metadatarecords',
+    ])
+
+    def tearDown(self):
+        # leave the schema at the tip whatever the test did
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def keyword_triggers(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal"
+                " AND (tgname LIKE '%keywords\\_list\\_sync%'"
+                " OR tgname LIKE '%keywords\\_list\\_keep%'"
+                " OR tgname LIKE '%keyword\\_sync\\_to\\_metadatarecords%')"
+                " ORDER BY tgname")
+            return [row[0] for row in cursor.fetchall()]
+
+    def keyword_bodies(self):
+        """The stored sources of the three legacy functions, by name"""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT proname, prosrc FROM pg_proc WHERE proname IN"
+                " ('registry_sync_metadatarecord_keywords_list',"
+                " 'registry_keep_metadatarecord_keywords_list',"
+                " 'registry_sync_keyword_rename_to_metadatarecords')")
+            return dict(cursor.fetchall())
+
+    def migrate_to(self, targets):
+        MigrationExecutor(connection).migrate(targets)
+
+    def test_the_transfer_swaps_the_objects_in_both_directions(self):
+        self.migrate_to([
+            ('registry',
+             '0035_a_too_long_keyword_does_not_take_a_record_down')])
+        self.assertEqual(self.keyword_triggers(), self.LEGACY)
+        bodies = self.keyword_bodies()
+        self.assertEqual(len(bodies), 3, sorted(bodies))
+        for name, body in bodies.items():
+            self.assertNotIn(
+                'varchar(300)', body,
+                'reversing 0039 did not restore the body 0035 left on %s' % name)
+
+        self.migrate_to([
+            ('registry', '0039_the_keyword_maintenance_is_managed_by_pgtrigger')])
+        installed = self.keyword_triggers()
+        self.assertEqual(len(installed), 7, installed)
+        self.assertTrue(all(name.startswith('pgtrigger_') for name in installed),
+                        installed)
+        self.assertEqual(self.keyword_bodies(), {})
+
+
+class KeywordThroughModelMigrationTest(TransactionTestCase):
+    """Taking ownership of the M2M tables preserves links and installed triggers."""
+
+    migrate_from = [
+        ('registry', '0039_the_keyword_maintenance_is_managed_by_pgtrigger'),
+        ('registry', '0045_move_generic_object_permissions_of_the_remaining_models'),
+    ]
+    migrate_to = [('registry', '0046_explicit_keyword_through_models')]
+    record_types = (
+        ('DatasetMetadataRecord', 'dataset_contact'),
+        ('ServiceMetadataRecord', None),
+        ('ApplicationMetadataRecord', 'application_contact'),
+    )
+
+    def restore_schema(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    def table_objects(self):
+        """OIDs detect table replacement even when names and rows were copied."""
+        tables = [f'registry_{name.lower()}_keywords' for name, _ in self.record_types]
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT c.relname, c.oid, t.tgname, pg_get_triggerdef(t.oid)'
+                ' FROM pg_class c JOIN pg_trigger t ON t.tgrelid = c.oid'
+                ' WHERE c.relname = ANY(%s) AND NOT t.tgisinternal'
+                ' ORDER BY c.relname, t.tgname', [tables])
+            return cursor.fetchall()
+
+    def test_links_and_triggers_survive_forward_and_reverse(self):
+        self.addCleanup(self.restore_schema)
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        Contact = old_apps.get_model('registry', 'MetadataContact')
+        Keyword = old_apps.get_model('registry', 'Keyword')
+        contact = Contact.objects.create(name='Keyword through migration contact')
+        keyword = Keyword.objects.create(keyword='through migration keyword')
+        extra = Keyword.objects.create(keyword='through migration extra keyword')
+        records = []
+        for name, contact_field in self.record_types:
+            Record = old_apps.get_model('registry', name)
+            values = {'metadata_contact': contact, 'title': 'Through migration'}
+            if contact_field:
+                values[contact_field] = contact
+            record = Record.objects.create(**values)
+            record.keywords.add(keyword)
+            records.append((name, record.pk, record.keywords.through.objects.get(
+                keyword=keyword).pk))
+        before = self.table_objects()
+        self.assertEqual(len(before), 3)
+
+        # Both directions must keep the physical tables and their original link IDs.
+        for target in (self.migrate_to, self.migrate_from):
+            executor = MigrationExecutor(connection)
+            executor.migrate(target)
+            state_apps = executor.loader.project_state(target).apps
+            self.assertEqual(self.table_objects(), before)
+            for name, record_id, link_id in records:
+                with self.subTest(target=target, record=name):
+                    Record = state_apps.get_model('registry', name)
+                    record = Record.objects.get(pk=record_id)
+                    self.assertEqual(
+                        record.keywords.through.objects.get(keyword_id=keyword.pk).pk,
+                        link_id)
+                    self.assertEqual(list(record.keywords.values_list('pk', flat=True)),
+                                     [keyword.pk])
+                    self.assertEqual(record.keywords_list, [keyword.keyword])
+                    # A migration which preserves the objects must preserve their effect too.
+                    record.keywords.add(extra.pk)
+                    record.refresh_from_db()
+                    self.assertEqual(record.keywords_list,
+                                     sorted([keyword.keyword, extra.keyword]))
+                    record.keywords.remove(extra.pk)
+                    record.refresh_from_db()
+                    self.assertEqual(record.keywords_list, [keyword.keyword])

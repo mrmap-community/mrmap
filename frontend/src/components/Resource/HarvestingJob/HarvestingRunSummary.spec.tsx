@@ -80,6 +80,11 @@ describe("harvesting run summary", () => {
     expect(links).toContain("/HarvestingJob/1/show/ServiceMetadataRecord");
     expect(links).toContain("/HarvestingJob/1/show/failed-records");
     expect(links).toContain("/HarvestingJob/1/show/log");
+    expect(links).toContain("/HarvestingJob/1/show/ApplicationMetadataRecord");
+    expect(
+      screen.getByTestId("ApplicationMetadataRecord"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("harvestRun.applications")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "harvestingActivity.importErrors",
     );

@@ -27,6 +27,13 @@ JSON:API sparse fieldsets. Extents and counts are derived in the page query, wit
 no geometry columns or migrations added. Clients that omit these fields retain
 their existing response shape and do not run the coverage aggregate.
 
+## Metadata identity
+
+Which identifier makes a dataset, a service, a registered resource or a representation the
+same thing, how ISO-declared references may be compared, which source wins for a value and
+which conventions persisted classifications and their enums follow is decided in
+[Metadata identity, relationships and integer enums](metadata-identity.md) (#982).
+
 ## Map contexts
 
 MapContext exports exchange configured layer trees with the standalone viewer.

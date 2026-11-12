@@ -37,18 +37,27 @@ import { choiceLabel } from "./RecordFields";
 
 import "@xyflow/react/dist/style.css";
 
+// an application record names no service and no element, so the api holds no
+// MetadataRelation for it (see registry.models.metadata.MetadataRelation): its
+// relation section stays an empty list of groups and the screen renders the
+// catalogues which harvested it, which every record kind has
+const DATASET_GROUPS = [
+  { source: "layer", resource: "Layer" },
+  { source: "featureType", resource: "FeatureType" },
+  { source: "csw", resource: "CatalogueService" },
+];
+const SERVICE_GROUPS = [
+  { source: "wms", resource: "WebMapService" },
+  { source: "wfs", resource: "WebFeatureService" },
+  { source: "csw", resource: "CatalogueService" },
+];
+const RELATION_GROUPS: Record<string, typeof SERVICE_GROUPS> = {
+  ApplicationMetadataRecord: [],
+  DatasetMetadataRecord: DATASET_GROUPS,
+};
+
 export const relationGroups = (resource: string) =>
-  resource === "DatasetMetadataRecord"
-    ? [
-        { source: "layer", resource: "Layer" },
-        { source: "featureType", resource: "FeatureType" },
-        { source: "csw", resource: "CatalogueService" },
-      ]
-    : [
-        { source: "wms", resource: "WebMapService" },
-        { source: "wfs", resource: "WebFeatureService" },
-        { source: "csw", resource: "CatalogueService" },
-      ];
+  RELATION_GROUPS[resource] ?? SERVICE_GROUPS;
 
 const TargetLink = ({
   source,
@@ -221,6 +230,34 @@ const RecordRelations = () => {
   const translate = useTranslate();
   const [view, setView] = useState("tables");
   if (!record) return null;
+  const groups = relationGroups(resource ?? "");
+  const catalogues = (
+    <>
+      <Typography variant="h6">
+        {translate("recordShow.harvestedThrough")}
+      </Typography>
+      <ResourceContextProvider value="CatalogueService">
+        <ListGuesser
+          resource="CatalogueService"
+          relatedResource={{ resource, id: record.id }}
+          defaultSelectedColumns={["title"]}
+          disableSyncWithLocation
+          storeKey={`${resource}.${record.id}.catalogues`}
+          rowActions={<span />}
+          aside={undefined}
+          dataGridProps={{ bulkActionButtons: false, rowClick: "show" }}
+        />
+      </ResourceContextProvider>
+    </>
+  );
+  // a kind without relation groups has no MetadataRelation filter to ask: its
+  // section is the catalogues it was harvested through and nothing else
+  if (!groups.length)
+    return (
+      <Stack spacing={2} sx={{ minWidth: 0 }}>
+        {catalogues}
+      </Stack>
+    );
   const parentFilter = {
     [resource === "DatasetMetadataRecord"
       ? "dataset_metadata"
@@ -246,7 +283,7 @@ const RecordRelations = () => {
       {view === "graph" ? (
         <RelationGraph filter={parentFilter} />
       ) : (
-        relationGroups(resource ?? "").map((group) => (
+        groups.map((group) => (
           <Box key={group.source}>
             <Typography variant="h6">
               {translate(`resources.${group.resource}.name`, {
@@ -294,21 +331,7 @@ const RecordRelations = () => {
           </Box>
         ))
       )}
-      <Typography variant="h6">
-        {translate("recordShow.harvestedThrough")}
-      </Typography>
-      <ResourceContextProvider value="CatalogueService">
-        <ListGuesser
-          resource="CatalogueService"
-          relatedResource={{ resource, id: record.id }}
-          defaultSelectedColumns={["title"]}
-          disableSyncWithLocation
-          storeKey={`${resource}.${record.id}.catalogues`}
-          rowActions={<span />}
-          aside={undefined}
-          dataGridProps={{ bulkActionButtons: false, rowClick: "show" }}
-        />
-      </ResourceContextProvider>
+      {catalogues}
     </Stack>
   );
 };

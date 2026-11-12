@@ -33,10 +33,18 @@ const Contact = ({ record }: { record?: RaRecord }) => (
   </Stack>
 );
 
+// the contact which provides the record is named after its kind: the dataset
+// record names its dataset contact, the application record its application one
+const PROVIDING_CONTACT: Record<string, string> = {
+  DatasetMetadataRecord: "datasetContact",
+  ApplicationMetadataRecord: "applicationContact",
+};
+
 const RecordContacts = () => {
   const record = useRecordContext();
   const resource = useResourceContext();
   const translate = useTranslate();
+  const providingContact = PROVIDING_CONTACT[resource ?? ""];
   return (
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, md: 6 }}>
@@ -44,10 +52,10 @@ const RecordContacts = () => {
           <Contact record={record?.metadataContact} />
         </SimpleCard>
       </Grid>
-      {resource === "DatasetMetadataRecord" && (
+      {providingContact && (
         <Grid size={{ xs: 12, md: 6 }}>
-          <SimpleCard title={translate("recordShow.datasetContact")}>
-            <Contact record={record?.datasetContact} />
+          <SimpleCard title={translate(`recordShow.${providingContact}`)}>
+            <Contact record={record?.[providingContact]} />
           </SimpleCard>
         </Grid>
       )}

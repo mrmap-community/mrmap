@@ -5,18 +5,21 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
-from notify.enums import ProcessStatusEnum
+from notify.enums import LogTypeEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.exceptions.service import (CapabilitiesPersistenceError,
                                          DuplicateLayerIdentifiers)
 from registry.mappers.extensions import \
     validate_unique_layer_identifiers
-from registry.models.metadata import (DatasetMetadataRecord, LegendUrl,
-                                      MetadataContact, ServiceMetadataRecord,
-                                      Style, WebMapServiceRemoteMetadata)
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      FeatureTypeRemoteMetadata, LegendUrl,
+                                      LayerRemoteMetadata, MetadataContact,
+                                      MetadataRelation, ServiceMetadataRecord,
+                                      Style, WebFeatureServiceRemoteMetadata,
+                                      WebMapServiceRemoteMetadata)
 from registry.models.security import WebMapServiceAuthentication
-from registry.models.service import (Layer, WebFeatureService,
+from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
 from registry.tasks.service import (build_ogc_service,
                                     fetch_remote_metadata_xml)
@@ -49,6 +52,10 @@ def side_effect(request, *args, **kwargs):
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/wms-service-metadata.xml')))
     elif request.url == 'https://geodienste.hamburg.de/HH_WFS_Bezirksradrouten_Hamburg_Nord?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities':
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/capabilities/wfs/hamburg_1.1.0.xml')))
+    elif request.url == 'https://maps.dwd.de/geoserver/wfs?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/capabilities/wfs/2.0.0.xml')))
+    elif request.url == 'https://example.com/wfs-metadata':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/wms-service-metadata.xml')))
 
 
 class BuildOgcServiceTaskTest(TransactionTestCase):
@@ -580,3 +587,272 @@ class CollectionStepAccountingTest(TransactionTestCase):
             BackgroundProcessLog.objects.filter(
                 background_process_id=self.process.pk).exists(),
             msg="the skipped reference is invisible on the process")
+
+
+class WfsFeatureTypeMetadataFanOutTest(TransactionTestCase):
+    """The fan-out of ``build_ogc_service`` must collect one record per
+    reference it counted as a step — including the feature type references
+    of a WFS, which a duplicated ``case`` pattern in
+    ``fetch_remote_metadata_xml`` dropped silently: the run ended completed
+    with counted steps, no record and no log line (#1257).
+
+    The capabilities fixture is a WFS carrying one service level INSPIRE
+    reference and a distinct ``MetadataURL`` on each of its five feature
+    types: before the fix only the service level reference was collected
+    while the five feature type steps were skipped without a trace.
+    """
+
+    def setUp(self):
+        self.http_request = {
+            "path": "http://example.de",
+            "method": "GET",
+            "content_type": "application/vnd.api+json",
+            "data": {},
+            "user_pk": "af7aaeff-ce21-4e35-af4a-dd2caec92f0f",
+        }
+
+        self.background_process = BackgroundProcess.objects.create(
+            phase="", process_type="registering", description="")
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_feature_type_references_are_collected_by_the_fan_out(self, mock_send):
+        build_ogc_service.delay(
+            get_capabilities_url='https://maps.dwd.de/geoserver/wfs?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities',
+            collect_metadata_records=True,
+            service_auth_pk=None,
+            http_request=self.http_request,
+            background_process_pk=self.background_process.pk,
+            **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
+
+        service = WebFeatureService.objects.get()
+
+        # the persisted document leaves one reference row per metadata link:
+        # one service level and five feature type ones
+        self.assertEqual(
+            WebFeatureServiceRemoteMetadata.objects.filter(
+                describes=service).count(), 1)
+        self.assertEqual(
+            FeatureTypeRemoteMetadata.objects.filter(
+                describes__service=service).count(),
+            5,
+            msg="the capabilities references did not survive persistence.")
+
+        # one record created per reference...
+        self.assertEqual(
+            ServiceMetadataRecord.objects.count(), 1,
+            msg="the service level reference was not collected.")
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(),
+            5,
+            msg="the feature type references were dropped instead of "
+                "collected into records (#1257).")
+        # ... and one relation row per described element
+        self.assertEqual(
+            MetadataRelation.objects.filter(
+                wfs=service).count(), 1)
+        self.assertEqual(
+            MetadataRelation.objects.filter(
+                feature_type__service=service).count(),
+            5,
+            msg="the collected records are not related to every described "
+                "feature type.")
+
+        # the step count of the run only counts what was dispatched, and
+        # every dispatched step arrived: a skipped reference could make the
+        # process report total_steps > 0 with nothing collected
+        self.background_process.refresh_from_db()
+        self.assertEqual(self.background_process.total_steps, 6)
+        self.assertEqual(self.background_process.done_steps,
+                         self.background_process.total_steps)
+        self.assertEqual(self.background_process.status,
+                         ProcessStatusEnum.COMPLETED)
+
+
+class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
+    """``fetch_remote_metadata_xml`` resolves the class name it is handed to
+    its own ``RemoteMetadata`` model: the four reference kinds the
+    registration fan-out produces each fetch and persist their document and
+    relate the record to the element they describe. A name the match does
+    not know is a failure reported on the process, not a silently skipped
+    step (#1257).
+
+    The service and element rows come from the plain fixtures; the
+    ``RemoteMetadata`` rows are created per test, because the reference
+    kinds belong to different described elements than the fixtures relate.
+    """
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_wfs.json"]
+
+    # the document side_effect answers for the registry links: a dataset
+    RBSN_T2M = ('https://registry.gdi-de.org/id/de.bund.dwd/'
+                'de.dwd.geoserver.fach.RBSN_T2m')
+
+    def setUp(self):
+        self.http_request = {
+            "path": "http://example.de",
+            "method": "GET",
+            "content_type": "application/vnd.api+json",
+            "data": {},
+            "user_pk": "af7aaeff-ce21-4e35-af4a-dd2caec92f0f",
+        }
+        self.wms = WebMapService.objects.first()
+        self.layer = Layer.objects.filter(service=self.wms).first()
+        self.wfs = WebFeatureService.objects.first()
+        self.feature_type = FeatureType.objects.filter(service=self.wfs).first()
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def _fetch(self, row, class_name=None):
+        """Run the task for one reference row the way the fan-out runs it."""
+        process = BackgroundProcess.objects.create(
+            phase="", process_type="registering", description="")
+        task_result = fetch_remote_metadata_xml.delay(
+            row.pk,
+            class_name or row.__class__.__name__,
+            http_request=self.http_request,
+            background_process_pk=process.pk)
+        process.refresh_from_db()
+        return process, task_result.result
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_web_map_service_reference_resolves_to_its_model(self, mock_send):
+        row = WebMapServiceRemoteMetadata.objects.create(
+            link='https://example.com/wms-metadata', describes=self.wms)
+
+        service_before = ServiceMetadataRecord.objects.count()
+        process, result = self._fetch(row)
+
+        self.assertEqual(
+            ServiceMetadataRecord.objects.count(), service_before + 1,
+            msg="the service reference did not become its record.")
+        record = ServiceMetadataRecord.objects.get()
+        self.assertEqual(result["data"]["id"], str(record.pk))
+        relation = MetadataRelation.objects.get()
+        self.assertEqual(relation.wms, self.wms)
+        self.assertIsNone(relation.layer)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_layer_reference_resolves_to_its_model(self, mock_send):
+        row = LayerRemoteMetadata.objects.create(
+            link=self.RBSN_T2M, describes=self.layer)
+
+        dataset_before = DatasetMetadataRecord.objects.count()
+        process, result = self._fetch(row)
+
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(), dataset_before + 1,
+            msg="the layer reference did not become its record.")
+        record = DatasetMetadataRecord.objects.get()
+        self.assertEqual(result["data"]["id"], str(record.pk))
+        relation = MetadataRelation.objects.get()
+        self.assertEqual(relation.layer, self.layer)
+        self.assertIsNone(relation.feature_type)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_web_feature_service_reference_resolves_to_its_model(self, mock_send):
+        row = WebFeatureServiceRemoteMetadata.objects.create(
+            link='https://example.com/wfs-metadata', describes=self.wfs)
+
+        service_before = ServiceMetadataRecord.objects.count()
+        process, result = self._fetch(row)
+
+        self.assertEqual(
+            ServiceMetadataRecord.objects.count(), service_before + 1,
+            msg="the service reference did not become its record: "
+                f"{result}")
+        record = ServiceMetadataRecord.objects.get()
+        self.assertEqual(result["data"]["id"], str(record.pk))
+        relation = MetadataRelation.objects.get()
+        self.assertEqual(relation.wfs, self.wfs)
+        self.assertIsNone(relation.feature_type)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_feature_type_reference_resolves_to_its_model(self, mock_send):
+        # the regression of #1257: every LayerRemoteMetadata name was caught
+        # by the first branch, so this kind never reached its own model and
+        # the task returned None without a log line
+        row = FeatureTypeRemoteMetadata.objects.create(
+            link=self.RBSN_T2M, describes=self.feature_type)
+
+        dataset_before = DatasetMetadataRecord.objects.count()
+        process, result = self._fetch(row)
+
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(), dataset_before + 1,
+            msg="the feature type reference was dropped silently (#1257).")
+        record = DatasetMetadataRecord.objects.get()
+        self.assertEqual(result["data"]["id"], str(record.pk))
+        relation = MetadataRelation.objects.get()
+        self.assertEqual(relation.feature_type, self.feature_type)
+        self.assertIsNone(relation.layer)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_unknown_class_name_ends_in_a_logged_failure(self, mock_send):
+        row = FeatureTypeRemoteMetadata.objects.create(
+            link=self.RBSN_T2M, describes=self.feature_type)
+
+        dataset_before = DatasetMetadataRecord.objects.count()
+        process, result = self._fetch(
+            row, class_name="CatalogueServiceRemoteMetadata")
+
+        self.assertIsNone(
+            result,
+            msg="the failure of the unknown kind must not answer a record.")
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(), dataset_before,
+            msg="a name the match does not know must not collect anything.")
+        self.assertEqual(MetadataRelation.objects.count(), 0)
+        self.assertTrue(
+            process.logs.filter(
+                log_type=LogTypeEnum.WARNING,
+                description__contains="CatalogueServiceRemoteMetadata").exists(),
+            msg="the unknown kind left no warning on the process (#1257).")
+        # the step is reported done like every other handled outcome of the
+        # task, so the process its chord finishes on keeps its counts
+        self.assertEqual(process.done_steps, 1)
+        self.assertNotEqual(process.status, ProcessStatusEnum.FAILED)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', side_effect=side_effect)
+    def test_id_of_another_kind_ends_in_a_logged_failure(self, mock_send):
+        row = LayerRemoteMetadata.objects.create(
+            link=self.RBSN_T2M, describes=self.layer)
+        self.assertFalse(FeatureTypeRemoteMetadata.objects.exists())
+
+        dataset_before = DatasetMetadataRecord.objects.count()
+        process, result = self._fetch(
+            row, class_name="FeatureTypeRemoteMetadata")
+
+        self.assertIsNone(
+            result,
+            msg="the unresolvable reference must not answer a record.")
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(), dataset_before,
+            msg="a name of the wrong kind must not resolve to a row.")
+        self.assertTrue(
+            process.logs.filter(log_type=LogTypeEnum.WARNING).exists(),
+            msg="the unresolvable reference left no warning on the process.")
+        self.assertEqual(process.done_steps, 1)
+        self.assertNotEqual(process.status, ProcessStatusEnum.FAILED)

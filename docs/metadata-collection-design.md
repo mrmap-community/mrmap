@@ -156,16 +156,17 @@ by the review answers of §8:
    This alone turns a silent total loss for WFS into a visible, correct run.
 2. **Give a collecting run a truthful end state** the way harvesting does it: a stored summary the
    serializer exposes (`references_total / stored / failed / skipped`), reported while the run works, so
-   the chord body stops answering plain `completed` while references failed (§8 item 1). D9 asks the
-   presentation question and recommends harvesting's own answer — stored COMPLETED plus the errors named
-   in the summary, the flag reserved for runs that stand while a human is awaited.
+   the chord body stops answering plain `completed` while references failed (§8 item 1). D9, recorded as
+   A on 2026-11-12, settles the presentation as harvesting's own answer — stored COMPLETED plus the
+   errors named in the summary, the flag reserved for runs that stand while a human is awaited.
 3. **Give the collection a landing row per reference**, in the shape of `TemporaryMdMetadataFile`: the run
    stores how many references it expects before the fan-out, each row keeps the URL, what it describes, an
    error flag, an error text and a re-schedule switch; the counters of the run are answered the way #886
    taught. `RemoteMetadata` is not that table — its own docstring calls it the registration's staging list
    (`registry/models/metadata.py:492-495`) and the review rejected it for this purpose (§8 item 2). Whether
-   to reuse `TemporaryMdMetadataFile` itself or write its registration sibling is asked as D7, with the
-   session's direction as the recommendation: no new model, one added nullable FK and constraints.
+   to reuse `TemporaryMdMetadataFile` itself or write its registration sibling is recorded as D7, option
+   A: no new model, one added nullable FK to the collecting process and the constraints that keep the
+   two owners apart.
 4. **Make transient failures retryable, terminal ones terminal**, in the fetch task the way the import task
    does it (§8 item 3, `registry/tasks/harvest.py:1186-1190`) — which is also the fix of defect E — and
    expose the model's existing retry as an endpoint and a button, not a new mechanism.
@@ -227,9 +228,10 @@ An answer is a design decision — it is not `agent: approved` and not a pull re
    > clears the flag — is wrong: harvesting's watchdog clears it when a stalled backlog drains or goes out
    > again (`registry/tasks/harvest.py:799`, `:856`) and the update's reports tie it to the review status
    > (`registry/models/update.py:329-337`). The flag reads as *stands while a human is awaited*; whether a
-   > **finished** run with recorded errors uses it at all is the follow-up D9, recommended: it does not —
+   > **finished** run with recorded errors uses it at all is the follow-up D9, recorded as A on
+   > 2026-11-12: it does not —
    > completed-with-import-errors is how harvesting shows it (`registry/managers/havesting.py:520-528`,
-   > `frontend/src/i18n/en.ts:457-458`), and #1277's acknowledge is released to #1104 under that answer.
+   > `frontend/src/i18n/en.ts:457-458`), and #1277's acknowledge was released to #1104 under that answer.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps
    history across re-registrations.
@@ -283,13 +285,14 @@ An answer is a design decision — it is not `agent: approved` and not a pull re
 ## 9. Where this went
 
 The findings are published as **[epic #1256](https://github.com/mrmap-community/mrmap/issues/1256)**,
-`slug: metadata-collection`, with fourteen children (#1257–#1268, #1274 and #1277) whose sub-issue and
+`slug: metadata-collection`, with thirteen children (#1257–#1268 and #1274) whose sub-issue and
 blocking relations are registered on GitHub itself. The two one-line bugs are #1257 and #1258; the transport
 bounds are #1260; the bookkeeping clean-up is #1261; everything that reports the outcome reads from #1263.
-The six decision rows above are recorded as Accepted (2026-11-11) in the epic's register; the three
-follow-ups they left — the model shape (D7, #1263), the position in the update (D8, #1274) and the
-presentation of a finished run (D9, #1259 and #1277) — are asked as Q7–Q9
-([request](https://github.com/mrmap-community/mrmap/issues/1256#issuecomment-6806981240)), each with the
-direction stated in the working session of 2026-11-11 as its recommended option. Nothing in this
+All nine decision rows are recorded as Accepted in the epic's register — D1–D6 on 2026-11-11, and the
+three follow-ups the first answers left — the model shape (D7, #1263), the position in the update (D8,
+#1274) and the presentation of a finished run (D9, #1259) — on 2026-11-12, all three as option A: reuse
+the model with an added FK, collect inside the update stepper, completed-with-import-errors like
+harvesting. The acknowledge action #1277, filed while D9 was still open, was released from the epic under
+that answer and adopted by #1104. Nothing in this
 document was implemented, and no `agent: approved` was applied.
 

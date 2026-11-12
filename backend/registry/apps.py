@@ -24,6 +24,11 @@ IMPORT_WATCH_TASK_NAME = "watch for harvesting imports which do not drain"
 PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME = (
     "delete expired monitoring probe response artifacts")
 
+#: the name the cleanup of the stored records of ended harvests has in the
+#: schedule of beat; the tests look the row up by it
+HARVEST_TEMP_FILE_CLEANUP_TASK_NAME = (
+    "delete stored metadata files of ended harvesting jobs")
+
 
 def create_choice_model_entries(sender, **kwargs):
     """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
@@ -156,6 +161,36 @@ def create_probe_response_artifact_cleanup_task(sender, **kwargs):
     )
 
 
+def create_harvest_temp_file_cleanup_task(sender, **kwargs):
+    """Creates the periodic task which takes the stored records of ended
+    harvests back.
+
+    A run stores every downloaded record as a row and a file; the import
+    deletes what it consumed and the terminal transitions schedule the cleanup
+    of what remains, but a publish the broker swallowed or a cleanup whose
+    worker died would otherwise leave the backlog of an ended job forever -
+    nothing but this sweep takes the files which no row references anymore
+    (#1237). Beat reads its schedule out of the database, so the sweep needs a
+    row of ``PeriodicTask`` like the other housekeeping does. Keyed by its
+    name: a deployment which re-scheduled the row over the api keeps what it
+    chose.
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at twenty to the hour: a housekeeping sweep, out of the way of the
+    # five minute metadata import, the hourly dump sweep at five past and the
+    # hourly probe artifact sweep at twenty past
+    schedule, _ = CrontabSchedule.objects.get_or_create(minute="40")
+
+    PeriodicTask.objects.get_or_create(
+        name=HARVEST_TEMP_FILE_CLEANUP_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "registry.tasks.harvest.sweep_ended_harvest_temp_files",
+        }
+    )
+
+
 def find_orphan_metadata_objects(sender, **kwargs):
     import logging
     logger = logging.getLogger(__name__)
@@ -199,6 +234,10 @@ class RegistryConfig(AppConfig):
         )
         post_migrate.connect(
             create_probe_response_artifact_cleanup_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_harvest_temp_file_cleanup_task,
             sender=self
         )
         post_migrate.connect(

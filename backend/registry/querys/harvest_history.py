@@ -92,6 +92,14 @@ def complete_harvest(job_id):
     job.report_process(
         ProcessStatusEnum.COMPLETED,
         phase=str(HarvestingPhaseEnum.COMPLETED.label))
+    # A run which completed is done consuming its stored records: the import
+    # which took a record deleted its file, and what still waits here waits
+    # for an import which nothing publishes anymore. The deletion goes behind
+    # this transaction - the terminal state must be committed before a single
+    # storage file is touched (#1237).
+    from registry.tasks.harvest import \
+        schedule_cleanup_of_harvest_temp_files  # to avoid circular import errors
+    schedule_cleanup_of_harvest_temp_files(job.pk)
     if not job.service_id:
         return
     # the size which completed this run is the size the next run of this catalogue starts with, so

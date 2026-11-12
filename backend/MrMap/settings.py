@@ -781,6 +781,27 @@ HARVEST_IMPORT_PROGRESS_SECONDS = int(
 # value (see ``registry/apps.py``).
 HARVEST_IMPORT_WATCH_INTERVAL_MINUTES = int(
     os.getenv("MRMAP_HARVEST_IMPORT_WATCH_INTERVAL_MINUTES", "5"))
+# How many stored records the cleanup of an ended harvest (#1237) deletes per
+# database batch: the rows of each batch go in a transaction of their own and
+# the storage files follow after their commit, so neither one enormous
+# transaction nor one transaction per file is what takes a 163k-record backlog
+# back from an aborted job
+HARVEST_TEMP_FILE_CLEANUP_BATCH_SIZE = int(
+    os.getenv("MRMAP_HARVEST_TEMP_FILE_CLEANUP_BATCH_SIZE", "500"))
+# How many stored records one fire of the cleanup task handles at most. The
+# task which completes a big harvest is not allowed to become the next long
+# runner of the deployment: what the bound leaves behind continues in the next
+# fire of the same task (see registry/tasks/harvest.py, #1237)
+HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN = int(
+    os.getenv("MRMAP_HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN", "25000"))
+# How many days a run must have been over before the historical scan of
+# ``manage.py cleanup_temporary_harvest_files`` names it without being asked
+# to. The terminal transitions schedule their cleanup immediately and the
+# sweep and the recovery are race-safe anyway; the retention is the margin of
+# an operator scanning the whole history by hand, and 0 scans everything
+# already over (#1237)
+HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
+    os.getenv("MRMAP_HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", "1"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True

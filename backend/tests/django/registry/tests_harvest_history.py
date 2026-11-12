@@ -8,6 +8,7 @@ from registry.models.metadata import (ApplicationMetadataRecord,
                                       MetadataContact, ServiceMetadataRecord)
 from registry.models.service import CatalogueService, WebFeatureService
 from registry.querys.harvest_history import complete_harvest, complete_snapshots
+from registry.tasks.harvest import cleanup_harvesting_job_temp_files
 from registry.views.harvesting import HarvestedMetadataRelationViewSet
 from registry.views.service import CatalogueServiceViewSet
 from registry.views.historical import FeatureTypeHistoricalViewSet
@@ -125,6 +126,23 @@ class HarvestHistoryTest(TestCase):
                 TemporaryMdMetadataFile.objects.create(job=job, has_import_error=True)
             complete_harvest(job.pk)
             self.assertFalse(self.removed(job).exists())
+
+    def test_a_cleaned_up_run_with_import_errors_stays_out_of_the_snapshots(self):
+        """the cleanup of #1237 takes the error rows of an ended run back with
+        its files; the ERROR log entry it writes first keeps the run out of the
+        complete snapshots the very way the row excluded it while it was there"""
+        job = self.job()
+        TemporaryMdMetadataFile.objects.create(job=job, has_import_error=True)
+        complete_harvest(job.pk)
+        self.assertFalse(complete_snapshots(self.service.pk).filter(pk=job.pk).exists())
+
+        cleanup_harvesting_job_temp_files(job.pk)
+
+        self.assertFalse(TemporaryMdMetadataFile.objects.filter(job_id=job.pk).exists())
+        self.assertEqual(HarvestingLog.objects.filter(
+            harvesting_job=job, level=1,
+            description__startswith='Temporary files cleaned up:').count(), 1)
+        self.assertFalse(complete_snapshots(self.service.pk).filter(pk=job.pk).exists())
 
     def test_failed_snapshot_is_skipped_as_baseline(self):
         failed = self.job(total_records=1, phase=Phase.COMPLETED, done_at=now()-timedelta(hours=1))

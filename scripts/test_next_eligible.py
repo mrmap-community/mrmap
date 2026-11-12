@@ -58,6 +58,8 @@ class Fixture:
         self.subissues_next = False
         self.no_label_event = set()           # issues whose events lack the apply event
         self.search_partial = False           # a search that reads fewer than it counts
+        self.issue_search_partial = False     # the same for the approved-issue search
+        self.created = {}                     # issue -> createdAt (scope all-approved)
         self.calls = []
 
     # ---- state building -----------------------------------------------------
@@ -187,6 +189,24 @@ class Fixture:
                                    "nodes": closing}})
             return json.dumps({"data": {"repository": {"issue": {"blockedBy": {
                 "totalCount": len(nodes), "pageInfo": {"hasNextPage": False}, "nodes": nodes}}}}})
+        if "search(query:" in query and "is:issue" in query:
+            # The scope all-approved candidate listing: open issues carrying
+            # the approval label. Answered in the fixture's own listing order,
+            # which is deliberately NOT the creation order - the selector has
+            # to do its FIFO sort itself.
+            nodes = [{"__typename": "Issue", "number": n, "title": "issue %d" % n,
+                      "state": self.state.get(n, "OPEN"),
+                      "createdAt": self.created.get(n, "2026-11-01T00:00:00Z"),
+                      "labels": {"totalCount": len(self.labels.get(n, [])),
+                                 "pageInfo": {"hasNextPage": False},
+                                 "nodes": [{"name": lab} for lab in self.labels.get(n, [])]}}
+                     for n in self.order
+                     if self.state.get(n, "OPEN") == "OPEN"
+                     and m.APPROVED_LABEL in self.labels.get(n, [])]
+            counted = len(nodes) + (5 if self.issue_search_partial else 0)
+            return json.dumps({"data": {"search": {"issueCount": counted,
+                                                   "pageInfo": {"hasNextPage": False,
+                                                                "endCursor": None}, "nodes": nodes}}})
         if "search(query:" in query:
             nodes = [{"__typename": "PullRequest", "number": pr["number"],
                       "headRefName": pr["head"], "body": pr["body"],
@@ -488,8 +508,8 @@ code, out = screen(f)
 res = json.loads(out)
 results.append(check("the ok result has a stable shape",
                      code == 0 and set(res) == {"schema", "status", "error", "repo", "baseRef",
-                                                "epicNumber", "epicTitle", "approvers", "flags",
-                                                "issues", "eligible"}
+                                                "scope", "epicNumber", "epicTitle", "approvers",
+                                                "flags", "issues", "eligible"}
                      and set(res["issues"][0]) == {"number", "title", "order", "eligible", "reasons"}
                      and res["schema"] == m.SCHEMA and isinstance(res["eligible"], list),
                      f"keys={sorted(res)}"))
@@ -570,6 +590,101 @@ results.append(fails("a search that reads fewer PRs than it counts fails closed"
                      lambda fx: setattr(fx, "search_partial", True), "could only read"))
 results.append(fails("an approval no event can be found for fails closed",
                      lambda fx: fx.no_label_event.add(1257), "unverifiable"))
+
+# ---------- scope all-approved --------------------------------------------
+
+# 20. Scope all-approved screens every open approved issue of the repository
+#     - unlabelled issues are not candidates at all - and orders the eligible
+#     list FIFO by creation, because outside an epic no curated order exists.
+f = Fixture(order=[9, 8, 7])
+f.issue(7, ["agent: approved"], approved_by="jokiefer")
+f.issue(8, ["agent: approved"], approved_by="jokiefer")
+f.issue(9, ["type: bug"])
+f.created = {7: "2026-01-03T00:00:00Z", 8: "2026-01-01T00:00:00Z"}
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("all-approved screens every approved open issue, FIFO by creation",
+                     res["scope"] == "all-approved" and res["epicNumber"] is None
+                     and res["epicTitle"] is None and res["eligible"] == [8, 7]
+                     and not [c for c in f.calls if " -X PATCH" in c or "issue edit" in c
+                              or "issue comment" in c or "issue create" in c],
+                     f"eligible={res['eligible']} scope={res['scope']}"))
+
+# 21. An Epic carrying the approval itself is a container, not a worker task.
+f = Fixture(order=[5]).issue(5, ["agent: approved", "Epic"], approved_by="jokiefer")
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("an approved Epic is rejected as a container",
+                     res["eligible"] == [] and tokens(res, 5) == ["epic-container"],
+                     f"tokens={tokens(res, 5)}"))
+
+# 22. Rules 2 to 6 hold identically in repo scope: paused, bot approval, an
+#     open blocker, an active claim and a duplicate PR each veto on their own.
+f = Fixture(order=[10, 11, 12, 13, 14])
+f.issue(10, ["agent: approved", "agent: paused"], approved_by="jokiefer")
+f.issue(11, ["agent: approved"], approved_by="mrmap-agent-bot")
+f.issue(12, ["agent: approved"], approved_by="jokiefer")
+f.issue(13, ["agent: approved"], approved_by="jokiefer")
+f.issue(14, ["agent: approved"], approved_by="jokiefer")
+f.blocked(12, [99])
+f.blocker(99, state="OPEN", reason=None)
+f.claims[13] = "wip"
+f.open_pr(777, head="feature/x", body="Closes #14")
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("paused, bot approval, open blocker, claim and duplicate PR reject in repo scope",
+                     res["eligible"] == [] and tokens(res, 10) == ["paused"]
+                     and tokens(res, 11) == ["approval-by-bot"]
+                     and tokens(res, 12) == ["blocked-by-open-99"]
+                     and tokens(res, 13) == ["wip-claimed"]
+                     and tokens(res, 14) == ["duplicate-pr-777"],
+                     f"10={tokens(res, 10)} 11={tokens(res, 11)} 12={tokens(res, 12)}"
+                     f" 13={tokens(res, 13)} 14={tokens(res, 14)}"))
+
+# 23. The blocker rule is the same rule: closed-completed alone does not
+#     satisfy; only a PR merged into the base branch does - then the issue
+#     becomes eligible with nothing else standing in the way.
+f = Fixture(order=[20])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocker(21, closed_by=[500])
+f.merged_pr(500, base="master", sha="c" * 40, on_base=False)
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("a blocker merged elsewhere does not satisfy in repo scope",
+                     res["eligible"] == []
+                     and tokens(res, 20) == ["blocker-closed-without-implementation-21"],
+                     f"tokens={tokens(res, 20)}"))
+f2 = Fixture(order=[20])
+f2.issue(20, ["agent: approved"], approved_by="jokiefer")
+f2.blocked(20, [21])
+f2.blocker(21, closed_by=[501])
+f2.merged_pr(501, sha="d" * 40, on_base=True)
+res = json.loads(screen(f2, "--scope", "all-approved")[1])
+results.append(check("a blocker merged into develop satisfies in repo scope",
+                     res["eligible"] == [20], f"eligible={res['eligible']}"))
+
+# 24. The candidate search is fail-closed like every other read: a result set
+#     that counts more than it hands out ends the screen, not a partial queue.
+f = Fixture(order=[1]).issue(1, ["agent: approved"], approved_by="jokiefer")
+f.issue_search_partial = True
+code, out = screen(f, "--scope", "all-approved")
+res = json.loads(out)
+results.append(check("an approved-issue search that reads fewer than it counts fails closed",
+                     code != 0 and res["status"] == "error"
+                     and "could only read" in res["error"] and "eligible" not in res,
+                     f"code={code} res={res}"))
+
+# 25. An issue approved by an unlisted human stays rejected in repo scope.
+f = Fixture(order=[6]).issue(6, ["agent: approved"], approved_by="someone-else")
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("repo scope rejects approvals from humans outside the allowlist",
+                     res["eligible"] == []
+                     and tokens(res, 6) == ["approval-by-unlisted-human"],
+                     f"tokens={tokens(res, 6)}"))
+
+# 26. The default scope is untouched: same call as before, epic keys intact.
+f = Fixture(order=[1257]).issue(1257, ["agent: approved"], approved_by="jokiefer")
+res = json.loads(screen(f)[1])
+results.append(check("the default scope is epic with its keys unchanged",
+                     res["scope"] == "epic" and res["epicNumber"] == 1256
+                     and res["eligible"] == [1257], f"scope={res['scope']}"))
 
 print("\n%d/%d passed" % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

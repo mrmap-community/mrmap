@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
-"""next_eligible: stateless eligibility screen for an epic's sub-issues.
+"""next_eligible: stateless eligibility screen for schedulable issues.
 
 Maintenance tool carried by this repository; run it as
 `python3 scripts/next_eligible.py` from the repository root. It answers one
-question for an orchestrator or a person: which sub-issues of an epic may a
-worker be started on right now? It is STATELESS (it writes no claim, comment
+question for an orchestrator or a person: which issues may a worker be
+started on right now - the sub-issues of one epic (scope epic, the default)
+or every open issue carrying a human `agent: approved` (scope all-approved)? It is STATELESS (it writes no claim, comment
 or label - read-only toward GitHub and the repository, its only local side
 effect being the `git fetch` of the base ref that Rule 4 requires) and it
 RUNS ONCE: no daemon, no polling loop. The caller decides when to run it
 again.
 
 Usage:
-  python3 scripts/next_eligible.py [--epic N] [--json] [--dry-run]
+  python3 scripts/next_eligible.py [--scope S] [--epic N] [--json] [--dry-run]
                                    [--humans a,b] [--ignore-stale-branches]
                                    [--ignore-approval-provenance-for-testing]
 
-  --epic N          epic issue to screen (default 1256)
+  --scope S         epic (default): screen the sub-issues of --epic.
+                    all-approved: screen every open issue of the repository
+                    that carries `agent: approved` - a human approval admits
+                    an issue wherever it lives, epic membership is not
+                    required. Rules 2 to 6 apply unchanged; the candidate
+                    listing replaces Rule 1 (see below), and `Epic`-labelled
+                    issues are rejected as containers.
+  --epic N          epic issue to screen (default 1256; scope epic only)
   --json            print the machine-readable result as JSON on stdout
   --dry-run         the only mode this tool has: read-only evaluation with no
                     side effect beyond the base-ref fetch; the flag exists so
@@ -63,6 +71,14 @@ reasons):
      naming it without any open PR -> stale-branch-ownership, unless
      --ignore-stale-branches
 
+  SCOPE all-approved replaces Rule 1's listing: candidates are every open
+  issue of the repository carrying `agent: approved`, read through one
+  fail-closed paginated GraphQL search; their priority order is oldest
+  creation first, ties by number (an epic has a curated sub-issue order, the
+  repository at large has none). Rules 2 to 6 apply unchanged, and an issue
+  labelled `Epic` is rejected - a container is scheduled through its
+  sub-issues, not spawned as a worker.
+
 FAIL CLOSED: nothing is spawned on any doubt. An unauthenticated gh, a failing
 or permission-denied GitHub call, null/ambiguous sub-issue, dependency or
 event data, an empty allowlist, and a failing git fetch / merge-base all
@@ -90,7 +106,9 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 
-SCHEMA = "next-eligible/v1"
+SCHEMA = "next-eligible/v2"  # v1 had no scope field
+SCOPE_EPIC = "epic"
+SCOPE_ALL_APPROVED = "all-approved"
 DEFAULT_EPIC = 1256
 CMD_TIMEOUT = 120
 DEFAULT_APPROVERS = "jokiefer"
@@ -98,6 +116,7 @@ APPROVERS_ENV = "AGENT_EPIC_APPROVERS"
 BASE_BRANCH = "develop"
 APPROVED_LABEL = "agent: approved"
 PAUSED_LABEL = "agent: paused"
+EPIC_LABEL = "Epic"
 DENIED_LOGINS = {"mrmap-agent-bot"}
 ACTIVE_CLAIM_STATES = ("wip", "waiting")
 
@@ -307,6 +326,65 @@ def open_pulls(runner, repo):
     return prs
 
 
+def approved_candidates(runner, repo):
+    """Every open issue carrying the approval label, oldest creation first.
+
+    The candidate listing of scope all-approved. Same discipline as
+    open_pulls: one paginated search connection and a result set that cannot
+    be read whole fails closed - screening a partial queue would starve an
+    approved issue that sits on an unread page. The search pre-filters the
+    label; Rule 2 still verifies the label and its provenance per candidate,
+    because a search index is eventual-consistent and an approval is never
+    inferred from a query match.
+    """
+    found, after, seen, total = [], None, 0, None
+    while True:
+        q = ('{search(query:"repo:%s is:issue is:open label:\\"%s\\"",type:ISSUE'
+             ',first:100%s){issueCount pageInfo{hasNextPage endCursor}'
+             'nodes{__typename ... on Issue{number title state createdAt'
+             ' labels(first:100){totalCount pageInfo{hasNextPage} nodes{name}}}}}}'
+             % (repo, APPROVED_LABEL, ',after:"%s"' % after if after else ""))
+        search = gh_graphql(runner, q).get("search")
+        if not isinstance(search, dict) or not isinstance(search.get("nodes"), list):
+            raise EligibilityError("the approved-issue search returned no result set")
+        if total is None:
+            total = search.get("issueCount")
+        elif search.get("issueCount") != total:
+            raise EligibilityError("the approved-issue search result changed while it was read")
+        for n in search["nodes"]:
+            seen += 1
+            if n.get("__typename") != "Issue":
+                continue  # the query asks for issues; anything else is noise, not data
+            if not isinstance(n.get("number"), int) or not isinstance(n.get("createdAt"), str):
+                raise EligibilityError("the approved-issue search returned an issue without "
+                                       "a number or a creation time")
+            if n.get("state") != "OPEN":
+                raise EligibilityError("#%d matched the open-issue search but reports state %s"
+                                       % (n["number"], n.get("state")))
+            labels = [lab.get("name") for lab in
+                      connection(n, "labels", what="labels of #%d" % n["number"])
+                      if isinstance(lab.get("name"), str)]
+            if APPROVED_LABEL not in labels:
+                raise EligibilityError("#%d came back from the `%s` search without carrying "
+                                       "the label the search filtered on" % (n["number"],
+                                                                              APPROVED_LABEL))
+            found.append({"number": n["number"], "title": n.get("title") or "",
+                          "labels": labels, "createdAt": n["createdAt"]})
+        page = search.get("pageInfo") or {}
+        if not page.get("hasNextPage"):
+            break
+        if not page.get("endCursor"):
+            raise EligibilityError("the approved-issue search page ends without a cursor")
+        after = page["endCursor"]
+    if not isinstance(total, int) or seen < total:
+        raise EligibilityError("the approved-issue search could only read %d of %s results"
+                               % (seen, total))
+    # No curated order exists outside an epic; FIFO by creation is the one
+    # deterministic order that never reorders itself while issues are added.
+    found.sort(key=lambda c: (c["createdAt"], c["number"]))
+    return found
+
+
 def load_wip():
     """Import scripts/wip (no extension) the way its own suite does."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wip")
@@ -495,8 +573,8 @@ def pr_verdicts(num, prs, branches, ignore_stale):
 
 
 def evaluate(runner, epic=DEFAULT_EPIC, approvers=(DEFAULT_APPROVERS,), repo=None,
-             ignore_provenance=False, ignore_stale=False):
-    """Screen the epic and return the result dict; raise EligibilityError to fail closed."""
+             ignore_provenance=False, ignore_stale=False, scope=SCOPE_EPIC):
+    """Screen one scope and return the result dict; raise EligibilityError to fail closed."""
 
     # Fail closed before reading anything: an unauthenticated gh must not be
     # mistaken for "no candidates".
@@ -518,33 +596,14 @@ def evaluate(runner, epic=DEFAULT_EPIC, approvers=(DEFAULT_APPROVERS,), repo=Non
     prs = open_pulls(runner, repo)
     claimed = claim_scan(runner, repo)
 
-    q = ('{repository(owner:"%s",name:"%s"){issue(number:%d){title state '
-         'subIssues(first:100){totalCount pageInfo{hasNextPage} nodes{number title state '
-         'stateReason labels(first:100){totalCount nodes{name}}}}}}}'
-         % (owner, name, epic))
-    epic_data = gh_graphql(runner, q)
-    epic_issue = (epic_data.get("repository") or {}).get("issue")
-    if not isinstance(epic_issue, dict):
-        raise EligibilityError("epic #%s was not found in %s" % (epic, repo))
-    if epic_issue.get("state") != "OPEN":
-        raise EligibilityError("epic #%s is %s, not OPEN - its sub-issues are not screened"
-                               % (epic, epic_issue.get("state")))
-    sub_nodes = connection(epic_data, "repository", "issue", "subIssues",
-                           what="subIssues of epic #%s" % epic)
-
     cache = {}
     verdicts = []
-    for order, s in enumerate(sub_nodes):
-        num = s.get("number")
-        if not isinstance(num, int):
-            raise EligibilityError("the epic's sub-issue listing contains a node without a number")
-        labels = [lab.get("name") for lab in connection(s, "labels", what="labels of #%s" % num)
-                  if isinstance(lab.get("name"), str)]
-        if s.get("state") != "OPEN":
-            verdicts.append({"number": num, "title": s.get("title") or "", "order": order,
-                             "eligible": False,
-                             "reasons": ["not-open: the sub-issue is %s" % s.get("state")]})
-            continue
+
+    def screen(order, num, title, labels, not_open=None):
+        """Rules 2 to 6 on one candidate; not_open names why it is not open."""
+        if not_open:
+            return {"number": num, "title": title, "order": order, "eligible": False,
+                    "reasons": [not_open]}
         reasons = []
         reasons += approval_verdict(runner, repo, num, labels, approvers, ignore_provenance)
         if PAUSED_LABEL in labels:
@@ -553,8 +612,43 @@ def evaluate(runner, epic=DEFAULT_EPIC, approvers=(DEFAULT_APPROVERS,), repo=Non
         if num in claimed:
             reasons.append("wip-claimed: %s" % claimed[num])
         reasons += pr_verdicts(num, prs, branches, ignore_stale)
-        verdicts.append({"number": num, "title": s.get("title") or "", "order": order,
-                         "eligible": not reasons, "reasons": reasons})
+        return {"number": num, "title": title, "order": order,
+                "eligible": not reasons, "reasons": reasons}
+
+    if scope == SCOPE_ALL_APPROVED:
+        epic_num, epic_title = None, None
+        for order, c in enumerate(approved_candidates(runner, repo)):
+            if EPIC_LABEL in c["labels"]:
+                verdicts.append({"number": c["number"], "title": c["title"], "order": order,
+                                 "eligible": False,
+                                 "reasons": ["epic-container: an Epic is scheduled through its "
+                                            "sub-issues, never spawned as a worker"]})
+                continue
+            verdicts.append(screen(order, c["number"], c["title"], c["labels"]))
+    else:
+        q = ('{repository(owner:"%s",name:"%s"){issue(number:%d){title state '
+             'subIssues(first:100){totalCount pageInfo{hasNextPage} nodes{number title state '
+             'stateReason labels(first:100){totalCount nodes{name}}}}}}}'
+             % (owner, name, epic))
+        epic_data = gh_graphql(runner, q)
+        epic_issue = (epic_data.get("repository") or {}).get("issue")
+        if not isinstance(epic_issue, dict):
+            raise EligibilityError("epic #%s was not found in %s" % (epic, repo))
+        if epic_issue.get("state") != "OPEN":
+            raise EligibilityError("epic #%s is %s, not OPEN - its sub-issues are not screened"
+                                   % (epic, epic_issue.get("state")))
+        sub_nodes = connection(epic_data, "repository", "issue", "subIssues",
+                               what="subIssues of epic #%s" % epic)
+        epic_num, epic_title = int(epic), epic_issue.get("title") or ""
+        for order, s in enumerate(sub_nodes):
+            num = s.get("number")
+            if not isinstance(num, int):
+                raise EligibilityError("the epic's sub-issue listing contains a node without a number")
+            labels = [lab.get("name") for lab in connection(s, "labels", what="labels of #%s" % num)
+                      if isinstance(lab.get("name"), str)]
+            not_open = (None if s.get("state") == "OPEN"
+                        else "not-open: the sub-issue is %s" % s.get("state"))
+            verdicts.append(screen(order, num, s.get("title") or "", labels, not_open))
 
     eligible = [v["number"] for v in
                 sorted((v for v in verdicts if v["eligible"]), key=lambda v: (v["order"], v["number"]))]
@@ -562,7 +656,7 @@ def evaluate(runner, epic=DEFAULT_EPIC, approvers=(DEFAULT_APPROVERS,), repo=Non
     if ignore_stale:
         flags.append("ignore-stale-branches")
     return {"schema": SCHEMA, "status": "ok", "error": None, "repo": repo, "baseRef": BASE_BRANCH,
-            "epicNumber": int(epic), "epicTitle": epic_issue.get("title") or "",
+            "scope": scope, "epicNumber": epic_num, "epicTitle": epic_title,
             "approvers": sorted(a.lower() for a in approvers), "flags": flags,
             "issues": verdicts, "eligible": eligible}
 
@@ -578,9 +672,14 @@ def render_human(res):
     if "ignore-approval-provenance-for-testing" in res["flags"]:
         lines += ["*** TESTING MODE: approval label and provenance (Rule 2) are NOT enforced "
                   "- this verdict is evidence about dependencies only ***", ""]
-    lines.append("repo %s   epic #%s %s   base %s   approvers %s"
-                 % (res["repo"], res["epicNumber"], res["epicTitle"], res["baseRef"],
-                    ",".join(res["approvers"]) or "-none-"))
+    if res.get("epicNumber") is not None:
+        lines.append("repo %s   epic #%s %s   base %s   approvers %s"
+                     % (res["repo"], res["epicNumber"], res["epicTitle"], res["baseRef"],
+                        ",".join(res["approvers"]) or "-none-"))
+    else:
+        lines.append("repo %s   scope %s   base %s   approvers %s"
+                     % (res["repo"], res.get("scope"), res["baseRef"],
+                        ",".join(res["approvers"]) or "-none-"))
     if "ignore-stale-branches" in res["flags"]:
         lines.append("note: stale origin branches are ignored for this run (--ignore-stale-branches)")
     lines += ["", "   #  eligible  verdict", "  ---  --------  " + "-" * 56]
@@ -613,13 +712,16 @@ def main(argv=None, runner=None):
     ap = argparse.ArgumentParser(
         prog="next_eligible.py", formatter_class=argparse.RawDescriptionHelpFormatter,
         description=__doc__.split("Usage:")[0].strip(),
-        epilog="Usage:\n  python3 scripts/next_eligible.py [--epic N] [--json] [--dry-run]"
-               " [--humans a,b] [--ignore-stale-branches]"
+        epilog="Usage:\n  python3 scripts/next_eligible.py [--scope S] [--epic N] [--json]"
+               " [--dry-run] [--humans a,b] [--ignore-stale-branches]"
                " [--ignore-approval-provenance-for-testing]\n"
                "Rules and reason codes: see the text above. --dry-run is the only mode this"
                " tool has; it is accepted to state the read-only intent explicitly.")
+    ap.add_argument("--scope", choices=(SCOPE_EPIC, SCOPE_ALL_APPROVED), default=SCOPE_EPIC,
+                    help="epic: screen the sub-issues of --epic (default); all-approved: screen"
+                         " every open issue of the repository carrying `agent: approved`")
     ap.add_argument("--epic", type=int, default=DEFAULT_EPIC,
-                    help="epic issue to screen (default: %(default)s)")
+                    help="epic issue to screen (default: %(default)s; scope epic only)")
     ap.add_argument("--json", action="store_true", help="print the machine-readable result")
     ap.add_argument("--dry-run", action="store_true",
                     help="the only mode: read-only evaluation (no writes beyond the base-ref fetch)")
@@ -638,7 +740,7 @@ def main(argv=None, runner=None):
     try:
         res = evaluate(runner, epic=args.epic, approvers=resolve_approvers(args.humans),
                        ignore_provenance=args.ignore_approval_provenance_for_testing,
-                       ignore_stale=args.ignore_stale_branches)
+                       ignore_stale=args.ignore_stale_branches, scope=args.scope)
     except (EligibilityError, CommandError) as e:
         if args.json:
             print(render_json({"schema": SCHEMA, "status": "error", "error": str(e)}))

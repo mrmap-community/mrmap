@@ -4,8 +4,9 @@ from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import CharField, ForeignKey
+from django.db.models import ForeignKey, JSONField
 from lxml import etree
 from registry import models
 from registry.mappers.cache import GlobalXmlCache
@@ -17,6 +18,26 @@ from registry.mappers.utils import (build_concrete_xpath,
                                     set_text_or_attribute)
 
 
+def is_value_spec(entry):
+    """True for a mapping entry which is extracted as plain values.
+
+    A value spec maps nested or repeated elements which have no model and no
+    persistence of their own (#981, epic #669): the traversal evaluates its
+    _base_xpath and maps the fields of every element it finds into a dict. The
+    list of those dicts travels with the parsed instance under
+    `_<name>_values` and answers as the same list in mapped_values() - the
+    persistence path and the extraction path read one and the same traversal,
+    no second pass over the XML.
+    """
+    return isinstance(entry, dict) and entry.get("_values") is True
+
+
+# The concrete fields whose column holds a list itself. For those the list which
+# a multi-valued xpath answered IS the value; every other concrete field is
+# single valued and has to be answered by exactly one value (#990).
+MANY_VALUE_FIELDS = (JSONField, ArrayField)
+
+
 class XmlMapper:
     db_instance = None
 
@@ -26,6 +47,7 @@ class XmlMapper:
         mapping: dict,
         uuid=None,
         warnings=None,
+        cache=None,
     ):
         """
         Initialize XmlMapper.
@@ -37,6 +59,10 @@ class XmlMapper:
                 - bytes (XML content)
                 - IO (open file-like object)
             mapping (dict): mapping configuration dictionary.
+            cache: the cache the parsed instances are collected in; defaults
+                to the process-global GlobalXmlCache and takes any object with
+                the same call surface, e.g. a LocalXmlCache for a mapping run
+                which must leave no global state behind (#981).
         """
         self.mapping = mapping
         # Nested mappers share diagnostics so the importer can report them to its user.
@@ -52,8 +78,12 @@ class XmlMapper:
             self.xml_str = load_file(xml)
             self.xml_root = etree.fromstring(self.xml_str)
             self.current_element = self.xml_root
-        self.cache = GlobalXmlCache
+        self.cache = cache if cache is not None else GlobalXmlCache
         self.data = []
+        # what the forward traversal produced per mapping key, filled by
+        # xml_to_django() and read by mapped_values()
+        self._spec_results = {}
+        self._traversed = False
 
     def serialize_document(
         self,
@@ -135,6 +165,10 @@ class XmlMapper:
                     "_namespaces": self.mapping.get("_namespaces", {})},
                 uuid=self.uuid,
                 warnings=self.warnings,
+                # the shared cache and uuid are how a parent spec finds the
+                # instances a sub-mapper parsed - with an injectable cache this
+                # hand-off must travel through the constructor
+                cache=self.cache,
             )
             parsed = parser.traverse_spec(
                 xpath_or_spec,
@@ -184,22 +218,46 @@ class XmlMapper:
                         for v in values]
 
     def handle_flat_field(self, field_name, instance, xml_element, xpath_or_spec, namespaces):
-        # handle flat model fields
+        """Sets the value of one concrete field on the parsed instance.
+
+        The xpath of the config may answer any number of nodes: ISO 19139 allows
+        one resolution block per part of a dataset and catalogues repeat titles,
+        dates and denominators all over their records. A single valued field can
+        not be answered with the list of all matches - the ORM refuses the list
+        on save() and the whole record ends up in the import error ledger, which
+        is how #990 lost records of the GDI-BW catalogue. So the value the
+        document names first is kept, as it always was for a CharField, and the
+        dropped ones are named in the warnings of this mapper - which the
+        harvesting job logs next to the record it imported.
+        """
         parsed_value = self.parse_field(
             xml_element, xpath_or_spec, namespaces)
-        if parsed_value is not None:
-            # If XPath returns multiple values but the field is a CharField,
-            # use only the first match
-            if isinstance(parsed_value, list):
-                try:
-                    field = instance._meta.get_field(field_name)
-                    if isinstance(field, CharField):
-                        parsed_value = parsed_value[0] if parsed_value else None
-                except Exception:
-                    pass  # Field doesn't exist or other error, keep list as-is
+        if isinstance(parsed_value, list):
+            parsed_value = self.single_value_for_field(
+                field_name, instance, parsed_value)
 
-            if parsed_value is not None:
-                setattr(instance, field_name, parsed_value)
+        if parsed_value is not None:
+            setattr(instance, field_name, parsed_value)
+
+    def single_value_for_field(self, field_name, instance, values):
+        """The one value a field is answered with out of all its matches.
+
+        A field whose column holds a list keeps the list. Any other field is
+        answered by the first value in document order and says which of the
+        matched values were dropped; answering the list would cost the record.
+        """
+        if isinstance(instance._meta.get_field(field_name), MANY_VALUE_FIELDS):
+            return values
+        if not values:
+            return None
+
+        kept, *dropped = values
+        warning = (
+            f"Mapped {len(values)} values for the single valued field "
+            f"'{field_name}'; kept {kept!r} and dropped {dropped!r}.")
+        logging.warning(warning)
+        self.warnings.append(warning)
+        return kept
 
     def handle_flat_fields(self, instance, xml_element, spec, namespaces):
         for field_name, xpath_or_spec in self._get_flat_fields(spec).items():
@@ -267,13 +325,37 @@ class XmlMapper:
                 parsed = [parsed]
             setattr(instance, f"_{m2m_name}_parsed", parsed)
 
+    def handle_value_fields(self, instance, xml_element, spec, namespaces):
+        """Extracts the _values specs of a spec into plain python values.
+
+        Every element the value spec's _base_xpath names becomes one dict, in
+        document order; a field which matches several nodes inside one element
+        answers a list. The values are kept exactly as the XPath names them -
+        only an explicit _parser may transform one. The list is attached to the
+        parsed instance under `_<name>_values`, so the mapped representation of
+        the whole document carries it without a second traversal (#981).
+        """
+        for value_name, value_spec in self._get_value_fields(spec).items():
+            base_xpath = value_spec.get("_base_xpath", ".")
+            fields = value_spec.get("fields", {})
+            elements = xml_element.xpath(base_xpath, namespaces=namespaces)
+            values = [
+                {
+                    name: self.parse_field(el, xpath_or_spec, namespaces)
+                    for name, xpath_or_spec in fields.items()
+                }
+                for el in elements
+            ]
+            setattr(instance, f"_{value_name}_values", values)
+
     def _get_flat_fields(self, spec):
         model_cls = self._get_model_class(spec)
         fields = spec.get("fields", {})
         return {
             key: value for key, value in fields.items()
-            if key in [field.name for field in model_cls._meta.concrete_fields
-                       if not isinstance(field, ForeignKey)]
+            if not is_value_spec(value)
+            and key in [field.name for field in model_cls._meta.concrete_fields
+                        if not isinstance(field, ForeignKey)]
         }
 
     def _get_reverse_fields(self, spec):
@@ -281,7 +363,8 @@ class XmlMapper:
         fields = spec.get("fields", {})
         return {
             key: value for key, value in fields.items()
-            if key in [rel.get_accessor_name() for rel in model_cls._meta.related_objects]
+            if not is_value_spec(value)
+            and key in [rel.get_accessor_name() for rel in model_cls._meta.related_objects]
         }
 
     def _get_foreign_fields(self, spec):
@@ -289,8 +372,9 @@ class XmlMapper:
         fields = spec.get("fields", {})
         return {
             key: value for key, value in fields.items()
-            if key in [field.name for field in model_cls._meta.concrete_fields
-                       if isinstance(field, ForeignKey)]
+            if not is_value_spec(value)
+            and key in [field.name for field in model_cls._meta.concrete_fields
+                        if isinstance(field, ForeignKey)]
         }
 
     def _get_m2m_fields(self, spec):
@@ -298,7 +382,15 @@ class XmlMapper:
         fields = spec.get("fields", {})
         return {
             key: value for key, value in fields.items()
-            if key in [m2m.name for m2m in model_cls._meta.local_many_to_many]
+            if not is_value_spec(value)
+            and key in [m2m.name for m2m in model_cls._meta.local_many_to_many]
+        }
+
+    def _get_value_fields(self, spec):
+        fields = spec.get("fields", {})
+        return {
+            key: value for key, value in fields.items()
+            if is_value_spec(value)
         }
 
     def _get_elements(self, spec, namespaces):
@@ -364,6 +456,7 @@ class XmlMapper:
                 self.handle_foreign_fields(instance, el, spec, namespaces)
                 self.handle_reverse_relations(instance, el, spec, namespaces)
                 self.handle_m2m_relations(instance, el, spec, namespaces)
+                self.handle_value_fields(instance, el, spec, namespaces)
 
                 if is_many:
                     instances.append(instance)
@@ -380,10 +473,91 @@ class XmlMapper:
             if key.startswith("_"):
                 continue
             instance = self.traverse_spec(value, namespaces)
+            self._spec_results[key] = instance
             if instance:
                 self.data.append(instance)
 
+        self._traversed = True
         return self.data
+
+    def mapped_values(self):
+        """The mapped representation of the document as plain python values.
+
+        Returns a dict keyed by the spec key of the mapping ("dataset",
+        "service", ...) answering one dict per parsed instance. A dict holds
+        every mapped field: the value a flat field was parsed to, the parsed
+        related instances projected field by field, and the list of value
+        specs (_values) as extracted. Multiple values stay lists, the order is
+        document order and the values are the ones the document carries; a
+        single valued field answers the one value the mapper kept for it
+        (#990).
+
+        This is the read side of the single forward traversal xml_to_django()
+        performs - persistence reads the very same parsed instances - so an
+        extraction caller gets its values without a PersistenceHandler, without
+        a database write and without any second pass over the XML (#981).
+        """
+        if not self._traversed:
+            self.xml_to_django()
+        result = {}
+        for key, spec in self.mapping.items():
+            if key.startswith("_") or not isinstance(spec, dict):
+                continue
+            produced = self._spec_results.get(key)
+            if not produced:
+                continue
+            instances = produced if isinstance(produced, list) else [produced]
+            result[key] = [
+                self._project_mapped_values(instance, spec)
+                for instance in instances
+            ]
+        return result
+
+    def _project_mapped_values(self, instance, spec):
+        """The mapped fields of one parsed instance as a plain dict.
+
+        Reads only the python objects the traversal left behind - the field
+        values it set and the parsed children it attached as _<name>_parsed or
+        _<name>_values - and never the XML again. An instance built by a
+        _parser without a fields spec is answered by its concrete fields; the
+        primary key is left out because an unsaved instance carries a fresh
+        random one of no meaning.
+        """
+        fields = spec.get("fields")
+        if not fields:
+            return {
+                field.name: getattr(instance, field.name, None)
+                for field in instance._meta.concrete_fields
+                if field is not instance._meta.pk
+                and not isinstance(field, ForeignKey)
+            }
+        m2m_names = {
+            field.name
+            for field in type(instance)._meta.local_many_to_many
+        }
+        values = {}
+        for name, xpath_or_spec in fields.items():
+            if is_value_spec(xpath_or_spec):
+                values[name] = getattr(instance, f"_{name}_values", [])
+            elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
+                if name in m2m_names:
+                    parsed = getattr(instance, f"_{name}_parsed", None) or []
+                    values[name] = [
+                        self._project_mapped_values(child, xpath_or_spec)
+                        for child in parsed
+                    ]
+                else:
+                    # a foreign key field carries the parsed related instance
+                    # or raises on access when the mapper left it empty - which
+                    # for an unsaved instance means: not mapped
+                    child = getattr(instance, name, None)
+                    values[name] = (
+                        self._project_mapped_values(child, xpath_or_spec)
+                        if child is not None else None
+                    )
+            else:
+                values[name] = getattr(instance, name, None)
+        return values
 
     ####################################
     #       Django -> XML stuff        #

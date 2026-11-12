@@ -11,7 +11,16 @@ WORKDIR /app
 
 COPY ./frontend/ .
 
-RUN npm install && \
+# The VITE_API_* args (docker-compose.yml derives them from EXTERNAL_BASE_URL /
+# EXTERNAL_PORT / EXTERNAL_SCHEME) are baked into the bundle by `vite build`,
+# which reads them from this RUN's environment. Echoing them in the command is
+# not decoration: a build ARG is only guaranteed to be part of the cache key of
+# the instruction that references it, so naming them here is what makes a
+# changed address in .env rebuild the bundle on every builder (#1027). Before
+# #922 removed the frontend-static volume no rebuild reached the browser at
+# all; that the volume is gone is guarded by scripts/static_mounts_smoke.py.
+RUN echo "building the SPA against ${VITE_API_SCHEMA}://${VITE_API_BASE_URL}:${VITE_API_PORT}" && \
+  npm install && \
   npm run build
 
 
@@ -46,8 +55,8 @@ COPY --from=backend-compile-image ./static /var/www/mrmap/backend/
 # report browser side errors into the central log stack; the script is plain
 # JS, not app code, and is injected *before* the app bundle so that it also
 # catches the bundle and its chunks failing to load. Its own src is absolute
-# on purpose: the built references are relative (vite base './'), so on a deep
-# route the app can fail to load while the beacon still loads and says so.
+# (as are the built app references since the vite base fix for #941), so on any
+# route the beacon still loads and reports what failed.
 COPY docker/nginx/error-beacon.js /var/www/mrmap/frontend/error-beacon.js
 RUN sed -i 's|<script type="module"|<script src="/error-beacon.js"></script><script type="module"|' /var/www/mrmap/frontend/index.html && \
   grep -q 'src="/error-beacon.js"' /var/www/mrmap/frontend/index.html

@@ -136,8 +136,13 @@ class CswQueryablesTest(TestCase):
             result_type=result_type, **query_params).xpath(
                 MATCHED, namespaces={'csw': NAMESPACE_LOOKUP['csw_2_0_2']})[0])
 
-    def returned(self, **query_params):
+    def returned(self, constraint=None, **query_params):
         """The records a page answers, as the response names them, in that order."""
+        if constraint:
+            query_params.update({
+                'CONSTRAINTLANGUAGE': 'CQL_TEXT',
+                'Constraint': constraint,
+            })
         content = self.xml_of(result_type='results', **query_params)
         return list(content.xpath(
             '//gmd:fileIdentifier/gco:CharacterString/text()',
@@ -291,3 +296,73 @@ class CswQueryablesTest(TestCase):
                     title='Ohne Stichworte nur Text')
         self.assertEqual(1, self.matched("AnyText = 'stichworte'"))
         self.assertEqual(0, self.matched("subject = 'stichworte'"))
+
+    # -- the identity of the ``type`` filter and the merged paging of #829 --
+    #
+    # The counts above say HOW MANY records a kind matches; these name WHICH
+    # records a query answers. A type filter wired to the wrong source answers
+    # the same count with the wrong documents -- only the identifiers a page
+    # ships tell the three kinds apart, since all of them share one document
+    # type (gmd:MD_Metadata) on the wire.
+
+    def identifiers(self, *names):
+        """The named records in the paging (primary key) order the response answers."""
+        pk_of = {name: pk for pk, name in self.by_pk.items()}
+        return sorted(names, key=pk_of.__getitem__)
+
+    def test_the_type_filter_answers_only_the_records_of_the_kind_it_names(self):
+        """#829: a kind asked for answers its records and none of the others.
+
+        The application query answers the application record and nothing else;
+        the two kinds which were answered before it arrived keep answering
+        exactly their own records -- the union of the third source must not
+        leak into either.
+        """
+        self.assertEqual(['zeta'],
+                         self.returned("type = 'application'"))
+        self.assertEqual(self.identifiers('alpha', 'beta'),
+                         self.returned("type = 'dataset'"))
+        self.assertEqual(['gamma'],
+                         self.returned("type = 'service'"))
+
+    def test_an_or_over_all_three_kinds_answers_one_paged_stream(self):
+        """#829: dataset OR service OR application pages as one result set.
+
+        The harvesting client of #827 requests exactly this shape when it asks
+        a remote catalogue for all three kinds in one query; a page boundary
+        in the merged stream must neither drop a record nor answer it twice.
+        """
+        every_kind = "type = 'dataset' OR type = 'service' OR type = 'application'"
+        self.assertEqual(4, self.matched(every_kind))
+
+        ordered = self.identifiers('alpha', 'beta', 'gamma', 'zeta')
+        self.assertEqual(
+            ordered, self.returned(every_kind, maxRecords=10))
+
+        first = self.returned(every_kind, maxRecords=2, startPosition=1)
+        second = self.returned(every_kind, maxRecords=2, startPosition=3)
+        self.assertEqual(2, len(first))
+        self.assertEqual(2, len(second))
+        self.assertEqual(ordered, first + second)
+
+        # every page of the OR names the size of the whole merged set
+        self.assertEqual(4, self.matched(
+            every_kind, result_type='results', maxRecords='2', startPosition='3'))
+
+    def test_an_or_over_two_kinds_keeps_the_third_kind_out_of_the_pages(self):
+        """The OR is selective: the kind it does not name answers nothing.
+
+        The dataset-and-application pair is the shape which pages across the
+        boundary of the merged stream -- two records of the one source in
+        front of the record of the other -- so a wrong merge order or a wrong
+        page cut on the merged sources shows up in its pages.
+        """
+        pair = "type = 'dataset' OR type = 'application'"
+        self.assertEqual(3, self.matched(pair))
+
+        ordered = self.identifiers('alpha', 'beta', 'zeta')
+        first = self.returned(pair, maxRecords=2, startPosition=1)
+        second = self.returned(pair, maxRecords=2, startPosition=3)
+
+        self.assertEqual(ordered, first + second)
+        self.assertNotIn('gamma', first + second)

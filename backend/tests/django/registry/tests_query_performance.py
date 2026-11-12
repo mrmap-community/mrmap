@@ -6,9 +6,11 @@ grows with the number of rows in the response. ``backend/tests/AGENTS.md``
 describes the two properties that are asserted here: a relation that is loaded
 once for every row of the answer, and the measured budget of a request.
 """
+import itertools
 import json
 import re
 from collections import Counter
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -24,9 +26,12 @@ from rest_framework.viewsets import GenericViewSet
 
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.enums.harvesting import CollectingStatenEnum as State
+from registry.managers.havesting import (METADATA_RECORD_COUNTS,
+                                         metadata_count_annotation)
 from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
+from registry.models.service import CatalogueService
 
 
 JSONAPI = 'application/vnd.api+json'
@@ -51,6 +56,21 @@ def table_counter(queries):
         tables = TABLE_RE.findall(query['sql'])
         counter[tables[0] if tables else query['sql'][:32]] += 1
     return counter
+
+
+def plan_scans(sql, table):
+    """Every node of the plan of ``sql`` which reads ``table``."""
+    with connections['default'].cursor() as cursor:
+        cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
+        plan = cursor.fetchone()[0][0]['Plan']
+    pending = [plan]
+    scans = []
+    while pending:
+        node = pending.pop()
+        pending.extend(node.get('Plans', []))
+        if node.get('Relation Name') == table:
+            scans.append(node)
+    return scans
 
 
 class QueryMeasurementMixin:
@@ -390,6 +410,55 @@ class CatalogueServiceQueryPerformance(QueryMeasurementMixin, TestCase):
             **{'fields[CatalogueService]': 'lastModifiedBy'})
         self.assertEqual(status, 200)
 
+    def test_the_list_counts_its_rows_once(self):
+        """The permission checker may not paginate the answer a second time.
+
+        ``ObjectPermissionCheckerViewSetMixin`` used to filter and paginate the
+        queryset again to learn which objects the answer shows, so every list
+        answered the COUNT of its paginator twice (#1031).
+        """
+        _status, _body, queries = self.request('/api/registry/csw')
+        counts = [q['sql'] for q in queries if COUNT in q['sql']]
+        self.assertEqual(len(counts), 1,
+                         [sql[:90] for sql in counts])
+
+    def test_the_list_does_not_prefetch_the_harvested_records(self):
+        """A relation no serializer answers must not be prefetched at all.
+
+        The list prefetched the harvested records of every catalogue by their
+        id although no field of the answer reads them - with the records of a
+        big deployment hundreds of thousands of rows loaded for nothing
+        (#1031). Only the page query itself may read them, for the harvesting
+        statistics it answers.
+        """
+        from registry.views.service import CatalogueServiceViewSetMixin
+        relations = [
+            getattr(prefetch, 'prefetch_through', prefetch)
+            for prefetches in CatalogueServiceViewSetMixin.prefetch_for_not_includes.values()
+            for prefetch in prefetches]
+        self.assertNotIn(
+            'registry_datasetmetadatarecord_metadata_records', relations)
+
+    def test_the_extent_is_aggregated_once_for_the_whole_page(self):
+        """The coverage of the page is read by one grouped query per source.
+
+        Aggregated as an annotation of the page query, the ``ST_Union`` and the
+        ``COUNT(DISTINCT)`` of the coverage ran once per catalogue and were
+        repeated by the permission checker a second time per page (#1031).
+        """
+        _status, _body, queries = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]':
+               'id,title,extent,element_count'})
+        unions = [q['sql'] for q in queries if 'ST_Union' in q['sql']]
+        # one grouped query per kind of harvested record, not one per row
+        self.assertLessEqual(len(unions), 2, unions)
+        self.assertFalse([sql for sql in unions if COUNT in sql],
+                         'the count of the rows runs the coverage aggregation')
+        self.assertEqual(
+            1, len([q['sql'] for q in queries if COUNT in q['sql']]),
+            'the page answers one count of its rows')
+
 
 class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
     """The harvesting jobs know the service and the schedule they belong to."""
@@ -495,17 +564,7 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
 
     def temporaryFileScans(self, sql):
         """Every node of the plan which reads the files of a job."""
-        with connections['default'].cursor() as cursor:
-            cursor.execute('EXPLAIN (ANALYZE, FORMAT JSON) ' + sql)
-            plan = cursor.fetchone()[0][0]['Plan']
-        pending = [plan]
-        scans = []
-        while pending:
-            node = pending.pop()
-            pending.extend(node.get('Plans', []))
-            if node.get('Relation Name') == 'registry_temporarymdmetadatafile':
-                scans.append(node)
-        return scans
+        return plan_scans(sql, 'registry_temporarymdmetadatafile')
 
     def test_paginated_progress_does_not_aggregate_recovery_files(self):
         for path, filters in [
@@ -528,6 +587,40 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
                 file_queries = [q['sql'] for q in queries
                                 if 'registry_temporarymdmetadatafile' in q['sql']]
                 self.assertEqual(len(file_queries), 1)
+                self.assertTemporaryFileScansAreBounded(file_queries[0])
+
+    def test_the_order_of_the_answer_does_not_count_files(self):
+        """The number of rows of an answer is read without the progress of a run.
+
+        The progress joined the sort offer of #1130 and it is no column of the row:
+        it is read from the files a run left behind. The paginator asks for the number
+        of rows before it takes the page, and an answer which orders its runs by that
+        progress must not read the recovery backlog of every run it filters only to
+        say how many there are - the order changes nothing about the number, and a run
+        which was interrupted keeps its files for the recovery (#870, #885, #1130).
+
+        The request names a statistics field as well, because it is the ``sums`` CTE
+        which makes the view read the number of rows itself.
+        """
+        for path, filters in [
+            ('/api/registry/harvesting/harvesting-jobs',
+             {'filter[service.id]': str(self.job.service_id)}),
+            (f'/api/registry/csw/{self.job.service_id}/harvesting-jobs', {}),
+        ]:
+            with self.subTest(path=path):
+                status, body, queries = self.request(path, **filters, **{
+                    'page[size]': 1, 'sort': '-progress',
+                    'fields[HarvestingJob]': 'id,progress,newDatasetMetadataCount',
+                })
+                self.assertEqual(status, 200, body)
+                self.assertEqual(self.ids_of(body), [str(self.job.pk)])
+                self.assertEqual(body['meta']['pagination']['count'], 2)
+                file_queries = [q['sql'] for q in queries
+                                if 'registry_temporarymdmetadatafile' in q['sql']]
+                self.assertEqual(
+                    len(file_queries), 1,
+                    'the number of rows reads the files of every run it counts, '
+                    'although the order it was asked for is not part of that number')
                 self.assertTemporaryFileScansAreBounded(file_queries[0])
 
     def test_sparse_progress_fields_and_manager_agree_in_each_phase(self):
@@ -676,6 +769,280 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertEqual(without[1], with_[1],
                          'the page answers the same jobs with and without '
                          'the statistics')
+
+
+class HarvestingRunCountersQueryPerformance(QueryMeasurementMixin, TestCase):
+    """One run answers its record counters from the rows each counter counts.
+
+    The screen of a run shows how many records it found new, updated, already
+    existing and delivered twice, per kind of record, and it asks again every few
+    seconds while the import of that very run writes those records. Answered as a
+    ``COUNT(...) FILTER`` over the rows of the run, every one of those counters
+    walked all of them: the detail request of a run with 411,633 relations logged
+    5.85 s, and the same statement reached 12.2 s while the harvest was still
+    writing the table - the screen which watches a harvest got slower the further
+    the harvest had come (#1037).
+    """
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_csw.json"]
+
+    COUNTERS = ('newDatasetMetadataCount', 'updatedDatasetMetadataCount',
+                'existingDatasetMetadataCount', 'duplicatedDatasetMetadataCount',
+                'newServiceMetadataCount', 'updatedServiceMetadataCount',
+                'existingServiceMetadataCount',
+                'duplicatedServiceMetadataCount',
+                'newApplicationMetadataCount', 'updatedApplicationMetadataCount',
+                'existingApplicationMetadataCount',
+                'duplicatedApplicationMetadataCount')
+
+    # The records the measured run collected, per kind and state. `existing` of the
+    # service records is answered by no row at all, because the empty range of a
+    # counter is one of the answers a screen has to get.
+    NEW = 12
+    UPDATED = 7
+    EXISTING = 5
+    DUPLICATED = 3
+    SERVICE_NEW = 2
+    SERVICE_UPDATED = 1
+    SERVICE_DUPLICATED = 1
+    # A second run keeps the relation table bigger than the counters of the
+    # measured one, as it is while a harvest writes it.
+    OTHER_RUN_RELATIONS = 4_000
+    # what one record of the measured run measured: the throughput of a run is
+    # its records against the time they measured, so a minute of it is 20 records
+    DOWNLOAD_DURATION = timedelta(seconds=1)
+    PROCESSING_DURATION = timedelta(seconds=2)
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        service = CatalogueService.objects.order_by('pk').first()
+        # bulk_create instead of save(): the save of a job of a catalogue starts
+        # the harvest of that catalogue. All three carry a done_at because only one
+        # unfinished job is allowed per catalogue, and the fixture's catalogue
+        # already has one of its own.
+        cls.job, cls.other, cls.empty = HarvestingJob.objects.bulk_create([
+            HarvestingJob(service=service, phase=Phase.COMPLETED, done_at=now()),
+            HarvestingJob(service=service, phase=Phase.ABORTED, done_at=now()),
+            HarvestingJob(service=service, phase=Phase.COMPLETED, done_at=now()),
+        ])
+        contact = MetadataContact.objects.first()
+        datasets = DatasetMetadataRecord.objects.bulk_create([
+            DatasetMetadataRecord(
+                title=f'Counter dataset {i}', metadata_contact=contact,
+                dataset_contact=contact)
+            for i in range(cls.NEW + cls.UPDATED + cls.EXISTING)
+        ])
+        services = ServiceMetadataRecord.objects.bulk_create([
+            ServiceMetadataRecord(title=f'Counter service {i}',
+                                  metadata_contact=contact)
+            for i in range(cls.SERVICE_NEW + cls.SERVICE_UPDATED)
+        ])
+        # which records the run found in which state; a DUPLICATED relation may
+        # name a record the run collected in another state as well
+        states = {
+            State.NEW: (datasets[:cls.NEW], services[:cls.SERVICE_NEW]),
+            State.UPDATED: (datasets[cls.NEW:cls.NEW + cls.UPDATED],
+                            services[cls.SERVICE_NEW:
+                                     cls.SERVICE_NEW + cls.SERVICE_UPDATED]),
+            State.EXISTING: (datasets[cls.NEW + cls.UPDATED:
+                                      cls.NEW + cls.UPDATED + cls.EXISTING], ()),
+            State.DUPLICATED: (datasets[:cls.DUPLICATED],
+                               services[:cls.SERVICE_DUPLICATED]),
+        }
+        cls.expected = {
+            'newDatasetMetadataCount': cls.NEW,
+            'updatedDatasetMetadataCount': cls.UPDATED,
+            'existingDatasetMetadataCount': cls.EXISTING,
+            'duplicatedDatasetMetadataCount': cls.DUPLICATED,
+            'newServiceMetadataCount': cls.SERVICE_NEW,
+            'updatedServiceMetadataCount': cls.SERVICE_UPDATED,
+            # the run collected no service record which the registry already had:
+            # the range of that counter is empty and the counter answers its 0
+            'existingServiceMetadataCount': 0,
+            'duplicatedServiceMetadataCount': cls.SERVICE_DUPLICATED,
+            'newApplicationMetadataCount': 0,
+            'updatedApplicationMetadataCount': 0,
+            'existingApplicationMetadataCount': 0,
+            'duplicatedApplicationMetadataCount': 0,
+        }
+        relations = [
+            HarvestedMetadataRelation(
+                harvesting_job=cls.job, collecting_state=state,
+                download_duration=cls.DOWNLOAD_DURATION,
+                processing_duration=cls.PROCESSING_DURATION,
+                **{f'{kind}_metadata_record': record})
+            for state, (found_datasets, found_services) in states.items()
+            for kind, found in (('dataset', found_datasets),
+                                ('service', found_services))
+            for record in found
+        ]
+        filler = [
+            HarvestedMetadataRelation(
+                harvesting_job=cls.other, collecting_state=State.DUPLICATED,
+                dataset_metadata_record=record)
+            for record in itertools.islice(
+                itertools.cycle(datasets), cls.OTHER_RUN_RELATIONS)
+        ]
+        HarvestedMetadataRelation.objects.bulk_create(relations + filler)
+        with connections['default'].cursor() as cursor:
+            cursor.execute('ANALYZE registry_harvestedmetadatarelation')
+
+    def path(self, job=None):
+        return f'/api/registry/harvesting/harvesting-jobs/{(job or self.job).pk}'
+
+    def counterSubquery(self, sql, annotation):
+        """The subquery of the statement which answers one counter of a run."""
+        marker = f'AS "{annotation}" FROM "registry_harvestedmetadatarelation"'
+        start = sql.index(marker)
+        return sql[sql.rindex('(SELECT ', 0, start):sql.index(' GROUP BY', start)]
+
+    def countersQuery(self, queries):
+        """The one statement of the request which reads the harvested relations."""
+        relation_queries = [query['sql'] for query in queries
+                            if 'registry_harvestedmetadatarelation' in query['sql']]
+        self.assertEqual(
+            len(relation_queries), 1,
+            'the counters of a run are answered by one statement, not once per '
+            'counter: ' + str([sql[:90] for sql in relation_queries]))
+        return relation_queries[0]
+
+    def test_the_counters_answer_the_records_the_run_collected(self):
+        status, body, _queries = self.request(
+            self.path(), **{'fields[HarvestingJob]': ','.join(self.COUNTERS)})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body['data']['attributes'], self.expected)
+        # the list of the runs of the catalogue answers the same numbers for the
+        # same run - from the aggregation of the relation table, because a list
+        # cannot answer the ranges of many runs at once (#1037)
+        status, body, _queries = self.request(
+            f'/api/registry/csw/{self.job.service_id}/harvesting-jobs',
+            user='user',
+            **{'fields[HarvestingJob]': ','.join(self.COUNTERS),
+               'filter[id]': str(self.job.pk)})
+        self.assertEqual(status, 200, body)
+        rows = body.get('data') or []
+        self.assertEqual(len(rows), 1, body)
+        self.assertEqual(rows[0]['attributes'], self.expected)
+
+    def test_a_run_without_records_answers_zero_counters(self):
+        """The range of a counter may be empty, and then the counter answers 0."""
+        status, body, _queries = self.request(
+            self.path(self.empty),
+            **{'fields[HarvestingJob]': ','.join(self.COUNTERS)})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body['data']['attributes'],
+                         {name: 0 for name in self.COUNTERS})
+
+    def test_each_counter_is_answered_by_the_rows_it_counts(self):
+        """No counter of a run picks its records out of an aggregation of them all.
+
+        The statement which answers the counters of one run holds one subquery per
+        counter, and the WHERE of each of them is the range the counter is about:
+        the job, the state the import decided and the column which carries the kind
+        of record. The count itself is over ``*``, so nothing outside that range is
+        read - which is what lets the database answer the counter from the index
+        over the range and leave the table alone while its rows are being written.
+        """
+        _status, _body, queries = self.request(
+            self.path(), **{'fields[HarvestingJob]': ','.join(self.COUNTERS)})
+        sql = self.countersQuery(queries)
+        self.assertNotIn('"sums"', sql,
+                         'the counters of one run materialize the aggregation of '
+                         'the relations of every run')
+        for name, (kind, state) in METADATA_RECORD_COUNTS.items():
+            subquery = self.counterSubquery(
+                sql, metadata_count_annotation(kind, state))
+            self.assertIn('COUNT(*)', subquery, name)
+            self.assertNotIn('COUNT("id")', subquery, name)
+            self.assertNotIn('FILTER (WHERE', subquery, name)
+            self.assertIn('"harvesting_job_id" =', subquery, name)
+            self.assertIn(f'"collecting_state" = {state.value}', subquery, name)
+            self.assertIn(f'"{kind}_metadata_record_id" IS NOT NULL', subquery, name)
+
+    def test_the_counters_are_answered_out_of_an_index_of_their_own(self):
+        """Every read of the relations which answers a counter is a range of it."""
+        _status, _body, queries = self.request(
+            self.path(), **{'fields[HarvestingJob]': ','.join(self.COUNTERS)})
+        scans = plan_scans(self.countersQuery(queries),
+                           'registry_harvestedmetadatarelation')
+        self.assertTrue(
+            scans, 'the statement which answers the counters reads no relation '
+                   'table at all: ' + self.countersQuery(queries))
+        for node in scans:
+            self.assertTrue(node['Node Type'].startswith('Index'), node)
+            # Which index answers the range is the planner's choice, and a
+            # TestCase has not committed the rows it seeded, so the statistics it
+            # can read are not those of a table a harvest wrote (the index of the
+            # counters itself is pinned by
+            # `test_the_partial_indexes_of_the_counters_exist`). What the plan may
+            # never do is read the relations other than as an index range of this
+            # run with its state applied inside that scan.
+            applied = (node.get('Index Cond', node.get('Recheck Cond', ''))
+                       + ' ' + node.get('Filter', ''))
+            self.assertIn('harvesting_job_id', applied, node)
+            self.assertIn('collecting_state', applied, node)
+            self.assertLess(node['Actual Loops'], 2, node)
+
+    def test_the_partial_indexes_of_the_counters_exist(self):
+        """The records of one kind of a job, by their state, are a range of their own."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = "
+                "'registry_harvestedmetadatarelation'")
+            definitions = dict(cursor.fetchall())
+        for kind in ('dataset', 'service'):
+            name = f'harvested_{kind}_job_state'
+            definition = definitions.get(name)
+            self.assertIsNotNone(
+                definition,
+                f'the {kind} records of a job are no range of their own by state, '
+                f'so their counters read every relation of the job (#1037): '
+                f'{sorted(definitions)}')
+            # pg renders an identifier unquoted when it does not need quotes, so
+            # the quotes are taken out instead of guessed
+            definition = definition.replace('"', '')
+            self.assertIn('(harvesting_job_id, collecting_state)', definition,
+                          'the index is not the range of the job by state: '
+                          + definition)
+            self.assertIn(f'{kind}_metadata_record_id IS NOT NULL', definition,
+                          'the index is not partial on the kind of record: '
+                          + definition)
+
+    def test_the_measurements_of_a_run_still_come_from_the_aggregation(self):
+        """The durations of a run are read from its records, the counters are not.
+
+        The throughput of a run is the time its records measured, and that is an
+        aggregation over them which no index of the counters answers. Asking both
+        together therefore still builds the ``sums`` aggregation - once, and without
+        the counters in it.
+        """
+        fields = 'newDatasetMetadataCount,existingServiceMetadataCount,recordsPerMinute'
+        status, body, queries = self.request(
+            self.path(), **{'fields[HarvestingJob]': fields})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(
+            body['data']['attributes'],
+            {'newDatasetMetadataCount': self.NEW,
+             'existingServiceMetadataCount': 0,
+             # every record of the run measured one second of download and two of
+             # the database, so a minute of measured work is 20 records
+             'recordsPerMinute': 20.0})
+        aggregated = [query['sql'] for query in queries if '"sums"' in query['sql']]
+        self.assertEqual(len(aggregated), 1, aggregated)
+        # the aggregation is what stands before the outer select; the counters of
+        # the run are answered beside it, as subqueries of the outer select
+        aggregation, found, _outer = aggregated[0].partition(') SELECT')
+        self.assertTrue(found, 'no statement of the request aggregates: '
+                               + aggregated[0])
+        self.assertIn('harvested_records', aggregation, aggregation)
+        self.assertIn('measured_seconds', aggregation, aggregation)
+        for name, (kind, state) in METADATA_RECORD_COUNTS.items():
+            self.assertNotIn(
+                metadata_count_annotation(kind, state), aggregation,
+                f'the counter {name} is aggregated although the run names it and '
+                f'has its own range: {aggregation}')
 
 
 class HarvestedMetadataQueryPerformance(QueryMeasurementMixin, TestCase):

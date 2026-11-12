@@ -18,6 +18,7 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
+from MrMap import celery_queues
 from MrMap.celery import is_celery_process, is_this_a_celery_beat_process
 from system.logging.formatter import RFC5424Formatter
 
@@ -98,7 +99,6 @@ INSTALLED_APPS = [
     "rest_framework_json_api",
     "knox",  # token auth
     "django_celery_beat",
-    "django_celery_results",
     "django_filters",
     "simple_history",
     "mptt2",
@@ -111,11 +111,14 @@ INSTALLED_APPS = [
     "system",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
-    "django_pgviews",
+    "pgtrigger",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Below Security, above Session: strips the session marking's Vary: Cookie
+    # from /api/schema responses after SessionMiddleware added it (#946).
+    "extras.schema_views.SchemaVaryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -202,14 +205,57 @@ METADATA_URL = [
 BASE_URL_FOR_ETF = os.environ.get(
     "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
 )
-ALLOWED_HOST_DEFAULTS = os.environ.get(
-    "DJANGO_ALLOWED_HOST_DEFAULTS", "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver"
-).split(";")
-ALLOWED_HOSTS = os.environ.get(
-    "EXTERNAL_BASE_URL", "localhost"
-).split(";")
-ALLOWED_HOSTS.extend(ALLOWED_HOST_DEFAULTS)
-ALLOWED_HOSTS = list(set(ALLOWED_HOSTS))
+# Host allow-list for Django's host validation (#949). Three sources are
+# merged, every one of them optional and ";" and/or "," separated:
+#  * DJANGO_ALLOWED_HOSTS: the deployer knob documented in
+#    docs/source/development/environment.rst; docker-compose.yml passes it
+#    through to backend, celery-worker and celery-beat.
+#  * DJANGO_ALLOWED_HOST_DEFAULTS: replaces the internal preset, which keeps
+#    the callers that reach the backend without a browser Host working: the
+#    ETF validator answers to MRMAP_BASE_URL_FOR_ETF (mrmap-appserver:8001),
+#    the dev stack publishes 8001 on localhost, deployments reached over the
+#    docker bridge still answer to 172.17.0.1, and Django's test client
+#    sends "testserver".
+#  * EXTERNAL_BASE_URL: the name the deployment is served under stays
+#    auto-allowed; it may be written as a host, a host:port or a full URL
+#    and contributes its bare hostname.
+# CSRF_TRUSTED_ORIGINS is derived from the merged list below, so exactly the
+# same hosts may POST.
+ALLOWED_HOSTS_PRESET = "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver"
+
+
+def _split_host_list(raw: str) -> list:
+    """The entries of a ";"/"," separated env value, without surrounding blanks."""
+    return [host.strip() for host in raw.replace(",", ";").split(";") if host.strip()]
+
+
+def _bare_host(entry: str) -> str:
+    """The hostname of a URL or host[:port] value, without scheme and port.
+
+    "http://demo.mrmap.de:8000/x" and "demo.mrmap.de:8000" both yield
+    "demo.mrmap.de"; a bracketed IPv6 literal keeps its brackets.
+    """
+    host = entry.strip()
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    host = host.split("/", 1)[0].rsplit("@", 1)[-1]  # drop path and credentials
+    if host.startswith("["):  # bracketed IPv6, e.g. "[::1]:8000"
+        return host[:host.find("]") + 1] if "]" in host else host
+    return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+
+
+def _allowed_hosts_from_env(environ) -> list:
+    """The merged allow-list for the given environment mapping, sorted."""
+    hosts = _split_host_list(environ.get("DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
+    hosts += _split_host_list(environ.get("DJANGO_ALLOWED_HOSTS", ""))
+    hosts += [_bare_host(entry) for entry in _split_host_list(
+        environ.get("EXTERNAL_BASE_URL", "localhost"))]
+    return sorted(set(hosts))
+
+
+ALLOWED_HOST_DEFAULTS = _split_host_list(os.environ.get(
+    "DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
+ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
@@ -345,11 +391,34 @@ CACHES = {
 # Celery settings
 ################################################################
 CELERY_BROKER_URL = BROKER_URL
-CELERY_RESULT_BACKEND = "extras.celery:RetryingCacheBackend"
-# Chord members must store results. Retry transient cache failures here, after
-# the task body has completed, rather than failing or rerunning the harvest.
+# Celery's native Redis result backend (celery.backends.redis:RedisBackend),
+# on the table the comment above preserves for celery task management: task
+# results, group metadata and the chord bookkeeping live there under celery's
+# own ``celery-task-meta-``/``celery-taskset-meta-`` prefixes, next to the
+# broker's keys and apart from the Django cache in table 1. The former
+# ``extras.celery:RetryingCacheBackend`` wrapper over the package
+# django-celery-results is removed (#1178); the native backend is what keeps
+# results in Redis for the chords of registration and harvesting.
+CELERY_RESULT_BACKEND = f"{BROKER_URL}/0"
+# Chord members must store results. A Redis read or write that fails with a
+# connection error is retried here, after the task body has completed, rather
+# than failing or rerunning the harvest: the native backend treats Redis
+# connection and timeout errors as safe to retry, and any other error - a
+# programming error - is raised at once instead of being retried (#816's
+# regression intent, kept by tests/django/test_celery_backend.py). A write
+# first runs through the backend's own bounded connection-retry loop; these
+# are the retries of the outer loop with exponential backoff, and an exhausted
+# budget surfaces as a BackendStoreError in the worker log, not as a task-body
+# failure.
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
 CELERY_RESULT_BACKEND_MAX_RETRIES = 10
+# How long results and chord bookkeeping live (celery's default of one day,
+# spelled out because the harvest's import chord is the long-running chord
+# this budget must cover): every part returning from the backlog refreshes the
+# expiry of the group's keys, so a chord which keeps working for hours does
+# not lose its bookkeeping, while the keys of a chord that died expire on
+# their own instead of filling Redis.
+CELERY_RESULT_EXPIRES = 60 * 60 * 24
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -358,41 +427,65 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
-CELERY_TASK_DEFAULT_QUEUE = "default"
-CELERY_TASK_DEFAULT_EXCHANGE = "default"
+CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
+CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# the number of slots a celery worker process runs; docker-compose.yml hands
+# the variable of the same name from the .env of the deployment to
+# celery-worker. Unset keeps celery's own default of one slot per core;
+# "auto" lets celery size the prefork pool by the cgroup quota of the
+# container. It is the knob for a bigger worker, so that changing worker
+# concurrency never makes a deployment restate the queue list of the
+# release and thereby half-install it (#1040).
+_CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
+if _CELERY_WORKER_CONCURRENCY == "auto":
+    CELERY_WORKER_CONCURRENCY = "auto"
+elif _CELERY_WORKER_CONCURRENCY:
+    CELERY_WORKER_CONCURRENCY = int(_CELERY_WORKER_CONCURRENCY)
+else:
+    CELERY_WORKER_CONCURRENCY = None
 CELERY_TASK_QUEUES = (
     Queue(
-        name="default",
-        exchange=Exchange("default"),
-        routing_key="default",
+        name=celery_queues.DEFAULT,
+        exchange=Exchange(celery_queues.DEFAULT),
+        routing_key=celery_queues.DEFAULT,
         max_priority=10,
     ),
     Queue(
-        name="download",
-        exchange=Exchange("download"),
-        routing_key="download",
+        name=celery_queues.DOWNLOAD,
+        exchange=Exchange(celery_queues.DOWNLOAD),
+        routing_key=celery_queues.DOWNLOAD,
         max_priority=3,
     ),
     Queue(
-        name="db-routines",
-        exchange=Exchange("db-routines"),
-        routing_key="db-routines",
+        name=celery_queues.DB_ROUTINES,
+        exchange=Exchange(celery_queues.DB_ROUTINES),
+        routing_key=celery_queues.DB_ROUTINES,
         max_priority=6,
     ),
     Queue(
-        name="monitoring",
-        exchange=Exchange("monitoring"),
-        routing_key="monitoring",
+        # the import backlog of a harvest, kept off db-routines so that the
+        # chord control, the background process callbacks and the beat
+        # scheduled tasks there stay reachable while a catalogue drains
+        # through this queue (#970)
+        name=celery_queues.HARVEST_IMPORT,
+        exchange=Exchange(celery_queues.HARVEST_IMPORT),
+        routing_key=celery_queues.HARVEST_IMPORT,
+        max_priority=6,
+    ),
+    Queue(
+        name=celery_queues.MONITORING,
+        exchange=Exchange(celery_queues.MONITORING),
+        routing_key=celery_queues.MONITORING,
         max_priority=5,
     ),
     Queue(
-        name="update",
-        exchange=Exchange("update"),
-        routing_key="update",
+        name=celery_queues.UPDATE,
+        exchange=Exchange(celery_queues.UPDATE),
+        routing_key=celery_queues.UPDATE,
         max_priority=4,
     ),
 )
@@ -620,9 +713,11 @@ except socket.gaierror:
 LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS = int(
     os.getenv("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
 
-# every record the syslog handler formats leaves a json dump with the details of
-# the record below the media root, see system/logging/formatter.py. Nothing used
-# to take them back, so they grew with every slow request (#888). The sweep which
+# the records which the syslog handler formats and which carry detail beyond
+# their code position leave a json dump with that detail below the media root,
+# see system/logging/formatter.py; an ordinary record is answered by its syslog
+# line alone (#1033). While the formatter wrote one per record, nothing used to
+# take them back, so they grew with every log record (#888). The sweep which
 # system/tasks.py names deletes them after this many days, aligned with the
 # -retentionPeriod of the log store which keeps the syslog line pointing at them:
 # a dropped dump loses the per request sql detail, nothing else. 0 keeps them
@@ -635,6 +730,28 @@ SLOW_REQUEST_DUMP_RETENTION_DAYS = int(
 SLOW_REQUEST_DUMP_MAX_FILES = int(
     os.getenv("MRMAP_SLOW_REQUEST_DUMP_MAX_FILES", "0"))
 
+# the largest response body a monitoring probe keeps as an artifact of the
+# execution; the size of a response is recorded either way, so the inspector
+# can say why a body was not stored (#682)
+MONITORING_PROBE_RESPONSE_MAX_SIZE = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_MAX_SIZE", "5242880"))
+# how many days a stored probe response stays inspectable; the sweep which
+# registry/tasks/monitoring.py names takes the bodies back after this many
+# days while the result rows and their check answers stay, and the artifact
+# endpoint refuses an older body as gone before the sweep reached it. 0 keeps
+# every artifact until an operator removes it (#682)
+MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
+    os.getenv("MRMAP_MONITORING_PROBE_RESPONSE_RETENTION_DAYS", "30"))
+
+# how many days a decided background process stays part of the job history;
+# the sweep which notify/tasks.py names deletes the processes which ended
+# before this many days, together with their log entries, so the history of
+# the job drawer stays bounded while the failures of the retention window
+# remain discoverable (#1208). Processes which did not end yet are never
+# touched. 0 keeps every process until an operator removes it
+BACKGROUND_PROCESS_RETENTION_DAYS = int(
+    os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
+
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
 # record (#859): a harvest of 70,000 records publishes ~280 broker messages, task
@@ -643,6 +760,27 @@ SLOW_REQUEST_DUMP_MAX_FILES = int(
 # (HarvestingJob.max_step_size), which is probed per service and stays untouched
 HARVEST_IMPORT_BATCH_SIZE = int(
     os.getenv("MRMAP_HARVEST_IMPORT_BATCH_SIZE", "250"))
+# How a draining import backlog reports its progress without writing the row of
+# the background process once per file: a worker coalesces the files it has
+# committed and reports them as one bulk increment after this many steps or
+# once this many seconds have passed since its last report (#958). At the size
+# of a real catalogue one UPDATE per file would turn the single row of the
+# process into a row-lock hotspot behind every import transaction.
+HARVEST_IMPORT_PROGRESS_STEPS = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_STEPS", "200"))
+HARVEST_IMPORT_PROGRESS_SECONDS = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS", "30"))
+# The interval of the beat task which watches the harvests whose import backlog
+# does not drain, in minutes (``registry.tasks.harvest.watch_import_backlogs``).
+# The wait for an import chord is bounded by the retry budget this project hands
+# celery, and when that budget runs out the chord's callback is dropped without
+# any mrmap code being able to see it: the job stays open, its records unimported,
+# and the only trace is a line in the worker log (#1038). The watchdog asks its
+# question on this interval instead, and a backlog which stands still for one of
+# them is reported on the job itself. The beat row of the task fires on the same
+# value (see ``registry/apps.py``).
+HARVEST_IMPORT_WATCH_INTERVAL_MINUTES = int(
+    os.getenv("MRMAP_HARVEST_IMPORT_WATCH_INTERVAL_MINUTES", "5"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
@@ -697,7 +835,12 @@ REST_FRAMEWORK = {
         "rest_framework_json_api.filters.OrderingFilter",
         # "extras.filter_backend.CustomDjangoFilterBackend",
         "rest_framework_json_api.django_filters.backends.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
+        # DRF's search, but asked of the search vector of a metadata record where a
+        # view names one: the LIKE construction of the base is not indexable and,
+        # joined over the keywords of a record, is the most expensive statement of a
+        # searched list -- including the COUNT(*) of the pagination (#1029). See
+        # registry/filters/search.py.
+        "registry.filters.search.SearchVectorSearchFilter",
     ),
     "SEARCH_PARAM": "filter[search]",
     "TEST_REQUEST_RENDERER_CLASSES": (
@@ -710,9 +853,6 @@ REST_FRAMEWORK = {
 #     'TOKEN_TTL': timedelta(hours=1),
 #     'AUTO_REFRESH': True,
 # }
-MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE = True
-MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

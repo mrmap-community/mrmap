@@ -1,12 +1,56 @@
+import logging
 import threading
 import time
 from collections import OrderedDict
 from uuid import UUID
 
+logger = logging.getLogger(__name__)
+
 
 # -------------------------------------------------------------------
 # Cache
 # -------------------------------------------------------------------
+
+
+class LocalXmlCache:
+    """Instance-scoped stand-in for GlobalXmlCache with the same call surface.
+
+    A mapper running on one of these keeps every parsed instance inside its own
+    run: nothing is registered in process-global state, so mapping a document
+    for extraction alone leaves no trace. Sub-mappers must be constructed with
+    the very same cache object - that is what a shared mapper uuid and the
+    element-path lookups between parent and child specs rely on, exactly as
+    with the class-level GlobalXmlCache.
+    """
+
+    def __init__(self):
+        self._data = OrderedDict()
+
+    def set(self, key, value):
+        self._data[key] = value
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def get_many(self, keys):
+        return OrderedDict((key, self._data.get(key)) for key in keys)
+
+    def delete(self, key):
+        self._data.pop(key, None)
+        # a cached instance is also named in the key list stored under its uuid
+        key_list = self._data.get(UUID(key.split(":", 1)[0]))
+        if isinstance(key_list, list) and key in key_list:
+            key_list.remove(key)
+
+    def add_to_list(self, key, value):
+        key_list = self._data.get(key)
+        if not isinstance(key_list, list):
+            key_list = []
+            self._data[key] = key_list
+        key_list.append(value)
+
+    def clear(self):
+        self._data.clear()
 
 
 class GlobalXmlCache:
@@ -29,8 +73,19 @@ class GlobalXmlCache:
 
     @classmethod
     def _cleanup_loop(cls):
+        # Every other caller mutates cls._data under cls._lock, and
+        # _cleanup_expired_locked documents that it must hold it: iterating
+        # cls._data.items() without the lock lets a concurrent set() raise
+        # "OrderedDict mutated during iteration" and kill this thread (#1028).
+        # A failing cycle is logged and does not end the loop either - the
+        # thread must not depend on unrelated set() traffic to be resurrected.
         while not cls._stop_event.wait(cls._cleanup_interval):
-            cls._cleanup_expired_locked()
+            try:
+                with cls._lock:
+                    cls._cleanup_expired_locked()
+            except Exception:
+                logger.exception(
+                    "GlobalXmlCache cleanup cycle failed, retrying next interval")
 
     @classmethod
     def stop_cleanup_thread(cls):
@@ -45,7 +100,9 @@ class GlobalXmlCache:
         with cls._lock:
             cls._data[key] = (value, expire_at)
             cls._data.move_to_end(key)
-        cls._start_cleanup_thread()
+            # inside the lock: the alive-check and the start must be atomic,
+            # otherwise concurrent set() calls can start two cleanup threads
+            cls._start_cleanup_thread()
 
     @classmethod
     def get(cls, key, default=None):

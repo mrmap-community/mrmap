@@ -32,7 +32,8 @@ from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.utils import make_instance_key
-from registry.models.metadata import (DatasetMetadataRecord,
+from registry.models.metadata import (ApplicationMetadataRecord,
+                                      DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -64,7 +65,12 @@ class ProcessingData(models.Model):
         # it’s not just a default value that you can override.
         # So even if you set a value for this field when creating the object, it will be ignored.
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
-        # auto_now_add=True,
+        default=now,
+        # A default and not auto_now_add: the harvesting, the migration of 0038 and the tests of
+        # #870 all hand a moment of their own to a run, and auto_now_add would ignore every one of
+        # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
+        # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
+        # "not recorded" instead of inventing a moment.
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
@@ -103,6 +109,11 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                 null=True,
                                                 related_name="harvested_service_metadata_relations",
                                                 related_query_name="harvested_service_metadata_relation")
+    application_metadata_record = models.ForeignKey(to="registry.ApplicationMetadataRecord",
+                                                    on_delete=models.CASCADE,
+                                                    null=True,
+                                                    related_name="harvested_application_metadata_relations",
+                                                    related_query_name="harvested_application_metadata_relation")
     collecting_state = models.PositiveSmallIntegerField(
         choices=CollectingStatenEnum.choices)
     download_duration = models.DurationField(null=True,
@@ -127,6 +138,22 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
     class Meta:
         indexes = [
+            # The counters a run answers about the records it collected are one
+            # count per kind of record and collecting state. Read as a FILTER over
+            # the rows of the run, every one of them walks the whole of it - which
+            # is the table the import of a big run is writing into while the screen
+            # which shows those counters is polled (#1037). Held as two partial
+            # indexes over the job and the state, one per kind of record, a counter
+            # is the range of the rows it counts and is answered out of the index
+            # alone; see `HarvestingJobManager.with_metadata_record_counts`.
+            models.Index(
+                fields=["harvesting_job", "collecting_state"],
+                condition=Q(dataset_metadata_record__isnull=False),
+                name="harvested_dataset_job_state"),
+            models.Index(
+                fields=["harvesting_job", "collecting_state"],
+                condition=Q(service_metadata_record__isnull=False),
+                name="harvested_service_job_state"),
             models.Index(
                 fields=["harvesting_job", "dataset_metadata_record"]),
             models.Index(
@@ -136,14 +163,30 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
             models.Index(
                 fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
             models.Index(
+                fields=["harvesting_job", "application_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "application_metadata_record", "collecting_state"]),
+            models.Index(
                 fields=["harvesting_job", "id"]),
         ]
         constraints = [
+            # exactly one of the three record columns carries the record of a relation; the
+            # disjunction spells "exactly one" for three columns, because a chained ^ on three
+            # boolean columns is not the parity it reads as for two (#827)
             models.CheckConstraint(
-                name="dm_record_or_sm_record",
-                condition=(Q(dataset_metadata_record__isnull=True)
-                           ^ Q(service_metadata_record__isnull=True)),
-                violation_error_message="wrong relation type. dataset_metadata_record or service_metadata_record, not both is required."
+                name="dm_record_or_sm_record_or_am_record",
+                condition=(
+                    (Q(dataset_metadata_record__isnull=False)
+                     & Q(service_metadata_record__isnull=True)
+                     & Q(application_metadata_record__isnull=True))
+                    | (Q(dataset_metadata_record__isnull=True)
+                       & Q(service_metadata_record__isnull=False)
+                       & Q(application_metadata_record__isnull=True))
+                    | (Q(dataset_metadata_record__isnull=True)
+                       & Q(service_metadata_record__isnull=True)
+                       & Q(application_metadata_record__isnull=False))
+                ),
+                violation_error_message="wrong relation type. dataset_metadata_record, service_metadata_record or application_metadata_record, exactly one is required."
             ),
             models.UniqueConstraint(
                 name="atomic_new_updated_or_exsisting_collecting_state_for_dm_record",
@@ -161,6 +204,18 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                 name="atomic_new_updated_or_exsisting_collecting_state_for_sm_record",
                 fields=["harvesting_job",
                         "service_metadata_record",
+                        "collecting_state"],
+                # new, updated, existing can only be set one time per harvesting job.
+                # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
+                # To support analyzing this failure behaviour of remote services,
+                # we support storing collecting_state="duplicated" multiple times per harvesting job
+                condition=~Q(
+                    collecting_state=CollectingStatenEnum.DUPLICATED.value)
+            ),
+            models.UniqueConstraint(
+                name="atomic_new_updated_or_exsisting_collecting_state_for_am_record",
+                fields=["harvesting_job",
+                        "application_metadata_record",
                         "collecting_state"],
                 # new, updated, existing can only be set one time per harvesting job.
                 # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
@@ -192,6 +247,10 @@ class HarvestingJob(ProcessingData):
         validators=[MinValueValidator(MIN_STEP_SIZE)])
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
+    # like datasets and services, every harvest requests application records by
+    # default (epic #824 scope decision); a catalogue which never offers them just
+    # answers none, which the snapshot math of #903 accounts for as 0
+    harvest_applications = models.BooleanField(default=True)
     total_records: int = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -207,6 +266,13 @@ class HarvestingJob(ProcessingData):
         blank=True)
     harvested_service_metadata = models.ManyToManyField(
         to=ServiceMetadataRecord,
+        through=HarvestedMetadataRelation,
+        related_name="harvesting_jobs",
+        related_query_name="harvesting_job",
+        editable=False,
+        blank=True)
+    harvested_application_metadata = models.ManyToManyField(
+        to=ApplicationMetadataRecord,
         through=HarvestedMetadataRelation,
         related_name="harvesting_jobs",
         related_query_name="harvesting_job",
@@ -233,6 +299,39 @@ class HarvestingJob(ProcessingData):
         related_query_name="harvesting_job_process",
         verbose_name=_('background process'),
         help_text=_('the background process which reports this job'))
+    # The bookkeeping of the import watchdog (``registry.tasks.harvest``). An open
+    # job which reports "records to db" can mean either that its import works or
+    # that nothing imports its records anymore, and the api answered both the same
+    # while the chord which was supposed to end the run had given up quietly
+    # (#1038). Only the watchdog writes these three; they are its memory and its
+    # verdict, not something a client hands in.
+    import_backlog_seen = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen"),
+        help_text=_(
+            "how many records of this job the import watchdog last counted "
+            "as waiting for their import"))
+    import_backlog_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import backlog seen at"),
+        help_text=_(
+            "the moment the import watchdog counted that many records "
+            "waiting; the same count at the next look is a backlog which "
+            "did not move"))
+    import_stalled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("import stalled at"),
+        help_text=_(
+            "since when the import watchdog sees the import backlog of this "
+            "job untouched; the run is not waiting on work which somebody is "
+            "doing. What the watchdog could do about it is on its harvesting "
+            "log"))
     change_log = HistoricalRecords(
         related_name="change_logs",
         bases=[AdditionalTimeFieldsHistoricalModel,],
@@ -245,7 +344,12 @@ class HarvestingJob(ProcessingData):
         verbose_name_plural = _("Harvesting Jobs")
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
-        indexes = ProcessingData.Meta.indexes
+        # the newest job of one service answers its harvesting alerts - with
+        # this composite, the `ORDER BY date_created DESC LIMIT 1` of the top-N
+        # is an index read and not a sort over the jobs of the service (#1030)
+        indexes = ProcessingData.Meta.indexes + [
+            models.Index(fields=["service", "-date_created"]),
+        ]
         constraints = ProcessingData.Meta.constraints + [
             models.CheckConstraint(
                 condition=Q(service__isnull=True) | ~Q(service=MRMAP_CSW_PK),
@@ -259,6 +363,19 @@ class HarvestingJob(ProcessingData):
                     "There is an existing noncompleted job for this service.")
             )
         ]
+
+    def __str__(self):
+        """The catalogue this run harvested, named by the run's own id.
+
+        The registry renders every resource as ``<meaningful> (<pk>)``; the
+        meaningful part of a run is the title of its catalogue and the
+        parenthesized part names what the number is the id of, so it is never
+        read as the catalogue's own pk. A run without a catalogue is a file
+        import - it has no title to lead with (#1045).
+        """
+        if self.service_id:
+            return f"{self.service.title} (harvesting job {self.pk})"
+        return f"harvesting job {self.pk}"
 
     def append_celery_task_ids(self, ids, creation=False):
         """Register the ids of the tasks this job is publishing.
@@ -369,14 +486,18 @@ class HarvestingJob(ProcessingData):
             download_duration,
             processing_duration):
         model = HarvestedMetadataRelation
-        kwargs = {"service_metadata_record": related_object,
+        # the column which carries the record of a relation is named by the class of the
+        # record; the application counterpart mirrors the two existing paths (#827)
+        record_field = {
+            "DatasetMetadataRecord": "dataset_metadata_record",
+            "ServiceMetadataRecord": "service_metadata_record",
+            "ApplicationMetadataRecord": "application_metadata_record",
+        }.get(related_object.__class__.__name__, "service_metadata_record")
+        kwargs = {record_field: related_object,
                   "harvesting_job": self,
                   "collecting_state": collecting_state,
                   "download_duration": download_duration,
                   "processing_duration": processing_duration}
-        if related_object.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.pop("service_metadata_record")
-            kwargs.update({"dataset_metadata_record": related_object})
         try:
             with transaction.atomic():
                 return model.objects.create(**kwargs)
@@ -526,6 +647,27 @@ class HarvestingJob(ProcessingData):
             ProcessStatusEnum.FAILED,
             phase=f"An error occurred: {str(error)[:400]}")
 
+    def report_process_attention(self, flag, phase=None):
+        """Tell the process which reports this job that a human is awaited.
+
+        The import watchdog of #1038 decides that a run stands until somebody
+        acts - the backlog is queued and nobody consumes it, or its messages
+        are gone and the supported repair is a command. The verdict is on the
+        job; the flag here is what makes the state of the process answer the
+        same thing for the background job center (#1207).
+
+        Args:
+            flag (bool): whether the run stands for a human
+            phase (str): phase to report with the decision, optional
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        from notify.models import BackgroundProcess
+
+        return BackgroundProcess.objects.set_action_required(
+            self.background_process_id, flag, phase=phase)
+
     def save(self, skip_history_when_saving=True, *args, **kwargs):
         if self._state.adding and self.background_process_id is None:
             self.background_process = self.build_process()
@@ -584,6 +726,8 @@ class HarvestingJob(ProcessingData):
             record_types.append("dataset")
         if self.harvest_services:
             record_types.append("service")
+        if self.harvest_applications:
+            record_types.append("application")
         return record_types
 
     def get_total_records(self, response):
@@ -1047,6 +1191,7 @@ class TemporaryMdMetadataFile(models.Model):
             task = call_md_metadata_file_to_db.s(
                 md_metadata_file_id=self.pk,
                 harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                background_process_pk=self.job.background_process_id,
                 http_request=self.job._http_request(),
             )
             task.set(task_id=str(task_id))
@@ -1076,31 +1221,120 @@ class TemporaryMdMetadataFile(models.Model):
             return None
         return 'fileimport' if self.job.service is None else f'csw:{self.job.service}'
 
+    def _drop_record_for_wrong_bucket(self, mapper):
+        """Post-filter of the application bucket (#827, decision note of #826).
+
+        A document which the catalogue delivered for this run passed the run's type
+        filter - which is what the catalogue's own type index says about it, never what
+        the document says. The mapper already keys everything by the detected
+        ``hierarchyLevel``, so requiring the detected level to name one of the buckets
+        the run actually requests is free to compute: a record the index tagged into a
+        bucket the run does not harvest (the spike of #825 measured 0/10 violations, so
+        this is a guard rail) never lands in the registry, because storing it by the
+        claimed filter value instead of the detected level would pollute the per type
+        counts which gate the snapshot math of #903. It is dropped as unhandled and
+        loud: the file keeps its import error for inspection and the run gets a
+        harvesting log entry, the way #690 traces records a catalogue did not deliver.
+
+        Returns:
+            bool: whether the document of this file was dropped
+        """
+        # an import without a catalogue behind it is no bucket delivery: the document
+        # was handed in by somebody who chose its bucket by importing it
+        if self.job is None or not self.job.service_id:
+            return False
+        requested = self.job.get_record_types()
+        detected = MDMetadataXmlMapper._detect_hierarchy_level(mapper.xml_root)
+        if detected in requested:
+            return False
+        file_identifier = "".join(mapper.xml_root.xpath(
+            ".//*[local-name()='fileIdentifier']//text()")).strip()
+        self.has_import_error = True
+        self.import_error = str({
+            "reason": "hierarchy_level_mismatch",
+            "file_identifier": file_identifier,
+            "detected_hierarchy_level": detected,
+            "requested_record_types": requested,
+        })
+        self.save()
+        self.job.log(
+            level=LogLevelEnum.ERROR.value,
+            description=(
+                f"Unhandled record: hierarchyLevel '{detected}' delivered for the "
+                f"buckets {requested} of file {self.md_metadata_file.name}"[:512]),
+            extented_description=(
+                f"Metadata record: {file_identifier}\n"
+                f"Source file: {self.md_metadata_file.name}\n"
+                f"Requested url: {self.requested_url}\n"
+                f"The catalogue's type index delivered this document for {requested}, "
+                f"but its XML names hierarchyLevel '{detected}'. The run stores records "
+                "by the level the XML names, never by the filter the index passed, so "
+                "this record is not imported and its run is no snapshot."
+            ),
+        )
+        return True
+
     def md_metadata_file_to_db(self):
+        """Import the stored document, answering one (record, updated, existed) per instance.
+
+        The answer is always a list - also on the DUPLICATED path - because the
+        import task iterates it: a bare tuple is iterated as its own elements,
+        handing the record out as an "entry", and the TypeError that raises
+        rolls the duplicated diagnosis and its relation back while the task's
+        handler overwrites the diagnosis with the traceback (#1039). The error
+        of the document itself is documented on the file and re-raised.
+        """
         with self.md_metadata_file.open('rb') as _file:
             try:
                 with transaction.atomic():
                     start_db_processing = now()
 
                     mappers = MDMetadataXmlMapper.from_xml(_file.read())
+                    if self._drop_record_for_wrong_bucket(mappers[0]):
+                        return []
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
+                        # #919: the keyword quality indicator is evaluated on the
+                        # keywords which this document just mapped - no second
+                        # XML parse - so its answer rides the one write which the
+                        # record costs anyway (#858). The keyword rows themselves
+                        # stay exactly as the catalogue published them.
+                        mapped_keywords = [
+                            keyword.keyword
+                            for keyword in getattr(instance, "_keywords_parsed", None) or []
+                        ]
+                        instance.refresh_quality_indicators(mapped_keywords)
+                        # the provenance of the record, computed once per
+                        # record file: the three buckets below name the same
+                        # url, so asking the client three times only paid
+                        # three document reads and parses per imported
+                        # record (#1044). The client reads the catalogue's
+                        # stored capabilities document only - a document
+                        # which is gone from the storage raises
+                        # CapabilitiesBackupMissing for the run instead of
+                        # the import working around a broken service per
+                        # record.
+                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
+                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
+                        origin_url = self.job.service.client.get_record_by_id_request(
+                            id=instance.file_identifier).url if self.job.service_id \
+                            else "http://localhost"
                         handler = PersistenceHandler(
                             mapper=mappers[0],
                             change_reason=self.change_reason,
                             defaults={
                                 "dataset": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "service": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 },
                                 "application": {
-                                    "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                                    'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                                    "origin": origin,
+                                    'origin_url': origin_url
                                 }
                             }
                         )
@@ -1113,6 +1347,19 @@ class TemporaryMdMetadataFile(models.Model):
 
                         if created_instance:
                             created, update = created_instance._custom_state
+                            # #919: the answer of the rule belongs to the stored
+                            # record even when the row was not written at all -
+                            # a record which a run re-harvests unchanged is
+                            # evaluated too, which is what flags the records
+                            # that entered the registry before the rule
+                            # existed and clears the flag once the catalogue
+                            # has fixed its keyword. Only a difference is
+                            # written.
+                            quality_changed = created_instance.refresh_quality_indicators(
+                                mapped_keywords)
+                            if quality_changed:
+                                created_instance._change_reason = "quality"
+                                created_instance.save(mark_customized=False)
                             if self.job:
                                 end_db_processing = now()
                                 relation = self.update_relations(
@@ -1133,7 +1380,15 @@ class TemporaryMdMetadataFile(models.Model):
                                     self.has_import_error = True
                                     self.import_error = str(import_error)
                                     self.save()
-                                    return created_instance, update, not created
+                                    # the whole method answers a list of (record, updated,
+                                    # existed) - the duplicated entry is one such row, so the
+                                    # import task which iterates the result does not crash and
+                                    # the DUPLICATED relation of #827 stays committed. The rows
+                                    # the earlier instances of this file collected stay in the
+                                    # answer too: they were imported by this very call and the
+                                    # task has to be told about them (#1039).
+                                    return result + [
+                                        (created_instance, update, not created)]
                             result.append(
                                 (created_instance, update, not created))
                             if self.job:
@@ -1146,6 +1401,21 @@ class TemporaryMdMetadataFile(models.Model):
                                             f"Source file: {self.md_metadata_file.name}\n"
                                             f"{warning}\n"
                                             "The remaining metadata was imported."
+                                        ),
+                                    )
+                                if created_instance.insufficient_quality and (
+                                        created or update or quality_changed):
+                                    self.job.log(
+                                        level=LogLevelEnum.WARNING.value,
+                                        description=(
+                                            "Keyword quality: "
+                                            f"{created_instance.insufficient_quality}")[:512],
+                                        extented_description=(
+                                            f"Metadata record: {instance.file_identifier}\n"
+                                            f"Source file: {self.md_metadata_file.name}\n"
+                                            f"{created_instance.insufficient_quality}\n"
+                                            "The record was imported; the keyword list rule "
+                                            "flags it as of insufficient quality."
                                         ),
                                     )
                             self.delete()
@@ -1176,8 +1446,11 @@ class TemporaryMdMetadataFile(models.Model):
 
 
 def extented_description_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
-    return f'HarvestingLog/{instance.harvesting_job}/{filename}'
+    # file will be uploaded to MEDIA_ROOT/HarvestingLog/<job pk>/<filename>;
+    # the path is built from the id of the job, never from str(instance): a
+    # display string is no stable identifier and would carry spaces and
+    # parentheses into MEDIA_ROOT and into the url of the attachment (#1045)
+    return f'HarvestingLog/{instance.harvesting_job_id}/{filename}'
 
 
 class HarvestingLog(models.Model):
@@ -1220,6 +1493,16 @@ class HarvestingLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+    def __str__(self):
+        """The message of the log, named by the log's own id.
+
+        The description is what a log line says and answers without reading
+        over the job to its catalogue; the id in parentheses tells the rows
+        which repeat one message apart. A log without a message - the column
+        is blankable - falls back to the name of its kind (#1045).
+        """
+        return f"{self.description or self._meta.verbose_name} ({self.pk})"
 
 
 class PeriodicHarvestingJob(PeriodicTask):
@@ -1264,3 +1547,11 @@ class PeriodicHarvestingJob(PeriodicTask):
                 name="periodic_harvesting_excludes_internal_csw",
             ),
         ]
+
+    def __str__(self):
+        """The catalogue this schedule harvests, named by the schedule's id.
+
+        Same shape as the run it starts: the title leads and the parenthesis
+        says what the number is the id of (#1045).
+        """
+        return f"{self.service.title} (periodic harvesting job {self.pk})"

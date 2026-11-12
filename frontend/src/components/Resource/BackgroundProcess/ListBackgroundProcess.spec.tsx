@@ -47,6 +47,8 @@ describe("ListBackgroundProcess", () => {
       "status",
       "progress",
       "dateCreated",
+      "doneAt",
+      "duration",
       "relatedResource",
       "actions",
     ]);
@@ -55,6 +57,7 @@ describe("ListBackgroundProcess", () => {
     ).map((definition) => definition.props.source);
     expect(sources).toContain("status");
     expect(sources).toContain("relatedResource");
+    expect(sources).toContain("duration");
   });
 
   it("falls back to polling only while the realtime bus is not connected", () => {

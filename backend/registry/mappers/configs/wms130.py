@@ -10,6 +10,7 @@ XPATH_MAP = {
         },
         "_schema": "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
         "_pre_save": [
+            "registry.mappers.extensions.validate_unique_layer_identifiers",
             "registry.mappers.extensions.compute_layer_mptt",
             "registry.mappers.extensions.clean_up_operation_urls"
         ],

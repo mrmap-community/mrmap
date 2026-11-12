@@ -19,28 +19,37 @@ import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import WebAssetIcon from '@mui/icons-material/WebAsset';
 
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
+import ListApplicationMetadataRecord from './ApplicationMetadataRecord/ListApplicationMetadataRecord';
+import ShowApplicationMetadataRecord from './ApplicationMetadataRecord/ShowApplicationMetadataRecord';
 import AbortBackgroundProcessButton from './BackgroundProcess/AbortBackgroundProcessButton';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
+import ListCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ListCatalogueServiceUpdateJob';
+import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatalogueServiceUpdateJob';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
+import HarvestingJobRowActions from './HarvestingJob/HarvestingJobRowActions';
+import ListHarvestingJob from './HarvestingJob/ListHarvestingJob';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
+import ListHarvestingLog from './HarvestingLog/ListHarvestingLog';
 import ListCatalogueServiceMonitoringSetting from './Monitoring/CatalogueServiceMonitoringSetting/ListCatalogueServiceMonitoringSetting';
 import ShowCatalogueServiceMonitoringRun from './Monitoring/ShowCatalogueServiceMonitoringRun';
 import ShowWebFeatureServiceMonitoringRun from './Monitoring/ShowWebFeatureServiceMonitoringRun';
 import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
 import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
-import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListPeriodicHarvestingJob, { SCHEDULE_LIST_FIELDS } from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
+import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -110,15 +119,39 @@ const RESOURCES: Array<ResourceProps> = [
   },
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
-  {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},
-  {name: "TemporaryMdMetadataFile"},
-  {name: "HarvestingLog"},
-  {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
+  {
+    name: "HarvestingJob", icon: AgricultureIcon, list: ListHarvestingJob, show: ShowHarvestingJob,
+    options: {
+      menu: { group: "CSW", order: 20 },
+      // the row stops a run which did not end and asks for a new harvest of one
+      // which did, beside the show button of the row
+      list: { additionalActions: HarvestingJobRowActions }
+    }
+  },
+  // the declared lists of the run's leftovers have no menu entries on purpose:
+  // an administrator reaches them from a run, not from a pile of every log
+  // line of every catalogue (#1083, #888)
+  {name: "TemporaryMdMetadataFile", list: ListTemporaryMdMetadataFile},
+  {name: "HarvestingLog", list: ListHarvestingLog},
+  // the screen of all schedules: the question which catalogue has one, and when
+  // it next runs, is answered here and not on the tab of a single catalogue
+  // (#1082). The fieldset names its columns, because the grid of declared
+  // columns registers none of them before the first request goes out.
+  {
+    name: "PeriodicHarvestingJob",
+    icon: UpdateIcon,
+    list: ListPeriodicHarvestingJob,
+    options: {
+      menu: { group: "CSW", order: 30 },
+      list: { sparseFieldsets: [{ type: "PeriodicHarvestingJob", fields: SCHEDULE_LIST_FIELDS }] }
+    }
+  },
 
   {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
   {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
   {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
+  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, options: { menu: { group: "Metadata", order: 25 } }},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
   {name: "MetadataRelation"},
   {name: "TimeExtent"},
@@ -140,7 +173,7 @@ const RESOURCES: Array<ResourceProps> = [
   
 
   {name: "CatalogueServiceUpdateSetting", icon: UpdateIcon},
-  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, options: { menu: { group: "CSW", order: 40 } }},
+  {name: "CatalogueServiceUpdateJob", icon: UpdateIcon, list: ListCatalogueServiceUpdateJob, show: ShowCatalogueServiceUpdateJob, options: { label: "resources.CatalogueServiceUpdateJob.name", menu: { group: "CSW", order: 40 } }},
   
 
   // monitoring
@@ -195,7 +228,6 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "ReferenceSystem"},
 
-  {name: "TaskResult"},
   {
     name: "BackgroundProcess",
     icon: UpdateIcon,

@@ -7,21 +7,27 @@ import Typography from '@mui/material/Typography'
 import { OverridableStringUnion } from '@mui/types'
 
 
-export interface ProgressFieldProps extends LinearProgressProps {
+export interface ProgressFieldProps extends Omit<LinearProgressProps, 'variant'> {
   source: string
   getColor?: (record: RaRecord) => OverridableStringUnion<'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'inherit', LinearProgressPropsColorOverrides>;
+  /** renders a moving bar without a value for work whose total is unknown -
+   *  no percentage may be invented for a process which does not know its
+   *  denominator (#1207) */
+  indeterminate?: boolean
 }
 
 
 const ProgressField = (
   {
     getColor,
-    ...props
+    indeterminate = false,
+    source,
+    ...linearProps
   }: ProgressFieldProps
 ): ReactNode => {
 
 
-  const value = useFieldValue(props);
+  const value = useFieldValue({ source });
   const progressValue = Number(value || 0)
   const record = useRecordContext();
   
@@ -32,6 +38,16 @@ const ProgressField = (
     return 'info'
   },[record])
 
+  if (indeterminate) {
+    return (
+      <LinearProgress
+        variant="indeterminate"
+        color={color}
+        {...linearProps}
+      />
+    )
+  }
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <Box sx={{ width: '100%', mr: 1 }}>
@@ -39,7 +55,7 @@ const ProgressField = (
           variant="determinate" 
           value={value || 0}
           color={color}
-          {...props} 
+          {...linearProps} 
           
         />
       </Box>

@@ -79,6 +79,18 @@ def _broker_connection(client):
 class ImportRunMessageStateTest(TestCase):
     """The broker answer itself: live, stale or unaskable (#972)."""
 
+    def setUp(self):
+        super().setUp()
+        # #1232: `Control.inspect` is a `cached_property`, so an entry an
+        # earlier test of the same process materialized on the shared control
+        # instance would shadow the class-level patch the two worker-report
+        # tests install below - the probe then runs against a real control
+        # which no worker answers. Drop any residue before the test and any
+        # residue the test leaves; this cannot re-bait the trap the way
+        # patching the instance would (mock restores the materialized entry).
+        self.addCleanup(app.control.__dict__.pop, "inspect", None)
+        app.control.__dict__.pop("inspect", None)
+
     def _state_of(self, client, *registered):
         # the workers only reinforce what the queues and unacked keys answer;
         # their broadcasts stay out of these queue tests
@@ -95,7 +107,7 @@ class ImportRunMessageStateTest(TestCase):
 
     def test_a_registered_id_still_queued_on_a_harvest_queue_is_live(self):
         task_id = uuid4()
-        for queue in ('default', 'download', 'db-routines'):
+        for queue in ('default', 'download', 'db-routines', 'harvest-import'):
             with self.subTest(queue=queue):
                 client = FakeRedisClient({queue: [_message(uuid4()), _message(task_id)]})
                 self.assertIs(True, self._state_of(client, task_id))
@@ -204,6 +216,8 @@ class StaleImportRunRecoveryTest(TestCase):
 
         with patch('registry.tasks.harvest.import_run_message_state',
                    return_value=False) as ask, \
+                patch('registry.tasks.harvest.chord_publish_message_state',
+                      return_value=False), \
                 patch.object(call_chord_md_metadata_file_to_db, 'delay') as rechord:
             recover_harvesting_jobs.run()
 
@@ -227,6 +241,7 @@ class StaleImportRunRecoveryTest(TestCase):
             HarvestingJobTaskId(job=self.job, task_id=lost)])
 
         with patch('registry.tasks.harvest.import_run_message_state', return_value=False), \
+                patch('registry.tasks.harvest.chord_publish_message_state', return_value=False), \
                 patch.object(call_chord_md_metadata_file_to_db, 'delay'):
             recover_harvesting_jobs.run()
 
@@ -266,12 +281,16 @@ class StaleImportRunRecoveryTest(TestCase):
         self.assertIn('could not answer', log.description)
         self.assertIn(f'resume_harvesting_job {self.job.pk}', log.description)
 
-    def test_an_empty_shadow_rechords_without_asking_the_broker(self):
+    def test_an_empty_shadow_rechords_without_asking_about_the_run(self):
         """#891's other half stays as it was: a run whose ids all reported in
-        needs the chord again and there is nothing to ask the broker about"""
+        needs the chord again and there is nothing to ask the broker about;
+        only #970's question whether a publish of the chord is already
+        pending is asked, here stubbed absent"""
         HarvestingJobTaskId.objects.create(job=self.job, task_id=uuid4(), creation=True)
 
         with patch('registry.tasks.harvest.import_run_message_state') as ask, \
+                patch('registry.tasks.harvest.chord_publish_message_state',
+                      return_value=False), \
                 patch.object(call_chord_md_metadata_file_to_db, 'delay') as rechord:
             recover_harvesting_jobs.run()
 
@@ -302,6 +321,12 @@ class ResumeHarvestingJobCommandTest(TestCase):
         with ExitStack() as stack:
             rechord = stack.enter_context(
                 patch.object(call_chord_md_metadata_file_to_db, 'delay'))
+            # #970's question whether a publish of the chord is already
+            # pending is answered absent, so the resume publishes (the
+            # pending case itself is guarded in tests_harvest_queue_routing)
+            stack.enter_context(
+                patch('registry.tasks.harvest.chord_publish_message_state',
+                      return_value=False))
             if state != 'unset':
                 stack.enter_context(
                     patch('registry.tasks.harvest.import_run_message_state',

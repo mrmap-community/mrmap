@@ -1,0 +1,123 @@
+[
+  {
+    "model": "registry.servicemetadatarecord",
+    "pk": "c07a0000-0000-4000-8000-000000000001",
+    "fields": {
+      "access_constraints": "",
+      "date_stamp": "2021-12-10T13:51:53.839Z",
+      "file_identifier": "de.example.service.stats",
+      "origin": 5,
+      "title": "Stats Service Record",
+      "abstract": "Service record which the application harvesting statistics feature counts beside the application records.",
+      "is_broken": false,
+      "is_customized": false,
+      "insufficient_quality": "",
+      "is_searchable": false,
+      "hits": 0,
+      "metadata_contact": 1234,
+      "code": "de.example.service.stats",
+      "code_space": "https://example.com/service/",
+      "inspire_interoperability": false
+    }
+  },
+  {
+    "model": "registry.harvestingjob",
+    "pk": "903",
+    "fields": {
+      "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+      "total_records": 9,
+      "phase": 4,
+      "done_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "901",
+    "fields": {
+      "harvesting_job": 903,
+      "dataset_metadata_record": "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4",
+      "collecting_state": 1,
+      "history_date": "2023-05-12T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "902",
+    "fields": {
+      "harvesting_job": 903,
+      "dataset_metadata_record": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e",
+      "collecting_state": 0,
+      "history_date": "2023-05-13T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "903",
+    "fields": {
+      "harvesting_job": 903,
+      "service_metadata_record": "c07a0000-0000-4000-8000-000000000001",
+      "collecting_state": 1,
+      "history_date": "2023-05-14T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "904",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000001",
+      "collecting_state": 1,
+      "history_date": "2023-05-15T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "905",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000002",
+      "collecting_state": 1,
+      "history_date": "2023-05-16T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "906",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000001",
+      "collecting_state": 2,
+      "history_date": "2023-05-17T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "907",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000001",
+      "collecting_state": 3,
+      "history_date": "2023-05-18T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "908",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000001",
+      "collecting_state": 0,
+      "history_date": "2023-05-10T10:00:00Z"
+    }
+  },
+  {
+    "model": "registry.harvestedmetadatarelation",
+    "pk": "909",
+    "fields": {
+      "harvesting_job": 903,
+      "application_metadata_record": "a11c0000-0000-4000-8000-000000000002",
+      "collecting_state": 0,
+      "history_date": "2023-05-11T10:00:00Z"
+    }
+  }
+]

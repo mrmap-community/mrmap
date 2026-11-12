@@ -1,18 +1,25 @@
 """Tests the alerts which the resources of the services answer.
 
-An alert is not stored anywhere but derived from the runs and jobs of a service,
-so every test creates the state behind an alert and asks the queryset or the
-endpoint of that service for the alerts it has to answer. Because the alerts are
-attributes of a service, they are asked for like any other attribute: with the
-fields of a request, a filter of it or its sort.
+An alert is not stored as a decision but derived from the runs and jobs of a
+service, so every test creates the state behind an alert and asks the queryset
+or the endpoint of that service for the alerts it has to answer. Because the
+alerts are attributes of a service, they are asked for like any other
+attribute: with the fields of a request, a filter of it or its sort.
+
+The cross-service endpoint answers the stored rows of the alerts (#1030), so
+its tests refresh the rows after creating the state - the same refresh which
+the beat schedule and the invalidations run in a deployment.
 """
 import json
 from datetime import datetime, timedelta
+from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import (RequestFactory, SimpleTestCase, TestCase,
-                         TransactionTestCase)
+from django.db import connections
+from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from django_celery_beat.models import CrontabSchedule
@@ -25,7 +32,9 @@ from registry.models.monitoring import (GetCapabilitiesProbeResult,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import CatalogueService, WebMapService
 from registry.models.update import WebMapServiceUpdateJob
-from registry.querys.alerts import ALERT_ATTRIBUTES, alerts_requested
+from registry.querys.alerts import (ALERT_ATTRIBUTES, alerts_requested,
+                                    refresh_service_alerts)
+from rest_framework.request import Request
 from rest_framework.test import APIClient
 
 JSONAPI = "application/vnd.api+json"
@@ -64,6 +73,37 @@ class ServiceAlertsMixin:
         self.crontab = CrontabSchedule.objects.create(
             minute="*", hour="*", day_of_week="*", day_of_month="*",
             month_of_year="*", timezone="UTC")
+        # The crontab above fires every minute and no beat dispatches the
+        # settings of these tests, so a setting is overdue 60 seconds after it
+        # was created - while the test which created it still runs. The moment
+        # every refresh of this test decides its schedules at, see
+        # `refresh_alerts()` (#1186).
+        self.schedule_moment = now()
+
+    def refresh_alerts(self):
+        """Rewrite the stored rows with the schedules decided at one moment.
+
+        The rows of the schedules are decided against the wall clock:
+        `run_overdue()` compares the next run a setting is expected at against
+        `timezone.now()`, and a setting of these tests was never dispatched, so
+        its next run is decided from the moment it was created. Left to the
+        clock, two refreshes of one state answer another rows as soon as a
+        minute boundary passes in between - the flake of #1186, which bit the
+        parity test below and the counts of the queue. Held to the moment the
+        test began, the refresh answers the same rows however long the test
+        runs: a setting created afterwards is not due yet at that moment, while
+        a test which wants an overdue setting still answers one, because it
+        states its lateness with a `last_run_at` an hour before.
+
+        Returns:
+            int: the amount of rows the refresh wrote
+        """
+        # Only `timezone.now()` is held, which is the clock the rule of the
+        # schedules asks; the runs and jobs of a test keep naming the moments
+        # the test gave them.
+        with patch("django.utils.timezone.now",
+                   return_value=self.schedule_moment):
+            return refresh_service_alerts()
 
     @staticmethod
     def client_for(user):
@@ -368,13 +408,40 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
 
     def test_the_attributes_of_a_service_answer_its_alerts(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
-        answered = self.services(WebMapService)
+        answered = self.services(
+            WebMapService,
+            **{"fields[WebMapService]":
+               "title,has_alert,monitoring_failed,monitoring_failed_at,"
+               "update_review_required"})
         self.assertTrue(answered[WMS_ONE]["hasAlert"])
         self.assertTrue(answered[WMS_ONE]["monitoringFailed"])
         self.assertIsNotNone(answered[WMS_ONE]["monitoringFailedAt"])
         self.assertFalse(answered[WMS_ONE]["updateReviewRequired"])
         # the service which needs nothing to do answers nothing as an alert
         self.assertFalse(answered[WMS_TWO]["hasAlert"])
+
+    def test_a_list_which_names_nothing_does_not_answer_the_alerts(self):
+        """The list of a kind does not pay for alerts nobody reads
+
+        The alerts are answered by a subquery per attribute, so a list which
+        names none of them - and filters and sorts by none - must not pay for
+        them, while the detail of a service still answers all of its
+        attributes to a client which names none.
+        """
+        self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        answered = self.services(WebMapService)
+        self.assertNotIn("hasAlert", answered[WMS_ONE])
+        self.assertNotIn("monitoringFailed", answered[WMS_ONE])
+        # the list still answers the alerts which it names, filters or sorts
+        named = self.services(
+            WebMapService, **{"fields[WebMapService]": "title,has_alert"})
+        self.assertTrue(named[WMS_ONE]["hasAlert"])
+        detail = self.client.get(
+            reverse("registry:wms-detail", kwargs={"pk": WMS_ONE}),
+            HTTP_ACCEPT=JSONAPI)
+        self.assertEqual(detail.status_code, 200, detail.content)
+        self.assertTrue(
+            detail.json()["data"]["attributes"]["hasAlert"])
 
     def test_the_alerts_of_a_service_are_answered_with_its_other_attributes(
             self):
@@ -412,11 +479,15 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
 
     def test_a_catalogue_answers_the_state_of_its_harvesting(self):
         self.harvesting_job(import_errors=1)
-        answered = self.services(CatalogueService)
+        answered = self.services(
+            CatalogueService,
+            **{"fields[CatalogueService]": "title,has_alert,harvest_incomplete"})
         self.assertTrue(answered[CSW_ONE]["harvestIncomplete"])
         self.assertTrue(answered[CSW_ONE]["hasAlert"])
-        self.assertIsNotNone(
-            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"])
+        self.assertIsNotNone(self.references(
+            CatalogueService,
+            **{"fields[CatalogueService]": "harvest_job"}
+        )[CSW_ONE]["harvestJob"]["data"])
 
     def test_the_alerts_answer_the_record_which_decided_them(self):
         """An alert names the run or job a client has to look at
@@ -428,7 +499,10 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         """
         run = self.monitoring_run(self.monitoring_setting(self.wms_one), False)
         waiting = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        references = self.references(WebMapService)
+        references = self.references(
+            WebMapService,
+            **{"fields[WebMapService]":
+               "monitoring_failed_run,update_review_job,update_failed_job"})
         self.assertEqual(
             references[WMS_ONE]["monitoringFailedRun"]["data"],
             {"type": "WebMapServiceMonitoringRun", "id": str(run.pk)})
@@ -443,7 +517,10 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
     def test_a_catalogue_answers_the_harvesting_behind_its_alert(self):
         job = self.harvesting_job(import_errors=1)
         self.assertEqual(
-            self.references(CatalogueService)[CSW_ONE]["harvestJob"]["data"],
+            self.references(
+                CatalogueService,
+                **{"fields[CatalogueService]": "harvest_job"}
+            )[CSW_ONE]["harvestJob"]["data"],
             {"type": "HarvestingJob", "id": str(job.pk)})
 
     def test_the_alerts_of_a_service_cannot_be_written(self):
@@ -451,7 +528,9 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         # an alert always tells about the service it belongs to, so it is answered
         # read only to every client which may read that service - and no client
         # writes an alert, because the queries of the service answer it
-        answered = self.services(WebMapService, client=self.user_client)
+        answered = self.services(
+            WebMapService, client=self.user_client,
+            **{"fields[WebMapService]": "title,has_alert"})
         self.assertEqual(sorted(answered), sorted([WMS_ONE, WMS_TWO]))
         self.assertTrue(answered[WMS_ONE]["hasAlert"])
         self.assertFalse(answered[WMS_TWO]["hasAlert"])
@@ -474,25 +553,39 @@ class AlertsRequestedTest(SimpleTestCase):
     must not pay for them.
     """
 
-    def requested(self, **query):
+    def requested(self, list_view=False, **query):
         """Whether the alerts of a map service have to be annotated
 
         Args:
+            list_view (bool): whether the request answers a list of services
             **query: the query parameters of the request
 
         Returns:
             bool: True if the request asks for the alerts
         """
         request = RequestFactory().get("/api/registry/wms/", query)
-        return alerts_requested(request, "WebMapService", ALERT_ATTRIBUTES)
+        return alerts_requested(
+            request, "WebMapService", ALERT_ATTRIBUTES, list_view=list_view)
 
-    def test_a_request_which_wants_everything_wants_the_alerts(self):
+    def test_the_detail_of_a_service_wants_the_alerts(self):
         self.assertTrue(self.requested())
         self.assertTrue(self.requested(**{"sort": "title"}))
+
+    def test_a_list_which_names_nothing_does_not_want_the_alerts(self):
+        """The list of a resource answers what it names, not everything"""
+        self.assertFalse(self.requested(list_view=True))
+        # filters and sorts name the alerts regardless of the sparse fields
+        self.assertTrue(
+            self.requested(list_view=True, **{"filter[hasAlert]": "true"}))
+        self.assertTrue(
+            self.requested(list_view=True, **{"sort": "-monitoringFailedAt"}))
 
     def test_a_sparse_fieldset_without_alerts_does_not_want_them(self):
         self.assertFalse(
             self.requested(**{"fields[WebMapService]": "title,hits"}))
+        self.assertFalse(
+            self.requested(list_view=True,
+                           **{"fields[WebMapService]": "title,hits"}))
 
     def test_a_sparse_fieldset_with_an_alert_wants_them(self):
         self.assertTrue(
@@ -521,6 +614,10 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
     fixtures = ServiceAlertsMixin.fixtures + ["test_wfs.json"]
 
     def response(self, client=None, **query):
+        # the endpoint answers the stored rows of the alerts (#1030): a test
+        # which created a state refreshes the rows the way the beat schedule
+        # and the invalidations do before it asks the endpoint
+        self.refresh_alerts()
         response = (client or self.client).get(
             reverse('registry:service-alert-list'), query)
         self.assertEqual(response.status_code, 200, response.content)
@@ -565,6 +662,42 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
             self.response(**queue)['meta']['pagination']['count'],
             counted['meta']['pagination']['count'])
 
+    def test_the_harvesting_queue_counts_the_harvest_categories_at_once(self):
+        """The dashboard queue of the harvesting is one count of the api (#1086)
+
+        The queue counts the states which the harvesting of a catalogue leaves
+        behind with one request: the value of the category filter names the
+        harvest categories comma separated, together with the kind of service
+        which is harvested at all, and answers no other alert of it.
+        """
+        from registry.models.harvest import PeriodicHarvestingJob
+        from registry.models.update import CatalogueServiceUpdateJob
+        self.harvesting_job(phase=Phase.ABORTED)
+        schedule = PeriodicHarvestingJob.objects.create(
+            service=self.csw, crontab=self.crontab)
+        PeriodicHarvestingJob.objects.filter(pk=schedule.pk).update(
+            last_run_at=now() - timedelta(hours=1))
+        # an alert of the catalogue which the harvesting did not leave behind
+        # waits next to them and is not part of the queue
+        CatalogueServiceUpdateJob.objects.create(
+            service=self.csw, status=JobState.REVIEW_REQUIRED.value)
+        queue = {
+            'filter[category]': ('harvest_aborted,harvest_incomplete,'
+                                 'harvest_overdue,harvest_schedule_too_tight'),
+            'filter[serviceType]': 'CatalogueService',
+        }
+        response = self.response(**queue)
+        self.assertEqual(response['meta']['pagination']['count'], 2)
+        self.assertEqual(
+            {row['attributes']['category'] for row in response['data']},
+            {'harvest_aborted', 'harvest_overdue'})
+        # and the count answers the records its list shows: a single one of
+        # the categories holds only its own alert
+        single = {'filter[category]': 'harvest_aborted',
+                  'filter[serviceType]': 'CatalogueService'}
+        self.assertEqual(
+            self.response(**single)['meta']['pagination']['count'], 1)
+
     def test_resolved_alert_disappears_and_identity_is_stable(self):
         job = self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
         before = self.response()['data'][0]['id']
@@ -592,6 +725,37 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.monitoring_run(setting, True)
         self.assertEqual(len(self.response()['data']), 1)
 
+    def test_the_generic_list_can_sort_the_alerts_by_id(self):
+        """A generic list page always sends a sort - for the alerts it is `id`
+
+        The frontend generates the attention list like every other list, so the
+        endpoint has to answer `sort=id` next to the severity and the date it
+        already answers (issue #943).
+        """
+        self.update_job(self.wms_one, JobState.ERROR)
+        self.update_job(self.wms_two, JobState.ERROR)
+        ascending = [row['id'] for row in
+                     self.response(**{'sort': 'id'})['data']]
+        self.assertEqual(len(ascending), 2)
+        self.assertEqual(ascending, sorted(ascending))
+        descending = [row['id'] for row in
+                      self.response(**{'sort': '-id'})['data']]
+        self.assertEqual(descending, list(reversed(ascending)))
+
+    def test_sort_by_the_date_of_an_alert_answers_oldest_first(self):
+        setting = self.monitoring_setting(self.wms_one)
+        self.monitoring_run(setting, False, hours_ago=3)
+        self.update_job(self.wms_two, JobState.ERROR, done_at=now())
+        response = self.response(**{'sort': 'occurredAt'})
+        self.assertEqual([row['attributes']['service'] for row in response['data']],
+                         [WMS_ONE, WMS_TWO])
+
+    def test_sort_by_a_field_an_alert_does_not_have_is_rejected(self):
+        """The whitelist stays a whitelist: alerts have no `created_at`"""
+        response = self.client.get(
+            reverse('registry:service-alert-list'), {'sort': 'created_at'})
+        self.assertEqual(response.status_code, 400, response.content)
+
     def test_overdue_enabled_setting_reuses_scheduling_rule(self):
         setting = self.monitoring_setting(self.wms_one)
         type(setting).objects.filter(pk=setting.pk).update(last_run_at=now() - timedelta(hours=1))
@@ -602,7 +766,9 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.assertEqual(self.response()['data'], [])
 
     def test_unknown_filter_and_sort_are_rejected(self):
-        for query in ({'filter[unknown]': 'x'}, {'sort': 'unknown'}, {'filter[severity]': 'unknown'}):
+        for query in ({'filter[unknown]': 'x'}, {'sort': 'unknown'},
+                      {'filter[severity]': 'unknown'},
+                      {'filter[category]': 'monitoring_failed,not_a_category'}):
             response = self.client.get(reverse('registry:service-alert-list'), query)
             self.assertEqual(response.status_code, 400, response.content)
 
@@ -613,17 +779,18 @@ class CrossServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-class ServiceAlertViewParityTest(ServiceAlertsMixin, TestCase):
-    """Tests that the view of the alerts and the services cannot drift apart.
+class ServiceAlertRowsParityTest(ServiceAlertsMixin, TestCase):
+    """Tests that the stored rows of the alerts and the services cannot drift apart.
 
-    The view is created by the union which `service_alert_rows()` builds from
-    the very annotations which the services themselves answer - so its rows
-    must be the rows which the annotations project, decided by the same rules.
+    The rows are written by `refresh_service_alerts()` over the union which
+    `service_alert_rows()` builds from the very annotations which the services
+    themselves answer - so the stored rows must be the rows which the
+    annotations project, decided by the same rules.
     """
     fixtures = CrossServiceAlertsApiTest.fixtures
 
-    def test_the_view_answers_the_projection_of_the_annotations(self):
-        from registry.models.alerts import ServiceAlertView
+    def test_the_table_answers_the_projection_of_the_annotations(self):
+        from registry.models.alerts import ServiceAlert
         from registry.models.service import WebFeatureService
         from registry.querys.alerts import ALERT_CATEGORIES, service_alert
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
@@ -651,40 +818,9 @@ class ServiceAlertViewParityTest(ServiceAlertsMixin, TestCase):
                     alert['target_path'] = (
                         f"/{alert['resource_type']}/{alert['resource_id']}/show")
                 expected[alert['id']] = alert
-        answered = {row['id']: row for row in ServiceAlertView.objects.values()}
+        self.refresh_alerts()
+        answered = {row['id']: row for row in ServiceAlert.objects.values()}
         self.assertEqual(answered, expected)
-
-
-class ServiceAlertViewSyncTest(ServiceAlertsMixin, TransactionTestCase):
-    """Tests the hook which creates the view of the alerts when it is missing.
-
-    The settings of this deployment keep the sync of the pgviews package away
-    from the migrations (see MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE), so
-    the hook of the system app answers the creation of the plain view of the
-    alerts too - a deployment which updates to this code must not answer the
-    alerts of its services with a missing relation.
-    """
-    fixtures = CrossServiceAlertsApiTest.fixtures
-    response = CrossServiceAlertsApiTest.response
-
-    def test_the_hook_creates_a_missing_view_of_the_alerts(self):
-        from django.db import connection
-        from system.apps import sync_pg_views_if_missing
-        with connection.cursor() as cursor:
-            cursor.execute('DROP VIEW registry_servicealertview')
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM pg_views"
-                " WHERE viewname = 'registry_servicealertview')")
-            self.assertFalse(cursor.fetchone()[0])
-        sync_pg_views_if_missing(None)
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM pg_views"
-                " WHERE viewname = 'registry_servicealertview')")
-            self.assertTrue(cursor.fetchone()[0])
-        # the endpoint of the attention answers its alerts again
-        self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
-        self.assertEqual(len(self.response()['data']), 1)
 
 
 class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
@@ -703,6 +839,49 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
                          {'WebFeatureService', 'CatalogueService'})
         review = next(row for row in response['data'] if row['attributes']['category'] == 'update_review_required')
         self.assertIn('/WebFeatureServiceUpdateJob/', review['attributes']['targetPath'])
+
+    def test_csw_review_alert_answers_the_waiting_job(self):
+        """The review of a catalogue asks about its job, like a WMS and a WFS do
+
+        The alert of a review which waits is decided about at the job which
+        waits, and the screen of a CSW update job answers that job - the alert
+        has to name it, otherwise an administrator is led to the catalogue
+        instead of the decision which is asked for (issue #1084).
+        """
+        from registry.models.update import CatalogueServiceUpdateJob
+        job = CatalogueServiceUpdateJob.objects.create(
+            service=self.csw, status=JobState.REVIEW_REQUIRED.value)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['service'], CSW_ONE)
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueServiceUpdateJob')
+        self.assertEqual(review['attributes']['resourceId'], str(job.pk))
+        self.assertEqual(review['attributes']['targetPath'],
+                         f'/CatalogueServiceUpdateJob/{job.pk}/show')
+
+    def test_csw_review_without_a_waiting_job_asks_about_the_catalogue(self):
+        """A dangling candidate is asked about at the catalogue itself
+
+        Nothing waits at a job then, so the alert of a catalogue keeps the
+        target it has for every other category - the screen of the catalogue.
+        """
+        candidate = CatalogueService.objects.create(
+            title='Candidate', service_url=self.csw.service_url,
+            version=self.csw.version, origin=self.csw.origin,
+            update_candidate_of=self.csw,
+            metadata_contact=self.csw.metadata_contact,
+            service_contact=self.csw.service_contact)
+        review = next(
+            row for row in self.response()['data']
+            if row['attributes']['category'] == 'update_review_required')
+        self.assertEqual(review['attributes']['resourceType'],
+                         'CatalogueService')
+        self.assertEqual(review['attributes']['resourceId'], str(self.csw.pk))
+        self.assertIn('/CatalogueService/', review['attributes']['targetPath'])
+        candidate.delete()
+        self.assertEqual(self.response()['data'], [])
 
     def test_update_candidate_and_job_are_one_problem(self):
         candidate = WebMapService.objects.create(
@@ -880,16 +1059,208 @@ class CrossServiceAlertSourcesTest(ServiceAlertsMixin, TestCase):
                                 for call in send.call_args_list))
 
 
-class ServiceAlertOrderingTest(SimpleTestCase):
-    def test_overdue_schedule_and_run_timestamps_compare_as_instants(self):
+class ServiceAlertOrderingTest(TestCase):
+    """The ordering which the endpoint answers is answered by the database.
+
+    Two details of the python sort which the read applied before #1030 are
+    pinned here: a row without a moment is the oldest one, and the identifier
+    breaks every tie.
+    """
+
+    def create(self, row_id, occurred_at=None):
+        from registry.models.alerts import ServiceAlert
+        return ServiceAlert.objects.create(
+            id=row_id, severity='warning', category='update_overdue',
+            message='update_overdue', service_type='WebMapService',
+            service=str(uuid4()), service_title='t',
+            resource_type='WebMapService', resource_id='1',
+            occurred_at=occurred_at, target_path='/x')
+
+    def ids_sorted_by(self, sort):
+        from registry.models.alerts import ServiceAlert
         from registry.views.alerts import ServiceAlertListView
-        from rest_framework.request import Request
         view = ServiceAlertListView()
-        view.request = Request(RequestFactory().get('/', {'sort': '-occurredAt'}))
-        rows = [
-            {'id': 'schedule', 'occurred_at': datetime.fromisoformat('2026-10-22T10:00:00+02:00')},
-            {'id': 'run', 'occurred_at': datetime.fromisoformat('2026-10-22T09:00:00+00:00')},
-            {'id': 'candidate', 'occurred_at': None},
-        ]
-        self.assertEqual([row['id'] for row in view.filter_queryset(rows)],
-                         ['run', 'schedule', 'candidate'])
+        view.request = Request(RequestFactory().get('/', {'sort': sort}))
+        return [row.id for row in view.filter_queryset(
+            ServiceAlert.objects.all())]
+
+    def test_overdue_schedule_and_run_timestamps_compare_as_instants(self):
+        self.create('schedule',
+                    datetime.fromisoformat('2026-10-22T10:00:00+02:00'))
+        self.create('run',
+                    datetime.fromisoformat('2026-10-22T09:00:00+00:00'))
+        self.create('candidate')
+        self.assertEqual(
+            self.ids_sorted_by('-occurredAt'),
+            ['run', 'schedule', 'candidate'])
+
+    def test_a_row_without_a_moment_answers_oldest_when_ascending(self):
+        self.create('schedule',
+                    datetime.fromisoformat('2026-10-22T10:00:00+02:00'))
+        self.create('run',
+                    datetime.fromisoformat('2026-10-22T09:00:00+00:00'))
+        self.create('candidate')
+        # the schedule is the oldest instant - 10:00+02 is 08:00 UTC - and the
+        # row without a moment is the oldest of all, as the python path
+        # replaced the missing moment by datetime.min
+        self.assertEqual(
+            self.ids_sorted_by('occurredAt'),
+            ['candidate', 'schedule', 'run'])
+
+    def test_the_identifier_breaks_the_ties_ascending_in_every_order(self):
+        """The python path sorted by id before the requested fields - the
+        tie-breaker stayed ascending when the requested field descends"""
+        self.create('b')
+        self.create('a')
+        self.assertEqual(
+            self.ids_sorted_by('-severity'), ['a', 'b'])
+
+
+class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
+    """The read of the alerts is one bounded query of the stored rows (#1030).
+
+    The header poll is the most frequent request of the deployment - every
+    open tab asks for it every twenty seconds - so filters, sort and page
+    have to reach the database in one statement, and the schedules which the
+    settings answer must not be recalculated by the poll itself.
+    """
+
+    def test_the_poll_sorts_and_pages_inside_the_database(self):
+        self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        self.update_job(self.wms_two, JobState.REVIEW_REQUIRED)
+        self.refresh_alerts()
+        with CaptureQueriesContext(connections['default']) as queries:
+            response = self.client.get(
+                reverse('registry:service-alert-list'),
+                {'page[size]': 1, 'sort': 'severity,-occurredAt'})
+        self.assertEqual(response.status_code, 200, response.content)
+        reads = [
+            query['sql'] for query in queries
+            if 'registry_servicealert' in query['sql']]
+        self.assertTrue(reads, 'the poll must read the table of the alerts')
+        self.assertTrue(
+            any('ORDER BY' in sql and 'LIMIT' in sql for sql in reads),
+            'the sort and the page belong into the statement of the read')
+
+    def test_the_poll_asks_the_settings_of_the_schedules_no_more(self):
+        """The schedules were the per-request cost of every poll: the settings
+    rows they are decided by must be read by the refresh and not by the poll"""
+        self.update_job(self.wms_one, JobState.ERROR, done_at=now())
+        self.refresh_alerts()
+        with CaptureQueriesContext(connections['default']) as queries:
+            response = self.client.get(
+                reverse('registry:service-alert-list'), {})
+        self.assertEqual(response.status_code, 200, response.content)
+        # the tables the schedule rows are calculated from - the settings of
+        # monitoring, update and harvesting with their crontabs, which
+        # `schedule_alert_rows()` reads while refreshing the rows
+        schedules = ('monitoringsetting', 'updatesetting',
+                     'periodicharvestingjob', 'django_celery_beat')
+        self.assertFalse([
+            query for query in queries
+            if any(table in query['sql'] for table in schedules)])
+
+    def test_an_invalidation_enqueues_the_refresh(self):
+        """A subscriber refetches when it is told - the refetch has to read
+        the new state, so the invalidation enqueues the refresh with it"""
+        from unittest.mock import patch
+        with patch('notify.utils.send_msg'), patch(
+                'registry.tasks.alerts.refresh_service_alerts') as refresh:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.update_job(self.wms_one, JobState.ERROR)
+        self.assertTrue(refresh.apply_async.called)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_an_invalidation_under_eager_tasks_rewrites_nothing_itself(self):
+        """The enqueue is a hand over to a worker, never a call of the refresh.
+
+        An app which runs its tasks eagerly would execute the whole rewrite of
+        the table here, inside the transaction which is committing, and the
+        postrun of the task closes the connections of the process - which took
+        the connection of the harvesting tests with it and killed the unit
+        tests pool of #1140. So the invalidation answers no rows there, and the
+        read which asserts that is the second half of the test: a closed
+        connection answers it with an error instead of an answer.
+        """
+        from unittest.mock import patch
+
+        from registry.models.alerts import ServiceAlert
+
+        self.refresh_alerts()
+        before = list(
+            ServiceAlert.objects.values_list('id', flat=True).order_by('id'))
+        # the job of the service enqueues its own update task on commit, which
+        # is not under test here - only the invalidation of the alerts is
+        with patch('notify.utils.send_msg'), patch(
+                'registry.tasks.update.run_wms_update.apply_async'):
+            with self.captureOnCommitCallbacks(execute=True):
+                # an update job which is an error is a row the refresh of the
+                # new state would have added to the table
+                self.update_job(self.wms_one, JobState.ERROR)
+        self.assertEqual(
+            list(ServiceAlert.objects.values_list(
+                'id', flat=True).order_by('id')),
+            before,
+            'the invalidation of an app with eager tasks must not refresh the '
+            'rows itself')
+
+    def test_a_minute_passing_inside_a_test_changes_no_row(self):
+        """Guards the moment `refresh_alerts()` holds, so it is not lost (#1186).
+
+        `run_overdue()` asks the wall clock, nothing dispatches the settings of
+        these tests, and their crontab fires every minute - so a refresh which
+        asked the clock itself would answer a `monitoring_overdue` row sixty
+        seconds after the setting was created, while the test which created it
+        still runs. That is the flake of #1186, and it is the invisible kind:
+        it only adds a warning row, so a test which filters a category never
+        notices and the assertion which counts all rows fails on another day.
+        This test jumps the clock over that boundary on purpose, which is what
+        the wall clock does by itself. The refresh holds the moment of the
+        test, so it answers the rows the state answers. Whoever simplifies the
+        freeze away makes the second read gain the row and this test go red.
+        """
+        from registry.models.alerts import ServiceAlert
+
+        setting = self.monitoring_setting(self.wms_one)
+        self.monitoring_run(setting, False, hours_ago=3)
+        self.monitoring_run(setting, True)          # recovered - no alert owed
+        self.update_job(self.wms_two, JobState.ERROR, done_at=now())
+        self.refresh_alerts()
+        rows = list(ServiceAlert.objects.values_list('category', flat=True))
+        self.assertEqual(rows, ['update_failed'])
+        # a minute passes inside the test, as the wall clock does on its own
+        with patch('django.utils.timezone.now', return_value=self.schedule_moment
+                   + timedelta(seconds=90)):
+            self.refresh_alerts()
+        self.assertEqual(
+            list(ServiceAlert.objects.values_list('category', flat=True)), rows,
+            'a refresh answers the rows the state of the test answers, not the '
+            'rows of the minute the test happens to run in')
+
+
+class ServiceAlertRefreshScheduleTest(TestCase):
+    """The schedule which keeps the stored rows current (#1030).
+
+    The schedules which become overdue by the clock alone have to be answered
+    without a write - beat rewrites the rows on the interval the header poll
+    used to rely on for exactly this.
+    """
+
+    def test_the_refresh_is_scheduled(self):
+        from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        from registry.apps import (SERVICE_ALERT_REFRESH_SECONDS,
+                                   SERVICE_ALERT_REFRESH_TASK_NAME,
+                                   create_service_alert_refresh_task)
+        create_service_alert_refresh_task(sender=None)
+        create_service_alert_refresh_task(sender=None)
+        task = PeriodicTask.objects.get(
+            name=SERVICE_ALERT_REFRESH_TASK_NAME)
+        self.assertEqual(task.task,
+                         'registry.tasks.alerts.refresh_service_alerts')
+        self.assertEqual(
+            task.interval,
+            IntervalSchedule.objects.get(
+                every=SERVICE_ALERT_REFRESH_SECONDS,
+                period=IntervalSchedule.SECONDS))
+        self.assertEqual(PeriodicTask.objects.filter(
+            name=SERVICE_ALERT_REFRESH_TASK_NAME).count(), 1)

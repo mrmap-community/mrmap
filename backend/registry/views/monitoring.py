@@ -1,7 +1,10 @@
 from django.db.models import Prefetch
+from django.http import FileResponse, Http404, HttpResponse
+from django.shortcuts import get_object_or_404
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from registry.models.monitoring import (
+    PROBE_RESULT_MODELS_BY_NAME, STORED_RESPONSE_CONTENT_TYPES,
     CatalogueServiceGetCapabilitiesProbe,
     CatalogueServiceGetCapabilitiesProbeResult,
     CatalogueServiceGetRecordsProbe, CatalogueServiceGetRecordsProbeResult,
@@ -33,6 +36,9 @@ from registry.serializers.monitoring import (
     WebFeatureServiceMonitoringSettingSerializer,
     WebMapServiceMonitoringRunSerializer,
     WebMapServiceMonitoringSettingSerializer)
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -747,3 +753,71 @@ class NestedCatalogueServiceGetRecordsProbeViewSet(
     """ Nested endpoints for resource `CatalogueServiceGetRecordsProbe`"""
     queryset = CatalogueServiceGetRecordsProbe.objects.all()
     serializer_class = CatalogueServiceGetRecordsProbeSerializer
+
+
+class ProbeResponseContentView(APIView):
+    """Serves the stored response body of one probe result (`probe_result_type`, `pk`).
+
+    The json:api endpoints of the probe results answer their checks and the
+    metadata of the response; the body itself is answered here alone, as a
+    plain file response - no binary payload belongs into the list answers of
+    the monitoring resources (#682).
+
+    The endpoint is stricter than those endpoints on purpose: the artifact is
+    the content a probe fetched with the credentials of the monitored service,
+    so it stays behind authentication and the view permission on that service.
+    The recorded content type decides how the body is served - only the types
+    a probe was allowed to store arrive inline, anything else an older row may
+    have kept arrives as an opaque attachment; html and svg were never stored
+    and are never rendered inline (#682).
+    """
+
+    http_method_names = ["get", "head"]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, probe_result_type, pk):
+        result_model = PROBE_RESULT_MODELS_BY_NAME.get(probe_result_type)
+        if result_model is None:
+            raise Http404("No probe result kind answers under this name.")
+        result = get_object_or_404(result_model, pk=pk)
+
+        service = result.run.setting.service
+        if not request.user.has_perm(f"view_{service._meta.model_name}",
+                                     service):
+            raise PermissionDenied(
+                "The view permission on the monitored service is required "
+                "to read the responses of its probes.")
+
+        if not result.has_response_artifact:
+            raise Http404("No response body is stored for this result.")
+        if result.response_artifact_expired:
+            # the sweep which takes the body back has not reached it yet, but
+            # its retention has passed: the answer is gone, only not deleted
+            return HttpResponse(status=410)
+
+        try:
+            artifact = result.response_body
+            # the name of a file which the storage does not hold anymore is
+            # as gone as no name at all (#1150)
+            artifact.size
+            body = artifact.open("rb")
+        except (FileNotFoundError, OSError, ValueError):
+            raise Http404("The stored response is not in the storage.")
+
+        content_type = result.response_content_type
+        disposition = "inline"
+        if content_type not in STORED_RESPONSE_CONTENT_TYPES:
+            content_type = "application/octet-stream"
+            disposition = "attachment"
+
+        response = FileResponse(body, content_type=content_type)
+        response["Content-Disposition"] = (
+            f'{disposition}; filename="probe-response-{result.pk}"')
+        # what some remote service answered once stays opaque to everything
+        # but its own recorded type
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "no-store"
+        return response
+
+    def head(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)

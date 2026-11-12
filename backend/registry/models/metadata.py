@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import timedelta
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from django.db.models.expressions import CombinedExpression
 from django.db.models.fields.generated import GeneratedField
 from django.db.transaction import atomic
 from django.utils.timezone import now
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
 from extras.managers import (ChoiceManager, DefaultHistoryManager,
@@ -285,9 +287,14 @@ class LegendUrl(models.Model):
                                  editable=False,
                                  help_text=_("contains the location of an image of a map legend appropriate to the "
                                              "enclosing Style."))
+    # both sizes are optional attributes of a WMS <LegendURL> (only Format and
+    # OnlineResource are required), so a valid document may simply not name them
+    # (#1201) - NULL means "the document does not say", no invented 0
     height = models.IntegerField(editable=False,
+                                 null=True,
                                  help_text=_("the size of the image in pixels"))
     width = models.IntegerField(editable=False,
+                                null=True,
                                 help_text=_("the size of the image in pixels"))
     mime_type = models.ForeignKey(to=MimeType,
                                   on_delete=models.RESTRICT,
@@ -383,31 +390,34 @@ class MetadataContact(models.Model):
     person_name = models.CharField(max_length=200,
                                    default='',
                                    verbose_name=_("Contact person"))
-    email = models.EmailField(max_length=100,
+    # the contact values of a Capabilities or ISO record are free text and
+    # easily exceed 100 characters - a real-world address of 159 chars made the
+    # registration of a WMS fail with a raw DataError (#1211)
+    email = models.EmailField(max_length=255,
                               default='',
                               verbose_name=_('E-Mail'))
-    phone = models.CharField(max_length=100,
+    phone = models.CharField(max_length=255,
                              default='',
                              verbose_name=_('Phone'))
-    facsimile = models.CharField(max_length=100,
+    facsimile = models.CharField(max_length=255,
                                  default='',
                                  verbose_name=_("Facsimile"))
-    city = models.CharField(max_length=100,
+    city = models.CharField(max_length=255,
                             default='',
                             verbose_name=_("City"))
-    postal_code = models.CharField(max_length=100,
+    postal_code = models.CharField(max_length=255,
                                    default='',
                                    verbose_name=_("Postal code"))
-    address_type = models.CharField(max_length=100,
+    address_type = models.CharField(max_length=255,
                                     default='',
                                     verbose_name=_("Address type"))
-    address = models.CharField(max_length=100,
+    address = models.CharField(max_length=255,
                                default='',
                                verbose_name=_("Address"))
-    state_or_province = models.CharField(max_length=100,
+    state_or_province = models.CharField(max_length=255,
                                          default='',
                                          verbose_name=_("State or province"))
-    country = models.CharField(max_length=100,
+    country = models.CharField(max_length=255,
                                default='',
                                verbose_name=_("Country"))
 
@@ -751,6 +761,103 @@ class AbstractMetadata(MetadataDocumentModelMixin):
             self.is_customized = True
 
         return super().save(*args, **kwargs)
+
+    # The threshold of the keyword list rule (#919), see
+    # keyword_publishes_several_values().
+    #
+    # Measured before it was chosen, as the issue demands: the issue's two
+    # queries ran over the keyword corpus this repository carries - the
+    # fixture keyword tables plus every gmd:keyword of the real-world ISO
+    # 19139 documents below tests/django/test_data (DWD, GDI-DE, GDI-BW),
+    # 417 distinct keywords in 29 records. 17 of them carry a comma and all
+    # of them are list-shaped for the regex of the issue; 16 are legitimate
+    # single values - German appositions ("Heimerziehung, in einer
+    # Einrichtung") and decimal commas ("Horizontale Auflösung von 0,0625
+    # Grad") - and the longest of them is 50 characters. The reported defect
+    # shape (the ten plan names of the GDI-BW record, 315 characters in the
+    # corpus document) is flagged by every threshold from 50 on; the 9 single
+    # valued keywords longer than 100 characters carry no delimiter and stay
+    # unflagged at every threshold,
+    # which is the proof that the rule does not become a length rule in
+    # disguise. 100 keeps a factor of two to the longest legitimate comma
+    # keyword and flags 1 of 29 corpus records - a signal, not the wall of
+    # chips the issue warns about.
+    KEYWORD_LIST_THRESHOLD = 100
+
+    @classmethod
+    def keyword_publishes_several_values(cls, keyword):
+        """Whether one gmd:keyword element carries a list of values (#919).
+
+        A catalogue which publishes ten values in one element should have
+        published ten elements: "Keyword value" is 1..*. The comma alone is
+        not the signal - a legitimate keyword can carry one as an
+        apposition or as a decimal separator - so the rule is the number of
+        delimiter separated parts and the length of the element together.
+        What the rule deliberately does not do: judge the text. The blank
+        rule of parse_keyword stays the only text judgement on a keyword,
+        the keyword is never split, rejected or rewritten, and this is no
+        length rule: it is about granularity, so a part count of one keeps
+        every long keyword unflagged.
+        """
+        parts = [p.strip() for p in re.split(r"[,;]", keyword) if p.strip()]
+        return len(parts) > 1 and len(keyword) > cls.KEYWORD_LIST_THRESHOLD
+
+    def quality_findings(self, keywords=None):
+        """The machine statements which the quality rules make about this record.
+
+        One rule for now (#919), so one finding per offending keyword
+        element. Each finding is a translated sentence naming the keyword it
+        reports - the field renders verbatim as chip, tooltip and detail
+        text in de and en, so it is translated at write time, not at read
+        time. The keyword of a finding is excerpted because a keyword is as
+        long as its catalogue says (#894) and a tooltip must stay readable.
+
+        Args:
+            keywords: the keyword strings to judge, the already mapped ones
+                from the import hot path; None asks the stored keywords of
+                a saved record instead.
+        """
+        if keywords is None:
+            keywords = self.keywords.values_list("keyword", flat=True)
+        findings = []
+        for keyword in keywords:
+            if self.keyword_publishes_several_values(keyword):
+                parts = [p.strip() for p in re.split(r"[,;]", keyword) if p.strip()]
+                excerpt = keyword if len(keyword) <= 120 else keyword[:120] + "…"
+                findings.append(gettext(
+                    "The keyword '%(keyword)s' publishes %(count)d values in one "
+                    "gmd:keyword element; the catalogue should publish one "
+                    "gmd:keyword element per value.") % {
+                        "keyword": excerpt, "count": len(parts)})
+        return findings
+
+    def refresh_quality_indicators(self, keywords=None):
+        """Recompute the quality indicator of #600 and answer what changed.
+
+        The field is one slot for the agreed string of all findings, so a
+        later rule joins its sentence in instead of overwriting this one.
+        `is_broken` stays untouched: a comma joined keyword list is a
+        quality problem, not broken metadata, and the read side of #600
+        renders the two indicators apart (the quality chip warns, the
+        broken chip reports damage).
+
+        The method writes nothing. The import hands the already mapped
+        keywords in and lets the answer ride the one write which the record
+        costs anyway (#858); a caller which asks a saved record without
+        keywords reads them from the relation.
+
+        Args:
+            keywords: the keyword strings to judge; None asks the stored
+                keywords of a saved record.
+
+        Returns:
+            bool: whether the recomputed text differs from the stored one -
+                the caller only writes a record on a True.
+        """
+        text = "\n".join(self.quality_findings(keywords))
+        changed = text != self.insufficient_quality
+        self.insufficient_quality = text
+        return changed
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -1168,6 +1275,15 @@ class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.DatasetMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     self_pointing_layers = models.ManyToManyField(to="registry.Layer",
                                                   through=MetadataRelation,
                                                   editable=False,
@@ -1243,6 +1359,15 @@ class ServiceMetadataRecord(MetadataRecord):
 
     """
 
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.ServiceMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     self_pointing_wms = models.ManyToManyField(to="registry.WebMapService",
                                                   through=MetadataRelation,
                                                   editable=False,
@@ -1305,6 +1430,15 @@ class ApplicationMetadataRecord(MetadataRecord):
     and nothing writes onto them until a catalogue actually publishes them.
     """
 
+    keywords = models.ManyToManyField(
+        to=Keyword,
+        through="registry.ApplicationMetadataRecordKeywordsLink",
+        blank=True,
+        related_name="%(class)s_metadata",
+        related_query_name="%(class)s_metadata",
+        verbose_name=_("keywords"),
+        help_text=_("all keywords which are related to the content of this metadata."))
+
     application_contact = models.ForeignKey(to=MetadataContact,
                                             on_delete=models.RESTRICT,
                                             related_name="%(class)s_application_contact",
@@ -1340,3 +1474,67 @@ class ApplicationMetadataRecord(MetadataRecord):
             models.Index(fields=["code", "code_space"]),
             GinIndex(fields=["search_vector"]),
         ] + AbstractMetadata.Meta.indexes
+
+
+class DatasetMetadataRecordKeywordsLink(models.Model):
+    """The explicit through model of ``DatasetMetadataRecord.keywords``.
+
+    Keep the table, columns and pair uniqueness of the original automatic M2M
+    relation. This model owns its schema and the trigger in ``registry.triggers``.
+    """
+
+    # Registry defaults to BigAutoField; keep the existing AutoField columns.
+    id = models.AutoField(primary_key=True)
+    datasetmetadatarecord = models.ForeignKey(
+        to=DatasetMetadataRecord,
+        on_delete=models.CASCADE,
+        related_name="+")
+    keyword = models.ForeignKey(
+        to=Keyword,
+        on_delete=models.CASCADE,
+        related_name="+")
+
+    class Meta:
+        # Preserve the old automatic M2M table until migrations are reset for
+        # the first release. Then remove these db_table overrides to use
+        # Django's default through-model table names.
+        db_table = "registry_datasetmetadatarecord_keywords"
+        unique_together = (("datasetmetadatarecord", "keyword"),)
+
+
+class ServiceMetadataRecordKeywordsLink(models.Model):
+    """The keywords relation of the service records, see the dataset one above."""
+
+    id = models.AutoField(primary_key=True)
+    servicemetadatarecord = models.ForeignKey(
+        to=ServiceMetadataRecord,
+        on_delete=models.CASCADE,
+        related_name="+")
+    keyword = models.ForeignKey(
+        to=Keyword,
+        on_delete=models.CASCADE,
+        related_name="+")
+
+    class Meta:
+        # Remove at the first-release migration reset to use Django's default name.
+        db_table = "registry_servicemetadatarecord_keywords"
+        unique_together = (("servicemetadatarecord", "keyword"),)
+
+
+class ApplicationMetadataRecordKeywordsLink(models.Model):
+    """The keywords relation of the application records, see the dataset one above."""
+
+    id = models.AutoField(primary_key=True)
+    applicationmetadatarecord = models.ForeignKey(
+        to=ApplicationMetadataRecord,
+        on_delete=models.CASCADE,
+        related_name="+")
+    keyword = models.ForeignKey(
+        to=Keyword,
+        on_delete=models.CASCADE,
+        related_name="+")
+
+    class Meta:
+        # Remove at the first-release migration reset to use Django's default name.
+        db_table = "registry_applicationmetadatarecord_keywords"
+        unique_together = (("applicationmetadatarecord", "keyword"),)

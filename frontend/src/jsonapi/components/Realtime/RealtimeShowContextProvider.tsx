@@ -5,6 +5,9 @@ import { CrudEvent } from '../../../providers/dataProvider';
 
 
 export interface RealtimeShowContextProviderProps extends ShowControllerProps, PropsWithChildren {
+  /** how often the provider asks its `isStale` whether the record went stale,
+   *  in seconds - the threshold which `isStale` compares an age against is in
+   *  milliseconds, so a consumer which names both must name them apart (#1086) */
   isStaleCheckInterval?: number;
   isStale?: (timestamp: number, record: RaRecord) => boolean;
 }

@@ -34,6 +34,40 @@ Feature: Cross-service attention
         Then I expect the response status is 400
         And I expect that response json has an attribute "errors.[0].code" with value "invalid"
 
+    Scenario: One category filter answers several categories at once
+        # the queues of the dashboard count the states of one workflow with a
+        # single request, so a category value may name several categories
+        # comma separated and the answer holds the alerts of any of them (#1086)
+        Given I am logged in as User2 with password User2
+        And I set a queryparam "filter[category]" with value "update_failed,update_review_required"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "meta.pagination.count" with value "1"
+        And I expect that response json has an attribute "data.[0].attributes.category" with value "update_failed"
+
+    Scenario: A category list which answers nothing counts nothing
+        # the list is an or over its categories and not an ignored parameter:
+        # two categories which the visible services do not answer count zero
+        Given I am logged in as User2 with password User2
+        And I set a queryparam "filter[category]" with value "update_review_required,monitoring_failed"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "meta.pagination.count" with value "0"
+
+    Scenario: A category list with a category the api does not answer is rejected
+        Given I am logged in as User2 with password User2
+        And I set a queryparam "filter[category]" with value "update_failed,not_a_category"
+        When I send the request with GET method
+        Then I expect the response status is 400
+        And I expect that response json has an attribute "errors.[0].code" with value "invalid"
+
+    Scenario: A generated list can sort the attention records by their identifier
+        Given I am logged in as User2 with password User2
+        And I set a queryparam "sort" with value "id"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        And I expect that response json has an attribute "data.[0].type" with value "ServiceAlert"
+
     Scenario: Anonymous callers cannot read attention
         Given I am an anonymous user
         When I send the request with GET method

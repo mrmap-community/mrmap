@@ -43,7 +43,10 @@ const layer = (name: string, folder: string) => new OWSResource({
 });
 
 describe('viewer layer settings drawer', () => {
-  it('opens the settings tab from a compact tree row and switches layers in the same panel', async () => {
+  // the drawer round trip alone runs in ~2.4 s in jsdom; under the parallel
+  // load of the full suite it exceeds vitest's 5 s default and flakes —
+  // measured 2026-11-10, same file green alone and timed out in `npm run test`
+  it('opens the settings tab from a compact tree row and switches layers in the same panel', { timeout: 15000 }, async () => {
     render(<AdminContext><OwsContextBase initialFeatures={[layer('Radar A', '/0'), layer('Radar B', '/1')]}><MapViewerCore /></OwsContextBase></AdminContext>);
     // Open the existing right-hand drawer; its tree stays mounted when settings open.
     fireEvent.click(screen.getByTestId('ChevronLeftIcon').closest('button')!);

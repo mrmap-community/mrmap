@@ -3,7 +3,8 @@ from uuid import uuid4
 
 from django.test import TestCase
 from django_celery_beat.models import IntervalSchedule
-from notify.enums import ProcessNameEnum, ProcessStatusEnum
+from notify.enums import (OperationStateEnum, ProcessNameEnum,
+                          ProcessStatusEnum)
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.enums.update import UpdateJobStatusEnum
@@ -149,6 +150,42 @@ class UpdateJobBackgroundProcessTests(TestCase):
         self.assertEqual(ProcessStatusEnum.RUNNING, process.status)
         self.assertIsNone(process.done_at)
 
+    # the review of the mapping is the operation which stands until a human
+    # decides, so its state says exactly that (#1207)
+
+    def test_a_job_which_waits_for_a_review_reports_action_required(self):
+        self.assertEqual(
+            OperationStateEnum.ACTION_REQUIRED.value,
+            self.decide(UpdateJobStatusEnum.REVIEW_REQUIRED).state)
+
+    def test_answering_the_review_moves_the_state_back_to_working(self):
+        """the flag follows the status of the job, so no reporter has to
+        remember to clear it: the report of the next step is enough"""
+        self.decide(UpdateJobStatusEnum.REVIEW_REQUIRED)
+
+        process = self.decide(UpdateJobStatusEnum.UPDATING)
+
+        self.assertFalse(process.action_required)
+        # an update does not know its steps, so it works indeterminately
+        self.assertEqual(
+            OperationStateEnum.RUNNING_INDETERMINATE.value, process.state)
+
+    def test_a_decided_job_is_never_rendered_as_awaiting_a_human(self):
+        """the flag of a job which went to review and was finished afterwards
+        stays behind the terminal state: the operation decided, whatever the
+        flag in its row still says"""
+        self.decide(UpdateJobStatusEnum.REVIEW_REQUIRED)
+
+        process = self.decide(UpdateJobStatusEnum.UPDATED)
+
+        self.assertEqual(
+            OperationStateEnum.COMPLETED.value, process.state)
+
+    def test_a_job_without_a_review_needs_no_action(self):
+        self.assertEqual(
+            0, BackgroundProcess.objects.filter(
+                action_required=True).count())
+
     def test_a_job_with_an_error_reports_a_failed_process(self):
         process = self.decide(UpdateJobStatusEnum.ERROR)
 
@@ -230,6 +267,22 @@ class HarvestingJobBackgroundProcessTests(TestCase):
         self.assertEqual(ProcessStatusEnum.RUNNING, process.status)
         self.assertEqual("download records", process.phase)
         self.assertEqual(12, process.total_steps)
+
+    def test_the_states_of_the_contract_answer_a_harvest_too(self):
+        """the drawer of #1207 renders every kind of operation from the same
+        states, so a harvest answers them with the reports its phases already
+        make: queued while no worker took it, running while it knows the steps
+        of its records"""
+        job = self.create_job()
+        self.assertEqual(
+            OperationStateEnum.QUEUED.value, self.process(job).state)
+
+        job.total_records = 10
+        with patch('registry.models.harvest.chord'):
+            job.handle_total_records_defined()
+
+        self.assertEqual(
+            OperationStateEnum.RUNNING.value, self.process(job).state)
 
     def test_a_job_without_records_reports_a_completed_process(self):
         job = self.create_job()

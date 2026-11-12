@@ -560,12 +560,13 @@ class WebMapServiceListSerializer(
     def get_preview_url(self, instance) -> str:
         # The preview image is asked by the details of a service and by the details
         # panel beside the list of the services, so both serializers answer it. It is
-        # read from the stored capabilities only, because it reads and parses them
-        # completely and the fallback of Service.capabilities would request the remote
-        # service. A json:api request which doesn't name the attribute in its sparse
-        # fieldset never constructs it, so a list which doesn't show a preview doesn't
-        # pay for it. A service without capabilities that can describe a preview
-        # simply has none.
+        # read from the stored capabilities only: a preview never needs more than the
+        # document the registry holds, and since #1044 the read of Service.capabilities
+        # answers that stored document or raises - a service whose file is gone from
+        # the storage simply has no preview here. A json:api request which doesn't name
+        # the attribute in its sparse fieldset never constructs it, so a list which
+        # doesn't show a preview doesn't pay for it. A service without capabilities
+        # that can describe a preview simply has none.
         if not instance.xml_backup_file:
             return None
         try:

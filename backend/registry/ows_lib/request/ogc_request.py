@@ -3,6 +3,7 @@ from xml.sax.saxutils import unescape
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models.query_utils import Q
 from django.http.request import HttpRequest as DjangoRequest
+from epsg_cache.utils import adjust_axis_order
 from lark.exceptions import LarkError
 from lxml import etree
 from lxml.etree import QName, XMLSyntaxError
@@ -12,7 +13,9 @@ from pygeofilter.parsers.ecql import parse as parse_ecql
 from pygeofilter.parsers.fes.parser import parse as parse_fes
 from pygeofilter.parsers.fes.util import NodeParsingError
 from registry.enums.service import OGCOperationEnum
-from registry.ows_lib.client.exceptions import (MissingBboxParam,
+from registry.ows_lib.client.exceptions import (InvalidFilterParam,
+                                                InvalidPagingParam,
+                                                MissingBboxParam,
                                                 MissingServiceParam)
 from registry.ows_lib.csw.builder import CSWBuilder
 from registry.ows_lib.request.utils import (
@@ -20,10 +23,58 @@ from registry.ows_lib.request.utils import (
     get_requested_layers, get_requested_records)
 from registry.ows_lib.response.exceptions import (
     InvalidParameterValueException,
-    MissingConstraintLanguageParameterException)
+    MissingConstraintLanguageParameterException,
+    ParsingErrorException)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from requests import Request
+
+# the answer of a lookup for a parameter the request does not name at all; an
+# empty string is no such answer -- it is a value a caller sent, and it has to
+# be told apart from the absence of the parameter (#1154)
+_ABSENT = object()
+
+
+def _named_param_value(params, key):
+    """The value a request names for a key, or ``_ABSENT``.
+
+    A key carried as multiple queryparams hands its first value, as the
+    request analysis always did; a missing key, a ``None`` value and an
+    empty list -- the requests idioms for a parameter left without value --
+    all answer ``_ABSENT``, while an empty string is a value the caller
+    named and stays (#1154).
+    """
+    value = next(
+        (value for name, value in params.items()
+         if name.lower() == key.lower()), _ABSENT)
+    if isinstance(value, list):
+        value = value[0] if value else _ABSENT
+    if value is None:
+        # no value among the repeats either
+        return _ABSENT
+    return value
+
+
+def merged_query_params(*query_dicts) -> dict:
+    """The query parameters of one request as a plain dict, repeats included.
+
+    Spreading the QueryDicts (``{**request.GET, **request.POST}``) answers a
+    parameter which the request names more than once as its last value alone --
+    the dict semantics of ``QueryDict.__getitem__``. A KVP request which hands
+    the identifier list of a ``GetRecordById`` as repeated ``Id`` parameters
+    asks for the same comma separated list the binding spells within one
+    parameter (OGC 07-006r1, Table 67; #909), so the values of a repeated
+    ``Id`` are joined; every other parameter keeps the single value the spread
+    answered with. A later source still wins over an earlier one, as it did.
+    """
+    merged = {}
+    for query_dict in query_dicts:
+        for name, values in query_dict.lists():
+            if name.lower() == "id" and len(values) > 1:
+                merged[name] = ",".join(values)
+            else:
+                merged[name] = values[-1]
+    return merged
 
 
 class OGCRequest(Request):
@@ -81,7 +132,7 @@ class OGCRequest(Request):
         ogc_request = cls(
             method=request.method,
             url=request.build_absolute_uri(),
-            params={**request.GET, **request.POST},
+            params=merged_query_params(request.GET, request.POST),
             data=request.data if hasattr(request, "data") else request.body,
             cookies=request.COOKIES,
             django_request=request
@@ -360,6 +411,14 @@ class OGCRequest(Request):
     def ogc_query_params(self) -> dict:
         """ Parses the GET parameters into all member variables, which can be found in a ogc request.
 
+        A whitelisted parameter which the request names with an empty value is
+        kept with that empty value: WMS 1.3.0 (OGC 05-008, 7.2.2) treats the
+        empty ``STYLES=`` as the default style, and the proxy rebuilds the
+        upstream request from this dict -- dropping an empty-but-present
+        parameter asks upstream with a request the caller never sent, which
+        every standard client's GetMap is (#1154). Only a parameter the request
+        does not name at all is absent here.
+
         :return: all ogc query parameters
         :rtype: dict
         """
@@ -372,6 +431,10 @@ class OGCRequest(Request):
                           "outputSchema", "startPosition", "maxRecords", "schemaLanguage",
                           "ElementSetName", "ElementName", "typeNames", "CONSTRAINTLANGUAGE",
                           "Constraint", "SortBy", "DistributedSearch", "COUNT", "MAXFEATURES", "X", "Y", "TYPENAMES", "TYPENAME",
+                          # a GetFeature of the KVP binding asks within these two as well; nothing
+                          # which is not collected here reaches the request which is answered, so
+                          # the paging and the filter of a KVP GetFeature went unheard (#1155)
+                          "FILTER", "startIndex",
                           "hopCount", "ResponseHandler", "Id", "STYLES",
                           # the negotiation parameters every OWS GetCapabilities
                           # answers for (OGC 05-008, 7.3.1 / OGC 07-006r1, Table 64);
@@ -382,16 +445,16 @@ class OGCRequest(Request):
             for key in query_keys:
                 if any(name.lower() == key.lower() for name in self._ogc_query_params):
                     continue
-                value = next((value for name, value in self.params.items() if name.lower() == key.lower()), "")
+                value = _named_param_value(self.params, key)
 
-                if value:
-                    if isinstance(value, list):
-                        # if multiple values are passed in multiple queryparams, we pick the first item
-                        value = value[0]
+                if value is _ABSENT:
+                    # the request names no value for this key at all; an
+                    # empty value it does name stays in the result (#1154)
+                    continue
 
-                    self._ogc_query_params.update({
-                        key: value
-                    })
+                self._ogc_query_params.update({
+                    key: value
+                })
 
         return self._ogc_query_params
 
@@ -429,15 +492,19 @@ class OGCRequest(Request):
 
     def build_get_records_from_get(self):
         builder = CSWBuilder(service_version=self.service_version)
+        # a whitelisted parameter which the caller sent empty is kept in
+        # ogc_query_params (#1154); the synthesized request document carries
+        # only values, so an empty one is answered as the absent parameter it
+        # was before the dict kept it
         self._xml_request = builder.build_get_records(
             type_names=self.ogc_query_params.get("typeNames"),
-            result_type=self.ogc_query_params.get("resultType"),
-            element_set=self.ogc_query_params.get("ElementSetName", "summary"),
+            result_type=self.ogc_query_params.get("resultType") or None,
+            element_set=self.ogc_query_params.get("ElementSetName") or "summary",
             # the page a client asks for is named by the query parameters of the request
             # as well; they have to reach the request which is answered, because that --
             # not the parameters -- is what the endpoint reads its paging from
-            max_records=self.ogc_query_params.get("maxRecords"),
-            start_position=self.ogc_query_params.get("startPosition"),
+            max_records=self.ogc_query_params.get("maxRecords") or None,
+            start_position=self.ogc_query_params.get("startPosition") or None,
             sort_by=self.parse_sortby_param(
                 self.ogc_query_params.get("SortBy", "")),
             constraint=self.ogc_query_params.get("Constraint"),
@@ -446,26 +513,73 @@ class OGCRequest(Request):
 
     def build_get_record_by_id_from_get(self):
         builder = CSWBuilder(service_version=self.service_version)
+        # the parameter is the canonical "Id" of Table 67 -- the read spelled
+        # "id" never matched it, so the synthesized request asked an empty list
         self._xml_request = builder.build_get_record_by_id(
-            ids=self.ogc_query_params.get("id", "").split(","),
-            element_set_name=self.ogc_query_params.get(
-                "ElementSetName", "summary")
+            ids=self.ogc_query_params.get("Id", "").split(","),
+            # an empty ElementSetName is answered as the absent one (#1154),
+            # as in build_get_records_from_get above
+            element_set_name=self.ogc_query_params.get("ElementSetName") or "summary"
         )
 
-    def build_get_feature_from_get(self):
+    def build_get_feature_from_get(self) -> etree._Element:
+        """The request document of a GetFeature which arrived in the KVP encoding.
+
+        The proxy secures the request *document*, so the key value pairing binding
+        is translated into the document the XML binding would have posted; OGC
+        10-166r4, Table 11 names the parameters of the KVP encoding. The document
+        carries the extent the ``BBOX`` parameter asks and the ``FILTER`` it
+        carries: a translation which drops one of them answers features which were
+        never asked for (#1155). The extent itself is applied by
+        :meth:`secure_get_feature_request`, which is where the geometry property
+        of every requested feature type is known.
+
+        :raises InvalidFilterParam: if the FILTER parameter is no parsable document
+        :raises InvalidPagingParam: if COUNT, MAXFEATURES or startIndex name no integer
+        """
         builder = WFSBuilder(service_version=self.service_version)
 
         xml = unescape(self.ogc_query_params.get("FILTER", ""))
-        filter = etree.fromstring(xml.encode("utf-8")) if xml else None
+        try:
+            filter = etree.fromstring(xml.encode("utf-8")) if xml else None
+        except XMLSyntaxError as e:
+            raise InvalidFilterParam(str(e))
+
+        # the limit of answered features is spelled COUNT by WFS 2.x and
+        # MAXFEATURES by 1.x (registry.ows_lib.wfs.wfs.WFS.max_features_qp); the
+        # document this translation answers is a 2.0 one, so whichever spelling
+        # the client chose becomes the count of that document
+        count = self._int_param("COUNT") or self._int_param("MAXFEATURES")
 
         self._xml_request = builder.build_get_feature(
             type_names=self.requested_entities,
             filter_xml=filter,
             srs_name=self.ogc_query_params.get("SRSNAME", None),
-            count=int(self.ogc_query_params.get("COUNT", 0)) or None,
-            start_index=int(self.ogc_query_params.get(
-                "startIndex", 0)) or None,
+            output_format=self.ogc_query_params.get("OUTPUTFORMAT", None),
+            # an empty COUNT or startIndex is no number to page with and is left
+            # out of the document, which #1154 keeps in the query parameters now;
+            # _int_param reads such an empty value as no paging at all
+            count=count,
+            start_index=self._int_param("startIndex"),
         )
+        return self._xml_request
+
+    def _int_param(self, name: str) -> int | None:
+        """The value of a numeric query parameter as the integer it names.
+
+        A parameter which is no integer is a faulty request and answers with the
+        report naming that parameter, not with the ValueError an arithmetic
+        conversion raises up to the catch-all of the endpoint (#1155).
+
+        :raises InvalidPagingParam: if the parameter carries no integer
+        """
+        value = self.ogc_query_params.get(name)
+        if not value:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            raise InvalidPagingParam(name)
 
     @property
     def xml_request(self) -> etree._Element:
@@ -531,12 +645,31 @@ class OGCRequest(Request):
                 A spatial union of all allowed areas applicable to the feature
                 type for the requested operation, or None if no spatial
                 restriction applies.
+
+        The restriction is applied to the request document whichever binding the
+        request arrived with: a GetFeature of the KVP binding is translated into
+        that document first, so its ``BBOX`` is part of the query which is
+        answered as well. The extent the request itself names is ANDed on the
+        geometry property of the feature type next to the allowed area -- a
+        query which lost it would answer features outside of the extent the
+        client asked (#1155).
+
+        :return: the exception report which refuses the request when there is no
+                 request document to restrict, ``None`` when every query of the
+                 document carries its restrictions.
+        :rtype: :class:`registry.ows_lib.response.exceptions.OGCServiceException` | None
         """
         if not self.is_get_feature_request:
             return
 
         if self._xml_request is None:
             _ = self.xml_request  # force XML construction
+
+        if self._xml_request is None:
+            # nothing to restrict: the refusal names the missing request
+            # document instead of the permissions report an uncaught error is
+            # answered with by the endpoint's catch-all (#1155)
+            return ParsingErrorException(ogc_request=self)
 
         try:
             lookup = {
@@ -555,6 +688,22 @@ class OGCRequest(Request):
         # Builder is the single authority for filters
         builder = WFSBuilder(service_version=self.service_version)
 
+        requested_bbox = None
+        if self.is_get and self.ogc_query_params.get("BBOX"):
+            requested_bbox = self.bbox
+            if requested_bbox.empty:
+                # the client asked an extent which cannot be read; answering the
+                # request without it would answer features it never asked for
+                return InvalidParameterValueException(
+                    ogc_request=self, locator="BBOX")
+            # a geometry which a filter of the 1.1 and 2.0 binding carries is
+            # written in the axis order its EPSG definition names, which is what
+            # the proxy did for the allowed area before handing it in
+            # (registry/proxy/wfs_proxy.py); without it the corners of the extent
+            # would be read the other way round (#1155)
+            if self.service_version != "1.0.0":
+                requested_bbox = adjust_axis_order(requested_bbox)
+
         for query in builder.iter(self._xml_request, local_name="Query"):
             type_name = query.get(
                 "typeNames") or query.get("typeName")
@@ -565,27 +714,40 @@ class OGCRequest(Request):
             if not info:
                 continue
 
-            polygon: Polygon = info["allowed_area_union"]
-            if not polygon or polygon.empty:
-                continue
-
             geom_prop = info["geometry_property_name"]
 
-            # 🔐 build spatial filter using WFSBuilder (schema-safe)
-            spatial_filter = builder.build_spatial_filter(
-                geometry=polygon.ogr,
-                value_reference=geom_prop,
-                operator="Within",
-            )
+            # 🔐 build spatial filters using WFSBuilder (schema-safe)
+            restrictions = []
+
+            polygon: Polygon = info["allowed_area_union"]
+            if polygon and not polygon.empty:
+                restrictions.append(builder.build_spatial_filter(
+                    geometry=polygon.ogr,
+                    value_reference=geom_prop,
+                    operator="Within",
+                ))
+
+            if requested_bbox is not None:
+                restrictions.append(builder.build_spatial_filter(
+                    geometry=requested_bbox.ogr,
+                    value_reference=geom_prop,
+                    operator="Intersects",
+                ))
+
+            if not restrictions:
+                continue
 
             # find existing <fes:Filter> if present
             existing_filter = next(
                 builder.iter(query, local_name="Filter"), None
             )
 
-            if existing_filter is not None:
-                # AND existing filter with spatial restriction
-                builder.and_filter(existing_filter, spatial_filter)
-            else:
-                # attach new filter directly
-                query.append(spatial_filter)
+            for restriction in restrictions:
+                if existing_filter is None:
+                    # no filter of the request to AND into: this restriction is
+                    # the filter of the query and the one the next is ANDed to
+                    existing_filter = restriction
+                    query.append(restriction)
+                else:
+                    # AND existing filter with spatial restriction
+                    builder.and_filter(existing_filter, restriction)

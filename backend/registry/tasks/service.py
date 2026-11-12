@@ -3,8 +3,11 @@ from urllib import parse
 
 from celery import chord, shared_task, states
 from django.conf import settings
+from django.db import IntegrityError
+from notify.enums import LogTypeEnum
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from registry.exceptions.metadata import UnknownMetadataKind
+from registry.exceptions.service import CapabilitiesPersistenceError
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models import CatalogueService, WebFeatureService, WebMapService
@@ -81,9 +84,24 @@ def build_ogc_service(
 
         mapper = OGCServiceXmlMapper.from_xml(response.content)
         data = mapper.xml_to_django()
+        if not data:
+            # No mapping config found an element in the document: it serves a
+            # protocol version no mapper handles, e.g. WFS 1.1.0 (#1210). Say
+            # that instead of letting data[0] raise a bare IndexError.
+            raise ValueError(
+                "The capabilities document could not be mapped to a service. "
+                "The served version "
+                f"'{mapper.xml_root.attrib.get('version')}' is not supported "
+                "from Mr. Map.")
         db_service = data[0]
         handler = PersistenceHandler(mapper)
-        handler.persist_all()
+        try:
+            handler.persist_all()
+        except IntegrityError as e:
+            # a schema which refuses a row of the document is a defined
+            # failure of the build, not a psycopg dump for the activity
+            # popover and the TaskResult (#1201)
+            raise CapabilitiesPersistenceError(e) from e
         db_service.refresh_from_db()
 
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
@@ -225,8 +243,12 @@ def fetch_remote_metadata_xml(
             }
         }
     except MaxRetryError:
-        # fetch_remote_content went wrong
-        pass
+        # fetch_remote_content went wrong: the polling client reads it from
+        # the process' logs while the process itself ran to its end (#1177)
+        self.log_process(
+            f"Could not fetch the remote document of RemoteMetadata "
+            f"{remote_metadata.pk}",
+            LogTypeEnum.WARNING)
     except UnknownMetadataKind:
         try:
             kind = remote_metadata.parsed_metadata._hierarchy_level
@@ -234,10 +256,18 @@ def fetch_remote_metadata_xml(
             kind = 'unknown'
         settings.ROOT_LOGGER.warning(
             f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, cause the kind '{kind}' is not supported.")
+        self.log_process(
+            f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, "
+            f"cause the kind '{kind}' is not supported.",
+            LogTypeEnum.WARNING)
 
     except Exception as e:
         settings.ROOT_LOGGER.exception(
             f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
+        self.log_process(
+            f"RemoteMetadata id: {remote_metadata.pk} could not be "
+            f"collected: {e}",
+            LogTypeEnum.WARNING)
 
     self.update_background_process(
         step_done=True

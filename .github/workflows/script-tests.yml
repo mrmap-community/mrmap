@@ -1,0 +1,63 @@
+name: Script tests
+
+# WHY THIS JOB EXISTS, AND WHY IT RUNS ON A BARE RUNNER.
+#
+# scripts/ holds the tooling the agent orchestration runs: the claim board and
+# issue identity in scripts/wip, the host admission gate in scripts/agent_capacity,
+# the human decision protocol in scripts/decisions. None of it is reached by the QA
+# jobs, for a structural reason rather than an oversight: those run inside a
+# container that binds only ./backend, so scripts/ is not present in the image that
+# performs the linting. A regression here surfaces as an agent mislabelling or
+# double-claiming work on somebody's host.
+#
+# Two measurements set the shape of this job, and both are worth keeping:
+#
+#   - Four of the suites resolve the repository root (git rev-parse,
+#     docker/backend/alpine.Dockerfile). Run from a checkout that detaches scripts/
+#     from the repository, exactly those four fail — so no container that sees only
+#     ./backend can ever run them.
+#   - python:*-alpine, the backend image base, has no git. The migration-graph
+#     suite drives real repositories, so it needs a runner that has it.
+#
+# ubuntu-latest has git and docker, a plain checkout has the whole repository, and
+# the whole set runs in well under a minute. Nothing here needs credentials, a
+# database or a container image: the suites are offline by design, and where they
+# want docker they probe for it and skip the affected checks out loud. A smaller
+# check count on a runner without docker is that honesty showing through, which is
+# the reading the suites intend — a green that means nothing is not.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, develop]
+  merge_group:
+    types: [checks_requested]
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  repo-tooling:
+    name: scripts/ suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          # 3.13 is what the deployment host runs the orchestration tooling with.
+          python-version: '3.13'
+
+      # Prints one line per suite with that suite's own verdict, and the output
+      # of any failing one, so a red check is readable without a debug session.
+      - name: Run the repository tooling suites
+        run: scripts/check_repo_tooling.sh

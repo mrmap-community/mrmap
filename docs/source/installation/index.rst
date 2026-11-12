@@ -83,6 +83,10 @@ create .env file under your mrmap path with the following variables. Please setu
     PGADMIN_USER=admin@example.com
     PGADMIN_PASSWORD=supersecurepassword
 
+``PGADMIN_USER`` configures the pgadmin administrator login and falls back to ``admin@example.com`` if it is not set; pgadmin rejects an address without a fully qualified domain (for example ``admin@localhost``) at startup and then crash-loops, so keep this value a valid email address.
+
+Beside these required variables ``.env`` accepts the optional ``DJANGO_ALLOWED_HOSTS``: a ``;`` or ``,`` separated list of additional names and addresses the deployment is reached by, for example ``DJANGO_ALLOWED_HOSTS=10.0.0.12,mrmap.internal``. The host of ``EXTERNAL_BASE_URL`` and the internal presets of the image (``localhost``, loopback addresses, the compose service names) are always allowed; every other name or address answers HTTP 400 until it is listed here. See :ref:`development-environment` for both variables.
+
 ..warning::
     If some of the environment variables are not configured, the docker compose command will fail with erro message like this: error while interpolating services.backend.environment.EXTERNAL_BASE_URL: required variable EXTERNAL_BASE_URL is missing a value: Please configure EXTERNAL_BASE_URL in the .env file.
 
@@ -124,6 +128,35 @@ reports unknown. Detection latency follows healthcheck intervals and retries;
 a reported healthy container does not prove task execution succeeded.
 
 
+Surviving a host reboot
+=======================
+
+Every service of ``docker-compose.yml`` declares ``restart: unless-stopped``, so
+after a host reboot the docker engine starts the whole stack again by itself;
+``docker compose up -d`` only has to converge it. Convergence is real, not a
+race: after an unclean shutdown Postgres replays its write-ahead log before it
+serves queries, which on a busy instance can take minutes, and during that
+window the postmaster already listens on its port but refuses every connection.
+The backend, worker and Beat containers therefore probe the database with
+``pg_isready`` in their entrypoint (``backend/.bash_scripts/wait_db.sh``) - "up"
+means "accepting connections", not "port open" - and the backend additionally
+retries ``manage.py migrate``, the true readiness test, a bounded number of
+times before exiting. The ``backend`` and Celery services gate on the
+``postgis`` (``pg_isready``) and ``redis`` healthchecks via ``depends_on``, so a
+plain ``docker compose up -d`` orders the stack as well.
+
+``unless-stopped`` deliberately and not ``always``: a stack an operator stopped
+with ``docker compose stop`` or ``down`` stays stopped across reboots, while
+``always`` would bring it back against that decision. One-off containers started
+with ``docker compose run`` never inherit a service's restart policy and never
+come back on boot.
+
+The wait and retry budgets are configurable (``WAIT_DB_ATTEMPTS``,
+``WAIT_DB_DELAY``, ``MIGRATE_ATTEMPTS``, ``MIGRATE_RETRY_DELAY``); a container
+that exhausts them exits non-zero and the restart policy tries the whole
+sequence again.
+
+
 Central log aggregation
 =======================
 
@@ -151,13 +184,16 @@ requests" dashboard pre-provisioned from ``docker/grafana/``; login with
 * To enable Postgres slow statement logging, run (hot, no restart):
   ``ALTER SYSTEM SET log_min_duration_statement = '400ms'; SELECT pg_reload_conf();``
 
-Every record the syslog handler answers leaves the verbose details of that record as
-a JSON file in ``<MEDIA_ROOT>/logs``. Nothing deleted them, so a deployment which ran
-for a few weeks held a few hundred thousand of them (#888). The periodic task
-``system.tasks.delete_old_slow_request_dumps`` takes them back: it is created on
-migrate, beat hands it over hourly, and it deletes the dumps which are older than
-``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the retention of
-VictoriaLogs above) as well as everything beyond
+Only records which carry verbose detail — slow requests, records logged with an
+exception, and warnings which pass structured data — leave those details as a JSON
+file in ``<MEDIA_ROOT>/logs``; the syslog line of such a record carries the pointer
+to the file, while an ordinary record is answered by its syslog line alone (#1033).
+Nothing deleted the dumps while the formatter wrote one for every record, so a
+deployment which ran for a few weeks held a few hundred thousand of them (#888).
+The periodic task ``system.tasks.delete_old_slow_request_dumps`` takes them back:
+it is created on migrate, beat hands it over hourly, and it deletes the dumps which
+are older than ``MRMAP_SLOW_REQUEST_DUMP_RETENTION_DAYS`` days (default 14, the
+retention of VictoriaLogs above) as well as everything beyond
 ``MRMAP_SLOW_REQUEST_DUMP_MAX_FILES`` dumps (default 0, which answers no limit and
 leaves the age bound alone). A dump which is gone costs the per-request SQL detail of
 that one request; the syslog line which pointed at it stays in the log store for its
@@ -213,17 +249,88 @@ beacon keeps itself below that, deduplicates identical reports for 30 seconds
 and caps a page load at 20 reports.
 
 Script, location and log driver come with the image of the ``frontend`` service,
-so that container has to be recreated to apply them. An existing deployment
-holds the built frontend in the ``frontend-static`` volume, and Docker fills
-such a volume from the image only while it is still empty, so the volume goes
-with the container (``docker volume ls`` names it after the project):
-
-.. code-block:: console
-
-    docker compose rm -fs frontend
-    docker volume rm mrmap_frontend-static
-    docker compose up -d --build frontend
+so that container has to be recreated to apply them; a plain
+``docker compose up -d --build frontend`` does exactly that — the app it then
+serves is the content of the new image. What an upgrade does with the static
+assets of a deployment in general, and the one-time cleanup an older one still
+has to do, is :ref:`its own section <installation-static-assets>` below.
 
 Reporting lives in nginx, so it exists where the built app is served behind it:
 the development server of the frontend (``npm run dev``) answers without nginx
 and reports nothing.
+
+.. _installation-static-assets:
+
+Static assets and upgrades
+==========================
+
+Static assets are build artifacts and live in the images, not in volumes. The
+image of the ``frontend`` service carries the built SPA under
+``/var/www/mrmap/frontend`` and the ``collectstatic`` output of the backend
+under ``/var/www/mrmap/backend``, and its nginx serves both from the image. An
+``docker compose up -d --build`` after an upgrade therefore always serves the
+new version's statics, and files of old builds (``index-<old hash>.js`` and
+every chunk nobody references) leave with the image that built them instead of
+accumulating in a volume. Note that the ``collectstatic`` output travels in
+the ``frontend`` image (see ``docker/nginx/nginx.Dockerfile``), so an upgrade
+of the backend's statics builds that image too — a plain
+``docker compose up -d --build`` covers every service with a ``build:``
+section.
+
+The address the SPA talks to is build content of the same kind. The
+``frontend`` service hands ``EXTERNAL_BASE_URL``, ``EXTERNAL_PORT`` and
+``EXTERNAL_SCHEME`` to the image build as ``VITE_API_*`` arguments, and the
+built bundle carries that address compiled in — the API base and the websocket
+URL are not read at runtime. Changing one of the three in ``.env`` therefore
+reaches the browser through a rebuild of the ``frontend`` image, exactly like a
+source change does: the build command of ``docker/nginx/nginx.Dockerfile``
+names the arguments, so a changed value re-runs the bundle build (issue
+``#1027``). After the edit, ``docker compose up -d --build`` recreates the
+container onto the new bundle and a reloading browser talks to the new address.
+
+Deployments created before issue ``#922`` are the exception, and they need one
+manual step, once. Their compose file kept the two statics in the named
+volumes ``frontend-static`` and ``backend-static``, and Docker fills a named
+volume from the image only while it is still empty: such a volume shadows the
+new image's content and keeps serving the previous version's assets however
+often the container is recreated. Upgrade to the current compose file first —
+it no longer mounts those volumes — which recreates the containers onto the
+image content; the two volumes then hold nothing but the debris of old
+versions (``docker volume ls`` names them after the project, ``<project>``
+below is that prefix):
+
+.. code-block:: console
+
+    docker compose up -d --build
+    docker volume rm <project>_frontend-static <project>_backend-static
+
+Remove exactly these two volumes; the database, media, log and celery volumes
+carry state and survive upgrades.
+
+Database tuning
+===============
+
+The reference deployment ships Postgres with Just-in-Time compilation switched
+off (``command: ["postgres", "-c", "jit=off"]`` on the ``postgis`` service), so a
+fresh ``docker compose up`` is fast without any manual step.
+
+The service-list endpoints (for example ``GET /api/registry/csw``) are answered by
+one annotated query carrying dozens of correlated sub-selects (alert flags,
+monitoring/update/harvest state, ``elementCount``). Its planner cost is far above
+Postgres' default ``jit_above_cost = 100000``, so the stock image JIT-compiles that
+plan on *every* request. These are one-shot OLTP queries whose plan is never reused,
+so the compile time is pure overhead and has no chance to amortize: measured on the
+reference stack the query dropped from ``721 ms`` to ``363 ms`` once JIT was off
+(``EXPLAIN ANALYZE`` loses its ``JIT:`` section entirely, issue ``#871``).
+
+Nothing in mrmap loses a JIT speed-up by this: the genuinely heavy reads -- the
+harvest day statistics and the ``tsvector`` search -- plan at a few thousand cost,
+well under ``jit_above_cost``, so they were never JIT-compiled in the first place.
+A raised ``jit_above_cost`` was rejected as brittle: the list query's cost grows
+with the number of harvested records, so it would cross any fixed threshold again.
+
+The setting is passed to the server process, not with ``ALTER SYSTEM`` (which would
+write into the shared data directory and leak into the test databases). It therefore
+applies to every database on that server. A deployment that wants JIT back removes
+the ``command:`` line or raises ``jit_above_cost`` instead.
+

@@ -1,7 +1,10 @@
-coverage==7.17.1
+coverage==7.17.2
 behave-django==2.0.0
+# lets Django's parallel test runner pickle tracebacks back from its workers,
+# without it a worker dies and later classes on its database fail as collateral
+tblib==3.2.2
 flake8==7.5.0
-watchdog[watchmedo]==7.0.0
+watchdog[watchmedo]==7.1.0
 debugpy==1.8.22
 autopep8==2.3.2
 django-debug-toolbar==8.0.0

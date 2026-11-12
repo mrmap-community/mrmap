@@ -37,6 +37,7 @@ Run with:
         tests.django.registry.tests_harvesting_run_measurements --noinput
 """
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
@@ -72,6 +73,12 @@ class HarvestingRunMeasurementsTest(TestCase):
     which reads its start from its own column and the older row which still reads it
     from the change log. Its records so far are the temporary files it has stored,
     because those are the numbers the steps of a run are derived from.
+
+    Every moment is seeded against the instant `setUp` holds, because the
+    measurements answer from the `now()` of the query which asks for them: left to
+    the wall clock, a run made 60 seconds ago answers 60 seconds plus whatever the
+    runner needed between the seed and the answer, and the numbers scaled on the
+    elapsed time multiply that gap by the ratio of their steps.
     """
 
     fixtures = ["test_users.json"]
@@ -90,6 +97,18 @@ class HarvestingRunMeasurementsTest(TestCase):
         self.client.force_authenticate(get_user_model().objects.get(
             username='User1'))
         self.client.credentials(HTTP_ACCEPT=JSONAPI)
+        # The clock the measurements answer with (`ends_at` of `run_measurements`
+        # is the request's `now()`) is held for the seed and the answer together,
+        # so `working_run` answers exactly the seconds it was seeded with and every
+        # number scaled on them is exact. A tenth of a second is nothing to measure
+        # with, but the estimate scales it by 105/6 for the run below, which is how
+        # the green suite failed on a loaded runner. Same clock, same reason as
+        # `tests.django.notify.test_harvesting_signals` (#1133).
+        self.instant = now()
+        patcher = patch('registry.managers.havesting.now',
+                        return_value=self.instant)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def working_run(self, phase=Phase.DOWNLOAD_RECORDS, total_records=100,
                     step_size=10, waiting=0, made=60, date_created=False,
@@ -106,12 +125,13 @@ class HarvestingRunMeasurementsTest(TestCase):
             waiting: the temporary files the run has on its backlog; while it
                 downloads these are the records it stored, while it imports they
                 are the records which are NOT stored yet
-            made: how many seconds ago the run was made
+            made: how many seconds before the held instant the run was made
             date_created: write the creation on the row itself, the way a run
                 made since #1079 answers it; False leaves the column empty - the
                 run whose creation the fill of 0038 could not find - so that the
                 moment of the run comes from its change log
-            done_at: how many seconds ago the run ended, None while it works
+            done_at: how many seconds before the held instant the run ended, None
+                while it works
 
         Returns:
             HarvestingJob: the run
@@ -131,16 +151,16 @@ class HarvestingRunMeasurementsTest(TestCase):
         # carries - or the column is left empty on purpose, which is the row of a
         # deployment whose change log the fill of 0038 could not read. Only in that
         # second shape is the change log the source of the moment.
-        row = {'date_created': now() - timedelta(seconds=made)} if date_created \
+        created = self.instant - timedelta(seconds=made)
+        row = {'date_created': created} if date_created \
             else {'date_created': None}
         if done_at is not None:
-            row['done_at'] = now() - timedelta(seconds=done_at)
+            row['done_at'] = self.instant - timedelta(seconds=done_at)
         if row:
             HarvestingJob.objects.filter(pk=job.pk).update(**row)
             job.refresh_from_db()
         if not date_created:
-            job.change_logs.all().update(
-                history_date=now() - timedelta(seconds=made))
+            job.change_logs.all().update(history_date=created)
         TemporaryMdMetadataFile.objects.bulk_create(
             [TemporaryMdMetadataFile(job=job) for _ in range(waiting)])
         return job
@@ -183,21 +203,22 @@ class HarvestingRunMeasurementsTest(TestCase):
         self.assertIsNone(
             job.date_created,
             'the seeded run is one whose creation was never recorded')
-        self.assertAlmostEqual(answered['elapsedSeconds'], 60, delta=2)
+        self.assertAlmostEqual(answered['elapsedSeconds'], 60, delta=0.5)
         self.assertAlmostEqual(
-            answered['recordsPerMinuteRunning'], 50.0, delta=1)
+            answered['recordsPerMinuteRunning'], 50.0, delta=0.5)
         self.assertAlmostEqual(
-            answered['estimatedSecondsRemaining'], 60 * 105 / 6, delta=3)
+            answered['estimatedSecondsRemaining'], 60 * 105 / 6, delta=0.5)
 
     def test_the_estimate_names_the_moment_the_run_is_expected_to_end(self):
         job = self.working_run(waiting=50, made=60)
         answered = self.answered(job)[str(job.pk)]
 
-        expected = now() + timedelta(seconds=answered['estimatedSecondsRemaining'])
+        expected = self.instant + timedelta(
+            seconds=answered['estimatedSecondsRemaining'])
         answered_at = datetime.fromisoformat(
             answered['expectedDoneAt'].replace('Z', '+00:00'))
         self.assertAlmostEqual(
-            (answered_at - expected).total_seconds(), 0, delta=3,
+            (answered_at - expected).total_seconds(), 0, delta=0.5,
             msg='the expected end is the estimate added to the same clock')
 
     def test_an_importing_run_answers_the_records_it_wrote_so_far(self):
@@ -211,8 +232,9 @@ class HarvestingRunMeasurementsTest(TestCase):
         answered = self.answered(job)[str(job.pk)]
 
         self.assertAlmostEqual(
-            answered['recordsPerMinuteRunning'], 75 * 60 / 86, delta=1)
-        self.assertAlmostEqual(answered['estimatedSecondsRemaining'], 25, delta=1)
+            answered['recordsPerMinuteRunning'], 75 * 60 / 86, delta=0.5)
+        self.assertAlmostEqual(
+            answered['estimatedSecondsRemaining'], 25, delta=0.5)
 
     def test_the_round_trips_of_records_below_one_step_size_are_counted(self):
         """10 records fetched with the step size 50 are one round trip (#1163)
@@ -235,7 +257,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         self.assertEqual(answered['doneSteps'], 2)
         self.assertAlmostEqual(answered['progress'], 16.67, places=2)
         self.assertAlmostEqual(
-            answered['estimatedSecondsRemaining'], 60 * 10 / 2, delta=3)
+            answered['estimatedSecondsRemaining'], 60 * 10 / 2, delta=0.5)
 
     def test_a_run_which_does_not_know_its_records_answers_no_estimate(self):
         """the phase which determines the records has nothing to scale an estimate on"""
@@ -244,7 +266,7 @@ class HarvestingRunMeasurementsTest(TestCase):
             waiting=0, made=30)
         answered = self.answered(job)[str(job.pk)]
 
-        self.assertAlmostEqual(answered['elapsedSeconds'], 30, delta=2)
+        self.assertAlmostEqual(answered['elapsedSeconds'], 30, delta=0.5)
         self.assertIsNone(answered['estimatedSecondsRemaining'])
         self.assertIsNone(answered['expectedDoneAt'])
         self.assertIsNone(answered['recordsPerMinuteRunning'])
@@ -258,7 +280,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         job = self.working_run(phase=Phase.COMPLETED, waiting=0, made=120, done_at=10)
         answered = self.answered(job)[str(job.pk)]
 
-        self.assertAlmostEqual(answered['elapsedSeconds'], 110, delta=2)
+        self.assertAlmostEqual(answered['elapsedSeconds'], 110, delta=0.5)
         self.assertIsNone(answered['estimatedSecondsRemaining'])
         self.assertIsNone(answered['expectedDoneAt'])
         self.assertIsNone(answered['recordsPerMinuteRunning'])
@@ -283,7 +305,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         job = self.working_run(waiting=10, made=90)
         self.assertIsNone(job.date_created)
         self.assertAlmostEqual(
-            self.answered(job)[str(job.pk)]['elapsedSeconds'], 90, delta=2)
+            self.answered(job)[str(job.pk)]['elapsedSeconds'], 90, delta=0.5)
 
     def test_the_date_created_of_a_run_wins_over_its_change_log(self):
         """where a creation was set explicitly, it is the moment the run was made
@@ -293,7 +315,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         """
         job = self.working_run(waiting=10, made=180, date_created=True)
         self.assertAlmostEqual(
-            self.answered(job)[str(job.pk)]['elapsedSeconds'], 180, delta=2)
+            self.answered(job)[str(job.pk)]['elapsedSeconds'], 180, delta=0.5)
 
     def test_a_request_which_asks_no_measurement_pays_for_none(self):
         """the query of a screen without measurements stays the query of today"""

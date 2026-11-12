@@ -6,7 +6,9 @@ from django.conf import settings
 from django.db import IntegrityError
 from notify.enums import LogTypeEnum
 from notify.tasks import BackgroundProcessBased, finish_background_process
-from registry.exceptions.metadata import UnknownMetadataKind
+from registry.exceptions.metadata import (MetadataFetchTimeout,
+                                          MetadataFetchUnreachable,
+                                          UnknownMetadataKind)
 from registry.exceptions.service import CapabilitiesPersistenceError
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
@@ -18,9 +20,9 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       WebMapServiceRemoteMetadata)
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
+from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
 from requests import Request, Session
 from rest_framework.reverse import reverse
-from urllib3.exceptions import MaxRetryError
 
 
 @shared_task(
@@ -62,7 +64,7 @@ def build_ogc_service(
                           auth=auth.get_auth_for_request() if auth else None)
         response = session.send(
             request=request.prepare(),
-            timeout=15,
+            timeout=REGISTRATION_REQUEST_TIMEOUT_SECONDS,
         )
 
         self.update_state(
@@ -247,17 +249,38 @@ def fetch_remote_metadata_xml(
                 }
             }
         }
-    except MaxRetryError:
-        # fetch_remote_content went wrong: the polling client reads it from
-        # the process' logs while the process itself ran to its end (#1177)
+    except (MetadataFetchTimeout, MetadataFetchUnreachable) as e:
+        # Nothing was answered, so this document is not decided yet - and this
+        # attempt is not the one which decides it. Raised back, that is what
+        # makes celery's bounded retry apply: `autoretry_for` of
+        # `BackgroundProcessBased` covers both classes, and every attempt it
+        # schedules is mirrored onto the process the registration polls
+        # (#1207). A swallowed warning never retries, which is how a document
+        # unreachable for ten seconds used to be given up for the whole
+        # registration (#1260).
+        if self.request.retries < self.max_retries:
+            raise
+        # The last attempt the policy allows got no answer either. The
+        # reference is then recorded as failed, with the reason and with the
+        # fact that another fetch could get it (#1263 gives such a failure its
+        # own work row) - and one silent document does not decide the whole
+        # registration it hangs below.
+        settings.ROOT_LOGGER.warning(
+            f"RemoteMetadata id: {remote_metadata.pk} was not answered after "
+            f"{self.max_retries} retries: {e}")
         self.log_process(
             f"Could not fetch the remote document of RemoteMetadata "
-            f"{remote_metadata.pk}",
+            f"{remote_metadata.pk}: {e} Given up after {self.max_retries} "
+            f"retries; the reference is kept and can be fetched again.",
             LogTypeEnum.WARNING)
     except UnknownMetadataKind as e:
-        # raised by the match above for a class name it does not know: no
-        # row is resolved under a name this task was handed, so the id and
-        # the name it got are all the report can name (#1257)
+        # Raised from two places now: the match above for a class name this
+        # task never got, and the mapping selection of the read document for a
+        # hierarchyLevel Mr. Map does not map (#1260). The first can happen
+        # before any row was resolved - so the id named is the one the
+        # reference was handed with, which is true for both - and the kind
+        # which was not mapped is in the error. Another attempt reads the
+        # same kind, so this is recorded rather than retried (#1257, #1260).
         settings.ROOT_LOGGER.warning(
             f"Can't handle RemoteMetadata with id: {remote_metadata_id}, "
             f"cause the kind '{e}' is not supported.")

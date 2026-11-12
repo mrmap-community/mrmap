@@ -1,6 +1,7 @@
 from lxml import etree
 
 from registry import models
+from registry.exceptions.metadata import UnknownMetadataKind
 from registry.mappers.cache import LocalXmlCache
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.utils import load_file
@@ -159,6 +160,11 @@ class MDMetadataXmlMapper(XmlMapper):
         """
         mapping = XPATH_MAP.get(("ISO", hierarchy_level))
         if not mapping:
-            raise ValueError(
+            # The kind the document names for itself is not a kind Mr. Map
+            # maps. Named as its own error, so a caller can tell an unmapped
+            # document apart from a document it could not read (#1260); as a
+            # ValueError every caller which already reads it as a bad value
+            # keeps its answer.
+            raise UnknownMetadataKind(
                 f"No mapping for hierarchyLevel '{hierarchy_level}'")
         return mapping

@@ -29,6 +29,19 @@ HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS = 1.2
 HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS = 900
 
 
+# How long one request of a service registration may wait for its server: the
+# capabilities document and every remote metadata document which that document
+# references. The value is shared on purpose - both requests are asked of the
+# same host within one registration, so a host which cannot answer a plain GET
+# within this window is a host Mr. Map must not wait for. It has to be said
+# explicitly because nothing else bounds these requests: no
+# ``task_time_limit`` or ``soft_time_limit`` of the deployment stops a task
+# which sits in a request, and a server which accepts the connection and then
+# stays silent would hold a worker of the ``download`` queue for every
+# registration which references one of its documents (#1260).
+REGISTRATION_REQUEST_TIMEOUT_SECONDS = 15
+
+
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds

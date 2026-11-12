@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
+from lxml import etree
 from notify.enums import LogTypeEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
@@ -21,6 +22,7 @@ from registry.models.metadata import (DatasetMetadataRecord,
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
+from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
 from registry.tasks.service import (build_ogc_service,
                                     fetch_remote_metadata_xml)
 from requests.sessions import Session
@@ -358,6 +360,33 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
         self.assertEqual(
             WebFeatureService.objects.count(), 0,
             msg="no service may be written for an unmapped document")
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(Session, 'send', return_value=MockResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content='no xml'))
+    def test_the_capabilities_request_waits_for_the_shared_timeout(self, mock_send):
+        """The document of the registration is asked with the shared bound.
+
+        The same value bounds the fetch of every metadata reference behind this
+        document (#1260): one host answers both requests within one
+        registration, so a host which cannot answer a plain GET within this
+        window is a host the registration must not occupy a worker for.
+        """
+        with self.assertRaises(etree.XMLSyntaxError):
+            build_ogc_service.delay(
+                get_capabilities_url='https://maps.dwd.de/geoserver/wms'
+                '?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
+                collect_metadata_records=False,
+                service_auth_pk=None,
+                http_request=self.http_request,
+                background_process_pk=self.background_process.pk,
+                **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
+
+        self.assertEqual(
+            mock_send.call_args.kwargs['timeout'],
+            REGISTRATION_REQUEST_TIMEOUT_SECONDS)
 
 
 class CapabilitiesPersistenceErrorTest(TestCase):

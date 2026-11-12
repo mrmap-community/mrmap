@@ -27,6 +27,8 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
                                      MetadataRelationPublicationEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
+from registry.exceptions.metadata import (MetadataFetchTimeout,
+                                          MetadataFetchUnreachable)
 from registry.exceptions.service import NoContent
 from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (ApplicationMetadataRecordManager,
@@ -39,9 +41,10 @@ from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
+from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, Timeout
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 
@@ -516,8 +519,19 @@ class RemoteMetadata(models.Model):
         """ Return the fetched remote content and update the content if save is True """
 
         session = Session()
+        # The adapter retries the *connection*, and only the connection: a
+        # connection which is refused is cheap to attempt again and the three
+        # attempts of the total budget cost a tenth of a second of backoff. A
+        # read is not retried here at all - `False` is what requests itself
+        # passes for that: the read is bounded by the timeout below, and
+        # repeating a silent window inside one delivery would hold a worker of
+        # the `download` queue through every attempt at once. The repetition of
+        # a transient failure belongs to celery's bounded retry of the fetch
+        # task, which waits without a worker and reports every attempt to the
+        # process the registration polls (#1260, #1207).
         retries = Retry(
             total=3,
+            read=False,
             backoff_factor=0.1
         )
         session.mount(self.link, HTTPAdapter(max_retries=retries))
@@ -527,16 +541,47 @@ class RemoteMetadata(models.Model):
                           # auth=auth,
                           )
 
-        response = session.send(request.prepare())
+        try:
+            response = session.send(
+                request.prepare(),
+                timeout=REGISTRATION_REQUEST_TIMEOUT_SECONDS,
+            )
+        except (Timeout, ConnectionError) as error:
+            # Which of the two ways a document gets lost before it is answered
+            # this one was, named for the person who has to fix the reference:
+            # the timeout is the server which accepted the connection and then
+            # stayed silent, the connection error the host which never took
+            # the connection at all. Both stay inside the transient families of
+            # requests which `BackgroundProcessBased.autoretry_for` retries;
+            # anything else the client could not even ask is left as it is,
+            # because another attempt would fail on the same mistake (#1260).
+            if isinstance(error, Timeout):
+                raise MetadataFetchTimeout(
+                    f"The server behind {self.link} did not answer within "
+                    f"{REGISTRATION_REQUEST_TIMEOUT_SECONDS} seconds.") from error
+            raise MetadataFetchUnreachable(
+                f"The server behind {self.link} could not be reached: "
+                f"{error}") from error
 
         if response.status_code == 200 and len(response.text) > 0:
             self.remote_content = response.text
             if save:
                 self.save()
             return self.remote_content
+        elif response.status_code != 200:
+            # An answer is not a timeout: the server is reachable and said
+            # what it thinks of this link, so another attempt reads the same
+            # answer. The status is named because it is what distinguishes a
+            # reference which moved (404) from a host which is broken (500)
+            # for whoever has to fix it (#1260).
+            raise NoContent(
+                f"Can't fetch content from remote for RemoteMetadata with id "
+                f"{self.pk}: the server answered with status "
+                f"{response.status_code}.")
         else:
             raise NoContent(
-                f"Can't fetch content from remote for RemoteMetadata with id {self.pk}")
+                f"Can't fetch content from remote for RemoteMetadata with id "
+                f"{self.pk}: the server answered but sent no content.")
 
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """

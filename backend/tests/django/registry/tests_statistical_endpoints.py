@@ -492,7 +492,14 @@ class HarvestedMetadataRelationGroupsTest(StatisticalListViewTestMixin,
 
         self.assertEqual(response.status_code, 200, response.content)
         authenticated = response.json()
-        self.assertEqual(authenticated['meta'], anonymous['meta'])
+        # the answer stamps the time of its own request into its meta, and
+        # two requests never answer that with the same microseconds - so
+        # everything the meta says beside its stamp is compared
+        self.assertEqual(
+            {name: value for name, value in authenticated['meta'].items()
+             if name != 'systemTime'},
+            {name: value for name, value in anonymous['meta'].items()
+             if name != 'systemTime'})
         # the answer groups rows within a day in an order it promises
         # nothing, so the rows are compared sorted
         self.assertEqual(self.sorted_rows(authenticated),

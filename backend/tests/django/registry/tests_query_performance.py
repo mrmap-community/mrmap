@@ -1130,6 +1130,13 @@ class HarvestingStatisticsQueryPerformance(QueryMeasurementMixin, TestCase):
 
     path = '/api/registry/statistical/harvested-metadata-relations'
 
+    # the marker of the paginator's total of this card: Django aliases the
+    # COUNT of a plain queryset as "__count", but the count of a DISTINCT
+    # subselect is wrapped as a bare COUNT(*) over its subquery. No counter
+    # of the page carries the star - they all count a column - so the star
+    # tells the total of the groups and the page of the groups apart
+    TOTAL = 'COUNT(*)'
+
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
                 "test_csw.json"]
 
@@ -1193,7 +1200,7 @@ class HarvestingStatisticsQueryPerformance(QueryMeasurementMixin, TestCase):
         status, body, queries = self.request(self.path, user='user', sort='id')
         self.assertEqual(status, 200, body)
         counts = [statement for statement in self.relationStatements(queries)
-                  if COUNT in statement]
+                  if self.TOTAL in statement]
         self.assertEqual(len(counts), 1, self.relationStatements(queries))
         count_sql = counts[0]
         self.assertIn('SELECT DISTINCT', count_sql)
@@ -1211,7 +1218,7 @@ class HarvestingStatisticsQueryPerformance(QueryMeasurementMixin, TestCase):
         # the page beside it is a page: its groups are limited and its
         # counters are computed there and only there
         pages = [statement for statement in self.relationStatements(queries)
-                 if COUNT not in statement]
+                 if self.TOTAL not in statement]
         self.assertEqual(len(pages), 1, self.relationStatements(queries))
         self.assertIn('GROUP BY', pages[0])
         self.assertIn('LIMIT', pages[0])
@@ -1233,7 +1240,7 @@ class HarvestingStatisticsQueryPerformance(QueryMeasurementMixin, TestCase):
                 self.assertEqual(body['meta']['pagination']['count'], expected)
                 counts = [statement for statement
                           in self.relationStatements(queries)
-                          if COUNT in statement]
+                          if self.TOTAL in statement]
                 self.assertEqual(len(counts), 1,
                                  self.relationStatements(queries))
                 self.assertNotIn('FILTER (WHERE', counts[0])

@@ -700,36 +700,57 @@ def finish_metadata_collection(self, *args, **kwargs):
     which is not the same as every reference being decided: a redelivery
     which lost its claim withdraws without deciding, and the delivery that
     holds the lease may still be working the row. So the body looks at the
-    work rows instead of trusting the chord - while a reference is still
-    PENDING or LEASED it waits, and the run completes with the last
-    decision it waited for, not under it (#1263). Like every completion of
-    a planned collection the summary closes with the references which never
-    answered an outcome at all (#1259).
+    work rows instead of trusting the chord - while a delivery holds a
+    LEASE it waits, and the run completes with the last decision it waited
+    for, not under it (#1263). A row nobody ever claimed is nobody's work:
+    with every delivery of the fan-out answered, no claim on it can come
+    anymore, and the completion counts it skipped like #1259 always did.
+    The check and the completion hold the process lock which every claim
+    takes first, so no claim can slip between looking and completing; a
+    claim which loses that race meets a completed run and withdraws. Like
+    every completion of a planned collection the summary closes with the
+    references which never answered an outcome at all (#1259).
     """
     from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
 
     if self.background_process_pk is not None:
-        outstanding = TemporaryMdMetadataFile.objects.filter(
-            background_process_id=self.background_process_pk,
-            state__in=[ReferenceWorkStateEnum.PENDING.value,
-                       ReferenceWorkStateEnum.LEASED.value],
-        ).exists()
-        if outstanding and self.request.retries < FINISH_WAIT_MAX_RETRIES:
+        wait = False
+        with transaction.atomic():
+            process = BackgroundProcess.objects.select_for_update().filter(
+                pk=self.background_process_pk).first()
+            if process is None:
+                # the run was deleted while its chord answered - there is
+                # nothing to complete, and its deletion sweep owns the rows
+                return
+            leased = TemporaryMdMetadataFile.objects.filter(
+                background_process_id=self.background_process_pk,
+                state=ReferenceWorkStateEnum.LEASED.value,
+            ).exists()
+            if leased and self.request.retries < FINISH_WAIT_MAX_RETRIES:
+                wait = True
+            else:
+                if leased:
+                    # the wait itself ran out - only reachable while
+                    # something keeps re-leasing rows faster than they
+                    # decide. The completion below counts what stayed
+                    # undecided as skipped, exactly like any interrupted
+                    # plan; from the done_at written here on, the claim gate
+                    # refuses every late report about these rows.
+                    settings.ROOT_LOGGER.warning(
+                        f"BackgroundProcess {self.background_process_pk} "
+                        f"completed while registration work rows were still "
+                        f"leased - late outcomes are refused from here.",
+                        stack_info=True)
+                self.update_background_process(
+                    completed=True
+                )
+        if wait:
             raise self.retry(countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
                              max_retries=FINISH_WAIT_MAX_RETRIES)
-        if outstanding:
-            # the wait itself ran out - only reachable while something keeps
-            # re-leasing rows faster than they decide. The completion below
-            # counts what stayed unanswered as skipped, exactly like any
-            # interrupted plan; the hourly recovery owns the rows since.
-            settings.ROOT_LOGGER.warning(
-                f"BackgroundProcess {self.background_process_pk} completed "
-                f"while registration work rows were still outstanding - "
-                f"the reference recovery owns them from here.",
-                stack_info=True)
-    self.update_background_process(
-        completed=True
-    )
+    else:
+        self.update_background_process(
+            completed=True
+        )
 
 
 @worker_ready.connect

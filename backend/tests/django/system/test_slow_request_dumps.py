@@ -226,3 +226,19 @@ class SlowRequestDumpScheduleTests(TestCase):
         self.assertEqual(tasks.get().crontab_id, every_minute.pk)
         self.assertEqual(tasks.get().task,
                          'system.tasks.delete_old_slow_request_dumps')
+
+    def test_a_staggered_row_on_the_same_minute_does_not_break_the_hook(self):
+        """A deployment which staggers per-service tasks over the minute grid
+        (system/fields.py) legitimately holds a row at five past with any
+        hour. The hook asks its schedule by the whole shape and finds its own
+        hourly row; the bare minute lookup answered all of those rows and
+        django_celery_beat raised MultipleObjectsReturned, which took the
+        whole migrate down (#1273).
+        """
+        CrontabSchedule.objects.create(minute='5', hour='3')
+
+        tasks = self.scheduled()
+
+        self.assertEqual(tasks.count(), 1)
+        self.assertEqual(tasks.get().crontab.minute, '5')
+        self.assertEqual(tasks.get().crontab.hour, '*')

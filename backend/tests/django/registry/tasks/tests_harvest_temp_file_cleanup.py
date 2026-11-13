@@ -16,7 +16,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
-from django_celery_beat.models import PeriodicTask
+from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
 from registry.apps import (HARVEST_TEMP_FILE_CLEANUP_TASK_NAME,
                            create_harvest_temp_file_cleanup_task)
@@ -407,6 +407,19 @@ class EndedHarvestDiscoveryTest(TestCase):
         self.assertEqual(
             row.task, 'registry.tasks.harvest.sweep_ended_harvest_temp_files')
         self.assertEqual(row.crontab.minute, '40')
+
+    def test_a_staggered_row_on_the_same_minute_does_not_break_the_hook(self):
+        # (#1273) the staggered per-service schedules (system/fields.py)
+        # legitimately hold a row at twenty to the hour with a concrete hour;
+        # the hook asks its schedule by the whole shape and finds its own
+        # hourly row instead of dying on a MultipleObjectsReturned which the
+        # bare minute lookup answered and took the whole migrate down
+        CrontabSchedule.objects.create(minute='40', hour='3')
+        create_harvest_temp_file_cleanup_task(sender=None)
+        row = PeriodicTask.objects.get(
+            name=HARVEST_TEMP_FILE_CLEANUP_TASK_NAME)
+        self.assertEqual(row.crontab.minute, '40')
+        self.assertEqual(row.crontab.hour, '*')
 
 
 class CleanupSchedulingTest(TestCase):

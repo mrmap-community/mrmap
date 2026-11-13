@@ -19,8 +19,14 @@ def create_slow_request_dump_cleanup_task(sender, **kwargs):
     """
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
-    # at five past the hour, out of the way of the five minute metadata import
-    schedule, _ = CrontabSchedule.objects.get_or_create(minute="5")
+    # at five past the hour, out of the way of the five minute metadata
+    # import. Asked by its whole shape and not by the minute alone: the
+    # staggered per-service schedules (system/fields.py) legitimately hold
+    # rows at five past with any hour, and the bare minute lookup answered
+    # them all -- the migrate died on MultipleObjectsReturned (#1273)
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="5", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(
         name=SLOW_REQUEST_DUMP_CLEANUP_TASK_NAME,

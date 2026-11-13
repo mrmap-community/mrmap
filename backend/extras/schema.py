@@ -275,3 +275,27 @@ class CustomOperationId(JsonApiAutoSchema):
                 sort_param["explode"] = False
             return
         super()._patch_sort_param_schema(sort_param=sort_param)
+
+
+def get_lib_doc_excludes():
+    """Spectacular's ``GET_LIB_DOC_EXCLUDES``: the library barrier of the
+    docstring lookup.
+
+    ``drf_spectacular.plumbing.get_doc`` walks the view class's MRO up to
+    the first excluded base and takes the first docstring it meets on the
+    way. The mixins of ``rest_framework_json_api.views`` are below that
+    barrier and above the DRF ones, so their implementation docstrings
+    become the *operation description* of every view inheriting them —
+    measured: one 640 character mixin docstring shipped 138 times as
+    documentation of unrelated endpoints. Excluding the library's classes
+    lets a view's own docstring (or none) answer again.
+    """
+    import inspect
+
+    from drf_spectacular.plumbing import \
+        get_lib_doc_excludes as spectacular_excludes
+    import rest_framework_json_api.views as jsonapi_views
+
+    return spectacular_excludes() + [
+        member for _, member in inspect.getmembers(jsonapi_views, inspect.isclass)
+    ]

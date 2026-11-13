@@ -60,6 +60,7 @@ class Fixture:
         self.search_partial = False           # a search that reads fewer than it counts
         self.issue_search_partial = False     # the same for the approved-issue search
         self.created = {}                     # issue -> createdAt (scope all-approved)
+        self.tl = {}                          # issue -> timeline cross-referencing PR numbers
         self.calls = []
 
     # ---- state building -----------------------------------------------------
@@ -79,9 +80,11 @@ class Fixture:
         self.bclosing[n] = list(closed_by)
         return self
 
-    def merged_pr(self, n, base="develop", sha="a" * 40, merged=True, on_base=True):
+    def merged_pr(self, n, base="develop", sha="a" * 40, merged=True, on_base=True,
+                  body="", head="feature/pr-%d"):
         self.pulls[n] = {"state": "closed", "merged_at": "2026-11-01T00:00:00Z" if merged else None,
-                         "merge_commit_sha": sha, "base": {"ref": base}}
+                         "merge_commit_sha": sha, "base": {"ref": base},
+                         "body": body, "head": {"ref": head % n if "%d" in head else head}}
         if on_base:
             self.on_base.add(sha)
         return self
@@ -107,6 +110,14 @@ class Fixture:
             return self.graphql(cmd)
         if "/events?per_page=100" in cmd:
             return json.dumps(self.events(int(re.search(r"/issues/(\d+)/events", cmd).group(1))))
+        if "/timeline?per_page=100" in cmd:
+            return json.dumps([{"event": "cross-referenced",
+                                "source": {"type": "PullRequest", "issue": {
+                                    "number": p,
+                                    "html_url": "https://github.com/o/r/pull/%d" % p,
+                                    "pull_request": {}}}}
+                               for p in self.tl.get(
+                                   int(re.search(r"/issues/(\d+)/timeline", cmd).group(1)), [])])
         if cmd.startswith("gh api repos/%s/pulls/" % self.repo):
             n = int(cmd.rsplit("/", 1)[1])
             if n not in self.pulls:
@@ -685,6 +696,71 @@ res = json.loads(screen(f)[1])
 results.append(check("the default scope is epic with its keys unchanged",
                      res["scope"] == "epic" and res["epicNumber"] == 1256
                      and res["eligible"] == [1257], f"scope={res['scope']}"))
+
+# 27. Rule 4 timeline fallback: an issue closed by hand after a develop-merged
+#     PR carries no native closed-by relation - the PR that NAMES the blocker
+#     (body keyword or branch convention) still satisfies it.
+f = Fixture(order=[20])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocker(21, closed_by=[])
+f.tl[21] = [502]
+f.merged_pr(502, sha="e" * 40, on_base=True, body="Closes #21\n\nfixes it")
+res = json.loads(screen(f)[1])
+results.append(check("a hand-closed blocker satisfied by a develop-merged naming PR",
+                     res["eligible"] == [20]
+                     and any("timeline" in c for c in f.calls),
+                     f"eligible={res['eligible']}"))
+
+# 28. Branch naming satisfies as evidence of naming just like the body keyword.
+f = Fixture(order=[20])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocker(21, closed_by=[])
+f.tl[21] = [503]
+f.merged_pr(503, sha="f" * 40, on_base=True, body="no keyword here",
+            head="feature/issue-21-repair")
+res = json.loads(screen(f)[1])
+results.append(check("an issue-<N> head branch names the blocker just as well",
+                     res["eligible"] == [20], f"eligible={res['eligible']}"))
+
+# 29. A timeline PR that only mentions the number, or merged elsewhere, or
+#     never merged, satisfies nothing - the fallback must not go soft.
+f = Fixture(order=[20])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocker(21, closed_by=[])
+f.tl[21] = [601, 602, 603]
+f.merged_pr(601, sha="1" * 40, on_base=True, body="saw this in #21 once")
+f.merged_pr(602, base="master", sha="2" * 40, on_base=False, body="Closes #21")
+f.merged_pr(603, sha="3" * 40, merged=False, body="Closes #21")
+res = json.loads(screen(f)[1])
+results.append(check("mention-only, wrong-base and unmerged timeline PRs satisfy nothing",
+                     res["eligible"] == []
+                     and tokens(res, 20) == ["blocker-closed-without-implementation-21"],
+                     f"tokens={tokens(res, 20)}"))
+
+# 30. A timeline that cannot be read fails closed (it is Rule 4 evidence now).
+results.append(fails("an unreadable blocker timeline fails closed",
+                     lambda fx: (fx.blocked(1257, [1256]), fx.blocker(1256, closed_by=[]),
+                                 fx.fail.append("issues/1256/timeline")), "timeline"))
+
+# 31. Two candidates behind the SAME hand-closed blocker: the first one reads
+#     the timeline PRs into the shared PR cache, and the second must still be
+#     judged on them. Skipping by "already in the cache" once made every
+#     sibling behind an already-cleared blocker a false negative.
+f = Fixture(order=[20, 22])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.issue(22, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocked(22, [21])
+f.blocker(21, closed_by=[])
+f.tl[21] = [700, 701]
+f.merged_pr(700, sha="7" * 40, on_base=True, body="mentioned #21 in passing")
+f.merged_pr(701, sha="8" * 40, on_base=True, body="Closes #21")
+res = json.loads(screen(f, "--scope", "all-approved")[1])
+results.append(check("two candidates sharing one satisfied blocker are both eligible",
+                     res["eligible"] == [20, 22], f"eligible={res['eligible']}"))
 
 print("\n%d/%d passed" % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

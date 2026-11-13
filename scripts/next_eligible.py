@@ -61,7 +61,11 @@ reasons):
      branch and a merge commit that is an ancestor of origin/<base> (git
      merge-base --is-ancestor after git fetch origin <base>). A blocker
      closed without such a PR is NOT satisfied - closing an issue is not
-     implementing it
+     implementing it. When the native connection names no satisfying PR -
+     it stays empty wherever an issue was closed by hand and the PR merged
+     into a non-default branch - the blocker's timeline is consulted for
+     PRs that NAME it (native relation, a `Closes #N` body keyword, or an
+     `issue-<N>` branch), each facing the identical merge proof.
   5. no active `scripts/wip` claim on it, local or remote - the discovery
      `wip ls` itself uses: `status: wip` labelled issues with their claim
      comments, plus the local worktrees whose branch names the issue
@@ -470,6 +474,55 @@ def blocker_state(data):
     raise EligibilityError("a blocker reported issue state %r, which is not open or closed" % data)
 
 
+def pr_view(runner, repo, pnum, cache):
+    """The REST view of one PR (the merge facts and the linking facts), cached."""
+    if pnum not in cache:
+        try:
+            view = json.loads(runner(["gh", "api", "repos/%s/pulls/%d" % (repo, pnum)]))
+        except (CommandError, ValueError):
+            raise EligibilityError("reading PR #%d failed" % pnum)
+        cache[pnum] = {"state": view.get("state"),
+                       "merged_at": view.get("merged_at"),
+                       "merge_sha": view.get("merge_commit_sha"),
+                       "base": (view.get("base") or {}).get("ref"),
+                       "body": view.get("body") or "",
+                       "head": (view.get("head") or {}).get("ref")}
+    return cache[pnum]
+
+
+def timeline_prs(runner, repo, num):
+    """PR numbers whose timeline cross-references issue #num in this repository.
+
+    The candidate listing Rule 4 falls back to when the native closed-by
+    connection names no satisfying PR: GitHub fills that connection only when
+    a PR AUTO-CLOSES the issue, and auto-close fires only on merges into the
+    repository's default branch - a repository integrating on another branch
+    and closing issues manually has it empty although the work is merged.
+    Candidates prove nothing by themselves: the timeline merely mentions, the
+    merge and naming proof in blocker_verdicts decides.
+    """
+    try:
+        events = gh_rest_items(runner, "repos/%s/issues/%d/timeline?per_page=100" % (repo, num))
+    except CommandError as e:
+        raise EligibilityError("reading the timeline of #%d failed: %s" % (num, e))
+    found = []
+    for ev in events:
+        if not isinstance(ev, dict) or ev.get("event") != "cross-referenced":
+            continue
+        src = ev.get("source") or {}
+        issue = src.get("issue") or {}
+        n = issue.get("number")
+        if not isinstance(n, int):
+            continue
+        is_pr = bool(issue.get("pull_request")) or src.get("type") == "PullRequest"
+        # numbers are only unique per repository - anything not from this one
+        # would resolve to an unrelated PR number here and must not be tried.
+        in_repo = ("/%s/" % repo) in (issue.get("html_url") or "")
+        if is_pr and in_repo and n not in found:
+            found.append(n)
+    return found
+
+
 def blocker_verdicts(runner, repo, num, base, cache):
     """Rule 4: every blocked_by blocker of #num, satisfied or named.
 
@@ -477,6 +530,15 @@ def blocker_verdicts(runner, repo, num, base, cache):
     branch, and its merge commit reachable from origin/<base>. The reason
     names how far it got, so a caller can tell "nothing was implemented"
     from "implemented, but not where this epic is integrated".
+
+    The evidence starts from the native closed-by connection; when it names
+    no satisfying PR (empty included - GitHub leaves it empty whenever the
+    issue was closed manually rather than auto-closed on the default branch),
+    the blocker's timeline is consulted for PRs that NAME the blocker: by the
+    native relation, by a closing keyword in the body (`Closes #N`), or by an
+    `issue-<N>` branch name - the repository's own conventions - and then
+    face the same merge proof. A timeline PR that only mentions the number
+    does not satisfy.
     """
     owner, name = repo.split("/")
     q = ('{repository(owner:"%s",name:"%s"){issue(number:%d){blockedBy(first:100)'
@@ -505,17 +567,7 @@ def blocker_verdicts(runner, repo, num, base, cache):
             pnum = pr.get("number")
             if not isinstance(pnum, int):
                 raise EligibilityError("a closing PR of blocker #%d has no number" % bnum)
-            if pnum not in cache:
-                try:
-                    view = json.loads(runner(["gh", "api", "repos/%s/pulls/%d" % (repo, pnum)]))
-                except (CommandError, ValueError):
-                    raise EligibilityError("reading PR #%d (a closing PR of blocker #%d) "
-                                           "failed" % (pnum, bnum))
-                cache[pnum] = {"state": view.get("state"),
-                               "merged_at": view.get("merged_at"),
-                               "merge_sha": view.get("merge_commit_sha"),
-                               "base": (view.get("base") or {}).get("ref")}
-            v = cache[pnum]
+            v = pr_view(runner, repo, pnum, cache)
             if v["state"] != "closed" or not v["merged_at"]:
                 continue  # this PR did not merge anything; the next one may
             if v["base"] != base:
@@ -528,6 +580,28 @@ def blocker_verdicts(runner, repo, num, base, cache):
                 satisfied = True
                 break
             not_on_base = pnum
+        if not satisfied:
+            # The native relation proved nothing - the timeline may still hold
+            # the PR that implemented this blocker and was merged into the
+            # integration branch while the issue was closed by hand. Only PRs
+            # already examined for THIS blocker are skipped; the shared cache
+            # merely spares the re-read, it never condemns a PR twice.
+            tried = {p.get("number") for p in closing}
+            for pnum in timeline_prs(runner, repo, bnum):
+                if pnum in tried:
+                    continue
+                v = pr_view(runner, repo, pnum, cache)
+                if v["state"] != "closed" or not v["merged_at"] or v["base"] != base:
+                    continue
+                if not v["merge_sha"] or not merge_commit_on_base(runner, v["merge_sha"], base):
+                    continue
+                named = bnum in {int(x) for x in CLOSES_RE.findall(v["body"] or "")}
+                if not named:
+                    m = BRANCH_ISSUE_RE.search(v["head"] or "")
+                    named = bool(m and m.group(1) == str(bnum))
+                if named:
+                    satisfied = True
+                    break
         if satisfied:
             continue
         if not_on_base:

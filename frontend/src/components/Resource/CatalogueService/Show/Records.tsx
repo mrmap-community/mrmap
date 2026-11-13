@@ -51,11 +51,16 @@ export default function Records() {
           element={<RecordList resource="ServiceMetadataRecord" />}
         />
         <Route
+          path="ApplicationMetadataRecord/*"
+          element={<RecordList resource="ApplicationMetadataRecord" />}
+        />
+        <Route
           path="*"
           element={
             <Stack spacing={2}>
               <RecordList resource="DatasetMetadataRecord" />
               <RecordList resource="ServiceMetadataRecord" />
+              <RecordList resource="ApplicationMetadataRecord" />
             </Stack>
           }
         />

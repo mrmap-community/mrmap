@@ -78,6 +78,14 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
 
+# The username of the superuser this deployment seeds on migrate (accounts/
+# apps.py) - a deployment value, not a code value. Named once here, because
+# the account and every internal context which falls back to it (the
+# service-less harvesting run of registry/models/harvest.py) have to name the
+# same value; the hardcoded "mrmap" of the fallback aborted such runs on any
+# deployment which named its admin differently (#1278).
+MRMAP_USER = os.environ.get("MRMAP_USER")
+
 # Application definition
 INSTALLED_APPS = [
     "daphne",

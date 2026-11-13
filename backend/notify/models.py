@@ -161,6 +161,15 @@ class BackgroundProcess(models.Model):
     # answers of a run which collected no references are none, not zeroes, and
     # a zero stays the honest answer of a planned collection which found
     # nothing.
+    #
+    # They sit on the process, not on the described service, because they
+    # answer for one run: the same service can be registered again, #1274
+    # collects during an update through this same path, and this is the only
+    # row which outlives the run - the per-reference work rows of #1263 are
+    # disposable and deleted on success. Like the retry fields above they
+    # belong to the generic model, stay empty for the kinds which collect
+    # nothing, and the job center answers them from the one process resource
+    # without a per-kind join (#1207); #1263 prescribes this host and names.
     references_total = models.IntegerField(
         null=True,
         default=None,

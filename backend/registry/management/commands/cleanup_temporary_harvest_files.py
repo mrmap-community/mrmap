@@ -13,8 +13,11 @@ or a re-run of itself without either doing damage.
 Only jobs in a terminal phase are ever named: a job which is not COMPLETED or
 ABORTED keeps every row and file, and a scan without ``--job-id`` additionally
 waits out the retention window so a run which ended moments ago is not read
-while its own scheduled cleanup is still taking it. Nothing here leaves the
-temporary storage location, and nothing here deletes a permanent record.
+while its own scheduled cleanup is still taking it. What the command does name,
+it takes at once: the automatic paths wait out the retention window of #1295 for
+a run whose records may still be retried, and the operator who runs this command
+over the history has just decided otherwise. Nothing here leaves the temporary
+storage location, and nothing here deletes a permanent record.
 """
 
 from datetime import timedelta
@@ -44,9 +47,9 @@ class Command(BaseCommand):
             "it and without --dry-run the command refuses")
         parser.add_argument(
             "--older-than", type=int, metavar="DAYS", default=None,
-            help="jobs must have ended this many days ago (default: "
-            "HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS); ignored for "
-            "--job-id")
+            help="jobs must have ended this many days ago (default: the longer "
+            "of HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS and "
+            "HARVEST_TEMP_FILE_RETENTION_DAYS); ignored for --job-id")
         parser.add_argument(
             "--batch-size", type=int, default=None, help="rows per database "
             "batch (default: HARVEST_TEMP_FILE_CLEANUP_BATCH_SIZE)")
@@ -85,9 +88,18 @@ class Command(BaseCommand):
                     "to zero rows and an empty directory)"))
         else:
             from django.conf import settings
-            days = (options["older_than"] if options["older_than"] is not None
-                    else getattr(settings,
-                                 "HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", 1))
+            if options["older_than"] is not None:
+                days = options["older_than"]
+            else:
+                # the margin of the scan and the retention window of the pile
+                # are the same promise to the operator, so the scan keeps the
+                # longer of the two and a deployment which set a window is not
+                # undercut by the command it runs to bound that very pile
+                # (#1295)
+                days = max(
+                    getattr(settings,
+                            "HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", 1),
+                    getattr(settings, "HARVEST_TEMP_FILE_RETENTION_DAYS", 0))
             cutoff = timezone.now() - timedelta(days=max(0, days))
             jobs = jobs.filter(done_at__lt=cutoff)
 
@@ -116,7 +128,11 @@ class Command(BaseCommand):
                 continue
             summary = cleanup_harvesting_job_temp_files(
                 job.pk, batch_size=options["batch_size"],
-                max_rows=options["limit"])
+                max_rows=options["limit"],
+                # what was named above is taken now: the automatic paths wait
+                # out the retention window of #1295, the operator who ran this
+                # command has just decided not to
+                respect_retention=False)
             self.stdout.write(
                 f"job {job.pk}: {summary['rows']} rows and {summary['files']} "
                 f"files deleted, {summary['missing']} already gone, "

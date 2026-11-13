@@ -810,6 +810,23 @@ HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN = int(
 # already over (#1237)
 HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", "1"))
+# How many days the records an ended run stored stay before the automatic
+# cleanup of ``registry/tasks/harvest.py`` takes them back: the retention of
+# this pile, which is what the sibling knobs of #888 and #682 answer for theirs.
+# The records a run left behind are worth a retry while the run is fresh and
+# nothing afterwards - on the rig of #1295 two registration waves of them filled
+# 24.4 GB, because no boundary existed at all. 0 takes them back as soon as the
+# run reached COMPLETED or ABORTED, which is what #1237 shipped with and what a
+# deployment whose disk is the binding constraint wants; every day above 0 is
+# the window in which the operator can still reschedule the import of a stored
+# record of a run which completed before its rows and files go. Unlike the
+# sibling knobs, a 0 here does not mean "keep forever": 0 is the minimum of the
+# window, because an unbounded window over this pile is exactly the state #1295
+# reports. This is not HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS above, which is
+# only the margin the operator's own scan of the whole history keeps to a run
+# which ended moments ago (#1295)
+HARVEST_TEMP_FILE_RETENTION_DAYS = int(
+    os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True

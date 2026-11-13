@@ -22,6 +22,15 @@ vi.mock("../../../jsonapi/components/ListGuesser", () => ({
   },
 }));
 
+// the phase column looks the reported value up under the background activity
+// translations; without a provider react-admin's translate would answer a
+// segment of the key, so the spec pins the exact key by answering it back -
+// the words themselves belong to the i18n specs (#1267)
+vi.mock("react-admin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-admin")>()),
+  useTranslate: () => (key: string) => key,
+}));
+
 beforeEach(() => {
   state.ready = 0;
   state.props = undefined;
@@ -67,5 +76,25 @@ describe("ListBackgroundProcess", () => {
     state.ready = 1;
     render(<ListBackgroundProcess />);
     expect(state.props?.refetchInterval).toEqual(false);
+  });
+
+  it("asks the background activity for the reported phase of a row", () => {
+    // with the mocked translate above, this pins the exact key the phase
+    // column asks for (#1267)
+    render(<ListBackgroundProcess />);
+    const definitions = state.props?.updateFieldDefinitions as {
+      props: {
+        source: string;
+        render?: (record: { phase?: string }) => string | undefined;
+      };
+    }[];
+    const phase = definitions.find(
+      (definition) => definition.props.source === "phase",
+    );
+    expect(phase?.props.render?.({ phase: "collect_metadata_records" })).toBe(
+      "backgroundActivity.phases.collect_metadata_records",
+    );
+    expect(phase?.props.render?.({})).toBeUndefined();
+    expect(phase?.props.render?.({ phase: "" })).toBeUndefined();
   });
 });

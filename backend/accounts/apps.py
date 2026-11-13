@@ -26,7 +26,10 @@ def create_default_user_and_org(sender, **kwargs):
     User = get_user_model()
 
     # Default Superuser
-    username = os.environ.get("MRMAP_USER")
+    # the setting, not the raw env value: the setting is where MRMAP_USER is
+    # named, so the account and the internal contexts falling back to it read
+    # the same deployment value (#1278)
+    username = settings.MRMAP_USER
     password = os.environ.get("MRMAP_PASSWORD")
     if username and password and not User.objects.filter(username=username).exists():
         User.objects.create_superuser(username=username, password=password)

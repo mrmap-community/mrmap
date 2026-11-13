@@ -3,6 +3,7 @@ import sys
 from uuid import uuid4
 
 from celery import chord, current_task
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
@@ -721,12 +722,20 @@ class HarvestingJob(ProcessingData):
                 "user_pk": created_by.pk
             } if created_by else None
         else:
+            # a run without a catalogue is the file import: it is started by the
+            # deployment itself, no request stands behind it and its history names
+            # no user. Its context is the superuser the deployment seeded - named
+            # by the value the deployment configured (settings.MRMAP_USER), never
+            # by a username hardcoded in the code, which aborted the first stored
+            # file of such a run on every deployment naming its admin differently
+            # (#1278)
             return {
                 "path": "somepath",
                 "method": "GET",
                 "content_type": "application/json",
                 "data": {},
-                "user_pk": get_user_model().objects.get(username="mrmap").pk
+                "user_pk": get_user_model().objects.get(
+                    username=settings.MRMAP_USER).pk
             }
 
     def get_record_types(self):

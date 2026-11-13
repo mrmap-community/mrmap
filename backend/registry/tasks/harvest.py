@@ -1433,13 +1433,30 @@ def sweep_ended_harvest_temp_files(*args, **kwargs):
     which was briefly dark, a cleanup whose worker died - and hands each one
     to ``cleanup_harvesting_job_temp_files_task``, which is idempotent and
     bounded per fire. ``SingletonTask`` keeps two sweeps from reading the
-    same backlog twice at once.
+    same backlog twice at once. Since #1263 the same fire also sends the
+    recovery of the registration reference work - the identical crash shape
+    (a sealed plan whose chord was never published) on the registration
+    side, whose own singleton deduplicates it against the worker start.
     """
     dispatched = dispatch_cleanup_of_ended_harvest_backlogs()
     if dispatched:
         logger.info(
             f"the sweep of ended harvests scheduled the temporary file "
             f"cleanup of {len(dispatched)} job(s): {dispatched[:50]}")
+    try:
+        # the same hourly reach which reaps the harvest backlog also owns
+        # the recovery of the registration reference work: a sealed plan
+        # whose chord died between commit and publish waits for nothing
+        # else but this pass and the worker start (#1263). The singleton
+        # deduplicates it against that hook; its refusal here is only a
+        # deferred pass, never a lost recovery.
+        app.send_task(
+            "registry.tasks.service.recover_registration_reference_work")
+    except Exception:
+        logger.warning(
+            f"could not schedule the registration reference recovery; the "
+            f"worker start and the next sweep will: "
+            f"{traceback.format_exc()}")
     return dispatched
 
 

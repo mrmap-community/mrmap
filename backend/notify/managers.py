@@ -194,6 +194,90 @@ class BackgroundProcessManager(models.Manager):
         return self._apply(pk, {"done_steps": Greatest(
             Coalesce(F("done_steps"), 0), max(int(done_steps), 0))})
 
+    def record_reference_outcome(self, pk, stored_delta=0, failed_delta=0,
+                                 step_done=False):
+        """Transition the per-reference outcome counters of a collection exactly once.
+
+        The outcome of one registration reference (#1263) moves the stored
+        summary of its process: a first decision counts the reference once,
+        and an authorized retry which turns a failed reference into a stored
+        one shifts the last-outcome counters - ``done_steps`` and
+        ``references_total`` stay where the sealed plan put them.
+
+        The write is one conditional UPDATE with database-side expressions,
+        so it is safe under concurrent reporters and never a Python
+        read-modify-write. Two process shapes accept it, and the caller must
+        hold the process lock while choosing between them:
+
+        * an ACTIVE process takes the counters and, for a first decision,
+          the capped ``done_steps`` mirror of the decided count;
+        * an existing terminal COMPLETED process takes the narrow retry
+          transition of #1265: the counters and the revision move, while the
+          status, ``done_at`` and every other completed field stay exactly
+          as they were - a retry does not reopen its parent run (D3), and
+          ``update_background_process(step_done=True)`` is not used for it.
+
+        A FAILED or ABORTED process is never silently reopened and nothing
+        is written for it. The listeners learn the new state over the
+        revision-bumped payload like every other report.
+
+        Args:
+            pk: primary key of the process
+            stored_delta (int): +/-1 on the stored counter
+            failed_delta (int): +/-1 on the failed counter
+            step_done (bool): whether this outcome decides a reference for
+                the first time and mirrors into ``done_steps``
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        if pk is None:
+            return 0
+        values = {}
+        if stored_delta:
+            values["references_stored"] = Greatest(
+                Coalesce(F("references_stored"), 0) + stored_delta, 0)
+        if failed_delta:
+            values["references_failed"] = Greatest(
+                Coalesce(F("references_failed"), 0) + failed_delta, 0)
+        if step_done:
+            values["done_steps"] = capped_done_steps(1)
+        if not values:
+            return 0
+
+        updated = self.get_queryset().filter(
+            pk=pk,
+            done_at__isnull=True,
+            status__in=self.ACTIVE_STATUS,
+        ).update(revision=F("revision") + 1, **values)
+        if not updated:
+            # the narrow path of D3: a COMPLETED run whose retried reference
+            # decided differently - counters and revision only, never the
+            # decision fields of the run itself
+            completed_values = {
+                key: value for key, value in values.items()
+                if key != "done_steps"}
+            if not completed_values:
+                # a first-decision report of a reference that a COMPLETED run
+                # never had is not this method's contract; the completion of
+                # a run waits for all its rows decided, so nothing legit
+                # reaches here and nothing is guessed
+                return 0
+            updated = self.get_queryset().filter(
+                pk=pk,
+                status=ProcessStatusEnum.COMPLETED,
+            ).update(revision=F("revision") + 1, **completed_values)
+
+        if updated:
+            try:
+                post_save.send(
+                    self.model,
+                    instance=self.process_info().get(pk=pk),
+                    created=False)
+            except self.model.DoesNotExist:
+                pass
+        return updated
+
     def report_retry(self, pk, reason, until=None):
         """Mirror one reported retry of a task onto its process (#1207).
 

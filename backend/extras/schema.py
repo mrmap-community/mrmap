@@ -34,6 +34,48 @@ LOOKUP_LABELS = {
 }
 
 
+# ``solve_lookup_type`` is a pure function of (model, lookup) and the
+# generation of one document asks it ~1900 times for a handful of models;
+# the same holds for the related-field inventory of a model. Both are
+# memoized per process — the schema is generated from the deployed code,
+# which is fixed for the lifetime of the process.
+_LOOKUP_MEMO = {}
+_RELATED_FIELDS_MEMO = {}
+_FIELDS_LOOKUP_MEMO = {}
+
+
+def _solve_filter_lookup(model, lookup):
+    key = (model, lookup)
+    result = _LOOKUP_MEMO.get(key)
+    if result is None:
+        result = Query(model).solve_lookup_type(lookup)
+        _LOOKUP_MEMO[key] = result
+    return result
+
+
+def _fields_lookup_of_model(model):
+    """Every name the ORM resolves through this model: its own columns, the
+    reverse relations and the m2m — the vocabulary a filter path starts
+    from. Pure ``_meta`` reading, so it is taken once per model."""
+    fields_lookup = _FIELDS_LOOKUP_MEMO.get(model)
+    if fields_lookup is None:
+        fields = {
+            concrete_field.name: concrete_field
+            for concrete_field in model._meta.concrete_fields
+        }
+        reverse_rel_fields = {
+            rel.get_accessor_name(): rel
+            for rel in model._meta.related_objects
+        }
+        m2m_fields = {
+            m2m.name: m2m
+            for m2m in model._meta.local_many_to_many
+        }
+        fields_lookup = _FIELDS_LOOKUP_MEMO[model] = (
+            fields | reverse_rel_fields | m2m_fields)
+    return fields_lookup
+
+
 class CustomOperationId(JsonApiAutoSchema):
 
     def get_operation_id(self):
@@ -95,36 +137,27 @@ class CustomOperationId(JsonApiAutoSchema):
         return schema
 
     def _get_related_fields_of_model(self, model):
-        related_fields = {}
-        for field in model._meta.get_fields():
-            if isinstance(field, ForeignKey):
-                related_fields[field.name] = field
-        for rel in model._meta.related_objects:
-            related_fields[rel.related_query_name] = rel
-        for m2m in model._meta.local_many_to_many:
-            related_fields[m2m.name] = m2m
+        related_fields = _RELATED_FIELDS_MEMO.get(model)
+        if related_fields is None:
+            related_fields = {}
+            for field in model._meta.get_fields():
+                if isinstance(field, ForeignKey):
+                    related_fields[field.name] = field
+            for rel in model._meta.related_objects:
+                related_fields[rel.related_query_name] = rel
+            for m2m in model._meta.local_many_to_many:
+                related_fields[m2m.name] = m2m
+            _RELATED_FIELDS_MEMO[model] = related_fields
+        # the only caller reads it; hand out the shared mapping
         return related_fields
 
     def _patch_extend_filter_parameter(self, field, parameter):
         model = get_view_model(self.view)
         # lookup_parts is an array of parts but it is limited to only one possible lookup expression
         try:
-            fields = {
-                concrete_field.name: concrete_field
-                for concrete_field in model._meta.concrete_fields
-            }
-            reverse_rel_fields = {
-                rel.get_accessor_name(): rel
-                for rel in model._meta.related_objects
-            }
-            m2m_fields = {
-                m2m.name: m2m
-                for m2m in model._meta.local_many_to_many
-            }
-
-            fields_lookup = fields | reverse_rel_fields | m2m_fields
-            lookup_parts, field_parts, expression = Query(
-                model).solve_lookup_type(field.field_name)
+            fields_lookup = _fields_lookup_of_model(model)
+            lookup_parts, field_parts, expression = _solve_filter_lookup(
+                model, field.field_name)
 
             if field_parts[0] in fields_lookup:
 

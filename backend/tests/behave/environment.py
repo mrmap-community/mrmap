@@ -5,11 +5,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap.settings import BASE_DIR
-from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
+from notify.models import BackgroundProcess
+from registry.models.harvest import (HarvestingJob, PeriodicHarvestingJob,
+                                     TemporaryMdMetadataFile)
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
-from registry.models.service import CatalogueService
+from registry.models.service import CatalogueService, WebMapService
 from rest_framework.test import APIClient
 
 #: Prefix of the feature tag that requests one fixture file, e.g. ``@fixtures:test_wms.json``.
@@ -52,6 +54,17 @@ HARVESTING_STATES_SERVICES = (
 HARVESTING_STATES_PERIODIC_PKS = (1080502, 1080503)
 HARVESTING_STATES_CRONTAB_PK = 1080501
 HARVESTING_STATES_CONTACT_PK = 1080401
+
+#: Fixture file with the registration process and its two retained reference
+#: work rows of #1265.
+REGISTRATION_REFERENCE_WORK_FIXTURE = 'test_registration_reference_work.json'
+
+#: The process cascades its work rows; the service and the contact go by hand
+#: because the service RESTRICTs the deletion of its contact.
+REGISTRATION_REFERENCE_WORK_PROCESS_PK = 1265010
+REGISTRATION_REFERENCE_WORK_SERVICE_PK = (
+    'cccc1265-0000-4000-8000-00000000000c')
+REGISTRATION_REFERENCE_WORK_CONTACT_PK = 1265001
 
 
 def before_all(context):
@@ -218,6 +231,33 @@ def after_feature(context, feature):
             pk__in=HARVESTING_STATES_SERVICES).delete()
         MetadataContact.objects.filter(
             pk=HARVESTING_STATES_CONTACT_PK).delete()
+    if REGISTRATION_REFERENCE_WORK_FIXTURE in fixtures:
+        # the same rule for the registration set of #1265, in one careful
+        # order: the work rows go FIRST, because the SET_NULL of their
+        # ``described_wms`` would empty the described side of the planned-row
+        # completeness check the moment the service is deleted. They also
+        # cascade from the process, but the service does not wait for that.
+        # The service is a WEBMAPSERVICE row the sibling wms features count,
+        # it is audited by simple history whose rows SURVIVE the deletion of
+        # the row while `list_historical_webmapservices` counts the whole
+        # history table, and it RESTRICTs its contact.
+        TemporaryMdMetadataFile.objects.filter(
+            background_process_id=REGISTRATION_REFERENCE_WORK_PROCESS_PK
+        ).delete()
+        BackgroundProcess.objects.filter(
+            pk=REGISTRATION_REFERENCE_WORK_PROCESS_PK).delete()
+        # the history goes AFTER the service: simple history connects
+        # ``post_delete`` and WRITES one more row while the service is being
+        # deleted, so cleaning before it would leave exactly that row behind.
+        # The handle of the history table is the tracker's ``change_log`` —
+        # the model's own ``history`` manager queries the SERVICE, deleting
+        # through it would delete the row again instead of its history.
+        WebMapService.objects.filter(
+            pk=REGISTRATION_REFERENCE_WORK_SERVICE_PK).delete()
+        WebMapService.change_log.model.objects.filter(
+            id=REGISTRATION_REFERENCE_WORK_SERVICE_PK).delete()
+        MetadataContact.objects.filter(
+            pk=REGISTRATION_REFERENCE_WORK_CONTACT_PK).delete()
 
 
 def before_scenario(context, scenario):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-12 19:50+0100\n"
+"POT-Creation-Date: 2026-11-13 03:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1231,7 +1231,7 @@ msgstr ""
 #: registry/models/harvest.py:1529 registry/models/metadata.py:666
 #: registry/models/monitoring.py:129 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:542
-#: registry/serializers/service.py:987 registry/serializers/update.py:101
+#: registry/serializers/service.py:992 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
@@ -3034,12 +3034,12 @@ msgstr ""
 "fehlgeschlagen ist"
 
 #: registry/serializers/service.py:475 registry/serializers/service.py:780
-#: registry/serializers/service.py:935
+#: registry/serializers/service.py:940
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
 #: registry/serializers/service.py:476 registry/serializers/service.py:781
-#: registry/serializers/service.py:936
+#: registry/serializers/service.py:941
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
@@ -3077,12 +3077,12 @@ msgstr ""
 "wiederherzustellen."
 
 #: registry/serializers/service.py:519 registry/serializers/service.py:789
-#: registry/serializers/service.py:950
+#: registry/serializers/service.py:955
 msgid "monitoring settings"
 msgstr "Monitoring-Einstellungen"
 
 #: registry/serializers/service.py:520 registry/serializers/service.py:790
-#: registry/serializers/service.py:951
+#: registry/serializers/service.py:956
 msgid "This are the configured monitoring settings."
 msgstr "Dies sind die konfigurierten Monitoring-Einstellungen."
 
@@ -3127,11 +3127,11 @@ msgid "The selected organization grants all rights on the registered service."
 msgstr ""
 "Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
 
-#: registry/serializers/service.py:617
+#: registry/serializers/service.py:617 registry/serializers/service.py:824
 msgid "collect metadata records"
-msgstr "Metadaten wiederherstellen"
+msgstr "Metadaten erfassen"
 
-#: registry/serializers/service.py:618
+#: registry/serializers/service.py:618 registry/serializers/service.py:825
 msgid ""
 "If checked, Mr. Map collects all related metadata documents after the "
 "registration task."
@@ -3157,22 +3157,22 @@ msgid ""
 msgstr ""
 "Die URL des Capabilities Dokuments, das nur dieses Featuretype anbietet."
 
-#: registry/serializers/service.py:877
+#: registry/serializers/service.py:882
 msgid "harvest aborted"
 msgstr "Harvesting abgebrochen"
 
-#: registry/serializers/service.py:879
+#: registry/serializers/service.py:884
 msgid ""
 "true if the last harvesting job of the catalogue ended before it was done"
 msgstr ""
 "true, wenn der letzte Harvesting-Lauf des Katalogs vor seinem Ende "
 "abgebrochen wurde"
 
-#: registry/serializers/service.py:883
+#: registry/serializers/service.py:888
 msgid "harvest incomplete"
 msgstr "Harvesting unvollständig"
 
-#: registry/serializers/service.py:885
+#: registry/serializers/service.py:890
 msgid ""
 "true if the last harvesting job of the catalogue left records behind - "
 "records it could not import into the registry or records its pages did not "
@@ -3182,20 +3182,20 @@ msgstr ""
 "Datensätze, die er nicht in die Registry übernehmen konnte, oder Datensätze, "
 "die seine Seiten nicht geliefert haben"
 
-#: registry/serializers/service.py:890
+#: registry/serializers/service.py:895
 msgid "harvest failed at"
 msgstr "Harvesting fehlgeschlagen am"
 
-#: registry/serializers/service.py:892
+#: registry/serializers/service.py:897
 msgid "the point in time the last harvesting job of the catalogue was made"
 msgstr ""
 "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"
 
-#: registry/serializers/service.py:896
+#: registry/serializers/service.py:901
 msgid "harvest job"
 msgstr "Ernteaufgabe"
 
-#: registry/serializers/service.py:898
+#: registry/serializers/service.py:903
 msgid ""
 "the harvesting job of the catalogue which ended before it was done or which "
 "left records behind, answered as its identifier and nothing if the last "
@@ -3205,15 +3205,15 @@ msgstr ""
 "Datensätze zurückließ, beantwortet als ihre Kennung und nichts, wenn das "
 "letzte Harvesting des Katalogs nichts zu beachten hat"
 
-#: registry/serializers/service.py:942
+#: registry/serializers/service.py:947
 msgid "periodic harvesting jobs"
 msgstr "periodische Ernteaufgaben"
 
-#: registry/serializers/service.py:943
+#: registry/serializers/service.py:948
 msgid "this are the related harvesting job objects."
 msgstr "dies sind die zugehörigen Ernteaufgaben."
 
-#: registry/serializers/service.py:989
+#: registry/serializers/service.py:994
 msgid "the catalogue service, where this operation url is part of."
 msgstr "der Katalogdienst, zu dem diese Operations-URL gehört."
 

@@ -1,4 +1,4 @@
-import { DateField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField } from 'react-admin';
+import { DateField, FunctionField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField, useTranslate } from 'react-admin';
 
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
 import DurationField from '../../Field/DurationField';
@@ -30,6 +30,7 @@ export const isStale = (timestamp: number, record: RaRecord) => {
 }
 
 const ShowBackgroundProcess = () => { 
+    const translate = useTranslate();
     return (
       <RealtimeShowContextProvider
         isStaleCheckInterval={IS_STALE_CHECK_INTERVAL_SECONDS}
@@ -40,7 +41,19 @@ const ShowBackgroundProcess = () => {
           <ProcessStatusField source="status" />
           <RelatedResourceField source="relatedResource" />
           <TextField source="description" />
-          <TextField source="phase" />
+          {/* the phase is a key reported by the api, looked up in the
+              background activity translations; a process which reported its
+              error text instead answers that text raw (#1267) */}
+          <FunctionField
+            source="phase"
+            render={(record: RaRecord) =>
+              typeof record?.phase === "string" && record.phase !== ""
+                ? translate(`backgroundActivity.phases.${record.phase}`, {
+                    _: record.phase,
+                  })
+                : undefined
+            }
+          />
           <DateField source="dateCreated" showTime/>
           <DateField source="doneAt" showTime/>
           <DurationField source="duration" />

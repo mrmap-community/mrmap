@@ -342,7 +342,8 @@ class WebMapServiceViewSet(
 
     def get_task_kwargs(self, request, serializer):
         background_process = BackgroundProcess.objects.create(
-            phase="Background process created",
+            # the phase reaches the browser as a key it translates (#1267)
+            phase="background_process_created",
             process_type=ProcessNameEnum.REGISTERING.value,
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
@@ -707,7 +708,8 @@ class WebFeatureServiceViewSet(
 
     def get_task_kwargs(self, request, serializer):
         background_process = BackgroundProcess.objects.create(
-            phase="Background process created",
+            # the phase reaches the browser as a key it translates (#1267)
+            phase="background_process_created",
             process_type=ProcessNameEnum.REGISTERING.value,
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
@@ -1002,7 +1004,8 @@ class CatalogueServiceViewSetMixin(
 
     def get_task_kwargs(self, request, serializer):
         background_process = BackgroundProcess.objects.create(
-            phase="Background process created",
+            # the phase reaches the browser as a key it translates (#1267)
+            phase="background_process_created",
             process_type=ProcessNameEnum.REGISTERING.value,
             description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )

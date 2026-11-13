@@ -135,6 +135,20 @@ const JobEntry = (): ReactNode => {
   const isFailed = state === "failed" || state === "aborted";
   const isActiveRow = state !== "completed" && !isFailed;
   const detailsId = `background-job-details-${record.id}`;
+  // the kind of the run with the reported phase behind it: the phase is a
+  // key of the background activity translations (#1267), a value that is no
+  // key - an error text the task reported - answers raw, as before
+  const kind = translate(
+    `backgroundActivity.jobCenter.processTypes.${record.processType}`,
+    { _: record.processType },
+  );
+  const phase =
+    record.phase === undefined || record.phase === ""
+      ? undefined
+      : translate(`backgroundActivity.phases.${record.phase}`, {
+          _: record.phase,
+        });
+  const kindAndPhase = phase === undefined ? kind : `${kind} · ${phase}`;
 
   return (
     <Box
@@ -208,10 +222,7 @@ const JobEntry = (): ReactNode => {
           >
             {isFailed && record.errorSummary
               ? record.errorSummary
-              : `${translate(
-                  `backgroundActivity.jobCenter.processTypes.${record.processType}`,
-                  { _: record.processType },
-                )}${record.phase ? ` · ${record.phase}` : ""}`}
+              : kindAndPhase}
           </Typography>
           <Box id={detailsId} hidden={!expanded}>
             {isActiveRow && (

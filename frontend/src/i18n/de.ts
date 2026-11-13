@@ -474,7 +474,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "new": "Neu",
       "updated": "Aktualisiert",
       "existing": "Vorhanden",
-      "removed": "Entfernt"
+      "removed": "Entfernt",
+      // die zwei Ergebnisse, die nur das Sammeln bei der Registrierung
+      // kennt: eine Referenz, die der Gegenstelle fehlschlug (failed), und
+      // eine, die der Lauf nicht versuchte (skipped) (#1267, D6: eine
+      // Tabelle für beide Sammel-Pfade)
+      "failed": "Fehlgeschlagen",
+      "skipped": "Übersprungen"
     },
     "failing": {
       "request": "Angefragt am",
@@ -582,6 +588,18 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       type: { error: "Fehler", warning: "Warnung", info: "Hinweis" },
     },
     status: { pending: "Wartend", queued: "Eingereiht", running: "Läuft", retrying: "Wiederholung läuft", completed: "Abgeschlossen", failed: "Fehlgeschlagen", aborted: "Abgebrochen" },
+    // die Phasen, die ein Hintergrundprozess meldet: die api speichert den
+    // Schlüssel und nie einen Satz, die Screens schlagen den Wert hier nach
+    // und antworten den Rohtext, wenn er kein Schlüssel ist - eine
+    // Fehlermeldung bleibt lesbar, wie sie geschrieben wurde (#1267)
+    phases: {
+      background_process_created: "Hintergrundprozess angelegt",
+      download_capabilities: "Capabilities-Dokument abrufen",
+      parse_capabilities: "Capabilities-Dokument auswerten",
+      persist_service: "Dienst speichern",
+      collect_metadata_records: "Metadaten erfassen",
+      completed: "Abgeschlossen",
+    },
     jobCenter: {
       title: "Hintergrundjobs",
       subtitle: "Langlaufende und Hintergrund-Operationen (Harvesting, Aktualisierungen, …)",

@@ -531,7 +531,7 @@ class CollectionStepAccountingTest(TransactionTestCase):
         self.process = BackgroundProcess.objects.create(
             process_type='registering',
             description='',
-            phase='collecting metadata records...',
+            phase='collect_metadata_records',
             total_steps=len(self.references))
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True,

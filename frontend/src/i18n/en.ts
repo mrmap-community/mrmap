@@ -494,7 +494,12 @@ const en = lodashMerge(
         "new": "New",
         "updated": "Updated",
         "existing": "Already there",
-        "removed": "Gone"
+        "removed": "Gone",
+        // the two outcomes only the registration's collection answers: a
+        // reference the remote refused (failed) and one the run did not
+        // attempt (skipped) (#1267, D6: one table for both collecting paths)
+        "failed": "Failed",
+        "skipped": "Skipped"
       },
       "failing": {
         "request": "Requested at",
@@ -602,6 +607,18 @@ const en = lodashMerge(
         type: { error: "Error", warning: "Warning", info: "Note" },
       },
       status: { pending: "Queued", queued: "Queued", running: "Running", retrying: "Retrying", completed: "Completed", failed: "Failed", aborted: "Cancelled" },
+      // the phases a background process reports: the api stores the key and
+      // never a sentence, the screens look the value up here and answer the
+      // raw text for a value that is not a key - an error report stays
+      // readable as it was written (#1267)
+      phases: {
+        background_process_created: "Background process created",
+        download_capabilities: "Download capabilities document",
+        parse_capabilities: "Parse capabilities document",
+        persist_service: "Persist service",
+        collect_metadata_records: "Collect metadata records",
+        completed: "Completed",
+      },
       jobCenter: {
         title: "Background jobs",
         subtitle: "Long-running and background operations (harvesting, updates, …)",

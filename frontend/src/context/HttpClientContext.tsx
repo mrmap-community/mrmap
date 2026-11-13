@@ -99,6 +99,8 @@ export const HttpClientBase = ({ children }: import("react").PropsWithChildren):
     setStatus(HttpClientStatus.DownloadingSchema)
     fetchSchemaDocument(locale)
     .then((definition) => {
+      // the API answered, so the next outage starts waiting from the front
+      retryDelay.current = 2000
       setDocument(definition)
     }).catch((error) => { 
       setError(error); 
@@ -119,13 +121,14 @@ export const HttpClientBase = ({ children }: import("react").PropsWithChildren):
 
   useEffect(()=>{
     if(error?.code !== 'ERR_NETWORK'){
-      // a reachable API resets the waiting ladder for the next outage
-      retryDelay.current = 2000
       return
     }
     // while the backend is cold, every retry is a megabyte transfer (and
     // maybe a generation): wait progressively longer instead of hammering
-    // the endpoint every two seconds
+    // the endpoint every two seconds. The ladder is not reset here: clearing
+    // the error to retry passes through this branch with no error at all,
+    // which would put the waiting back to its start on every single retry.
+    // A reachable API resets it where it proves it - in the answer (#1337).
     const timeout = window.setTimeout(() => {
       retryDelay.current = Math.min(retryDelay.current * 2, 30000)
       setError(() => undefined);

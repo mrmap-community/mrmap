@@ -40,6 +40,14 @@ describe("ListTemporaryMdMetadataFile", () => {
     expect(props?.refetchInterval).toBe(5000);
     expect(props?.storeKey).toBe(false);
   });
+  it("leaves the filter to the caller on the route of the resource itself", () => {
+    // the references a registration keeps are decided by their work state and
+    // not by an import error (#1263), so only the run screen is fixed to the
+    // refused files; the route answers what the caller asks for (#1266)
+    render(<ListTemporaryMdMetadataFile />);
+    const props = vi.mocked(ListGuesser).mock.calls.at(-1)?.[0];
+    expect(props?.filter).toBeUndefined();
+  });
   it("names the refused file by request, page, refusal and duration", () => {
     render(<ListTemporaryMdMetadataFile />);
     const props = vi.mocked(ListGuesser).mock.calls.at(-1)?.[0];

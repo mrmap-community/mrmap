@@ -2,7 +2,7 @@
 
 The SPA builds its data provider, resources, forms and filters from the
 OpenAPI document at start-up, so ``/api/schema`` is the most loaded resource
-in the system and the largest: megabytes of JSON on every boot (#946).
+in the system and the largest: 6.2 MB of indented JSON on every boot (#946).
 The document itself changes only with the deployed code - not with the
 requesting user - which is what this view exploits:
 
@@ -25,12 +25,6 @@ requesting user - which is what this view exploits:
   Dropping the Vary is honest precisely because the document is not
   per-user; ``tests/django/test_schema_views.py`` pins that the anonymous
   and the authenticated document are byte-identical.
-* What is delivered here is the deduplicated rendering: the repeated
-  parameter objects and pagination fragments are lifted into ``components``
-  as references (``extras.schema.lift_duplicated_components``), which the
-  SPA's client dereferences transparently. The generator keeps the inlined
-  shape - and with it ``manage.py spectacular`` and the contract tests that
-  read the raw document.
 
 Authentication behaviour: the document answers with spectacular's serve
 permissions (public by default) for every client today; the view declares
@@ -57,7 +51,6 @@ from drf_spectacular.views import SpectacularJSONAPIView
 from rest_framework.response import Response
 
 from MrMap import VERSION as MRMAP_VERSION
-from extras.schema import lift_duplicated_components
 
 
 def if_none_match_matches(request, etag):
@@ -84,8 +77,8 @@ class CompactOpenApiJsonRenderer(OpenApiJsonRenderer):
     ``OpenApiJsonRenderer`` forces ``indent=4`` (it inherits that from
     DRF's JSONRenderer contract of serving humans reading a browser). The
     consumer of ``/api/schema`` is the SPA's schema parser, not a reader;
-    the indent alone measured 6.2 MB of wire bytes for a 2.1 MB document,
-    which every boot downloads.
+    the indent alone is 6.2 MB of wire bytes for a 2.0 MB document, which
+    every boot downloads.
 
     An explicit ``Accept: ...; indent=4`` is deliberately not honoured on
     top of that: the ``ETag`` is taken over exactly these bytes, so the
@@ -150,13 +143,14 @@ class RevalidatableOpenApiSchemaView(SpectacularJSONAPIView):
                     response = super()._get_schema_response(request)
                     if response.status_code != 200:
                         return response
-                    # The delivered document is the deduplicated rendering;
-                    # the round trip through the compact bytes also settles
-                    # the lazy translation proxies into plain data, which is
-                    # what the cache and the renderer below then work with.
+                    # The round trip through the compact bytes settles the
+                    # lazy translation proxies into plain data, which is what
+                    # the cache and the renderer below then work with. The
+                    # document itself is served exactly as the generator
+                    # built it - ``manage.py spectacular`` and the contract
+                    # tests that read the raw document see the same shape.
                     compact = CompactOpenApiJsonRenderer()
-                    data = lift_duplicated_components(json.loads(
-                        compact.render(response.data)))
+                    data = json.loads(compact.render(response.data))
                     # The tag is quoted per RFC 9110 and taken over the very
                     # bytes this view serves; hashing the rendered JSON costs
                     # tens of milliseconds next to the seconds the generation
@@ -195,8 +189,8 @@ class SchemaConditionalGetMiddleware:
     consulting the view, and Django's page cache has no conditional-GET
     handling: a browser whose 15 minutes of freshness have expired
     revalidates with the tag it was given and was answered the whole
-    document again - measured 1.47 MB for a request whose tag matched,
-    which is the cost the ETag exists to prevent. The view short-circuits
+    document again - 2 MB for a request whose tag matched, which is the
+    cost the ETag exists to prevent. The view short-circuits
     the same comparison for a *miss* (and thereby skips the rendering);
     this middleware covers the hit, where no view code runs.
 

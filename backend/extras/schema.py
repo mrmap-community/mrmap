@@ -1,8 +1,3 @@
-import hashlib
-import json
-import re
-from collections import Counter
-
 from django.core.exceptions import FieldError
 from django.db.models import ForeignKey
 from django.db.models.sql.query import Query
@@ -12,7 +7,6 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from rest_framework.filters import OrderingFilter as DRFOrderingFilter
-from rest_framework.utils.encoders import JSONEncoder
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
@@ -281,116 +275,3 @@ class CustomOperationId(JsonApiAutoSchema):
                 sort_param["explode"] = False
             return
         super()._patch_sort_param_schema(sort_param=sort_param)
-
-
-# The document is a machine contract: the SPA feeds it to a client that
-# dereferences ``$ref`` itself. Two families of byte-identical duplicates
-# dominate it — the parameter objects every list endpoint repeats (measured
-# 3,570 objects from 706 distinct ones), and the pagination envelope each
-# Paginated* component inlines again (87 copies of the same links/meta).
-# Both are lifted into components as references; the repeated description
-# prose inside otherwise *different* objects is not reachable this way and
-# is untouched here.
-_MIN_DUPLICATE_PARAM = 2
-_MIN_FRAGMENT_BYTES = 150
-_MIN_DUPLICATE_FRAGMENT = 10
-
-
-def _stable_key(obj):
-    # the document still carries lazy translation proxies at postprocessing
-    # time; DRF's encoder renders them the same way the response renderer
-    # will, so the identity of two fragments is judged on their content.
-    return hashlib.sha256(
-        json.dumps(obj, sort_keys=True, ensure_ascii=True, cls=JSONEncoder)
-        .encode()
-    ).hexdigest()
-
-
-def _component_name(raw_name, used):
-    """Camel-case a parameter/property name into a component key and keep
-    it unique by counting collisions (the way spectacular's enum collision
-    resolution does)."""
-    base = "".join(
-        part[:1].upper() + part[1:]
-        for part in re.split(r"[^A-Za-z0-9]+", raw_name) if part)
-    base = base or "Param"
-    count = used[base]
-    used[base] += 1
-    return base if count == 0 else f"{base}{count + 1}"
-
-
-def lift_duplicated_components(result, **kwargs):
-    """Postprocessing hook: replace duplicated parameter objects and
-    repeated schema fragments with ``$ref`` into ``components``."""
-    operations = []
-    for path_item in result.get("paths", {}).values():
-        if not isinstance(path_item, dict):
-            continue
-        if isinstance(path_item.get("parameters"), list):
-            operations.append(path_item)
-        for operation in path_item.values():
-            if isinstance(operation, dict) and isinstance(
-                    operation.get("parameters"), list):
-                operations.append(operation)
-
-    def iter_parameters():
-        for owner in operations:
-            for parameter in owner["parameters"]:
-                if isinstance(parameter, dict) and "$ref" not in parameter:
-                    yield parameter
-
-    param_counts = Counter(
-        _stable_key(parameter) for parameter in iter_parameters())
-    param_names = {}
-    used = Counter()
-    for parameter in iter_parameters():
-        key = _stable_key(parameter)
-        if param_counts[key] < _MIN_DUPLICATE_PARAM or key in param_names:
-            continue
-        param_names[key] = _component_name(parameter.get("name", ""), used)
-    if param_names:
-        components = result.setdefault("components", {})
-        lifted = components.setdefault("parameters", {})
-        for parameter in iter_parameters():
-            name = param_names.get(_stable_key(parameter))
-            if name is not None:
-                lifted.setdefault(name, parameter)
-        for owner in operations:
-            owner["parameters"] = [
-                {"$ref": f"#/components/parameters/{param_names[_stable_key(parameter)]}"}
-                if isinstance(parameter, dict) and _stable_key(parameter) in param_names
-                else parameter
-                for parameter in owner["parameters"]
-            ]
-
-    schemas = result.get("components", {}).get("schemas", {})
-    fragment_counts = Counter()
-    for schema in schemas.values():
-        properties = schema.get("properties") if isinstance(schema, dict) else None
-        if not isinstance(properties, dict):
-            continue
-        for fragment in properties.values():
-            if isinstance(fragment, dict) and "$ref" not in fragment and len(
-                    json.dumps(fragment, separators=(",", ":"), cls=JSONEncoder)) >= _MIN_FRAGMENT_BYTES:
-                fragment_counts[_stable_key(fragment)] += 1
-    used.update(dict.fromkeys(schemas, 1))
-    fragment_names = {}
-    fragments = {}
-    for schema in schemas.values():
-        properties = schema.get("properties") if isinstance(schema, dict) else None
-        if not isinstance(properties, dict):
-            continue
-        for property_name, fragment in list(properties.items()):
-            if not isinstance(fragment, dict) or "$ref" in fragment:
-                continue
-            key = _stable_key(fragment)
-            if fragment_counts[key] < _MIN_DUPLICATE_FRAGMENT:
-                continue
-            if key not in fragment_names:
-                fragment_names[key] = _component_name(property_name, used)
-                fragments[key] = fragment
-            properties[property_name] = {
-                "$ref": f"#/components/schemas/{fragment_names[key]}"}
-    for key, fragment in fragments.items():
-        schemas[fragment_names[key]] = fragment
-    return result

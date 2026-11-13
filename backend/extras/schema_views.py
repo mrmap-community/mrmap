@@ -9,9 +9,8 @@ requesting user - which is what this view exploits:
 * A strong ``ETag`` over the rendered document lets the browser revalidate
   with ``If-None-Match`` and receive a bodyless 304 instead of the whole
   document again. The hash is taken over the JSON rendering of the delivered
-  document; since the rendering is a deterministic function of it, the tag is
-  also correct for the YAML representations, which content negotiation can
-  select for the same URL (those vary together with it). Both paths that can
+  document; the two media types this view serves render byte-identically, so
+  one tag covers whichever content negotiation picks. Both paths that can
   answer the document revalidate: the view on a cache miss, where the check
   also skips the rendering, and ``SchemaConditionalGetMiddleware`` on a
   ``cache_page`` hit, where no view code runs at all.
@@ -52,7 +51,8 @@ import threading
 from django.core.cache import caches
 from django.http import HttpResponse
 from django.utils import translation
-from drf_spectacular.renderers import OpenApiJsonRenderer
+from drf_spectacular.renderers import (OpenApiJsonRenderer,
+                                       OpenApiJsonRenderer2)
 from drf_spectacular.views import SpectacularJSONAPIView
 from rest_framework.response import Response
 
@@ -86,10 +86,30 @@ class CompactOpenApiJsonRenderer(OpenApiJsonRenderer):
     consumer of ``/api/schema`` is the SPA's schema parser, not a reader;
     the indent alone measured 6.2 MB of wire bytes for a 2.1 MB document,
     which every boot downloads.
+
+    An explicit ``Accept: ...; indent=4`` is deliberately not honoured on
+    top of that: the ``ETag`` is taken over exactly these bytes, so the
+    rendering must not depend on what a client asked for.
     """
 
     def get_indent(self, accepted_media_type, renderer_context):
         return None
+
+
+class CompactOpenApiJsonRenderer2(CompactOpenApiJsonRenderer,
+                                  OpenApiJsonRenderer2):
+    """The same compact bytes under the plain ``application/json`` type.
+
+    ``SpectacularJSONAPIView`` serves two media types, and both the SPA's
+    axios default (``application/json, text/plain, */*``) and the API's own
+    clients (``application/json``) name the second one, so it is the one
+    content negotiation actually picks for them. Dropping this renderer
+    instead of compacting it answers those clients ``406`` - the acceptance
+    feature ``json:api/schema/retreive_schema.feature`` sends exactly that
+    header and failed on the first version of this change.
+    """
+
+    media_type = "application/json"
 
 
 class RevalidatableOpenApiSchemaView(SpectacularJSONAPIView):
@@ -101,7 +121,8 @@ class RevalidatableOpenApiSchemaView(SpectacularJSONAPIView):
     # authentication stack; this document has never required credentials
     # (spectacular's serve permissions default to none).
     authentication_classes = []
-    renderer_classes = [CompactOpenApiJsonRenderer]
+    renderer_classes = [CompactOpenApiJsonRenderer,
+                        CompactOpenApiJsonRenderer2]
 
     # The document changes only with the deployed code, so within one
     # worker process it is generated exactly once and kept in the same

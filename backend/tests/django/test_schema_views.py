@@ -180,3 +180,40 @@ class OpenApiSchemaCachingTests(TestCase):
         # cache_page stamps Age from the stored expiry onto cache hits.
         self.assertIn("Age", second)
         self.assertEqual(first.content, second.content)
+
+    def test_both_json_media_types_answer_the_same_compact_bytes(self):
+        """Neither of the two media types this view serves indents.
+
+        Content negotiation answers the plain ``application/json`` to the
+        SPA's and to the API clients' ``Accept``, and the vendor type to
+        ``*/*`` and to nothing at all. Both have to deliver the compact
+        rendering: compacting only the vendor-typed renderer leaves the
+        megabytes on the wire for exactly the clients that ask the usual
+        way.
+        """
+        plain = self.client.get(SCHEMA_URL, HTTP_ACCEPT="application/json")
+        # the page cache keys on the path, not on Accept, so the second
+        # request has to clear it in order to negotiate at all
+        caches["local-memory"].clear()
+        vendor = self.client.get(
+            SCHEMA_URL, HTTP_ACCEPT="application/vnd.oai.openapi+json")
+
+        for response in (plain, vendor):
+            self.assertEqual(response.status_code, 200)
+            # a compact rendering has no whitespace between members at all;
+            # an indented one puts every member on its own line
+            self.assertNotIn(b"\n", response.content)
+        self.assertEqual(plain.content, vendor.content)
+        self.assertEqual(plain.headers.get("ETag"), vendor.headers.get("ETag"))
+
+    def test_a_plain_application_json_accept_is_not_rejected(self):
+        """The renderer list must keep covering ``application/json``.
+
+        Narrowing it to the vendor type alone answers that header with 406,
+        which is what the acceptance feature
+        ``tests/behave/features/json:api/schema/retreive_schema.feature``
+        sends - it failed on the first version of this change (#1336).
+        """
+        response = self.client.get(SCHEMA_URL, HTTP_ACCEPT="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"openapi", response.content)

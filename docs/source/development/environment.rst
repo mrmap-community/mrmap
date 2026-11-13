@@ -146,6 +146,11 @@ Used to configure how many stored metadata files a single import task writes to 
 
 Used to configure how the draining import backlog reports its progress to the background process of the harvest (#958). A worker coalesces the files it has committed and answers them as one bulk increment of the progress once it has piled up this many steps or this many seconds have passed since its last report - whichever comes first. The defaults are 200 steps and 30 seconds, which keep a catalogue of 400k+ records to a few thousand single-row updates instead of one contended row-lock per imported file. ``MRMAP_HARVEST_IMPORT_PROGRESS_SECONDS=0`` disables the time trigger alone; the step threshold then coalesces alone too.
 
+``MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS``
+******************************************
+
+Used to configure how many days the metadata records a harvesting run stored below ``<MEDIA_ROOT>/temporary_md_metadata_file/`` stay after the run reached a terminal phase, before the periodic cleanup of ``registry.tasks.harvest`` takes the rows and their files back (#1237). The default is 0, which takes them with the run as soon as it ended. Every day above 0 is the window in which an administrator can still reschedule the import of a stored record of a run which completed from the admin and find the document there; the hourly sweep ``registry.tasks.harvest.sweep_ended_harvest_temp_files`` names the run again once its window passed (#1295). Unlike the other retention knobs of a media directory, 0 does not mean "keep them until an operator removes them" here: an unbounded window over this pile is exactly the 849k files and 24.4 GB of ended runs the issue reports, so 0 is the minimum of the window and not its absence. This is not ``MRMAP_HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS``, which only says how long a run must have been over before ``manage.py cleanup_temporary_harvest_files`` names it without being asked to.
+
 ``CELERY_WORKER_CONCURRENCY``
 *****************************
 

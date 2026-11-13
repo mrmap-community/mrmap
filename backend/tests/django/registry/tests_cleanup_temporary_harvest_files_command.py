@@ -125,6 +125,34 @@ class CleanupTemporaryHarvestFilesCommandTest(TestCase):
         answer = self.run_command('--dry-run', '--older-than', '0')
         self.assertIn(f'job {young.pk}', answer)
 
+    @override_settings(HARVEST_TEMP_FILE_RETENTION_DAYS=5)
+    def test_the_scan_keeps_the_longer_of_its_margin_and_its_window(self):
+        """a deployment which set the retention window of #1295 is not undercut
+        by the command it runs over the same pile: the scan waits for the window
+        too, and the operator who says --older-than out loud is still answered"""
+        inside = self.job(ended_days_ago=2)
+        self.stored(inside, 'retryable.xml')
+
+        answer = self.run_command('--dry-run')
+        self.assertIn('0 stored records would be deleted', answer)
+
+        answer = self.run_command('--dry-run', '--older-than', '0')
+        self.assertIn(f'job {inside.pk}', answer)
+
+    @override_settings(HARVEST_TEMP_FILE_RETENTION_DAYS=30)
+    def test_a_confirmed_named_job_is_taken_inside_the_window_too(self):
+        """the automatic paths wait out the window, the operator who ran this
+        command decided otherwise - the escape hatch must stay usable (#1295)"""
+        recent = self.job(ended_days_ago=0)
+        record = self.stored(recent, 'take-it.xml')
+
+        answer = self.run_command('--confirm', '--job-id', str(recent.pk))
+
+        self.assertIn('1 rows and 1 files deleted', answer)
+        self.assertFalse(TemporaryMdMetadataFile.objects.filter(
+            job_id=recent.pk).exists())
+        self.assertFalse(self.storage().exists(record.md_metadata_file.name))
+
     def test_the_limit_bounds_one_job_and_asks_for_another_run(self):
         ended = self.job()
         first = self.stored(ended, 'a.xml')

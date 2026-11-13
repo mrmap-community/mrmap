@@ -946,6 +946,12 @@ def watch_import_backlogs(*args, **kwargs):
 # sweep of the job's own storage directory takes back what no row references
 # anymore - the failure mode which would otherwise turn a crashed cleanup into
 # a permanent, now invisible leak.
+#
+# How long a run which ended keeps its records at all is the retention window of
+# #1295 (``MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS``, 0 by default): inside it a
+# cleanup answers "deferred" and the terminal transition of #1237 is simply not
+# reached; the hourly sweep is what meets the run when the window passes. With
+# the default of 0 every path below deletes as it always did.
 # ---------------------------------------------------------------------------
 
 #: The phases a harvesting job cannot leave anymore; its stored records are
@@ -954,6 +960,47 @@ TERMINAL_HARVESTING_PHASES = [
     HarvestingPhaseEnum.COMPLETED.value,
     HarvestingPhaseEnum.ABORTED.value,
 ]
+
+
+def temp_file_retention_days():
+    """How many days the records of an ended run stay before they are taken (#1295).
+
+    The window an operator chooses with ``MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS``;
+    a negative value is the 0 which means "take them at once", because a window
+    cannot be shorter than the terminal transition itself.
+    """
+    return max(0, int(getattr(settings, "HARVEST_TEMP_FILE_RETENTION_DAYS", 0)))
+
+
+def temp_file_retention_holds(job):
+    """Whether the retention window still shields the records of a terminal run.
+
+    #1237 takes the backlog of a run with its terminal transition, and #1295 asks
+    for a configurable window before that happens: while it is open, the operator
+    can reschedule the import of a stored record of the run - the action of the
+    admin, which re-publishes the import task of exactly that row - and find the
+    document there. Only a run which completed answers such a re-import: the
+    import of an aborted run refuses its own documents, so a window over the pile
+    of an aborted run is what the operator wants to look at by hand and nothing
+    more. The hourly sweep names the run again once the window passed, so holding
+    it is a delay of the same deletion and not a second answer about whether it
+    is due.
+
+    A run whose terminal moment its row does not carry is not shielded: an
+    unknown end would keep its records for ever, which is the unbounded pile the
+    issue reports, while every terminal transition writes ``done_at`` and a row
+    without it is a row somebody edited by hand. A run which is not there
+    anymore is not shielded either - nothing can retry an import of a run nobody
+    can name, and what is left of it are its files alone.
+    """
+    if temp_file_retention_days() <= 0 or job is None or job.done_at is None:
+        return False
+    # the same comparison the sweep of #1237 and the operator command of #1237
+    # make: a run which ended before the cutoff is due, one at it or after it is
+    # not - the two must not answer the same moment differently
+    return job.done_at >= timezone.now() - timedelta(
+        days=temp_file_retention_days())
+
 
 #: The prefix of the harvesting log entry which a cleanup of a completed run
 #: with import errors leaves on it. The error rows go with the cleanup, but
@@ -1064,7 +1111,7 @@ def _sweep_harvest_temp_dir(storage, harvesting_job_id):
 
 
 def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
-                                      max_rows=None):
+                                      max_rows=None, respect_retention=True):
     """Delete the stored records of a harvest which definitely ended (#1237).
 
     The job must have reached COMPLETED or ABORTED; a job which is not in a
@@ -1073,6 +1120,12 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
     function never touches it. The answer of the phase is read again under
     the lock of the first transaction, so a cleanup published beside a
     recovery cannot delete what a job consumes again.
+
+    A terminal run answers ``deferred`` while the retention window of #1295 is
+    open (``temp_file_retention_holds``); the window is 0 by default, so the
+    default of this function is the immediate reclaim it shipped with (#1237).
+    ``respect_retention=False`` answers it anyway: that is the operator who
+    called ``manage.py cleanup_temporary_harvest_files`` and named what to take.
 
     The rows go in batches of ``batch_size``, each in a transaction of its
     own - a single 163k-row delete would hold its locks for minutes, and no
@@ -1093,9 +1146,11 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
     is logged not at all.
 
     Returns:
-        dict: the aggregated answer - rows, files, missing, failed, rejected
-            (names the cleanup refused to delete), the sweep numbers,
-            ``remaining_rows``, ``capped`` and the wall seconds it took
+        dict: the aggregated answer - ``skipped`` and ``deferred`` (the run was
+            not open for this cleanup at all, or not yet due), rows, files,
+            missing, failed, rejected (names the cleanup refused to delete),
+            the sweep numbers, ``remaining_rows``, ``capped`` and the wall
+            seconds it took
     """
     from registry.models.harvest import (  # avoid circular import
         HarvestingJob, HarvestingLog, TEMPORARY_MD_METADATA_FILE_SUBDIR,
@@ -1109,10 +1164,10 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
         if max_rows is None else max(0, int(max_rows)))
 
     summary = {
-        "job": harvesting_job_id, "skipped": False, "rows": 0, "files": 0,
-        "missing": 0, "failed": 0, "rejected": 0, "swept_files": 0,
-        "swept_missing": 0, "swept_failed": 0, "sweep_remaining": False,
-        "remaining_rows": False, "capped": False,
+        "job": harvesting_job_id, "skipped": False, "deferred": False,
+        "rows": 0, "files": 0, "missing": 0, "failed": 0, "rejected": 0,
+        "swept_files": 0, "swept_missing": 0, "swept_failed": 0,
+        "sweep_remaining": False, "remaining_rows": False, "capped": False,
     }
 
     job = HarvestingJob.objects.filter(pk=harvesting_job_id).first()
@@ -1122,6 +1177,16 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
         # scheduled task of an old date, must never reach a running backlog
         # (#1237)
         summary["skipped"] = True
+        return summary
+
+    if respect_retention and temp_file_retention_holds(job):
+        # the window of #1295: this run ended too recently for its records to
+        # be out of reach of a retry, so nothing here is deleted and no log is
+        # written - the ledger entry of a completed run belongs to the moment
+        # its error rows actually go. The next fire of the hourly sweep names
+        # the run again once the window passed, which is why this is an answer
+        # of its own and not a continuation of this task
+        summary["deferred"] = True
         return summary
 
     if job is not None and job.phase == HarvestingPhaseEnum.COMPLETED.value:
@@ -1244,6 +1309,17 @@ def cleanup_harvesting_job_temp_files_task(
         harvesting_job_id, batch_size=batch_size, max_rows=max_rows)
     if summary["skipped"]:
         return summary
+    if summary["deferred"]:
+        # the run ended inside the retention window of #1295, so its records are
+        # still retry material and not leftovers. This is said out loud because
+        # the pile of a deployment which sets a window is exactly what an
+        # operator looking for a leak asks about first
+        logger.info(
+            "Temporary harvesting files of job %s stay: the retention window of "
+            "%s day(s) is still open for this run. The hourly sweep takes them "
+            "when it passes.",
+            harvesting_job_id, temp_file_retention_days())
+        return summary
     logger.info(
         "Temporary harvesting files of job %s: %s rows and %s files deleted, "
         "%s already gone, %s refused, %s rejected names, sweep took %s files "
@@ -1284,7 +1360,10 @@ def dispatch_cleanup_of_ended_harvest_backlogs():
     stays out, and a name which is no job id at all is nobody's to delete
     here: the "None" directory of the old unsaved-instance layout holds the
     files of open jobs side by side with the ones of ended runs, and only a
-    row may point at its own file inside it.
+    row may point at its own file inside it. Of the runs which are due, that
+    is: a run whose retention window of #1295 is still open is left for the
+    fire which meets it after the window, so the sweep is also the periodic
+    half of that retention.
     """
     from registry.models.harvest import (  # avoid circular import
         HarvestingJob, TEMPORARY_MD_METADATA_FILE_SUBDIR)
@@ -1315,6 +1394,21 @@ def dispatch_cleanup_of_ended_harvest_backlogs():
         # by definition; a directory of a terminal job without rows is the
         # file leftover the rows cannot name
         pending |= directories - open_ids
+
+    days = temp_file_retention_days()
+    if days and pending:
+        # the window of #1295: a run which ended inside it is not due yet, and
+        # naming it on every fire would publish a task whose only answer is
+        # "deferred" - the sweep hands a run over once its window passed. A run
+        # whose row carries no terminal moment stays pending, because
+        # ``done_at__gte`` never matches a NULL; that is the same reading of an
+        # unknown end which ``temp_file_retention_holds`` gives the cleanup.
+        not_due = set(HarvestingJob.objects.filter(
+            pk__in=list(pending),
+            phase__in=TERMINAL_HARVESTING_PHASES,
+            done_at__gte=timezone.now() - timedelta(days=days),
+        ).values_list("id", flat=True))
+        pending -= not_due
 
     dispatched = sorted(pending)
     for job_id in dispatched:

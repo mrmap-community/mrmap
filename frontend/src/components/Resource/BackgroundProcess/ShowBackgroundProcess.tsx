@@ -5,6 +5,7 @@ import DurationField from '../../Field/DurationField';
 import ProgressField from '../../Field/ProgressField';
 import RelatedResourceField from '../../Field/RelatedResourceField';
 import BackgroundProcessLogs from './BackgroundProcessLogs';
+import ProcessMetadataReferences from './ProcessMetadataReferences';
 import ProcessStatusField from './ProcessStatusField';
 
 /** how often the show screen looks whether the record it shows went stale,
@@ -65,6 +66,11 @@ const ShowBackgroundProcess = () => {
             them: they are read from the api of the process, not from a bus
             message which is gone on reload (#1208) */}
         <BackgroundProcessLogs />
+        {/* the references a registration could not settle stay inspectable
+            after the run - with a per-reference retry for the failed ones
+            (#1265); the panel answers nothing for a process without a
+            reference plan */}
+        <ProcessMetadataReferences />
         </ShowView>
       </RealtimeShowContextProvider>
     )

@@ -78,6 +78,14 @@ export interface BackgroundJobRecord extends RaRecord {
   errorSummary?: string | null;
   isRetrying?: boolean;
   relatedResource?: { type: string; id: string } | null;
+  // the stored summary of collecting metadata references (#1259): the
+  // counters a registration reports while its references are collected.
+  // Empty where the process collected no references at all - which is what
+  // tells a registration apart from every other process in the drawer.
+  referencesTotal?: number | null;
+  referencesStored?: number | null;
+  referencesFailed?: number | null;
+  referencesSkipped?: number | null;
 }
 
 export const isJobState = (value: unknown): value is JobState =>
@@ -291,3 +299,10 @@ export const clearCompleted = (state: JobStoreState): JobStoreState => {
  *  its total is indeterminate, and no percentage may be invented for it */
 export const hasProgressTotal = (record: BackgroundJobRecord): boolean =>
   typeof record.totalSteps === "number" && record.totalSteps > 0;
+
+/** whether the process planned metadata references: the counters answer only
+ *  a registration, every other process leaves them empty - and only a plan
+ *  carries a number, so the marker of a registration without references is
+ *  the zero and the row may still tell about it (#1265) */
+export const hasReferencePlan = (record: BackgroundJobRecord): boolean =>
+  typeof record.referencesTotal === "number";

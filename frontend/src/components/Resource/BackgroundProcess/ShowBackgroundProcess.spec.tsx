@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ShowBackgroundProcess, {
@@ -64,6 +64,9 @@ vi.mock("../../Field/ProgressField", () => ({ default: () => null }));
 vi.mock("../../Field/RelatedResourceField", () => ({ default: () => null }));
 vi.mock("../../Field/DurationField", () => ({ default: () => null }));
 vi.mock("./BackgroundProcessLogs", () => ({ default: () => null }));
+vi.mock("./ProcessMetadataReferences", () => ({
+  default: () => <span>references-panel</span>,
+}));
 vi.mock("./ProcessStatusField", () => ({ default: () => null }));
 
 /** the tick of the provider, in milliseconds - the interval of seconds it is
@@ -105,6 +108,13 @@ describe("ShowBackgroundProcess", () => {
   it("asks the bus for the shown process, by its id", () => {
     render(<ShowBackgroundProcess />);
     expect(state.listeners.has("resource/BackgroundProcess/1")).toBe(true);
+  });
+
+  it("carries the section for the references below the fields", () => {
+    // the panel itself answers nothing for a process without a plan; the
+    // screen always mounts it (#1265)
+    render(<ShowBackgroundProcess />);
+    expect(screen.getByText("references-panel")).toBeInTheDocument();
   });
 
   it("lets a pushed record stand over one whole tick", () => {

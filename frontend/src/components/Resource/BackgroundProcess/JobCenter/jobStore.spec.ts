@@ -5,6 +5,7 @@ import {
   clearCompleted,
   groupJobs,
   hasProgressTotal,
+  hasReferencePlan,
   isActive,
   jobStateOf,
   MAX_TRACKED_JOBS,
@@ -291,5 +292,24 @@ describe("hasProgressTotal", () => {
     expect(hasProgressTotal(record(1, "running", { totalSteps: 0 }))).toBe(
       false,
     );
+  });
+});
+
+describe("hasReferencePlan", () => {
+  it("recognizes a registration by the counter the api answers", () => {
+    // the marker of a registration without references is the zero, not the
+    // absence of the field (#1265)
+    expect(
+      hasReferencePlan(
+        record(1, "running", { referencesTotal: 4, referencesFailed: 1 }),
+      ),
+    ).toBe(true);
+    expect(
+      hasReferencePlan(record(1, "completed", { referencesTotal: 0 })),
+    ).toBe(true);
+    expect(hasReferencePlan(record(1, "running", {}))).toBe(false);
+    expect(
+      hasReferencePlan(record(1, "running", { referencesTotal: null })),
+    ).toBe(false);
   });
 });

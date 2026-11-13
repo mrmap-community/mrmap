@@ -581,6 +581,37 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abort: "Prozess abbrechen",
     abortAsked: "Der Prozess wurde zum Abbrechen aufgefordert.",
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
+    // die Antwort einer Registrierung pro Referenz unter ihrem Prozess
+    // (#1265): die Zeilen, die die api behält, sind die ungeklärten und die
+    // gescheiterten - die gespeicherten Referenzen beantworten die Zähler,
+    // nicht ein Konto.
+    references: {
+      title: "Metadatenreferenzen dieser Registrierung",
+      empty: "Alle geplanten Referenzen sind gespeichert; es blieb nichts zu prüfen.",
+      loadError: "Die Referenzen dieser Registrierung konnten nicht geladen werden.",
+      request: "Angefragt am",
+      url: "Beworbene URL",
+      reference: "Referenz von",
+      state: "Zustand",
+      errorKind: "Fehlgrund",
+      errorAt: "Gescheitert am",
+      retry: "Diese Referenz erneut versuchen",
+      retryAsked: "Der erneute Versuch der Referenz wurde angefragt.",
+      retryFailed: "Die API hat den erneuten Versuch dieser Referenz nicht angenommen.",
+      // die Sammel-Wörter sind mit der Harvest-Tabelle geteilt (D6 aus
+      // #1256): failed und skipped lesen aus harvestRun.collectingStates;
+      // nur das Wort für eine Referenz, die gerade erneut geholt wird, ist
+      // eigenes dieses Screens
+      states: { retrying: "Erneuter Versuch" },
+      errorKinds: {
+        fetch_timeout: "Abruf lief in den Timeout",
+        fetch_unreachable: "Adresse nicht erreichbar",
+        no_content: "Antwort ohne Inhalt",
+        no_identifiable_record: "Kein identifizierbarer Datensatz",
+        unsupported_kind: "Nicht unterstützter Datensatztyp",
+        import_failed: "Import abgelehnt",
+      },
+    },
     log: {
       title: "Protokoll des Auftrags",
       empty: "Dieser Auftrag hat nichts gemeldet.",
@@ -620,6 +651,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       openHistory: "Job-Verlauf öffnen",
       expandJob: "Prozessdetails einblenden",
       collapseJob: "Prozessdetails ausblenden",
+      referencesCounter: "Referenzen %{total} · gespeichert %{stored} · gescheitert %{failed} · übersprungen %{skipped}",
+      openReferences: "Gescheiterte Referenzen prüfen",
       notifyFailed: "%{description} ist fehlgeschlagen. Öffnen Sie die Hintergrundjobs für die Einzelheiten.",
       notifyCompleted: "%{count} Hintergrundprozess abgeschlossen. |||| %{count} Hintergrundprozesse abgeschlossen.",
     },

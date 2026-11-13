@@ -600,6 +600,36 @@ const en = lodashMerge(
       abort: "Abort process",
       abortAsked: "The process was asked to abort.",
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
+      // the per-reference answer of a registration below its process (#1265):
+      // the rows the api retains are the unresolved and the failed ones - the
+      // stored references are answered by the counters, not by a ledger.
+      references: {
+        title: "Metadata references of this registration",
+        empty: "Every planned reference is stored; none remained to inspect.",
+        loadError: "Unable to load the references of this registration.",
+        request: "Requested at",
+        url: "Advertised url",
+        reference: "Reference of",
+        state: "State",
+        errorKind: "Why it failed",
+        errorAt: "Failed at",
+        retry: "Retry this reference",
+        retryAsked: "The retry of the reference was asked.",
+        retryFailed: "The api did not accept the retry of this reference.",
+        // the collecting words are shared with the harvest table (D6 of
+        // #1256): failed and skipped read from harvestRun.collectingStates;
+        // only the word for a reference which is being retried right now is
+        // this screen's own
+        states: { retrying: "Retrying" },
+        errorKinds: {
+          fetch_timeout: "Fetch timed out",
+          fetch_unreachable: "Address not reachable",
+          no_content: "Answer without content",
+          no_identifiable_record: "No identifiable record",
+          unsupported_kind: "Unsupported record kind",
+          import_failed: "Import refused",
+        },
+      },
       log: {
         title: "Job log",
         empty: "This process reported nothing.",
@@ -639,6 +669,8 @@ const en = lodashMerge(
         openHistory: "Open job history",
         expandJob: "Show process details",
         collapseJob: "Hide process details",
+        referencesCounter: "references %{total} · stored %{stored} · failed %{failed} · skipped %{skipped}",
+        openReferences: "Inspect failed references",
         notifyFailed: "%{description} failed. Open the background jobs for the details.",
         notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
       },

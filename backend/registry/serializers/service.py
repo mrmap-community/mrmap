@@ -817,7 +817,12 @@ class WebFeatureServiceCreateSerializer(
     )
     owner = ResourceRelatedField(queryset=Organization.objects)
 
-    collect_metadata_records = BooleanField(default=True)
+    # the same option the WMS create offers: one word per concept means the
+    # very same msgids here, so both languages name it identically (#1267)
+    collect_metadata_records = BooleanField(
+        default=True,
+        label=_("collect metadata records"),
+        help_text=_("If checked, Mr. Map collects all related metadata documents after the registration task."))
 
     class Meta:
         model = WebFeatureService

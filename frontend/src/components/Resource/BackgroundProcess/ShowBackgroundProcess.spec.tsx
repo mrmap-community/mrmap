@@ -45,6 +45,19 @@ vi.mock("react-admin", () => ({
   TextField: () => null,
   DateField: () => null,
   NumberField: () => null,
+  // the phase field renders through FunctionField; the stub renders the
+  // screen's render callback over the shown record, and the translate stub
+  // answers the key it was asked for - which is what these specs assert,
+  // while the i18n specs prove both languages carry the words
+  FunctionField: ({
+    render: renderField,
+  }: {
+    render: (record: Record<string, unknown>) => ReactNode;
+  }) => <>{renderField(state.controller.record)}</>,
+  useTranslate:
+    () =>
+    (key: string) =>
+      key,
 }));
 
 vi.mock("../../Field/ProgressField", () => ({ default: () => null }));
@@ -127,5 +140,21 @@ describe("ShowBackgroundProcess", () => {
       vi.advanceTimersByTime(3 * TICK_MILLISECONDS);
     });
     expect(state.controller.refetch).not.toHaveBeenCalled();
+  });
+
+  it("looks the reported phase up as a key of the background activity", () => {
+    // the api answers the registration's phases as keys (#1267); the screen
+    // asks the translations for `backgroundActivity.phases.<key>` and the
+    // stub of this spec answers with the key it was given
+    state.controller = {
+      record: { id: "1", status: "running", phase: "collect_metadata_records" },
+      refetch: vi.fn(),
+      isFetching: false,
+      isPending: false,
+    };
+    const { getByText } = render(<ShowBackgroundProcess />);
+    expect(
+      getByText("backgroundActivity.phases.collect_metadata_records"),
+    ).toBeInTheDocument();
   });
 });

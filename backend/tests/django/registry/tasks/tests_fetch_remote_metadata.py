@@ -55,7 +55,7 @@ class FetchRemoteMetadataFailureTest(WorkerRunMixin, TransactionTestCase):
             describes=self.service,
             link='http://metadata.example.org/record.xml')
         self.process = BackgroundProcess.objects.create(
-            phase='collecting metadata records...',
+            phase='collect_metadata_records',
             process_type='registering',
             description='a registration which collects one document')
 

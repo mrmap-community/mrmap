@@ -63,4 +63,27 @@ describe("background notification translations", () => {
       }
     }
   });
+
+  it("names every phase the registration reports", () => {
+    // a registration writes its phases as keys, never as sentences
+    // (`registry/views/service.py`, `registry/tasks/service.py`), and the
+    // task base of notify ends the process with `completed`; a key missing
+    // here answers the raw key right where the operator reads the progress,
+    // which is the regression #1267 closes out
+    const phases = [
+      "background_process_created",
+      "download_capabilities",
+      "parse_capabilities",
+      "persist_service",
+      "collect_metadata_records",
+      "completed",
+    ];
+    for (const messages of [en, de]) {
+      for (const phase of phases) {
+        const value = lodashGet(messages, `backgroundActivity.phases.${phase}`);
+        expect(typeof value, phase).toBe("string");
+        expect((value as string).trim(), phase).not.toBe("");
+      }
+    }
+  });
 });

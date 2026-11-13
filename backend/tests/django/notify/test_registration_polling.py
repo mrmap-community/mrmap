@@ -453,7 +453,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         after its failure leans on.
         """
         process = BackgroundProcess.objects.create(
-            phase="download capabilities document...",
+            phase="download_capabilities",
             process_type="registering",
             description="a registration which fails")
 

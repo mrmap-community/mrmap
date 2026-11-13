@@ -211,7 +211,14 @@ const JobEntry = (): ReactNode => {
               : `${translate(
                   `backgroundActivity.jobCenter.processTypes.${record.processType}`,
                   { _: record.processType },
-                )}${record.phase ? ` · ${record.phase}` : ""}`}
+                )}${
+                  record.phase
+                    ? ` · ${translate(
+                        `backgroundActivity.phases.${record.phase}`,
+                        { _: record.phase },
+                      )}`
+                    : ""
+                }`}
           </Typography>
           <Box id={detailsId} hidden={!expanded}>
             {isActiveRow && (

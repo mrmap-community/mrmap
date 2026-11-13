@@ -41,8 +41,11 @@ def build_ogc_service(
     try:
         self.update_state(state=states.STARTED, meta={
             'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
+        # the phase is a key, not a sentence: it is stored untranslated and
+        # the browser translates it where it shows it (#1267). The url is no
+        # part of it - the process description already names the url.
         self.update_background_process(
-            phase=f"download capabilities document from {get_capabilities_url}"
+            phase='download_capabilities'
         )
 
         auth = None
@@ -73,7 +76,7 @@ def build_ogc_service(
                   'phase': 'parse capabilities document...'}
         )
         self.update_background_process(
-            phase='parse capabilities document...'
+            phase='parse_capabilities'
         )
 
         self.update_state(
@@ -81,7 +84,7 @@ def build_ogc_service(
             meta={'done': 2, 'total': 3, 'phase': 'persisting service...'}
         )
         self.update_background_process(
-            phase='persisting service...'
+            phase='persist_service'
         )
 
         mapper = OGCServiceXmlMapper.from_xml(response.content)
@@ -140,6 +143,8 @@ def build_ogc_service(
         raise e
     except Exception as e:
         self.update_state(state=states.FAILURE)
+        # the error text is a diagnostic, not a phase: it stays free text
+        # and the browser answers it untranslated (#1267)
         self.update_background_process(phase=str(e))
         settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
         raise e
@@ -177,7 +182,7 @@ def build_ogc_service(
                 )
                 for remote_metadata in remote_metadata_list]
             self.update_background_process(
-                phase='collecting metadata records...',
+                phase='collect_metadata_records',
                 service=db_service,
                 total_steps=tasks.__len__()
             )

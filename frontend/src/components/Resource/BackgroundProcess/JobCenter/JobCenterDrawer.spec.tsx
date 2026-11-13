@@ -84,12 +84,20 @@ vi.mock("react-admin", async () => {
     RecordContext,
     useRecordContext: () => React.useContext(RecordContext),
     useListContext: () => state.history,
-    useTranslate:
-      () =>
-      (key: string, options?: Record<string, unknown>) =>
-        options !== undefined && options._ !== undefined
+    useTranslate: () => {
+      // the stub knows one word of the phases table (#1267) to prove the
+      // drawer looks the reported key up; every other key keeps answering
+      // the `_` fallback or itself, as before
+      const words: Record<string, string> = {
+        "backgroundActivity.phases.collect_metadata_records":
+          "Collect metadata records",
+      };
+      return (key: string, options?: Record<string, unknown>) =>
+        words[key] ??
+        (options !== undefined && options._ !== undefined
           ? String(options._)
-          : key,
+          : key);
+    },
     useCreatePath:
       () =>
       ({ type, id }: { type: string; id?: number | string }) =>
@@ -188,6 +196,31 @@ describe("JobCenterDrawer", () => {
     // without a related resource the process type names the group
     expect(rows.getByText("Index everything")).toBeInTheDocument();
     expect(rows.getAllByText("indexer").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("translates a reported phase key and answers a raw report as written", () => {
+    // the registration reports its phases as keys (#1267); what is no key -
+    // the error text a task reported into the phase - stays readable
+    state.store = storeOf([
+      job({
+        id: 4,
+        description: "Register weather service",
+        phase: "collect_metadata_records",
+      }),
+      job({
+        id: 5,
+        description: "Broken registration",
+        phase: "the capabilities document is broken",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    expect(
+      rows.getByText("harvest · Collect metadata records"),
+    ).toBeInTheDocument();
+    expect(
+      rows.getByText("harvest · the capabilities document is broken"),
+    ).toBeInTheDocument();
   });
 
   it("shows the indeterminate bar when the total is unknown", () => {

@@ -19,7 +19,10 @@ def capped_done_steps(steps):
     leaves behind when there is no total to cap at - a process which does not
     know its total cannot exceed it. Shared by this manager's ``report`` and
     the task-side update path of ``notify/tasks.py``, so no step reporter can
-    push a process beyond 100 % (#1261, #1258).
+    push a process beyond 100 % (#1261, #1258). A ceiling is not exactly-once
+    accounting: duplicate reports of one logical step are still counted, they
+    merely stop at the total; the per-reference identity which makes
+    accounting exact belongs to the reference-level outcomes of #1263.
     """
     return Coalesce(
         Greatest(
@@ -133,10 +136,9 @@ class BackgroundProcessManager(models.Manager):
                 report, for the reporter which coalesces its work into one
                 bulk increment instead of writing one row update per step (#958)
 
-        The done steps are only ever moved up and are capped at the total: a
-        reporter which counts too eagerly inflates a process towards its end,
-        it never pulls a reported progress back. A total of None caps nothing
-        - a process which does not know its total cannot exceed it.
+        The done steps are moved with the shared capped increment
+        `capped_done_steps`, so a reporter which counts too eagerly inflates
+        a process towards its end and never past its total.
 
         A process which reports itself COMPLETED is written as done: the
         completion of the work is the proof that its steps are over, and the

@@ -129,6 +129,50 @@ class BackgroundProcessTaskTests(TestCase):
         self.assertEqual(process.done_steps, 4)
         self.assertEqual(process.progress, 100)
 
+    @patch('notify.tasks.post_save.send')
+    def test_a_step_report_does_not_move_a_further_process_back(self, send):
+        """a total which fell below what was already reported must not pull
+        the progress down through the next step report (#1261)"""
+        self.process.done_steps = 4
+        self.process.total_steps = 10
+        self.process.save(update_fields=['done_steps', 'total_steps'])
+
+        BackgroundProcess.objects.filter(pk=self.process.pk).update(
+            total_steps=2)
+        self.task.update_background_process(step_done=True)
+
+        self.assertEqual(self.info().done_steps, 4)
+
+    @patch('notify.tasks.post_save.send')
+    def test_the_ceiling_does_not_account_steps_per_reference(self, send):
+        """what a ceiling is not: the distinction #1263 closes (#1261)
+
+        Two references, one delivery each, would be the honest accounting.
+        When the delivery of the first reference arrives twice and the
+        second reference never delivers, the capped increment still adds
+        both reports - it only stops at the total. The process therefore
+        reads as if both references were done, while one never ran: a
+        ceiling bounds the damage, it is not exactly-once accounting per
+        logical reference. That identity is what #1263 enforces when it
+        persists reference-level outcomes; until then this test pins that
+        duplicate delivery cannot exceed the total but *can* prematurely
+        complete a multi-reference run.
+        """
+        self.process.total_steps = 2
+        self.process.done_steps = 0
+        self.process.save(update_fields=['total_steps', 'done_steps'])
+
+        # reference 1 is delivered, then redelivered; reference 2 never runs
+        self.task.update_background_process(step_done=True)
+        self.task.update_background_process(step_done=True)
+
+        process = self.info()
+        self.assertEqual(process.done_steps, 2)
+        self.assertEqual(process.progress, 100)
+        self.assertNotEqual(
+            process.done_steps, 1,
+            'the ceiling counts every report; per-reference identity is #1263')
+
 
 class NoPerTaskResultBookkeepingTests(WorkerRunMixin, TransactionTestCase):
     """No task of the deployment books itself in a generic per-task result table.

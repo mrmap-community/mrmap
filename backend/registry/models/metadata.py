@@ -613,9 +613,39 @@ class RemoteMetadata(models.Model):
                 f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
             return
 
+        self.drop_superseded_relations(created_instance)
         created_instance.add_metadata_relation(
             related_object=self.describes)
         return created_instance
+
+    def drop_superseded_relations(self, created_instance):
+        """Take back the relations which an earlier collection of this link
+        left on the described element, pointing at another record instance.
+
+        The collection identifies the record of a link by its file identifier,
+        so a re-registration normally re-asserts the very relation which is
+        already there - measured on #1261: re-collecting one reference
+        duplicates no record and no relation. When the record which a link
+        resolves to *has* changed - the catalogue republished its document
+        under a new file identifier - the element's old relation is stale: it
+        couples the element to a record which the element no longer describes,
+        and nothing removed it before (#1261). It is taken back here, through
+        :meth:`MetadataRecord.remove_metadata_relation`, while the relations
+        of the element to the records of *other* links and everything a
+        curator added stay untouched.
+
+        This is the "removes the stale ones" answer of #1261 and it is runtime
+        bookkeeping, not a migration: rows age into a decision only until the
+        next collection of their reference rewrites them, which fits the
+        no-migration posture of the epic's decision D5.
+        """
+        superseded = created_instance.__class__.objects.filter(
+            origin_url=self.link).exclude(pk=created_instance.pk)
+        for stale_record in superseded:
+            stale_record.remove_metadata_relation(
+                related_object=self.describes,
+                internal=False,
+                origin=MetadataOriginEnum.CAPABILITIES.value)
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
@@ -1036,6 +1066,64 @@ class MetadataRelation(models.Model):
 
     objects = MetadataRelationManager()
 
+    #: The column of this table which stores a described object, keyed by the
+    #: class name of the object. Every kind of element which a RemoteMetadata
+    #: can describe and which a curator can couple needs its column named
+    #: here; a class which is not in it is refused (see relation_columns).
+    DESCRIBED_OBJECT_FIELDS = {
+        "Layer": "layer",
+        "FeatureType": "feature_type",
+        "WebMapService": "wms",
+        "WebFeatureService": "wfs",
+        "CatalogueService": "csw",
+    }
+
+    #: The column of this table which stores the metadata record of the
+    #: coupling, keyed by the class name of the record. A record type without
+    #: a column of its own has no place in this table and is refused rather
+    #: than stored half-empty.
+    RECORD_FIELDS = {
+        "DatasetMetadataRecord": "dataset_metadata",
+        "ServiceMetadataRecord": "service_metadata",
+    }
+
+    @classmethod
+    def relation_columns(cls, related_object, record):
+        """The names of the two columns which hold one coupling.
+
+        Fails loudly for a class which has no column of its own: the if/elif
+        chains this mapping replaced defaulted to silence and let a relation
+        row through with only one of its two object columns filled, which no
+        screen can render (#1261).
+
+        Args:
+            related_object: the described element (Layer, FeatureType, WMS,
+                WFS, CSW) or None for a coupling which names no element
+            record: the metadata record of the coupling
+
+        Returns:
+            tuple: (name of the element's column or None, name of the
+                record's column)
+        """
+        described_field = None
+        if related_object is not None:
+            described_field = cls.DESCRIBED_OBJECT_FIELDS.get(
+                related_object.__class__.__name__)
+            if described_field is None:
+                raise ValueError(
+                    f"MetadataRelation can not describe a "
+                    f"'{related_object.__class__.__name__}'; it has no "
+                    f"column and is not in DESCRIBED_OBJECT_FIELDS.")
+
+        record_field = cls.RECORD_FIELDS.get(record.__class__.__name__)
+        if record_field is None:
+            raise ValueError(
+                f"MetadataRelation can not couple a "
+                f"'{record.__class__.__name__}'; it has no column and is "
+                f"not in RECORD_FIELDS.")
+
+        return described_field, record_field
+
     class Meta:
 
         constraints = [
@@ -1260,28 +1348,21 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         ] + AbstractMetadata.Meta.constraints
 
     def add_metadata_relation(self, related_object=None, origin=None, is_internal=False):
+        """Assert the coupling of this record to the described element.
 
+        Idempotent: the get_or_create is keyed on the filled columns plus
+        `is_internal`, so re-collecting the same reference re-asserts the
+        relation which is already there instead of stacking a second row
+        beside it. A class without a column of its own raises instead of
+        writing an unrenderable half row (#1261).
+        """
         kwargs = {}
-        if related_object and related_object.__class__.__name__ == "Layer":
-            kwargs.update({"layer": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value, })
-        elif related_object and related_object.__class__.__name__ == "FeatureType":
-            kwargs.update({"feature_type": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "WebMapService":
-            kwargs.update({"wms": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
-            kwargs.update({"wfs": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "CatalogueService":
-            kwargs.update({"csw": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-
-        if self.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.update({"dataset_metadata": self})
-        elif self.__class__.__name__ == "ServiceMetadataRecord":
-            kwargs.update({"service_metadata": self})
+        described_field, record_field = MetadataRelation.relation_columns(
+            related_object, self)
+        if described_field is not None:
+            kwargs[described_field] = related_object
+            kwargs["origin"] = origin if origin else MetadataOriginEnum.CAPABILITIES.value
+        kwargs[record_field] = self
 
         with atomic():
             relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
@@ -1291,24 +1372,21 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         return relation
 
     def remove_metadata_relation(self, related_object, internal, origin):
-        kwargs = {}
-        if related_object and related_object.__class__.__name__ == "Layer":
-            kwargs.update({"layer": related_object})
-        elif related_object and related_object.__class__.__name__ == "FeatureType":
-            kwargs.update({"feature_type": related_object})
-        elif related_object and related_object.__class__.__name__ == "WebMapService":
-            kwargs.update({"wms": related_object})
-        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
-            kwargs.update({"wfs": related_object})
-        elif related_object and related_object.__class__.__name__ == "CatalogueService":
-            kwargs.update({"csw": related_object})
-        else:
-            return
+        """Take back the coupling of this record to one described element.
 
-        if self.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.update({"dataset_metadata": self})
-        elif self.__class__.__name__ == "ServiceMetadataRecord":
-            kwargs.update({"service_metadata": self})
+        Takes exactly one coupling: the element, the `internal` flag and the
+        `origin` of the relation have to match, so a relation a curator added
+        cannot be deleted through a reporter which reports capabilities.
+        A class without a column of its own raises like in
+        :meth:`add_metadata_relation` (#1261).
+        """
+        described_field, record_field = MetadataRelation.relation_columns(
+            related_object, self)
+        if described_field is None:
+            raise ValueError(
+                "remove_metadata_relation must be cited the described "
+                "element whose coupling is taken back.")
+        kwargs = {described_field: related_object, record_field: self}
         MetadataRelation.objects.select_for_update().filter(
             is_internal=internal,
             origin=origin,

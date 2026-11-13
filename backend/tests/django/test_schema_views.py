@@ -90,8 +90,9 @@ class OpenApiSchemaCachingTests(TestCase):
         response = self.client.get(
             SCHEMA_URL, HTTP_AUTHORIZATION=self.auth_header)
         etag = response.headers.get("ETag")
-        # The page cache entry has to be regenerated to evaluate the tag -
-        # the cache_page wrap serves a hit before the view is consulted.
+        # The clear pins this test to the *view's* check: without a page
+        # cache entry the request reaches the view, which evaluates the tag
+        # before rendering. A hit is covered by the middleware test below.
         caches["local-memory"].clear()
         revalidation = self.client.get(
             SCHEMA_URL, HTTP_AUTHORIZATION=self.auth_header,
@@ -109,6 +110,26 @@ class OpenApiSchemaCachingTests(TestCase):
         revalidation = self.client.get(
             SCHEMA_URL, HTTP_IF_NONE_MATCH="W/" + etag)
         self.assertEqual(revalidation.status_code, 304)
+
+    def test_a_revalidation_on_a_page_cache_hit_is_answered_with_304(self):
+        """``cache_page`` answers a hit without running view code, so the
+        revalidation of a fresh entry is the middleware's job: without it a
+        browser whose freshness lifetime expired was served the whole
+        megabytes-long document although its tag matched (#946)."""
+        response = self.client.get(SCHEMA_URL)
+        etag = response.headers.get("ETag")
+        cached = self.client.get(SCHEMA_URL)
+        # precondition: this really is the page-cache path, not the view
+        self.assertIn("Age", cached.headers)
+        self.assertEqual(cached.headers.get("ETag"), etag)
+
+        revalidation = self.client.get(SCHEMA_URL, HTTP_IF_NONE_MATCH=etag)
+        self.assertEqual(revalidation.status_code, 304)
+        self.assertEqual(revalidation.content, b"")
+        self.assertEqual(revalidation.headers.get("ETag"), etag)
+        # the 304 refreshes the stored headers of the client's copy, so it
+        # must repeat the cleaned Vary and not the session marking again
+        self.assertNotIn("cookie", self._vary(revalidation))
 
     def test_a_cookieless_response_does_not_vary_on_the_session(self):
         """Without a session cookie the schema response sets no cookie, so

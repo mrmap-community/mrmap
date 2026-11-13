@@ -8,10 +8,13 @@ requesting user - which is what this view exploits:
 
 * A strong ``ETag`` over the rendered document lets the browser revalidate
   with ``If-None-Match`` and receive a bodyless 304 instead of the whole
-  document again. The hash is taken over the JSON rendering of the schema
-  dict; since the rendering is a deterministic function of the document,
-  the tag is also correct for the YAML representations, which content
-  negotiation can select for the same URL (those vary together with it).
+  document again. The hash is taken over the JSON rendering of the delivered
+  document; since the rendering is a deterministic function of it, the tag is
+  also correct for the YAML representations, which content negotiation can
+  select for the same URL (those vary together with it). Both paths that can
+  answer the document revalidate: the view on a cache miss, where the check
+  also skips the rendering, and ``SchemaConditionalGetMiddleware`` on a
+  ``cache_page`` hit, where no view code runs at all.
 * ``Cache-Control: public`` marks the response as shareable. That matters
   beyond nginx, which does not cache here: ``cache_page`` (``django.views.
   decorators.cache``, applied in the URLconf around this view) adds
@@ -23,6 +26,12 @@ requesting user - which is what this view exploits:
   Dropping the Vary is honest precisely because the document is not
   per-user; ``tests/django/test_schema_views.py`` pins that the anonymous
   and the authenticated document are byte-identical.
+* What is delivered here is the deduplicated rendering: the repeated
+  parameter objects and pagination fragments are lifted into ``components``
+  as references (``extras.schema.lift_duplicated_components``), which the
+  SPA's client dereferences transparently. The generator keeps the inlined
+  shape - and with it ``manage.py spectacular`` and the contract tests that
+  read the raw document.
 
 Authentication behaviour: the document answers with spectacular's serve
 permissions (public by default) for every client today; the view declares
@@ -37,10 +46,50 @@ only adds the response headers and the 304 short-circuit.
 """
 
 import hashlib
+import json
+import threading
 
+from django.core.cache import caches
+from django.http import HttpResponse
+from django.utils import translation
 from drf_spectacular.renderers import OpenApiJsonRenderer
 from drf_spectacular.views import SpectacularJSONAPIView
 from rest_framework.response import Response
+
+from MrMap import VERSION as MRMAP_VERSION
+from extras.schema import lift_duplicated_components
+
+
+def if_none_match_matches(request, etag):
+    """Whether an If-None-Match header selects this document version.
+
+    Compared weakly per RFC 9110 Section 13.1.3: a revalidating client
+    often echoes a ``W/``-prefixed copy of the tag it was given - nginx
+    weakens the tag of every response it gzips, which is honest for the
+    transformed bytes and must still revalidate to 304. "*" matches
+    every version.
+    """
+    header = request.META.get("HTTP_IF_NONE_MATCH")
+    if not header:
+        return False
+    candidates = [
+        candidate.strip().removeprefix("W/") for candidate in
+        header.split(",")]
+    return etag in candidates or "W/*" in candidates or "*" in candidates
+
+
+class CompactOpenApiJsonRenderer(OpenApiJsonRenderer):
+    """Serve the document without the pretty-print indent.
+
+    ``OpenApiJsonRenderer`` forces ``indent=4`` (it inherits that from
+    DRF's JSONRenderer contract of serving humans reading a browser). The
+    consumer of ``/api/schema`` is the SPA's schema parser, not a reader;
+    the indent alone measured 6.2 MB of wire bytes for a 2.1 MB document,
+    which every boot downloads.
+    """
+
+    def get_indent(self, accepted_media_type, renderer_context):
+        return None
 
 
 class RevalidatableOpenApiSchemaView(SpectacularJSONAPIView):
@@ -52,48 +101,110 @@ class RevalidatableOpenApiSchemaView(SpectacularJSONAPIView):
     # authentication stack; this document has never required credentials
     # (spectacular's serve permissions default to none).
     authentication_classes = []
+    renderer_classes = [CompactOpenApiJsonRenderer]
+
+    # The document changes only with the deployed code, so within one
+    # worker process it is generated exactly once and kept in the same
+    # ``local-memory`` cache the ``cache_page`` wrap already uses (whose
+    # key the tests clear between generations — this entry is cleared with
+    # it). The lock makes concurrent cold requests a single flight: the
+    # measured stampede of 8 clients triggered 8 full generations of the
+    # same document, seconds each.
+    _generation_lock = threading.Lock()
+
+    def _document_cache_key(self, request):
+        lang = request.GET.get("lang") or translation.get_language()
+        return f"openapi-document:{MRMAP_VERSION}:{lang}"
 
     def _get_schema_response(self, request):
-        response = super()._get_schema_response(request)
-        if response.status_code != 200:
-            return response
+        cache = caches["local-memory"]
+        key = self._document_cache_key(request)
+        document = cache.get(key)
+        if document is None:
+            with self._generation_lock:
+                # double-checked: a waiting thread must not regenerate
+                # what the first thread just produced.
+                document = cache.get(key)
+                if document is None:
+                    response = super()._get_schema_response(request)
+                    if response.status_code != 200:
+                        return response
+                    # The delivered document is the deduplicated rendering;
+                    # the round trip through the compact bytes also settles
+                    # the lazy translation proxies into plain data, which is
+                    # what the cache and the renderer below then work with.
+                    compact = CompactOpenApiJsonRenderer()
+                    data = lift_duplicated_components(json.loads(
+                        compact.render(response.data)))
+                    # The tag is quoted per RFC 9110 and taken over the very
+                    # bytes this view serves; hashing the rendered JSON costs
+                    # tens of milliseconds next to the seconds the generation
+                    # of this very response took.
+                    wire = compact.render(data)
+                    document = {
+                        "data": data,
+                        "etag": f'"sha256-'
+                                f'{hashlib.sha256(wire).hexdigest()}"',
+                        "disposition":
+                            response.headers.get("Content-Disposition"),
+                    }
+                    cache.set(key, document, timeout=None)
 
-        # The tag is quoted per RFC 9110; hashing the rendered JSON bytes
-        # costs tens of milliseconds next to the seconds the generation of
-        # this very response took.
-        digest = hashlib.sha256(
-            OpenApiJsonRenderer().render(response.data)).hexdigest()
-        etag = f'"sha256-{digest}"'
-
-        if self._if_none_match_matches(request, etag):
+        etag = document["etag"]
+        if if_none_match_matches(request, etag):
             # The 304 repeats the two headers the 200 carries: the browser
             # refreshes them on its stored copy, and the cache_page wrap
             # around this view only skips its "Vary: Authorization" addition
-            # when the response it sees already says public.
+            # when the response it sees already says public. With the tag
+            # taken from the cached document, the revalidation no longer
+            # regenerates the document it is about to refuse to send.
             return Response(status=304, headers={
                 "ETag": etag, "Cache-Control": "public"})
 
-        response["ETag"] = etag
-        response["Cache-Control"] = "public"
-        return response
+        headers = {"ETag": etag, "Cache-Control": "public"}
+        if document.get("disposition"):
+            headers["Content-Disposition"] = document["disposition"]
+        return Response(document["data"], headers=headers)
 
-    @staticmethod
-    def _if_none_match_matches(request, etag):
-        """Whether an If-None-Match header selects this document version.
 
-        Compared weakly per RFC 9110 Section 13.1.3: a revalidating client
-        often echoes a ``W/``-prefixed copy of the tag it was given - nginx
-        weakens the tag of every response it gzips, which is honest for the
-        transformed bytes and must still revalidate to 304. "*" matches
-        every version.
-        """
-        header = request.META.get("HTTP_IF_NONE_MATCH")
-        if not header:
-            return False
-        candidates = [
-            candidate.strip().removeprefix("W/") for candidate in
-            header.split(",")]
-        return etag in candidates or "W/*" in candidates or "*" in candidates
+class SchemaConditionalGetMiddleware:
+    """Answer a matching ``If-None-Match`` with 304 for a page-cache hit.
+
+    ``cache_page`` (the URLconf wrap) serves a stored response without
+    consulting the view, and Django's page cache has no conditional-GET
+    handling: a browser whose 15 minutes of freshness have expired
+    revalidates with the tag it was given and was answered the whole
+    document again - measured 1.47 MB for a request whose tag matched,
+    which is the cost the ETag exists to prevent. The view short-circuits
+    the same comparison for a *miss* (and thereby skips the rendering);
+    this middleware covers the hit, where no view code runs.
+
+    Runs below ``SchemaVaryMiddleware`` in the response phase (listed
+    before it), so the ``Vary`` it repeats on the 304 is the cleaned one:
+    a 304 refreshes the stored headers of the client's copy, so a stale
+    ``Vary: Cookie`` handed out here would re-enter the cache key.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if (request.path != "/api/schema"
+                or request.method not in ("GET", "HEAD")
+                or response.status_code != 200):
+            return response
+        etag = response.headers.get("ETag")
+        if not etag or not if_none_match_matches(request, etag):
+            return response
+        conditional = HttpResponse(status=304)
+        # RFC 9110 Section 15.4.5: a 304 carries the stored validators and
+        # cache directives of the selected representation, and no body.
+        for header in ("ETag", "Cache-Control", "Vary", "Content-Location"):
+            value = response.headers.get(header)
+            if value:
+                conditional.headers[header] = value
+        return conditional
 
 
 class SchemaVaryMiddleware:

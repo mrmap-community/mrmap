@@ -124,6 +124,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Listed above the Vary middleware, so in the response phase it runs
+    # after that one and repeats the cleaned Vary on its 304 (#946).
+    "extras.schema_views.SchemaConditionalGetMiddleware",
     # Below Security, above Session: strips the session marking's Vary: Cookie
     # from /api/schema responses after SessionMiddleware added it (#946).
     "extras.schema_views.SchemaVaryMiddleware",

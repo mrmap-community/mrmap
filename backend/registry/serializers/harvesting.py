@@ -4,6 +4,8 @@ from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
                                 TimeUntilNextRunMixin)
 from registry.enums.harvesting import LogLevelEnum
+from registry.enums.metadata import (ReferenceErrorKind,
+                                     ReferenceWorkStateEnum)
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
@@ -16,6 +18,7 @@ from rest_framework_json_api.serializers import (CharField, ChoiceField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
+                                                 PrimaryKeyRelatedField,
                                                  SerializerMethodField,
                                                  ValidationError)
 from system.fields import CrontabStringField
@@ -116,9 +119,91 @@ class TemporaryMdMetadataFileSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:temporarymdmetadatafile-detail',)
 
+    # The readable side of the registration reference work (#1263): which
+    # process planned a reference, what it describes, how far its work got
+    # and - for a decided failure - which kind of answer decided it. The
+    # internals of the claim (the token, the lease, the reference key) are
+    # deliberately NOT in this list: they are the single-use permits which
+    # authorize one delivery to write, not data to show - handing them out
+    # over the API would hand out the permits themselves. The endpoint
+    # stays read-facing for this work: the queue is decided by its tasks.
+    background_process = PrimaryKeyRelatedField(
+        read_only=True,
+        label=_("background process"),
+        help_text=_(
+            "the collecting background process which planned this "
+            "reference; null for the rows of a harvesting run"))
+    state = ChoiceField(
+        choices=ReferenceWorkStateEnum.choices,
+        read_only=True,
+        label=_("work state"),
+        help_text=_(
+            "pending, leased or failed state of a registration reference; "
+            "harvesting rows never move it"))
+    error_kind = ChoiceField(
+        choices=ReferenceErrorKind.choices,
+        required=False,
+        allow_blank=True,
+        read_only=True,
+        label=_("error kind"),
+        help_text=_(
+            "machine-readable kind of the last failed decision of this "
+            "reference; empty while it never failed"))
+    error_at = DateTimeField(
+        read_only=True,
+        label=_("error at"),
+        help_text=_(
+            "the moment the last failed decision of this reference was "
+            "recorded"))
+    attempt_count = IntegerField(
+        read_only=True,
+        label=_("attempt count"),
+        help_text=_(
+            "how many deliveries have claimed this row; retries included"))
+    described_display = CharField(
+        read_only=True,
+        label=_("described resource"),
+        help_text=_(
+            "the readable name the described element carried at planning "
+            "time; kept when the element was removed since"))
+    described_wms = PrimaryKeyRelatedField(
+        read_only=True, label=_("web map service"))
+    described_wfs = PrimaryKeyRelatedField(
+        read_only=True, label=_("web feature service"))
+    described_layer = PrimaryKeyRelatedField(
+        read_only=True, label=_("layer"))
+    described_featuretype = PrimaryKeyRelatedField(
+        read_only=True, label=_("feature type"))
+
     class Meta:
         model = TemporaryMdMetadataFile
-        fields = "__all__"
+        # named instead of "__all__" since #1263: the work queue added
+        # columns whose values authorize work (claim token, lease,
+        # reference key) and an exhaustive list is what keeps them out.
+        # Everything the old "all" answered is still in here.
+        fields = (
+            "url",
+            "id",
+            "job",
+            "background_process",
+            "md_metadata_file",
+            "re_schedule",
+            "has_import_error",
+            "import_error",
+            "request_id",
+            "requested_url",
+            "download_duration",
+            "state",
+            "error_kind",
+            "error_at",
+            "attempt_count",
+            "described_display",
+            "described_wms",
+            "described_wfs",
+            "described_layer",
+            "described_featuretype",
+            "string_representation",
+        )
 
 
 class HarvestingJobSerializer(

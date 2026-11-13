@@ -1,13 +1,16 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
+from django.utils import timezone
 from lxml import etree
-from notify.enums import LogTypeEnum, ProcessStatusEnum
+from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
+from registry.enums.metadata import ReferenceWorkStateEnum
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.exceptions.service import (CapabilitiesPersistenceError,
                                          DuplicateLayerIdentifiers)
@@ -19,16 +22,16 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       MetadataRelation, ServiceMetadataRecord,
                                       Style, WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
+from registry.models.harvest import TemporaryMdMetadataFile
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
 from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
-from registry.tasks.service import (build_ogc_service,
-                                    fetch_remote_metadata_xml)
+from registry.tasks.service import build_ogc_service, collect_reference
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.sessions import Session
 from rest_framework import status
-from tests.django.utils import MockResponse
-from urllib3.exceptions import MaxRetryError
+from tests.django.utils import MockResponse, WorkerRunMixin
 
 
 def side_effect(request, *args, **kwargs):
@@ -501,129 +504,202 @@ class ValidateUniqueLayerIdentifiersTest(TestCase):
         self.assertIsNone(validate_unique_layer_identifiers(mapper))
 
 
-class CollectionStepAccountingTest(TransactionTestCase):
+class CollectionStepAccountingTest(WorkerRunMixin, TransactionTestCase):
     """Each metadata reference of a collection reports exactly one step (#1258).
 
-    The step report of ``fetch_remote_metadata_xml`` used to sit only behind
-    the ``except`` branches, which the success path left by returning: a
-    healthy run sat at 0 % until the chord completed and jumped to done. The
-    process here is the one the registration fan-out leaves behind: a known
-    total of as many references as tasks went into the chord, and these tests
-    run that very task over it - with all references succeeding, all failing
-    and half failing - and assert the accounting closes.
+    The step report of the collecting task used to sit only behind the
+    ``except`` branches, which the success path left by returning: a healthy
+    run sat at 0 % until the chord completed and jumped to done. The process
+    here is the one the registration work queue of #1263 leaves behind: a
+    sealed plan of four references, and these tests answer ``collect_reference``
+    over it once per row - with all references succeeding, all failing and
+    half failing - and assert the accounting closes.
+
+    The deliveries go through celery's tracer because the reports into the
+    process run in the same signal handlers a worker pays; the delivery
+    which exhausted its retry policy is the one which carries
+    ``max_retries`` - an attempt below that number releases its row and
+    decides nothing (the transport contract of #1260, moved onto the row).
 
     A TransactionTestCase because the tasks are the ones of the deployment:
     its celery signal handlers close the database connection around a task,
     which is only survivable outside the atomic block of a TestCase.
     """
 
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json"]
+
+    # the references are advertised AT THE SERVICE, so their documents are
+    # service records - the relation table only permits a service record to
+    # couple a WMS (dataset records couple layers and feature types)
+    SERVICE = (Path(__file__).parent.parent.parent
+               / 'test_data/iso_metadata/service.xml')
+
     def setUp(self):
+        super().setUp()
+        media = TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        settings = override_settings(MEDIA_ROOT=media.name)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
         contact = MetadataContact.objects.create(name='collection contact')
         service = WebMapService.objects.create(
             title='Collection progress service', version=130, origin=1,
             service_url='https://collection.example.org/wms',
             metadata_contact=contact, service_contact=contact)
-        self.references = [
-            WebMapServiceRemoteMetadata.objects.create(
-                link=f'https://collection.example.org/md/{i}',
-                describes=service)
-            for i in range(4)]
         self.process = BackgroundProcess.objects.create(
             process_type='registering',
             description='',
             phase='collect_metadata_records',
-            total_steps=len(self.references))
+            total_steps=4,
+            references_total=4, references_stored=0, references_failed=0,
+            references_skipped=0,
+            references_plan_sealed=True)
+        # the four work rows the sealed plan left behind, one per advertised
+        # link; the rows are the references - no RemoteMetadata row is read
+        # while they are worked (#1263)
+        self.rows = TemporaryMdMetadataFile.objects.bulk_create([
+            TemporaryMdMetadataFile(
+                background_process_id=self.process.pk,
+                reference_key=TemporaryMdMetadataFile.build_reference_key(
+                    service, f'https://collection.example.org/md/{i}'),
+                requested_url=f'https://collection.example.org/md/{i}',
+                described_wms=service,
+                described_display=service.title,
+                request_id=timezone.now())
+            for i in range(4)])
 
-    @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
-                       CELERY_TASK_EAGER_PROPAGATES=True,
-                       BROKER_BACKEND='memory')
     def _collect(self, failing=()):
-        """Run the task of the chord once per reference, eager as a worker.
+        """Answer the task of the queue once per row, as a worker would.
 
         The boundary is the remote endpoint: the HTTP call inside
-        ``fetch_remote_content`` answers the document on success and the very
-        ``MaxRetryError`` the real client raises on refusal, while the
-        mapping behind ``create_metadata_instance`` is replaced by a record
-        the persistence could not file (``None``) - its shape is not what is
-        accounted here, the reference reaching an outcome is.
+        ``fetch_metadata_document`` answers the dataset document on success
+        and the ``ConnectionError`` of a refused connection otherwise - the
+        failing rows are delivered carrying ``max_retries``, which is how a
+        worker hands over the last attempt its retry policy permits.
         """
-        failing_urls = {self.references[i].link for i in failing}
+        failing_urls = {self.rows[i].requested_url for i in failing}
 
-        def send(session, request):
+        def send(request, *args, **kwargs):
             if request.url in failing_urls:
-                raise MaxRetryError(
-                    None, request.url, reason='connection refused')
-            return MockResponse(status_code=200, content='<Metadata/>')
+                raise RequestsConnectionError('connection refused')
+            return MockResponse(status_code=200, content=self.SERVICE)
 
-        with patch.object(Session, 'send', side_effect=send), \
-                patch.object(WebMapServiceRemoteMetadata,
-                             'create_metadata_instance', return_value=None):
-            for reference in self.references:
-                fetch_remote_metadata_xml.delay(
-                    reference.pk, 'WebMapServiceRemoteMetadata',
-                    background_process_pk=self.process.pk)
+        from celery.app.trace import build_tracer
+        collect_reference._backend = self.app.backend
+        self.addCleanup(
+            lambda: collect_reference.__dict__.pop('_backend', None))
+        trace = build_tracer(
+            collect_reference.name, collect_reference, app=self.app)
+
+        with patch.object(Session, 'send', side_effect=send):
+            for index, row in enumerate(self.rows):
+                retries = (collect_reference.max_retries
+                           if index in failing else 0)
+                # the fan-out addresses work through kwargs - the process
+                # report handlers read the process exactly from there
+                trace(collect_reference.name, (), {
+                    'background_process_pk': self.process.pk,
+                    'temporary_md_metadata_file_id': row.pk,
+                }, {'id': f"accounting-{index}", 'retries': retries})
 
         return BackgroundProcess.objects.process_info().get(
             pk=self.process.pk)
 
+    @override_settings(BROKER_BACKEND='memory')
     def test_all_successes_count_their_steps(self):
         """The defect: the success path returned past the only step report,
         so a healthy collection never moved ``done_steps`` at all."""
         process = self._collect()
 
-        self.assertEqual(process.done_steps, len(self.references))
-        self.assertEqual(process.total_steps, len(self.references))
+        self.assertEqual(process.done_steps, len(self.rows))
+        self.assertEqual(process.total_steps, len(self.rows))
         self.assertEqual(
             process.progress, 100,
             msg="the progress of a completed collection shows without "
                 "the chord body having marked the process COMPLETED")
+        # the stored outcome of each reference moved the summary once (#1259,
+        # now exactly once per reference because the row is the permit #1263)
+        self.assertEqual(process.references_stored, len(self.rows))
+        self.assertEqual(process.references_failed, 0)
 
+    @override_settings(BROKER_BACKEND='memory')
     def test_all_failures_count_their_steps(self):
-        process = self._collect(failing=range(len(self.references)))
+        process = self._collect(failing=range(len(self.rows)))
 
-        self.assertEqual(process.done_steps, len(self.references))
+        self.assertEqual(process.done_steps, len(self.rows))
         self.assertEqual(process.progress, 100)
+        self.assertEqual(process.references_failed, len(self.rows))
+        self.assertEqual(process.references_stored, 0)
         # the refused fetches are visible on the process, not only counted
         self.assertEqual(
             BackgroundProcessLog.objects.filter(
                 background_process_id=self.process.pk).count(),
-            len(self.references))
+            len(self.rows))
+        # and each failure kept its row, retryable, with its kind (#1263)
+        self.assertEqual(
+            TemporaryMdMetadataFile.objects.filter(
+                background_process_id=self.process.pk,
+                state=ReferenceWorkStateEnum.FAILED.value).count(),
+            len(self.rows))
 
+    @override_settings(BROKER_BACKEND='memory')
     def test_half_failures_count_their_steps(self):
         process = self._collect(failing=(1, 3))
 
-        self.assertEqual(process.done_steps, len(self.references))
+        self.assertEqual(process.done_steps, len(self.rows))
         self.assertEqual(process.progress, 100)
+        self.assertEqual(process.references_stored, 2)
+        self.assertEqual(process.references_failed, 2)
 
-    @override_settings(CELERY_TASK_ALWAYS_EAGER=True,
-                       CELERY_TASK_EAGER_PROPAGATES=True,
-                       BROKER_BACKEND='memory')
-    def test_an_unresolvable_reference_counts_its_step(self):
-        """A class the task can't resolve is a final outcome too.
+    @override_settings(BROKER_BACKEND='memory')
+    def test_an_attempt_below_the_last_one_decides_nothing(self):
+        """A transient failure is an attempt, not an outcome (#1260, #1263).
 
-        The fan-out counted the reference into total_steps; the task used to
-        return ``None`` over it without any report, so such references left
-        the progress permanently short of its total.
+        The delivery which is not the last the policy permits releases its
+        row back to PENDING and decides nothing: no warning is written, the
+        summary does not move and the row stays claimable by the retried
+        delivery - which is what separates an attempt from a decision.
         """
-        fetch_remote_metadata_xml.delay(
-            self.references[0].pk, 'CatalogueServiceRemoteMetadata',
-            background_process_pk=self.process.pk)
+        row = self.rows[0]
 
+        def send(request, *args, **kwargs):
+            raise RequestsConnectionError('connection refused')
+
+        from celery.app.trace import build_tracer
+        collect_reference._backend = self.app.backend
+        trace = build_tracer(
+            collect_reference.name, collect_reference, app=self.app)
+        with patch.object(Session, 'send', side_effect=send):
+            trace(collect_reference.name, (), {
+                'background_process_pk': self.process.pk,
+                'temporary_md_metadata_file_id': row.pk,
+            }, {'id': 'accounting-retry', 'retries': 0})
+
+        row.refresh_from_db()
+        self.assertEqual(
+            row.state, ReferenceWorkStateEnum.PENDING.value,
+            msg="the released row must be claimable again")
+        self.assertEqual(row.attempt_count, 1)
+        self.assertEqual(
+            BackgroundProcessLog.objects.filter(
+                background_process_id=self.process.pk).count(), 0)
         process = BackgroundProcess.objects.process_info().get(
             pk=self.process.pk)
-        self.assertEqual(process.done_steps, 1)
-        self.assertTrue(
-            BackgroundProcessLog.objects.filter(
-                background_process_id=self.process.pk).exists(),
-            msg="the skipped reference is invisible on the process")
+        self.assertEqual(process.done_steps, 0)
+        self.assertEqual(process.references_failed, 0)
 
 
 class WfsFeatureTypeMetadataFanOutTest(TransactionTestCase):
     """The fan-out of ``build_ogc_service`` must collect one record per
     reference it counted as a step — including the feature type references
-    of a WFS, which a duplicated ``case`` pattern in
-    ``fetch_remote_metadata_xml`` dropped silently: the run ended completed
+    of a WFS, which a duplicated ``case`` pattern in the old class-name
+    matching of the fetch task dropped silently: the run ended completed
     with counted steps, no record and no log line (#1257).
+
+    Since #1263 the fan-out is the sealed work plan: one row per advertised
+    reference with the described element in a concrete column, so no kind
+    can be missed by a lookup the task performs at delivery time.
 
     The capabilities fixture is a WFS carrying one service level INSPIRE
     reference and a distinct ``MetadataURL`` on each of its five feature
@@ -698,19 +774,35 @@ class WfsFeatureTypeMetadataFanOutTest(TransactionTestCase):
                          self.background_process.total_steps)
         self.assertEqual(self.background_process.status,
                          ProcessStatusEnum.COMPLETED)
+        # and the sealed plan of #1263 answers the same six references it
+        # planned, all stored, with every work row consumed by its success
+        self.assertTrue(self.background_process.references_plan_sealed)
+        self.assertEqual(self.background_process.references_total, 6)
+        self.assertEqual(self.background_process.references_stored, 6)
+        self.assertEqual(self.background_process.references_failed, 0)
+        self.assertEqual(self.background_process.references_skipped, 0)
+        self.assertFalse(
+            TemporaryMdMetadataFile.objects.filter(
+                background_process=self.background_process).exists(),
+            msg="a successfully collected reference keeps its work row.")
 
 
-class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
-    """``fetch_remote_metadata_xml`` resolves the class name it is handed to
-    its own ``RemoteMetadata`` model: the four reference kinds the
-    registration fan-out produces each fetch and persist their document and
-    relate the record to the element they describe. A name the match does
-    not know is a failure reported on the process, not a silently skipped
-    step (#1257).
+class CollectReferenceKindTest(TransactionTestCase):
+    """``collect_reference`` resolves each described kind of the work row to
+    its concrete element: the four reference kinds the registration planning
+    produces each fetch, store and import their document and couple the
+    record to the element the row names with its one concrete foreign key
+    (#1263).
 
-    The service and element rows come from the plain fixtures; the
-    ``RemoteMetadata`` rows are created per test, because the reference
-    kinds belong to different described elements than the fixtures relate.
+    The class-name matching which silently dropped FeatureType references in
+    #1257 does not exist anymore: the work row IS the described element's
+    reference, and a row whose element vanished still names it through its
+    display snapshot.
+
+    The service and element rows come from the plain fixtures; the work rows
+    are built per test next to the ``RemoteMetadata`` row the planning would
+    have read, because the reference kinds belong to different described
+    elements than the fixtures relate.
     """
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
@@ -721,6 +813,12 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
                 'de.dwd.geoserver.fach.RBSN_T2m')
 
     def setUp(self):
+        media = TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        settings = override_settings(MEDIA_ROOT=media.name)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
         self.http_request = {
             "path": "http://example.de",
             "method": "GET",
@@ -736,28 +834,53 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    def _fetch(self, row, class_name=None):
-        """Run the task for one reference row the way the fan-out runs it."""
+    def _collect(self, remote_metadata):
+        """Run the queue's consumer for one reference the way its fan-out
+        runs it: one sealed row of a planned process, addressed by pk."""
         process = BackgroundProcess.objects.create(
-            phase="", process_type="registering", description="")
-        task_result = fetch_remote_metadata_xml.delay(
-            row.pk,
-            class_name or row.__class__.__name__,
-            http_request=self.http_request,
-            background_process_pk=process.pk)
+            phase="", process_type="registering", description="",
+            total_steps=1, references_total=1, references_stored=0,
+            references_failed=0, references_skipped=0,
+            references_plan_sealed=True)
+        described = remote_metadata.describes
+        row = TemporaryMdMetadataFile(
+            background_process_id=process.pk,
+            reference_key=TemporaryMdMetadataFile.build_reference_key(
+                described, remote_metadata.link),
+            requested_url=remote_metadata.link,
+            described_display=(getattr(described, "title", "") or ""),
+            request_id=timezone.now())
+        if isinstance(described, WebMapService):
+            row.described_wms = described
+        elif isinstance(described, WebFeatureService):
+            row.described_wfs = described
+        elif isinstance(described, Layer):
+            row.described_layer = described
+        elif isinstance(described, FeatureType):
+            row.described_featuretype = described
+        else:
+            self.fail(f"no work-row column for {described.__class__}")
+        # bulk_create, not save: a saved registration row schedules its own
+        # consumer on_commit, which the test would race against
+        TemporaryMdMetadataFile.objects.bulk_create([row])
+
+        task_result = collect_reference.delay(
+            background_process_pk=process.pk,
+            temporary_md_metadata_file_id=row.pk,
+            http_request=self.http_request)
         process.refresh_from_db()
-        return process, task_result.result
+        return process, task_result.result, row.pk
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_web_map_service_reference_resolves_to_its_model(self, mock_send):
+    def test_web_map_service_reference_couples_its_service(self, mock_send):
         row = WebMapServiceRemoteMetadata.objects.create(
             link='https://example.com/wms-metadata', describes=self.wms)
 
         service_before = ServiceMetadataRecord.objects.count()
-        process, result = self._fetch(row)
+        process, result, _ = self._collect(row)
 
         self.assertEqual(
             ServiceMetadataRecord.objects.count(), service_before + 1,
@@ -767,17 +890,21 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
         relation = MetadataRelation.objects.get()
         self.assertEqual(relation.wms, self.wms)
         self.assertIsNone(relation.layer)
+        # the decided reference is consumed: row gone, stored once (#1263)
+        self.assertFalse(TemporaryMdMetadataFile.objects.exists())
+        self.assertEqual(process.references_stored, 1)
+        self.assertEqual(process.done_steps, 1)
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_layer_reference_resolves_to_its_model(self, mock_send):
+    def test_layer_reference_couples_its_layer(self, mock_send):
         row = LayerRemoteMetadata.objects.create(
             link=self.RBSN_T2M, describes=self.layer)
 
         dataset_before = DatasetMetadataRecord.objects.count()
-        process, result = self._fetch(row)
+        process, result, _ = self._collect(row)
 
         self.assertEqual(
             DatasetMetadataRecord.objects.count(), dataset_before + 1,
@@ -787,17 +914,18 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
         relation = MetadataRelation.objects.get()
         self.assertEqual(relation.layer, self.layer)
         self.assertIsNone(relation.feature_type)
+        self.assertFalse(TemporaryMdMetadataFile.objects.exists())
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_web_feature_service_reference_resolves_to_its_model(self, mock_send):
+    def test_web_feature_service_reference_couples_its_service(self, mock_send):
         row = WebFeatureServiceRemoteMetadata.objects.create(
             link='https://example.com/wfs-metadata', describes=self.wfs)
 
         service_before = ServiceMetadataRecord.objects.count()
-        process, result = self._fetch(row)
+        process, result, _ = self._collect(row)
 
         self.assertEqual(
             ServiceMetadataRecord.objects.count(), service_before + 1,
@@ -808,20 +936,21 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
         relation = MetadataRelation.objects.get()
         self.assertEqual(relation.wfs, self.wfs)
         self.assertIsNone(relation.feature_type)
+        self.assertFalse(TemporaryMdMetadataFile.objects.exists())
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_feature_type_reference_resolves_to_its_model(self, mock_send):
-        # the regression of #1257: every LayerRemoteMetadata name was caught
-        # by the first branch, so this kind never reached its own model and
-        # the task returned None without a log line
+    def test_feature_type_reference_couples_its_feature_type(self, mock_send):
+        # the regression of #1257, now structurally answered: the work row
+        # names the feature type with a concrete column, so no kind can be
+        # dropped by a match which forgot it
         row = FeatureTypeRemoteMetadata.objects.create(
             link=self.RBSN_T2M, describes=self.feature_type)
 
         dataset_before = DatasetMetadataRecord.objects.count()
-        process, result = self._fetch(row)
+        process, result, _ = self._collect(row)
 
         self.assertEqual(
             DatasetMetadataRecord.objects.count(), dataset_before + 1,
@@ -831,57 +960,43 @@ class FetchRemoteMetadataXmlKindTest(TransactionTestCase):
         relation = MetadataRelation.objects.get()
         self.assertEqual(relation.feature_type, self.feature_type)
         self.assertIsNone(relation.layer)
+        self.assertFalse(TemporaryMdMetadataFile.objects.exists())
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_unknown_class_name_ends_in_a_logged_failure(self, mock_send):
-        row = FeatureTypeRemoteMetadata.objects.create(
-            link=self.RBSN_T2M, describes=self.feature_type)
+    def test_a_replayed_delivery_of_a_collected_reference_is_a_no_op(
+            self, mock_send):
+        """The proof of success is the absent row (#1263).
 
-        dataset_before = DatasetMetadataRecord.objects.count()
-        process, result = self._fetch(
-            row, class_name="CatalogueServiceRemoteMetadata")
+        The second delivery of the same task message - celery's
+        at-least-once delivery, a redriven queue - finds no row and does
+        nothing: no second record, no counter movement. This is the whole
+        idempotency contract of the queue, answered without any success
+        marker to consult.
+        """
+        row = WebMapServiceRemoteMetadata.objects.create(
+            link='https://example.com/wms-metadata', describes=self.wms)
 
+        _, first, work_pk = self._collect(row)
+        record = ServiceMetadataRecord.objects.get()
+        process = BackgroundProcess.objects.get(
+            references_plan_sealed=True)
+
+        replay = collect_reference.delay(
+            background_process_pk=process.pk,
+            temporary_md_metadata_file_id=work_pk)
         self.assertIsNone(
-            result,
-            msg="the failure of the unknown kind must not answer a record.")
-        self.assertEqual(
-            DatasetMetadataRecord.objects.count(), dataset_before,
-            msg="a name the match does not know must not collect anything.")
-        self.assertEqual(MetadataRelation.objects.count(), 0)
-        self.assertTrue(
-            process.logs.filter(
-                log_type=LogTypeEnum.WARNING,
-                description__contains="CatalogueServiceRemoteMetadata").exists(),
-            msg="the unknown kind left no warning on the process (#1257).")
-        # the step is reported done like every other handled outcome of the
-        # task, so the process its chord finishes on keeps its counts
+            replay.result,
+            msg="the replay of a consumed reference answers no outcome")
+
+        self.assertEqual(ServiceMetadataRecord.objects.count(), 1,
+                         msg="the replay imported a second record.")
+        self.assertEqual(MetadataRelation.objects.count(), 1,
+                         msg="the replay coupled a second relation.")
+        process.refresh_from_db()
+        self.assertEqual(process.references_stored, 1,
+                         msg="the replay moved the counters of the run.")
         self.assertEqual(process.done_steps, 1)
-        self.assertNotEqual(process.status, ProcessStatusEnum.FAILED)
-
-    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch.object(Session, 'send', side_effect=side_effect)
-    def test_id_of_another_kind_ends_in_a_logged_failure(self, mock_send):
-        row = LayerRemoteMetadata.objects.create(
-            link=self.RBSN_T2M, describes=self.layer)
-        self.assertFalse(FeatureTypeRemoteMetadata.objects.exists())
-
-        dataset_before = DatasetMetadataRecord.objects.count()
-        process, result = self._fetch(
-            row, class_name="FeatureTypeRemoteMetadata")
-
-        self.assertIsNone(
-            result,
-            msg="the unresolvable reference must not answer a record.")
-        self.assertEqual(
-            DatasetMetadataRecord.objects.count(), dataset_before,
-            msg="a name of the wrong kind must not resolve to a row.")
-        self.assertTrue(
-            process.logs.filter(log_type=LogTypeEnum.WARNING).exists(),
-            msg="the unresolvable reference left no warning on the process.")
-        self.assertEqual(process.done_steps, 1)
-        self.assertNotEqual(process.status, ProcessStatusEnum.FAILED)
+        self.assertEqual(first["data"]["id"], str(record.pk))

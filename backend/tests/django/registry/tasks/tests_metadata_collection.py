@@ -47,6 +47,7 @@ from notify.enums import LogTypeEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.metadata import (CollectionStepOutcome,
                                      MetadataOriginEnum)
+from registry.models.harvest import TemporaryMdMetadataFile
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata,
@@ -54,9 +55,10 @@ from registry.models.metadata import (ApplicationMetadataRecord,
                                       RemoteMetadata, ServiceMetadataRecord)
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
-from registry.tasks.service import fetch_remote_metadata_xml
+from registry.tasks.service import collect_reference
+from requests import Session
 from rest_framework.reverse import reverse as drf_reverse
-from tests.django.utils import WorkerRunMixin
+from tests.django.utils import MockResponse, WorkerRunMixin
 
 ISO_DATA = Path(__file__).parent / '../../test_data/iso_metadata'
 DATASET = (ISO_DATA / 'dataset.xml').read_text()
@@ -148,18 +150,37 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         return trace(self.task_id, (), task_kwargs, {"id": self.task_id})
 
     def collect(self, remote_metadata):
-        """The reference's task, answered against a process of its own."""
+        """The reference's task, answered against a process of its own.
+
+        The process carries a sealed plan of exactly this one reference -
+        the state the registration writes when it publishes the fan-out
+        (#1263) - and the work row is what that plan planned; it is
+        inserted through `bulk_create` because a `save()` would dispatch
+        the collecting task a second time. The advertised document is
+        answered by the patched fetch: no network leaves the test.
+        """
         process = BackgroundProcess.objects.create(
             process_type='registering', phase='collecting metadata records...',
-            total_steps=1, done_steps=0)
+            total_steps=1, done_steps=0,
+            references_total=1, references_stored=0, references_failed=0,
+            references_skipped=0, references_plan_sealed=True)
+        row = TemporaryMdMetadataFile(
+            background_process=process,
+            described_layer=self.layer,
+            reference_key=TemporaryMdMetadataFile.build_reference_key(
+                self.layer, LINK),
+            requested_url=LINK)
+        TemporaryMdMetadataFile.objects.bulk_create([row])
+
         with patch.object(
-                RemoteMetadata, "fetch_remote_content", return_value=None):
+                Session, "send",
+                return_value=MockResponse(
+                    remote_metadata.remote_content, status_code=200)):
             trace = self.answer_shared(
-                fetch_remote_metadata_xml,
+                collect_reference,
                 task_kwargs={
-                    "remote_metadata_id": remote_metadata.pk,
-                    "class_name": "LayerRemoteMetadata",
                     "background_process_pk": str(process.pk),
+                    "temporary_md_metadata_file_id": row.pk,
                 })
         return trace.retval, process
 
@@ -192,11 +213,16 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         process.refresh_from_db()
         self.assertEqual(process.done_steps, 1)
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
+        # and the run's summary counts it as a finding: the document was
+        # fetched and parsed but stores no record, so nothing of this
+        # reference arrived (#1259; #1263 gives it a machine-readable kind)
+        self.assertEqual(process.references_failed, 1)
+        self.assertEqual(process.references_stored, 0)
         self.assertTrue(BackgroundProcessLog.objects.filter(
             background_process=process,
             log_type=LogTypeEnum.WARNING,
             background_process_id=process.pk,
-            description__contains=str(remote_metadata.pk),
+            description__contains=LINK,
         ).exists(), 'the reference which left nothing is named in the logs')
         self.assertIsNone(
             process.related_resource_type,
@@ -206,7 +232,7 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         """The successful step keeps its answer and says it created a record."""
         remote_metadata = self.reference(DATASET)
 
-        answer, _process = self.collect(remote_metadata)
+        answer, process = self.collect(remote_metadata)
 
         record = DatasetMetadataRecord.objects.get(
             file_identifier=FILE_IDENTIFIER)
@@ -223,6 +249,13 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
             })
         self.assertEqual(MetadataRelation.objects.filter(
             dataset_metadata=record, layer=self.layer).count(), 1)
+
+        # the run's summary counts this reference as stored, not as missing:
+        # a healthy collection moved its counters all along (#1259, against the
+        # answer of #1258 which only had the step)
+        process.refresh_from_db()
+        self.assertEqual(process.references_stored, 1)
+        self.assertEqual(process.references_failed, 0)
 
 
 class RelationBookkeepingTests(CollectionHarness, TestCase):

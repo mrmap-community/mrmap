@@ -6,8 +6,8 @@ from celery.signals import task_prerun, task_retry
 from celery.utils.time import get_exponential_backoff_interval
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import F
-from django.db.models.functions import Coalesce
+from django.db.models import (Case, F, IntegerField, Value, When)
+from django.db.models.functions import Coalesce, Greatest
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from extras.tasks import SingletonTask
@@ -134,7 +134,26 @@ class BackgroundProcessBased(Task):
         step_done=False,
         completed=False,
         failed=False,
+        references_total=None,
+        reference_stored=False,
+        reference_failed=False,
     ):
+        """Report what this task knows about the process it runs for.
+
+        Every argument is optional and only what the caller names is written:
+        a task which starts reports nothing but that the process works again,
+        a task which published a fan-out names its steps, a task which decided
+        about one of them counts it.
+
+        The ``references_*`` arguments are the summary of a collection of
+        metadata references (#1259): ``references_total`` is the plan a caller
+        names when it publishes its fan-out, the two booleans tell which
+        outcome one reference reached, and the completion of the process closes
+        the plan with the references which never reported an outcome - see
+        ``finish_background_process``. A plan is named by the task which
+        publishes the references, before a worker can answer one, and the
+        outcome reports are the references' own.
+        """
         # will be provided by get_background_process signal if the pk is provided by kwargs
         if getattr(self, "background_process_pk", None) is not None:
             try:
@@ -155,6 +174,21 @@ class BackgroundProcessBased(Task):
                     kwargs.update({
                         "total_steps": total_steps
                     })
+                if reference_stored or reference_failed:
+                    # one reference decided by this task; the Coalesce answers
+                    # the NULL of a counter which never moved before - a
+                    # collection counts from nothing, not from nothing plus
+                    # nothing. Like the step increment below (see
+                    # capped_done_steps) this is a report, not exactly-once
+                    # accounting: a reference which is delivered twice is
+                    # counted twice, and the identity which makes it exact
+                    # belongs to #1263.
+                    counter = (
+                        "references_stored" if reference_stored
+                        else "references_failed")
+                    kwargs.update({
+                        counter: Coalesce(F(counter), 0) + 1
+                    })
                 if step_done:
                     kwargs.update({
                         # the capped increment shared with the manager's
@@ -170,7 +204,43 @@ class BackgroundProcessBased(Task):
                         "done_steps": Coalesce(F("total_steps"), 1),
                         "done_at": now(),
                         "phase": "completed",
-                        "status": ProcessStatusEnum.COMPLETED
+                        "status": ProcessStatusEnum.COMPLETED,
+                        # a run which planned a collection closes its summary
+                        # with the references it never heard an answer from
+                        # (#1259): a plan which reported everything answers 0
+                        # here, a plan whose fan-out was interrupted answers
+                        # what is missing. A process which planned no
+                        # collection answers NULL - which is what the column of
+                        # an unplanned process holds anyway - so the completion
+                        # of a harvest or of a registration without collection
+                        # cannot answer a summary it never planned.
+                        "references_skipped": Case(
+                            When(
+                                references_total__isnull=True,
+                                then=Value(None, output_field=IntegerField())),
+                            default=Greatest(
+                                F("references_total")
+                                - Coalesce(F("references_stored"), 0)
+                                - Coalesce(F("references_failed"), 0),
+                                0),
+                            output_field=IntegerField(),
+                        ),
+                    })
+                if references_total is not None:
+                    # the plan of a collection, named by the task which
+                    # publishes its fan-out: the expected number and the three
+                    # outcome counters of a run which decided nothing yet. The
+                    # Coalesces keep what a report already counted - a redelivery
+                    # of the root which publishes the plan a second time must
+                    # not erase the outcomes workers reported (#1259, and the
+                    # guard of #1263). The plan is named last on purpose: an
+                    # explicit plan is the answer of this write, whatever the
+                    # completion above derived from the counters before it.
+                    kwargs.update({
+                        "references_total": references_total,
+                        "references_stored": Coalesce(F("references_stored"), 0),
+                        "references_failed": Coalesce(F("references_failed"), 0),
+                        "references_skipped": Coalesce(F("references_skipped"), 0),
                     })
 
                 if kwargs:
@@ -230,6 +300,17 @@ def finish_background_process(
     *args,
     **kwargs
 ):
+    """Close the process a finished fan-out reports for.
+
+    The body of a chord runs when every member answered - which is not the
+    same as every member succeeding. The process is stored COMPLETED anyway
+    (the epic's decision D9, which is how harvesting shows a run whose import
+    had errors), and the counters of a planned metadata collection close with
+    it: what the references answered is already on the row, and what is
+    missing from the plan is stored as skipped. A client of the job center
+    therefore reads "completed, but N references failed" from the process
+    itself instead of mining its log lines (#1259).
+    """
     self.update_background_process(
         completed=True
     )

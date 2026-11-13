@@ -106,6 +106,41 @@ class BackgroundProcessSerializer(
             "until when the next attempt of a retried task of the operation "
             "is due; while this window is open the operation reports itself "
             "as retrying"))
+    # the stored summary of collecting metadata references (#1259): the answer
+    # of a registration to "how many references did it expect, store, lose".
+    # A run whose references failed is COMPLETED - like a harvest whose import
+    # had errors (D9 of #1256) - and these counters are what tells the two
+    # apart without reading the log lines of the process. They are stored while
+    # the run reports, never counted while a client reads (#1037), and empty
+    # where the operation collected no references at all.
+    references_total = IntegerField(
+        read_only=True,
+        allow_null=True,
+        label=_("references total"),
+        help_text=_(
+            "how many metadata references the collection of this process "
+            "planned; empty where the process collected no references"))
+    references_stored = IntegerField(
+        read_only=True,
+        allow_null=True,
+        label=_("references stored"),
+        help_text=_(
+            "how many references of the collection produced a stored "
+            "metadata record"))
+    references_failed = IntegerField(
+        read_only=True,
+        allow_null=True,
+        label=_("references failed"),
+        help_text=_(
+            "how many references of the collection could not be collected, "
+            "including the documents which carry no identifiable record"))
+    references_skipped = IntegerField(
+        read_only=True,
+        allow_null=True,
+        label=_("references skipped"),
+        help_text=_(
+            "how many references the collection planned but never reported "
+            "an outcome for"))
     # logs = ResourceRelatedField(
     #    queryset=BackgroundProcessLog.objects,
     #    many=True,

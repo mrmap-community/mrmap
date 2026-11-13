@@ -1,5 +1,7 @@
+import hashlib
 import json
 import sys
+from datetime import timedelta
 from uuid import uuid4
 
 from celery import chord, current_task
@@ -10,7 +12,7 @@ from django.contrib.gis.db import models
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
-from django.db.models import UniqueConstraint
+from django.db.models import F, UniqueConstraint
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils import timezone
@@ -25,7 +27,9 @@ from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
-from registry.enums.metadata import MetadataOriginEnum
+from registry.enums.metadata import (MetadataOriginEnum,
+                                     ReferenceErrorKind,
+                                     ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
 from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
                                          HarvestingJobManager,
@@ -139,6 +143,15 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
     class Meta:
         indexes = [
+            # The daily harvesting statistics group the relations by exactly
+            # these three columns (#1316): the card's page reads them in the
+            # order of the days until its page is full and its total is the
+            # number of distinct grouping tuples - both are answered from this
+            # index without the table, which replaces the two full reads of
+            # the table the card used to pay per render.
+            models.Index(
+                fields=["history_day", "collecting_state", "harvesting_job"],
+                name="harvested_day_state_job"),
             # The counters a run answers about the records it collected are one
             # count per kind of record and collecting state. Read as a FILTER over
             # the rows of the run, every one of them walks the whole of it - which
@@ -1139,14 +1152,58 @@ class HarvestingJobTaskId(models.Model):
 #: no other place these files live and never deletes outside it (#1237)
 TEMPORARY_MD_METADATA_FILE_SUBDIR = "temporary_md_metadata_file"
 
+#: The sub-path inside that directory which holds the documents of a
+#: registration's reference work rows (#1263). It is a path segment, never a
+#: job id, so the harvesting cleanup - which discovers jobs by numeric
+#: directory names and refuses names outside its own prefix - cannot reach a
+#: registration file, and a registration sweep never reaches a harvest file.
+#: No row is ever stored under a ``None`` directory of a new layout: a
+#: registration file names its owning process, a harvesting file its job.
+REGISTRATION_FILE_SUBDIR = "registration"
+
 
 def response_file_path(instance, filename):
+    # registration work rows live below a distinct per-process prefix; they
+    # have no job and must never share the harvesting layout (#1263)
+    if instance.background_process_id is not None:
+        return (f'{TEMPORARY_MD_METADATA_FILE_SUBDIR}/'
+                f'{REGISTRATION_FILE_SUBDIR}/{instance.background_process_id}/{filename}')
     # file will be uploaded to MEDIA_ROOT/temporary_md_metadata_file/<job_id>/<filename>
     return f'{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{instance.job_id}/{filename}'
 
 
+def _single_described_resource_q():
+    """The Q which exactly one selected described resource of a work row answers.
+
+    A registration reference names the element it describes with one concrete
+    foreign key - never a GenericForeignKey, never an inference from title or
+    url (#1263). This is that declaration as a database constraint.
+    """
+    described = [
+        "described_wms", "described_wfs",
+        "described_layer", "described_featuretype"]
+    single = Q()
+    for selected in described:
+        condition = Q()
+        for field in described:
+            condition &= Q(**{f"{field}__isnull": field != selected})
+        single |= condition
+    return single
+
+
 class TemporaryMdMetadataFile(models.Model):
-    """This are the unhalded records."""
+    """This are the unhalded records.
+
+    A row of this table is a disposable work item, not a ledger (#1263): the
+    owner of the row differs by flow and is exclusive. A harvesting run owns
+    its rows through ``job`` and decides them through ``has_import_error``;
+    a registration owns its rows through ``background_process`` and decides
+    them with the claim/lease state below. A successful import deletes the
+    row and, after the commit, its stored file - the absence of the row is
+    the proof of success, and a duplicate delivery which finds no row does
+    nothing. A final failure keeps the row and, when one was downloaded, its
+    file for inspection and for the retry of #1265.
+    """
     job: HarvestingJob = models.ForeignKey(
         to=HarvestingJob,
         on_delete=models.CASCADE,
@@ -1154,6 +1211,19 @@ class TemporaryMdMetadataFile(models.Model):
         null=True,
         related_name="temporary_md_metadata_files",
         related_query_name="temporary_md_metadata_file")
+    # the collecting background process of a registration reference (#1263).
+    # Distinct from ``job``: exactly one owner holds a valid row, the failed
+    # work item of a registration lives and dies with its process - deleting
+    # the process (explicitly or through the retention of #1208) takes the
+    # row and its file, while the permanent records and their relations stay.
+    background_process = models.ForeignKey(
+        to="notify.BackgroundProcess",
+        on_delete=models.CASCADE,
+        verbose_name=_("background process"),
+        null=True,
+        editable=False,
+        related_name="registration_work_items",
+        related_query_name="registration_work_item")
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
@@ -1184,6 +1254,127 @@ class TemporaryMdMetadataFile(models.Model):
                     "This means if the GetRecords response contains 50 records for example, "
                     "the request duration was 50 * self.download_duration"))
 
+    # ---- registration reference identity and work state (#1263) ----------
+    # The fixed-size identity of one logical reference: the SHA-256 digest of
+    # (described resource label, described resource pk, exact advertised url)
+    # computed at planning time. It replaces the full 4096-character url in
+    # any unique key; unique per owning process (see Meta), and never set on
+    # a harvesting row, whose old identity and indexes stay untouched.
+    reference_key = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("reference key"),
+        help_text=_(
+            "sha-256 digest of the described resource and the advertised "
+            "url of this reference; set only on registration work rows"))
+    # The described element, concretely typed - one of these four on a
+    # registration row (see the check constraint), none on a harvesting row.
+    # SET_NULL keeps a failed work row readable after its resource was
+    # removed; the immutable display snapshot below is what the row still
+    # names it for.
+    described_wms = models.ForeignKey(
+        to="registry.WebMapService",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="registration_work_items",
+        related_query_name="registration_work_item")
+    described_wfs = models.ForeignKey(
+        to="registry.WebFeatureService",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="registration_work_items",
+        related_query_name="registration_work_item")
+    described_layer = models.ForeignKey(
+        to="registry.Layer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="registration_work_items",
+        related_query_name="registration_work_item")
+    described_featuretype = models.ForeignKey(
+        to="registry.FeatureType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="registration_work_items",
+        related_query_name="registration_work_item")
+    # the minimal immutable display snapshot: a reference of a run which
+    # outlives its described element still answers what it described.
+    described_display = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        editable=False,
+        verbose_name=_("described resource"),
+        help_text=_(
+            "the readable name the described element carried at planning "
+            "time; kept when the element was removed since"))
+
+    # the work state of a registration reference (see ReferenceWorkStateEnum);
+    # a successful import never lands here - it deletes the row. Harvesting
+    # rows carry the default and never read it; that flow decides by
+    # ``has_import_error``.
+    state = models.PositiveSmallIntegerField(
+        choices=ReferenceWorkStateEnum.choices,
+        default=ReferenceWorkStateEnum.PENDING.value,
+        editable=False,
+        verbose_name=_("work state"),
+        help_text=_(
+            "pending, leased or failed state of a registration reference; "
+            "harvesting rows never move it"))
+    # the single-use permit of the current delivery: only a worker holding
+    # the token stored here may report an outcome for this row (#1263).
+    claim_token = models.UUIDField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("claim token"),
+        help_text=_(
+            "token of the delivery which currently leases this row; an "
+            "outcome reported under another token is discarded"))
+    lease_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("lease expires at"),
+        help_text=_(
+            "until when the current claim may work; a row whose lease ran "
+            "out is eligible for a new claim and for recovery"))
+    attempt_count = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("attempt count"),
+        help_text=_(
+            "how many deliveries have claimed this row; retries included, "
+            "and an attempt which never decided the row leaves the process "
+            "counters untouched"))
+    error_kind = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        editable=False,
+        choices=ReferenceErrorKind.choices,
+        verbose_name=_("error kind"),
+        help_text=_(
+            "machine-readable kind of the last failed decision of this "
+            "reference; empty while it never failed"))
+    error_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("error at"),
+        help_text=_(
+            "the moment the last failed decision of this reference was "
+            "recorded"))
+
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
     class Meta:
@@ -1196,11 +1387,190 @@ class TemporaryMdMetadataFile(models.Model):
             # to find the failed ones among them (#886)
             models.Index(
                 fields=["job_id", "has_import_error"]),
+            # recovery and the paged inspection of outstanding work read a
+            # process's rows by state; without this index every eligibility
+            # scan would read the harvesting backlog too (#1263)
+            models.Index(
+                fields=["background_process_id", "state"],
+                condition=Q(background_process__isnull=False),
+                name="tmpmd_reg_process_state_idx"),
+        ]
+        constraints = [
+            # exactly one owner holds a row. The both-null shape stays
+            # allowed and is audited at migration time (#1263): rows written
+            # before any owner existed are unknown history and must be read,
+            # not silently dropped; new code always names an owner.
+            models.CheckConstraint(
+                name="tmpmd_metadata_file_single_owner",
+                condition=(
+                    Q(job__isnull=False, background_process__isnull=True)
+                    | Q(job__isnull=True, background_process__isnull=False)
+                    | Q(job__isnull=True, background_process__isnull=True))),
+            # a registration row is a planned logical reference: it names its
+            # identity and exactly one concrete described resource. Harvesting
+            # rows answer the first alternative and keep their old identity
+            # and indexes untouched.
+            models.CheckConstraint(
+                name="tmpmd_metadata_file_planned_row_complete",
+                condition=(
+                    Q(background_process__isnull=True)
+                    | (Q(reference_key__isnull=False)
+                       & _single_described_resource_q()))),
+            # one logical reference per process: the same url advertised for
+            # the same resource is one row, while the same url advertised for
+            # two different resources are two rows - the key is per described
+            # resource and the unique is per process (#1263). The full url
+            # never enters a B-tree key.
+            models.UniqueConstraint(
+                fields=["background_process", "reference_key"],
+                condition=Q(background_process__isnull=False),
+                name="tmpmd_metadata_file_reference_per_process"),
         ]
 
+    @staticmethod
+    def build_reference_key(described, url):
+        """The stable identity of one logical reference.
+
+        The SHA-256 digest of the described resource's model label, its
+        primary key and the exact advertised url - computed at planning time
+        and nowhere else, so a re-plan of the same advertised reference
+        reaches the same key and cannot duplicate the work row (#1263). No
+        normalization of the url: the contract is the exact capabilities
+        advertised string.
+
+        Args:
+            described: the concrete element the reference describes (Layer,
+                FeatureType, WebMapService or WebFeatureService)
+            url (str): the exact advertised reference url
+
+        Returns:
+            str: the 64-character hex digest stored in ``reference_key``
+        """
+        meta = described._meta
+        payload = f"{meta.app_label}.{meta.model_name}|{described.pk}|{url}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    @property
+    def described_resource(self):
+        """The concrete element this work row describes, or None for a harvest row."""
+        return (self.described_wms or self.described_wfs
+                or self.described_layer or self.described_featuretype)
+
+    def claim_for_processing(self, background_process_pk, lease_seconds,
+                             allow_failed=False):
+        """Take the single-use processing permit of this registration row.
+
+        A delivery claims the existing row - never creates a missing one -
+        under a fresh claim token and a bounded lease. Lock order is the
+        one the whole collection shares: the background process first, the
+        work row second. With the process row locked, the claim also answers
+        whether the process still exists: a process deleted while a message
+        waited leaves nothing to claim and nothing to publish about.
+
+        Only these shapes are claimable: a PENDING row, a row whose LEASE
+        has expired (the previous attempt died with it), and - for the
+        explicitly authorized retry of #1265 only - a FAILED row. A
+        duplicate concurrent delivery of an unexpired lease claims nothing
+        and must do no work with the row.
+
+        Args:
+            background_process_pk: the process the signature names as owner
+            lease_seconds (int): how long the claim may work
+            allow_failed (bool): whether a decided failure may be claimed
+                again (the manual retry; automatic deliveries never do)
+
+        Returns:
+            tuple|None: ``(claim_token, retried)`` where ``retried`` says the
+                row was already FAILED - the outcome of this attempt then
+                moves the last-outcome counters instead of the decided ones
+                - or None when no claim was given
+        """
+        from notify.models import BackgroundProcess  # local import: models cycle
+
+        with transaction.atomic():
+            process = BackgroundProcess.objects.select_for_update().filter(
+                pk=background_process_pk).first()
+            if process is None:
+                return None
+            if process.done_at is not None and not (
+                    allow_failed
+                    and process.status == ProcessStatusEnum.COMPLETED):
+                # the run decided itself while this message waited: a first
+                # delivery must not keep writing records for an operation
+                # which is over, and only a COMPLETED run is the shape the
+                # authorized retry of #1265 works under - a FAILED or
+                # ABORTED process is never reopened through a reference
+                # claim, whatever a caller asks for.
+                return None
+            row = TemporaryMdMetadataFile.objects.select_for_update(of=("self",)).filter(
+                pk=self.pk).first()
+            if (row is None
+                    or str(row.background_process_id)
+                    != str(background_process_pk)):
+                # the row was consumed by a successful worker, belongs to
+                # another process, or never existed: a redelivery is a no-op
+                return None
+            if row.state == ReferenceWorkStateEnum.LEASED.value and (
+                    row.lease_expires_at is None or row.lease_expires_at > timezone.now()):
+                # an unexpired lease: another delivery is working this very row
+                return None
+            if row.state == ReferenceWorkStateEnum.FAILED.value and not allow_failed:
+                # a decided failure waits for the explicit retry (#1265), not
+                # for a redelivery of the original fan-out
+                return None
+
+            retried = row.state == ReferenceWorkStateEnum.FAILED.value
+            token = uuid4()
+            TemporaryMdMetadataFile.objects.filter(pk=self.pk).update(
+                state=ReferenceWorkStateEnum.LEASED.value,
+                claim_token=token,
+                lease_expires_at=timezone.now() + timedelta(seconds=max(60, int(lease_seconds))),
+                attempt_count=F("attempt_count") + 1)
+            return token, retried
+
+    def release_claim(self, claim_token):
+        """Hand a still-undecided leased row back for the next attempt.
+
+        The transport retry of a download releases its lease so the row
+        reads PENDING again - the attempt failed, nothing was decided - and
+        a competing delivery can claim it. Only the holder of the token may
+        release it; a stale worker's release of a re-claimed row would hand
+        out the permit twice, which the token check refuses.
+        """
+        return TemporaryMdMetadataFile.objects.filter(
+            pk=self.pk,
+            state=ReferenceWorkStateEnum.LEASED.value,
+            claim_token=claim_token).update(
+                state=ReferenceWorkStateEnum.PENDING.value,
+                claim_token=None,
+                lease_expires_at=None)
+
+    def import_registration_reference(self):
+        """Map, persist and couple the stored document of this registration row.
+
+        The registration-owned import path of the work row (#1263): it reads
+        the document from the row's own storage, not from a second copy in
+        ``RemoteMetadata.remote_content``, and runs the existing mapping and
+        persistence seam - the same :func:`~registry.models.metadata.
+        couple_document` a harvesting import of a capabilities- advertised
+        document walks. Must run inside the caller's transaction: a failure
+        rolls the record, the relation and the counters back together, and
+        the row stays eligible for the failure/retry path.
+
+        Returns:
+            the created metadata record, or None when the document carries
+            no identifiable record - which is a decided failure, not a
+            missing identifier to fabricate (#1261, #1263)
+        """
+        from registry.models.metadata import couple_document  # local import: cycle
+
+        with self.md_metadata_file.open("rb") as document:
+            return couple_document(
+                document.read(),
+                self.requested_url,
+                self.described_resource)
+
     def save(self, *args, **kwargs) -> None:
-        from registry.tasks.harvest import \
-            call_md_metadata_file_to_db  # to avoid circular import errors
         adding = self._state.adding or self.re_schedule
         if self.re_schedule:
             self.has_import_error = False
@@ -1212,17 +1582,40 @@ class TemporaryMdMetadataFile(models.Model):
         if adding:
             task_id = uuid4()
 
-            task = call_md_metadata_file_to_db.s(
-                md_metadata_file_id=self.pk,
-                harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
-                background_process_pk=self.job.background_process_id,
-                http_request=self.job._http_request(),
-            )
-            task.set(task_id=str(task_id))
+            if self.background_process_id is not None:
+                # a registration work row schedules its own consumer,
+                # addressed by the row's pk and its owning process - never by
+                # a RemoteMetadata pk which would invite a re-create (#1263).
+                # The planner publishes its fan-out as a chord itself; this
+                # branch is the single-row seam (an admin re-save), and a
+                # duplicated message meets the claim guard, not a second
+                # import. The process carries no request snapshot, so this
+                # seam writes history without one - the planner's chord is
+                # the path which knows the registering client.
+                from registry.tasks.service import \
+                    collect_reference  # local import: circularity
+                task = collect_reference.s(
+                    background_process_pk=self.background_process_id,
+                    temporary_md_metadata_file_id=self.pk)
+                task.set(task_id=str(task_id))
+                transaction.on_commit(lambda: task.apply_async())
+            elif self.job_id is not None:
+                from registry.tasks.harvest import \
+                    call_md_metadata_file_to_db  # to avoid circular import errors
+                task = call_md_metadata_file_to_db.s(
+                    md_metadata_file_id=self.pk,
+                    harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                    background_process_pk=self.job.background_process_id,
+                    http_request=self.job._http_request(),
+                )
+                task.set(task_id=str(task_id))
 
-            self.job.append_celery_task_ids([task_id])
+                self.job.append_celery_task_ids([task_id])
 
-            transaction.on_commit(lambda: task.apply_async())
+                transaction.on_commit(lambda: task.apply_async())
+            # a both-null insert is re-saved legacy history (#1263): no run
+            # to import into, no process waiting - nothing to schedule. The
+            # row stays readable and is audited, never worked.
         return ret
 
     def delete(self, *args, **kwargs):
@@ -1467,6 +1860,25 @@ class TemporaryMdMetadataFile(models.Model):
             collecting_state,
             self.download_duration,
             duration)
+
+
+def registration_work_file_names(process_pks):
+    """The stored file names of the registration work rows of these processes.
+
+    Read before the rows are deleted (#1263): a database cascade takes the
+    rows and never touches the storage, so whoever deletes a collecting
+    process - explicitly or through the retention of #1208 - has to name its
+    files while the rows still exist. Bounded by the plan of each process;
+    a process which collected nothing answers no names.
+    """
+    if not process_pks:
+        return []
+    return [
+        name for name in TemporaryMdMetadataFile.objects.filter(
+            background_process_id__in=list(process_pks))
+        .exclude(md_metadata_file="")
+        .exclude(md_metadata_file=None)
+        .values_list("md_metadata_file", flat=True)]
 
 
 def extented_description_file_path(instance, filename):

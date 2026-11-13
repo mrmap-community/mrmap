@@ -492,6 +492,90 @@ class Keyword(models.Model):
         return (self.keyword,)
 
 
+def fetch_metadata_document(link, reference="the reference"):
+    """Ask one advertised metadata link for its document (#1263).
+
+    The single download seam of the collection: both the harvesting-time
+    fetch of a ``RemoteMetadata`` row and the registration work rows of
+    #1263 ask the advertised url through here, so the timeout, the adapter
+    policy and the three ways a document can get lost are one answer, not
+    two which drift apart.
+
+    The adapter retries the *connection*, and only the connection: a
+    connection which is refused is cheap to attempt again and the three
+    attempts of the total budget cost a tenth of a second of backoff. A read
+    is not retried here at all - ``False`` is what requests itself passes
+    for that: the read is bounded by the timeout below, and repeating a
+    silent window inside one delivery would hold a worker of the
+    ``download`` queue through every attempt at once. The repetition of a
+    transient failure belongs to celery's bounded retry of the collecting
+    task, which waits without a worker and reports every attempt to the
+    process the registration polls (#1260, #1207).
+
+    Args:
+        link (str): the advertised url to ask
+        reference (str): how to name the asking reference in the error text
+
+    Returns:
+        str: the document text of a 200 answer with content
+
+    Raises:
+        MetadataFetchTimeout: the server accepted and stayed silent
+        MetadataFetchUnreachable: the server could not be reached at all
+        NoContent: an answer which is no document (status or empty body)
+    """
+    session = Session()
+    retries = Retry(
+        total=3,
+        read=False,
+        backoff_factor=0.1
+    )
+    session.mount(link, HTTPAdapter(max_retries=retries))
+    # FIXME: Re add authentication
+    request = Request(method="GET",
+                      url=link,
+                      # auth=auth,
+                      )
+
+    try:
+        response = session.send(
+            request.prepare(),
+            timeout=REGISTRATION_REQUEST_TIMEOUT_SECONDS,
+        )
+    except (Timeout, ConnectionError) as error:
+        # Which of the two ways a document gets lost before it is answered
+        # this one was, named for the person who has to fix the reference:
+        # the timeout is the server which accepted the connection and then
+        # stayed silent, the connection error the host which never took
+        # the connection at all. Both stay inside the transient families of
+        # requests which `BackgroundProcessBased.autoretry_for` retries;
+        # anything else the client could not even ask is left as it is,
+        # because another attempt would fail on the same mistake (#1260).
+        if isinstance(error, Timeout):
+            raise MetadataFetchTimeout(
+                f"The server behind {link} did not answer within "
+                f"{REGISTRATION_REQUEST_TIMEOUT_SECONDS} seconds.") from error
+        raise MetadataFetchUnreachable(
+            f"The server behind {link} could not be reached: "
+            f"{error}") from error
+
+    if response.status_code == 200 and len(response.text) > 0:
+        return response.text
+    elif response.status_code != 200:
+        # An answer is not a timeout: the server is reachable and said
+        # what it thinks of this link, so another attempt reads the same
+        # answer. The status is named because it is what distinguishes a
+        # reference which moved (404) from a host which is broken (500)
+        # for whoever has to fix it (#1260).
+        raise NoContent(
+            f"Can't fetch content from remote for {reference}: the server "
+            f"answered with status {response.status_code}.")
+    else:
+        raise NoContent(
+            f"Can't fetch content from remote for {reference}: the server "
+            f"answered but sent no content.")
+
+
 class RemoteMetadata(models.Model):
     """ Abstract model class to store linked iso metadata records while registration processing to fetch them after
         the service was registered. This helps us to parallelize the download processing with a celery group.
@@ -517,135 +601,126 @@ class RemoteMetadata(models.Model):
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
-
-        session = Session()
-        # The adapter retries the *connection*, and only the connection: a
-        # connection which is refused is cheap to attempt again and the three
-        # attempts of the total budget cost a tenth of a second of backoff. A
-        # read is not retried here at all - `False` is what requests itself
-        # passes for that: the read is bounded by the timeout below, and
-        # repeating a silent window inside one delivery would hold a worker of
-        # the `download` queue through every attempt at once. The repetition of
-        # a transient failure belongs to celery's bounded retry of the fetch
-        # task, which waits without a worker and reports every attempt to the
-        # process the registration polls (#1260, #1207).
-        retries = Retry(
-            total=3,
-            read=False,
-            backoff_factor=0.1
-        )
-        session.mount(self.link, HTTPAdapter(max_retries=retries))
-        # FIXME: Re add authentication
-        request = Request(method="GET",
-                          url=self.link,
-                          # auth=auth,
-                          )
-
-        try:
-            response = session.send(
-                request.prepare(),
-                timeout=REGISTRATION_REQUEST_TIMEOUT_SECONDS,
-            )
-        except (Timeout, ConnectionError) as error:
-            # Which of the two ways a document gets lost before it is answered
-            # this one was, named for the person who has to fix the reference:
-            # the timeout is the server which accepted the connection and then
-            # stayed silent, the connection error the host which never took
-            # the connection at all. Both stay inside the transient families of
-            # requests which `BackgroundProcessBased.autoretry_for` retries;
-            # anything else the client could not even ask is left as it is,
-            # because another attempt would fail on the same mistake (#1260).
-            if isinstance(error, Timeout):
-                raise MetadataFetchTimeout(
-                    f"The server behind {self.link} did not answer within "
-                    f"{REGISTRATION_REQUEST_TIMEOUT_SECONDS} seconds.") from error
-            raise MetadataFetchUnreachable(
-                f"The server behind {self.link} could not be reached: "
-                f"{error}") from error
-
-        if response.status_code == 200 and len(response.text) > 0:
-            self.remote_content = response.text
-            if save:
-                self.save()
-            return self.remote_content
-        elif response.status_code != 200:
-            # An answer is not a timeout: the server is reachable and said
-            # what it thinks of this link, so another attempt reads the same
-            # answer. The status is named because it is what distinguishes a
-            # reference which moved (404) from a host which is broken (500)
-            # for whoever has to fix it (#1260).
-            raise NoContent(
-                f"Can't fetch content from remote for RemoteMetadata with id "
-                f"{self.pk}: the server answered with status "
-                f"{response.status_code}.")
-        else:
-            raise NoContent(
-                f"Can't fetch content from remote for RemoteMetadata with id "
-                f"{self.pk}: the server answered but sent no content.")
+        content = fetch_metadata_document(
+            self.link, reference=f"RemoteMetadata with id {self.pk}")
+        self.remote_content = content
+        if save:
+            self.save()
+        return self.remote_content
 
     def create_metadata_instance(self, **kwargs):
-        """ Return the created metadata record, based on the content_type of the described element. """
+        """ Return the created metadata record, based on the content_type of the described element.
 
-        mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
-        data = mappers[0].xml_to_django()
-        parsed_instance = data[0]
-        handler = PersistenceHandler(
-            mapper=mappers[0],
-            defaults={
-                "dataset": {
-                    "origin": MetadataOriginEnum.CAPABILITIES.value,
-                    "origin_url": self.link
-                }
-            }
-        )
-        created_instances = handler.persist_all()
-        # search by unique file_identifier to get the created record.
-        created_instance = next(
-            (
-                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
-                if parsed_instance.file_identifier in k
-            ),
-            None
-        )
-
-        if not created_instance:
-            logging.warning(
-                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
-            return
-
-        self.drop_superseded_relations(created_instance)
-        created_instance.add_metadata_relation(
-            related_object=self.describes)
-        return created_instance
+        Delegates to :func:`couple_document` - the one mapping and
+        persistence seam which the registration work rows of #1263 walk as
+        well, with the document read from the row's own storage instead of a
+        second copy in ``remote_content``.
+        """
+        return couple_document(
+            self.remote_content.encode(), self.link, self.describes)
 
     def drop_superseded_relations(self, created_instance):
         """Take back the relations which an earlier collection of this link
         left on the described element, pointing at another record instance.
 
-        The collection identifies the record of a link by its file identifier,
-        so a re-registration normally re-asserts the very relation which is
-        already there - measured on #1261: re-collecting one reference
-        duplicates no record and no relation. When the record which a link
-        resolves to *has* changed - the catalogue republished its document
-        under a new file identifier - the element's old relation is stale: it
-        couples the element to a record which the element no longer describes,
-        and nothing removed it before (#1261). It is taken back here, through
-        :meth:`MetadataRecord.remove_metadata_relation`, while the relations
-        of the element to the records of *other* links and everything a
-        curator added stay untouched.
-
-        This is the "removes the stale ones" answer of #1261 and it is runtime
-        bookkeeping, not a migration: rows age into a decision only until the
-        next collection of their reference rewrites them, which fits the
-        no-migration posture of the epic's decision D5.
+        Delegates to :func:`drop_superseded_relations_for_link`, the same
+        bookkeeping the registration work rows of #1263 run for the url they
+        consumed.
         """
-        superseded = created_instance.__class__.objects.filter(
-            origin_url=self.link).exclude(pk=created_instance.pk)
-        for stale_record in superseded:
-            stale_record.remove_metadata_relation(
-                related_object=self.describes,
-                internal=False,
-                origin=MetadataOriginEnum.CAPABILITIES.value)
+        drop_superseded_relations_for_link(
+            self.link, self.describes, created_instance)
+
+
+def couple_document(content, link, describes):
+    """Map one ISO document, persist its record and couple it to the element.
+
+    The single mapping-and-persistence seam of an advertised metadata
+    document: a ``RemoteMetadata`` row hands its fetched content in, and a
+    registration work row of #1263 hands the document it downloaded into
+    the very same call, so the record identity rules (#982), the
+    capabilities origin stamping and the supersede bookkeeping (#1261) are
+    answered once for both flows.
+
+    Must run inside the caller's transaction: the record, its relation and
+    whatever else the mapping persists belong to one decision about one
+    reference, and a failure of any of them rolls all of it back together.
+
+    Args:
+        content (bytes): the ISO document
+        link (str): the advertised url the document was fetched from; it
+            becomes the record's ``origin_url``
+        describes: the element the reference describes (may be None for a
+            coupling which names no element)
+
+    Returns:
+        the created or re-asserted metadata record, or None when the
+        document identifies no record - a decided failure which names no
+        record, never a fabricated one (#1261)
+    """
+    mappers = MDMetadataXmlMapper.from_xml(content)
+    data = mappers[0].xml_to_django()
+    parsed_instance = data[0]
+    handler = PersistenceHandler(
+        mapper=mappers[0],
+        defaults={
+            "dataset": {
+                "origin": MetadataOriginEnum.CAPABILITIES.value,
+                "origin_url": link
+            }
+        }
+    )
+    created_instances = handler.persist_all()
+    # search by unique file_identifier to get the created record.
+    created_instance = next(
+        (
+            v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+            if parsed_instance.file_identifier in k
+        ),
+        None
+    )
+
+    if not created_instance:
+        logging.warning(
+            f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+        return None
+
+    drop_superseded_relations_for_link(link, describes, created_instance)
+    created_instance.add_metadata_relation(
+        related_object=describes)
+    return created_instance
+
+
+def drop_superseded_relations_for_link(link, describes, created_instance):
+    """Take back the relations which an earlier coupling of ``link`` left on
+    ``describes``, pointing at another record instance.
+
+    The collection identifies the record of a link by its file identifier,
+    so a re-registration normally re-asserts the very relation which is
+    already there - measured on #1261: re-collecting one reference
+    duplicates no record and no relation. When the record which a link
+    resolves to *has* changed - the catalogue republished its document
+    under a new file identifier - the element's old relation is stale: it
+    couples the element to a record which the element no longer describes,
+    and nothing removed it before (#1261). It is taken back here, through
+    :meth:`MetadataRecord.remove_metadata_relation`, while the relations of
+    the element to the records of *other* links and everything a curator
+    added stay untouched.
+
+    This is the "removes the stale ones" answer of #1261 and it is runtime
+    bookkeeping, not a migration: rows age into a decision only until the
+    next collection of their reference rewrites them, which fits the
+    no-migration posture of the epic's decision D5. #1263 reads it through
+    the work row's own url, so the registration keeps closing stale
+    couplings after its consumer moved from ``RemoteMetadata`` to the work
+    queue.
+    """
+    superseded = created_instance.__class__.objects.filter(
+        origin_url=link).exclude(pk=created_instance.pk)
+    for stale_record in superseded:
+        stale_record.remove_metadata_relation(
+            related_object=describes,
+            internal=False,
+            origin=MetadataOriginEnum.CAPABILITIES.value)
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):

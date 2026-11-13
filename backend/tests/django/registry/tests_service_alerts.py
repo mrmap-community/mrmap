@@ -1330,7 +1330,12 @@ class ServiceDetailAlertScanTest(ServiceAlertsMixin, TestCase):
             f'"{table}"."id" =', reads[0],
             f"the statement reads {table} without narrowing to the pk: "
             f"{reads[0][:400]}")
-        self.assertIn(str(pk), reads[0])
+        # psycopg renders a uuid parameter without its dashes:
+        # 'cd16cc1f3abb4625bb96fbe80dbe23e3'::uuid
+        self.assertTrue(
+            str(pk) in reads[0] or str(pk).replace("-", "") in reads[0],
+            f"the statement which reads {table} is narrowed by another id "
+            f"than the requested one: {reads[0][:400]}")
         # the narrowed statement still answers the alerts of the service
         self.assertIn('AS "has_alert"', reads[0])
 

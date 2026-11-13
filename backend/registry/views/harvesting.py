@@ -552,6 +552,12 @@ class TemporaryMdMetadataFileViewSetMixin:
         'job__service__id': ['exact', 'in'],
         'has_import_error': ['exact'],
         'import_error': ['exact', 'icontains', 'contains', 'in', 'isnull'],
+        # the registration reference of one collecting process, by its work
+        # state and by the kind which decided it (#1263): the process card
+        # links its failed references through exactly these lookups.
+        'background_process__id': ['exact', 'in'],
+        'state': ['exact', 'in'],
+        'error_kind': ['exact', 'in'],
     }
 
 

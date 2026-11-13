@@ -1,18 +1,21 @@
 import uuid
 from datetime import timedelta
+from logging import Logger
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import default_storage
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Func, Q, Value
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from MrMap.celery import app
 from notify.enums import LogTypeEnum, ProcessNameEnum, ProcessStatusEnum
 from notify.managers import BackgroundProcessManager
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 class AppendTaskIds(Func):
@@ -202,6 +205,21 @@ class BackgroundProcess(models.Model):
         help_text=_(
             'how many references the collection planned but never reported '
             'an outcome for'))
+    # the one-time marker of a planned collection (#1263): the work rows of
+    # the run exist and its expected count is stored. The plan is written and
+    # sealed in a single transaction, and a sealed process is never
+    # re-planned: a duplicate delivery of the registration root which finds
+    # the marker set must not recreate work rows a successful worker already
+    # deleted, nor reset the counters the workers moved. It also separates an
+    # unplanned run (no marker, NULL counters) from a planned run which found
+    # zero references (marker set, references_total = 0).
+    references_plan_sealed = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_('references plan sealed'),
+        help_text=_(
+            'the collection of this process planned its references exactly '
+            'once; a duplicate planning delivery never reopens it'))
 
     class Meta:
         verbose_name = _('Background Process')
@@ -344,6 +362,27 @@ class BackgroundProcess(models.Model):
 
         return saved
 
+    def delete(self, *args, **kwargs):
+        """Delete this process and take its registration work files with it.
+
+        The temporary work rows of a registration (#1263) live and die with
+        their collecting process: the database cascade takes the rows, but a
+        cascade never touches the storage, and the failed downloads stored on
+        them are exactly the bytes the issue refuses to leak. The file names
+        are read before the rows are gone - after the delete nothing but the
+        storage would know them - and physically removed once the delete
+        committed: a file deletion is no rollback material, so it never runs
+        while the database decision could still be undone. The permanent
+        metadata records and their ``MetadataRelation`` couplings are not
+        this process's to take and stay untouched.
+        """
+        from registry.models.harvest import (  # local import: app cycle
+            registration_work_file_names)
+        names = registration_work_file_names([self.pk])
+        result = super().delete(*args, **kwargs)
+        transaction.on_commit(lambda: _delete_registration_files(names))
+        return result
+
 
 def extented_description_file_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
@@ -383,6 +422,41 @@ class BackgroundProcessLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+
+def _delete_registration_files(names):
+    """Physically remove the stored documents of deleted registration work rows.
+
+    Runs after the rows and the process are gone. Bounded and idempotent: a
+    name the storage does not hold is already the state this removal wants,
+    and a name the storage cannot give up yet is not lost - the bounded
+    registration orphan sweep of #1263 re-reads the process prefix and takes
+    what no row references anymore, which is how a failed removal gets
+    retried. Bytes are never leaked silently: every failed removal is an
+    ERROR the operator can act on.
+    """
+    if not names:
+        return
+    removed = 0
+    failed = []
+    storage = default_storage
+    for name in names:
+        try:
+            storage.delete(name)
+            removed += 1
+        except FileNotFoundError:
+            removed += 1  # already the state this sweep wants
+        except OSError:
+            failed.append(name)
+    if failed:
+        logger.error(
+            "could not delete %s stored registration reference file(s) %s of "
+            "a deleted background process; the registration orphan sweep "
+            "retries them (#1263)", len(failed), failed[:20])
+    else:
+        logger.info(
+            "deleted %s stored registration reference file(s) of a deleted "
+            "background process (#1263)", removed)
 
 
 def purge_expired_background_processes(retention_days=None) -> dict:
@@ -429,6 +503,12 @@ def purge_expired_background_processes(retention_days=None) -> dict:
         .exclude(extented_description="")
         .exclude(extented_description=None)
         .values_list("extented_description", flat=True)]
+    # the retained registration work rows (#1263) cascade with the process
+    # too; their stored documents are named here before the same cascade
+    # takes their rows, so the loop below takes the bytes with them
+    from registry.models.harvest import (  # local import: app cycle
+        registration_work_file_names)
+    stored_files += registration_work_file_names(pks)
 
     logs = BackgroundProcessLog.objects.filter(
         background_process_id__in=pks).delete()[1].get(

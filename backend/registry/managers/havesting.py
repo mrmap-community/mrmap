@@ -72,21 +72,68 @@ def metadata_count_range(kind, state):
 
 
 class HarvestedMetadataRelationQuerySet(models.QuerySet):
+    # The columns the daily statistics group by. The service of a relation is
+    # the service of its job, which the job answers on its own - the grouping
+    # therefore needs no column of the job table, only its showing does.
+    STAT_DAY_GROUPS = ("history_day", "collecting_state", "harvesting_job")
+
+    def count(self):
+        """The number of groups of an answer, without re-aggregating the answer.
+
+        The statistics card asks its paginator for the number of rows of the
+        aggregation below; the base class answers that of a grouped queryset
+        by wrapping the whole aggregation in a ``COUNT(*)``, which computes
+        every counter of every group just to count the groups. On the rig of
+        #1316 that wrap was the first and slowest statement of the card: 18.5 s
+        over the relation table of 400k records a day, in front of the 1.8 s
+        which then answered the page from the very same rows.
+
+        The number of groups is the number of distinct grouping tuples, which
+        the index over the group columns answers out of the index alone - no
+        counter computed, no table read twice.
+        """
+        if self.query.fields and self.query.annotation_select:
+            # the grouping of `stats_per_day` (or of any other answer this
+            # queryset groups): its rows are its distinct grouping tuples
+            return (
+                self.order_by()
+                .values(*self.query.fields)
+                .distinct()
+                .count()
+            )
+        return super().count()
+
     def stats_per_day(self):
+        """What the harvesting jobs collected, grouped by day and state.
+
+        The service is answered by a subquery of the job and not by joining
+        the job into the aggregation: the aggregation groups the relations,
+        the job column only names their service for the handful of rows of a
+        page, and a join which every grouped row passes through makes the
+        answer read the job of every relation (#1316, cf. #1037 which moved
+        the counters of a single run into the ranges they count).
+        """
+        from registry.models.harvest import HarvestingJob
+
         return self.values(
-            "history_day",
-            "collecting_state",
-            "harvesting_job",
-            "harvesting_job__service"
+            *self.STAT_DAY_GROUPS
         ).annotate(
             id=F("history_day"),
-            new=Count("pk", filter=(
+            # over the job column and not over the pk: the FILTERs read
+            # nothing but the state and the count nothing but this column,
+            # both of which are key columns of the index over the grouping -
+            # the job of a relation is NOT NULL, so its count is the count
+            # of the group's rows and the aggregation stays inside the index
+            new=Count("harvesting_job", filter=(
                 Q(collecting_state=CollectingStatenEnum.NEW.value))),
-            updated=Count("pk", filter=Q(
+            updated=Count("harvesting_job", filter=Q(
                 collecting_state=CollectingStatenEnum.UPDATED.value)),
-            existed=Count("pk", filter=Q(
+            existed=Count("harvesting_job", filter=Q(
                 collecting_state=CollectingStatenEnum.EXISTING.value)),
-            service=F("harvesting_job__service")
+            service=Subquery(
+                HarvestingJob.objects
+                .filter(pk=OuterRef("harvesting_job"))
+                .values("service")[:1]),
         )
 
 

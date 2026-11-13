@@ -12,6 +12,7 @@ filter -- because the dashboard and the charts of a service read exactly that.
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from mptt2.models import Tree
@@ -287,3 +288,212 @@ class HarvestedMetadataRelationStatisticsTest(StatisticalListViewTestMixin, Test
                                            {param: value})
                 self.assertEqual(response.status_code, 400)
                 self.assertIn('errors', response.json())
+
+
+class HarvestedMetadataRelationGroupsTest(StatisticalListViewTestMixin,
+                                          TestCase):
+    """Many days, two jobs and every collecting state of one harvesting view.
+
+    #1316 answered the total of this endpoint from the number of distinct
+    grouping tuples instead of letting the paginator wrap the whole
+    aggregation in a second COUNT. Which rows, which totals and which pages
+    the endpoint answers must not change with that, and no total may go
+    stale: every expectation below is counted from the fixture's relations
+    in Python, so it pins what the database aggregation has to answer
+    without computing the same answer a second time with SQL.
+    """
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
+                'test_csw.json']
+
+    ENDPOINT = 'statistical-harvested-metadata-relations'
+
+    # day offset, job, collecting state, how many relations the harvest wrote
+    WAVES = [
+        (0, 'catalogue', CollectingStatenEnum.NEW, 3),
+        (0, 'catalogue', CollectingStatenEnum.UPDATED, 1),
+        # the states which no counter of the answer names keep their own day:
+        # such a group answers all three counters with 0 and still counts
+        # towards the total of the card
+        (0, 'catalogue', CollectingStatenEnum.DUPLICATED, 2),
+        (1, 'catalogue', CollectingStatenEnum.EXISTING, 2),
+        (1, 'file_import', CollectingStatenEnum.NEW, 4),
+        (2, 'file_import', CollectingStatenEnum.REMOVED, 1),
+    ]
+
+    COUNTER_OF = {  # which counter of the answer one collecting state feeds
+        CollectingStatenEnum.NEW: 'new',
+        CollectingStatenEnum.UPDATED: 'updated',
+        CollectingStatenEnum.EXISTING: 'existed',
+    }
+
+    ROW_KEY = ('day', 'new', 'updated', 'existed')
+
+    @classmethod
+    def setUpTestData(cls):
+        HarvestedMetadataRelation.objects.all().delete()
+        cls.jobs = {
+            'catalogue': HarvestingJob.objects.get(service_id=CSW2_ID),
+            # a file import job belongs to no service: its groups answer
+            # `service: null` and must keep both their rows and their total
+            'file_import': HarvestingJob.objects.create(),
+        }
+        contact = MetadataContact.objects.create(name='Harvesting contact')
+        relations = []
+        for day, job_key, state, number in cls.WAVES:
+            for _ in range(number):
+                relations.append((
+                    HarvestedMetadataRelation.objects.create(
+                        harvesting_job=cls.jobs[job_key],
+                        dataset_metadata_record=(
+                            DatasetMetadataRecord.objects.create(
+                                metadata_contact=contact,
+                                dataset_contact=contact,
+                                title='Group relation %d' % len(relations))),
+                        collecting_state=state.value),
+                    day))
+        for relation, day in relations:
+            HarvestedMetadataRelation.objects.filter(pk=relation.pk).update(
+                history_date=START + timedelta(days=day))
+        cls.written = relations
+
+    def expected(self):
+        """One row per (day, job, state) group, counted without SQL."""
+        rows = []
+        for day, job_key, state, number in self.WAVES:
+            job = self.jobs[job_key]
+            attributes = {
+                'day': (START + timedelta(days=day)).date().isoformat(),
+                'service': str(job.service_id) if job.service_id else None,
+                'harvestingJob': job.pk,
+                'new': 0, 'updated': 0, 'existed': 0,
+            }
+            counter = self.COUNTER_OF.get(state)
+            if counter:
+                attributes[counter] = number
+            rows.append(attributes)
+        return sorted(rows, key=lambda row: [
+            row[name] for name in self.ROW_KEY])
+
+    def sorted_rows(self, body):
+        return sorted((row['attributes'] for row in body['data']),
+                      key=lambda row: [row[name] for name in self.ROW_KEY])
+
+    def test_the_groups_their_counters_and_their_total_answer_the_relations(self):
+        body = self.request(self.ENDPOINT, sort='id', **{'page[size]': '100'})
+        expected = self.expected()
+
+        self.assertEqual({row['type'] for row in body['data']},
+                         {'StatisticalHarvestedMetadataRelation'})
+        self.assertEqual(body['meta']['pagination']['count'], len(expected))
+        self.assertEqual(self.sorted_rows(body), expected)
+        self.assertEqual([row['id'] for row in body['data']],
+                         [row['attributes']['day'] for row in body['data']])
+        # no relation is counted twice and none is lost: the counters add up
+        # to the relations of the states which feed them
+        self.assertEqual(
+            [sum(row['attributes'][name] for row in body['data'])
+             for name in ('new', 'updated', 'existed')],
+            [7, 1, 2])
+        # the groups of the states without a counter are there, answering 0
+        # and counted in the total
+        self.assertEqual(
+            sum(not any(row['attributes'][name]
+                        for name in ('new', 'updated', 'existed'))
+                for row in body['data']),
+            2)
+
+    def test_paging_walks_the_groups_without_loss_or_repeat(self):
+        # the page size 3 lets the pages break with the days, whose groups
+        # follow each other without an order the endpoint promises
+        expected = self.expected()
+        walked = []
+        for page in (1, 2):
+            body = self.request(self.ENDPOINT, sort='id', **{
+                'page[size]': '3', 'page[number]': str(page)})
+            self.assertEqual(body['meta']['pagination']['count'],
+                             len(expected), 'every page knows the whole total')
+            walked.extend(body['data'])
+
+        self.assertEqual(len(walked), len(expected))
+        self.assertEqual(sorted((row['attributes'] for row in walked),
+                                key=lambda row: [row[name] for name in
+                                                 self.ROW_KEY]),
+                         expected)
+
+    def test_a_written_relation_is_answered_immediately(self):
+        """Nothing is cached between requests: the next one has the new row.
+
+        The total is answered from the relations themselves, so neither a
+        group whose counter grows nor a group which appears for the first
+        time has to wait for anything.
+        """
+        before = self.request(self.ENDPOINT, sort='id',
+                              **{'page[size]': '100'})
+        self.assertEqual(before['meta']['pagination']['count'],
+                         len(self.expected()))
+
+        contact = MetadataContact.objects.create(name='Second contact')
+
+        def harvest(day, state):
+            relation = HarvestedMetadataRelation.objects.create(
+                harvesting_job=self.jobs['catalogue'],
+                dataset_metadata_record=DatasetMetadataRecord.objects.create(
+                    metadata_contact=contact, dataset_contact=contact,
+                    title='Late relation'),
+                collecting_state=state.value)
+            HarvestedMetadataRelation.objects.filter(pk=relation.pk).update(
+                history_date=START + timedelta(days=day))
+            return relation
+
+        # one more relation of a group which is already there: the counter
+        # grows, the total of the groups stays
+        harvest(0, CollectingStatenEnum.NEW)
+        same_groups = self.request(self.ENDPOINT, sort='id',
+                                   **{'page[size]': '100'})
+        self.assertEqual(same_groups['meta']['pagination']['count'],
+                         len(self.expected()))
+        self.assertEqual(
+            sum(row['attributes']['new'] for row in same_groups['data']
+                if row['id'] == '2026-01-01'), 4)
+
+        # a relation of a day which had none opens its own group at once
+        harvest(3, CollectingStatenEnum.NEW)
+        grown = self.request(self.ENDPOINT, sort='id',
+                             **{'page[size]': '100'})
+        self.assertEqual(grown['meta']['pagination']['count'],
+                         len(self.expected()) + 1)
+        self.assertEqual([row['id'] for row in grown['data']
+                          if row['id'] == '2026-01-04'], ['2026-01-04'])
+
+    def test_the_filters_keep_rows_and_total_together(self):
+        by_service = self.request(self.ENDPOINT, **{
+            'filter[service]': CSW2_ID, 'page[size]': '100'})
+        self.assertEqual(by_service['meta']['pagination']['count'], 4)
+        self.assertEqual({row['attributes']['service']
+                          for row in by_service['data']}, {CSW2_ID})
+
+        file_job = self.jobs['file_import']
+        by_job = self.request(self.ENDPOINT, **{
+            'filter[harvesting_job]': file_job.pk, 'page[size]': '100'})
+        self.assertEqual(by_job['meta']['pagination']['count'], 2)
+        self.assertEqual({row['attributes']['service']
+                          for row in by_job['data']}, {None})
+
+    def test_an_authenticated_request_answers_the_same_as_an_anonymous_one(self):
+        """The card is open without a login, and a login changes nothing."""
+        anonymous = self.request(self.ENDPOINT, sort='id')
+
+        client = APIClient()
+        client.credentials(HTTP_ACCEPT=JSONAPI)
+        client.force_authenticate(
+            user=get_user_model().objects.get(username='User1'))
+        response = client.get(self.url(self.ENDPOINT), {'sort': 'id'})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        authenticated = response.json()
+        self.assertEqual(authenticated['meta'], anonymous['meta'])
+        # the answer groups rows within a day in an order it promises
+        # nothing, so the rows are compared sorted
+        self.assertEqual(self.sorted_rows(authenticated),
+                         self.sorted_rows(anonymous))

@@ -92,12 +92,12 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
         the index over the group columns answers out of the index alone - no
         counter computed, no table read twice.
         """
-        if self.query.fields and self.query.annotation_select:
+        if self.query.values_select and self.query.annotation_select:
             # the grouping of `stats_per_day` (or of any other answer this
             # queryset groups): its rows are its distinct grouping tuples
             return (
                 self.order_by()
-                .values(*self.query.fields)
+                .values(*self.query.values_select)
                 .distinct()
                 .count()
             )
@@ -106,15 +106,13 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
     def stats_per_day(self):
         """What the harvesting jobs collected, grouped by day and state.
 
-        The service is answered by a subquery of the job and not by joining
-        the job into the aggregation: the aggregation groups the relations,
-        the job column only names their service for the handful of rows of a
-        page, and a join which every grouped row passes through makes the
-        answer read the job of every relation (#1316, cf. #1037 which moved
-        the counters of a single run into the ranges they count).
+        The service of these days belongs to the job and is not joined into
+        the aggregation: every grouped row would pass through the join, while
+        only the rows of one page have to show the service at all - which is
+        why the view of this aggregation adds it to its page with one query
+        over the jobs of its rows (#1316, cf. #1037 which moved the counters
+        of a single run into the ranges they count).
         """
-        from registry.models.harvest import HarvestingJob
-
         return self.values(
             *self.STAT_DAY_GROUPS
         ).annotate(
@@ -130,10 +128,6 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
                 collecting_state=CollectingStatenEnum.UPDATED.value)),
             existed=Count("harvesting_job", filter=Q(
                 collecting_state=CollectingStatenEnum.EXISTING.value)),
-            service=Subquery(
-                HarvestingJob.objects
-                .filter(pk=OuterRef("harvesting_job"))
-                .values("service")[:1]),
         )
 
 

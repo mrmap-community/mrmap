@@ -148,10 +148,17 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         return trace(self.task_id, (), task_kwargs, {"id": self.task_id})
 
     def collect(self, remote_metadata):
-        """The reference's task, answered against a process of its own."""
+        """The reference's task, answered against a process of its own.
+
+        The process is a planned collection of exactly this one reference -
+        the state `build_ogc_service` writes when it publishes the fan-out
+        (#1259) - so the counters the task moves are readable.
+        """
         process = BackgroundProcess.objects.create(
             process_type='registering', phase='collecting metadata records...',
-            total_steps=1, done_steps=0)
+            total_steps=1, done_steps=0,
+            references_total=1, references_stored=0, references_failed=0,
+            references_skipped=0)
         with patch.object(
                 RemoteMetadata, "fetch_remote_content", return_value=None):
             trace = self.answer_shared(
@@ -192,6 +199,11 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         process.refresh_from_db()
         self.assertEqual(process.done_steps, 1)
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
+        # and the run's summary counts it as a finding: the document was
+        # fetched and parsed but stores no record, so nothing of this
+        # reference arrived (#1259; #1263 gives it a machine-readable kind)
+        self.assertEqual(process.references_failed, 1)
+        self.assertEqual(process.references_stored, 0)
         self.assertTrue(BackgroundProcessLog.objects.filter(
             background_process=process,
             log_type=LogTypeEnum.WARNING,
@@ -206,7 +218,7 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
         """The successful step keeps its answer and says it created a record."""
         remote_metadata = self.reference(DATASET)
 
-        answer, _process = self.collect(remote_metadata)
+        answer, process = self.collect(remote_metadata)
 
         record = DatasetMetadataRecord.objects.get(
             file_identifier=FILE_IDENTIFIER)
@@ -223,6 +235,13 @@ class ReferenceAnswerTests(CollectionHarness, WorkerRunMixin,
             })
         self.assertEqual(MetadataRelation.objects.filter(
             dataset_metadata=record, layer=self.layer).count(), 1)
+
+        # the run's summary counts this reference as stored, not as missing:
+        # a healthy collection moved its counters all along (#1259, against the
+        # answer of #1258 which only had the step)
+        process.refresh_from_db()
+        self.assertEqual(process.references_stored, 1)
+        self.assertEqual(process.references_failed, 0)
 
 
 class RelationBookkeepingTests(CollectionHarness, TestCase):

@@ -7,7 +7,11 @@ goes with the package (#1180). D02/A: the process completes when the whole
 workflow ran to the end, including the metadata collection which was
 requested; the service it built is named as soon as it exists, and metadata
 steps which failed are readable in the process' logs while the service and
-its link stay.
+its link stay. Since #1259 they are a number on the row as well: the summary of
+the collection (`referencesTotal / referencesStored / referencesFailed /
+referencesSkipped`) is stored while the run reports and closed when it decides,
+so a run whose references all failed reads as completed *with import errors*
+instead of as a clean one.
 
 The state transitions are answered through celery's tracer (`WorkerRunMixin`
 of `tests.django.utils`), because the reports into the process run in the very
@@ -355,25 +359,46 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
             process.related_resource_type.model_class(), WebMapService)
         self.assertEqual(process.related_id, service.pk)
 
-        # the collection the document asks for is what keeps the process open
+        # the collection the document asks for is what keeps the process open,
+        # and the run names what it expects before the first message can be
+        # answered: the plan of the collection is on the process already (#1259)
         self.assertGreater(len(captured["header"]), 0)
         process.refresh_from_db()
         self.assertEqual(process.total_steps, len(captured["header"]))
+        self.assertEqual(
+            process.references_total, len(captured["header"]))
+        self.assertEqual(
+            (process.references_stored, process.references_failed,
+             process.references_skipped), (0, 0, 0),
+            'a plan which decided nothing yet answers zeroes, not nothing')
 
         # and the client reading the http resource sees exactly that
         attributes = self.poll_attributes(process.pk)["attributes"]
         self.assertEqual(attributes["status"], "running")
         self.assertEqual(
+            attributes["referencesTotal"], len(captured["header"]))
+        self.assertEqual(
             attributes["relatedResource"],
             {"type": "WebMapService", "id": str(service.pk)})
 
     def test_the_registration_completes_only_when_the_collection_ended(self):
-        """A failed metadata step is logged, not mistaken for the end.
+        """Every reference failed: the run is COMPLETED with import errors.
 
         The children which could not fetch their document leave a warning in
-        the process' logs; the completion callback of the chord says the
-        workflow ran to its end, and that is when - and only then - the
-        process completes, with its service and its warnings readable.
+        the process' logs and a counter on its row; the completion callback of
+        the chord says the workflow ran to its end, and that is when - and only
+        then - the process completes, with its service and its warnings
+        readable.
+
+        The state this expects of a run whose every reference failed is
+        ``completed`` with ``referencesFailed`` naming the findings - not
+        ``failed``, not ``action_required``. Decision D9 of epic #1256 records
+        it that way because that is exactly how harvesting shows a run whose
+        import had errors: the backlog is drained, the job is over, and the
+        errors are named in the summary instead of being mined out of log lines
+        which the retention of #1208 purges anyway. The flag
+        ``action_required`` stays what #1207 built it for - a run which stands
+        while a human is awaited - and a finished collection does not stand.
         """
         captured = self._start_a_collecting_registration()
         process = BackgroundProcess.objects.get()
@@ -394,16 +419,58 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
         self.assertEqual(process.done_steps, process.total_steps)
 
+        # the findings are a number while the run still works, not only in
+        # hindsight: every reference which failed moved the summary of the run
+        self.assertEqual(process.references_failed, len(captured["header"]))
+        self.assertEqual(process.references_stored, 0)
+
         body = captured["body"]
         self.answer_shared(body.task, args=body.args, kwargs=body.kwargs)
 
         attributes = self.poll_attributes(process.pk)["attributes"]
+        self.assertEqual(attributes["state"], "completed")
         self.assertEqual(attributes["status"], "completed")
+        # the summary of the finished run answers its question from the row:
+        # expected, stored, failed, skipped - without reading a log line
+        self.assertEqual(
+            [attributes["referencesTotal"], attributes["referencesStored"],
+             attributes["referencesFailed"], attributes["referencesSkipped"]],
+            [len(captured["header"]), 0, len(captured["header"]), 0])
         self.assertEqual(
             attributes["relatedResource"],
             {"type": "WebMapService",
              "id": str(WebMapService.objects.get().pk)})
         self.assert_no_generic_result_rows()
+
+    def test_references_which_never_answered_are_skipped_not_stored(self):
+        """A fan-out which answered nothing ends with its plan accounted for.
+
+        The completion of the chord runs although no reference reported - the
+        case #1257 produced for every feature type of a WFS, and the case of a
+        worker which died with the messages it had not read. What the plan
+        expected and the references answered is the difference between them,
+        and the run must not answer a clean collection for it.
+        """
+        captured = self._start_a_collecting_registration()
+        process = BackgroundProcess.objects.get()
+
+        self.answer_shared(
+            captured["body"].task,
+            args=captured["body"].args,
+            kwargs=captured["body"].kwargs)
+
+        process.refresh_from_db()
+        self.assertEqual(process.status, ProcessStatusEnum.COMPLETED)
+        self.assertEqual(process.references_total, len(captured["header"]))
+        self.assertEqual(process.references_stored, 0)
+        self.assertEqual(process.references_failed, 0)
+        self.assertEqual(
+            process.references_skipped, len(captured["header"]),
+            'references which never reported an outcome are skipped, they are '
+            'not silently missing from the summary of a completed run')
+        self.assertEqual(
+            self.poll_attributes(process.pk)["attributes"]["referencesSkipped"],
+            len(captured["header"]))
 
     # -- outcomes which must not be mistaken ---------------------------------
 

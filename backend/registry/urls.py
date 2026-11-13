@@ -84,6 +84,8 @@ feature_types_routes.register(r'referencesystems', metadata_views.NestedReferenc
                               basename='featuretype-referencesystems', parents_query_lookups=['featuretype'])
 feature_types_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
                               basename='featuretype-keywords', parents_query_lookups=['featuretype_metadata'])
+feature_types_routes.register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet,
+                              basename='featuretype-datasetmetadata', parents_query_lookups=['self_pointing_feature_types'])
 
 csw_routes = router.register(
     r'csw', service_views.CatalogueServiceViewSet, basename='csw')

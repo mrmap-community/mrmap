@@ -274,6 +274,8 @@ const en = lodashMerge(
       formats: "Output formats",
       noDescription: "No feature type description fetched from the service.",
       metadata: "Related metadata",
+      noMetadata: "No metadata record describes this feature type.",
+      metadataNotCollected: "The capabilities of this feature type reference metadata documents, but no records were collected from them. The service was registered before feature type references were collected, or collecting them failed.",
       access: "Access",
       secured: "Access rules configured",
       spatialSecured: "Spatial access rules configured",

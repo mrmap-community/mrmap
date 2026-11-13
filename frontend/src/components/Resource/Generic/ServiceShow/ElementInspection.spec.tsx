@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   isPending: false,
   error: undefined as Error | undefined,
   metadataRecords: [] as Record<string, unknown>[],
+  getManyIds: undefined as unknown[] | undefined,
   hasEdit: true,
   getOneMeta: undefined as Record<string, unknown> | undefined,
 }));
@@ -28,7 +29,10 @@ vi.mock("react-admin", async () => ({
       refetch: vi.fn(),
     };
   },
-  useGetMany: () => ({ data: state.metadataRecords }),
+  useGetMany: (_resource: string, params: { ids: unknown[] }) => {
+    state.getManyIds = params.ids;
+    return { data: state.metadataRecords };
+  },
   useResourceDefinition: () => ({ hasEdit: state.hasEdit }),
   Loading: () => <span>loading</span>,
   Link: ({ to, children }: { to: string; children?: ReactNode }) => (
@@ -113,6 +117,7 @@ beforeEach(() => {
   state.isPending = false;
   state.error = undefined;
   state.metadataRecords = [];
+  state.getManyIds = undefined;
   state.hasEdit = true;
   state.getOneMeta = undefined;
 });
@@ -223,6 +228,37 @@ describe("element inspection", () => {
     };
     showFeatureType();
     expect(screen.getAllByText("EPSG:4326")).toHaveLength(1);
+  });
+
+  it("shows the record which describes a feature type through its relation", () => {
+    state.record = { ...featureType, datasetMetadata: [{ id: "metadata-1" }] };
+    state.metadataRecords = [{ id: "metadata-1", stringRepresentation: "Buildings dataset" }];
+    showFeatureType();
+    // the feature type's own relation is what the ids are read from, like a layer's
+    expect(state.getManyIds).toEqual(["metadata-1"]);
+    expect(screen.getByText("layerInspection.metadata")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Buildings dataset" }),
+    ).toHaveAttribute("href", "/DatasetMetadataRecord/metadata-1/show");
+  });
+
+  it("distinguishes no metadata from references which were not collected", () => {
+    state.record = { ...featureType, datasetMetadata: [], metadataReferencesUncollected: false };
+    const { unmount } = showFeatureType();
+    expect(screen.getByText("layerInspection.noMetadata")).toBeInTheDocument();
+    expect(screen.queryByText("layerInspection.metadataNotCollected")).not.toBeInTheDocument();
+    unmount();
+    state.record = { ...featureType, datasetMetadata: [], metadataReferencesUncollected: true };
+    showFeatureType();
+    expect(screen.getByText("layerInspection.metadataNotCollected")).toBeInTheDocument();
+    expect(screen.queryByText("layerInspection.noMetadata")).not.toBeInTheDocument();
+  });
+
+  it("keeps hiding the empty metadata section of a layer", () => {
+    state.record = { ...layer, datasetMetadata: [] };
+    showLayer();
+    expect(screen.queryByText("layerInspection.metadata")).not.toBeInTheDocument();
+    expect(screen.queryByText("layerInspection.noMetadata")).not.toBeInTheDocument();
   });
 
   it("answers loading and error states for the selected element", () => {

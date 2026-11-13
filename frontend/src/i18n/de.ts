@@ -254,6 +254,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "formats": "Ausgabeformate",
     "noDescription": "Keine Beschreibung vom Dienst abgerufen.",
     "metadata": "Zugehörige Metadaten",
+    "noMetadata": "Kein Metadatensatz beschreibt diesen Feature-Type.",
+    "metadataNotCollected": "Die Capabilities dieses Feature-Typs verweisen auf Metadatendokumente, aber es wurden keine Datensätze daraus erhoben. Der Dienst wurde registriert, bevor Feature-Type-Verweise erhoben wurden, oder die Erhebung ist fehlgeschlagen.",
     "access": "Zugriff",
     "secured": "Zugriffsregeln konfiguriert",
     "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",

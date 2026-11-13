@@ -182,10 +182,17 @@ def build_ogc_service(
                     **task_kwargs
                 )
                 for remote_metadata in remote_metadata_list]
+            # the plan of the collection is stored with the number of steps it
+            # publishes, before the first message can be answered: a client
+            # which reads the process while the fan-out runs already knows how
+            # many references were expected, and the summary which closes with
+            # the run has a denominator (#1259)
+            references = len(tasks)
             self.update_background_process(
                 phase='collect_metadata_records',
                 service=db_service,
-                total_steps=tasks.__len__()
+                total_steps=references,
+                references_total=references
             )
             chord(tasks)(finish_background_process.s(
                 **task_kwargs), max_retries=300, interval=1)
@@ -329,7 +336,17 @@ def fetch_remote_metadata_xml(
     # (#1258). Every path through the body passes here exactly once; an
     # attempt which dies before this line (a retry, a failed lookup) reports
     # nothing, so a retried reference is not counted twice.
+    #
+    # The same report moves the summary counter of the run for this one
+    # reference (#1259): stored when its answer names a stored record, failed
+    # for every other outcome - the document which was fetched and parsed but
+    # carries no identifiable record is a finding of this run too, and its
+    # reason is the warning the branch above left on the process.
+    stored = bool(result) and (
+        result.get("outcome") == CollectionStepOutcome.RECORD_CREATED.value)
     self.update_background_process(
-        step_done=True
+        step_done=True,
+        reference_stored=stored,
+        reference_failed=not stored
     )
     return result

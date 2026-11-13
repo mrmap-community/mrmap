@@ -89,6 +89,10 @@ class FetchRemoteMetadataFailureTest(WorkerRunMixin, TransactionTestCase):
         self.assertEqual(self.process.status, ProcessStatusEnum.RUNNING)
         self.assertEqual(self.process.done_steps, 0)
         self.assertEqual(self.process.retry_count, 1)
+        # an attempt which waits for its next one decided nothing, so the
+        # summary of the run does not move either: it counts outcomes, not
+        # attempts (#1259)
+        self.assertIsNone(self.process.references_failed)
 
     def test_a_refused_connection_is_handed_to_the_retry_too(self):
         """The other transient failure is retried by the same policy."""
@@ -136,6 +140,9 @@ class FetchRemoteMetadataFailureTest(WorkerRunMixin, TransactionTestCase):
         self.process.refresh_from_db()
         self.assertEqual(self.process.status, ProcessStatusEnum.RUNNING)
         self.assertEqual(self.process.done_steps, 1)
+        # the finding of this run is stored as a number beside the warning
+        # line - the answer a reader needs without reading any log (#1259)
+        self.assertEqual(self.process.references_failed, 1)
 
     def test_the_failure_of_an_unreachable_host_names_the_host(self):
         """The stored sentence of a refused connection is not the silence one.
@@ -182,6 +189,9 @@ class FetchRemoteMetadataFailureTest(WorkerRunMixin, TransactionTestCase):
         self.assertIn('404', log.description)
         self.process.refresh_from_db()
         self.assertEqual(self.process.done_steps, 1)
+        # the decided failure is a finding of the run, stored as a number and
+        # not only as this line (#1259)
+        self.assertEqual(self.process.references_failed, 1)
 
     def test_a_kind_which_is_not_mapped_is_recorded_and_not_retried(self):
         """The unsupported kind reaches the branch which names it again.
@@ -209,6 +219,9 @@ class FetchRemoteMetadataFailureTest(WorkerRunMixin, TransactionTestCase):
         self.process.refresh_from_db()
         self.assertEqual(self.process.status, ProcessStatusEnum.RUNNING)
         self.assertEqual(self.process.done_steps, 1)
+        # a kind without mapping is a decided outcome of the run, and the run
+        # counts it as failed like any other unfetchable reference (#1259)
+        self.assertEqual(self.process.references_failed, 1)
 
     # -- the delivery of one task ------------------------------------------
 

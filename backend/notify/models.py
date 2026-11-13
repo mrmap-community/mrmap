@@ -147,6 +147,62 @@ class BackgroundProcess(models.Model):
             'until when the next attempt of the retried task is due; while '
             'this window is open the process reports itself as retrying'))
 
+    # the stored summary of collecting the metadata references of a service
+    # (#1259). A run which collected everything and a run in which every
+    # reference failed both end COMPLETED - the epic's decision D9 keeps it
+    # that way, because that is how harvesting shows a run with import errors
+    # too - so these counters are what tells the two apart without reading the
+    # free text of the process logs, which the retention of #1208 purges.
+    # Like the reporting fields above they are written by the reporters only,
+    # while the outcome of a reference is decided and when the run decides
+    # about itself, never aggregated while a client reads it (#1037).
+    #
+    # Every counter is empty where the process never planned a collection: the
+    # answers of a run which collected no references are none, not zeroes, and
+    # a zero stays the honest answer of a planned collection which found
+    # nothing.
+    #
+    # They sit on the process, not on the described service, because they
+    # answer for one run: the same service can be registered again, #1274
+    # collects during an update through this same path, and this is the only
+    # row which outlives the run - the per-reference work rows of #1263 are
+    # disposable and deleted on success. Like the retry fields above they
+    # belong to the generic model, stay empty for the kinds which collect
+    # nothing, and the job center answers them from the one process resource
+    # without a per-kind join (#1207); #1263 prescribes this host and names.
+    references_total = models.IntegerField(
+        null=True,
+        default=None,
+        editable=False,
+        verbose_name=_('references total'),
+        help_text=_(
+            'how many metadata references the collection of this process '
+            'planned; empty where the process collected no references'))
+    references_stored = models.IntegerField(
+        null=True,
+        default=None,
+        editable=False,
+        verbose_name=_('references stored'),
+        help_text=_(
+            'how many references of the collection produced a stored '
+            'metadata record'))
+    references_failed = models.IntegerField(
+        null=True,
+        default=None,
+        editable=False,
+        verbose_name=_('references failed'),
+        help_text=_(
+            'how many references of the collection could not be collected, '
+            'including the documents which carry no identifiable record'))
+    references_skipped = models.IntegerField(
+        null=True,
+        default=None,
+        editable=False,
+        verbose_name=_('references skipped'),
+        help_text=_(
+            'how many references the collection planned but never reported '
+            'an outcome for'))
+
     class Meta:
         verbose_name = _('Background Process')
         verbose_name_plural = _('Background Processes')

@@ -381,6 +381,37 @@ class BackgroundProcessOperationContractTests(TestCase):
                          attributes["retryReason"])
         self.assertIsNotNone(attributes["retryScheduledUntil"])
 
+    def test_answers_the_summary_of_a_collecting_run(self):
+        """The findings of a collection are fields, not log text (#1259).
+
+        A run whose references partly failed is COMPLETED - decision D9 of
+        #1256, the way harvesting shows it - so these four counters are what a
+        screen reads to say "completed, but two of four arrived". They are
+        stored by the reporters, and the list which the drawer of the job
+        center renders answers them the same way the detail does (#1265).
+        """
+        collecting = self.make(
+            "collecting", ProcessStatusEnum.COMPLETED, total=4, done=4,
+            references_total=4, references_stored=2, references_failed=1,
+            references_skipped=1)
+        self.assertEqual(
+            [4, 2, 1, 1],
+            [self.attributes(collecting)[name] for name in (
+                "referencesTotal", "referencesStored", "referencesFailed",
+                "referencesSkipped")])
+        listed = {row["id"]: row["attributes"] for row in self.listed()}
+        self.assertEqual(
+            1, listed[str(collecting.pk)]["referencesFailed"])
+
+        # a process which collected no references answers no summary at all:
+        # zeroes would read as a planned collection which found nothing, and
+        # that is a different question than this row ever asking one
+        self.assertEqual(
+            [None, None, None, None],
+            [self.attributes(self.running)[name] for name in (
+                "referencesTotal", "referencesStored", "referencesFailed",
+                "referencesSkipped")])
+
     def test_answers_no_retry_state_where_nothing_was_retried(self):
         attributes = self.attributes(self.running)
         self.assertEqual(0, attributes["retryCount"])

@@ -11,14 +11,15 @@ Feature: WebMapService Retrieve Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data"
-        Then I expect that "16" queries where made
+        # the retrieve of one service asks nothing of the other services (#1308)
+        Then I expect that "14" queries where made
 
     Scenario: Can include layers
         Given I set a queryparam "include" with value "layers"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "Layer"
-        Then I expect that "27" queries where made
+        Then I expect that "25" queries where made
 
 
     Scenario Outline: Can include <relation>

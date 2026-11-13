@@ -74,6 +74,24 @@ class CustomOperationId(JsonApiAutoSchema):
             schema.pop("properties", "")
             schema["type"] = "string"
             schema["format"] = "geojson"
+
+        # A documented default that contradicts the value space documented on
+        # the very field breaks every consumer that validates the contract
+        # against it (#1335): "" is not an email, it is not one of a field's
+        # choices and it fails a minLength of 1. The members come from
+        # ModelSerializer documenting the empty-string default of the model
+        # fields; that default stays the runtime behaviour of the API - only
+        # the self-contradicting member is left out of the document. The
+        # constraints themselves are kept: they tell a client which values the
+        # field accepts, and a default that fits them is still documented.
+        if "default" in schema:
+            default = schema["default"]
+            if (
+                default == "" and (schema.get("format") or schema.get("minLength"))
+            ) or (
+                "enum" in schema and default not in schema["enum"]
+            ):
+                del schema["default"]
         return schema
 
     def _get_related_fields_of_model(self, model):

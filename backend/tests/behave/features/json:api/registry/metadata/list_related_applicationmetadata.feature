@@ -26,9 +26,20 @@ Feature: Related ApplicationMetadataRecord for csw List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "0"
 
-    # The list is about one catalogue: without one there is no answer.
-    Scenario: Refuses a catalogue which does not exist
+    # The list is about one catalogue but the route filters its records by
+    # `harvested_through` and does not look the parent up: a well-formed id of a
+    # catalogue that does not exist answers the empty list, like any filtered
+    # list does, and only a malformed id is refused - get_parents_query_dict in
+    # extras/viewsets.py turns the ValidationError of the uuid conversion into
+    # the 404.
+    Scenario: A well-formed catalogue id that does not exist answers empty
         Given I use the endpoint http://localhost:8000/api/registry/csw/00000000-0000-0000-0000-000000000000/application-metadata
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "0"
+
+    Scenario: Refuses a malformed catalogue id
+        Given I use the endpoint http://localhost:8000/api/registry/csw/not-a-uuid/application-metadata
         When I send the request with GET method
         Then I expect the response status is 404
         Then I expect that response json has an attribute "errors.[0].code" with value "not_found"

@@ -183,6 +183,11 @@ ASGI workers, 4 (was: the default)    1.8 - 2.2   2.9 s           181 - 233 ms
 ``gthread``, 4 workers x 8 threads    2.1 - 3.4   2.4 s           45 - 95 ms
 ====================================  ==========  ==============  ============
 
+The burst above is the unwarmed shape of the endpoint. ``/api/schema`` now keeps the
+document it built per worker, so concurrent requests for the same language are one
+build plus cache hits for the rest (#1336); what the table measures is the cost of the
+one build that still has to happen.
+
 The cheap peer is a request to an unrouted url of the same server - it walks the
 whole middleware chain and answers 404 in 5 ms while the server is idle - asked
 ten times while the burst is in flight. It is the number the issue is about: an

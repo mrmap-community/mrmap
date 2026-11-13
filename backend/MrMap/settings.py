@@ -124,6 +124,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Listed above the Vary middleware, so in the response phase it runs
+    # after that one and repeats the cleaned Vary on its 304 (#946).
+    "extras.schema_views.SchemaConditionalGetMiddleware",
     # Below Security, above Session: strips the session marking's Vary: Cookie
     # from /api/schema responses after SessionMiddleware added it (#946).
     "extras.schema_views.SchemaVaryMiddleware",
@@ -908,6 +911,9 @@ SPECTACULAR_SETTINGS = {
     "PREPROCESSING_HOOKS": [
         "drf_spectacular_jsonapi.hooks.fix_nested_path_parameters"
     ],
+    # the json:api view mixins' docstrings are implementation notes, not
+    # endpoint documentation; see extras.schema.get_lib_doc_excludes
+    "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
 }
 
 if not MRMAP_PRODUCTION:

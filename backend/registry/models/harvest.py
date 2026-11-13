@@ -143,6 +143,15 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
     class Meta:
         indexes = [
+            # The daily harvesting statistics group the relations by exactly
+            # these three columns (#1316): the card's page reads them in the
+            # order of the days until its page is full and its total is the
+            # number of distinct grouping tuples - both are answered from this
+            # index without the table, which replaces the two full reads of
+            # the table the card used to pay per render.
+            models.Index(
+                fields=["history_day", "collecting_state", "harvesting_job"],
+                name="harvested_day_state_job"),
             # The counters a run answers about the records it collected are one
             # count per kind of record and collecting state. Read as a FILTER over
             # the rows of the run, every one of them walks the whole of it - which

@@ -204,6 +204,19 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
     can_edit = SerializerMethodField()
     can_delete = SerializerMethodField()
 
+    def create(self, validated_data):
+        """A record created without a profile is an iso19139-generic one.
+
+        The api POST is the second creation path of a record besides the
+        mapper persistence; both look the seeded profile up rather than
+        naming it as a column default, see MetadataProfile.generic() (#1240).
+        """
+        if 'profile' not in validated_data:
+            generic = MetadataProfile.generic()
+            if generic is not None:
+                validated_data['profile'] = generic
+        return super().create(validated_data)
+
     def get_fields(self):
         fields = super().get_fields()
         if getattr(self.context.get("view"), "action", None) == "list":
@@ -241,6 +254,7 @@ class DatasetMetadataRecordSerializer(
     profile = MetadataProfileRelatedField(
         queryset=MetadataProfile.objects,
         required=False,
+        allow_null=True,
     )
     self_pointing_layers = ResourceRelatedField(
         queryset=Layer.objects,
@@ -324,6 +338,7 @@ class ServiceMetadataRecordSerializer(
     profile = MetadataProfileRelatedField(
         queryset=MetadataProfile.objects,
         required=False,
+        allow_null=True,
     )
     harvested_through = ResourceRelatedField(
         queryset=CatalogueService.objects,
@@ -395,6 +410,7 @@ class ApplicationMetadataRecordSerializer(
     profile = MetadataProfileRelatedField(
         queryset=MetadataProfile.objects,
         required=False,
+        allow_null=True,
     )
     harvested_through = ResourceRelatedField(
         queryset=CatalogueService.objects,

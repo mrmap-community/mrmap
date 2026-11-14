@@ -19,13 +19,43 @@ Three things are pinned here:
 from django.test import SimpleTestCase, TestCase
 from django.urls import include as url_include
 from django.urls import path
+from importlib import import_module
+from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework_json_api.utils import format_field_name
 
 from registry.mappers.configs import application, dataset, service
+from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.metadata import (GENERIC_ISO19139_PROFILE_PK,
-                                      DatasetMetadataRecord, MetadataContact)
+                                      DatasetMetadataRecord, MetadataContact,
+                                      MetadataProfile)
+from registry.serializers.metadata import DatasetMetadataRecordSerializer
 from registry.urls import urlpatterns
 from tests.django.registry.tests_query_performance import QueryMeasurementMixin
+
+# the migration which seeds the generic profile, named the way a migration has
+# to be named to be found by Django (same reading as tests_history_delta_size)
+PROFILE_SEED = import_module(
+    "registry.migrations.0049_the_profile_of_metadata_is_data")
+
+
+def ensure_generic_profile():
+    """The seeded profile, created again when the database lost it.
+
+    A `TransactionTestCase` truncates every table at its end -- and on a
+    `--keepdb` database that outlives the run -- so, exactly like the
+    anonymous user of `tests/AGENTS.md`, a test which asks for a row created
+    by a migration answers it itself rather than trusting the migration.
+    """
+    profile, _ = MetadataProfile.objects.get_or_create(
+        pk=GENERIC_ISO19139_PROFILE_PK,
+        defaults={
+            "name": "iso19139-generic",
+            "label": "Generic",
+            "sections": PROFILE_SEED.GENERIC_ISO19139_SECTIONS,
+            "rules": [],
+        })
+    return profile
+
 
 #: the detail routes whose generation answers the record components with
 #: their read and request variants — the list routes belong in the subset
@@ -143,16 +173,51 @@ class MetadataProfileResourceTests(QueryMeasurementMixin, TestCase):
         # the structural rules are filled by #1243; the attribute exists now
         self.assertEqual(attributes["rules"], [])
 
-    def test_every_record_defaults_to_the_seeded_generic_profile(self):
-        contact = MetadataContact.objects.first()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.contact = MetadataContact.objects.first()
+        cls.profile = ensure_generic_profile()
+
+    def _record_with_profile(self):
+        return DatasetMetadataRecord.objects.create(
+            title="Record of the generic profile",
+            dataset_contact=self.contact,
+            metadata_contact=self.contact,
+            profile=self.profile)
+
+    def test_a_record_written_without_a_profile_stays_without_one(self):
+        """The column is nullable on purpose (see MetadataProfile.generic()).
+
+        A `TransactionTestCase` truncates the seeded row between tests; the
+        creation paths must then store the record instead of violating the
+        foreign key of the row which is gone.
+        """
         record = DatasetMetadataRecord.objects.create(
-            title="Created without a profile",
-            dataset_contact=contact,
-            metadata_contact=contact)
+            title="Written where no profile row exists",
+            dataset_contact=self.contact,
+            metadata_contact=self.contact)
+        self.assertIsNone(record.profile_id)
+
+    def test_a_record_created_through_the_api_layer_answers_the_generic_profile(self):
+        """The api POST creation path of a record (#1240).
+
+        ``create`` is asked in the shape validation hands it -- validated
+        data holds model instances; the request-level validation itself is
+        what the endpoint tests of the record resources cover.
+        """
+        request = APIRequestFactory().post("/api/registry/dataset-metadata/")
+        force_authenticate(request, user=self.user)
+        serializer = DatasetMetadataRecordSerializer(context={"request": request})
+        record = serializer.create({
+            "title": "Created over the api",
+            "metadata_contact": self.contact,
+            "dataset_contact": self.contact,
+        })
         self.assertEqual(record.profile_id, GENERIC_ISO19139_PROFILE_PK)
 
     def test_record_answers_profile_relationship_with_a_link_to_the_profile(self):
-        record = DatasetMetadataRecord.objects.first()
+        record = self._record_with_profile()
         status, body, _ = self.request(f"/api/registry/dataset-metadata/{record.pk}")
         self.assertEqual(status, 200, body)
         relation = body["data"]["relationships"]["profile"]
@@ -164,7 +229,7 @@ class MetadataProfileResourceTests(QueryMeasurementMixin, TestCase):
             relation["links"])
 
     def test_profile_arrives_with_the_record_and_can_be_sparsed(self):
-        record = DatasetMetadataRecord.objects.first()
+        record = self._record_with_profile()
         status, body, _ = self.request(
             f"/api/registry/dataset-metadata/{record.pk}", include="profile")
         self.assertEqual(status, 200, body)
@@ -178,6 +243,55 @@ class MetadataProfileResourceTests(QueryMeasurementMixin, TestCase):
         self.assertEqual(status, 200, body)
         included = next(row for row in body["included"] if row["type"] == "MetadataProfile")
         self.assertEqual(set(included["attributes"]), {"rules"})
+
+
+class MetadataProfileImportTests(TestCase):
+    """The profile which the mapper persistence answers a parsed record.
+
+    Harvesting and registration never go through the api; both end in the
+    persistence handler, which is where #1240 wants their records to answer
+    the generic profile.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        ensure_generic_profile()
+
+    @staticmethod
+    def inject(instance):
+        handler = PersistenceHandler(mapper=None, defaults={})
+        handler._inject_defaults({type(instance): [instance]})
+        return instance
+
+    def test_a_parsed_record_answers_the_generic_profile(self):
+        contact = MetadataContact.objects.create(name="Import contact")
+        parsed = DatasetMetadataRecord(
+            title="Parsed record", dataset_contact=contact,
+            metadata_contact=contact)
+        self.assertEqual(
+            self.inject(parsed).profile_id, GENERIC_ISO19139_PROFILE_PK)
+
+    def test_a_parsed_record_which_names_a_profile_keeps_it(self):
+        other = MetadataProfile.objects.create(
+            name="iso19139-gdi-de", label="GDI-DE")
+        contact = MetadataContact.objects.create(name="Import contact")
+        parsed = DatasetMetadataRecord(
+            title="Parsed record", dataset_contact=contact,
+            metadata_contact=contact, profile=other)
+        self.assertEqual(self.inject(parsed).profile_id, other.pk)
+
+    def test_without_a_profile_row_the_import_still_stores_the_record(self):
+        """The truncation of a TransactionTestCase, asked on purpose.
+
+        The handler must answer the record without a profile rather than
+        name the seeded row which this database no longer has.
+        """
+        MetadataProfile.objects.all().delete()
+        contact = MetadataContact.objects.create(name="Import contact")
+        parsed = DatasetMetadataRecord(
+            title="Parsed record", dataset_contact=contact,
+            metadata_contact=contact)
+        self.assertIsNone(self.inject(parsed).profile_id)
 
 
 class IsoPathSchemaTests(SimpleTestCase):

@@ -800,11 +800,13 @@ class MetadataTermsOfUse(models.Model):
 
 #: the primary key of the generic ISO 19139 profile, seeded by the data
 #: migration of #1240. A fixed uuid and not a generated one because the
-#: model default of a record's `profile` names this very row: every record
-#: created without an explicit profile - by harvesting, by service
-#: registration - is an ISO 19139 record of the generic mapping, and the
-#: default must point at the seeded row on a fresh database as well as on a
-#: migrated one.
+#: creation paths of a record - the mapper persistence of an import and the
+#: api POST - look this row up by name to answer a record created without an
+#: explicit profile: every record mapped by the configs is an ISO 19139 record
+#: of the generic mapping. A lookup and not a column default because the row
+#: is data which a test database truncates between tests (TransactionTestCase),
+#: and a default pointing at a truncated row is an IntegrityError on every
+#: record insert.
 GENERIC_ISO19139_PROFILE_PK = UUID("0180721f-bf34-4281-b367-648a74dd8ff9")
 
 
@@ -849,6 +851,19 @@ class MetadataProfile(models.Model):
 
     def __str__(self):
         return self.label or self.name
+
+    @classmethod
+    def generic(cls):
+        """The seeded generic profile, or None when this database has none.
+
+        The creation paths of a record ask for the profile of the v1 mapping
+        here and not through a column default: a default names the row on
+        every insert, while this answers only when the row is actually there.
+        A `TransactionTestCase` truncates every table between tests, so on
+        such a database the record arrives without a profile instead of
+        violating the foreign key of a row no longer present (#1240).
+        """
+        return cls.objects.filter(pk=GENERIC_ISO19139_PROFILE_PK).first()
 
 
 class AbstractMetadata(MetadataDocumentModelMixin):
@@ -1354,12 +1369,13 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     # but answer no document of their own.
     profile = models.ForeignKey(to=MetadataProfile,
                                 on_delete=models.RESTRICT,
-                                default=GENERIC_ISO19139_PROFILE_PK,
+                                blank=True,
+                                null=True,
                                 related_name="+",
                                 verbose_name=_("metadata profile"),
                                 help_text=_("the authoring profile whose sections and rules describe this record (#1240); "
-                                            "every record mapped by the configs of registry/mappers/configs is an "
-                                            "iso19139-generic one, which is why the default names that seeded row"))
+                                            "records created by an import or through the api answer the seeded "
+                                            "iso19139-generic profile, see MetadataProfile.generic()"))
 
     # TODO: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,

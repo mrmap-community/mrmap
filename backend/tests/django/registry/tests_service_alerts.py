@@ -11,14 +11,19 @@ its tests refresh the rows after creating the state - the same refresh which
 the beat schedule and the invalidations run in a deployment.
 """
 import json
+import math
+import os
 from datetime import datetime, timedelta
+from time import perf_counter
+from unittest import skipUnless
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connections
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test import (RequestFactory, SimpleTestCase, TestCase,
+                         TransactionTestCase)
 from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -31,7 +36,8 @@ from registry.models.monitoring import (GetCapabilitiesProbeResult,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import CatalogueService, WebMapService
-from registry.models.update import WebMapServiceUpdateJob
+from registry.models.update import (CatalogueServiceUpdateJob,
+                                    WebMapServiceUpdateJob)
 from registry.querys.alerts import (ALERT_ATTRIBUTES, alerts_requested,
                                     refresh_service_alerts)
 from rest_framework.request import Request
@@ -1236,6 +1242,369 @@ class ServiceAlertRefreshTest(ServiceAlertsMixin, TestCase):
             list(ServiceAlert.objects.values_list('category', flat=True)), rows,
             'a refresh answers the rows the state of the test answers, not the '
             'rows of the minute the test happens to run in')
+
+
+class ServiceDetailAlertScanTest(ServiceAlertsMixin, TestCase):
+    """A detail request must evaluate the alerts of its service alone (#1308).
+
+    The annotations which answer the alerts cost a subquery per attribute of
+    every service the statement reads. On the live rig a single detail request
+    executed them over the whole service table - 14,189 services, 18.7 s per
+    page, a gateway timeout under load - because the serializer context of the
+    viewset evaluated the unfiltered queryset of the viewset to find the
+    objects it had to prefetch permissions for. The tests below seed several
+    services with runs and jobs of their own and inspect the captured SQL of a
+    retrieve: the statement which reads the table of the kind must be narrowed
+    to the requested service, and no other statement may read that table at
+    its outermost select.
+    """
+
+    #: services beyond the fixture, each with its own runs and jobs, so that a
+    #: full-table scan costs statements/rows the narrowed read does not
+    SEED_COUNT = 6
+
+    def setUp(self):
+        super().setUp()
+        self.wms_population = [self.wms_one, self.wms_two]
+        for number in range(self.SEED_COUNT):
+            extra = WebMapService.objects.create(
+                title=f"Seeded WMS {number}",
+                service_url=f"https://www.example.de/wms/seeded/{number}",
+                version=self.wms_one.version, origin=self.wms_one.origin,
+                metadata_contact=self.wms_one.metadata_contact,
+                service_contact=self.wms_one.service_contact)
+            self.wms_population.append(extra)
+        for service in self.wms_population:
+            setting = self.monitoring_setting(service)
+            for passed in (True, False, True):
+                self.monitoring_run(setting, passed)
+            self.update_job(service, JobState.ERROR, done_at=now())
+            self.update_job(service, JobState.REVIEW_REQUIRED)
+        self.csw_population = [self.csw]
+        for number in range(2):
+            extra = CatalogueService.objects.create(
+                title=f"Seeded CSW {number}",
+                service_url=f"https://www.example.de/csw/seeded/{number}",
+                version=self.csw.version, origin=self.csw.origin,
+                metadata_contact=self.csw.metadata_contact,
+                service_contact=self.csw.service_contact)
+            self.csw_population.append(extra)
+        for catalogue in self.csw_population:
+            for hours_ago in (3, 1):
+                self.harvesting_job(service=catalogue, hours_ago=hours_ago)
+            CatalogueServiceUpdateJob.objects.create(
+                service=catalogue, status=JobState.ERROR.value)
+
+    @staticmethod
+    def outer_reads(queries, table):
+        """The captured statements which read ``table`` at their outer select.
+
+        The annotations of the alerts are parenthesized subqueries; only the
+        text outside the parentheses says whether the statement itself is
+        narrowed or reads the whole table.
+        """
+        reads = []
+        for query in queries:
+            depth, outside = 0, []
+            for char in query["sql"]:
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth = max(depth - 1, 0)
+                elif depth == 0:
+                    outside.append(char)
+            outside = "".join(outside)
+            if f'FROM "{table}"' in outside:
+                reads.append(outside)
+        return reads
+
+    def assertReadsOneService(self, queries, table, pk):
+        """Exactly the requested row of the service table may be read."""
+        reads = self.outer_reads(queries, table)
+        self.assertEqual(
+            len(reads), 1,
+            msg=f"the detail request read {table} {len(reads)} times at the "
+                f"outer select, the alerts of other services must not be "
+                f"evaluated for it: {reads}")
+        self.assertIn(
+            f'"{table}"."id" =', reads[0],
+            f"the statement reads {table} without narrowing to the pk: "
+            f"{reads[0][:400]}")
+        # psycopg renders a uuid parameter without its dashes:
+        # 'cd16cc1f3abb4625bb96fbe80dbe23e3'::uuid
+        self.assertTrue(
+            str(pk) in reads[0] or str(pk).replace("-", "") in reads[0],
+            f"the statement which reads {table} is narrowed by another id "
+            f"than the requested one: {reads[0][:400]}")
+        # the narrowed statement still answers the alerts of the service
+        self.assertIn('AS "has_alert"', reads[0])
+
+    def detail(self, route, pk, user_client=False, **query):
+        client = self.user_client if user_client else self.client
+        with CaptureQueriesContext(connections["default"]) as queries:
+            response = client.get(
+                reverse(route, kwargs={"pk": pk}), query,
+                HTTP_ACCEPT=JSONAPI)
+        return response, queries
+
+    def test_the_detail_of_a_map_service_reads_only_that_service(self):
+        run = self.monitoring_run(
+            self.monitoring_setting(self.wms_one), False, hours_ago=0)
+        response, queries = self.detail("registry:wms-detail", WMS_ONE)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertReadsOneService(
+            queries.captured_queries, "registry_webmapservice", WMS_ONE)
+        attributes = response.json()["data"]["attributes"]
+        self.assertTrue(attributes["hasAlert"])
+        self.assertTrue(attributes["monitoringFailed"])
+        self.assertEqual(
+            response.json()["data"]["relationships"]["monitoringFailedRun"]
+            ["data"]["id"], str(run.pk))
+
+    def test_the_detail_of_a_catalogue_reads_only_that_catalogue(self):
+        job = self.harvesting_job(service=self.csw, phase=Phase.ABORTED)
+        response, queries = self.detail("registry:csw-detail", CSW_ONE)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertReadsOneService(
+            queries.captured_queries, "registry_catalogueservice", CSW_ONE)
+        data = response.json()["data"]
+        self.assertTrue(data["attributes"]["hasAlert"])
+        self.assertTrue(data["attributes"]["harvestAborted"])
+        self.assertEqual(
+            data["relationships"]["harvestJob"]["data"]["id"], str(job.pk))
+
+    def test_a_detail_with_an_include_reads_only_that_service(self):
+        """The very request shape of the slow dump: include=operationUrls"""
+        response, queries = self.detail(
+            "registry:wms-detail", WMS_ONE, include="operationUrls")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertReadsOneService(
+            queries.captured_queries, "registry_webmapservice", WMS_ONE)
+        self.assertTrue(response.json()["data"]["attributes"]["hasAlert"])
+
+    def test_a_missing_service_answers_404_without_reading_the_table(self):
+        response, queries = self.detail(
+            "registry:wms-detail", "11111111-2222-3333-4444-555555555555")
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            [read for read in self.outer_reads(
+                queries.captured_queries, "registry_webmapservice")
+             if '"registry_webmapservice"."id" =' not in read])
+
+    def test_the_detail_needs_the_same_queries_when_more_services_exist(self):
+        """The cost of a detail may not grow with the size of the table.
+
+        The absolute time belongs to the hardware - the shape of the read and
+        its number of statements do not: a retrieve of one service asks the
+        same statements however many other services the deployment holds.
+        """
+        _response, before = self.detail("registry:wms-detail", WMS_ONE)
+        for number in range(4):
+            extra = WebMapService.objects.create(
+                title=f"Grown WMS {number}",
+                service_url=f"https://www.example.de/wms/grown/{number}",
+                version=self.wms_one.version, origin=self.wms_one.origin,
+                metadata_contact=self.wms_one.metadata_contact,
+                service_contact=self.wms_one.service_contact)
+            setting = self.monitoring_setting(extra)
+            for hours_ago in (5, 4, 3, 2, 1):
+                self.monitoring_run(setting, False, hours_ago=hours_ago)
+        response, after = self.detail("registry:wms-detail", WMS_ONE)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertReadsOneService(
+            after.captured_queries, "registry_webmapservice", WMS_ONE)
+        self.assertEqual(
+            len(after.captured_queries), len(before.captured_queries),
+            msg=f"the detail of one service asked "
+                f"{len(before.captured_queries)} statements before and "
+                f"{len(after.captured_queries)} after the table grew: "
+                f"{[q['sql'][:80] for q in after.captured_queries]}")
+
+    def test_a_user_gets_the_alerts_of_a_service_it_may_read(self):
+        """Authorization and the answered permissions survive the narrowing."""
+        self.monitoring_run(
+            self.monitoring_setting(self.wms_one), False, hours_ago=0)
+        response, queries = self.detail(
+            "registry:wms-detail", WMS_ONE, user_client=True)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertReadsOneService(
+            queries.captured_queries, "registry_webmapservice", WMS_ONE)
+        data = response.json()["data"]
+        self.assertTrue(data["attributes"]["hasAlert"])
+        self.assertIn("isAccessible", data["attributes"])
+
+
+class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
+    """The measured benchmark of the detail request of a service (#1308).
+
+    NOT A CI TEST - it is skipped unless the environment names it, because it
+    measures seconds and not shapes; the shape which the measurement relies on
+    is guarded by `ServiceDetailAlertScanTest` in every run. The AC of #1308
+    ask for a fixed, documented fixture and a warm median instead of a
+    wall-clock threshold on a tiny database.
+
+    The fixture: 14,189 map services (the count of the measured live rig) on
+    the PostGIS of the development stack, one monitoring setting (as two
+    tables, like every real setting) and 19 monitoring runs with their probe
+    results per service (about 270,000 seeded rows), seeded with set-based SQL
+    over the row shapes the ORM creates, then ANALYZE. The measurement: an
+    admin retrieve of one fixed service, then 25 further retrieves; the
+    reported numbers are the median and the p95 of those 25 and the number of
+    SQL statements of one warm retrieve. The database is idle besides the
+    requests of the measurement.
+
+    The live rig measured 18.7 s on an idle rig of the same service count;
+    that hardware is not this rig, so baseline and fix must be read on one
+    machine - run the same command at the head of the fix and at the commit
+    before it (``MRMAP_ALERT_DETAIL_BENCHMARK_RUNS`` lowers the repetition
+    count while the slow head is measured):
+
+        MRMAP_ALERT_DETAIL_BENCHMARK=1 docker compose ... run --rm \
+            django-tests python manage.py test \
+            tests.django.registry.tests_service_alerts.ServiceDetailAlertBenchmark \
+            --noinput --keepdb
+    """
+
+    SERVICES = 14189
+    RUNS_PER_SERVICE = 19
+    ITERATIONS = int(os.environ.get("MRMAP_ALERT_DETAIL_BENCHMARK_RUNS", "25"))
+
+    @skipUnless(
+        os.environ.get("MRMAP_ALERT_DETAIL_BENCHMARK") == "1",
+        "opt-in benchmark of #1308; the shape guard runs in every CI run")
+    def test_warm_median_and_statement_count_of_one_detail(self):
+        from statistics import median
+
+        # the row shapes the seed copies: one setting and one run as the ORM
+        # creates them, including the probe result of the run. The callback
+        # which dispatches the run to a worker is captured and dropped: this
+        # measures reads, it never monitors anything.
+        with self.captureOnCommitCallbacks():
+            setting = self.monitoring_setting(self.wms_one)
+            template_run = self.monitoring_run(setting, True, hours_ago=1)
+        with connections["default"].cursor() as cursor:
+            # services: every column of the fixture service, its own id,
+            # title and url - the seed is data, not an import, so history
+            # and triggers of the ORM path are no part of it
+            cursor.execute("""
+                INSERT INTO registry_webmapservice
+                SELECT (SELECT
+                            jsonb_populate_record(
+                                NULL::registry_webmapservice,
+                                (to_jsonb(s) - 'id' - 'title' - 'service_url'
+                                 || jsonb_build_object(
+                                        'id', gen_random_uuid(),
+                                        'title', 'Bench WMS ' || g,
+                                        'service_url',
+                                        'https://bench.example.de/' || g))).*
+                FROM registry_webmapservice s, generate_series(1, %s) g
+                WHERE s.id = %s)
+            """, [self.SERVICES - 2, self.wms_one.pk])
+            # the settings inherit django_celery_beat's PeriodicTask over a
+            # parent table - so a seeded setting is two rows: the task (whose
+            # `name` is unique and carries the service id, which is how the
+            # child rows find their parent) and the child row itself. The id
+            # of both stays the tables' own default.
+            cursor.execute("""
+                WITH new_tasks AS (
+                    INSERT INTO django_celery_beat_periodictask
+                    SELECT (SELECT
+                                jsonb_populate_record(
+                                    NULL::django_celery_beat_periodictask,
+                                    (to_jsonb(t) - 'id' - 'name'
+                                     || jsonb_build_object(
+                                            'name', 'bench-' || v.id))).*
+                    FROM django_celery_beat_periodictask t,
+                         registry_webmapservice v
+                    WHERE t.id = (SELECT periodictask_ptr_id
+                                  FROM registry_webmapservicemonitoringsetting
+                                  WHERE service_id = %s)
+                      AND NOT EXISTS (
+                          SELECT 1 FROM registry_webmapservicemonitoringsetting s
+                          WHERE s.service_id = v.id)
+                    RETURNING id,
+                              substring(name from '^bench-(.*)$')::uuid
+                                  AS service_id
+                )
+                INSERT INTO registry_webmapservicemonitoringsetting
+                    (periodictask_ptr_id, service_id)
+                SELECT id, service_id FROM new_tasks
+            """, [self.wms_one.pk])
+            # runs: the row shape of the template run, 19 per seeded setting,
+            # spread over the 30 days of the live rig's run history; the id of
+            # a run is the sequence of its table, its setting the seeded task
+            cursor.execute("""
+                INSERT INTO registry_webmapservicemonitoringrun
+                    (date_created, date_done, background_process_id, setting_id)
+                SELECT now() - interval '30 days' + r.n * interval '1 hour',
+                       now() - interval '30 days' + r.n * interval '1 hour',
+                       t.background_process_id,
+                       c.periodictask_ptr_id
+                FROM registry_webmapservicemonitoringsetting c
+                JOIN django_celery_beat_periodictask p
+                  ON p.id = c.periodictask_ptr_id
+                CROSS JOIN generate_series(1, %s) r(n)
+                CROSS JOIN registry_webmapservicemonitoringrun t
+                WHERE t.id = %s
+                  AND p.name LIKE 'bench-%%'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM registry_webmapservicemonitoringrun x
+                      WHERE x.setting_id = c.periodictask_ptr_id)
+            """, [self.RUNS_PER_SERVICE, template_run.pk])
+            # the probe result of every seeded run - the subqueries of the
+            # monitoring alert look these up per service
+            cursor.execute("""
+                INSERT INTO registry_getcapabilitiesproberesult
+                SELECT (SELECT
+                            jsonb_populate_record(
+                                NULL::registry_getcapabilitiesproberesult,
+                                (to_jsonb(t) - 'id' - 'run_id'
+                                 || jsonb_build_object('run_id', r.id))).*
+                FROM registry_getcapabilitiesproberesult t,
+                     registry_webmapservicemonitoringrun r
+                WHERE t.run_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM registry_getcapabilitiesproberesult x
+                      WHERE x.run_id = r.id)
+            """, [template_run.pk])
+            for table in ("registry_webmapservice",
+                          "django_celery_beat_periodictask",
+                          "registry_webmapservicemonitoringrun",
+                          "registry_getcapabilitiesproberesult"):
+                cursor.execute("ANALYZE " + table)
+            cursor.execute(
+                "SELECT (SELECT count(*) FROM registry_webmapservice), "
+                "(SELECT count(*) FROM registry_webmapservicemonitoringrun)")
+            services, runs = cursor.fetchone()
+
+        url = reverse("registry:wms-detail", kwargs={"pk": WMS_ONE})
+        for _ in range(3):  # warm-up: plan cache and relation caches
+            self.assertEqual(self.client.get(
+                url, HTTP_ACCEPT=JSONAPI).status_code, 200)
+
+        durations = []
+        for _ in range(self.ITERATIONS):
+            started = perf_counter()
+            self.assertEqual(self.client.get(
+                url, HTTP_ACCEPT=JSONAPI).status_code, 200)
+            durations.append(perf_counter() - started)
+        durations.sort()
+        with CaptureQueriesContext(connections["default"]) as queries:
+            self.assertEqual(self.client.get(
+                url, HTTP_ACCEPT=JSONAPI).status_code, 200)
+        outer = ServiceDetailAlertScanTest.outer_reads(
+            queries.captured_queries, "registry_webmapservice")
+        narrowed = all(
+            '"registry_webmapservice"."id" =' in read for read in outer)
+        # the nearest-rank p95 of the sorted durations
+        p95 = durations[max(0, math.ceil(0.95 * len(durations)) - 1)]
+        print(
+            "ALERT-DETAIL-BENCHMARK "
+            f"services={services} runs={runs} iterations={self.ITERATIONS} "
+            f"median_s={median(durations):.3f} p95_s={p95:.3f} "
+            f"statements={len(queries.captured_queries)} "
+            f"service_table_reads={len(outer)} reads_narrowed={narrowed}",
+            flush=True)
 
 
 class ServiceAlertRefreshScheduleTest(TestCase):

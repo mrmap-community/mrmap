@@ -84,12 +84,20 @@ vi.mock("react-admin", async () => {
     RecordContext,
     useRecordContext: () => React.useContext(RecordContext),
     useListContext: () => state.history,
-    useTranslate:
-      () =>
-      (key: string, options?: Record<string, unknown>) =>
-        options !== undefined && options._ !== undefined
+    useTranslate: () => {
+      // the stub knows one word of the phases table (#1267) to prove the
+      // drawer looks the reported key up; every other key keeps answering
+      // the `_` fallback or itself, as before
+      const words: Record<string, string> = {
+        "backgroundActivity.phases.collect_metadata_records":
+          "Collect metadata records",
+      };
+      return (key: string, options?: Record<string, unknown>) =>
+        words[key] ??
+        (options !== undefined && options._ !== undefined
           ? String(options._)
-          : key,
+          : key);
+    },
     useCreatePath:
       () =>
       ({ type, id }: { type: string; id?: number | string }) =>
@@ -190,6 +198,31 @@ describe("JobCenterDrawer", () => {
     expect(rows.getAllByText("indexer").length).toBeGreaterThanOrEqual(2);
   });
 
+  it("translates a reported phase key and answers a raw report as written", () => {
+    // the registration reports its phases as keys (#1267); what is no key -
+    // the error text a task reported into the phase - stays readable
+    state.store = storeOf([
+      job({
+        id: 4,
+        description: "Register weather service",
+        phase: "collect_metadata_records",
+      }),
+      job({
+        id: 5,
+        description: "Broken registration",
+        phase: "the capabilities document is broken",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    expect(
+      rows.getByText("harvest · Collect metadata records"),
+    ).toBeInTheDocument();
+    expect(
+      rows.getByText("harvest · the capabilities document is broken"),
+    ).toBeInTheDocument();
+  });
+
   it("shows the indeterminate bar when the total is unknown", () => {
     state.store = storeOf([
       job({ id: 1, totalSteps: null, doneSteps: null, progress: null }),
@@ -236,6 +269,66 @@ describe("JobCenterDrawer", () => {
     expect(
       rows.getByRole("link", { name: "backgroundActivity.viewDetails" }),
     ).toHaveAttribute("href", "/BackgroundProcess/2/show");
+  });
+
+  it("names the lost references of a registration and points at their retry", () => {
+    state.store = storeOf([
+      job({
+        id: 7,
+        status: "completed",
+        state: "completed",
+        processType: "registering",
+        description: "Register weather service",
+        doneAt: "2026-11-10T12:00:00Z",
+        referencesTotal: 4,
+        referencesStored: 1,
+        referencesFailed: 1,
+        referencesSkipped: 2,
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    fireEvent.click(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.expandJob",
+      }),
+    );
+    expect(
+      rows.getByText("backgroundActivity.jobCenter.referencesCounter"),
+    ).toBeInTheDocument();
+    // the retry lives per reference on the show screen (#1265)
+    expect(
+      rows.getByRole("link", {
+        name: "backgroundActivity.jobCenter.openReferences",
+      }),
+    ).toHaveAttribute("href", "/BackgroundProcess/7/show");
+  });
+
+  it("says nothing about references to a process which planned none", () => {
+    state.store = storeOf([
+      job({
+        id: 8,
+        status: "completed",
+        state: "completed",
+        description: "Index counties",
+        doneAt: "2026-11-10T12:00:00Z",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    fireEvent.click(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.expandJob",
+      }),
+    );
+    expect(
+      rows.queryByText("backgroundActivity.jobCenter.referencesCounter"),
+    ).toBeNull();
+    expect(
+      rows.queryByRole("link", {
+        name: "backgroundActivity.jobCenter.openReferences",
+      }),
+    ).toBeNull();
   });
 
   it("folds the details of a row behind its chevron", () => {

@@ -72,6 +72,11 @@ def prepare_automatic_update(context, service, changes):
     enqueue = patch(f"registry.models.update.run_{service.lower()}_update.apply_async")
     enqueue.start()
     context.patchers.append(enqueue)
+    # #1274: an update hands its metadata collection to a task of its own;
+    # the scenario answers the step in place, so no broker is involved
+    collect = patch("registry.tasks.update.collect_update_metadata.apply_async")
+    collect.start()
+    context.patchers.append(collect)
     job_model.objects.filter(service=context.automatic_service).delete()
     context.automatic_job = job_model.objects.create(service=context.automatic_service)
 
@@ -92,6 +97,9 @@ def use_automatic_update_endpoint(context):
 
 def assert_completed_update(context):
     context.automatic_job.refresh_from_db()
+    # #1274: the run closes with its metadata step; answer it the way the
+    # completion of a collection does, as the step task is not driven here
+    context.automatic_job.metadata_step_completed()
     assert context.automatic_job.status == UpdateJobStatusEnum.UPDATED.value
     assert context.automatic_job.done_at is not None
     assert not context.automatic_job.mappings.exists()

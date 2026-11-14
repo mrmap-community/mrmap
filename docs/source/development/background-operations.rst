@@ -187,6 +187,48 @@ nothing new is noise for every open overview. A terminal process is never
 written - and a flag which was set before the operation decided stays behind the
 terminal case of the state, where it can do no harm.
 
+Collection summary
+==================
+
+An operation which collects metadata references plans a number of references
+and owes one outcome per reference. Before #1259 a registration whose every
+reference failed still answered plain ``completed``: the failures existed, but
+only as log lines, so "how many did it find?" meant reading them all. The
+process keeps the answer as four stored counters, the way a harvest keeps the
+errors of its import as numbers (decision D1=B and D9=A of epic #1256):
+
+- ``references_total`` - the plan: how many references the collection was
+  published with. ``build_ogc_service`` writes it once, together with the
+  denominator of the steps, when it publishes the chord of fetch tasks. It is
+  ``null`` on a process which never planned a collection - harvests, updates
+  and monitoring runs keep their answer untouched - which is also how a
+  planned-but-empty run (``0``) stays apart from an unplanned one (``null``).
+- ``references_stored`` and ``references_failed`` - each reference which
+  reported an outcome moved exactly one of them: ``stored`` when it produced a
+  metadata record, ``failed`` when it did not, including the documents which
+  answer but carry no identifiable record. The move rides the ``step_done``
+  report of ``fetch_remote_metadata_xml``, never a second write: an attempt
+  which hands itself to a retry decides nothing and moves nothing (#1259). A
+  redelivered message may count twice; exact identity per reference is #1263,
+  which turns each one into a work row.
+- ``references_skipped`` - what the plan held but never heard an answer about:
+  the message the broker never delivered (#1257). It is closed last, as
+  ``references_total - references_stored - references_failed`` (never below
+  zero), by ``finish_background_process`` in the very ``UPDATE`` which stores
+  ``completed`` and only where a plan exists - so a reader never sees a
+  completed collecting run whose counters do not add up.
+
+**Findings do not change the verdict.** A run which lost every reference it
+planned is ``completed`` with its ``references_failed`` standing (D9): it is
+over, it waits for no one, and ``action_required`` means *stands while a human
+is awaited*, which a finished run is not. The reason of a failed reference
+stays in its warning log - the counters are the summary, not the evidence. The
+names follow ``collecting-vocabulary.rst``: a *reference* is the planned link,
+a *record* what a successful fetch stores. The api answers all four read-only
+on the process resource - ``referencesTotal``, ``referencesStored``,
+``referencesFailed`` and ``referencesSkipped`` - and empty where the operation
+collected no references at all.
+
 Grouping, filtering and sorting
 ===============================
 
@@ -230,6 +272,12 @@ and the reporters:
   ``tests/django/registry/tasks/tests_harvest_import_watchdog.py`` — the
   reporters: an update which waits for a review and a harvest whose import
   stalled answer the same state their own verdict decided.
+- ``tests/django/notify/test_registration_polling.py``,
+  ``test_backgroundprocess_api.py`` and the ``tests_metadata_collection.py``
+  and ``tests_fetch_remote_metadata.py`` modules — the collection summary: the
+  plan of a publishing registration, the counters of every per-reference
+  outcome, the closing of the skipped remainder and the api's answer, ``null``
+  for a run which never planned a collection included.
 
 The acceptance scenarios of the endpoint live in
 ``tests/behave/features/json:api/notify/backgroundprocess/``.

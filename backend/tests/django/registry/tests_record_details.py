@@ -102,6 +102,46 @@ class RecordDetailsTests(QueryMeasurementMixin, TestCase):
         self.assertTrue(body["included"][0]["attributes"]["title"])
         self.assertLessEqual(len(queries), 10)
 
+    def test_the_groups_of_the_relations_screen_are_its_filled_columns(self):
+        """The relations tab reads its groups from which column a row fills (#1268).
+
+        The tab asks one bounded query per column of MetadataRelation which a row
+        can fill, beside the column which holds the record, so a service record is
+        asked for the elements it describes as well and not for its services alone.
+        The graph of the same tab draws itself from one request which includes every
+        column, and a column no row fills must not disturb that answer.
+        """
+        path = "/api/registry/metadata-relations"
+        described = MetadataRelation.objects.create(
+            service_metadata=self.service, layer=Layer.objects.first(), origin=1)
+        for column, expected in (("layer", [described]), ("wms", [self.link]),
+                                 ("feature_type", []), ("wfs", []), ("csw", [])):
+            with self.subTest(column=column):
+                status, body, _ = self.request(path, user="user", **{
+                    "filter[service_metadata]": str(self.service.pk),
+                    f"filter[{column}__isnull]": "false"})
+                self.assertEqual(status, 200, body)
+                # the count of the group is the answer of its own query: the tab
+                # shows it beside the name of the group and pages its rows with it
+                self.assertEqual(
+                    len(body["data"]), body["meta"]["pagination"]["count"], body)
+                self.assertEqual(
+                    self.ids_of(body), [str(row.pk) for row in expected])
+        status, body, queries = self.request(path, user="user", **{
+            "filter[service_metadata]": str(self.service.pk),
+            "include": "layer,featureType,wms,wfs,csw",
+            **{f"fields[{resource}]": "title,string_representation" for resource in (
+                "Layer", "FeatureType", "WebMapService", "WebFeatureService",
+                "CatalogueService")}})
+        self.assertEqual(status, 200, body)
+        # both couplings of the record are answered, the layer as well as the
+        # service, each with the name the graph and the tables of the tab show
+        self.assertEqual(
+            {row["type"] for row in body["included"]}, {"Layer", "WebMapService"})
+        self.assertTrue(
+            all(row["attributes"].get("title") for row in body["included"]), body)
+        self.assertLessEqual(len(queries), 10)
+
     def test_dataset_graph_include_uses_inherited_layer_titles(self):
         status, body, queries = self.request("/api/registry/metadata-relations", **{
             "filter[dataset_metadata]": str(self.dataset.pk), "include": "layer,featureType,csw",

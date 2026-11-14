@@ -25,10 +25,29 @@ from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 class ObjectPermissionCheckerViewSetMixin:
     """add a ObjectPermissionChecker based on the accessing user to the serializer context."""
 
+    #: the object which a detail action answers, remembered by `get_object`
+    #: below so that the permissions are prefetched for exactly this object
+    object = None
+
     # the objects the answer was already selected with, remembered by
     # `paginate_queryset` so that the permissions are prefetched for exactly
     # the objects the answer shows, without asking the database again
     page_for_permissions = None
+
+    def get_object(self):
+        """Read the object of a detail action and remember it on the view.
+
+        DRF hands the object which `get_object` reads to the serializer but
+        does not keep it on the view. Without this memory the serializer
+        context cannot tell which object a detail action answers and falls
+        back to asking the whole queryset of the viewset which objects it
+        should prefetch permissions for - which evaluates the queryset of the
+        viewset as a whole on every detail request, annotations and all, and
+        turned into 18.7 s per detail request as soon as the alerts of the
+        services were annotated to it (#1308).
+        """
+        self.object = super().get_object()
+        return self.object
 
     def paginate_queryset(self, queryset, *args, **kwargs):
         """Remember the objects of the page the answer shows.

@@ -111,7 +111,10 @@ class UpdateJobBackgroundProcessTests(TestCase):
     An update job is queued while it still waits for a worker, so its process is
     what makes the job distinguishable in the overview of the background
     activity. A job which waits for a review is not finished, therefore its
-    process keeps running until the mapping is confirmed.
+    process keeps running until the mapping is confirmed. Since #1274 a job
+    which decided its outcome is not finished either while the collection of
+    the metadata its service advertises stands open: its process keeps running
+    until that step answers, so tests meaning a finished run answer it.
     """
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
@@ -175,8 +178,11 @@ class UpdateJobBackgroundProcessTests(TestCase):
         stays behind the terminal state: the operation decided, whatever the
         flag in its row still says"""
         self.decide(UpdateJobStatusEnum.REVIEW_REQUIRED)
+        self.decide(UpdateJobStatusEnum.UPDATED)
+        # the run is only over once the metadata step of it answered (#1274)
+        self.job.metadata_step_completed()
 
-        process = self.decide(UpdateJobStatusEnum.UPDATED)
+        process = self.process()
 
         self.assertEqual(
             OperationStateEnum.COMPLETED.value, process.state)
@@ -195,12 +201,18 @@ class UpdateJobBackgroundProcessTests(TestCase):
             str(UpdateJobStatusEnum.ERROR.label), process.phase)
 
     def test_a_finished_job_reports_a_completed_process(self):
+        self.decide(UpdateJobStatusEnum.NO_UPDATE_NEEDED)
+        # a decided status keeps the process running while the collection of
+        # the metadata the service advertises is still open (#1274): the
+        # answer of that step closes the run
+        self.job.metadata_step_completed()
+
         self.assertEqual(
-            ProcessStatusEnum.COMPLETED,
-            self.decide(UpdateJobStatusEnum.NO_UPDATE_NEEDED).status)
+            ProcessStatusEnum.COMPLETED, self.process().status)
 
     def test_the_process_of_a_finished_job_is_not_moved_anymore(self):
         self.decide(UpdateJobStatusEnum.UPDATED)
+        self.job.metadata_step_completed()
 
         process = self.decide(UpdateJobStatusEnum.ERROR)
 

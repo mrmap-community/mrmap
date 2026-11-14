@@ -84,11 +84,19 @@ feature_types_routes.register(r'referencesystems', metadata_views.NestedReferenc
                               basename='featuretype-referencesystems', parents_query_lookups=['featuretype'])
 feature_types_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
                               basename='featuretype-keywords', parents_query_lookups=['featuretype_metadata'])
+feature_types_routes.register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet,
+                              basename='featuretype-datasetmetadata', parents_query_lookups=['self_pointing_feature_types'])
 
 csw_routes = router.register(
     r'csw', service_views.CatalogueServiceViewSet, basename='csw')
 csw_routes.register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet,
                     basename='csw-datasetmetadata', parents_query_lookups=['harvested_through'])
+# the records tab of the catalogue lists the application records harvested through it
+# beside the dataset ones; every harvested record carries the catalogue in
+# `harvested_through` (update_relations in registry/models/harvest.py), the same
+# lookup the dataset route above answers with (#1279)
+csw_routes.register(r'application-metadata', metadata_views.NestedApplicationMetadataViewSet,
+                    basename='csw-applicationmetadata', parents_query_lookups=['harvested_through'])
 csw_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
                     basename='csw-keywords', parents_query_lookups=['catalogueservice_metadata'])
 csw_routes.register(r'service-contact', metadata_views.NestedServiceContactViewSet,
@@ -273,6 +281,10 @@ router.register(r'mime-types', metadata_views.MimeTypeViewSet,
                 basename='mime-type')
 router.register(r'licences', metadata_views.LicenceViewSet,
                 basename='licence')
+# the authoring profiles of the records (#1240); the editor follows the
+# profile link of a record here and fetches sections and rules with it
+router.register(r'metadata-profiles',
+                metadata_views.MetadataProfileViewSet, basename='metadataprofile')
 router.register(r'referencesystems',
                 metadata_views.ReferenceSystemViewSet, basename='referencesystem')
 router.register(r'styles', metadata_views.StyleViewSet, basename='style')

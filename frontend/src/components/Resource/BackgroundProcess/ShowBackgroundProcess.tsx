@@ -1,10 +1,11 @@
-import { DateField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField } from 'react-admin';
+import { DateField, FunctionField, NumberField, RaRecord, ShowView, SimpleShowLayout, TextField, useTranslate } from 'react-admin';
 
 import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
 import DurationField from '../../Field/DurationField';
 import ProgressField from '../../Field/ProgressField';
 import RelatedResourceField from '../../Field/RelatedResourceField';
 import BackgroundProcessLogs from './BackgroundProcessLogs';
+import ProcessMetadataReferences from './ProcessMetadataReferences';
 import ProcessStatusField from './ProcessStatusField';
 
 /** how often the show screen looks whether the record it shows went stale,
@@ -30,6 +31,7 @@ export const isStale = (timestamp: number, record: RaRecord) => {
 }
 
 const ShowBackgroundProcess = () => { 
+    const translate = useTranslate();
     return (
       <RealtimeShowContextProvider
         isStaleCheckInterval={IS_STALE_CHECK_INTERVAL_SECONDS}
@@ -40,7 +42,19 @@ const ShowBackgroundProcess = () => {
           <ProcessStatusField source="status" />
           <RelatedResourceField source="relatedResource" />
           <TextField source="description" />
-          <TextField source="phase" />
+          {/* the phase is a key reported by the api, looked up in the
+              background activity translations; a process which reported its
+              error text instead answers that text raw (#1267) */}
+          <FunctionField
+            source="phase"
+            render={(record: RaRecord) =>
+              typeof record?.phase === "string" && record.phase !== ""
+                ? translate(`backgroundActivity.phases.${record.phase}`, {
+                    _: record.phase,
+                  })
+                : undefined
+            }
+          />
           <DateField source="dateCreated" showTime/>
           <DateField source="doneAt" showTime/>
           <DurationField source="duration" />
@@ -52,6 +66,11 @@ const ShowBackgroundProcess = () => {
             them: they are read from the api of the process, not from a bus
             message which is gone on reload (#1208) */}
         <BackgroundProcessLogs />
+        {/* the references a registration could not settle stay inspectable
+            after the run - with a per-reference retry for the failed ones
+            (#1265); the panel answers nothing for a process without a
+            reference plan */}
+        <ProcessMetadataReferences />
         </ShowView>
       </RealtimeShowContextProvider>
     )

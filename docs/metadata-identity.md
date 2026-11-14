@@ -192,11 +192,22 @@ until registered; (d) *registered resource* identity: the `Layer`/`FeatureType` 
 with a name (`ServiceElement.identifier`) unique per owning service; (e) *representation*:
 the WMS layer and the WFS feature type of the same dataset are distinct resources whose only
 shared identity is evidence pointing at the same dataset (D1 identity, resolved per D4; #986
-groups them; nothing equates them). A dataset **without a registered service pointing at it
-is not usable as an operational map resource**; it remains available for metadata discovery,
-editing and publication through the CSW endpoint, and becomes operational only once a
-registered service representation is linked to it. A conflation of dataset identity with a
-layer or feature type, or with a metadata document, is rejected.
+groups them; nothing equates them). **Metadata alone is not evidence of an
+operationally accessible map representation.** A dataset without a verified registered
+representation is not a **managed operational MrMap registry resource**; its metadata
+remains discoverable, editable and publishable through CSW. **OWS Context is not
+registry-only:** a user may include a standards-compliant external public offering
+without registering its service, and may include authorized private offerings
+subject to content-inherited permissions. The OWS Context conceptual model and
+GeoJSON encoding (OGC 12-080r2 / 14-055r2) permit diverse service and content
+offerings (not only WMS/WFS), including their operations, inline/by-reference
+content and extensions. Valid external offerings can be represented, imported,
+persisted and exported even if their operation has no implemented viewer renderer;
+only supported, safe and authorized operations can actually be executed/rendered.
+An external context offering does **not** become a registered service or a verified
+ISO dataset/MetadataRelation association by being included in a context.
+A conflation of dataset identity with a layer or feature type, or with a
+metadata document, is rejected. (Maintainer decision #1314, 2026-11-13.)
 
 **D4 — Reference resolution rules (when may which be compared?).** The #981 extraction
 carries every original value below; which of them may be *compared*, and against what, is
@@ -346,6 +357,7 @@ matching per the D4 table including the href fetch/parse obligation, both import
 collision visibility, backfill from stored XML; #671 tests the reverse-lookup index decision
 of D12; the enum convention of D9 is checked by review of #670/#983 models against the
 SmartIntegerChoices requirement. No conflation of dataset identity with a WMS layer or WFS
-feature type (epic acceptance criterion) is asserted by D3, and D3's usability rule (no
-operational map use without a registered service representation) is asserted at the
-API/viewer boundary by the children which expose map usability.
+feature type (epic acceptance criterion) is asserted by D3, and D3's usability rule (metadata alone is not an operational representation;
+registered resources are managed, while supported and secure external OWS Context
+items need no registration) is asserted at the API/viewer boundary and in
+MapContext import/export tests (#1280/#1284).

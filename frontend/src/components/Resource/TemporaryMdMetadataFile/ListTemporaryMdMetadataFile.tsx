@@ -18,12 +18,19 @@ export interface ListTemporaryMdMetadataFileProps {
 /**
  * The files a run downloaded but could not store, newest request first.
  *
- * The list is fixed to the files with an import error: their `importError`
- * says what the import refused, which is the question the run screen asks
- * (#1083). The columns are declared and the column chooser is off because
- * the remaining fields of the file - the response content behind
- * `mdMetadataFile` above all - are no columns, they are a read of the file
- * which this list must never start for every row (#888).
+ * The list of a harvesting run is fixed to the files with an import error:
+ * their `importError` says what the import refused, which is the question the
+ * run screen asks (#1083). The route of the resource itself is not fixed to
+ * it, because the references a registration keeps are decided by their work
+ * state and not by an import error - the row of a stored reference is deleted
+ * and a failed one carries its text without the flag (#1263). The collection
+ * card of a service links them by those lookups, so the route answers what the
+ * caller asks for instead of answering nothing at all (#1266).
+ *
+ * The columns are declared and the column chooser is off because the remaining
+ * fields of the file - the response content behind `mdMetadataFile` above all -
+ * are no columns, they are a read of the file which this list must never start
+ * for every row (#888).
  */
 const ListTemporaryMdMetadataFile = ({
   relatedResource,
@@ -33,7 +40,7 @@ const ListTemporaryMdMetadataFile = ({
   <ListGuesser
     resource="TemporaryMdMetadataFile"
     relatedResource={relatedResource}
-    filter={{ hasImportError: true }}
+    filter={relatedResource ? { hasImportError: true } : undefined}
     sort={{ field: "requestId", order: "DESC" }}
     storeKey={storeKey}
     refetchInterval={refetchInterval}

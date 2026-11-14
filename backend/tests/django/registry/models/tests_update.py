@@ -175,6 +175,9 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         run_wms_update(update_job_id=self.update_job.pk)
         self.update_job.refresh_from_db()
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        # #1274: the run waits for its metadata step; answering it is what
+        # closes the job (the step is pinned in tests_update_metadata_collection)
+        self.update_job.metadata_step_completed()
         self.assertIsNotNone(self.update_job.done_at)
 
     @patch.object(Session, "send", side_effect=[RENAMED_LAYER_UPDATE_REMOTE_RESPONSE])
@@ -211,6 +214,9 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         run_wms_update(update_job_id=self.update_job.pk)
         self.update_job.refresh_from_db()
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        # #1274: the metadata step of the run closes it (its machinery is
+        # pinned in tests_update_metadata_collection)
+        self.update_job.metadata_step_completed()
         self.assertIsNotNone(self.update_job.done_at)
         self.assertFalse(self.update_job.mappings.exists())
         self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists())
@@ -340,6 +346,9 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.UPDATED.value,
                          "An addition without removals should finish automatically")
+        # #1274: the metadata step of the run closes it (its machinery is
+        # pinned in tests_update_metadata_collection)
+        self.update_job.metadata_step_completed()
         self.assertIsNotNone(self.update_job.done_at)
         self.update_job.background_process.refresh_from_db()
         self.assertEqual(self.update_job.background_process.status, ProcessStatusEnum.COMPLETED.value)
@@ -749,6 +758,9 @@ class WfsUpdateJobTest(TestCase):
             UpdateJobStatusEnum.UPDATED.value,
             "An addition without removals should finish automatically",
         )
+        # #1274: the metadata step of the run closes it (its machinery is
+        # pinned in tests_update_metadata_collection)
+        self.update_job.metadata_step_completed()
         self.assertIsNotNone(self.update_job.done_at)
         self.update_job.background_process.refresh_from_db()
         self.assertEqual(self.update_job.background_process.status, ProcessStatusEnum.COMPLETED.value)
@@ -795,6 +807,9 @@ class WfsUpdateJobTest(TestCase):
         self.update_job.refresh_from_db()
 
         self.assertEqual(self.update_job.status, UpdateJobStatusEnum.UPDATED.value)
+        # #1274: the metadata step of the run closes it (its machinery is
+        # pinned in tests_update_metadata_collection)
+        self.update_job.metadata_step_completed()
         self.assertIsNotNone(self.update_job.done_at)
         self.assertFalse(self.update_job.mappings.exists())
         self.assertFalse(WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists())

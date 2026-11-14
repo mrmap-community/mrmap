@@ -55,7 +55,15 @@ const statusConfig: Record<HttpClientStatus, StatusConfig> = {
   },
 };
 
-const MIN_FRAME_DURATION = 2000;
+/*
+ * Every status transition stays visible for at least this long, so the
+ * splash reads as a boot sequence and not as a flicker. It used to be
+ * 2000 ms per frame, which put a floor of ~6 s below the whole sequence
+ * on top of the two seconds it waits on Ready: the app then could never
+ * appear faster than that, no matter how fast the schema arrived — the
+ * number the "7 seconds boot" complaint of #946 kept measuring.
+ */
+const MIN_FRAME_DURATION = 400;
 
 export interface LoadingOpenApiProps {
   canComplete: boolean;

@@ -29,6 +29,36 @@ HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS = 1.2
 HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS = 900
 
 
+# How long one request of a service registration may wait for its server: the
+# capabilities document and every remote metadata document which that document
+# references. The value is shared on purpose - both requests are asked of the
+# same host within one registration, so a host which cannot answer a plain GET
+# within this window is a host Mr. Map must not wait for. It has to be said
+# explicitly because nothing else bounds these requests: no
+# ``task_time_limit`` or ``soft_time_limit`` of the deployment stops a task
+# which sits in a request, and a server which accepts the connection and then
+# stays silent would hold a worker of the ``download`` queue for every
+# registration which references one of its documents (#1260).
+REGISTRATION_REQUEST_TIMEOUT_SECONDS = 15
+
+
+# The bounds of the registration reference work queue (#1263). A delivery of
+# one reference holds its work row under a lease: long enough that a healthy
+# fetch-and-import is never cut short (one request is itself bounded by
+# REGISTRATION_REQUEST_TIMEOUT_SECONDS, the import is a local persist), short
+# enough that a worker which dies with a claim is back in play within one
+# recovery pass of the hourly sweep. The recovery batch bounds what one pass
+# re-drives, so a long incident recovers progressively instead of flooding
+# the ``download`` queue. The grace is how long an unreferenced file below a
+# process prefix may survive: the window between writing a document to
+# storage and committing the row which names it is bounded by one import, and
+# the grace must comfortably exceed it - the sweep rather leaves a byte for
+# the next pass than deletes a document a live attempt is reading.
+REGISTRATION_REFERENCE_LEASE_SECONDS = 900
+REGISTRATION_RECOVERY_BATCH_SIZE = 500
+REGISTRATION_ORPHAN_FILE_GRACE_SECONDS = 120
+
+
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds

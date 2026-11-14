@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
@@ -27,6 +27,8 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
                                      MetadataRelationPublicationEnum,
                                      ReferenceSystemPrefixChoices,
                                      TimeExtentKind)
+from registry.exceptions.metadata import (MetadataFetchTimeout,
+                                          MetadataFetchUnreachable)
 from registry.exceptions.service import NoContent
 from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (ApplicationMetadataRecordManager,
@@ -39,9 +41,10 @@ from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
+from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, Timeout
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 
@@ -489,6 +492,90 @@ class Keyword(models.Model):
         return (self.keyword,)
 
 
+def fetch_metadata_document(link, reference="the reference"):
+    """Ask one advertised metadata link for its document (#1263).
+
+    The single download seam of the collection: both the harvesting-time
+    fetch of a ``RemoteMetadata`` row and the registration work rows of
+    #1263 ask the advertised url through here, so the timeout, the adapter
+    policy and the three ways a document can get lost are one answer, not
+    two which drift apart.
+
+    The adapter retries the *connection*, and only the connection: a
+    connection which is refused is cheap to attempt again and the three
+    attempts of the total budget cost a tenth of a second of backoff. A read
+    is not retried here at all - ``False`` is what requests itself passes
+    for that: the read is bounded by the timeout below, and repeating a
+    silent window inside one delivery would hold a worker of the
+    ``download`` queue through every attempt at once. The repetition of a
+    transient failure belongs to celery's bounded retry of the collecting
+    task, which waits without a worker and reports every attempt to the
+    process the registration polls (#1260, #1207).
+
+    Args:
+        link (str): the advertised url to ask
+        reference (str): how to name the asking reference in the error text
+
+    Returns:
+        str: the document text of a 200 answer with content
+
+    Raises:
+        MetadataFetchTimeout: the server accepted and stayed silent
+        MetadataFetchUnreachable: the server could not be reached at all
+        NoContent: an answer which is no document (status or empty body)
+    """
+    session = Session()
+    retries = Retry(
+        total=3,
+        read=False,
+        backoff_factor=0.1
+    )
+    session.mount(link, HTTPAdapter(max_retries=retries))
+    # FIXME: Re add authentication
+    request = Request(method="GET",
+                      url=link,
+                      # auth=auth,
+                      )
+
+    try:
+        response = session.send(
+            request.prepare(),
+            timeout=REGISTRATION_REQUEST_TIMEOUT_SECONDS,
+        )
+    except (Timeout, ConnectionError) as error:
+        # Which of the two ways a document gets lost before it is answered
+        # this one was, named for the person who has to fix the reference:
+        # the timeout is the server which accepted the connection and then
+        # stayed silent, the connection error the host which never took
+        # the connection at all. Both stay inside the transient families of
+        # requests which `BackgroundProcessBased.autoretry_for` retries;
+        # anything else the client could not even ask is left as it is,
+        # because another attempt would fail on the same mistake (#1260).
+        if isinstance(error, Timeout):
+            raise MetadataFetchTimeout(
+                f"The server behind {link} did not answer within "
+                f"{REGISTRATION_REQUEST_TIMEOUT_SECONDS} seconds.") from error
+        raise MetadataFetchUnreachable(
+            f"The server behind {link} could not be reached: "
+            f"{error}") from error
+
+    if response.status_code == 200 and len(response.text) > 0:
+        return response.text
+    elif response.status_code != 200:
+        # An answer is not a timeout: the server is reachable and said
+        # what it thinks of this link, so another attempt reads the same
+        # answer. The status is named because it is what distinguishes a
+        # reference which moved (404) from a host which is broken (500)
+        # for whoever has to fix it (#1260).
+        raise NoContent(
+            f"Can't fetch content from remote for {reference}: the server "
+            f"answered with status {response.status_code}.")
+    else:
+        raise NoContent(
+            f"Can't fetch content from remote for {reference}: the server "
+            f"answered but sent no content.")
+
+
 class RemoteMetadata(models.Model):
     """ Abstract model class to store linked iso metadata records while registration processing to fetch them after
         the service was registered. This helps us to parallelize the download processing with a celery group.
@@ -514,63 +601,126 @@ class RemoteMetadata(models.Model):
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
-
-        session = Session()
-        retries = Retry(
-            total=3,
-            backoff_factor=0.1
-        )
-        session.mount(self.link, HTTPAdapter(max_retries=retries))
-        # FIXME: Re add authentication
-        request = Request(method="GET",
-                          url=self.link,
-                          # auth=auth,
-                          )
-
-        response = session.send(request.prepare())
-
-        if response.status_code == 200 and len(response.text) > 0:
-            self.remote_content = response.text
-            if save:
-                self.save()
-            return self.remote_content
-        else:
-            raise NoContent(
-                f"Can't fetch content from remote for RemoteMetadata with id {self.pk}")
+        content = fetch_metadata_document(
+            self.link, reference=f"RemoteMetadata with id {self.pk}")
+        self.remote_content = content
+        if save:
+            self.save()
+        return self.remote_content
 
     def create_metadata_instance(self, **kwargs):
-        """ Return the created metadata record, based on the content_type of the described element. """
+        """ Return the created metadata record, based on the content_type of the described element.
 
-        mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
-        data = mappers[0].xml_to_django()
-        parsed_instance = data[0]
-        handler = PersistenceHandler(
-            mapper=mappers[0],
-            defaults={
-                "dataset": {
-                    "origin": MetadataOriginEnum.CAPABILITIES.value,
-                    "origin_url": self.link
-                }
+        Delegates to :func:`couple_document` - the one mapping and
+        persistence seam which the registration work rows of #1263 walk as
+        well, with the document read from the row's own storage instead of a
+        second copy in ``remote_content``.
+        """
+        return couple_document(
+            self.remote_content.encode(), self.link, self.describes)
+
+    def drop_superseded_relations(self, created_instance):
+        """Take back the relations which an earlier collection of this link
+        left on the described element, pointing at another record instance.
+
+        Delegates to :func:`drop_superseded_relations_for_link`, the same
+        bookkeeping the registration work rows of #1263 run for the url they
+        consumed.
+        """
+        drop_superseded_relations_for_link(
+            self.link, self.describes, created_instance)
+
+
+def couple_document(content, link, describes):
+    """Map one ISO document, persist its record and couple it to the element.
+
+    The single mapping-and-persistence seam of an advertised metadata
+    document: a ``RemoteMetadata`` row hands its fetched content in, and a
+    registration work row of #1263 hands the document it downloaded into
+    the very same call, so the record identity rules (#982), the
+    capabilities origin stamping and the supersede bookkeeping (#1261) are
+    answered once for both flows.
+
+    Must run inside the caller's transaction: the record, its relation and
+    whatever else the mapping persists belong to one decision about one
+    reference, and a failure of any of them rolls all of it back together.
+
+    Args:
+        content (bytes): the ISO document
+        link (str): the advertised url the document was fetched from; it
+            becomes the record's ``origin_url``
+        describes: the element the reference describes (may be None for a
+            coupling which names no element)
+
+    Returns:
+        the created or re-asserted metadata record, or None when the
+        document identifies no record - a decided failure which names no
+        record, never a fabricated one (#1261)
+    """
+    mappers = MDMetadataXmlMapper.from_xml(content)
+    data = mappers[0].xml_to_django()
+    parsed_instance = data[0]
+    handler = PersistenceHandler(
+        mapper=mappers[0],
+        defaults={
+            "dataset": {
+                "origin": MetadataOriginEnum.CAPABILITIES.value,
+                "origin_url": link
             }
-        )
-        created_instances = handler.persist_all()
-        # search by unique file_identifier to get the created record.
-        created_instance = next(
-            (
-                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
-                if parsed_instance.file_identifier in k
-            ),
-            None
-        )
+        }
+    )
+    created_instances = handler.persist_all()
+    # search by unique file_identifier to get the created record.
+    created_instance = next(
+        (
+            v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+            if parsed_instance.file_identifier in k
+        ),
+        None
+    )
 
-        if not created_instance:
-            logging.warning(
-                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
-            return
+    if not created_instance:
+        logging.warning(
+            f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+        return None
 
-        created_instance.add_metadata_relation(
-            related_object=self.describes)
-        return created_instance
+    drop_superseded_relations_for_link(link, describes, created_instance)
+    created_instance.add_metadata_relation(
+        related_object=describes)
+    return created_instance
+
+
+def drop_superseded_relations_for_link(link, describes, created_instance):
+    """Take back the relations which an earlier coupling of ``link`` left on
+    ``describes``, pointing at another record instance.
+
+    The collection identifies the record of a link by its file identifier,
+    so a re-registration normally re-asserts the very relation which is
+    already there - measured on #1261: re-collecting one reference
+    duplicates no record and no relation. When the record which a link
+    resolves to *has* changed - the catalogue republished its document
+    under a new file identifier - the element's old relation is stale: it
+    couples the element to a record which the element no longer describes,
+    and nothing removed it before (#1261). It is taken back here, through
+    :meth:`MetadataRecord.remove_metadata_relation`, while the relations of
+    the element to the records of *other* links and everything a curator
+    added stay untouched.
+
+    This is the "removes the stale ones" answer of #1261 and it is runtime
+    bookkeeping, not a migration: rows age into a decision only until the
+    next collection of their reference rewrites them, which fits the
+    no-migration posture of the epic's decision D5. #1263 reads it through
+    the work row's own url, so the registration keeps closing stale
+    couplings after its consumer moved from ``RemoteMetadata`` to the work
+    queue.
+    """
+    superseded = created_instance.__class__.objects.filter(
+        origin_url=link).exclude(pk=created_instance.pk)
+    for stale_record in superseded:
+        stale_record.remove_metadata_relation(
+            related_object=describes,
+            internal=False,
+            origin=MetadataOriginEnum.CAPABILITIES.value)
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
@@ -646,6 +796,74 @@ class MetadataTermsOfUse(models.Model):
 
     class Meta:
         abstract = True
+
+
+#: the primary key of the generic ISO 19139 profile, seeded by the data
+#: migration of #1240. A fixed uuid and not a generated one because the
+#: creation paths of a record - the mapper persistence of an import and the
+#: api POST - look this row up by name to answer a record created without an
+#: explicit profile: every record mapped by the configs is an ISO 19139 record
+#: of the generic mapping. A lookup and not a column default because the row
+#: is data which a test database truncates between tests (TransactionTestCase),
+#: and a default pointing at a truncated row is an IntegrityError on every
+#: record insert.
+GENERIC_ISO19139_PROFILE_PK = UUID("0180721f-bf34-4281-b367-648a74dd8ff9")
+
+
+class MetadataProfile(models.Model):
+    """The authoring profile of metadata records (#1240).
+
+    Profiles are data and not code: the sections the editor groups its
+    fields into, the mandatory/recommended flag the section rail renders
+    (#1245) and the ISO structural rules validated on save (#1243) are the
+    content of such a row, so shipping `iso19139-gdi-de` later is a data
+    migration and not a release (design §5 of the metadata-editor document).
+
+    The ISO 19139 element paths of the mapped fields deliberately do NOT
+    live here: they stay in the mapper configs of `registry/mappers/configs/`
+    and reach the client from there, as `x-iso-path` of the OpenAPI schema
+    (`registry/mappers/paths.py`). A second copy here would drift.
+
+    The row is seeded by a data migration; serving it through the api is
+    ordinary json:api CRUD, writes stay with the operator and later issues.
+    """
+    id = models.UUIDField(primary_key=True,
+                          default=uuid4,
+                          editable=False)
+    name = models.CharField(max_length=100,
+                            unique=True,
+                            verbose_name=_("name"),
+                            help_text=_("the machine name of the profile, such as 'iso19139-generic'"))
+    label = models.CharField(max_length=255,
+                             verbose_name=_("label"),
+                             help_text=_("the display name of the profile, which the editor renders in its header"))
+    sections = models.JSONField(default=list,
+                                blank=True,
+                                verbose_name=_("sections"),
+                                help_text=_("the ordered sections of the editor: the fields each section groups and the mandatory/recommended flag of every field"))
+    rules = models.JSONField(default=list,
+                             blank=True,
+                             verbose_name=_("rules"),
+                             help_text=_("the ISO structural rules which are validated on save (#1243); attribute constraints keep riding the OpenAPI schema (Q1 option C on #1243)"))
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.label or self.name
+
+    @classmethod
+    def generic(cls):
+        """The seeded generic profile, or None when this database has none.
+
+        The creation paths of a record ask for the profile of the v1 mapping
+        here and not through a column default: a default names the row on
+        every insert, while this answers only when the row is actually there.
+        A `TransactionTestCase` truncates every table between tests, so on
+        such a database the record arrives without a profile instead of
+        violating the foreign key of a row no longer present (#1240).
+        """
+        return cls.objects.filter(pk=GENERIC_ISO19139_PROFILE_PK).first()
 
 
 class AbstractMetadata(MetadataDocumentModelMixin):
@@ -991,6 +1209,64 @@ class MetadataRelation(models.Model):
 
     objects = MetadataRelationManager()
 
+    #: The column of this table which stores a described object, keyed by the
+    #: class name of the object. Every kind of element which a RemoteMetadata
+    #: can describe and which a curator can couple needs its column named
+    #: here; a class which is not in it is refused (see relation_columns).
+    DESCRIBED_OBJECT_FIELDS = {
+        "Layer": "layer",
+        "FeatureType": "feature_type",
+        "WebMapService": "wms",
+        "WebFeatureService": "wfs",
+        "CatalogueService": "csw",
+    }
+
+    #: The column of this table which stores the metadata record of the
+    #: coupling, keyed by the class name of the record. A record type without
+    #: a column of its own has no place in this table and is refused rather
+    #: than stored half-empty.
+    RECORD_FIELDS = {
+        "DatasetMetadataRecord": "dataset_metadata",
+        "ServiceMetadataRecord": "service_metadata",
+    }
+
+    @classmethod
+    def relation_columns(cls, related_object, record):
+        """The names of the two columns which hold one coupling.
+
+        Fails loudly for a class which has no column of its own: the if/elif
+        chains this mapping replaced defaulted to silence and let a relation
+        row through with only one of its two object columns filled, which no
+        screen can render (#1261).
+
+        Args:
+            related_object: the described element (Layer, FeatureType, WMS,
+                WFS, CSW) or None for a coupling which names no element
+            record: the metadata record of the coupling
+
+        Returns:
+            tuple: (name of the element's column or None, name of the
+                record's column)
+        """
+        described_field = None
+        if related_object is not None:
+            described_field = cls.DESCRIBED_OBJECT_FIELDS.get(
+                related_object.__class__.__name__)
+            if described_field is None:
+                raise ValueError(
+                    f"MetadataRelation can not describe a "
+                    f"'{related_object.__class__.__name__}'; it has no "
+                    f"column and is not in DESCRIBED_OBJECT_FIELDS.")
+
+        record_field = cls.RECORD_FIELDS.get(record.__class__.__name__)
+        if record_field is None:
+            raise ValueError(
+                f"MetadataRelation can not couple a "
+                f"'{record.__class__.__name__}'; it has no column and is "
+                f"not in RECORD_FIELDS.")
+
+        return described_field, record_field
+
     class Meta:
 
         constraints = [
@@ -1085,6 +1361,21 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
+
+    # the authoring profile of the record (#1240). It sits on the record and
+    # not on AbstractMetadata: the profile describes the ISO 19139 document
+    # behind a METADATA record, while the other inheritors of that abstract
+    # (layers, services) hold denormalized metadata fields of one document
+    # but answer no document of their own.
+    profile = models.ForeignKey(to=MetadataProfile,
+                                on_delete=models.RESTRICT,
+                                blank=True,
+                                null=True,
+                                related_name="+",
+                                verbose_name=_("metadata profile"),
+                                help_text=_("the authoring profile whose sections and rules describe this record (#1240); "
+                                            "records created by an import or through the api answer the seeded "
+                                            "iso19139-generic profile, see MetadataProfile.generic()"))
 
     # TODO: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,
@@ -1215,28 +1506,21 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         ] + AbstractMetadata.Meta.constraints
 
     def add_metadata_relation(self, related_object=None, origin=None, is_internal=False):
+        """Assert the coupling of this record to the described element.
 
+        Idempotent: the get_or_create is keyed on the filled columns plus
+        `is_internal`, so re-collecting the same reference re-asserts the
+        relation which is already there instead of stacking a second row
+        beside it. A class without a column of its own raises instead of
+        writing an unrenderable half row (#1261).
+        """
         kwargs = {}
-        if related_object and related_object.__class__.__name__ == "Layer":
-            kwargs.update({"layer": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value, })
-        elif related_object and related_object.__class__.__name__ == "FeatureType":
-            kwargs.update({"feature_type": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "WebMapService":
-            kwargs.update({"wms": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
-            kwargs.update({"wfs": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object.__class__.__name__ == "CatalogueService":
-            kwargs.update({"csw": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-
-        if self.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.update({"dataset_metadata": self})
-        elif self.__class__.__name__ == "ServiceMetadataRecord":
-            kwargs.update({"service_metadata": self})
+        described_field, record_field = MetadataRelation.relation_columns(
+            related_object, self)
+        if described_field is not None:
+            kwargs[described_field] = related_object
+            kwargs["origin"] = origin if origin else MetadataOriginEnum.CAPABILITIES.value
+        kwargs[record_field] = self
 
         with atomic():
             relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
@@ -1246,29 +1530,54 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         return relation
 
     def remove_metadata_relation(self, related_object, internal, origin):
-        kwargs = {}
-        if related_object and related_object.__class__.__name__ == "Layer":
-            kwargs.update({"layer": related_object})
-        elif related_object and related_object.__class__.__name__ == "FeatureType":
-            kwargs.update({"feature_type": related_object})
-        elif related_object and related_object.__class__.__name__ == "WebMapService":
-            kwargs.update({"wms": related_object})
-        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
-            kwargs.update({"wfs": related_object})
-        elif related_object and related_object.__class__.__name__ == "CatalogueService":
-            kwargs.update({"csw": related_object})
-        else:
-            return
+        """Take back the coupling of this record to one described element.
 
-        if self.__class__.__name__ == "DatasetMetadataRecord":
-            kwargs.update({"dataset_metadata": self})
-        elif self.__class__.__name__ == "ServiceMetadataRecord":
-            kwargs.update({"service_metadata": self})
+        Takes exactly one coupling: the element, the `internal` flag and the
+        `origin` of the relation have to match, so a relation a curator added
+        cannot be deleted through a reporter which reports capabilities.
+        A class without a column of its own raises like in
+        :meth:`add_metadata_relation` (#1261).
+        """
+        described_field, record_field = MetadataRelation.relation_columns(
+            related_object, self)
+        if described_field is None:
+            raise ValueError(
+                "remove_metadata_relation must be cited the described "
+                "element whose coupling is taken back.")
+        kwargs = {described_field: related_object, record_field: self}
         MetadataRelation.objects.select_for_update().filter(
             is_internal=internal,
             origin=origin,
             **kwargs
         ).delete()
+
+    def save(self, *args, mark_customized: bool = True, **kwargs):
+        """An editor-style update of a record also bumps `date_stamp` (#1241).
+
+        The harvest overwrite gate of `get_or_create_metadatarecord` replaces a
+        stored record whenever the parsed document carries a newer date stamp.
+        An edit which marked the record customized but left the stamp at the
+        catalogue's value would tell the next re-harvest that an older document
+        is still the newer answer - the curated fields would be lost on the
+        re-read despite the flag. The bump is what "the harvest overwrite gate
+        (`is_customized`/`date_stamp`) is untouched" (§5 of the metadata-editor
+        document, decision of the #1238 review) means for a write through the
+        api: the same side effect an ORM save of a record has in the editor's
+        own terms - `is_customized` set by :meth:`AbstractMetadata.save`, the
+        stamp carried past every document which could still be offered.
+
+        A write of the harvesting process keeps both the flag and the stamp the
+        parsed document carried: `mark_customized=False` skips the bump for the
+        same reason it skips the flag (#858). The override lives on
+        `MetadataRecord`, not on `AbstractMetadata`: the date stamp of a
+        layer, feature type or service is a mapped field of one parsed document
+        and no row with a harvest overwrite gate of its own - the gate and its
+        protection are answered by the record, which is where the bump belongs.
+        """
+        if not self._state.adding and mark_customized:
+            self.date_stamp = now()
+
+        return super().save(*args, mark_customized=mark_customized, **kwargs)
 
 
 class DatasetMetadataRecord(MetadataRecord):

@@ -8,12 +8,17 @@ import ServiceHistoryCard from "./ServiceHistoryCard";
 
 const ServiceOverview = ({
   protocol,
+  collection,
   history = <ServiceHistoryCard />,
   children,
   spatialSecurity,
   preview = protocol === "CSW" ? <LivePreview protocol={protocol} /> : null,
 }: {
   protocol: ServiceProtocol;
+  /** what the registration of this service collected, over the whole width:
+   *  the answer to "did my metadata arrive" belongs above the details of the
+   *  object the editor is working on (#1266) */
+  collection?: ReactNode;
   history?: ReactNode;
   children?: ReactNode;
   spatialSecurity?: ReactNode;
@@ -31,6 +36,7 @@ const ServiceOverview = ({
         "&& .RaList-main": { width: "100%", minWidth: 0, m: 0 },
       }}
     >
+      {collection && <Grid size={12}>{collection}</Grid>}
       <Grid size={{ xs: 12, md: 6 }}>
         <ServiceDetailsCard protocol={protocol} />
       </Grid>

@@ -63,4 +63,52 @@ describe("background notification translations", () => {
       }
     }
   });
+
+  it("names every phase the registration reports", () => {
+    // a registration writes its phases as keys, never as sentences
+    // (`registry/views/service.py`, `registry/tasks/service.py`), and the
+    // task base of notify ends the process with `completed`; a key missing
+    // here answers the raw key right where the operator reads the progress,
+    // which is the regression #1267 closes out
+    const phases = [
+      "background_process_created",
+      "download_capabilities",
+      "parse_capabilities",
+      "persist_service",
+      "collect_metadata_records",
+      "completed",
+    ];
+    for (const messages of [en, de]) {
+      for (const phase of phases) {
+        const value = lodashGet(messages, `backgroundActivity.phases.${phase}`);
+        expect(typeof value, phase).toBe("string");
+        expect((value as string).trim(), phase).not.toBe("");
+      }
+    }
+  });
+
+  it("names every error kind a failed reference reports", () => {
+    // the collection of #1263 stores the reason of a lost reference as one
+    // of the six words of `registry/enums/harvesting.py:ReferenceErrorKind`;
+    // the references table of #1265 looks the word up here and a missing key
+    // answers the raw kind right where the editor decides the retry
+    const kinds = [
+      "fetch_timeout",
+      "fetch_unreachable",
+      "no_content",
+      "no_identifiable_record",
+      "unsupported_kind",
+      "import_failed",
+    ];
+    for (const messages of [en, de]) {
+      for (const kind of kinds) {
+        const value = lodashGet(
+          messages,
+          `backgroundActivity.references.errorKinds.${kind}`,
+        );
+        expect(typeof value, kind).toBe("string");
+        expect((value as string).trim(), kind).not.toBe("");
+      }
+    }
+  });
 });

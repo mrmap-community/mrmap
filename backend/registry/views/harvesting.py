@@ -11,6 +11,7 @@ from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin, SparseFieldMixin)
 from notify.models import BackgroundProcess
+from notify.permissions import CanRetryRegistrationReference
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.expressions.durations import DurationSeconds
 from registry.filters.harvesting import (HarvestingJobFilterSet,
@@ -541,7 +542,12 @@ class NestedPeriodicHarvestingJobViewSet(
 class TemporaryMdMetadataFileViewSetMixin:
     queryset = TemporaryMdMetadataFile.objects.all()
     serializer_class = TemporaryMdMetadataFileSerializer
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # the work row is the permit store of the reference queue: reading stays
+    # as open as the harvesting screen of #1083 always had it, POST/PUT/DELETE
+    # stay with the model permission, and the one write #1265 adds - the
+    # retry PATCH - is decided by the permission of the resource the owning
+    # process reports on (#1265)
+    permission_classes = [CanRetryRegistrationReference]
     ordering_fields = ["id", "request_id"]
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -552,6 +558,12 @@ class TemporaryMdMetadataFileViewSetMixin:
         'job__service__id': ['exact', 'in'],
         'has_import_error': ['exact'],
         'import_error': ['exact', 'icontains', 'contains', 'in', 'isnull'],
+        # the registration reference of one collecting process, by its work
+        # state and by the kind which decided it (#1263): the process card
+        # links its failed references through exactly these lookups.
+        'background_process__id': ['exact', 'in'],
+        'state': ['exact', 'in'],
+        'error_kind': ['exact', 'in'],
     }
 
 

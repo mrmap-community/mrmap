@@ -68,9 +68,15 @@ def create_file_system_import_task(sender, **kwargs):
     # required by celery beat to watch for new ISO metadata files to import
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
+    # Asked by its whole shape and not by the minutes alone: a deployment
+    # which scheduled another task over the same minute string would
+    # otherwise make this very lookup answer two rows and the migrate die on
+    # MultipleObjectsReturned (#1273, the same fix #1208 gave the notify
+    # sweep)
     schedule, _ = CrontabSchedule.objects.get_or_create(
         minute="0,5,10,15,20,25,30,35,40,45,50,55",
-    )
+        hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(
         crontab=schedule,
@@ -148,8 +154,14 @@ def create_probe_response_artifact_cleanup_task(sender, **kwargs):
     from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
     # at twenty past the hour: a housekeeping sweep, out of the way of the
-    # five minute metadata import and the hourly dump sweep at five past
-    schedule, _ = CrontabSchedule.objects.get_or_create(minute="20")
+    # five minute metadata import and the hourly dump sweep at five past.
+    # Asked by its whole shape and not by the minute alone: the staggered
+    # per-service schedules (system/fields.py) legitimately hold rows at
+    # twenty past with any hour, and the bare minute lookup answered them
+    # all -- the migrate died on MultipleObjectsReturned (#1273)
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="20", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(
         name=PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME,
@@ -179,8 +191,12 @@ def create_harvest_temp_file_cleanup_task(sender, **kwargs):
 
     # at twenty to the hour: a housekeeping sweep, out of the way of the
     # five minute metadata import, the hourly dump sweep at five past and the
-    # hourly probe artifact sweep at twenty past
-    schedule, _ = CrontabSchedule.objects.get_or_create(minute="40")
+    # hourly probe artifact sweep at twenty past. Asked by its whole shape
+    # and not by the minute alone, for the reason #1273 states at the probe
+    # artifact sweep
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="40", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(
         name=HARVEST_TEMP_FILE_CLEANUP_TASK_NAME,

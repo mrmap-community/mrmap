@@ -43,10 +43,14 @@ Feature: WebFeatureService List Endpoint
         Then I expect that response json has an attribute "included.[0].relationships.defaultReferenceSystem.data.type" with value "ReferenceSystem"
         Then I expect that response json has an attribute "included.[0].relationships.defaultReferenceSystem.data.id" with value "1"
         # The default CRS relationship uses its foreign key without fetching a CRS per feature type.
-        Then I expect that "27" queries where made
+        Then I expect that "29" queries where made
         # The permission checker prefetched its objects from a second filtered
         # and paginated queryset, which cost a second COUNT and a second page
         # selection until #1031 removed them.
+        # #1262 raised this by two: the datasetMetadata relation of the included
+        # feature types runs its narrowed prefetch twice per request, two
+        # identical queries — measured constant across repeated requests —
+        # never one per feature type.
 
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"

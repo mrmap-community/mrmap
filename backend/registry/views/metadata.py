@@ -1,14 +1,16 @@
 from registry.filters.metadata import (ApplicationMetadataRecordSpatialFilterSet,
                                        DatasetMetadataRecordSpatialFilterSet,
                                        ServiceMetadataRecordSpatialFilterSet)
+from django.conf import settings
 from django.db.models import F
 from django.db.models.query import Prefetch
+from django.utils.translation import gettext_lazy as _
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
 from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord, IsoCategory,
                                       Keyword, Language, Licence,
-                                      MetadataContact, MetadataRelation, MimeType,
+                                      MetadataContact, MetadataProfile, MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
@@ -16,6 +18,7 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
 from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            DatasetMetadataRecordSerializer,
                                            IsoCategorySerializer, LanguageSerializer,
+                                           MetadataProfileSerializer,
                                            MetadataRelationSerializer, TimeExtentSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
@@ -25,6 +28,7 @@ from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
+from rest_framework.permissions import BasePermission
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
@@ -101,6 +105,22 @@ class NestedLicenceViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class MetadataProfileViewSet(
+    ModelViewSet
+):
+    # the profile is seeded by a data migration and read by the editor (#1240);
+    # it answers as an ordinary json:api resource because every endpoint of
+    # mrmap follows the json:api CRUD defaults (the cross-cutting decision of
+    # the review of #1238) -- writing profiles stays an operator task.
+    queryset = MetadataProfile.objects.all()
+    serializer_class = MetadataProfileSerializer
+    filterset_fields = {
+        'id': ['exact', 'in'],
+        "name": ["exact", "icontains", "contains"],
+    }
+    search_fields = ("name", "label")
 
 
 class ReferenceSystemViewSetMixin(SerializerClassesMixin):
@@ -188,6 +208,38 @@ METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES = {
 }
 
 
+class MetadataRecordWritesEnabled(BasePermission):
+    """The activation gate of the metadata editor's record writes (#1241).
+
+    The record endpoints answer the default json:api CRUD contract — POST,
+    PUT, PATCH on the record resources (the cross-cutting decision of the
+    #1238 review: no bespoke action endpoints) — but until the XML write-back
+    (#1242), the profile validation (#1243) and the atomic publishing/harvest
+    overwrite gate (#1244) are integrated, a mutation would commit model
+    fields while the ISO document served by the CSW stays stale or invalid.
+    The readiness clarification of #1241 (2026-11-12) keeps such writes
+    refused for the public until that gate passes: POST/PUT/PATCH answer 403
+    with the reason while ``MRMAP_METADATA_EDITOR_WRITES_ENABLED`` is off.
+
+    Reads answer as always and DELETE stays exactly at today's
+    ``canDelete`` behaviour — a deletion removes the record together with the
+    document served for it, so it leaves no stale document behind. The gate is
+    a deployment posture, not a grant: it refuses an operator's deployment as
+    well as any client, and no permission a user could hold bypasses it.
+    """
+
+    message = _(
+        "Writing metadata records is not enabled in this deployment: a "
+        "mutation would leave the ISO document served by the CSW stale "
+        "behind the written fields until the write-back, validation and "
+        "publishing parts of the metadata editor are integrated (#1241).")
+
+    def has_permission(self, request, view):
+        if request.method not in ("POST", "PUT", "PATCH"):
+            return True
+        return settings.MRMAP_METADATA_EDITOR_WRITES_ENABLED
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
@@ -195,7 +247,7 @@ class DatasetMetadataViewSetMixin(
     # the vector of a record is what it is found by, not something this endpoint
     # answers, and postgres keeps it compressed: see registry/expressions/search.py
     queryset = DatasetMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
@@ -211,6 +263,7 @@ class DatasetMetadataViewSetMixin(
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
         "dataset_contact": ["dataset_contact"],
+        "profile": ["profile"],
         "selfPointingLayers.service": ["metadata_contact", "dataset_contact"],
         "selfPointingFeatureType.service": ["metadata_contact", "dataset_contact"],
     }
@@ -321,7 +374,8 @@ class DatasetMetadataViewSetMixin(
         ],
         **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -432,7 +486,7 @@ class ServiceMetadataViewSetMixin(
 ):
     # see DatasetMetadataViewSetMixin.queryset
     queryset = ServiceMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
@@ -443,6 +497,7 @@ class ServiceMetadataViewSetMixin(
 
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
+        "profile": ["profile"],
     }
     prefetch_for_includes = {
         "harvested_through": [
@@ -478,7 +533,8 @@ class ServiceMetadataViewSetMixin(
             )
         ]
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -516,7 +572,7 @@ class ApplicationMetadataViewSetMixin(
     # registry.models.metadata.ApplicationMetadataRecord): the same answer of that
     # shape, with the providing contact named after the application
     queryset = ApplicationMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = ApplicationMetadataRecordSerializer
     filterset_class = ApplicationMetadataRecordSpatialFilterSet
@@ -526,6 +582,7 @@ class ApplicationMetadataViewSetMixin(
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
         "application_contact": ["application_contact"],
+        "profile": ["profile"],
     }
     prefetch_for_includes = {
         "categories": ["categories"],
@@ -549,7 +606,8 @@ class ApplicationMetadataViewSetMixin(
         ],
         **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)

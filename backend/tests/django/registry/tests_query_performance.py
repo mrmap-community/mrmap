@@ -1115,6 +1115,154 @@ class HarvestedMetadataQueryPerformance(QueryMeasurementMixin, TestCase):
             self.assertEqual(counts[table], 1, msg=counts)
 
 
+class HarvestingStatisticsQueryPerformance(QueryMeasurementMixin, TestCase):
+    """The daily statistics card of a harvest reads the relations twice, not twice again.
+
+    The card asks the aggregation ``HarvestedMetadataRelationQuerySet.stats_per_day``
+    for its page and for the number of its groups. That number used to be
+    asked by wrapping the whole aggregation in a ``COUNT(*)``, which computed
+    every counter of every group just to count the groups - on the rig of
+    #1316 the slowest statement of the request at 18.5 s, in front of the
+    1.8 s which answered the page from the very same rows. The total of the
+    groups is therefore answered from the distinct grouping tuples, and what
+    the relation table owes the card is exactly these two statements.
+    """
+
+    path = '/api/registry/statistical/harvested-metadata-relations'
+
+    # the marker of the paginator's total of this card: Django aliases the
+    # COUNT of a plain queryset as "__count", but the count of a DISTINCT
+    # subselect is wrapped as a bare COUNT(*) over its subquery. No counter
+    # of the page carries the star - they all count a column - so the star
+    # tells the total of the groups and the page of the groups apart
+    TOTAL = 'COUNT(*)'
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_csw.json"]
+
+    DAYS = 3
+    PER_GROUP = 3
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        HarvestedMetadataRelation.objects.all().delete()
+        contact = MetadataContact.objects.first()
+        cls.jobs = [HarvestingJob.objects.order_by('pk').first(),
+                    # a file import job without a service groups just the same
+                    HarvestingJob.objects.create()]
+        total = len(cls.jobs) * cls.DAYS * len(State) * cls.PER_GROUP
+        records = iter(DatasetMetadataRecord.objects.bulk_create([
+            DatasetMetadataRecord(
+                title=f'Statistics relation {i}', metadata_contact=contact,
+                dataset_contact=contact)
+            for i in range(total)]))
+        relations, by_day = [], {offset: [] for offset in range(cls.DAYS)}
+        for job in cls.jobs:
+            for offset in range(cls.DAYS):
+                for state in State:
+                    for _ in range(cls.PER_GROUP):
+                        relation = HarvestedMetadataRelation(
+                            harvesting_job=job, collecting_state=state.value,
+                            dataset_metadata_record=next(records))
+                        relations.append(relation)
+                        by_day[offset].append(relation)
+        HarvestedMetadataRelation.objects.bulk_create(relations)
+        for offset, written in by_day.items():
+            HarvestedMetadataRelation.objects.filter(
+                pk__in=[relation.pk for relation in written]).update(
+                    history_date=now() - timedelta(days=offset))
+        with connections['default'].cursor() as cursor:
+            cursor.execute('ANALYZE registry_harvestedmetadatarelation')
+
+    def relationStatements(self, queries):
+        """The statements of one request which read the relation table."""
+        return [query['sql'] for query in queries
+                if 'registry_harvestedmetadatarelation' in query['sql']]
+
+    def test_the_card_reads_the_relation_table_in_two_statements(self):
+        status, body, queries = self.request(self.path, user='user', sort='id')
+        self.assertEqual(status, 200, body)
+        statements = self.relationStatements(queries)
+        self.assertEqual(
+            len(statements), 2,
+            'the total of the groups and their page are the only statements '
+            'which read the relations: '
+            + str([statement[:90] for statement in statements]))
+
+    def test_the_total_counts_grouping_tuples_without_computing_counters(self):
+        """The regression gate against the re-aggregation of the whole answer.
+
+        The paginator still asks one ``COUNT(*)`` of the relations, but the
+        wrapped subselect may only be the distinct grouping tuples: not one
+        counter of the answer may be computed for the number of its rows.
+        """
+        status, body, queries = self.request(self.path, user='user', sort='id')
+        self.assertEqual(status, 200, body)
+        counts = [statement for statement in self.relationStatements(queries)
+                  if self.TOTAL in statement]
+        self.assertEqual(len(counts), 1, self.relationStatements(queries))
+        count_sql = counts[0]
+        self.assertIn('SELECT DISTINCT', count_sql)
+        for marker in ('AS "new"', 'AS "updated"', 'AS "existed"',
+                       'FILTER (WHERE'):
+            self.assertNotIn(
+                marker, count_sql,
+                'the total computes the counters of the answer it counts: '
+                + count_sql)
+
+        # and the total is the number of groups the fixture wrote
+        self.assertEqual(body['meta']['pagination']['count'],
+                         len(self.jobs) * self.DAYS * len(State))
+
+        # the page beside it is a page: its groups are limited and its
+        # counters are computed there and only there
+        pages = [statement for statement in self.relationStatements(queries)
+                 if self.TOTAL not in statement]
+        self.assertEqual(len(pages), 1, self.relationStatements(queries))
+        self.assertIn('GROUP BY', pages[0])
+        self.assertIn('LIMIT', pages[0])
+        self.assertIn('AS "new"', pages[0])
+
+    def test_the_total_stays_right_under_the_filters(self):
+        """A filtered page counts the groups of its filter, and only those."""
+        for params, expected in (
+            ({'filter[harvesting_job]': str(self.jobs[1].pk)},
+             self.DAYS * len(State)),
+            ({'filter[service]': str(self.jobs[0].service_id)},
+             self.DAYS * len(State)),
+        ):
+            with self.subTest(**params):
+                status, body, queries = self.request(
+                    self.path, user='user', sort='id',
+                    **{**params, 'page[size]': '5'})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body['meta']['pagination']['count'], expected)
+                counts = [statement for statement
+                          in self.relationStatements(queries)
+                          if self.TOTAL in statement]
+                self.assertEqual(len(counts), 1,
+                                 self.relationStatements(queries))
+                self.assertNotIn('FILTER (WHERE', counts[0])
+
+    def test_the_grouping_has_its_own_index(self):
+        """The index the total of the groups and the page are read from (#1316)."""
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                "SELECT indexdef FROM pg_indexes WHERE tablename = "
+                "'registry_harvestedmetadatarelation' AND indexname = "
+                "'harvested_day_state_job'")
+            definitions = [row[0] for row in cursor.fetchall()]
+        self.assertEqual(
+            len(definitions), 1,
+            'the daily statistics have no index over their grouping: '
+            + str(definitions))
+        # pg renders an identifier unquoted when it does not need quotes, so
+        # the quotes are taken out instead of guessed
+        self.assertIn('(history_day, collecting_state, harvesting_job_id)',
+                      definitions[0].replace('"', ''))
+
+
 class MetadataQueryPerformance(QueryMeasurementMixin, TestCase):
     """A metadata record serializes a dozen relations at once."""
 

@@ -78,6 +78,14 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
 
+# The username of the superuser this deployment seeds on migrate (accounts/
+# apps.py) - a deployment value, not a code value. Named once here, because
+# the account and every internal context which falls back to it (the
+# service-less harvesting run of registry/models/harvest.py) have to name the
+# same value; the hardcoded "mrmap" of the fallback aborted such runs on any
+# deployment which named its admin differently (#1278).
+MRMAP_USER = os.environ.get("MRMAP_USER")
+
 # Application definition
 INSTALLED_APPS = [
     "daphne",
@@ -116,6 +124,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Listed above the Vary middleware, so in the response phase it runs
+    # after that one and repeats the cleaned Vary on its 304 (#946).
+    "extras.schema_views.SchemaConditionalGetMiddleware",
     # Below Security, above Session: strips the session marking's Vary: Cookie
     # from /api/schema responses after SessionMiddleware added it (#946).
     "extras.schema_views.SchemaVaryMiddleware",
@@ -802,6 +813,37 @@ HARVEST_TEMP_FILE_CLEANUP_ROWS_PER_RUN = int(
 # already over (#1237)
 HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", "1"))
+# How many days the records an ended run stored stay before the automatic
+# cleanup of ``registry/tasks/harvest.py`` takes them back: the retention of
+# this pile, which is what the sibling knobs of #888 and #682 answer for theirs.
+# The records a run left behind are worth a retry while the run is fresh and
+# nothing afterwards - on the rig of #1295 two registration waves of them filled
+# 24.4 GB, because no boundary existed at all. 0 takes them back as soon as the
+# run reached COMPLETED or ABORTED, which is what #1237 shipped with and what a
+# deployment whose disk is the binding constraint wants; every day above 0 is
+# the window in which the operator can still reschedule the import of a stored
+# record of a run which completed before its rows and files go. Unlike the
+# sibling knobs, a 0 here does not mean "keep forever": 0 is the minimum of the
+# window, because an unbounded window over this pile is exactly the state #1295
+# reports. This is not HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS above, which is
+# only the margin the operator's own scan of the whole history keeps to a run
+# which ended moments ago (#1295)
+HARVEST_TEMP_FILE_RETENTION_DAYS = int(
+    os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
+
+# The activation gate of the metadata editor's record writes (#1241).
+# The create/update endpoints of the metadata records answer the default
+# json:api CRUD contract, but until the XML write-back (#1242), the profile
+# validation rules (#1243) and the atomic publishing/harvest overwrite gate
+# (#1244) are integrated, a committed model field would leave the ISO
+# document served by the CSW stale or invalid behind it. The readiness
+# clarification of #1241 (2026-11-12) therefore makes POST/PUT/PATCH on the
+# record resources answer 403 while this gate is off; DELETE stays at its
+# today behaviour. Only the final gate of #1244 - round-trip and rejection
+# tests green - may flip this default to True for public editing; an operator
+# who enables it before that accepts inconsistent CSW documents deliberately.
+MRMAP_METADATA_EDITOR_WRITES_ENABLED = os.environ.get(
+    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "False") == "True"
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
@@ -882,6 +924,17 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "PREPROCESSING_HOOKS": [
         "drf_spectacular_jsonapi.hooks.fix_nested_path_parameters"
+    ],
+    # the json:api view mixins' docstrings are implementation notes, not
+    # endpoint documentation; see extras.schema.get_lib_doc_excludes
+    "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
+    # the enum hook is spectacular's own default and must be named again
+    # once the setting is overridden; the second hook stamps the ISO 19139
+    # element paths of the writable record fields into the schema, read
+    # from the mapper configs (#1240)
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "registry.schema.inject_iso_paths",
     ],
 }
 

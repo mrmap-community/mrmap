@@ -2,13 +2,33 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import (Case, F, OuterRef, Q, Subquery, TextField,
                               Value, When)
-from django.db.models.fields import FloatField
+from django.db.models.fields import FloatField, IntegerField
 from django.db.models.functions import (Coalesce, Greatest, Least, Now, Round)
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from guardian.shortcuts import get_objects_for_user
 from notify.enums import (LogTypeEnum, OperationStateEnum,
                           ProcessStatusEnum)
+
+
+def capped_done_steps(steps):
+    """Expression which adds ``steps`` to the done steps of a process, capped.
+
+    GREATEST keeps a report which would count past the total from pulling a
+    further reported progress back, and Coalesce answers the NULL which Least
+    leaves behind when there is no total to cap at - a process which does not
+    know its total cannot exceed it. Shared by this manager's ``report`` and
+    the task-side update path of ``notify/tasks.py``, so no step reporter can
+    push a process beyond 100 % (#1261, #1258). A ceiling is not exactly-once
+    accounting: duplicate reports of one logical step are still counted, they
+    merely stop at the total; the per-reference identity which makes
+    accounting exact belongs to the reference-level outcomes of #1263.
+    """
+    return Coalesce(
+        Greatest(
+            F("done_steps"),
+            Least(F("done_steps") + steps, F("total_steps"))),
+        F("done_steps") + steps)
 
 
 class BackgroundProcessManager(models.Manager):
@@ -116,14 +136,17 @@ class BackgroundProcessManager(models.Manager):
                 report, for the reporter which coalesces its work into one
                 bulk increment instead of writing one row update per step (#958)
 
-        The done steps are only ever moved up and are capped at the total: a
-        reporter which counts too eagerly inflates a process towards its end,
-        it never pulls a reported progress back. A total of None caps nothing
-        - a process which does not know its total cannot exceed it.
+        The done steps are moved with the shared capped increment
+        `capped_done_steps`, so a reporter which counts too eagerly inflates
+        a process towards its end and never past its total.
 
         A process which reports itself COMPLETED is written as done: the
         completion of the work is the proof that its steps are over, and the
         overview of the background activity renders exactly these numbers.
+        A COMPLETED report also closes the stored summary of a metadata
+        collection with the references which never answered an outcome
+        (#1259), whoever completes the process - the run's own task or the job
+        of an update which collects as its last step (#1274).
 
         Returns:
             int: amount of processes which were updated
@@ -143,17 +166,28 @@ class BackgroundProcessManager(models.Manager):
             values["total_steps"] = total_steps
         steps = (1 if step_done else 0) + max(int(steps_done or 0), 0)
         if steps:
-            # GREATEST keeps a report which would count past the total from
-            # pulling a further done process back, and Coalesce answers the
-            # NULL which Least leaves behind when there is no total to cap at.
-            values["done_steps"] = Coalesce(
-                Greatest(
-                    F("done_steps"),
-                    Least(F("done_steps") + steps, F("total_steps"))),
-                F("done_steps") + steps)
+            values["done_steps"] = capped_done_steps(steps)
         if status == ProcessStatusEnum.COMPLETED:
             values["done_steps"] = Coalesce(
                 F("total_steps"), F("done_steps"))
+            # a run which planned a metadata collection closes its summary with
+            # the references it never heard an answer from (#1259). The task
+            # side of a registration writes the same answer; this is the answer
+            # for whoever completes the process through a report - the job of an
+            # update whose run collected its metadata as its last step (#1274).
+            # A process which planned no collection answers NULL, as it did
+            # before this write existed.
+            values["references_skipped"] = Case(
+                When(
+                    references_total__isnull=True,
+                    then=Value(None, output_field=IntegerField())),
+                default=Greatest(
+                    F("references_total")
+                    - Coalesce(F("references_stored"), 0)
+                    - Coalesce(F("references_failed"), 0),
+                    0),
+                output_field=IntegerField(),
+            )
         if status in self.TERMINAL_STATUS:
             values["done_at"] = now()
 
@@ -181,6 +215,90 @@ class BackgroundProcessManager(models.Manager):
             return 0
         return self._apply(pk, {"done_steps": Greatest(
             Coalesce(F("done_steps"), 0), max(int(done_steps), 0))})
+
+    def record_reference_outcome(self, pk, stored_delta=0, failed_delta=0,
+                                 step_done=False):
+        """Transition the per-reference outcome counters of a collection exactly once.
+
+        The outcome of one registration reference (#1263) moves the stored
+        summary of its process: a first decision counts the reference once,
+        and an authorized retry which turns a failed reference into a stored
+        one shifts the last-outcome counters - ``done_steps`` and
+        ``references_total`` stay where the sealed plan put them.
+
+        The write is one conditional UPDATE with database-side expressions,
+        so it is safe under concurrent reporters and never a Python
+        read-modify-write. Two process shapes accept it, and the caller must
+        hold the process lock while choosing between them:
+
+        * an ACTIVE process takes the counters and, for a first decision,
+          the capped ``done_steps`` mirror of the decided count;
+        * an existing terminal COMPLETED process takes the narrow retry
+          transition of #1265: the counters and the revision move, while the
+          status, ``done_at`` and every other completed field stay exactly
+          as they were - a retry does not reopen its parent run (D3), and
+          ``update_background_process(step_done=True)`` is not used for it.
+
+        A FAILED or ABORTED process is never silently reopened and nothing
+        is written for it. The listeners learn the new state over the
+        revision-bumped payload like every other report.
+
+        Args:
+            pk: primary key of the process
+            stored_delta (int): +/-1 on the stored counter
+            failed_delta (int): +/-1 on the failed counter
+            step_done (bool): whether this outcome decides a reference for
+                the first time and mirrors into ``done_steps``
+
+        Returns:
+            int: amount of processes which were updated
+        """
+        if pk is None:
+            return 0
+        values = {}
+        if stored_delta:
+            values["references_stored"] = Greatest(
+                Coalesce(F("references_stored"), 0) + stored_delta, 0)
+        if failed_delta:
+            values["references_failed"] = Greatest(
+                Coalesce(F("references_failed"), 0) + failed_delta, 0)
+        if step_done:
+            values["done_steps"] = capped_done_steps(1)
+        if not values:
+            return 0
+
+        updated = self.get_queryset().filter(
+            pk=pk,
+            done_at__isnull=True,
+            status__in=self.ACTIVE_STATUS,
+        ).update(revision=F("revision") + 1, **values)
+        if not updated:
+            # the narrow path of D3: a COMPLETED run whose retried reference
+            # decided differently - counters and revision only, never the
+            # decision fields of the run itself
+            completed_values = {
+                key: value for key, value in values.items()
+                if key != "done_steps"}
+            if not completed_values:
+                # a first-decision report of a reference that a COMPLETED run
+                # never had is not this method's contract; the completion of
+                # a run waits for all its rows decided, so nothing legit
+                # reaches here and nothing is guessed
+                return 0
+            updated = self.get_queryset().filter(
+                pk=pk,
+                status=ProcessStatusEnum.COMPLETED,
+            ).update(revision=F("revision") + 1, **completed_values)
+
+        if updated:
+            try:
+                post_save.send(
+                    self.model,
+                    instance=self.process_info().get(pk=pk),
+                    created=False)
+            except self.model.DoesNotExist:
+                pass
+        return updated
 
     def report_retry(self, pk, reason, until=None):
         """Mirror one reported retry of a task onto its process (#1207).

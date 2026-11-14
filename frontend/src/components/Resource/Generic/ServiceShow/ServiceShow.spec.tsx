@@ -118,6 +118,12 @@ const definitions = {
     hasEdit: true,
     options: {},
   },
+  ApplicationMetadataRecord: {
+    name: "ApplicationMetadataRecord",
+    hasList: true,
+    hasEdit: true,
+    options: {},
+  },
   CatalogueProxy: {
     name: "CatalogueProxy",
     hasList: true,
@@ -332,6 +338,105 @@ it("opens only the selected CSW record list dialog", async () => {
     "ServiceMetadataRecord",
     expect.anything(),
   );
+});
+
+// The records tab carries the application records harvested through the catalogue
+// as a third card beside the dataset and service ones (#1279).
+it("lists the application records of a catalogue beside the dataset and service records", async () => {
+  state.operations.add(
+    "list_related_DatasetMetadataRecord_of_CatalogueService",
+  );
+  state.operations.add(
+    "list_related_ServiceMetadataRecord_of_CatalogueService",
+  );
+  state.operations.add(
+    "list_related_ApplicationMetadataRecord_of_CatalogueService",
+  );
+  setup("/CatalogueService/csw-1/show/records", [
+    { path: "", label: "Overview", content: <RecordTitle /> },
+    { path: "records/*", label: "Records", content: <Records /> },
+  ]);
+  expect(
+    await screen.findByText(
+      "List DatasetMetadataRecord for CatalogueService/csw-1",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("List ServiceMetadataRecord for CatalogueService/csw-1"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "List ApplicationMetadataRecord for CatalogueService/csw-1",
+    ),
+  ).toBeInTheDocument();
+  // Each card is titled by the name of its resource, which is where the
+  // application card differs from its siblings.
+  expect(
+    screen.getByText("resources.ApplicationMetadataRecord.name"),
+  ).toBeInTheDocument();
+});
+
+it("opens only the catalogue's application record list on its own route", async () => {
+  state.operations.add(
+    "list_related_DatasetMetadataRecord_of_CatalogueService",
+  );
+  state.operations.add(
+    "list_related_ServiceMetadataRecord_of_CatalogueService",
+  );
+  state.operations.add(
+    "list_related_ApplicationMetadataRecord_of_CatalogueService",
+  );
+  setup(
+    "/CatalogueService/csw-1/show/records/ApplicationMetadataRecord/setting-1",
+    [
+      { path: "", label: "Overview", content: <RecordTitle /> },
+      { path: "records/*", label: "Records", content: <Records /> },
+    ],
+  );
+  expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(getOne).toHaveBeenCalledWith(
+    "ApplicationMetadataRecord",
+    expect.objectContaining({ id: "setting-1" }),
+  );
+  expect(getOne).not.toHaveBeenCalledWith(
+    "DatasetMetadataRecord",
+    expect.anything(),
+  );
+  expect(getOne).not.toHaveBeenCalledWith(
+    "ServiceMetadataRecord",
+    expect.anything(),
+  );
+});
+
+// A card is only as present as the related list its schema answers: without
+// list_related_ApplicationMetadataRecord_of_CatalogueService the tab must keep
+// the two sibling cards and stay away from the application one, not render a
+// list over an operation it does not have.
+it("keeps the application card away while its related list is not in the schema", async () => {
+  state.operations.add(
+    "list_related_DatasetMetadataRecord_of_CatalogueService",
+  );
+  state.operations.add(
+    "list_related_ServiceMetadataRecord_of_CatalogueService",
+  );
+  setup("/CatalogueService/csw-1/show/records", [
+    { path: "", label: "Overview", content: <RecordTitle /> },
+    { path: "records/*", label: "Records", content: <Records /> },
+  ]);
+  expect(
+    await screen.findByText(
+      "List DatasetMetadataRecord for CatalogueService/csw-1",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("List ServiceMetadataRecord for CatalogueService/csw-1"),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      "List ApplicationMetadataRecord for CatalogueService/csw-1",
+    ),
+  ).not.toBeInTheDocument();
 });
 
 function ProxyPage() {

@@ -54,6 +54,7 @@ import {
 import {
   groupJobs,
   hasProgressTotal,
+  hasReferencePlan,
   jobStateOf,
   type BackgroundJobRecord,
   type JobTab,
@@ -99,9 +100,10 @@ interface GroupedJobListProps {
  * components of the resource: `ProcessStatusField` for the state chip,
  * `ProgressField` for the bar (indeterminate while the total is unknown),
  * `RelativeDateField` for the moment and `AbortBackgroundProcessButton` for
- * the only action the backend supports on a running process. There is no
- * retry: no api endpoint restarts a decided process, so the drawer offers no
- * such button (#1208).
+ * the only action the backend supports on a running process. There is still
+ * no retry of a decided process - no api endpoint restarts one (#1208) -
+ * but a registration which lost references gets one per reference on its
+ * show screen (#1265), and a row whose counters name failures points there.
  *
  * The row collapses per the approved mockup of #1206: the chevron folds the
  * details - progress, steps, status chip and actions - behind the first
@@ -252,6 +254,16 @@ const JobEntry = (): ReactNode => {
                   })}
                 </Typography>
               )}
+              {hasReferencePlan(record) && (
+                <Typography variant="caption" color="text.secondary">
+                  {translate("backgroundActivity.jobCenter.referencesCounter", {
+                    total: record.referencesTotal ?? 0,
+                    stored: record.referencesStored ?? 0,
+                    failed: record.referencesFailed ?? 0,
+                    skipped: record.referencesSkipped ?? 0,
+                  })}
+                </Typography>
+              )}
               <Box sx={{ flex: 1 }} />
               {isFailed && (
                 <Button
@@ -264,6 +276,21 @@ const JobEntry = (): ReactNode => {
                   })}
                 >
                   {translate("backgroundActivity.viewDetails")}
+                </Button>
+              )}
+              {/* a decided success whose counters name lost references: the
+                  retry lives per reference on the show screen (#1265) */}
+              {!isFailed && (record.referencesFailed ?? 0) > 0 && (
+                <Button
+                  size="small"
+                  component={Link}
+                  to={createPath({
+                    resource: "BackgroundProcess",
+                    type: "show",
+                    id: record.id,
+                  })}
+                >
+                  {translate("backgroundActivity.jobCenter.openReferences")}
                 </Button>
               )}
               <AbortBackgroundProcessButton />

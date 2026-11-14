@@ -1,4 +1,4 @@
-import { createElement, useMemo, useState } from "react";
+import { createElement, useMemo, useState, type ReactNode } from "react";
 import {
   BasenameContextProvider,
   BooleanField,
@@ -18,6 +18,7 @@ import {
 import {
   Alert,
   Box,
+  Button,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -37,31 +38,59 @@ import { choiceLabel } from "./RecordFields";
 
 import "@xyflow/react/dist/style.css";
 
-// an application record names no service and no element, so the api holds no
-// MetadataRelation for it (see registry.models.metadata.MetadataRelation): its
-// relation section stays an empty list of groups and the screen renders the
-// catalogues which harvested it, which every record kind has
-const DATASET_GROUPS = [
-  { source: "layer", resource: "Layer" },
-  { source: "featureType", resource: "FeatureType" },
-  { source: "csw", resource: "CatalogueService" },
-];
-const SERVICE_GROUPS = [
-  { source: "wms", resource: "WebMapService" },
-  { source: "wfs", resource: "WebFeatureService" },
-  { source: "csw", resource: "CatalogueService" },
-];
-const RELATION_GROUPS: Record<string, typeof SERVICE_GROUPS> = {
-  ApplicationMetadataRecord: [],
-  DatasetMetadataRecord: DATASET_GROUPS,
+// the number of relations the graph draws: a display budget for the nodes, while
+// the table of every group continues the same query server-side, so the end of a
+// long group stays reachable instead of being lost behind the budget (#1268)
+const GRAPH_LIMIT = 100;
+
+// the column of MetadataRelation which holds the record itself, keyed by the kind
+// of the record; the mirror of registry.models.metadata.MetadataRelation.RECORD_FIELDS.
+// A record kind without a column of its own has no place in that table, so its screen
+// asks no relation query at all (the application record names no element and no service)
+const RECORD_COLUMNS: Record<string, string> = {
+  DatasetMetadataRecord: "dataset_metadata",
+  ServiceMetadataRecord: "service_metadata",
 };
 
-export const relationGroups = (resource: string) =>
-  RELATION_GROUPS[resource] ?? SERVICE_GROUPS;
+// the columns which hold a described element; the mirror of
+// registry.models.metadata.MetadataRelation.DESCRIBED_OBJECT_FIELDS. The type of a
+// relation IS which of these is filled - the model has no relation kind - so the
+// groups of a record are read from the filled column of its own rows instead of
+// being chosen by the kind of the record: what the two-way branch this replaced hid
+// is a service record which describes a layer or a feature type (#1268).
+// `source` names the relation in a response, `filter` the term the api declares.
+const DESCRIBED_COLUMNS = [
+  { source: "layer", filter: "layer", resource: "Layer" },
+  { source: "featureType", filter: "feature_type", resource: "FeatureType" },
+  { source: "wms", filter: "wms", resource: "WebMapService" },
+  { source: "wfs", filter: "wfs", resource: "WebFeatureService" },
+  { source: "csw", filter: "csw", resource: "CatalogueService" },
+];
+
+export type RelationGroup = (typeof DESCRIBED_COLUMNS)[number];
+
+export const recordColumn = (resource: string) => RECORD_COLUMNS[resource];
+
+// the query of one group: the relations of the record, narrowed to the column which
+// is filled. The count of the group and its table answer the very same query, so
+// what a facet counts is what its rows are (#1268)
+export const groupFilter = (
+  column: string,
+  id: RaRecord["id"],
+  group: RelationGroup,
+) => ({ [column]: id, [`${group.filter}__isnull`]: false });
+
+// the groups which are actually stored for a page of relations, in the order of the
+// columns of the table; a column no row fills is no group of this record
+export const filledGroups = (relations: RaRecord[]) =>
+  DESCRIBED_COLUMNS.filter((group) =>
+    relations.some((relation) => relation[group.source]),
+  );
 
 const TargetLink = ({
   source,
   reference,
+  label,
 }: {
   source: string;
   reference: string;
@@ -73,6 +102,7 @@ const TargetLink = ({
       <ReferenceField
         source={`${source}.id`}
         reference={reference}
+        label={label}
         link={
           hasShow
             ? "show"
@@ -90,19 +120,27 @@ const TargetLink = ({
   );
 };
 
-const RelationOrigin = ({ source }: { source: string; label?: string }) => {
+const RelationOrigin = ({
+  source,
+  label,
+}: {
+  source: string;
+  label?: string;
+}) => {
   const fields = useFieldsForOperation({
     operationId: "retrieve_MetadataRelation",
     forInput: false,
   });
   const field = fields.find((candidate) => candidate.props.source === source);
-  return field ? createElement(field.component, field.props) : null;
+  return field
+    ? createElement(field.component, { ...field.props, label })
+    : null;
 };
 
 export const relationGraph = (
   record: RaRecord,
   relations: RaRecord[],
-  groups: ReturnType<typeof relationGroups>,
+  describe: (resource: string) => string = (resource) => resource,
   originChoices?: { id: unknown; name: string }[],
   harvestedLabel = "Harvested through",
 ) => {
@@ -114,7 +152,7 @@ export const relationGraph = (
     },
   ];
   const edges: Edge[] = [];
-  groups.forEach((group, groupIndex) => {
+  filledGroups(relations).forEach((group, groupIndex) => {
     relations
       .filter((relation) => relation[group.source])
       .forEach((relation, index) => {
@@ -130,17 +168,20 @@ export const relationGraph = (
               `${group.resource}: ${target.id}`,
           },
         });
+        // the edge names what the filled column asserts - that this record
+        // describes that element - and where the coupling came from, instead of
+        // an undirected "related" (#1268)
         edges.push({
           id: `edge:${relation.id}`,
           source: id,
           target: "record",
-          label: `${group.resource} · ${choiceLabel(relation.origin, originChoices) ?? "—"}`,
+          label: `${describe(group.resource)} · ${choiceLabel(relation.origin, originChoices) ?? "—"}`,
           data: { isInternal: relation.isInternal },
         });
       });
   });
   (record.harvestedThrough ?? [])
-    .slice(0, Math.max(0, 100 - relations.length))
+    .slice(0, Math.max(0, GRAPH_LIMIT - relations.length))
     .forEach((catalogue: RaRecord, index: number) => {
       const id = `harvested:${catalogue.id}`;
       nodes.push({
@@ -151,6 +192,8 @@ export const relationGraph = (
             catalogue.title || catalogue.stringRepresentation || catalogue.id,
         },
       });
+      // a harvested catalogue is the provenance of the record, another fact than
+      // the coupling above, and it is drawn as its own edge for exactly that reason
       edges.push({
         id: `edge:${id}`,
         source: id,
@@ -161,28 +204,88 @@ export const relationGraph = (
   return { nodes, edges };
 };
 
+// One group of the relations of a record: the sentence the filled column tells,
+// how many rows it has, and the way to all of them. The number comes from the
+// server with the group's own filter, so it is the real total and not the length of
+// the page the graph drew. A column no row fills renders nothing: nothing stored is
+// never shown, and nothing absent is ever inferred (#1268).
+const RelationGroupFacet = ({
+  group,
+  filter,
+  describe,
+  onShowAll,
+  children,
+}: {
+  group: RelationGroup;
+  filter: Record<string, unknown>;
+  describe: (resource: string) => string;
+  onShowAll?: () => void;
+  children?: ReactNode;
+}) => {
+  const translate = useTranslate();
+  const { total, isPending } = useGetList("MetadataRelation", {
+    filter,
+    pagination: { page: 1, perPage: 1 },
+    sort: { field: "id", order: "ASC" },
+    meta: { jsonApiParams: { "fields[MetadataRelation]": "id" } },
+  });
+  // a group appears once its column answered that a row fills it; a group which is
+  // still being asked, and one counted empty, render nothing, so the screen never
+  // shows a heading it has to take back and states no coupling which is not stored.
+  // An answer without a count is not a zero: the group stays, only without a number.
+  if (isPending || total === 0) return null;
+  return (
+    <Box>
+      <Stack
+        direction="row"
+        useFlexGap
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
+        <Typography variant="h6" component={onShowAll ? "span" : "h3"}>
+          {describe(group.resource)}
+        </Typography>
+        {total != null && (
+          <Typography variant="body2" color="text.secondary">
+            {translate("recordShow.groupCount", { smart_count: total })}
+          </Typography>
+        )}
+        {onShowAll && (
+          <Button size="small" onClick={onShowAll}>
+            {translate("recordShow.showAllGroup")}
+          </Button>
+        )}
+      </Stack>
+      {children}
+    </Box>
+  );
+};
+
 const RelationGraph = ({
   filter,
+  describe,
 }: {
-  filter: Record<string, string | number>;
+  filter: Record<string, unknown>;
+  describe: (resource: string) => string;
 }) => {
   const record = useRecordContext();
-  const resource = useResourceContext();
   const translate = useTranslate();
-  const groups = useMemo(() => relationGroups(resource ?? ""), [resource]);
   const fields = useFieldsForOperation({
     operationId: "retrieve_MetadataRelation",
     forInput: false,
   });
+  // the graph asks every column of the table at once: which of them a row fills is
+  // what decides its groups, so the answer cannot be limited to the columns one
+  // kind of record was assumed to use
   const { data, total, isPending, error } = useGetList("MetadataRelation", {
     filter,
-    pagination: { page: 1, perPage: 100 },
+    pagination: { page: 1, perPage: GRAPH_LIMIT },
     sort: { field: "id", order: "ASC" },
     meta: {
       jsonApiParams: {
-        include: groups.map((group) => group.source).join(","),
+        include: DESCRIBED_COLUMNS.map((group) => group.source).join(","),
         ...Object.fromEntries(
-          groups.map((group) => [
+          DESCRIBED_COLUMNS.map((group) => [
             `fields[${group.resource}]`,
             "title,string_representation",
           ]),
@@ -196,24 +299,31 @@ const RelationGraph = ({
         ? relationGraph(
             record,
             data ?? [],
-            groups,
+            describe,
             fields.find((field) => field.props.source === "origin")?.props
               .choices,
             translate("recordShow.harvestedThrough"),
           )
         : { nodes: [], edges: [] },
-    [record, data, groups, fields, translate],
+    [record, data, describe, fields, translate],
   );
   if (error)
     return <Alert severity="error">{translate("recordShow.loadFailed")}</Alert>;
   if (isPending)
     return <Typography>{translate("ra.message.loading")}</Typography>;
+  const drawn = graph.nodes.length - 1; // without the node of the record itself
+  const stored =
+    (total ?? 0) + (record?.harvestedThrough?.length ?? 0);
   return (
     <Stack spacing={1}>
-      {total != null &&
-        total + (record?.harvestedThrough?.length ?? 0) > 100 && (
-          <Alert severity="info">{translate("recordShow.graphLimit")}</Alert>
-        )}
+      {stored > drawn && (
+        <Alert severity="info">
+          {translate("recordShow.graphLimit", {
+            shown: drawn,
+            total: stored,
+          })}
+        </Alert>
+      )}
       <Box sx={{ width: "100%", height: 480, minWidth: 0 }}>
         <ReactFlow {...graph} fitView nodesDraggable={false}>
           <Controls />
@@ -229,8 +339,31 @@ const RecordRelations = () => {
   const record = useRecordContext();
   const translate = useTranslate();
   const [view, setView] = useState("tables");
+  // the group which was opened from the graph; the tables show it alone, because
+  // its own server side query is what continues where the graph stopped
+  const [openedGroup, setOpenedGroup] = useState<string | undefined>(undefined);
+  const column = recordColumn(resource ?? "");
+  const filter = column && record ? { [column]: record.id } : undefined;
+  // how many relations are stored for this record at all, asked without includes
+  // and without rows: it decides whether there is anything to group (#1268)
+  const { total, isPending } = useGetList(
+    "MetadataRelation",
+    {
+      filter: filter ?? {},
+      pagination: { page: 1, perPage: 1 },
+      sort: { field: "id", order: "ASC" },
+      meta: { jsonApiParams: { "fields[MetadataRelation]": "id" } },
+    },
+    { enabled: filter !== undefined },
+  );
   if (!record) return null;
-  const groups = relationGroups(resource ?? "");
+  // what a relation of this screen asserts, in the words of the model: the record
+  // describes the element whose column is filled, and the origin says where the
+  // coupling came from. No relation kind is offered which the model cannot store.
+  const kindName = (reference: string) =>
+    translate(`resources.${reference}.name`, { smart_count: 1, _: reference });
+  const describe = (reference: string) =>
+    translate("recordShow.describesEdge", { kind: kindName(reference) });
   const catalogues = (
     <>
       <Typography variant="h6">
@@ -250,26 +383,54 @@ const RecordRelations = () => {
       </ResourceContextProvider>
     </>
   );
-  // a kind without relation groups has no MetadataRelation filter to ask: its
+  // a kind without a column of its own has no MetadataRelation filter to ask: its
   // section is the catalogues it was harvested through and nothing else
-  if (!groups.length)
+  if (!column) return <Stack spacing={2} sx={{ minWidth: 0 }}>{catalogues}</Stack>;
+  // a record which could have relations but stores none says so plainly, without
+  // claiming that no relation could ever exist for it, and keeps showing the
+  // catalogues it was harvested through: the origin of a record proves neither the
+  // presence nor the absence of a coupling (#1268)
+  if (isPending || total === 0)
     return (
       <Stack spacing={2} sx={{ minWidth: 0 }}>
+        {total === 0 ? (
+          <Alert severity="info">{translate("recordShow.noRelations")}</Alert>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {translate("ra.message.loading")}
+          </Typography>
+        )}
         {catalogues}
       </Stack>
     );
-  const parentFilter = {
-    [resource === "DatasetMetadataRecord"
-      ? "dataset_metadata"
-      : "service_metadata"]: record.id,
-  };
+  const groups = openedGroup
+    ? DESCRIBED_COLUMNS.filter((group) => group.source === openedGroup)
+    : DESCRIBED_COLUMNS;
+  const facets = (onShowAll?: (group: RelationGroup) => void) => (
+    <Stack direction="row" useFlexGap spacing={3} sx={{ flexWrap: "wrap" }}>
+      {DESCRIBED_COLUMNS.map((group) => (
+        <Box key={group.source}>
+          <RelationGroupFacet
+            group={group}
+            filter={groupFilter(column, record.id, group)}
+            describe={describe}
+            onShowAll={onShowAll ? () => onShowAll(group) : undefined}
+          />
+        </Box>
+      ))}
+    </Stack>
+  );
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
       <ToggleButtonGroup
         exclusive
         value={view}
         onChange={(_, value) => {
-          if (value) setView(value);
+          if (!value) return;
+          // the switch by hand is the reader asking for every group again; only the
+          // facet of the graph opens a single one
+          setOpenedGroup(undefined);
+          setView(value);
         }}
         aria-label={translate("recordShow.relationView")}
       >
@@ -280,56 +441,69 @@ const RecordRelations = () => {
           {translate("recordShow.graph")}
         </ToggleButton>
       </ToggleButtonGroup>
+      <Typography variant="body2" color="text.secondary">
+        {translate("recordShow.relationMeaning")}
+      </Typography>
       {view === "graph" ? (
-        <RelationGraph filter={parentFilter} />
+        <>
+          {facets((group) => {
+            setOpenedGroup(group.source);
+            setView("tables");
+          })}
+          <RelationGraph filter={filter ?? {}} describe={describe} />
+        </>
       ) : (
-        groups.map((group) => (
-          <Box key={group.source}>
-            <Typography variant="h6">
-              {translate(`resources.${group.resource}.name`, {
-                smart_count: 2,
-                _: group.resource,
-              })}
-            </Typography>
-            <ResourceContextProvider value="MetadataRelation">
-              <ListGuesser
-                resource="MetadataRelation"
-                filter={{
-                  ...parentFilter,
-                  [`${group.source === "featureType" ? "feature_type" : group.source}__isnull`]: false,
-                }}
-                listContent={
-                  <Datagrid bulkActionButtons={false} rowClick={false}>
-                    <TargetLink
-                      source={group.source}
-                      reference={group.resource}
-                      label={translate(`resources.${group.resource}.name`, {
-                        smart_count: 1,
-                        _: group.resource,
-                      })}
-                    />
-                    <RelationOrigin
-                      source="origin"
-                      label={translate("recordShow.linkOrigin")}
-                    />
-                    <BooleanField
-                      source="isInternal"
-                      label="recordShow.internal"
-                    />
-                  </Datagrid>
-                }
-                disableSyncWithLocation
-                storeKey={`${resource}.${record.id}.${group.source}`}
-                additionalFilters={[
-                  {component: SearchInput, props:{source: "search", alwaysOn: true}}
-                ]}
-                rowActions={<span />}
-                aside={undefined}
-                dataGridProps={{ bulkActionButtons: false, rowClick: false }}
-              />
-            </ResourceContextProvider>
-          </Box>
-        ))
+        <>
+          {openedGroup && (
+            <Box>
+              <Button size="small" onClick={() => setOpenedGroup(undefined)}>
+                {translate("recordShow.allGroups")}
+              </Button>
+            </Box>
+          )}
+          {groups.map((group) => (
+            <RelationGroupFacet
+              key={group.source}
+              group={group}
+              filter={groupFilter(column, record.id, group)}
+              describe={describe}
+            >
+              <ResourceContextProvider value="MetadataRelation">
+                <ListGuesser
+                  resource="MetadataRelation"
+                  filter={groupFilter(column, record.id, group)}
+                  listContent={
+                    <Datagrid bulkActionButtons={false} rowClick={false}>
+                      <TargetLink
+                        source={group.source}
+                        reference={group.resource}
+                        label={translate("recordShow.describesColumn", {
+                          kind: kindName(group.resource),
+                        })}
+                      />
+                      <RelationOrigin
+                        source="origin"
+                        label={translate("recordShow.linkOrigin")}
+                      />
+                      <BooleanField
+                        source="isInternal"
+                        label="recordShow.internal"
+                      />
+                    </Datagrid>
+                  }
+                  disableSyncWithLocation
+                  storeKey={`${resource}.${record.id}.${group.source}`}
+                  additionalFilters={[
+                    {component: SearchInput, props:{source: "search", alwaysOn: true}}
+                  ]}
+                  rowActions={<span />}
+                  aside={undefined}
+                  dataGridProps={{ bulkActionButtons: false, rowClick: false }}
+                />
+              </ResourceContextProvider>
+            </RelationGroupFacet>
+          ))}
+        </>
       )}
       {catalogues}
     </Stack>

@@ -1,4 +1,4 @@
-coverage==7.17.2
+coverage==7.17.3
 behave-django==2.0.0
 # lets Django's parallel test runner pickle tracebacks back from its workers,
 # without it a worker dies and later classes on its database fail as collateral

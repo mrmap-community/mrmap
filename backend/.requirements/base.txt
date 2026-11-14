@@ -17,9 +17,9 @@ argon2-cffi==25.1.0
 # adds cors header middleware for django to configure wildcard cors
 django-cors-headers==4.9.0
 # postgres sql adapter
-psycopg==3.3.8
-psycopg[binary]==3.3.8
-psycopg[pool]==3.3.8
+psycopg==3.3.9
+psycopg[binary]==3.3.9
+psycopg[pool]==3.3.9
 # library to process xml
 lxml==6.1.3
 # ISO 8601 date/time parser
@@ -52,8 +52,8 @@ channels[daphne]==4.3.2
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
 django-cte==5.0.1
-drf-spectacular-jsonapi==0.6.2
-camel-converter==6.0.0
+drf-spectacular-jsonapi==0.7.0
+camel-converter==6.0.1
 django-rest-knox==5.1.1
 django-pgviews-redux==1.3.0
 # manages the keyword maintenance triggers through migrations (#1009)

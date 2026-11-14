@@ -57,15 +57,18 @@ reasons):
   3. label `agent: paused` absent
   4. every native blocked_by blocker (GraphQL blockedBy) is SATISFIED: state
      CLOSED, stateReason COMPLETED, and at least one PR that closed it
-     (closedByPullRequestsReferences) is MERGED with baseRefName of the base
-     branch and a merge commit that is an ancestor of origin/<base> (git
-     merge-base --is-ancestor after git fetch origin <base>). A blocker
-     closed without such a PR is NOT satisfied - closing an issue is not
-     implementing it. When the native connection names no satisfying PR -
-     it stays empty wherever an issue was closed by hand and the PR merged
-     into a non-default branch - the blocker's timeline is consulted for
-     PRs that NAME it (native relation, a `Closes #N` body keyword, or an
-     `issue-<N>` branch), each facing the identical merge proof.
+     (closedByPullRequestsReferences) is MERGED with a merge commit that is an
+     ancestor of origin/<base> (git merge-base --is-ancestor after git fetch
+     origin <base>). Which branch the PR was merged into decides nothing on its
+     own: this repository's default branch is not <base>, so work merged there
+     before <base> became the integration branch satisfies the blocker as soon
+     as its merge commit is on origin/<base>, and a merge whose commit never
+     reached origin/<base> does not. A blocker closed without such a PR is NOT
+     satisfied - closing an issue is not implementing it. When the native
+     connection names no satisfying PR - it stays empty wherever an issue was
+     closed by hand and the PR never auto-closed it - the blocker's timeline is
+     consulted for PRs that NAME it (native relation, a `Closes #N` body
+     keyword, or an `issue-<N>` branch), each facing the identical merge proof.
   5. no active `scripts/wip` claim on it, local or remote - the discovery
      `wip ls` itself uses: `status: wip` labelled issues with their claim
      comments, plus the local worktrees whose branch names the issue
@@ -526,10 +529,14 @@ def timeline_prs(runner, repo, num):
 def blocker_verdicts(runner, repo, num, base, cache):
     """Rule 4: every blocked_by blocker of #num, satisfied or named.
 
-    A PR satisfies a blocker only as a whole: MERGED, merged into the base
-    branch, and its merge commit reachable from origin/<base>. The reason
-    names how far it got, so a caller can tell "nothing was implemented"
-    from "implemented, but not where this epic is integrated".
+    A PR satisfies a blocker only as a whole: MERGED, and its merge commit
+    reachable from origin/<base>. Which branch the PR names as its base proves
+    nothing by itself - the commit on the integration branch is the proof. A PR
+    merged into the repository's default branch before <base> was the
+    integration branch satisfies as soon as its merge commit is on origin/<base>
+    (#981 via PR #995 into master), and a PR merged into a branch that never
+    reached <base> does not. The reason names how far it got, so a caller can
+    tell "nothing was implemented" from "implemented, but not on the base".
 
     The evidence starts from the native closed-by connection; when it names
     no satisfying PR (empty included - GitHub leaves it empty whenever the
@@ -571,42 +578,51 @@ def blocker_verdicts(runner, repo, num, base, cache):
             if v["state"] != "closed" or not v["merged_at"]:
                 continue  # this PR did not merge anything; the next one may
             if v["base"] != base:
+                # Not the base branch: recorded for the reason text, and the
+                # merge commit below decides it the same way it decides a merge
+                # into <base>. `master` is this repository's default branch, so
+                # work merged there before develop became the integration
+                # branch reads like this, and may well be on origin/develop.
                 merged_elsewhere.append((pnum, v["base"]))
-                continue
             if not v["merge_sha"]:
                 merged_no_sha = pnum
                 continue
             if merge_commit_on_base(runner, v["merge_sha"], base):
                 satisfied = True
                 break
-            not_on_base = pnum
+            not_on_base = (pnum, v["base"])
         if not satisfied:
             # The native relation proved nothing - the timeline may still hold
-            # the PR that implemented this blocker and was merged into the
-            # integration branch while the issue was closed by hand. Only PRs
-            # already examined for THIS blocker are skipped; the shared cache
-            # merely spares the re-read, it never condemns a PR twice.
+            # the PR that implemented this blocker and was merged while the
+            # issue was closed by hand. Only PRs already examined for THIS
+            # blocker are skipped; the shared cache merely spares the re-read,
+            # it never condemns a PR twice.
             tried = {p.get("number") for p in closing}
             for pnum in timeline_prs(runner, repo, bnum):
                 if pnum in tried:
                     continue
                 v = pr_view(runner, repo, pnum, cache)
-                if v["state"] != "closed" or not v["merged_at"] or v["base"] != base:
+                if v["state"] != "closed" or not v["merged_at"]:
                     continue
-                if not v["merge_sha"] or not merge_commit_on_base(runner, v["merge_sha"], base):
-                    continue
+                # Naming is read before the merge proof on purpose: a PR that
+                # only mentions the number claims no implementation, so the
+                # ancestry of a commit irrelevant to this blocker is never
+                # asked of git.
                 named = bnum in {int(x) for x in CLOSES_RE.findall(v["body"] or "")}
                 if not named:
                     m = BRANCH_ISSUE_RE.search(v["head"] or "")
                     named = bool(m and m.group(1) == str(bnum))
-                if named:
-                    satisfied = True
-                    break
+                if not named:
+                    continue
+                if not v["merge_sha"] or not merge_commit_on_base(runner, v["merge_sha"], base):
+                    continue
+                satisfied = True
+                break
         if satisfied:
             continue
         if not_on_base:
             why = "PR #%d merged it into `%s`, but its merge commit is not on origin/%s" \
-                  % (not_on_base, base, base)
+                  % (not_on_base[0], not_on_base[1], base)
         elif merged_elsewhere:
             why = "PR #%d merged it into `%s` instead of `%s`" \
                   % (merged_elsewhere[0][0], merged_elsewhere[0][1], base)

@@ -1,0 +1,79 @@
+[
+{
+  "model": "registry.metadatacontact",
+  "pk": 1265001,
+  "fields": {
+    "name": "Retry fixture contact"
+  }
+},
+{
+  "model": "registry.webmapservice",
+  "pk": "cccc1265-0000-4000-8000-00000000000c",
+  "fields": {
+    "date_stamp": "2026-11-13T09:00:00+00:00",
+    "version": 130,
+    "is_active": true,
+    "origin": 1,
+    "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+    "title": "WMS retry fixture",
+    "abstract": "the service whose registration planned two retained references",
+    "service_url": "",
+    "service_contact": "1265001",
+    "metadata_contact": "1265001"
+  }
+},
+{
+  "model": "notify.backgroundprocess",
+  "pk": 1265010,
+  "fields": {
+    "date_created": "2026-11-13T09:00:00+00:00",
+    "status": 2,
+    "phase": "completed",
+    "process_type": "registering",
+    "description": "registration of the retry fixture service",
+    "total_steps": 4,
+    "done_steps": 4,
+    "done_at": "2026-11-13T09:05:00+00:00",
+    "references_total": 4,
+    "references_stored": 1,
+    "references_failed": 1,
+    "references_skipped": 2,
+    "references_plan_sealed": true
+  }
+},
+{
+  "model": "registry.temporarymdmetadatafile",
+  "pk": 1265001,
+  "fields": {
+    "background_process": 1265010,
+    "re_schedule": false,
+    "has_import_error": false,
+    "import_error": "",
+    "request_id": "2026-11-13T09:01:00+00:00",
+    "requested_url": "http://metadata.invalid/addresspoint.xml",
+    "reference_key": "fa707c927b2d215433df07bb5c55634903101dd0d9617dd4e6b75e23138ff6db",
+    "described_wms": "cccc1265-0000-4000-8000-00000000000c",
+    "described_display": "WMS retry fixture",
+    "state": 0
+  }
+},
+{
+  "model": "registry.temporarymdmetadatafile",
+  "pk": 1265002,
+  "fields": {
+    "background_process": 1265010,
+    "re_schedule": false,
+    "has_import_error": false,
+    "import_error": "Connection refused",
+    "request_id": "2026-11-13T09:02:00+00:00",
+    "requested_url": "http://metadata.invalid/planningarea.xml",
+    "reference_key": "a639e70b72d0ff67edb584899a112a5b296b8d7ea2b981ac2d6ca4936039f56d",
+    "described_wms": "cccc1265-0000-4000-8000-00000000000c",
+    "described_display": "WMS retry fixture",
+    "state": 2,
+    "error_kind": "fetch_unreachable",
+    "error_at": "2026-11-13T09:03:00+00:00",
+    "attempt_count": 4
+  }
+}
+]

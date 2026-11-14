@@ -8,6 +8,7 @@ import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import BackgroundJobBridge from '../Resource/BackgroundProcess/BackgroundJobBridge';
 import BackgroundJobCenterProvider from '../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext';
+import IncidentCenterProvider from '../Resource/OperationalIncident/IncidentCenter/IncidentCenterContext';
 import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
@@ -37,6 +38,11 @@ const MyLayout = (
           mounted notification path (#1205) — one failure must not become
           two toasts */}
       <BackgroundJobCenterProvider notifications={false}>
+      {/* the incident center (#1321): its provider owns the two bounded
+          windows, the app bar indicator reads them through the context and
+          the drawer mounts with the provider - no incident ever announces
+          as a snackbar, the center is the announcement */}
+      <IncidentCenterProvider>
         <RealtimeBus/> 
         <I18Observer/>
         <BackgroundJobBridge />
@@ -137,6 +143,7 @@ const MyLayout = (
           <Footer/>
         </Card>   
       </Layout>
+      </IncidentCenterProvider>
       </BackgroundJobCenterProvider>
     </SystemStatusProvider>
 

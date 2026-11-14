@@ -27,6 +27,11 @@ const state = vi.hoisted(() => ({
 // without its store joining the bus or notifying in this spec
 const jobCenterMounts = vi.hoisted(() => vi.fn());
 
+// the Incident Center (#1321): the same stand-in pattern - the layout spec
+// pins that the provider is mounted around the layout, its windows, drawer
+// and topic have their own specs
+const incidentCenterMounts = vi.hoisted(() => vi.fn());
+
 // the react-admin surface the layout and the background-job bridge use; the
 // bridge itself and its store run unmocked, so the wiring is the one shipping
 vi.mock('react-admin', () => ({
@@ -67,6 +72,12 @@ vi.mock('../Resource/BackgroundProcess/JobCenter/BackgroundJobCenterContext', ()
     return <>{children}</>;
   },
 }));
+vi.mock('../Resource/OperationalIncident/IncidentCenter/IncidentCenterContext', () => ({
+  default: ({ children }: { children?: ReactNode }) => {
+    incidentCenterMounts();
+    return <>{children}</>;
+  },
+}));
 vi.mock('./AppBar', () => ({ default: () => null }));
 vi.mock('./Menu', () => ({ default: () => null }));
 vi.mock('./BreadCrump', () => ({ default: () => null }));
@@ -91,6 +102,7 @@ beforeEach(() => {
   state.refetch.mockClear();
   state.notify.mockClear();
   jobCenterMounts.mockClear();
+  incidentCenterMounts.mockClear();
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -141,5 +153,17 @@ describe('MyLayout', () => {
     // there is no module left to mount, the bridge above is the notification
     // path — so this spec can no longer stand one in, it can only pin the
     // bridge and the center
+  });
+
+  it('mounts the Incident Center around the layout', () => {
+    render(
+      <MyLayout>
+        <span />
+      </MyLayout>,
+    );
+    // the incident center (#1321) is mounted where its app bar indicator can
+    // read the shared windows; the incident api of #1319 may not exist yet,
+    // and a failing read must not keep the layout from rendering
+    expect(incidentCenterMounts).toHaveBeenCalled();
   });
 });

@@ -844,6 +844,47 @@ const en = lodashMerge(
         capabilities_backup_missing: "Capabilities document missing",
       },
     },
+    // the incident center of the app bar (#1321): the words of the active and
+    // resolved windows; sources fall back to the raw code of the api until
+    // the publishers of #1320 pin their values
+    incidentCenter: {
+      title: "Incidents",
+      subtitle: "Operational failures, retries and stalled work",
+      privacyNote: "Only what you are allowed to see is counted or listed - the server decides, the client never relaxes it.",
+      activeCount: "%{smart_count} active incident |||| %{smart_count} active incidents",
+      tabs: {
+        active: "Active",
+        resolved: "Resolved",
+      },
+      facets: {
+        severity: "Severity:",
+        state: "State:",
+        source: "Source:",
+      },
+      severities: {
+        warning: "Warning",
+        error: "Error",
+      },
+      states: {
+        retrying: "Retrying",
+        stalled: "Suspected stalled",
+        failed: "Failed",
+        resolved: "Resolved",
+      },
+      occurrences: "Seen %{count} times",
+      occurrenceBadge: "%{count}×",
+      firstSeen: "First seen",
+      resolvedAt: "Resolved",
+      retryAttempt: "Attempt %{attempt}",
+      retryOfTotal: "of %{total}",
+      nextAttempt: "next attempt at %{time}",
+      openTarget: "Open affected resource",
+      loadError: "Unable to load the incidents you are allowed to see.",
+      emptyActive: "Nothing asks for your attention right now.",
+      emptyResolved: "No resolved incident yet.",
+      emptyFiltered: "No incident matches these filters.",
+      truncated: "Showing the %{shown} most recent of %{total} incidents.",
+    },
     serviceAttention: {
       title: "Attention of this service",
       none: "Nothing about this service needs the attention of an administrator.",

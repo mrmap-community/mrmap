@@ -3,6 +3,7 @@ import { LoadingIndicator, LocalesMenuButton, ToggleThemeButton, useLocales, use
 import { Stack } from "@mui/material";
 
 import JobCenterIndicator from '../Resource/BackgroundProcess/JobCenter/JobCenterIndicator';
+import IncidentCenterIndicator from '../Resource/OperationalIncident/IncidentCenter/IncidentCenterIndicator';
 import AttentionIndicator from './AttentionIndicator';
 import SystemStatusIndicator from './SystemStatusIndicator';
 
@@ -17,6 +18,7 @@ const AppBarToolbar = () => {
             <JobCenterIndicator />
             <SystemStatusIndicator />
             <AttentionIndicator />
+            <IncidentCenterIndicator />
             {locales && locales.length > 1 ? <LocalesMenuButton /> : null}
             {darkTheme && <ToggleThemeButton />}
             <LoadingIndicator />

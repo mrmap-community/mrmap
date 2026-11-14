@@ -944,6 +944,47 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       capabilities_backup_missing: "Capabilities-Dokument fehlt",
     },
   },
+  // das Störungszentrum der App-Leiste (#1321): die Wörter der aktiven und
+  // der behobenen Fenster; Quellen fallen auf den Rohcode der API zurück,
+  // bis die Geber aus #1320 ihre Werte festlegen
+  incidentCenter: {
+    title: "Störungen",
+    subtitle: "Betriebliche Fehler, Wiederholungen und blockierte Arbeit",
+    privacyNote: "Gezählt und gelistet ist nur, was Sie sehen dürfen – die Entscheidung trifft der Server, der Client lockert sie nie.",
+    activeCount: "%{smart_count} aktive Störung |||| %{smart_count} aktive Störungen",
+    tabs: {
+      active: "Aktuell",
+      resolved: "Behoben",
+    },
+    facets: {
+      severity: "Schweregrad:",
+      state: "Zustand:",
+      source: "Quelle:",
+    },
+    severities: {
+      warning: "Warnung",
+      error: "Fehler",
+    },
+    states: {
+      retrying: "Wiederholungsversuch",
+      stalled: "Vermutlich blockiert",
+      failed: "Gescheitert",
+      resolved: "Behoben",
+    },
+    occurrences: "%{count}-mal gesehen",
+    occurrenceBadge: "%{count}×",
+    firstSeen: "Erstmals",
+    resolvedAt: "Behoben",
+    retryAttempt: "Versuch %{attempt}",
+    retryOfTotal: "von %{total}",
+    nextAttempt: "nächster Versuch um %{time}",
+    openTarget: "Betroffene Ressource öffnen",
+    loadError: "Die für Sie sichtbaren Störungen konnten nicht geladen werden.",
+    emptyActive: "Derzeit braucht nichts Ihre Aufmerksamkeit.",
+    emptyResolved: "Noch keine behobene Störung.",
+    emptyFiltered: "Keine Störung passt zu diesen Filtern.",
+    truncated: "Gezeigt werden die %{shown} neuesten von %{total} Störungen.",
+  },
   serviceAttention: {
     title: "Aufmerksamkeit dieses Dienstes",
     none: "An diesem Dienst ist nichts, was die Aufmerksamkeit einer Verwaltung benötigt.",

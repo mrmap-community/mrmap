@@ -262,17 +262,37 @@ class PersistenceHandler:
         looking them up by the class name alone threw the provenance defaults
         of a harvesting run away, because that run keys them by type name
         (#976).
+
+        A record's `profile` is filled the same way but not from the configs:
+        every record mapped by the configs is an ISO 19139 record of the
+        generic mapping (#1240), and the one row which says so is seeded in the
+        database, not copied into every config. The lookup answers None on a
+        database which does not have the row -- and a `TransactionTestCase`
+        truncates every table between tests, so importing on one must store
+        the record without a profile rather than violate the foreign key of a
+        row which is gone.
         """
+        generic_profile = _UNSET = object()
         for model_cls, instances in instances_by_model.items():
             defaults = self.defaults_of(model_cls)
-            if not defaults:
-                continue
+            if defaults:
+                for inst in instances:
+                    for field_name, value in defaults.items():
+                        current_value = getattr(inst, field_name)
+                        if not current_value:
+                            setattr(inst, field_name, value)
 
-            for inst in instances:
-                for field_name, value in defaults.items():
-                    current_value = getattr(inst, field_name)
-                    if not current_value:
-                        setattr(inst, field_name, value)
+            if any(f.name == 'profile' for f in model_cls._meta.concrete_fields):
+                if generic_profile is _UNSET:
+                    # late import: registry.models.metadata imports the mapper
+                    # factory, so importing its models at this module's head
+                    # would close the cycle
+                    from registry.models.metadata import MetadataProfile
+                    generic_profile = MetadataProfile.generic()
+                if generic_profile is not None:
+                    for inst in instances:
+                        if inst.profile_id is None:
+                            inst.profile_id = generic_profile.pk
 
     # ------------------------
     # Redirect FK and M2M _parsed fields

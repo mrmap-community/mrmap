@@ -281,6 +281,10 @@ router.register(r'mime-types', metadata_views.MimeTypeViewSet,
                 basename='mime-type')
 router.register(r'licences', metadata_views.LicenceViewSet,
                 basename='licence')
+# the authoring profiles of the records (#1240); the editor follows the
+# profile link of a record here and fetches sections and rules with it
+router.register(r'metadata-profiles',
+                metadata_views.MetadataProfileViewSet, basename='metadataprofile')
 router.register(r'referencesystems',
                 metadata_views.ReferenceSystemViewSet, basename='referencesystem')
 router.register(r'styles', metadata_views.StyleViewSet, basename='style')

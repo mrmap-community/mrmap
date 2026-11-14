@@ -5,12 +5,13 @@ from extras.serializers import (HistoryInformationSerializer,
 from guardian.core import ObjectPermissionChecker
 from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
                                       IsoCategory, Keyword, Language, Licence,
-                                      MetadataContact, MetadataRelation, MimeType,
+                                      MetadataContact, MetadataProfile,
+                                      MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.fields import SerializerMethodField
-from rest_framework.relations import HyperlinkedIdentityField
+from rest_framework.relations import (Hyperlink, HyperlinkedIdentityField)
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
 
@@ -144,6 +145,47 @@ class IsoCategorySerializer(StringRepresentationSerializer, ModelSerializer):
         fields = "__all__"
 
 
+class MetadataProfileSerializer(StringRepresentationSerializer, ModelSerializer):
+    """The authoring profile of the records (#1240), as a json:api resource.
+
+    Sections and rules answer as plain attributes, so the editor fetches
+    them with the record it edits (``include=profile``, optionally
+    ``fields[profile]=rules``) and no frontend keeps a second copy of them.
+    The ISO element paths of the fields are NOT here — they ride the
+    OpenAPI schema, derived from the mapper configs (see registry/schema.py).
+    """
+
+    url = HyperlinkedIdentityField(view_name="registry:metadataprofile-detail")
+
+    class Meta:
+        model = MetadataProfile
+        fields = "__all__"
+
+
+class MetadataProfileRelatedField(ResourceRelatedField):
+    """The ``profile`` relationship of a record, pointing at the profile itself.
+
+    ``ResourceRelatedField`` builds its related link from the pk of the
+    record which carries the relationship — its pattern is the nested
+    routers' ``<parent>/<relation>/`` endpoint. A profile is no subresource
+    of the record: the document the editor follows is the profile's own
+    detail route, and the AC of #1240 say the record's profile link answers
+    exactly that.
+    """
+
+    def get_links(self, obj=None, lookup_field="pk"):
+        profile = getattr(obj, "profile", None) if obj is not None else None
+        if profile is None:
+            return {}
+        request = self.context.get("request", None)
+        url = self.reverse(
+            "registry:metadataprofile-detail",
+            kwargs={"pk": profile.pk},
+            request=request,
+        )
+        return {"related": Hyperlink(url, "related")}
+
+
 class MetadataRelationSerializer(ModelSerializer):
     included_serializers = {
         "layer": "registry.serializers.service.LayerSerializer",
@@ -161,6 +203,19 @@ class MetadataRelationSerializer(ModelSerializer):
 class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
     can_edit = SerializerMethodField()
     can_delete = SerializerMethodField()
+
+    def create(self, validated_data):
+        """A record created without a profile is an iso19139-generic one.
+
+        The api POST is the second creation path of a record besides the
+        mapper persistence; both look the seeded profile up rather than
+        naming it as a column default, see MetadataProfile.generic() (#1240).
+        """
+        if 'profile' not in validated_data:
+            generic = MetadataProfile.generic()
+            if generic is not None:
+                validated_data['profile'] = generic
+        return super().create(validated_data)
 
     def get_fields(self):
         fields = super().get_fields()
@@ -196,6 +251,11 @@ class DatasetMetadataRecordSerializer(
 
     url = HyperlinkedIdentityField(view_name="registry:datasetmetadata-detail")
 
+    profile = MetadataProfileRelatedField(
+        queryset=MetadataProfile.objects,
+        required=False,
+        allow_null=True,
+    )
     self_pointing_layers = ResourceRelatedField(
         queryset=Layer.objects,
         many=True,
@@ -251,6 +311,7 @@ class DatasetMetadataRecordSerializer(
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,
         "licence": LicenceSerializer,
+        "profile": MetadataProfileSerializer,
         "reference_systems": ReferenceSystemDefaultSerializer,
         "time_extents": TimeExtentSerializer,
         "languages": LanguageSerializer,
@@ -274,6 +335,11 @@ class ServiceMetadataRecordSerializer(
 
     url = HyperlinkedIdentityField(view_name="registry:servicemetadata-detail")
 
+    profile = MetadataProfileRelatedField(
+        queryset=MetadataProfile.objects,
+        required=False,
+        allow_null=True,
+    )
     harvested_through = ResourceRelatedField(
         queryset=CatalogueService.objects,
         many=True,
@@ -311,6 +377,7 @@ class ServiceMetadataRecordSerializer(
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,
         "licence": LicenceSerializer,
+        "profile": MetadataProfileSerializer,
         "reference_systems": ReferenceSystemDefaultSerializer,
         "time_extents": TimeExtentSerializer,
         "languages": LanguageSerializer,
@@ -340,6 +407,11 @@ class ApplicationMetadataRecordSerializer(
 
     url = HyperlinkedIdentityField(view_name="registry:applicationmetadata-detail")
 
+    profile = MetadataProfileRelatedField(
+        queryset=MetadataProfile.objects,
+        required=False,
+        allow_null=True,
+    )
     harvested_through = ResourceRelatedField(
         queryset=CatalogueService.objects,
         many=True,
@@ -381,6 +453,7 @@ class ApplicationMetadataRecordSerializer(
         "categories": IsoCategorySerializer,
         "keywords": KeywordSerializer,
         "licence": LicenceSerializer,
+        "profile": MetadataProfileSerializer,
         "reference_systems": ReferenceSystemDefaultSerializer,
         "time_extents": TimeExtentSerializer,
         "languages": LanguageSerializer,

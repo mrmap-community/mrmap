@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
@@ -798,6 +798,74 @@ class MetadataTermsOfUse(models.Model):
         abstract = True
 
 
+#: the primary key of the generic ISO 19139 profile, seeded by the data
+#: migration of #1240. A fixed uuid and not a generated one because the
+#: creation paths of a record - the mapper persistence of an import and the
+#: api POST - look this row up by name to answer a record created without an
+#: explicit profile: every record mapped by the configs is an ISO 19139 record
+#: of the generic mapping. A lookup and not a column default because the row
+#: is data which a test database truncates between tests (TransactionTestCase),
+#: and a default pointing at a truncated row is an IntegrityError on every
+#: record insert.
+GENERIC_ISO19139_PROFILE_PK = UUID("0180721f-bf34-4281-b367-648a74dd8ff9")
+
+
+class MetadataProfile(models.Model):
+    """The authoring profile of metadata records (#1240).
+
+    Profiles are data and not code: the sections the editor groups its
+    fields into, the mandatory/recommended flag the section rail renders
+    (#1245) and the ISO structural rules validated on save (#1243) are the
+    content of such a row, so shipping `iso19139-gdi-de` later is a data
+    migration and not a release (design §5 of the metadata-editor document).
+
+    The ISO 19139 element paths of the mapped fields deliberately do NOT
+    live here: they stay in the mapper configs of `registry/mappers/configs/`
+    and reach the client from there, as `x-iso-path` of the OpenAPI schema
+    (`registry/mappers/paths.py`). A second copy here would drift.
+
+    The row is seeded by a data migration; serving it through the api is
+    ordinary json:api CRUD, writes stay with the operator and later issues.
+    """
+    id = models.UUIDField(primary_key=True,
+                          default=uuid4,
+                          editable=False)
+    name = models.CharField(max_length=100,
+                            unique=True,
+                            verbose_name=_("name"),
+                            help_text=_("the machine name of the profile, such as 'iso19139-generic'"))
+    label = models.CharField(max_length=255,
+                             verbose_name=_("label"),
+                             help_text=_("the display name of the profile, which the editor renders in its header"))
+    sections = models.JSONField(default=list,
+                                blank=True,
+                                verbose_name=_("sections"),
+                                help_text=_("the ordered sections of the editor: the fields each section groups and the mandatory/recommended flag of every field"))
+    rules = models.JSONField(default=list,
+                             blank=True,
+                             verbose_name=_("rules"),
+                             help_text=_("the ISO structural rules which are validated on save (#1243); attribute constraints keep riding the OpenAPI schema (Q1 option C on #1243)"))
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.label or self.name
+
+    @classmethod
+    def generic(cls):
+        """The seeded generic profile, or None when this database has none.
+
+        The creation paths of a record ask for the profile of the v1 mapping
+        here and not through a column default: a default names the row on
+        every insert, while this answers only when the row is actually there.
+        A `TransactionTestCase` truncates every table between tests, so on
+        such a database the record arrives without a profile instead of
+        violating the foreign key of a row no longer present (#1240).
+        """
+        return cls.objects.filter(pk=GENERIC_ISO19139_PROFILE_PK).first()
+
+
 class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
@@ -1293,6 +1361,21 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
+
+    # the authoring profile of the record (#1240). It sits on the record and
+    # not on AbstractMetadata: the profile describes the ISO 19139 document
+    # behind a METADATA record, while the other inheritors of that abstract
+    # (layers, services) hold denormalized metadata fields of one document
+    # but answer no document of their own.
+    profile = models.ForeignKey(to=MetadataProfile,
+                                on_delete=models.RESTRICT,
+                                blank=True,
+                                null=True,
+                                related_name="+",
+                                verbose_name=_("metadata profile"),
+                                help_text=_("the authoring profile whose sections and rules describe this record (#1240); "
+                                            "records created by an import or through the api answer the seeded "
+                                            "iso19139-generic profile, see MetadataProfile.generic()"))
 
     # TODO: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,

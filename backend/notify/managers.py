@@ -2,7 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import (Case, F, OuterRef, Q, Subquery, TextField,
                               Value, When)
-from django.db.models.fields import FloatField
+from django.db.models.fields import FloatField, IntegerField
 from django.db.models.functions import (Coalesce, Greatest, Least, Now, Round)
 from django.db.models.signals import post_save
 from django.utils.timezone import now
@@ -143,6 +143,10 @@ class BackgroundProcessManager(models.Manager):
         A process which reports itself COMPLETED is written as done: the
         completion of the work is the proof that its steps are over, and the
         overview of the background activity renders exactly these numbers.
+        A COMPLETED report also closes the stored summary of a metadata
+        collection with the references which never answered an outcome
+        (#1259), whoever completes the process - the run's own task or the job
+        of an update which collects as its last step (#1274).
 
         Returns:
             int: amount of processes which were updated
@@ -166,6 +170,24 @@ class BackgroundProcessManager(models.Manager):
         if status == ProcessStatusEnum.COMPLETED:
             values["done_steps"] = Coalesce(
                 F("total_steps"), F("done_steps"))
+            # a run which planned a metadata collection closes its summary with
+            # the references it never heard an answer from (#1259). The task
+            # side of a registration writes the same answer; this is the answer
+            # for whoever completes the process through a report - the job of an
+            # update whose run collected its metadata as its last step (#1274).
+            # A process which planned no collection answers NULL, as it did
+            # before this write existed.
+            values["references_skipped"] = Case(
+                When(
+                    references_total__isnull=True,
+                    then=Value(None, output_field=IntegerField())),
+                default=Greatest(
+                    F("references_total")
+                    - Coalesce(F("references_stored"), 0)
+                    - Coalesce(F("references_failed"), 0),
+                    0),
+                output_field=IntegerField(),
+            )
         if status in self.TERMINAL_STATUS:
             values["done_at"] = now()
 

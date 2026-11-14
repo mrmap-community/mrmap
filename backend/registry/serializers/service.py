@@ -612,10 +612,16 @@ class WebMapServiceCreateSerializer(
         queryset=Organization.objects,
         label=_("owner"),
         help_text=_("The selected organization grants all rights on the registered service."))
+    # default True is kept on purpose (#1264): turning it off would change
+    # registration behaviour for every existing client
     collect_metadata_records = BooleanField(
         default=True,
         label=_("collect metadata records"),
-        help_text=_("If checked, Mr. Map collects all related metadata documents after the registration task."))
+        help_text=_(
+            "If checked, Mr. Map collects the metadata documents referenced by "
+            "the capabilities document after the registration task. A document "
+            "which cannot be reached is reported as a failed metadata "
+            "reference in the background jobs, where it can be retried."))
 
     class Meta:
         model = WebMapService
@@ -843,11 +849,17 @@ class WebFeatureServiceCreateSerializer(
     owner = ResourceRelatedField(queryset=Organization.objects)
 
     # the same option the WMS create offers: one word per concept means the
-    # very same msgids here, so both languages name it identically (#1267)
+    # very same msgids here, so both languages name it identically (#1267);
+    # the text says what is collected, what a failure does and where to look
+    # (#1264)
     collect_metadata_records = BooleanField(
         default=True,
         label=_("collect metadata records"),
-        help_text=_("If checked, Mr. Map collects all related metadata documents after the registration task."))
+        help_text=_(
+            "If checked, Mr. Map collects the metadata documents referenced by "
+            "the capabilities document after the registration task. A document "
+            "which cannot be reached is reported as a failed metadata "
+            "reference in the background jobs, where it can be retried."))
 
     class Meta:
         model = WebFeatureService

@@ -1,3 +1,4 @@
+import CollectionActivityCard from "../../../Generic/ServiceShow/CollectionActivityCard";
 import ServiceOverview from "../../../Generic/ServiceShow/ServiceOverview";
 import ServiceUpdateJobsCard from "../../../Generic/ServiceShow/ServiceUpdateJobsCard";
 import MonitoringRunsCard from "../Overview/MonitoringRuns/MonitoringRunsCard";
@@ -7,6 +8,7 @@ const OverviewTab = () => {
   return (
     <ServiceOverview
       protocol="WMS"
+      collection={<CollectionActivityCard />}
       spatialSecurity={<SpatialSecurityCard />}
     >
       <ServiceUpdateJobsCard resource="WebMapServiceUpdateJob" />

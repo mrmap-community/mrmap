@@ -534,6 +534,30 @@ const en = lodashMerge(
         "countMismatch": "Count mismatch"
       }
     },
+    // what the collection of metadata references of one registration did,
+    // shown on the page of the service it registered (#1266). The four counter
+    // labels are the api's own labels of those fields (#1259, #1263); the
+    // outcomes are the words #1267 agreed for both paths which collect.
+    collectionActivity: {
+      title: "Metadata collection of this registration",
+      loadError: "Unable to load the metadata collection of this service.",
+      unreadable:
+        "The background jobs of this service are not readable for you.",
+      noHistory: "No retained collection history.",
+      notPlanned:
+        "This registration has not planned its metadata references yet.",
+      notCollected: "References of this kind were not collected.",
+      nothingReferenced:
+        "The capabilities document referenced no metadata of its own.",
+      planned: "Metadata references total",
+      stored: "Metadata references stored",
+      failed: "Metadata references failed",
+      skipped: "Metadata references skipped",
+      unresolved: "%{count} references could not be collected",
+      describes: "Elements the retained references describe",
+      describesMore: "%{count} more elements",
+      viewReferences: "Show every reference",
+    },
     harvestingActivity: {
       started: "Started",
       stages: { discover: "Discover", download: "Download", import: "Import" },

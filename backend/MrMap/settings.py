@@ -831,6 +831,20 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
+# The activation gate of the metadata editor's record writes (#1241).
+# The create/update endpoints of the metadata records answer the default
+# json:api CRUD contract, but until the XML write-back (#1242), the profile
+# validation rules (#1243) and the atomic publishing/harvest overwrite gate
+# (#1244) are integrated, a committed model field would leave the ISO
+# document served by the CSW stale or invalid behind it. The readiness
+# clarification of #1241 (2026-11-12) therefore makes POST/PUT/PATCH on the
+# record resources answer 403 while this gate is off; DELETE stays at its
+# today behaviour. Only the final gate of #1244 - round-trip and rejection
+# tests green - may flip this default to True for public editing; an operator
+# who enables it before that accepts inconsistent CSW documents deliberately.
+MRMAP_METADATA_EDITOR_WRITES_ENABLED = os.environ.get(
+    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "False") == "True"
+
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 

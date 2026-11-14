@@ -12,7 +12,7 @@ from registry.filters.statistical import (
     StatisticalFeatureTypePerServiceFilterSet,
     StatisticalHarvestedMetadataRelationFilterSet,
     StatisticalLayerPerServiceFilterSet)
-from registry.models.harvest import HarvestedMetadataRelation
+from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
@@ -25,6 +25,7 @@ from registry.serializers.statistical import (
     StatisticalLayerPerServiceSerializer, StatisticalLayerSerializer,
     StatisticalServiceMetadataRecordSerializer,
     StatisticalWebFeatureServiceSerializer, StatisticalWebMapServiceSerializer)
+from rest_framework.response import Response
 from rest_framework_json_api.views import generics
 
 
@@ -90,3 +91,31 @@ class StatisticalHarvestedMetadataRelationListView(StatisticalListView):
     filterset_class = StatisticalHarvestedMetadataRelationFilterSet
     queryset = HarvestedMetadataRelation.objects.stats_per_day()
     serializer_class = StatisticalHarvestedMetadataRelationSerializer
+
+    def list(self, request, *args, **kwargs):
+        """The page of the aggregation, with the services of its jobs.
+
+        The serializer answers ``service`` of every row of this card. Neither
+        a join into the aggregation nor an annotation naming the job of every
+        grouped row may answer that: the aggregation groups the relations,
+        and an expression over the job makes every grouped row pass through
+        the job table - while only the handful of rows of one page shows the
+        service at all (#1316). So one query over the jobs of the page adds
+        the service to its rows after the pagination, and the aggregation
+        reads the relation table alone.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is None:
+            return Response(self.get_serializer(
+                queryset, many=True).data)
+
+        services = dict(
+            HarvestingJob.objects.filter(
+                pk__in={row["harvesting_job"] for row in page},
+            ).values_list("pk", "service"),
+        )
+        for row in page:
+            row["service"] = services.get(row["harvesting_job"])
+        return self.get_paginated_response(
+            self.get_serializer(page, many=True).data)

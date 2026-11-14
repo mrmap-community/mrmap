@@ -274,6 +274,8 @@ const en = lodashMerge(
       formats: "Output formats",
       noDescription: "No feature type description fetched from the service.",
       metadata: "Related metadata",
+      noMetadata: "No metadata record describes this feature type.",
+      metadataNotCollected: "The capabilities of this feature type reference metadata documents, but no records were collected from them. The service was registered before feature type references were collected, or collecting them failed.",
       access: "Access",
       secured: "Access rules configured",
       spatialSecured: "Spatial access rules configured",
@@ -531,6 +533,30 @@ const en = lodashMerge(
         "remoteError": "Remote error",
         "countMismatch": "Count mismatch"
       }
+    },
+    // what the collection of metadata references of one registration did,
+    // shown on the page of the service it registered (#1266). The four counter
+    // labels are the api's own labels of those fields (#1259, #1263); the
+    // outcomes are the words #1267 agreed for both paths which collect.
+    collectionActivity: {
+      title: "Metadata collection of this registration",
+      loadError: "Unable to load the metadata collection of this service.",
+      unreadable:
+        "The background jobs of this service are not readable for you.",
+      noHistory: "No retained collection history.",
+      notPlanned:
+        "This registration has not planned its metadata references yet.",
+      notCollected: "References of this kind were not collected.",
+      nothingReferenced:
+        "The capabilities document referenced no metadata of its own.",
+      planned: "Metadata references total",
+      stored: "Metadata references stored",
+      failed: "Metadata references failed",
+      skipped: "Metadata references skipped",
+      unresolved: "%{count} references could not be collected",
+      describes: "Elements the retained references describe",
+      describesMore: "%{count} more elements",
+      viewReferences: "Show every reference",
     },
     harvestingActivity: {
       started: "Started",

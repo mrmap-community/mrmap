@@ -20,6 +20,9 @@ const harvestingBlocks = [
   // the Job Center (#1203) replaced together with the block.
   "harvestingStats",
   "cronInput",
+  // the collection card of a service is the second user of this word family:
+  // one vocabulary for both paths which collect (#1266, D6 of #1256)
+  "collectionActivity",
 ];
 
 const leafPaths = (value: unknown, prefix = ""): string[] =>

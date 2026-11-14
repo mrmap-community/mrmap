@@ -254,6 +254,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "formats": "Ausgabeformate",
     "noDescription": "Keine Beschreibung vom Dienst abgerufen.",
     "metadata": "Zugehörige Metadaten",
+    "noMetadata": "Kein Metadatensatz beschreibt diesen Feature-Type.",
+    "metadataNotCollected": "Die Capabilities dieses Feature-Typs verweisen auf Metadatendokumente, aber es wurden keine Datensätze daraus erhoben. Der Dienst wurde registriert, bevor Feature-Type-Verweise erhoben wurden, oder die Erhebung ist fehlgeschlagen.",
     "access": "Zugriff",
     "secured": "Zugriffsregeln konfiguriert",
     "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",
@@ -512,6 +514,32 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "remoteError": "Fehler der Gegenstelle",
       "countMismatch": "Abweichende Anzahl"
     }
+  },
+  // was die Metadatenerfassung einer Registrierung bewirkt hat, auf der Seite
+  // des dazu registrierten Dienstes (#1266). Die vier Bezeichnungen der Zahlen
+  // folgen den Beschriftungen, welche die Api für diese Felder trägt (#1259,
+  // #1263); die Ergebnisse sind die von #1267 für beide Sammel-Pfade
+  // abgestimmten Worte.
+  collectionActivity: {
+    title: "Metadatenerfassung dieser Registrierung",
+    loadError:
+      "Die Metadatenerfassung dieses Dienstes konnte nicht geladen werden.",
+    unreadable:
+      "Die Hintergrundaufträge dieses Dienstes sind für Sie nicht lesbar.",
+    noHistory: "Keine aufbewahrten Angaben zur Metadatenerfassung.",
+    notPlanned:
+      "Diese Registrierung hat ihre Metadatenreferenzen noch nicht geplant.",
+    notCollected: "Referenzen dieser Art wurden nicht erfasst.",
+    nothingReferenced:
+      "Das Capabilities-Dokument hat keine eigenen Metadaten referenziert.",
+    planned: "Metadatenreferenzen gesamt",
+    stored: "Metadatenreferenzen gespeichert",
+    failed: "Metadatenreferenzen fehlgeschlagen",
+    skipped: "Metadatenreferenzen übersprungen",
+    unresolved: "%{count} Referenzen konnten nicht erfasst werden",
+    describes: "Elemente, die diese Referenzen beschreiben",
+    describesMore: "%{count} weitere Elemente",
+    viewReferences: "Alle Referenzen anzeigen",
   },
   harvestingActivity: {
     started: "Gestartet",

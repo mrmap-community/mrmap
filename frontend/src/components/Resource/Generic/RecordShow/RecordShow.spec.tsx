@@ -13,7 +13,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { choiceLabel } from "./RecordFields";
-import { relationGraph, relationGroups } from "./RecordRelations";
+import { relationGraph } from "./RecordRelations";
 import RecordShow from "./RecordShow";
 
 // these screens render full react-admin pages and dialogs and need more than the default timeout
@@ -118,7 +118,9 @@ const setup = (
       <AdminContext
         dataProvider={testDataProvider({
           getOne: getOne as DataProvider["getOne"],
-          getList: async () => ({ data: [], total: 0 }),
+          // the relations tab reads its groups from stored couplings, so the
+          // screen has to be given rows to group
+          getList: (async () => ({ data: [{ id: 1 }], total: 3 })) as DataProvider["getList"],
         })}
       >
         <ResourceDefinitionContextProvider
@@ -266,13 +268,24 @@ describe("record detail pages", () => {
     expect(await screen.findByText("Edit form")).toBeInTheDocument();
   });
 
-  it("opens directly linked relations with correctly scoped groups", async () => {
+  it("opens the relations of a service record by the column each group fills", async () => {
     setup("ServiceMetadataRecord", "relations");
     await waitFor(() =>
       expect(
         screen.getByRole("tab", { name: "recordShow.relations" }),
       ).toHaveAttribute("aria-selected", "true"),
     );
+    // a service record is no longer asked for its services alone: the element
+    // columns are queried as groups of their own (#1268)
+    await waitFor(() =>
+      expect(screen.getByText(/MetadataRelation.*layer__isnull/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/MetadataRelation.*layer__isnull/)).toHaveTextContent(
+      '"service_metadata":"record-1"',
+    );
+    expect(
+      screen.getByText(/MetadataRelation.*feature_type__isnull/),
+    ).toHaveTextContent('"service_metadata":"record-1"');
     expect(screen.getByText(/MetadataRelation.*wms__isnull/)).toHaveTextContent(
       '"service_metadata":"record-1"',
     );
@@ -293,13 +306,13 @@ describe("record detail pages", () => {
           origin: 5,
         },
       ],
-      relationGroups("DatasetMetadataRecord"),
+      (resource) => `describes ${resource}`,
       [{ id: 5, name: "Harvest" }],
     );
     expect(new Set(graph.nodes.map((node) => node.id)).size).toBe(3);
     expect(graph.edges.map((edge) => edge.label)).toEqual([
-      "Layer · Harvest",
-      "CatalogueService · Harvest",
+      "describes Layer · Harvest",
+      "describes CatalogueService · Harvest",
     ]);
     expect(choiceLabel(5, [{ id: "5", name: "Harvest" }])).toBe("Harvest");
   });
@@ -310,7 +323,7 @@ describe("record detail pages", () => {
         harvestedThrough: [{ id: "csw", title: "Harvest catalogue" }],
       },
       [],
-      relationGroups("DatasetMetadataRecord"),
+      undefined,
       [],
       "Harvested through",
     );

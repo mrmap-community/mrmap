@@ -20,4 +20,12 @@ background_process_routes.register(r'logs', views.NestedBackgroundProcessLogView
 router.register(r'background-processes-log',
                 views.BackgroundProcessLogViewSet, basename='backgroundprocesslog')
 
+# the persisted incidents of the deployment (#1319): the read-only api of the
+# OperationalIncident which publishers of #1320 report and the notification
+# center of #1321 reads
+router.register(
+    r'operational-incidents',
+    views.OperationalIncidentViewSet,
+    basename='operationalincident')
+
 urlpatterns = router.urls

@@ -337,3 +337,22 @@ def delete_expired_background_processes(self, *args, **kwargs):
         "(retention %s days).", summary["purged"], summary["logs"],
         summary["files"], summary["retention_days"])
     return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def delete_expired_operational_incidents(self, *args, **kwargs):
+    """Takes back the resolved incidents whose retention has passed (#1319).
+
+    Runs as a singleton on the ``db-routines`` queue like the other
+    housekeeping. The incident history of a deployment grows with every
+    resolved incident; this sweep bounds it to the retention window while
+    the incidents which still stand are never touched - an active incident
+    is the open problem itself.
+    """
+    from notify.models import purge_expired_operational_incidents
+
+    summary = purge_expired_operational_incidents()
+    logger.info(
+        "Operational incidents: %s resolved incidents deleted "
+        "(retention %s days).", summary["purged"], summary["retention_days"])
+    return summary

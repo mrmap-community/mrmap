@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 17:40+0100\n"
+"POT-Creation-Date: 2026-11-15 00:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,7 +70,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:93 notify/models.py:92
+#: accounts/models/groups.py:93 notify/models.py:97
 #: registry/models/mapcontext.py:312 registry/models/security.py:252
 msgid "description"
 msgstr "Beschreibung"
@@ -302,7 +302,7 @@ msgstr ""
 msgid "MapBender Compatibility"
 msgstr "MapBender-Kompatibilität"
 
-#: notify/apps.py:46
+#: notify/apps.py:78
 msgid "Notify"
 msgstr "Benachrichtigung"
 
@@ -318,76 +318,88 @@ msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
 msgid "Select a valid state of a background operation."
 msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
 
-#: notify/filters.py:79 notify/serializers.py:63
+#: notify/filters.py:79 notify/models.py:792 notify/serializers.py:65
+#: notify/serializers.py:239
 msgid "status"
 msgstr "Status"
 
-#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:70
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:72
 msgid "state"
 msgstr "Zustand"
 
-#: notify/models.py:63 notify/models.py:417 registry/models/harvest.py:79
-#: registry/models/harvest.py:137 registry/models/harvest.py:1920
-#: registry/models/monitoring.py:149 registry/models/monitoring.py:397
+#: notify/filters.py:138 registry/models/conformity.py:141
+#: registry/models/harvest.py:250 registry/models/security.py:449
+#: registry/models/security.py:460 registry/models/service.py:773
+#: registry/models/service.py:1026 registry/models/update.py:121
+#: registry/models/update.py:164 registry/models/update.py:207
+#: registry/models/update.py:618 registry/models/update.py:875
+#: registry/models/update.py:1077
+msgid "service"
+msgstr "Dienst"
+
+#: notify/models.py:68 notify/models.py:422 notify/models.py:855
+#: registry/models/harvest.py:79 registry/models/harvest.py:137
+#: registry/models/harvest.py:1920 registry/models/monitoring.py:149
+#: registry/models/monitoring.py:397
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
-#: notify/models.py:64 registry/models/harvest.py:80
+#: notify/models.py:69 registry/models/harvest.py:80
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
-#: notify/models.py:68 registry/models/harvest.py:84
+#: notify/models.py:73 registry/models/harvest.py:84
 #: registry/models/monitoring.py:402
 msgid "Completed DateTime"
 msgstr "Abgeschlossen am"
 
-#: notify/models.py:69 registry/models/harvest.py:85
+#: notify/models.py:74 registry/models/harvest.py:85
 msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
-#: notify/models.py:74 registry/models/harvest.py:64
+#: notify/models.py:79 registry/models/harvest.py:64
 #: registry/models/harvest.py:296
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:75 registry/models/harvest.py:65
+#: notify/models.py:80 registry/models/harvest.py:65
 #: registry/models/harvest.py:297
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:77
+#: notify/models.py:82
 msgid "total"
 msgstr "Gesamt"
 
-#: notify/models.py:78
+#: notify/models.py:83
 msgid "total steps of processing"
 msgstr "Gesamtzahl der Verarbeitungsschritte"
 
-#: notify/models.py:82
+#: notify/models.py:87
 msgid "done"
 msgstr "Erledigt"
 
-#: notify/models.py:83
+#: notify/models.py:88
 msgid "done steps of processing"
 msgstr "Erledigte Verarbeitungsschritte"
 
-#: notify/models.py:88
+#: notify/models.py:93
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:89
+#: notify/models.py:94
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:93
+#: notify/models.py:98
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:114 notify/serializers.py:80
+#: notify/models.py:119 notify/serializers.py:82
 msgid "revision"
 msgstr "Revision"
 
-#: notify/models.py:116
+#: notify/models.py:121
 msgid ""
 "counter of the state reports of this process; every message about the "
 "process carries the revision it reported, so a client which receives an "
@@ -397,11 +409,11 @@ msgstr ""
 "die Revision, die sie gemeldet hat, damit ein Client eine ältere, die ihn "
 "verspätet erreicht, verwerfen kann"
 
-#: notify/models.py:122
+#: notify/models.py:127
 msgid "action required"
 msgstr "Handlung erforderlich"
 
-#: notify/models.py:124
+#: notify/models.py:129
 msgid ""
 "a reporter decided that this process stands until a human acts; it is set by "
 "the watchdog of a stalled import and by an update which waits for its review "
@@ -412,32 +424,34 @@ msgstr ""
 "von einer Aktualisierung, die auf ihre Prüfung wartet, und gelöscht, wenn "
 "die Arbeit weitergeht"
 
-#: notify/models.py:131 notify/serializers.py:92
+#: notify/models.py:136 notify/models.py:831 notify/serializers.py:94
+#: notify/serializers.py:284
 msgid "retry count"
 msgstr "Anzahl der Wiederholungen"
 
-#: notify/models.py:133
+#: notify/models.py:138
 msgid ""
 "how many retries of its tasks the process has reported since it was created"
 msgstr ""
 "wie viele Wiederholungen seiner Aufgaben der Prozess seit seiner Anlage "
 "gemeldet hat"
 
-#: notify/models.py:140 notify/serializers.py:98
+#: notify/models.py:145 notify/serializers.py:100
 msgid "retry reason"
 msgstr "Grund der Wiederholung"
 
-#: notify/models.py:142
+#: notify/models.py:147
 msgid "what the last reported retry of a task of this process failed on"
 msgstr ""
 "woran die zuletzt gemeldete Wiederholung einer Aufgabe dieses Prozesses "
 "gescheitert ist"
 
-#: notify/models.py:148 notify/serializers.py:103
+#: notify/models.py:153 notify/models.py:839 notify/serializers.py:105
+#: notify/serializers.py:291
 msgid "retry scheduled until"
 msgstr "Wiederholung geplant bis"
 
-#: notify/models.py:150
+#: notify/models.py:155
 msgid ""
 "until when the next attempt of the retried task is due; while this window is "
 "open the process reports itself as retrying"
@@ -445,11 +459,11 @@ msgstr ""
 "bis wann der nächste Versuch der wiederholten Aufgabe fällig ist; solange "
 "dieses Fenster offen ist, meldet sich der Prozess als wiederholend"
 
-#: notify/models.py:180 notify/serializers.py:119
+#: notify/models.py:185 notify/serializers.py:121
 msgid "references total"
 msgstr "Metadatenreferenzen gesamt"
 
-#: notify/models.py:182 notify/serializers.py:121
+#: notify/models.py:187 notify/serializers.py:123
 msgid ""
 "how many metadata references the collection of this process planned; empty "
 "where the process collected no references"
@@ -457,21 +471,21 @@ msgstr ""
 "wie viele Metadatenreferenzen die Sammlung dieses Prozesses geplant hat; "
 "leer, wenn der Prozess keine Metadatenreferenzen gesammelt hat"
 
-#: notify/models.py:188 notify/serializers.py:126
+#: notify/models.py:193 notify/serializers.py:128
 msgid "references stored"
 msgstr "Metadatenreferenzen gespeichert"
 
-#: notify/models.py:190 notify/serializers.py:128
+#: notify/models.py:195 notify/serializers.py:130
 msgid "how many references of the collection produced a stored metadata record"
 msgstr ""
 "wie viele Metadatenreferenzen der Sammlung einen gespeicherten Metadatensatz "
 "hervorgebracht haben"
 
-#: notify/models.py:196 notify/serializers.py:133
+#: notify/models.py:201 notify/serializers.py:135
 msgid "references failed"
 msgstr "Metadatenreferenzen fehlgeschlagen"
 
-#: notify/models.py:198 notify/serializers.py:135
+#: notify/models.py:203 notify/serializers.py:137
 msgid ""
 "how many references of the collection could not be collected, including the "
 "documents which carry no identifiable record"
@@ -479,22 +493,22 @@ msgstr ""
 "wie viele Metadatenreferenzen der Sammlung nicht gesammelt werden konnten, "
 "einschließlich der Dokumente ohne identifizierbaren Metadatensatz"
 
-#: notify/models.py:204 notify/serializers.py:140
+#: notify/models.py:209 notify/serializers.py:142
 msgid "references skipped"
 msgstr "Metadatenreferenzen übersprungen"
 
-#: notify/models.py:206 notify/serializers.py:142
+#: notify/models.py:211 notify/serializers.py:144
 msgid ""
 "how many references the collection planned but never reported an outcome for"
 msgstr ""
 "wie viele Metadatenreferenzen die Sammlung geplant hat, ohne dass dafür ein "
 "Ergebnis gemeldet wurde"
 
-#: notify/models.py:219
+#: notify/models.py:224
 msgid "references plan sealed"
 msgstr "Referenzplan verschlossen"
 
-#: notify/models.py:221
+#: notify/models.py:226
 msgid ""
 "the collection of this process planned its references exactly once; a "
 "duplicate planning delivery never reopens it"
@@ -502,30 +516,209 @@ msgstr ""
 "die Sammlung dieses Prozesses hat ihre Metadatenreferenzen genau einmal "
 "geplant; eine doppelte Zustellung der Planung öffnet sie nie wieder"
 
-#: notify/models.py:225
+#: notify/models.py:230
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:226
+#: notify/models.py:231
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:406 registry/models/harvest.py:1936
+#: notify/models.py:411 registry/models/harvest.py:1936
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:418 registry/models/harvest.py:1921
+#: notify/models.py:423 registry/models/harvest.py:1921
 #: registry/models/monitoring.py:398
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:422 registry/models/harvest.py:1941
+#: notify/models.py:427 registry/models/harvest.py:1941
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:423 registry/models/harvest.py:1942
+#: notify/models.py:428 registry/models/harvest.py:1942
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
+
+#: notify/models.py:622
+msgid "The details of an incident must be a mapping of structured metadata."
+msgstr ""
+"Die Details einer Störung müssen eine Zuordnung strukturierter Metadaten "
+"sein."
+
+#: notify/models.py:755
+msgid "id"
+msgstr "ID"
+
+#: notify/models.py:757
+msgid ""
+"the stable identifier of the incident, referable by later integrations "
+"independently of its dedup key"
+msgstr ""
+"die stabile Kennung der Störung, von späteren Integrationen unabhängig von "
+"ihrem Deduplizierungsschlüssel referenzierbar"
+
+#: notify/models.py:762
+msgid "dedup key"
+msgstr "Deduplizierungsschlüssel"
+
+#: notify/models.py:764
+msgid ""
+"the stable key of the problem behind this incident; while an incident with "
+"the key is active, a recurrence of the same problem raises its count instead "
+"of creating another row"
+msgstr ""
+"der stabile Schlüssel des Problems hinter dieser Störung; solange eine "
+"Störung mit dem Schlüssel aktiv ist, erhöht ein erneutes Auftreten des "
+"Problems dessen Anzahl, statt einen weiteren Eintrag zu erzeugen"
+
+#: notify/models.py:769 notify/serializers.py:221
+msgid "code"
+msgstr "Code"
+
+#: notify/models.py:771
+msgid ""
+"the structured incident code, stable per meaning; publishers of the same "
+"problem report the same code and never a new one"
+msgstr ""
+"der strukturierte Störungs-Code, stabil je Bedeutung; Meldende desselben "
+"Problems melden denselben Code und nie einen neuen"
+
+#: notify/models.py:776 notify/serializers.py:227
+msgid "source"
+msgstr "Quelle"
+
+#: notify/models.py:778 notify/serializers.py:229
+msgid ""
+"which domain of the deployment raised the incident: harvesting, update, "
+"monitoring or the deployment itself"
+msgstr ""
+"welcher Bereich der Installation die Störung hervorgerufen hat: "
+"Harvesting, Update, Monitoring oder die Installation selbst"
+
+#: notify/models.py:783 notify/serializers.py:233
+msgid "severity"
+msgstr "Schweregrad"
+
+#: notify/models.py:785
+msgid ""
+"how much attention the incident asks for; a retry is a warning, its "
+"exhaustion an error of the same code"
+msgstr ""
+"wie viel Aufmerksamkeit die Störung verlangt; ein Wiederholungsversuch ist "
+"eine Warnung, seine Erschöpfung ein Fehler desselben Codes"
+
+#: notify/models.py:794
+msgid ""
+"the lifecycle of the incident: active while the problem stands, resolved "
+"once recovery resolved it; a resolution is terminal"
+msgstr ""
+"der Lebenszyklus der Störung: aktiv, solange das Problem besteht, behoben, "
+"sobald die Wiederherstellung sie behoben hat; eine Behebung ist endgültig"
+
+#: notify/models.py:799 notify/serializers.py:267
+msgid "first occurrence"
+msgstr "erstes Vorkommnis"
+
+#: notify/models.py:801 notify/serializers.py:269
+msgid "the moment the incident was reported for the first time"
+msgstr "der Zeitpunkt, an dem die Störung erstmals gemeldet wurde"
+
+#: notify/models.py:804 notify/serializers.py:272
+msgid "last occurrence"
+msgstr "letztes Vorkommnis"
+
+#: notify/models.py:806 notify/serializers.py:274
+msgid ""
+"the moment the incident was reported for the last time; every recurrence "
+"moves it"
+msgstr ""
+"der Zeitpunkt, an dem die Störung letztmals gemeldet wurde; jedes erneute "
+"Auftreten verschiebt ihn"
+
+#: notify/models.py:811 notify/serializers.py:278
+msgid "occurrence count"
+msgstr "Anzahl der Vorkommnisse"
+
+#: notify/models.py:813
+msgid ""
+"how often the problem behind the dedup key was reported while the incident "
+"was active"
+msgstr ""
+"wie oft das Problem hinter dem Deduplizierungsschlüssel gemeldet wurde, "
+"während die Störung aktiv war"
+
+#: notify/models.py:817 notify/serializers.py:255
+msgid "summary"
+msgstr "Zusammenfassung"
+
+#: notify/models.py:819 notify/serializers.py:257
+msgid ""
+"the safe, human readable summary of the incident; it never carries a "
+"credential, a raw response or a stack trace"
+msgstr ""
+"die sichere, lesbare Zusammenfassung der Störung; sie enthält niemals "
+"Zugangsdaten, eine Rohantwort oder einen Stack-Trace"
+
+#: notify/models.py:824 notify/serializers.py:261
+msgid "details"
+msgstr "Details"
+
+#: notify/models.py:826 notify/serializers.py:263
+msgid ""
+"redacted, bounded structured metadata of the incident; the full evidence "
+"stays in the log of the reported process"
+msgstr ""
+"redigierte, begrenzte strukturierte Metadaten der Störung; die "
+"vollständigen Belege bleiben im Protokoll der gemeldeten Operation"
+
+#: notify/models.py:833
+msgid ""
+"how many retries the reporting operation told with its last report, or none "
+"where it knows none"
+msgstr ""
+"wie viele Wiederholungsversuche die meldende Operation mit ihrer letzten "
+"Meldung genannt hat, oder keine, wenn sie keine kennt"
+
+#: notify/models.py:841 notify/serializers.py:293
+msgid ""
+"until when the next attempt of the reported operation is due; while this "
+"window is open the incident reports a retry, not a failure"
+msgstr ""
+"bis wann der nächste Versuch der gemeldeten Operation fällig ist; solange "
+"dieses Fenster offen ist, meldet die Störung einen Wiederholungsversuch, "
+"keinen Fehler"
+
+#: notify/models.py:848 notify/serializers.py:299
+msgid "resolved at"
+msgstr "Behoben am"
+
+#: notify/models.py:850 notify/serializers.py:301
+msgid "the moment recovery resolved the incident, empty while it is active"
+msgstr ""
+"der Zeitpunkt, an dem die Wiederherstellung die Störung behoben hat, leer "
+"solange sie aktiv ist"
+
+#: notify/models.py:856
+msgid "Datetime field when the incident was created in UTC"
+msgstr "Datumsfeld, wann die Störung in UTC erstellt wurde"
+
+#: notify/models.py:935
+msgid "Operational Incident"
+msgstr "Betriebsstörung"
+
+#: notify/models.py:936
+msgid "Operational Incidents"
+msgstr "Betriebsstörungen"
+
+#: notify/models.py:997
+msgid ""
+"The details of an incident exceed their bounded size and have to be "
+"sanitized before they are stored."
+msgstr ""
+"Die Details einer Störung überschreiten ihre begrenzte Größe und müssen "
+"vor dem Speichern bereinigt werden."
 
 #: notify/permissions.py:17
 msgid "You are not allowed to change the resource of this process."
@@ -535,27 +728,27 @@ msgstr "Sie dürfen die Ressource dieses Prozesses nicht ändern."
 msgid "You are not allowed to retry the references of this process."
 msgstr "Sie dürfen die Referenzen dieses Prozesses nicht wiederholen."
 
-#: notify/serializers.py:43
+#: notify/serializers.py:45
 msgid "date created"
 msgstr "Erstellt am"
 
-#: notify/serializers.py:44
+#: notify/serializers.py:46
 msgid "the datetime when this process was created"
 msgstr "der Zeitpunkt, an dem dieser Prozess erstellt wurde"
 
-#: notify/serializers.py:47
+#: notify/serializers.py:49
 msgid "date at"
 msgstr "Datum von"
 
-#: notify/serializers.py:48
+#: notify/serializers.py:50
 msgid "the datetime when this process reached its terminal state"
 msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
-#: notify/serializers.py:51
+#: notify/serializers.py:53
 msgid "time until decided"
 msgstr "Zeit bis zur Entscheidung"
 
-#: notify/serializers.py:53
+#: notify/serializers.py:55
 msgid ""
 "the seconds between the creation and the decision of the process, the "
 "waiting and retry intervals of its tasks included; empty while it still runs"
@@ -564,29 +757,29 @@ msgstr ""
 "Warte- und Wiederholungsintervalle seiner Aufgaben eingeschlossen; leer "
 "solange er noch läuft"
 
-#: notify/serializers.py:58
+#: notify/serializers.py:60
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:59
+#: notify/serializers.py:61
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:64
+#: notify/serializers.py:66
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:66
+#: notify/serializers.py:68
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:68
+#: notify/serializers.py:70
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
 "ihre ID"
 
-#: notify/serializers.py:72
+#: notify/serializers.py:74
 msgid ""
 "the normalized state of the reported operation: queued while it waits for a "
 "worker, running while it works, running_indeterminate while it works without "
@@ -601,7 +794,7 @@ msgstr ""
 "action_required während eine Entscheidung eines Menschen erwartet wird, "
 "sowie die abschließenden failed, completed oder aborted"
 
-#: notify/serializers.py:82
+#: notify/serializers.py:84
 msgid ""
 "the number of the state report which every message about this process "
 "carries; a client which learns states out of order keeps the highest "
@@ -611,11 +804,11 @@ msgstr ""
 "ein Client, der Zustände in falscher Reihenfolge empfängt, behält die "
 "höchste Revision, die er von einem Prozess gesehen hat"
 
-#: notify/serializers.py:86
+#: notify/serializers.py:88
 msgid "error summary"
 msgstr "Fehlerzusammenfassung"
 
-#: notify/serializers.py:88
+#: notify/serializers.py:90
 msgid ""
 "what the last error of the reported operation told, or nothing where it "
 "never reported one"
@@ -623,7 +816,7 @@ msgstr ""
 "was der letzte Fehler der gemeldeten Operation mitgeteilt hat, oder nichts, "
 "wenn sie nie einen gemeldet hat"
 
-#: notify/serializers.py:94
+#: notify/serializers.py:96
 msgid ""
 "how many retries of its tasks the reported operation has reported since it "
 "was made"
@@ -631,11 +824,11 @@ msgstr ""
 "wie viele Wiederholungen ihrer Aufgaben die gemeldete Operation seit ihrer "
 "Anlage gemeldet hat"
 
-#: notify/serializers.py:100
+#: notify/serializers.py:102
 msgid "what the last reported retry of the operation failed on"
 msgstr "woran die zuletzt gemeldete Wiederholung der Operation gescheitert ist"
 
-#: notify/serializers.py:106
+#: notify/serializers.py:108
 msgid ""
 "until when the next attempt of a retried task of the operation is due; while "
 "this window is open the operation reports itself as retrying"
@@ -643,6 +836,70 @@ msgstr ""
 "bis wann der nächste Versuch einer wiederholten Aufgabe der Operation fällig "
 "ist; solange dieses Fenster offen ist, meldet sich die Operation als "
 "wiederholend"
+
+#: notify/serializers.py:223
+msgid ""
+"the structured incident code, stable per meaning; later integrations refer "
+"to codes, never to worded messages"
+msgstr ""
+"der strukturierte Störungs-Code, stabil je Bedeutung; spätere "
+"Integrationen beziehen sich auf Codes, nie auf formulierte Meldungen"
+
+#: notify/serializers.py:235
+msgid ""
+"how much attention the incident asks for: a warning while the reported "
+"operation still moves, an error where it stands"
+msgstr ""
+"wie viel Aufmerksamkeit die Störung verlangt: eine Warnung, solange die "
+"gemeldete Operation noch läuft, ein Fehler, wenn sie stillsteht"
+
+#: notify/serializers.py:241
+msgid ""
+"the lifecycle of the incident: active while the problem stands, resolved "
+"once recovery resolved it"
+msgstr ""
+"der Lebenszyklus der Störung: aktiv, solange das Problem besteht, behoben, "
+"sobald die Wiederherstellung sie behoben hat"
+
+#: notify/serializers.py:244
+msgid "scope"
+msgstr "Geltungsbereich"
+
+#: notify/serializers.py:246
+msgid ""
+"whether the incident names an affected resource ('resource') or reports "
+"about the deployment itself ('system')"
+msgstr ""
+"ob die Störung eine betroffene Ressource nennt ('resource') oder über die "
+"Installation selbst berichtet ('system')"
+
+#: notify/serializers.py:249
+msgid "affected resource"
+msgstr "betroffene Ressource"
+
+#: notify/serializers.py:251
+msgid ""
+"the resource this incident stands for, addressed by its type and id; empty "
+"for a system incident"
+msgstr ""
+"die Ressource, für die diese Störung steht, adressiert über ihren Typ und "
+"ihre ID; bei einer Systemstörung leer"
+
+#: notify/serializers.py:280
+msgid ""
+"how often the problem behind the incident was reported while it was active; "
+"a retry is an occurrence, not a new incident"
+msgstr ""
+"wie oft das Problem hinter der Störung gemeldet wurde, während sie aktiv "
+"war; ein Wiederholungsversuch ist ein Vorkommnis, keine neue Störung"
+
+#: notify/serializers.py:286
+msgid ""
+"how many retries the reported operation told with its last report, or none "
+"where it knows none"
+msgstr ""
+"wie viele Wiederholungsversuche die gemeldete Operation mit ihrer letzten "
+"Meldung genannt hat, oder keine, wenn sie keine kennt"
 
 #: registry/admin/harvest.py:17
 msgid "unknown HierachyLevel"
@@ -1092,15 +1349,6 @@ msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 
-#: registry/models/conformity.py:141 registry/models/harvest.py:250
-#: registry/models/security.py:449 registry/models/security.py:460
-#: registry/models/service.py:773 registry/models/service.py:1026
-#: registry/models/update.py:120 registry/models/update.py:163
-#: registry/models/update.py:206 registry/models/update.py:472
-#: registry/models/update.py:716 registry/models/update.py:909
-msgid "service"
-msgstr "Dienst"
-
 #: registry/models/conformity.py:142
 msgid "the service targeted by this check"
 msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
@@ -1200,12 +1448,12 @@ msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
 #: registry/models/harvest.py:314 registry/models/harvest.py:1222
-#: registry/models/monitoring.py:178 registry/models/update.py:232
+#: registry/models/monitoring.py:178 registry/models/update.py:233
 #: registry/serializers/harvesting.py:134
 msgid "background process"
 msgstr "Hintergrundprozess"
 
-#: registry/models/harvest.py:315 registry/models/update.py:233
+#: registry/models/harvest.py:315 registry/models/update.py:234
 msgid "the background process which reports this job"
 msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
 
@@ -1256,7 +1504,7 @@ msgstr "Ernteaufgabe"
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:377 registry/models/update.py:262
+#: registry/models/harvest.py:377 registry/models/update.py:271
 #: registry/serializers/update.py:123 registry/serializers/update.py:143
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
@@ -1396,7 +1644,7 @@ msgstr ""
 
 #: registry/models/harvest.py:1962 registry/models/metadata.py:771
 #: registry/models/monitoring.py:129 registry/models/service.py:493
-#: registry/models/update.py:183 registry/serializers/monitoring.py:542
+#: registry/models/update.py:184 registry/serializers/monitoring.py:542
 #: registry/serializers/service.py:1029 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
@@ -1649,7 +1897,7 @@ msgstr "Der Inhalt der heruntergeladenen URL."
 
 #: registry/models/metadata.py:731 registry/models/monitoring.py:105
 #: registry/models/security.py:149 registry/models/service.py:341
-#: registry/models/update.py:97 registry/serializers/harvesting.py:172
+#: registry/models/update.py:98 registry/serializers/harvesting.py:172
 #: registry/serializers/monitoring.py:120 registry/serializers/service.py:59
 #: registry/serializers/service.py:90 registry/serializers/update.py:64
 msgid "web map service"
@@ -1667,7 +1915,7 @@ msgstr ""
 
 #: registry/models/metadata.py:751 registry/models/monitoring.py:117
 #: registry/models/security.py:164 registry/models/security.py:179
-#: registry/models/service.py:446 registry/models/update.py:140
+#: registry/models/service.py:446 registry/models/update.py:141
 #: registry/serializers/harvesting.py:174
 #: registry/serializers/monitoring.py:329 registry/serializers/service.py:660
 #: registry/serializers/update.py:82
@@ -2595,54 +2843,54 @@ msgstr "Featuretype-Eigenschaft"
 msgid "feature type properties"
 msgstr "Featuretype-Eigenschaften"
 
-#: registry/models/update.py:98 registry/models/update.py:141
-#: registry/models/update.py:184
+#: registry/models/update.py:99 registry/models/update.py:142
+#: registry/models/update.py:185
 msgid "this is the service which shall be updated"
 msgstr "dies ist der Dienst, der aktualisiert werden soll"
 
-#: registry/models/update.py:126
+#: registry/models/update.py:127
 msgid "Web Map Service Update Config"
 msgstr "Aktualisierungskonfiguration Web Map Service"
 
-#: registry/models/update.py:127
+#: registry/models/update.py:128
 msgid "Web Map Service Update Configs"
 msgstr "Aktualisierungskonfigurationen Web Map Service"
 
-#: registry/models/update.py:169
+#: registry/models/update.py:170
 msgid "Web Feature Service Update Config"
 msgstr "Aktualisierungskonfiguration Web Feature Service"
 
-#: registry/models/update.py:170
+#: registry/models/update.py:171
 msgid "Web Feature Service Update Configs"
 msgstr "Aktualisierungskonfigurationen Web Feature Service"
 
-#: registry/models/update.py:212
+#: registry/models/update.py:213
 msgid "Web Catalogue Service Update Config"
 msgstr "Aktualisierungskonfiguration Web Catalogue Service"
 
-#: registry/models/update.py:213
+#: registry/models/update.py:214
 msgid "Web Catalogue Service Update Configs"
 msgstr "Aktualisierungskonfigurationen Web Catalogue Service"
 
-#: registry/models/update.py:473
+#: registry/models/update.py:619
 msgid "the wms this job is running for"
 msgstr "der WMS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:479
+#: registry/models/update.py:625
 msgid "Web Map Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Map Service"
 
-#: registry/models/update.py:480
+#: registry/models/update.py:626
 msgid "Web Map Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Map Service"
 
-#: registry/models/update.py:694 registry/models/update.py:887
-#: registry/models/update.py:983
+#: registry/models/update.py:849 registry/models/update.py:1055
+#: registry/models/update.py:1151
 msgid "Can only resume a job with status REVIEW_REQUIRED"
 msgstr ""
 "Nur eine Aufgabe mit dem Status REVIEW_REQUIRED kann fortgesetzt werden"
 
-#: registry/models/update.py:698
+#: registry/models/update.py:853
 msgid ""
 "Cannot resume the job, because not all layers are updateable. Please review "
 "the layer mappings first."
@@ -2650,19 +2898,19 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Ebenen "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Ebenen-Zuordnungen."
 
-#: registry/models/update.py:717
+#: registry/models/update.py:876
 msgid "the WFS this job is running for"
 msgstr "der WFS, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:723
+#: registry/models/update.py:882
 msgid "Web Feature Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Feature Service"
 
-#: registry/models/update.py:724
+#: registry/models/update.py:883
 msgid "Web Feature Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Feature Service"
 
-#: registry/models/update.py:891
+#: registry/models/update.py:1059
 msgid ""
 "Cannot resume the job, because not all featuretypes are updateable. Please "
 "review the featuretype mappings first."
@@ -2670,27 +2918,27 @@ msgstr ""
 "Die Aufgabe kann nicht fortgesetzt werden, da nicht alle Featuretypes "
 "aktualisierbar sind. Bitte prüfen Sie zuerst die Featuretype-Zuordnungen."
 
-#: registry/models/update.py:910
+#: registry/models/update.py:1078
 msgid "the CSW this job is running for"
 msgstr "der CSW, für den diese Aufgabe läuft"
 
-#: registry/models/update.py:916
+#: registry/models/update.py:1084
 msgid "Web Catalogue Service Update Job"
 msgstr "Aktualisierungsaufgabe Web Catalogue Service"
 
-#: registry/models/update.py:917
+#: registry/models/update.py:1085
 msgid "Web Catalogue Service Update Jobs"
 msgstr "Aktualisierungsaufgaben Web Catalogue Service"
 
-#: registry/models/update.py:1048
+#: registry/models/update.py:1216
 msgid "Layer Mapping"
 msgstr "Ebenen-Zuordnung"
 
-#: registry/models/update.py:1049
+#: registry/models/update.py:1217
 msgid "Layer Mappings"
 msgstr "Ebenen-Zuordnungen"
 
-#: registry/models/update.py:1055
+#: registry/models/update.py:1223
 msgid ""
 "A new layer can only be mapped once. Please adjust the layer mappings "
 "accordingly."
@@ -2698,15 +2946,15 @@ msgstr ""
 "Eine neue Ebene kann nur einmal zugeordnet werden. Bitte passen Sie die "
 "Ebenen-Zuordnungen entsprechend an."
 
-#: registry/models/update.py:1089
+#: registry/models/update.py:1257
 msgid "Feature Type Mapping"
 msgstr "Featuretype-Zuordnung"
 
-#: registry/models/update.py:1090
+#: registry/models/update.py:1258
 msgid "Feature Type Mappings"
 msgstr "Featuretype-Zuordnungen"
 
-#: registry/models/update.py:1096
+#: registry/models/update.py:1264
 msgid ""
 "A new feature type can only be mapped once. Please adjust the feature type "
 "mappings accordingly."
@@ -3873,16 +4121,10 @@ msgstr "System"
 #~ "Der letzte Harvesting-Lauf des Dienstes hat %(count)s Datensätze "
 #~ "hinterlassen, die nicht importiert werden konnten."
 
-#~ msgid "id"
-#~ msgstr "ID"
-
 #~ msgid "the category and the id of the row this alert is derived from"
 #~ msgstr ""
 #~ "die Kategorie und die ID des Datensatzes, aus dem die Meldung abgeleitet "
 #~ "ist"
-
-#~ msgid "severity"
-#~ msgstr "Schweregrad"
 
 #~ msgid "the state of the service which needs attention"
 #~ msgstr "der Zustand des Dienstes, der Aufmerksamkeit benötigt"
@@ -3896,17 +4138,11 @@ msgstr "System"
 #~ msgid "service title"
 #~ msgstr "Dienstetitel"
 
-#~ msgid "resource"
-#~ msgstr "Ressource"
-
 #~ msgid ""
 #~ "the run or job which carries the problem, addressed by its type and id"
 #~ msgstr ""
 #~ "der Lauf oder Auftrag, der das Problem trägt, adressiert über seinen Typ "
 #~ "und seine ID"
-
-#~ msgid "occurred at"
-#~ msgstr "aufgetreten am"
 
 #~ msgid "when the reported state appeared"
 #~ msgstr "wann der gemeldete Zustand aufgetreten ist"

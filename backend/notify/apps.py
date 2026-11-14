@@ -6,6 +6,10 @@ from django.utils.translation import gettext_lazy as _
 #: tests look the row up by it
 BACKGROUND_PROCESS_CLEANUP_TASK_NAME = "delete old background processes"
 
+#: the name the sweep of the resolved incidents has in the schedule of beat
+#: (#1319); the tests look the row up by it
+OPERATIONAL_INCIDENT_CLEANUP_TASK_NAME = "delete old operational incidents"
+
 
 def create_background_process_cleanup_task(sender, **kwargs):
     """Creates the periodic task which keeps the job history bounded.
@@ -39,6 +43,34 @@ def create_background_process_cleanup_task(sender, **kwargs):
     )
 
 
+def create_operational_incident_cleanup_task(sender, **kwargs):
+    """Creates the periodic task which keeps the incident history bounded.
+
+    A resolved incident has told what it had to tell; the authoritative
+    history of the reported operation stays in the job history of #1208,
+    which its own sweep bounds. Without this row the incident table would
+    grow with every resolved problem of the deployment. Keyed by its name
+    like the sweep of the processes: a deployment which re-scheduled the
+    row over the api keeps what it chose.
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at forty past the hour: the housekeeping of the deployment is spread
+    # over the hour (import every five minutes, dump at :05, probe artifacts
+    # at :20, job history at :30) and this sweep takes the next free slot
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="40", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
+
+    PeriodicTask.objects.get_or_create(
+        name=OPERATIONAL_INCIDENT_CLEANUP_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "notify.tasks.delete_expired_operational_incidents",
+        }
+    )
+
+
 class NotifyConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'notify'
@@ -49,5 +81,9 @@ class NotifyConfig(AppConfig):
         import notify.signals  # noqa
         post_migrate.connect(
             create_background_process_cleanup_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_operational_incident_cleanup_task,
             sender=self
         )

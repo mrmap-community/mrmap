@@ -1,9 +1,9 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django_filters import BaseInFilter, FilterSet
-from django_filters.filters import CharFilter
+from django_filters.filters import CharFilter, UUIDFilter
 from notify.enums import OperationStateEnum, ProcessStatusEnum
-from notify.models import BackgroundProcess
+from notify.models import BackgroundProcess, OperationalIncident
 
 
 #: the help of every filter of this api which takes more than one value in one
@@ -117,3 +117,57 @@ class BackgroundProcessFilterSet(FilterSet):
         filter which asked (`state` or `state__in`).
         """
         return queryset.filter(state__in=value)
+
+
+class OperationalIncidentFilterSet(FilterSet):
+    """The filters of the incident api (#1319).
+
+    The incident api is read-only and answers the questions of the
+    notification center: which incidents are standing or resolved (the
+    lifecycle), how much attention they ask, which kind of problem they
+    are (the code), which service they stand for - including the incidents
+    about a job or a run belonging to that service - and the history by its
+    moments. Every filter runs over the queryset which the view already
+    narrowed to what the caller may see, so a filtered count never names an
+    incident hidden from the caller.
+    """
+
+    #: the incidents standing for one service: the services answer
+    #: themselves, the jobs and runs of a service are answered through their
+    #: service relation - the question of every contextual screen of #1322
+    service = UUIDFilter(label=_('service'), method='filter_service')
+
+    class Meta:
+        model = OperationalIncident
+        fields = {
+            'id': ['exact', 'in'],
+            # the type of an incident is its code
+            'code': ['exact', 'in'],
+            'source': ['exact', 'in'],
+            'severity': ['exact', 'in'],
+            # the lifecycle of the incident: the active queue and the
+            # resolved history of the notification center ask by it
+            'status': ['exact', 'in'],
+            'occurrence_count': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'first_occurred_at': ['exact', 'gt', 'gte', 'lt', 'lte', 'range'],
+            'last_occurred_at': ['exact', 'gt', 'gte', 'lt', 'lte', 'range'],
+            'resolved_at': ['exact', 'gt', 'gte', 'lt', 'lte', 'range'],
+            # the drawer of one job or run asks its own incidents by the
+            # resource's id; the typed exact filters run over the queryset
+            # which the view already narrowed, so a filter can never name an
+            # incident the caller may not see
+            'web_map_service': ['exact'],
+            'web_feature_service': ['exact'],
+            'catalogue_service': ['exact'],
+            'harvesting_job': ['exact'],
+            'web_map_service_update_job': ['exact'],
+            'web_feature_service_update_job': ['exact'],
+            'catalogue_service_update_job': ['exact'],
+            'web_map_service_monitoring_run': ['exact'],
+            'web_feature_service_monitoring_run': ['exact'],
+            'catalogue_service_monitoring_run': ['exact'],
+        }
+
+    def filter_service(self, queryset, name, value):
+        """The incidents which stand for one service, jobs and runs alike."""
+        return queryset.model.objects.service_scoped(queryset, value)

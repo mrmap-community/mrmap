@@ -271,6 +271,66 @@ describe("JobCenterDrawer", () => {
     ).toHaveAttribute("href", "/BackgroundProcess/2/show");
   });
 
+  it("names the lost references of a registration and points at their retry", () => {
+    state.store = storeOf([
+      job({
+        id: 7,
+        status: "completed",
+        state: "completed",
+        processType: "registering",
+        description: "Register weather service",
+        doneAt: "2026-11-10T12:00:00Z",
+        referencesTotal: 4,
+        referencesStored: 1,
+        referencesFailed: 1,
+        referencesSkipped: 2,
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    fireEvent.click(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.expandJob",
+      }),
+    );
+    expect(
+      rows.getByText("backgroundActivity.jobCenter.referencesCounter"),
+    ).toBeInTheDocument();
+    // the retry lives per reference on the show screen (#1265)
+    expect(
+      rows.getByRole("link", {
+        name: "backgroundActivity.jobCenter.openReferences",
+      }),
+    ).toHaveAttribute("href", "/BackgroundProcess/7/show");
+  });
+
+  it("says nothing about references to a process which planned none", () => {
+    state.store = storeOf([
+      job({
+        id: 8,
+        status: "completed",
+        state: "completed",
+        description: "Index counties",
+        doneAt: "2026-11-10T12:00:00Z",
+      }),
+    ]);
+    render(<JobCenterDrawer />);
+    const rows = panel();
+    fireEvent.click(
+      rows.getByRole("button", {
+        name: "backgroundActivity.jobCenter.expandJob",
+      }),
+    );
+    expect(
+      rows.queryByText("backgroundActivity.jobCenter.referencesCounter"),
+    ).toBeNull();
+    expect(
+      rows.queryByRole("link", {
+        name: "backgroundActivity.jobCenter.openReferences",
+      }),
+    ).toBeNull();
+  });
+
   it("folds the details of a row behind its chevron", () => {
     state.store = storeOf([
       job({

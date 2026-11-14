@@ -254,6 +254,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "formats": "Ausgabeformate",
     "noDescription": "Keine Beschreibung vom Dienst abgerufen.",
     "metadata": "Zugehörige Metadaten",
+    "noMetadata": "Kein Metadatensatz beschreibt diesen Feature-Type.",
+    "metadataNotCollected": "Die Capabilities dieses Feature-Typs verweisen auf Metadatendokumente, aber es wurden keine Datensätze daraus erhoben. Der Dienst wurde registriert, bevor Feature-Type-Verweise erhoben wurden, oder die Erhebung ist fehlgeschlagen.",
     "access": "Zugriff",
     "secured": "Zugriffsregeln konfiguriert",
     "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",
@@ -302,7 +304,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "relationView": "Verknüpfungsansicht",
     "harvestedThrough": "Über Kataloge geharvestet",
     "loadFailed": "Verknüpfungen konnten nicht geladen werden.",
-    "graphLimit": "Die ersten 100 Verknüpfungen werden angezeigt. Alle Links sind in den Tabellen verfügbar.",
+    "describesEdge": "beschreibt %{kind}",
+    "describesColumn": "Beschreibt %{kind}",
+    "relationMeaning": "Jede Verknüpfung sagt, dass dieser Datensatz das verknüpfte Element beschreibt; die Herkunft der Verknüpfung zeigt, woher sie stammt.",
+    "groupCount": "%{smart_count} Verknüpfung |||| %{smart_count} Verknüpfungen",
+    "showAllGroup": "Alle dieser Gruppe anzeigen",
+    "allGroups": "Alle Gruppen",
+    "noRelations": "Für diesen Datensatz ist keine Verknüpfung gespeichert.",
+    "graphLimit": "Der Graph zeigt %{shown} von %{total} Verknüpfungen; die Tabelle jeder Gruppe führt alle serverseitig fort.",
   },
   serviceExplorer: {
     protocol: "Protokoll",
@@ -513,6 +522,32 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       "countMismatch": "Abweichende Anzahl"
     }
   },
+  // was die Metadatenerfassung einer Registrierung bewirkt hat, auf der Seite
+  // des dazu registrierten Dienstes (#1266). Die vier Bezeichnungen der Zahlen
+  // folgen den Beschriftungen, welche die Api für diese Felder trägt (#1259,
+  // #1263); die Ergebnisse sind die von #1267 für beide Sammel-Pfade
+  // abgestimmten Worte.
+  collectionActivity: {
+    title: "Metadatenerfassung dieser Registrierung",
+    loadError:
+      "Die Metadatenerfassung dieses Dienstes konnte nicht geladen werden.",
+    unreadable:
+      "Die Hintergrundaufträge dieses Dienstes sind für Sie nicht lesbar.",
+    noHistory: "Keine aufbewahrten Angaben zur Metadatenerfassung.",
+    notPlanned:
+      "Diese Registrierung hat ihre Metadatenreferenzen noch nicht geplant.",
+    notCollected: "Referenzen dieser Art wurden nicht erfasst.",
+    nothingReferenced:
+      "Das Capabilities-Dokument hat keine eigenen Metadaten referenziert.",
+    planned: "Metadatenreferenzen gesamt",
+    stored: "Metadatenreferenzen gespeichert",
+    failed: "Metadatenreferenzen fehlgeschlagen",
+    skipped: "Metadatenreferenzen übersprungen",
+    unresolved: "%{count} Referenzen konnten nicht erfasst werden",
+    describes: "Elemente, die diese Referenzen beschreiben",
+    describesMore: "%{count} weitere Elemente",
+    viewReferences: "Alle Referenzen anzeigen",
+  },
   harvestingActivity: {
     started: "Gestartet",
     stages: { discover: "Ermitteln", download: "Herunterladen", import: "Importieren" },
@@ -581,6 +616,37 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     abort: "Prozess abbrechen",
     abortAsked: "Der Prozess wurde zum Abbrechen aufgefordert.",
     abortFailed: "Der Prozess konnte nicht abgebrochen werden. Die Berechtigung auf die Ressource fehlt.",
+    // die Antwort einer Registrierung pro Referenz unter ihrem Prozess
+    // (#1265): die Zeilen, die die api behält, sind die ungeklärten und die
+    // gescheiterten - die gespeicherten Referenzen beantworten die Zähler,
+    // nicht ein Konto.
+    references: {
+      title: "Metadatenreferenzen dieser Registrierung",
+      empty: "Alle geplanten Referenzen sind gespeichert; es blieb nichts zu prüfen.",
+      loadError: "Die Referenzen dieser Registrierung konnten nicht geladen werden.",
+      request: "Angefragt am",
+      url: "Beworbene URL",
+      reference: "Referenz von",
+      state: "Zustand",
+      errorKind: "Fehlgrund",
+      errorAt: "Gescheitert am",
+      retry: "Diese Referenz erneut versuchen",
+      retryAsked: "Der erneute Versuch der Referenz wurde angefragt.",
+      retryFailed: "Die API hat den erneuten Versuch dieser Referenz nicht angenommen.",
+      // die Sammel-Wörter sind mit der Harvest-Tabelle geteilt (D6 aus
+      // #1256): failed und skipped lesen aus harvestRun.collectingStates;
+      // nur das Wort für eine Referenz, die gerade erneut geholt wird, ist
+      // eigenes dieses Screens
+      states: { retrying: "Erneuter Versuch" },
+      errorKinds: {
+        fetch_timeout: "Abruf lief in den Timeout",
+        fetch_unreachable: "Adresse nicht erreichbar",
+        no_content: "Antwort ohne Inhalt",
+        no_identifiable_record: "Kein identifizierbarer Datensatz",
+        unsupported_kind: "Nicht unterstützter Datensatztyp",
+        import_failed: "Import abgelehnt",
+      },
+    },
     log: {
       title: "Protokoll des Auftrags",
       empty: "Dieser Auftrag hat nichts gemeldet.",
@@ -620,6 +686,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       openHistory: "Job-Verlauf öffnen",
       expandJob: "Prozessdetails einblenden",
       collapseJob: "Prozessdetails ausblenden",
+      referencesCounter: "Referenzen %{total} · gespeichert %{stored} · gescheitert %{failed} · übersprungen %{skipped}",
+      openReferences: "Gescheiterte Referenzen prüfen",
       notifyFailed: "%{description} ist fehlgeschlagen. Öffnen Sie die Hintergrundjobs für die Einzelheiten.",
       notifyCompleted: "%{count} Hintergrundprozess abgeschlossen. |||| %{count} Hintergrundprozesse abgeschlossen.",
     },

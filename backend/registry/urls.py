@@ -84,6 +84,8 @@ feature_types_routes.register(r'referencesystems', metadata_views.NestedReferenc
                               basename='featuretype-referencesystems', parents_query_lookups=['featuretype'])
 feature_types_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
                               basename='featuretype-keywords', parents_query_lookups=['featuretype_metadata'])
+feature_types_routes.register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet,
+                              basename='featuretype-datasetmetadata', parents_query_lookups=['self_pointing_feature_types'])
 
 csw_routes = router.register(
     r'csw', service_views.CatalogueServiceViewSet, basename='csw')
@@ -279,6 +281,10 @@ router.register(r'mime-types', metadata_views.MimeTypeViewSet,
                 basename='mime-type')
 router.register(r'licences', metadata_views.LicenceViewSet,
                 basename='licence')
+# the authoring profiles of the records (#1240); the editor follows the
+# profile link of a record here and fetches sections and rules with it
+router.register(r'metadata-profiles',
+                metadata_views.MetadataProfileViewSet, basename='metadataprofile')
 router.register(r'referencesystems',
                 metadata_views.ReferenceSystemViewSet, basename='referencesystem')
 router.register(r'styles', metadata_views.StyleViewSet, basename='style')

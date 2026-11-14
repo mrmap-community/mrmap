@@ -172,6 +172,17 @@ built from **React Admin components, extended only where needed — no fully new
 (decided in review), reusing the `RecordShow` cards and `SchemaFormFields` — no forked cards. The
 editor is a route, not a dialog, so section rail, sticky toolbar and findings rail fit.
 
+**API surface as served (#1240).** The profile is a Django model served as a json:api resource at
+`/api/registry/metadata-profiles` (default CRUD behaviour, read-only for clients so far); the
+`iso19139-generic` profile is seeded by migration under a fixed UUID and every metadata record
+carries a `profile` relationship pointing at it. The ISO element path of each writable field rides
+the OpenAPI schema as an `x-iso-path` extension, injected by a drf-spectacular postprocess hook
+that walks the *same* mapper configs the XML generator reads — there is no second ISO mapping.
+The write-back of #985 consumes that one mapping, so the path the editor displays and the path the
+reverse mapper writes can never disagree; a test asserts the served paths against the configs.
+Fields pinned read-only (`file_identifier`, `date_stamp`, `origin`, `is_broken`) appear with
+`readOnly: true` and carry no path.
+
 ## 6. Mockups
 
 CURRENT — rendered from `master` source (no live MrMap demo was reachable):

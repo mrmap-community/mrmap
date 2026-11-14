@@ -914,6 +914,14 @@ SPECTACULAR_SETTINGS = {
     # the json:api view mixins' docstrings are implementation notes, not
     # endpoint documentation; see extras.schema.get_lib_doc_excludes
     "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
+    # the enum hook is spectacular's own default and must be named again
+    # once the setting is overridden; the second hook stamps the ISO 19139
+    # element paths of the writable record fields into the schema, read
+    # from the mapper configs (#1240)
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "registry.schema.inject_iso_paths",
+    ],
 }
 
 if not MRMAP_PRODUCTION:

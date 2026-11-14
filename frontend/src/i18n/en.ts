@@ -274,6 +274,8 @@ const en = lodashMerge(
       formats: "Output formats",
       noDescription: "No feature type description fetched from the service.",
       metadata: "Related metadata",
+      noMetadata: "No metadata record describes this feature type.",
+      metadataNotCollected: "The capabilities of this feature type reference metadata documents, but no records were collected from them. The service was registered before feature type references were collected, or collecting them failed.",
       access: "Access",
       secured: "Access rules configured",
       spatialSecured: "Spatial access rules configured",
@@ -322,7 +324,14 @@ const en = lodashMerge(
       "relationView": "Relation view",
       "harvestedThrough": "Harvested through catalogues",
       "loadFailed": "Unable to load relations.",
-      "graphLimit": "Showing the first 100 relations. Use the tables to browse all links.",
+      "describesEdge": "describes %{kind}",
+      "describesColumn": "Describes %{kind}",
+      "relationMeaning": "Every relation says that this record describes the linked element; the link origin says where the coupling came from.",
+      "groupCount": "%{smart_count} relation |||| %{smart_count} relations",
+      "showAllGroup": "Show all of this group",
+      "allGroups": "All groups",
+      "noRelations": "No relation is stored for this record.",
+      "graphLimit": "The graph draws %{shown} of %{total} relations; the table of every group pages through all of them server-side.",
     },
     serviceExplorer: {
       protocol: "Protocol",
@@ -532,6 +541,30 @@ const en = lodashMerge(
         "countMismatch": "Count mismatch"
       }
     },
+    // what the collection of metadata references of one registration did,
+    // shown on the page of the service it registered (#1266). The four counter
+    // labels are the api's own labels of those fields (#1259, #1263); the
+    // outcomes are the words #1267 agreed for both paths which collect.
+    collectionActivity: {
+      title: "Metadata collection of this registration",
+      loadError: "Unable to load the metadata collection of this service.",
+      unreadable:
+        "The background jobs of this service are not readable for you.",
+      noHistory: "No retained collection history.",
+      notPlanned:
+        "This registration has not planned its metadata references yet.",
+      notCollected: "References of this kind were not collected.",
+      nothingReferenced:
+        "The capabilities document referenced no metadata of its own.",
+      planned: "Metadata references total",
+      stored: "Metadata references stored",
+      failed: "Metadata references failed",
+      skipped: "Metadata references skipped",
+      unresolved: "%{count} references could not be collected",
+      describes: "Elements the retained references describe",
+      describesMore: "%{count} more elements",
+      viewReferences: "Show every reference",
+    },
     harvestingActivity: {
       started: "Started",
       stages: { discover: "Discover", download: "Download", import: "Import" },
@@ -600,6 +633,36 @@ const en = lodashMerge(
       abort: "Abort process",
       abortAsked: "The process was asked to abort.",
       abortFailed: "The process could not be aborted. The permission of its resource is missing.",
+      // the per-reference answer of a registration below its process (#1265):
+      // the rows the api retains are the unresolved and the failed ones - the
+      // stored references are answered by the counters, not by a ledger.
+      references: {
+        title: "Metadata references of this registration",
+        empty: "Every planned reference is stored; none remained to inspect.",
+        loadError: "Unable to load the references of this registration.",
+        request: "Requested at",
+        url: "Advertised url",
+        reference: "Reference of",
+        state: "State",
+        errorKind: "Why it failed",
+        errorAt: "Failed at",
+        retry: "Retry this reference",
+        retryAsked: "The retry of the reference was asked.",
+        retryFailed: "The api did not accept the retry of this reference.",
+        // the collecting words are shared with the harvest table (D6 of
+        // #1256): failed and skipped read from harvestRun.collectingStates;
+        // only the word for a reference which is being retried right now is
+        // this screen's own
+        states: { retrying: "Retrying" },
+        errorKinds: {
+          fetch_timeout: "Fetch timed out",
+          fetch_unreachable: "Address not reachable",
+          no_content: "Answer without content",
+          no_identifiable_record: "No identifiable record",
+          unsupported_kind: "Unsupported record kind",
+          import_failed: "Import refused",
+        },
+      },
       log: {
         title: "Job log",
         empty: "This process reported nothing.",
@@ -639,6 +702,8 @@ const en = lodashMerge(
         openHistory: "Open job history",
         expandJob: "Show process details",
         collapseJob: "Hide process details",
+        referencesCounter: "references %{total} · stored %{stored} · failed %{failed} · skipped %{skipped}",
+        openReferences: "Inspect failed references",
         notifyFailed: "%{description} failed. Open the background jobs for the details.",
         notifyCompleted: "%{count} background job completed. |||| %{count} background jobs completed.",
       },

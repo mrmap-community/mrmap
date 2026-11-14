@@ -144,13 +144,18 @@ class LayerQuerySet(QuerySet):
         return Style.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
     def with_inherited_values(self):
+        # The ancestry of a layer is looked up in every layer of the registry and
+        # not in `self`: which value a layer inherits only depends on the layers
+        # on its own path, while `self` may already be narrowed to the layers the
+        # effective values are answered for (#1315).
+        registry = self.model._default_manager.all()
         return self.annotate(
-            is_queryable_inherited=self.inherited_is_queryable(),
-            is_cascaded_inherited=self.inherited_is_cascaded(),
-            is_opaque_inherited=self.inherited_is_opaque(),
-            scale_min_inherited=self.inherited_scale_min(),
-            scale_max_inherited=self.inherited_scale_max(),
-            bbox_lat_lon_inherited=self.inherited_bbox_lat_lon(),
+            is_queryable_inherited=registry.inherited_is_queryable(),
+            is_cascaded_inherited=registry.inherited_is_cascaded(),
+            is_opaque_inherited=registry.inherited_is_opaque(),
+            scale_min_inherited=registry.inherited_scale_min(),
+            scale_max_inherited=registry.inherited_scale_max(),
+            bbox_lat_lon_inherited=registry.inherited_bbox_lat_lon(),
         )
 
     def with_aggregated_inherited_values(self):
@@ -184,7 +189,7 @@ class LayerQuerySet(QuerySet):
             )
         )
 
-    def build_cte_and_kwargs(self, cte_cls, cte_fields, sparse_key):
+    def build_cte_and_kwargs(self, cte_cls, cte_fields, sparse_key, scope=None):
         """
         Baut ein (cte_instance, kwargs)-Tuple dynamisch auf Basis der sparse_fields.
 
@@ -192,6 +197,7 @@ class LayerQuerySet(QuerySet):
             cte_cls: Die CTE-Klasse, z. B. AncestorsHeritageCTE
             cte_fields (list[str]): alle möglichen Felder
             sparse_key (str): Key in sparse_fields, der Filter-Präfixe liefert
+            scope (QuerySet): ids der Ebenen, für die die CTE antwortet
 
         Returns:
             tuple: (cte_instance oder None, annotation_kwargs dict)
@@ -208,7 +214,7 @@ class LayerQuerySet(QuerySet):
             ]
 
         # Erzeuge die CTE-Instanz nur wenn Felder da sind
-        cte_instance = cte_cls(fields) if fields else None
+        cte_instance = cte_cls(fields, scope=scope) if fields else None
 
         # kwargs dict dynamisch bauen
         annotation_kwargs = (
@@ -218,7 +224,7 @@ class LayerQuerySet(QuerySet):
 
         return cte_instance, annotation_kwargs
 
-    def get_ancestors_heritage_cte(self):
+    def get_ancestors_heritage_cte(self, scope=None):
         cte_fields = [
             "is_queryable_inherited",
             "is_cascaded_inherited",
@@ -230,10 +236,11 @@ class LayerQuerySet(QuerySet):
         return self.build_cte_and_kwargs(
             AncestorsHeritageCTE,
             cte_fields,
-            "Layer"
+            "Layer",
+            scope=scope
         )
 
-    def get_ancestors_aggregated_cte(self):
+    def get_ancestors_aggregated_cte(self, scope=None):
         cte_fields = [
             "reference_systems_inherited",
             "time_extents_inherited",
@@ -242,10 +249,11 @@ class LayerQuerySet(QuerySet):
         return self.build_cte_and_kwargs(
             AncestorsHeritageAggregatedCTE,
             cte_fields,
-            "Layer"
+            "Layer",
+            scope=scope
         )
 
-    def get_security_information_cte(self):
+    def get_security_information_cte(self, scope=None):
         cte_fields = [
             "is_secured",
             "is_spatial_secured",
@@ -253,14 +261,30 @@ class LayerQuerySet(QuerySet):
         return self.build_cte_and_kwargs(
             LayerSecurityInformationCTE,
             cte_fields,
-            "Layer"
+            "Layer",
+            scope=scope
         )
 
     def with_inherited_attributes_cte(self, request=None):
+        """Annotates the effective values of the inherited attributes.
+
+        Every one of the three CTEs answers one row per layer, so they answer the
+        layers which this queryset selects and not every layer of the registry
+        (#1315): the layers tab of a WMS with 4 layers used to materialise the
+        effective values of all 265,653 layers of the deployment - six correlated
+        ancestor probes per layer - and threw all but four of them away on the
+        join. That CTE was the request: 48.5 s of its 49.3 s on an idle database.
+
+        The scope is built from this queryset without its annotations, joins and
+        order, because only the layers it selects matter; the ancestry of a layer
+        is still looked up in all layers, see :meth:`with_inherited_values`.
+        """
         self.sparse_fields = get_sparse_fields(request)
         qs = self
+        scope = self.select_related(None).order_by().values("pk")
 
-        heritage_cte, heritage_annotation_kwargs = self.get_ancestors_heritage_cte()
+        heritage_cte, heritage_annotation_kwargs = self.get_ancestors_heritage_cte(
+            scope=scope)
         if heritage_cte:
             qs = with_cte(
                 heritage_cte,
@@ -271,7 +295,8 @@ class LayerQuerySet(QuerySet):
                 )
             )
 
-        aggregated_cte, aggregated_annotation_kwargs = self.get_ancestors_aggregated_cte()
+        aggregated_cte, aggregated_annotation_kwargs = self.get_ancestors_aggregated_cte(
+            scope=scope)
         if aggregated_cte:
             qs = with_cte(
                 aggregated_cte,
@@ -282,7 +307,8 @@ class LayerQuerySet(QuerySet):
                 )
             )
 
-        security_cte, security_annotation_kwargs = self.get_security_information_cte()
+        security_cte, security_annotation_kwargs = self.get_security_information_cte(
+            scope=scope)
         if security_cte:
             qs = with_cte(
                 security_cte,

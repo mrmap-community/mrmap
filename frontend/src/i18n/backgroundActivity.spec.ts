@@ -86,4 +86,29 @@ describe("background notification translations", () => {
       }
     }
   });
+
+  it("names every error kind a failed reference reports", () => {
+    // the collection of #1263 stores the reason of a lost reference as one
+    // of the six words of `registry/enums/harvesting.py:ReferenceErrorKind`;
+    // the references table of #1265 looks the word up here and a missing key
+    // answers the raw kind right where the editor decides the retry
+    const kinds = [
+      "fetch_timeout",
+      "fetch_unreachable",
+      "no_content",
+      "no_identifiable_record",
+      "unsupported_kind",
+      "import_failed",
+    ];
+    for (const messages of [en, de]) {
+      for (const kind of kinds) {
+        const value = lodashGet(
+          messages,
+          `backgroundActivity.references.errorKinds.${kind}`,
+        );
+        expect(typeof value, kind).toBe("string");
+        expect((value as string).trim(), kind).not.toBe("");
+      }
+    }
+  });
 });

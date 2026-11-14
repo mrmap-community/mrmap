@@ -24,9 +24,11 @@ from registry.filters.service import (CatalogueServiceFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
-from registry.models.metadata import (DatasetMetadataRecord, Keyword, Language,
-                                      MimeType, ReferenceSystem, ServiceMetadataRecord, Style,
-                                      TimeExtent)
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      FeatureTypeRemoteMetadata, Keyword,
+                                      Language, MetadataRelation, MimeType,
+                                      ReferenceSystem, ServiceMetadataRecord,
+                                      Style, TimeExtent)
 from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
                                         WebFeatureServiceMonitoringSetting,
                                         WebMapServiceMonitoringSetting)
@@ -633,6 +635,9 @@ class WebFeatureServiceViewSet(
                              queryset=ReferenceSystem.objects.only("id")),
                     Prefetch("output_formats",
                              queryset=MimeType.objects.only("id")),
+                    Prefetch(
+                        "registry_datasetmetadatarecord_metadata_records",
+                        queryset=DatasetMetadataRecord.objects.only("id")),
                 ),
             ),
         ],
@@ -801,6 +806,7 @@ class FeatureTypeViewSetMixin(
         "output_formats": ["output_formats"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
     prefetch_for_not_includes = {
         "keywords": [
@@ -809,6 +815,11 @@ class FeatureTypeViewSetMixin(
         "reference_systems": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
+            )
+        ],
+        "dataset_metadata": [
+            Prefetch(
+                "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
             )
         ],
         "output_formats": [
@@ -829,9 +840,19 @@ class FeatureTypeViewSetMixin(
         qs = super().get_queryset(*args, **kwargs)
         rules = AllowedWebFeatureServiceOperation.objects.filter(
             secured_feature_types=OuterRef('pk'))
+        # references the capabilities advertised for this feature type without
+        # a single stored record behind them: the state #1257 leaves an old
+        # registration in, told apart from "no metadata" by the inspection
+        # empty state (#1262); annotated like is_secured so the list stays
+        # independent of the number of rows
+        advertised = FeatureTypeRemoteMetadata.objects.filter(
+            describes=OuterRef('pk'))
+        linked = MetadataRelation.objects.filter(
+            feature_type=OuterRef('pk'), dataset_metadata__isnull=False)
         return qs.annotate(
             is_secured=Exists(rules),
             is_spatial_secured=Exists(rules.filter(allowed_area__isnull=False)),
+            metadata_references_uncollected=Exists(advertised) & ~Exists(linked),
         )
 
 

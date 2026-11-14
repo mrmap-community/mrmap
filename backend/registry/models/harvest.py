@@ -1572,9 +1572,17 @@ class TemporaryMdMetadataFile(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding or self.re_schedule
+        retried = self.re_schedule
         if self.re_schedule:
-            self.has_import_error = False
-            self.import_error = ""
+            if self.background_process_id is None:
+                # the harvesting semantics of ``re_schedule``: the last
+                # verdict is wiped so the next delivery reports fresh. A
+                # registration retry (#1265) deliberately keeps its verdict
+                # fields: the failed reference must stay inspectable - what
+                # kind and what text decided it - until the new attempt
+                # overwrites them or consumes the row with success.
+                self.has_import_error = False
+                self.import_error = ""
         self.re_schedule = False
 
         ret = super().save(*args, **kwargs)
@@ -1587,16 +1595,20 @@ class TemporaryMdMetadataFile(models.Model):
                 # addressed by the row's pk and its owning process - never by
                 # a RemoteMetadata pk which would invite a re-create (#1263).
                 # The planner publishes its fan-out as a chord itself; this
-                # branch is the single-row seam (an admin re-save), and a
-                # duplicated message meets the claim guard, not a second
-                # import. The process carries no request snapshot, so this
-                # seam writes history without one - the planner's chord is
-                # the path which knows the registering client.
+                # branch is the single-row seam (an admin re-save and the
+                # retry of #1265), and a duplicated message meets the claim
+                # guard, not a second import. The process carries no request
+                # snapshot, so this seam writes history without one - the
+                # planner's chord is the path which knows the registering
+                # client. A retried row carries the ``allow_failed``
+                # authorization of #1265: only then may the claim reopen the
+                # decided FAILED state, and never for any other delivery.
                 from registry.tasks.service import \
                     collect_reference  # local import: circularity
                 task = collect_reference.s(
                     background_process_pk=self.background_process_id,
-                    temporary_md_metadata_file_id=self.pk)
+                    temporary_md_metadata_file_id=self.pk,
+                    allow_failed=retried)
                 task.set(task_id=str(task_id))
                 transaction.on_commit(lambda: task.apply_async())
             elif self.job_id is not None:

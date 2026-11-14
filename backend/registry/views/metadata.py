@@ -8,7 +8,7 @@ from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet,
                              SerializerClassesMixin)
 from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord, IsoCategory,
                                       Keyword, Language, Licence,
-                                      MetadataContact, MetadataRelation, MimeType,
+                                      MetadataContact, MetadataProfile, MetadataRelation, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
@@ -16,6 +16,7 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
 from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            DatasetMetadataRecordSerializer,
                                            IsoCategorySerializer, LanguageSerializer,
+                                           MetadataProfileSerializer,
                                            MetadataRelationSerializer, TimeExtentSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
@@ -101,6 +102,22 @@ class NestedLicenceViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class MetadataProfileViewSet(
+    ModelViewSet
+):
+    # the profile is seeded by a data migration and read by the editor (#1240);
+    # it answers as an ordinary json:api resource because every endpoint of
+    # mrmap follows the json:api CRUD defaults (the cross-cutting decision of
+    # the review of #1238) -- writing profiles stays an operator task.
+    queryset = MetadataProfile.objects.all()
+    serializer_class = MetadataProfileSerializer
+    filterset_fields = {
+        'id': ['exact', 'in'],
+        "name": ["exact", "icontains", "contains"],
+    }
+    search_fields = ("name", "label")
 
 
 class ReferenceSystemViewSetMixin(SerializerClassesMixin):
@@ -195,7 +212,7 @@ class DatasetMetadataViewSetMixin(
     # the vector of a record is what it is found by, not something this endpoint
     # answers, and postgres keeps it compressed: see registry/expressions/search.py
     queryset = DatasetMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = DatasetMetadataRecordSerializer
     filterset_class = DatasetMetadataRecordSpatialFilterSet
@@ -211,6 +228,7 @@ class DatasetMetadataViewSetMixin(
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
         "dataset_contact": ["dataset_contact"],
+        "profile": ["profile"],
         "selfPointingLayers.service": ["metadata_contact", "dataset_contact"],
         "selfPointingFeatureType.service": ["metadata_contact", "dataset_contact"],
     }
@@ -432,7 +450,7 @@ class ServiceMetadataViewSetMixin(
 ):
     # see DatasetMetadataViewSetMixin.queryset
     queryset = ServiceMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = ServiceMetadataRecordSerializer
     filterset_class = ServiceMetadataRecordSpatialFilterSet
@@ -443,6 +461,7 @@ class ServiceMetadataViewSetMixin(
 
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
+        "profile": ["profile"],
     }
     prefetch_for_includes = {
         "harvested_through": [
@@ -516,7 +535,7 @@ class ApplicationMetadataViewSetMixin(
     # registry.models.metadata.ApplicationMetadataRecord): the same answer of that
     # shape, with the providing contact named after the application
     queryset = ApplicationMetadataRecord.objects \
-        .select_related("licence") \
+        .select_related("licence", "profile") \
         .defer("search_vector")
     serializer_class = ApplicationMetadataRecordSerializer
     filterset_class = ApplicationMetadataRecordSpatialFilterSet
@@ -526,6 +545,7 @@ class ApplicationMetadataViewSetMixin(
         "metadata_contact": ["metadata_contact"],
         "licence": ["licence"],
         "application_contact": ["application_contact"],
+        "profile": ["profile"],
     }
     prefetch_for_includes = {
         "categories": ["categories"],

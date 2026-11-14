@@ -3,6 +3,7 @@ from extras.scheduling import next_run_expected_at
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
                                 TimeUntilNextRunMixin)
+from notify.enums import ProcessStatusEnum
 from registry.enums.harvesting import LogLevelEnum
 from registry.enums.metadata import (ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
@@ -12,7 +13,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (CharField, ChoiceField,
+from rest_framework_json_api.serializers import (BooleanField, CharField,
+                                                 ChoiceField,
                                                  DateTimeField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
@@ -174,6 +176,91 @@ class TemporaryMdMetadataFileSerializer(
         read_only=True, label=_("layer"))
     described_featuretype = PrimaryKeyRelatedField(
         read_only=True, label=_("feature type"))
+    # the retry mutation of #1265: the one write which asks the collection to
+    # fetch THIS reference again. It reuses the work row - the same pk, a new
+    # claim token - and reports into the same run; it never creates a row, a
+    # process or a success record. Write only: what the next attempt decided
+    # is answered by the row's own state, error kind and attempt count.
+    retry = BooleanField(
+        write_only=True,
+        required=False,
+        default=False,
+        label=_("retry"),
+        help_text=_(
+            "ask the collection to fetch this reference again; answered "
+            "only for a failed reference of a registration which is not "
+            "itself failed or aborted"))
+
+    def _guard_registration_retry(self, instance):
+        """Refuse a retry the work queue cannot carry - before anything moves.
+
+        The claim of ``collect_reference`` stays the authoritative guard
+        under concurrency; this is the honest answer of the mutation, asked
+        while the request still stands:
+
+        * a harvesting row is rescheduled through its run, never through a
+          registration retry - that flow decides by ``has_import_error``;
+        * only a decided ``FAILED`` reference is retryable: a PENDING one is
+          the fan-out's own work (or a skipped one, which is #1274's
+          collecting update to answer), a LEASED one is being worked;
+        * a FAILED or ABORTED run is never reopened through a reference;
+          a COMPLETED one is, which is D3 and the narrow terminal counter
+          path of #1263.
+        """
+        if instance is None or instance.background_process_id is None:
+            raise ValidationError(_(
+                "Only the references of a registration are retried here; "
+                "the files of a harvesting run are rescheduled with "
+                "their run."))
+        if instance.state != ReferenceWorkStateEnum.FAILED.value:
+            raise ValidationError(_(
+                "Only a reference which failed can be retried; this one "
+                "is still planned or being worked."))
+        process = instance.background_process
+        if process is None:
+            raise ValidationError(_(
+                "The process which planned this reference is gone; its "
+                "failed references are gone with it and cannot be retried."))
+        if process.status in (ProcessStatusEnum.FAILED,
+                              ProcessStatusEnum.ABORTED):
+            raise ValidationError(_(
+                "A run which failed or was aborted is not reopened for "
+                "the retry of its references."))
+
+    def validate_retry(self, value):
+        if value:
+            self._guard_registration_retry(self.instance)
+        return value
+
+    def validate_re_schedule(self, value):
+        """The old spelling of the same ask, guarded the same way (#1265).
+
+        ``re_schedule`` predates the work queue and stays writable for the
+        harvesting flow; on a registration row it would reach the very same
+        dispatch - with the very same ``allow_failed`` authorization -
+        through ``save()``, so it meets the very same rules. An unguarded
+        ``re_schedule`` on a PENDING row of a completed run would re-import
+        a counted-skipped reference and break the plan's invariant.
+        """
+        if (value and self.instance is not None
+                and self.instance.background_process_id is not None):
+            self._guard_registration_retry(self.instance)
+        return value
+
+    def update(self, instance, validated_data):
+        """Hand an asked retry to the work-row seam of #1263.
+
+        ``re_schedule`` is the flag ``save()`` already consumes for the
+        harvesting flow: it clears what the last attempt decided and, on
+        commit, schedules the row's own consumer. For a registration row
+        ``save()`` hands the flag on to ``collect_reference`` as its
+        ``allow_failed`` authorization - the same work row, a fresh claim
+        token, the same owning process (#1265). Both spellings of the ask
+        arrive here as that one flag.
+        """
+        if validated_data.pop("retry", False):
+            instance.re_schedule = True
+        return super().update(instance, validated_data)
 
     class Meta:
         model = TemporaryMdMetadataFile
@@ -203,6 +290,7 @@ class TemporaryMdMetadataFileSerializer(
             "described_layer",
             "described_featuretype",
             "string_representation",
+            "retry",
         )
 
 

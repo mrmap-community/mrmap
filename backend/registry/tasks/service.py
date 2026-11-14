@@ -192,21 +192,7 @@ def build_ogc_service(
 
     if collect_metadata_records:
         if isinstance(db_service, (WebMapService, WebFeatureService)):
-            if isinstance(db_service, WebMapService):
-                remote_metadata_list = list(chain(
-                    WebMapServiceRemoteMetadata.objects.filter(
-                        describes__pk=db_service.pk),
-                    LayerRemoteMetadata.objects.filter(
-                        describes__service__pk=db_service.pk)
-                ))
-            else:
-                remote_metadata_list = list(chain(
-                    WebFeatureServiceRemoteMetadata.objects.filter(
-                        describes__pk=db_service.pk),
-                    FeatureTypeRemoteMetadata.objects.filter(
-                        describes__service__pk=db_service.pk
-                    )
-                ))
+            remote_metadata_list = advertised_references(db_service)
 
             # the plan of the collection is sealed with its rows, its number
             # of steps and its reference total in one transaction, before the
@@ -274,6 +260,46 @@ def build_ogc_service(
     return return_dict
 
 
+def advertised_references(service):
+    """The metadata references one service advertises, as ``RemoteMetadata`` rows.
+
+    The capabilities mapping leaves every advertised ISO reference behind as a
+    ``RemoteMetadata`` row - the configs name the subclass per element kind
+    (``mappers/configs/wms130.py``, ``wfs200.py``) - and these rows are what a
+    collection has to fetch. The reference of the service describes the service
+    row itself, the reference of an element describes the element, so the two
+    reads are one answer. A service which advertises no metadata at all - a CSW
+    is the kind which never has any - answers the empty list.
+
+    A collection which runs after an update (#1274) reads the same answer for
+    the service as it is published by that update: the rows the candidate
+    carried are gone with it through the ``describes`` cascade, so what is left
+    to collect are exactly the references which describe what the update
+    published.
+
+    Args:
+        service: the built or published service to read the references of
+
+    Returns:
+        list: the ``RemoteMetadata`` rows of the service and its elements
+    """
+    if isinstance(service, WebMapService):
+        return list(chain(
+            WebMapServiceRemoteMetadata.objects.filter(
+                describes__pk=service.pk),
+            LayerRemoteMetadata.objects.filter(
+                describes__service__pk=service.pk)
+        ))
+    if isinstance(service, WebFeatureService):
+        return list(chain(
+            WebFeatureServiceRemoteMetadata.objects.filter(
+                describes__pk=service.pk),
+            FeatureTypeRemoteMetadata.objects.filter(
+                describes__service__pk=service.pk)
+        ))
+    return []
+
+
 def plan_registration_references(
         task, background_process_pk, remote_metadata_list, db_service):
     """Seal the per-reference work list of one registration, once.
@@ -285,7 +311,9 @@ def plan_registration_references(
     the process' plan numbers and the ``references_plan_sealed`` marker.
     A redelivery of the root which finds the marker set writes nothing: the
     plan of a registration is written by the first delivery that seals it
-    and by no other (#1263).
+    and by no other (#1263). The plan belongs to the collecting process and
+    not to the kind of run which reports through it: the update of a service
+    seals its own plan through this very function (#1274).
 
     Args:
         task: the reporting task (its ``update_background_process`` names
@@ -694,22 +722,30 @@ def _delete_storage_file_after_commit(name):
              queue=celery_queues.DB_ROUTINES,
              base=BackgroundProcessBased)
 def finish_metadata_collection(self, *args, **kwargs):
-    """Close a registration whose reference fan-out has all reported in.
+    """Close a run whose reference fan-out has all reported in.
 
-    The body of the collection's chord. It runs when every member answered,
-    which is not the same as every reference being decided: a redelivery
-    which lost its claim withdraws without deciding, and the delivery that
-    holds the lease may still be working the row. So the body looks at the
-    work rows instead of trusting the chord - while a delivery holds a
-    LEASE it waits, and the run completes with the last decision it waited
-    for, not under it (#1263). A row nobody ever claimed is nobody's work:
-    with every delivery of the fan-out answered, no claim on it can come
+    The body of the collection's chord, and the closer the recovery publishes
+    for a sealed plan whose rows all decided. It runs when every member
+    answered, which is not the same as every reference being decided: a
+    redelivery which lost its claim withdraws without deciding, and the
+    delivery that holds the lease may still be working the row. So the body
+    looks at the work rows instead of trusting the chord - while a delivery
+    holds a LEASE it waits, and the run completes with the last decision it
+    waited for, not under it (#1263). A row nobody ever claimed is nobody's
+    work: with every delivery of the fan-out answered, no claim on it can come
     anymore, and the completion counts it skipped like #1259 always did.
     The check and the completion hold the process lock which every claim
     takes first, so no claim can slip between looking and completing; a
     claim which loses that race meets a completed run and withdraws. Like
     every completion of a planned collection the summary closes with the
     references which never answered an outcome at all (#1259).
+
+    A registration is closed by completing its process. An update reports
+    through a job as well, and the job is the one which decides about its run:
+    for an update the body closes the job which reports this process, so the
+    metadata step ends the update it is a step of (#1274) - including for a
+    process an administrator decided about in the meantime, whose job must not
+    stay unfinished forever.
     """
     from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
 
@@ -741,9 +777,20 @@ def finish_metadata_collection(self, *args, **kwargs):
                         f"completed while registration work rows were still "
                         f"leased - late outcomes are refused from here.",
                         stack_info=True)
-                self.update_background_process(
-                    completed=True
-                )
+                # A run which an update job reports is closed by that job, not
+                # here: the collection is a step of the update (#1274), so the
+                # update decides what its run did and the process of the job
+                # mirrors the status the job answers. A registration has
+                # nothing but its process and completes it right here.
+                from registry.models.update import \
+                    update_job_for_process  # local import: cycle
+                job = update_job_for_process(self.background_process_pk)
+                if job is not None:
+                    job.metadata_step_completed()
+                else:
+                    self.update_background_process(
+                        completed=True
+                    )
         if wait:
             raise self.retry(countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
                              max_retries=FINISH_WAIT_MAX_RETRIES)

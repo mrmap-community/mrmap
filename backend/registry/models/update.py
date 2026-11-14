@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 
+from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
@@ -245,6 +246,14 @@ class ServiceUpdateJob(models.Model):
         UpdateJobStatusEnum.ERROR: ProcessStatusEnum.FAILED,
     }
 
+    #: whether an update of this kind collects the metadata its service
+    #: advertises, as a step of the update itself (#1274). A WMS and a WFS
+    #: reference ISO documents in their capabilities and their registration
+    #: collects them; a CSW advertises no metadata records and its registration
+    #: collects none either (``registry/views/service.py`` hands ``False`` for
+    #: it), so an update of a CSW collects none - exactly like its registration.
+    collects_metadata = False
+
     class Meta:
         abstract = True
         ordering = ["-date_created"]
@@ -323,6 +332,11 @@ class ServiceUpdateJob(models.Model):
         if status is None:
             status = self.PROCESS_STATUS.get(
                 self.status, ProcessStatusEnum.RUNNING)
+            if status == ProcessStatusEnum.COMPLETED and self.still_works:
+                # the job decided what its run did but a step of it still works
+                # (#1274 collects the metadata of the updated service): the
+                # operation does not stand decided until its last step answered
+                status = ProcessStatusEnum.RUNNING
         if phase is None:
             phase = str(UpdateJobStatusEnum(self.status).label)
         updated = BackgroundProcess.objects.report(
@@ -346,6 +360,103 @@ class ServiceUpdateJob(models.Model):
     def finish(self, status: UpdateJobStatusEnum = UpdateJobStatusEnum.NO_UPDATE_NEEDED):
         self.done_at = now()
         self.status = status.value
+        self.save()
+
+    @property
+    def still_works(self) -> bool:
+        """Whether this job decided its outcome while a step of its run is open.
+
+        ``done_at`` names the moment a run is over: it is what the constraint of
+        one unfinished job per service reads, what the update's own screens read
+        and what makes its process a decided report. A job which carries a
+        decided status while ``done_at`` is still empty therefore works on -
+        since #1274 that is the collection of the metadata the updated service
+        advertises, which the update must have produced before it reports done -
+        and the process which reports the job keeps saying that it runs, the way
+        a mapping which waits for its review already does (#1207).
+        """
+        return self.done_at is None and self.PROCESS_STATUS.get(
+            self.status) == ProcessStatusEnum.COMPLETED
+
+    def finish_after_metadata_step(
+        self,
+        status: UpdateJobStatusEnum = UpdateJobStatusEnum.NO_UPDATE_NEEDED,
+    ):
+        """End this run behind the metadata step which closes it (#1274).
+
+        Collecting the metadata references of an updated service is a step of
+        the update itself, so the outcome of the run is decided here while
+        ``done_at`` stays empty: neither the job nor its process may report a
+        run over before the records exist. The step is the existing collection
+        machinery of a registration - the plan of #1263, one ``collect_reference``
+        per reference, the chord body which waits for every one of them -
+        published for the process which reports this job, never a second
+        harvesting mechanism. It reads the references which describe the service
+        as this update published it, so what a rejected candidate carried
+        creates nothing, and it is what backfills the services registered before
+        this epic without a data migration.
+
+        The completion of the collection closes the job through
+        :meth:`metadata_step_completed`. A kind which collects nothing is
+        closed right away, like its registration.
+
+        Args:
+            status (UpdateJobStatusEnum): what the run decided, UPDATED by the
+                caller which adopted the new capabilities
+        """
+        if not self.collects_metadata:
+            return self.finish(status)
+
+        self.status = status.value
+        # the save reports the process: running, because `still_works` says the
+        # run is not over, with the status as its phase until the collecting
+        # task names the phase of its own step (#1267)
+        self.save()
+        # published with the commit of the update: the collection reads the
+        # references of the published service, which only exist as this
+        # transaction's adoption of the candidate is durable
+        from registry.tasks.update import \
+            collect_update_metadata  # local import: cycle
+        on_commit(lambda: collect_update_metadata.apply_async(
+            kwargs={"background_process_pk": self.background_process_id}))
+
+    def redrive_metadata_step(self):
+        """Hand the open metadata step of this run to somebody who drives it.
+
+        The guard of #1274 for a re-delivery of a runner while the job already
+        decided its outcome but the collection of it is still open: the
+        candidate of the run is adopted and gone, so the update itself must not
+        start again - the step answers how to proceed instead. A decided or
+        vanished process can never collect again, and a job left unfinished for
+        a step nobody drives would block its service for every future update
+        through the constraint of one unfinished job: such a run is closed as
+        it stands. A live process means the plan is sealed with its fan-out
+        running, or the step's message was lost with the broker: re-publishing
+        the step is harmless either way, because the seal of a redelivery
+        writes nothing (#1263).
+        """
+        process = self.background_process
+        if process is None or process.done_at is not None:
+            self.metadata_step_completed()
+            return
+        from registry.tasks.update import \
+            collect_update_metadata  # local import: cycle
+        on_commit(lambda: collect_update_metadata.apply_async(
+            kwargs={"background_process_pk": process.pk}))
+
+    def metadata_step_completed(self):
+        """Close this run because the collection step of it has answered.
+
+        Called by the completion of the metadata collection (#1274): the
+        records its references produced are stored by then, so the run may
+        report done - with the summary of the collection closed alongside by
+        the report of this job. A job which is over already keeps its answer:
+        the recovery of #1263 may close the same plan again, and a run an
+        administrator decided about must not be rewritten by a late step.
+        """
+        if self.done_at is not None:
+            return
+        self.done_at = now()
         self.save()
 
     def interrupt(self):
@@ -464,7 +575,42 @@ class ServiceUpdateJob(models.Model):
         return self.update_config.get(model_cls.__name__, {})
 
 
+def update_job_for_process(background_process_pk):
+    """The update job which reports through a background process, or None.
+
+    The tasks of the collection machinery only know the process they report to
+    (#1263), but the run of an update is decided by its job, not by its process.
+    This is the read which names the run behind such a process: a job builds a
+    process of its own, so at most one unfinished job answers for one process,
+    whatever kind of update it is.
+
+    Args:
+        background_process_pk: the process a collecting task reports to
+
+    Returns:
+        ServiceUpdateJob|None: the update job which is not over yet, or None
+            when no unfinished update job reports through this process - which
+            is the shape of a registration's process (#1274)
+    """
+    if background_process_pk is None:
+        return None
+    for job_model in apps.get_models():
+        if job_model._meta.abstract or not issubclass(
+                job_model, ServiceUpdateJob):
+            continue
+        job = job_model.objects.filter(
+            background_process_id=background_process_pk,
+            done_at__isnull=True).first()
+        if job is not None:
+            return job
+    return None
+
+
 class WebMapServiceUpdateJob(ServiceUpdateJob):
+    #: the update of a WMS collects the metadata its capabilities advertise
+    #: (#1274)
+    collects_metadata = True
+
     service = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
@@ -662,6 +808,11 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
     @atomic
     def update(self):
+        if self.still_works:
+            # the run decided its outcome and only its metadata step is open
+            # (#1274): re-drive the step, never the update itself
+            self.redrive_metadata_step()
+            return
         if self.status not in [
             UpdateJobStatusEnum.REVIEW_REQUIRED.value,
             UpdateJobStatusEnum.UPDATED.value,
@@ -672,8 +823,10 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             remote_capabilities = self.old_service.remote_capabilities
 
             if self.old_service.document_equals(remote_capabilities):
-                # no update needed, cause both capability files are equal
-                self.finish()
+                # no update needed, cause both capability files are equal; the
+                # references the service advertises are still collected, which
+                # is how a service registered before #1274 gains its records
+                self.finish_after_metadata_step()
                 return
 
             self.create_new_service(remote_capabilities)
@@ -686,7 +839,9 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             self.done_at = None
             self.interrupt()
         else:
-            self.finish(status)
+            # the metadata the new capabilities advertise is collected as the
+            # last step of this update and closes it (#1274)
+            self.finish_after_metadata_step(status)
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
@@ -710,6 +865,10 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
 
 class WebFeatureServiceUpdateJob(ServiceUpdateJob):
+    #: the update of a WFS collects the metadata its capabilities advertise
+    #: (#1274)
+    collects_metadata = True
+
     service = models.ForeignKey(
         to=WebFeatureService,
         on_delete=models.CASCADE,
@@ -856,6 +1015,11 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
     @atomic
     def update(self):
+        if self.still_works:
+            # the run decided its outcome and only its metadata step is open
+            # (#1274): re-drive the step, never the update itself
+            self.redrive_metadata_step()
+            return
         if self.status not in [
             UpdateJobStatusEnum.REVIEW_REQUIRED.value,
             UpdateJobStatusEnum.UPDATED.value,
@@ -865,8 +1029,10 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             remote_capabilities = self.old_service.remote_capabilities
 
             if self.old_service.document_equals(remote_capabilities):
-                # no update needed, cause both capability files are equal
-                self.finish()
+                # no update needed, cause both capability files are equal; the
+                # references the service advertises are still collected, which
+                # is how a service registered before #1274 gains its records
+                self.finish_after_metadata_step()
                 return
 
             self.create_new_service(remote_capabilities)
@@ -879,7 +1045,9 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             self.done_at = None
             self.interrupt()
         else:
-            self.finish(status)
+            # the metadata the new capabilities advertise is collected as the
+            # last step of this update and closes it (#1274)
+            self.finish_after_metadata_step(status)
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:

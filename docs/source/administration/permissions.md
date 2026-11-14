@@ -1,50 +1,349 @@
 # Permissions
 
-MrMap v1.0.0 uses [django-guardian](https://github.com/django-guardian/django-guardian) as object-based permissions framework. Object-based permissions enable an administrator to grant users or groups the ability to perform an action on arbitrary subsets of objects in MrMap, rather than all objects of a certain type. For example, it is possible to grant a user permission to view only resources within by Organization membership.
+MrMap answers two different questions about access, and the answer to one says nothing about
+the other. They are implemented separately, configured separately and read by different parts
+of the code. An administrator has to set both, and an implementer has to keep them apart.
 
-# Roles
-We group guardian permissions in MrMap by custom role system.
+| axis | the question it answers | what answers it |
+| --- | --- | --- |
+| **Registry axis** | which user or group may read, register, change or delete a **registered object** — a service, a map context, an organization, a background process — through the API | django-guardian object permissions, asked by DRF permission classes on each viewset |
+| **Proxy axis** | which OGC client may call which **operation** on which **layer or feature type** of a secured service, optionally only inside an area | one configuration row per rule: `AllowedWebMapServiceOperation` / `AllowedWebFeatureServiceOperation`, together with `ProxySetting` for the proxy behaviour |
 
-## Default Roles
-By default, there are the following roles to group permissions.
+The proxy axis is **consumption control**. It decides what an OGC client may ask a mapped
+service for. It is not related to who may edit that resource in the registry: holding a rule
+on the proxy axis grants no write access to the resource, and the permission to edit a
+resource grants nothing at all when its service is secured. The single point where the two
+touch is a side effect: saving an allowed operation forces `ProxySetting.camouflage` to
+`True` for its service, because MrMap must answer the client itself to be able to restrict
+it. See [Security Proxy](../../architecture.md#security-proxy) for the proxy in the domain
+overview.
 
-* **Organization administrator** - Can grant role membership to users, accept or deny publishing rights and has editing rights for the organization.
-* **Resource administrator** - Can add, edit and remove resources for his organization
+Both axes are about **users, groups and objects**. Neither has roles today, which is what
+[epic #727](https://github.com/mrmap-community/mrmap/issues/727) sets out to change; see
+[Roles and memberships](#roles-and-memberships).
 
-## Models
-[ ![entity–relationship model of the guardian_roles app](../media/models/guardian_roles/erm.png) ](../media/models/guardian_roles/erm.png)
-*Above: entity–relationship model of the guardian_roles app*
+## The registry axis
 
-### TemplateRole
-A template role collects in MrMap a set of permissions.
+Object permissions come from [django-guardian](https://django-guardian.readthedocs.io/)
+(`django-guardian==3.5.2`, `backend/.requirements/base.txt`). Guardian stores a permission
+row per (user or group, object) pair next to Django's own model permissions, so a grant can
+name one service instead of all services of that type.
 
+### Settings
 
-### OwnerBasedRole
-Collects a set of users to group them by a specific template role.
+`backend/MrMap/settings.py`:
 
-### ObjectBasedRole
-Grands a set of users a set of permissions which are inherited by the based template role.
+- `AUTHENTICATION_BACKENDS` — `django.contrib.auth.backends.ModelBackend` plus
+  `guardian.backends.ObjectPermissionBackend`. The backend is what makes
+  `user.has_perm("registry.change_webmapservice", service)` answer for grants on one object.
+- `GUARDIAN_RAISE_403 = True` — where guardian's own view helpers deny something
+  (`guardian.utils.get_40x_or_None`, behind guardian's view decorators and mixins), the
+  denial is raised as `PermissionDenied` and runs through Django's exception handling
+  instead of being answered by guardian as a bare 403 response. It may not be combined with
+  `GUARDIAN_RENDER_403`. No MrMap view uses those helpers today — the API's 403 answers come
+  from the DRF classes below — so this setting currently changes nothing on a MrMap request.
+  It is kept as the deployment's stated preference for 403 handling.
 
-### Signals
-We use [django-signals](https://docs.djangoproject.com/en/3.1/topics/signals/) to handle changes on the described models above.
+There is no `DEFAULT_PERMISSION_CLASSES` in the `REST_FRAMEWORK` dict. DRF's default is
+`AllowAny`, so **every endpoint that is protected names its permission classes itself**; an
+endpoint which does not is open. When adding an endpoint, this is the first thing to check.
 
-The following list of handlers are implemented:
-todo:
+### What a request is asked
 
-### Correlation between the models
+Three classes carry the registry axis; all of them are used per viewset.
 
-!!! abstract "Lemma 1"
-    $\forall \textrm{ role } \in \textrm{ OwnerBasedRoles }, \exists \textrm{ ObjectBasedRole}$
+- `rest_framework.permissions.DjangoObjectPermissions` — DRF's own class. Used where even
+  reading needs an identity: the four proxy-configuration endpoints of
+  `backend/registry/views/security.py` (for `AllowedWebMapServiceOperation`,
+  `AllowedWebFeatureServiceOperation`, `WebMapServiceProxySetting` and
+  `WebFeatureServiceProxySetting`, each carried by the mixin its nested endpoint shares) and
+  the users endpoint (`backend/accounts/views/users.py`).
+- `extras.permissions.DjangoObjectPermissionsOrAnonReadOnly` (`backend/extras/permissions.py`)
+  — the same class with `authenticated_users_only = False`. This is the majority of the API,
+  including the resource endpoints of `backend/registry/views/service.py`.
+- `notify.permissions.CanChangeRelatedResource`
+  (`backend/notify/permissions.py`) — the background-process endpoint. A process is only the
+  report of work done on another resource, so reading is open and aborting it is decided by
+  the `change_` permission of the resource the process names. A process which names no
+  resource (a registration learns its service while it runs) falls back to the global
+  `notify.change_backgroundprocess`. `notify.permissions.CanRetryRegistrationReference`
+  composes this class with the read-only class for the retry of a registration work row
+  (#1265).
 
-![Subsets of users in correlation between object and owner based roles.](../media/models/guardian_roles/user_sets.svg)
+What the guardian classes actually ask, given DRF 3.18's `perms_map`
+(`rest_framework.permissions.DjangoModelPermissions`):
 
-*Above: Subsets of users in a correlation between object and owner based roles.*
+- **Reads** (`GET`, `HEAD`, `OPTIONS`) map to *no* permission at all. They are gated only by
+  whether the class allows an anonymous user. A read is therefore never refused because of a
+  missing grant — see [What the API answers](#what-the-api-answers-about-permissions) for
+  where the view grants do matter.
+- **Writes** are asked twice. `has_permission` requires the **global model permission** —
+  `add_`, `change_` or `delete_` of the model — and `check_object_permissions` then requires
+  the **same codename as an object permission** on the concrete object. A user needs both, so
+  a group which only ever got object grants cannot write a collection endpoint. A denial
+  answers 403 with the message of the class; it does not answer 404, because the read part of
+  `perms_map` is empty and DRF's "no read permission means 404" branch cannot trigger.
 
+### Where the grants live
 
+Guardian keeps every object grant of every model in one pair of generic tables, naming the
+object by content type and the **text** of its primary key. A lookup for a model whose
+primary key is a UUID compares that text column by casting it to a UUID, and whether the
+query plan evaluates the cast only for the rows of the looked-up model is its own decision:
+one row of a model with an integer primary key can make the lookup of a service fail with
+`invalid input syntax for type uuid`. Models which guardian's
+[performance guide](https://django-guardian.readthedocs.io/en/stable/userguide/performance.html#direct-foreign-keys)
+calls direct-foreign-key models have a table of their own here, and every model MrMap grants
+something on has one:
 
-$user \in ObjR, \in | \notin OwnR$
+- `backend/registry/models/guardian.py` — `WebMapService`, `WebFeatureService` and
+  `CatalogueService`, plus `MapContext`, `MapContextLayer` and
+  `WebMapServiceMonitoringSetting`. The last three have their tables before any code grants
+  on them, because the fixtures of this repository write grants that name their integer
+  primary keys in the shared table.
+- `backend/accounts/models/guardian.py` — `Organization` and `Group`, which the permission
+  bootstrap below grants on.
 
-$user \in ObjR_{1}, \in OwnR$
+Models nothing grants on today answer from the generic tables until the role work needs a
+table of their own; issue #735 declares the whole set, gives each model its through-tables
+and adds a system check for it.
 
-# Publishing rights
-An organization can grant publishing rights for other organizations.
+### What creation grants today
+
+The bootstrap is `backend/accounts/signals.py`. It is the only code which grants anything on
+behalf of a user, and it answers *who administers what* by group-name convention rather than
+by a model.
+
+When an `Organization` is created:
+
+- a group `<Organization name> Administrators` gets `view_organization` and
+  `change_organization` on that organization;
+- a group `<Organization name> Members` gets `view_organization` and
+  `can_publish_for_organization` on it;
+- for each secured model, a group `<Organization name> <model name> Admins` is created, and
+  the organization's administrators get `view_group` and `change_group` on it.
+
+"Secured model" is the setting `SECURED_MODELS` in `backend/accounts/settings.py`, which
+today lists `registry.WebMapService` and `registry.WebFeatureService` — nothing else.
+
+When a secured model instance is created, `handle_secured_model_creation` looks up the
+owning organization, adds the global `add_<model>` permission to that organization's admins
+group (which is what the collection-level check above needs) and assigns
+`view_`, `change_` and `delete_` on the instance to it. **The owner is not known today**: no
+resource model stores one, so `owning_organization` returns `None`, the receiver logs
+"no owner is known for it" and grants nothing. Ownership is the subject of epic #727; the
+receiver is written so that it can stay as it is once something learns the owner.
+
+A receiver which grants anything takes `raw` in its signature and returns when a fixture is
+being loaded — a `loaddata` emits `post_save` too, and creating the groups a second time
+per dumped organization collides on the unique group name (#864). `tests/django/accounts/`
+guards that rule.
+
+### Publishing rights
+
+An organization can be granted the right to publish for another one. The permission is
+declared on the model (`Organization.Meta.permissions` in `backend/accounts/models/groups.py`)
+and stored as the object grant `accounts.can_publish_for_organization` on the organization
+which is published *for*, held by the other organization's group.
+
+- `Organization.add_publisher` writes the grant, `remove_publisher` takes it away, and
+  `Organization.can_publish_for` reads the question back for one organization.
+- `PublishRequest` is the request workflow: a request from one organization to another,
+  whose acceptance calls `add_publisher`. Both the direction it writes and the fact that
+  accepting deletes the request instead of persisting `is_accepted` are pinned by
+  `backend/tests/django/accounts/test_publishing_rights.py`; that file names the corrections
+  as the work of #740, which rewrites this to role-scoped grants.
+
+Note what the grant does *not* do: nothing in `backend/registry/` consults it when a resource
+is registered. It is a stored relation and a request workflow, not yet a gate on registration.
+
+### What the API answers about permissions
+
+Because reads need no grant, the API does not hide objects which the requesting user may not
+see: the resource endpoints of `backend/registry/views/service.py` query
+`WebMapService.objects.all()` and their peers, and guardian is not in that filter. Where reads
+*are* scoped, the code says so explicitly:
+
+- `registry/querys/alerts.py` and `notify/managers.py` narrow services and background
+  activity with `get_objects_for_user` before counting or listing them;
+- the organizations endpoint narrows with `filter[user_has_perm]`
+  (`accounts/filters/groups.py`), which uses `accept_global_perms=False` and so ignores a
+  global permission.
+
+The per-user view of a single object travels in the payload instead:
+`extras.serializers.ObjectPermissionCheckerSerializer` answers `is_accessible`, which is the
+`view_<model>` object permission of the requesting user for that object. The checker is built
+once per request by `extras.viewsets.ObjectPermissionCheckerViewSetMixin`
+(`backend/extras/viewsets.py`) and prefetched for exactly the objects the answer shows — the
+page of a list action, the one object of a detail action — which the mixin remembers in
+`paginate_queryset` and `get_object`. A serializer which finds no checker in its context
+builds one per object and logs "slow handling of object permissions detected"; that warning
+means an endpoint is missing the mixin, not that permissions are broken.
+
+## The proxy axis
+
+This axis answers one question: may this OGC client call this operation on this layer? It is
+configured per secured service in `backend/registry/models/security.py` and enforced in
+`backend/registry/proxy/`.
+
+### A rule: AllowedOperation
+
+`AllowedOperation` is an abstract base; one row is one rule and allows
+
+- a set of groups (`allowed_groups`, a `ManyToManyField` to `django.contrib.auth.models.Group`;
+  **empty means everybody, including anonymous**),
+- to call a set of operations (`operations`, on `WebMapServiceOperation` or
+  `WebFeatureServiceOperation` — both are `ChoiceModel`s listing the OGC operation names),
+- on the layers or feature types of one service (`secured_layers` on an
+  `AllowedWebMapServiceOperation`, `secured_feature_types` on an
+  `AllowedWebFeatureServiceOperation`, with `secured_service` naming the service),
+- and optionally only inside an area (`allowed_area`, a `MultiPolygonField` with a
+  `geometry_is_empty` validator, so a stored area is never an empty geometry).
+
+`description` is a free-text label for administration. The two concrete classes are
+`AllowedWebMapServiceOperation` and `AllowedWebFeatureServiceOperation`.
+
+`allowed_area` is a restriction, not a grant. When every rule of a service carries an area,
+the service is *spatially secured* (`is_spatial_secured`) and a request outside the area is
+not answered. If two rules match the same operations and groups and one of them has
+`allowed_area = None`, the unrestricted one allows every area — the warning in the model's
+docstring is the rule, not an edge case. For a WFS `GetFeature`, the applicable areas are
+unioned per feature type (`allowed_area_union` in `registry/managers/security.py`) rather
+than intersected with the request.
+
+### The proxy behaviour: ProxySetting
+
+`ProxySetting` is the second abstract model in the same file, with one concrete row per
+secured service: `WebMapServiceProxySetting` and `WebFeatureServiceProxySetting`.
+
+- `camouflage` — replace the host names and addresses in the service's documents by this
+  MrMap's own host name, so a client cannot walk past the proxy to the origin service.
+  Without camouflage a restriction is decoration: the capabilities document still points at
+  the origin.
+- `log_response` — log the responses of the service for the usage analysis
+  (`registry/tasks/security.py` counts what was answered).
+
+A `CheckConstraint` forbids `log_response` without `camouflage`, and `ProxySetting.clean`
+refuses to switch camouflage off while allowed operations exist for that service. Saving an
+`AllowedOperation` sets `camouflage = True` on its service's setting — creating a rule is
+what switches the service over to the proxy.
+
+### The client, and where the request enters
+
+Secured services are read through the proxy URLs of `backend/MrMap/urls.py`:
+
+- `/mrmap-proxy/wms/<uuid:pk>` and `/mrmap-proxy/wfs/<uuid:pk>` for the service,
+- `/mrmap-proxy/wms/layer/<uuid:layer_pk>` and `/mrmap-proxy/wfs/featuretype/<uuid:featuretype_pk>`
+  for the capabilities of a single layer or feature type.
+
+The client's identity is the MrMap user of that HTTP request, authenticated exactly like an
+API request (session, basic auth or a knox token — `DEFAULT_AUTHENTICATION_CLASSES`).
+`AllowedOgcServiceOperationQuerySet.filter_by_request`
+(`backend/registry/managers/security.py`) matches the rule against the **groups of that
+user**; for an anonymous request it uses the groups of `AnonymousUser`. A client which must
+not be able to read a layer therefore needs an account without a matching group — or no
+account at all — and not a different URL.
+
+Staff and superusers may ask the proxy as somebody else to debug a rule: `_test_as_user` as
+a query or POST parameter, or the `X-TEST-AS-USER` header, handled by
+`registry/proxy/mixins.py`. Any other user is refused with 403. The swap is visible instead
+of silent: the answer carries `X-Test-As-User` and `X-Original-User` response headers, and
+the response log records the original user with the request marked as a test. It is a
+debugging instrument, not an access-control feature.
+
+### The decision for one request
+
+`OgcServiceProxyView.get_and_post` in `backend/registry/proxy/mixins.py` — the base of
+`WebMapServiceProxy` and `WebFeatureServiceProxy` — decides in this order, and answers a
+failure as an OGC exception report rather than as a bare HTTP error:
+
+1. a missing `request` or `version` parameter → 400 (already in `initial`, before the
+   service is looked up at all);
+2. the service is not found → 404;
+3. the service is deactivated → 423, including its capabilities: the metadata of a
+   deactivated service stays unreadable;
+4. a `GetCapabilities` request → the camouflaged capabilities document;
+5. an operation which is not secureable → answered straight from the origin service. Only
+   `GetMap` and `GetFeatureInfo` (WMS) and `GetFeature` and `Transaction` (WFS) are
+   secureable (`SecureableWMSOperationEnum` and `SecureableWFSOperationEnum` in
+   `registry/enums/service.py`, collected as `SECURE_ABLE_OPERATIONS_LOWER` in
+   `backend/registry/settings.py`);
+6. a service with no rule at all (`is_secured` false) → answered from the origin service;
+7. a service with rules and at least one rule matching this user, operation and requested
+   entity (`relevant_allowed_operations`) → the secured path, `secure_request()`, which
+   clips the map to the allowed area or filters the features;
+8. anything else → 403 `PermissionDenied`: the user is not entitled to this operation on the
+   entities it asked for.
+
+Note what step 7 needs: **all** requested entities must appear in the matched rule
+(`filter_by_requested_entity`). Asking for one permitted layer together with one the client
+may not have is a failure for the whole request, not a partial answer.
+
+Both concrete proxies override `get_and_post` to add their own checks before this decision,
+and `registry/proxy/resource_capabilities.py` overrides it again for the single-resource
+capabilities endpoints. (The docstrings in `mixins.py` still call this class
+`GenericOwsServiceOperationFacade`; no class carries that name, so grepping for it finds
+comments and nothing else.)
+
+## Roles and memberships
+
+There are none. No role model, no membership model, no role administration screen, and no
+role is applied at creation beyond the groups the bootstrap names above. Who administers
+what is currently derived from group **names** built by string concatenation
+(`<Organization name> Administrators`, `<Organization name> <model> Admins`), which breaks
+as soon as an organization is renamed or a name exceeds the 150-character limit of
+`auth_group` — a limit the bootstrap marks with a FIXME.
+
+Two consequences an implementer will run into:
+
+- There is no way to ask *which users may change this service*: the answer is spread over
+  guardian rows, group membership, and global model permissions, and the three are asked
+  differently in different places (`accept_global_perms` is `False` in some calls and `True`
+  in others, which is why the same question has two answers today).
+- Grants on new resources silently do not happen, because no resource knows an owner
+  ([What creation grants today](#what-creation-grants-today)).
+
+[Issue #727](https://github.com/mrmap-community/mrmap/issues/727) is the epic which introduces
+declarative roles, memberships and explainable permissions. #734 is the permission-resolution
+facade and role-based grants at creation time, #735 the declared set of role-managed models
+and their through-tables, #740 the rewrite of sharing and accepted publish requests into
+role-scoped grants. Anything this page describes as missing belongs to that epic; nothing in
+it is implemented and waiting.
+
+## History
+
+Earlier versions of this page described a custom role system built on an app which was
+removed in #52 — its models, an entity-relationship diagram and a lemma about user sets —
+and promised an *Organization administrator* and a *Resource administrator* role which the
+code never implemented. The page described an intended design rather than the software, and
+an implementer following it would have built an app that has not existed since 2021. The
+text above describes the software. The role design that page was reaching for is the work of
+#727, and the reason that epic's discussion kept restarting was that the repository had no
+shared baseline to point at; this page is that baseline.
+
+## Names this page uses
+
+Every name above, with the file it comes from.
+
+| name | file |
+| --- | --- |
+| `ObjectPermissionBackend`, `GUARDIAN_RAISE_403` | `backend/MrMap/settings.py` |
+| `DjangoObjectPermissionsOrAnonReadOnly` | `backend/extras/permissions.py` |
+| `ObjectPermissionCheckerViewSetMixin` | `backend/extras/viewsets.py` |
+| `ObjectPermissionCheckerSerializer` (`is_accessible`) | `backend/extras/serializers.py` |
+| `CanChangeRelatedResource`, `CanRetryRegistrationReference` | `backend/notify/permissions.py` |
+| one `UserObjectPermissionBase` / `GroupObjectPermissionBase` subclass per secured model, e.g. `WebMapServiceUserObjectPermission`, `MapContextLayerGroupObjectPermission` | `backend/registry/models/guardian.py` |
+| `OrganizationUserObjectPermission`, `OrganizationGroupObjectPermission`, `GroupUserObjectPermission`, `GroupGroupObjectPermission` | `backend/accounts/models/guardian.py` |
+| `SECURED_MODELS` | `backend/accounts/settings.py` |
+| permission bootstrap (`handle_organization_creation`, `handle_secured_model_creation`) | `backend/accounts/signals.py` |
+| `Organization.can_publish_for`, `add_publisher`, `PublishRequest`, `can_publish_for_organization` | `backend/accounts/models/groups.py` |
+| `get_objects_for_user` scoping of alerts | `backend/registry/querys/alerts.py` |
+| `get_objects_for_user` scoping of background activity | `backend/notify/managers.py` |
+| `filter[user_has_perm]` | `backend/accounts/filters/groups.py` |
+| `AllowedOperation`, `AllowedWebMapServiceOperation`, `AllowedWebFeatureServiceOperation`, `ProxySetting`, `WebMapServiceProxySetting`, `WebFeatureServiceProxySetting` | `backend/registry/models/security.py` |
+| `filter_by_request`, `is_spatial_secured`, `allowed_area_union` | `backend/registry/managers/security.py` |
+| `OgcServiceProxyView` (`get_and_post`, `_test_as_user`) | `backend/registry/proxy/mixins.py` |
+| `WebMapServiceProxy`, `WebFeatureServiceProxy` | `backend/registry/proxy/wms_proxy.py`, `backend/registry/proxy/wfs_proxy.py` |
+| `SecureableWMSOperationEnum`, `SecureableWFSOperationEnum` | `backend/registry/enums/service.py` |
+| `SECURE_ABLE_OPERATIONS_LOWER` | `backend/registry/settings.py` |
+| proxy URLs | `backend/MrMap/urls.py` |

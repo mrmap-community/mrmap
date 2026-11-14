@@ -78,11 +78,15 @@ export interface ElementInspectionProps {
  * Read-oriented inspection of one WMS layer or WFS feature type: coverage,
  * reference systems and time extents, the capabilities constraints exposed
  * for the element type, and destinations to related metadata, access rules
- * and the authorized editor. It states what the api answers; an absent value
- * is presented as not exposed, never as a passed check. The preview and the
- * recent changes of the element are asked for by the service which owns it,
- * because only it knows which resource of its capabilities the preview has to
- * load; both are handed the inspected element to build their answer out of it.
+ * and the authorized editor. The records which describe the element are read
+ * through the same relation for both element kinds; an empty feature type
+ * names its reason, because "nothing linked" and "references never
+ * collected" are different states (#1262). It states what the api answers; an
+ * absent value is presented as not exposed, never as a passed check. The
+ * preview and the recent changes of the element are asked for by the service
+ * which owns it, because only it knows which resource of its capabilities the
+ * preview has to load; both are handed the inspected element to build their
+ * answer out of it.
  */
 const ElementInspection = ({
   resource,
@@ -107,10 +111,10 @@ const ElementInspection = ({
     },
   );
 
-  const metadataIds =
-    resource === "Layer"
-      ? relatedRecords(record?.datasetMetadata).map((item) => item.id)
-      : [];
+  // Both element kinds answer their linked records through the same
+  // `datasetMetadata` relation; the branch which read it for layers only
+  // left the feature type's own relations unread (#1262).
+  const metadataIds = relatedRecords(record?.datasetMetadata).map((item) => item.id);
   const { data: metadataRecords } = useGetMany("DatasetMetadataRecord", {
     ids: metadataIds,
     meta: { jsonApiParams: { "fields[DatasetMetadataRecord]": "id,string_representation" } },
@@ -144,6 +148,14 @@ const ElementInspection = ({
     ? "AllowedWebMapServiceOperation"
     : "AllowedWebFeatureServiceOperation";
   const describe = record.describeFeatureTypeDocument as string | undefined;
+  const metadataLinks = relatedRecords(metadataRecords ?? []);
+  // A layer hides its metadata section while nothing is linked, as it always
+  // has; a feature type states why it shows nothing, because "no records"
+  // reads differently when the references were never collected (#1262). The
+  // flag is only answered for feature types, its absence keeps the layer case.
+  const uncollectedReferences = record.metadataReferencesUncollected as boolean | undefined;
+  const showMetadata =
+    metadataLinks.length > 0 || (!isLayer && uncollectedReferences !== undefined);
   // the owning service builds its destinations out of the element which is inspected
   const actions = typeof viewerActions === "function" ? viewerActions(record) : viewerActions;
 
@@ -257,20 +269,28 @@ const ElementInspection = ({
             )}
           </Section>
         )}
-        {isLayer && relatedRecords(metadataRecords ?? []).length > 0 && (
+        {showMetadata && (
           <Section title={message("metadata")}>
-            <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5 }}>
-              {relatedRecords(metadataRecords).map((item) => (
-                <Button
-                  key={String(item.id)}
-                  size="small"
-                  component={Link}
-                  to={`/DatasetMetadataRecord/${String(item.id)}/show`}
-                >
-                  {readableName(item)}
-                </Button>
-              ))}
-            </Stack>
+            {metadataLinks.length > 0 ? (
+              <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5 }}>
+                {metadataLinks.map((item) => (
+                  <Button
+                    key={String(item.id)}
+                    size="small"
+                    component={Link}
+                    to={`/DatasetMetadataRecord/${String(item.id)}/show`}
+                  >
+                    {readableName(item)}
+                  </Button>
+                ))}
+              </Stack>
+            ) : (
+              // an empty feature type answers why it is empty: "no metadata"
+              // and "references not collected" are different states (#1262)
+              <Alert severity={uncollectedReferences ? "warning" : "info"}>
+                {message(uncollectedReferences ? "metadataNotCollected" : "noMetadata")}
+              </Alert>
+            )}
           </Section>
         )}
         <Section title={message("access")}>

@@ -667,6 +667,30 @@ class FeatureTypeSerializer(
         related_link_url_kwarg="parent_lookup_featuretype_metadata",
     )
 
+    dataset_metadata = ResourceRelatedField(
+        label=_("dataset metadata"),
+        help_text=_("related dataset metadata objects"),
+        model=DatasetMetadataRecord,
+        source="registry_datasetmetadatarecord_metadata_records",
+        many=True,
+        read_only=True,
+        related_link_view_name="registry:featuretype-datasetmetadata-list",
+        related_link_url_kwarg="parent_lookup_self_pointing_feature_types",
+    )
+
+    metadata_references_uncollected = BooleanField(
+        label=_("metadata references uncollected"),
+        help_text=_(
+            "true means the capabilities of this feature type reference metadata "
+            "documents while no dataset metadata record is linked to it: the "
+            "references were not collected. This is the state of a service "
+            "registered before feature type references were collected (#1257) "
+            "and of a collection whose references all failed; a single linked "
+            "record answers false."
+        ),
+        read_only=True,
+    )
+
     reference_systems = ResourceRelatedField(
         label=_("reference systems"),
         help_text=_("available reference systems of this featuretype."),
@@ -681,6 +705,7 @@ class FeatureTypeSerializer(
         "service": "registry.serializers.service.WebFeatureServiceSerializer",
         "service.operation_urls": WebFeatureServiceOperationSerializer,
         "keywords": KeywordSerializer,
+        "dataset_metadata": "registry.serializers.metadata.DatasetMetadataRecordSerializer",
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "reference_systems": ReferenceSystemDefaultSerializer,

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 17:35+0100\n"
+"POT-Creation-Date: 2026-11-13 21:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:291
+#: MrMap/settings.py:294
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:292
+#: MrMap/settings.py:295
 msgid "German"
 msgstr "Deutsch"
 
@@ -327,7 +327,7 @@ msgid "state"
 msgstr "Zustand"
 
 #: notify/models.py:63 notify/models.py:417 registry/models/harvest.py:79
-#: registry/models/harvest.py:137 registry/models/harvest.py:1899
+#: registry/models/harvest.py:137 registry/models/harvest.py:1908
 #: registry/models/monitoring.py:149 registry/models/monitoring.py:397
 msgid "Created DateTime"
 msgstr "Erstellt am"
@@ -346,12 +346,12 @@ msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
 #: notify/models.py:74 registry/models/harvest.py:64
-#: registry/models/harvest.py:287
+#: registry/models/harvest.py:296
 msgid "phase"
 msgstr "Phase"
 
 #: notify/models.py:75 registry/models/harvest.py:65
-#: registry/models/harvest.py:288
+#: registry/models/harvest.py:297
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
@@ -510,20 +510,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:406 registry/models/harvest.py:1915
+#: notify/models.py:406 registry/models/harvest.py:1924
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:418 registry/models/harvest.py:1900
+#: notify/models.py:418 registry/models/harvest.py:1909
 #: registry/models/monitoring.py:398
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:422 registry/models/harvest.py:1920
+#: notify/models.py:422 registry/models/harvest.py:1929
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:423 registry/models/harvest.py:1921
+#: notify/models.py:423 registry/models/harvest.py:1930
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -1088,7 +1088,7 @@ msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 
-#: registry/models/conformity.py:141 registry/models/harvest.py:241
+#: registry/models/conformity.py:141 registry/models/harvest.py:250
 #: registry/models/security.py:449 registry/models/security.py:460
 #: registry/models/service.py:773 registry/models/service.py:1026
 #: registry/models/update.py:120 registry/models/update.py:163
@@ -1121,6 +1121,7 @@ msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
 #: registry/models/conformity.py:176 registry/models/metadata.py:1543
 #: registry/models/metadata.py:1544 registry/serializers/service.py:105
+#: registry/serializers/service.py:671
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
@@ -1136,7 +1137,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:127 registry/models/harvest.py:1243
+#: registry/models/harvest.py:127 registry/models/harvest.py:1252
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -1168,15 +1169,15 @@ msgstr ""
 msgid "Datetime field when the relation was created"
 msgstr "Der Zeitpunkt der Erstellung der Relation"
 
-#: registry/models/harvest.py:242
+#: registry/models/harvest.py:251
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/harvest.py:246 registry/models/service.py:474
+#: registry/models/harvest.py:255 registry/models/service.py:474
 msgid "max step size"
 msgstr "maximale Schrittgröße"
 
-#: registry/models/harvest.py:248
+#: registry/models/harvest.py:257
 msgid ""
 "the step size this job asks the catalogue with by a single GetRecords "
 "request. A job which is started without one takes the step size the "
@@ -1186,29 +1187,29 @@ msgstr ""
 "GetRecords-Anfrage fragt. Ein Lauf, der ohne eigene Schrittgröße startet, "
 "übernimmt die Schrittgröße, die der Katalog nachweislich beantwortet."
 
-#: registry/models/harvest.py:263
+#: registry/models/harvest.py:272
 msgid "total records"
 msgstr "Postleitzahl"
 
-#: registry/models/harvest.py:264
+#: registry/models/harvest.py:273
 msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
-#: registry/models/harvest.py:305 registry/models/harvest.py:1213
+#: registry/models/harvest.py:314 registry/models/harvest.py:1222
 #: registry/models/monitoring.py:178 registry/models/update.py:232
 #: registry/serializers/harvesting.py:132
 msgid "background process"
 msgstr "Hintergrundprozess"
 
-#: registry/models/harvest.py:306 registry/models/update.py:233
+#: registry/models/harvest.py:315 registry/models/update.py:233
 msgid "the background process which reports this job"
 msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
 
-#: registry/models/harvest.py:317
+#: registry/models/harvest.py:326
 msgid "import backlog seen"
 msgstr "gezählte Import-Rückstände"
 
-#: registry/models/harvest.py:319
+#: registry/models/harvest.py:328
 msgid ""
 "how many records of this job the import watchdog last counted as waiting for "
 "their import"
@@ -1216,11 +1217,11 @@ msgstr ""
 "wie viele Datensätze dieser Ernteaufgabe der Import-Watchdog zuletzt als auf "
 "ihren Import wartend gezählt hat"
 
-#: registry/models/harvest.py:325
+#: registry/models/harvest.py:334
 msgid "import backlog seen at"
 msgstr "Zeitpunkt der letzten Rückstandszählung"
 
-#: registry/models/harvest.py:327
+#: registry/models/harvest.py:336
 msgid ""
 "the moment the import watchdog counted that many records waiting; the same "
 "count at the next look is a backlog which did not move"
@@ -1229,11 +1230,11 @@ msgstr ""
 "hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
 "bewegt hat"
 
-#: registry/models/harvest.py:334 registry/serializers/harvesting.py:314
+#: registry/models/harvest.py:343 registry/serializers/harvesting.py:314
 msgid "import stalled at"
 msgstr "Import steht still seit"
 
-#: registry/models/harvest.py:336
+#: registry/models/harvest.py:345
 msgid ""
 "since when the import watchdog sees the import backlog of this job "
 "untouched; the run is not waiting on work which somebody is doing. What the "
@@ -1243,48 +1244,48 @@ msgstr ""
 "unberührt sieht; der Lauf wartet nicht auf Arbeit, die jemand verrichtet. "
 "Was der Watchdog dagegen tun konnte, steht in seinem Ernteprotokoll"
 
-#: registry/models/harvest.py:348
+#: registry/models/harvest.py:357
 msgid "Harvesting Job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:349
+#: registry/models/harvest.py:358
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:368 registry/models/update.py:262
+#: registry/models/harvest.py:377 registry/models/update.py:262
 #: registry/serializers/update.py:123 registry/serializers/update.py:143
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:1201
+#: registry/models/harvest.py:1210
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:1219
+#: registry/models/harvest.py:1228
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:1221
+#: registry/models/harvest.py:1230
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:1225
+#: registry/models/harvest.py:1234
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:1229
+#: registry/models/harvest.py:1238
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:1232
+#: registry/models/harvest.py:1241
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:1233
+#: registry/models/harvest.py:1242
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:1244
+#: registry/models/harvest.py:1253
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -1294,11 +1295,11 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1259
+#: registry/models/harvest.py:1268
 msgid "reference key"
 msgstr "Referenzschlüssel"
 
-#: registry/models/harvest.py:1261
+#: registry/models/harvest.py:1270
 msgid ""
 "sha-256 digest of the described resource and the advertised url of this "
 "reference; set only on registration work rows"
@@ -1306,11 +1307,11 @@ msgstr ""
 "SHA-256-Wert der beschriebenen Ressource und der angebotenen URL dieser "
 "Referenz; nur bei Arbeitszeilen der Registrierung gesetzt"
 
-#: registry/models/harvest.py:1307 registry/serializers/harvesting.py:165
+#: registry/models/harvest.py:1316 registry/serializers/harvesting.py:165
 msgid "described resource"
 msgstr "beschriebene Ressource"
 
-#: registry/models/harvest.py:1309 registry/serializers/harvesting.py:167
+#: registry/models/harvest.py:1318 registry/serializers/harvesting.py:167
 msgid ""
 "the readable name the described element carried at planning time; kept when "
 "the element was removed since"
@@ -1318,11 +1319,11 @@ msgstr ""
 "der lesbare Name, den das beschriebene Element zum Zeitpunkt der Planung "
 "hatte; bleibt erhalten, wenn das Element seitdem entfernt wurde"
 
-#: registry/models/harvest.py:1320 registry/serializers/harvesting.py:139
+#: registry/models/harvest.py:1329 registry/serializers/harvesting.py:139
 msgid "work state"
 msgstr "Arbeitszustand"
 
-#: registry/models/harvest.py:1322 registry/serializers/harvesting.py:141
+#: registry/models/harvest.py:1331 registry/serializers/harvesting.py:141
 msgid ""
 "pending, leased or failed state of a registration reference; harvesting rows "
 "never move it"
@@ -1330,11 +1331,11 @@ msgstr ""
 "Zustand einer Registrierungsreferenz: ausstehend, geleast oder "
 "fehlgeschlagen; Zeilen einer Ernte ändern ihn nie"
 
-#: registry/models/harvest.py:1330
+#: registry/models/harvest.py:1339
 msgid "claim token"
 msgstr "Anspruchsmarke"
 
-#: registry/models/harvest.py:1332
+#: registry/models/harvest.py:1341
 msgid ""
 "token of the delivery which currently leases this row; an outcome reported "
 "under another token is discarded"
@@ -1342,11 +1343,11 @@ msgstr ""
 "Marke der Zustellung, die diese Zeile derzeit least; ein Ergebnis, das unter "
 "einer anderen Marke gemeldet wird, wird verworfen"
 
-#: registry/models/harvest.py:1338
+#: registry/models/harvest.py:1347
 msgid "lease expires at"
 msgstr "Lease läuft ab"
 
-#: registry/models/harvest.py:1340
+#: registry/models/harvest.py:1349
 msgid ""
 "until when the current claim may work; a row whose lease ran out is eligible "
 "for a new claim and for recovery"
@@ -1354,11 +1355,11 @@ msgstr ""
 "bis wann die aktuelle Anspruchsmarke arbeiten darf; eine Zeile, deren Lease "
 "abgelaufen ist, kann erneut beansprucht und wiederhergestellt werden"
 
-#: registry/models/harvest.py:1345 registry/serializers/harvesting.py:160
+#: registry/models/harvest.py:1354 registry/serializers/harvesting.py:160
 msgid "attempt count"
 msgstr "Anzahl der Versuche"
 
-#: registry/models/harvest.py:1347
+#: registry/models/harvest.py:1356
 msgid ""
 "how many deliveries have claimed this row; retries included, and an attempt "
 "which never decided the row leaves the process counters untouched"
@@ -1367,11 +1368,11 @@ msgstr ""
 "Wiederholungen; ein Versuch, der die Zeile nie entschieden hat, lässt die "
 "Zähler des Prozesses unberührt"
 
-#: registry/models/harvest.py:1356 registry/serializers/harvesting.py:148
+#: registry/models/harvest.py:1365 registry/serializers/harvesting.py:148
 msgid "error kind"
 msgstr "Fehlerart"
 
-#: registry/models/harvest.py:1358 registry/serializers/harvesting.py:150
+#: registry/models/harvest.py:1367 registry/serializers/harvesting.py:150
 msgid ""
 "machine-readable kind of the last failed decision of this reference; empty "
 "while it never failed"
@@ -1379,32 +1380,32 @@ msgstr ""
 "maschinell lesbare Art der letzten fehlgeschlagenen Entscheidung über diese "
 "Referenz; leer, solange sie nie fehlgeschlagen ist"
 
-#: registry/models/harvest.py:1364 registry/serializers/harvesting.py:154
+#: registry/models/harvest.py:1373 registry/serializers/harvesting.py:154
 msgid "error at"
 msgstr "Fehlerzeitpunkt"
 
-#: registry/models/harvest.py:1366 registry/serializers/harvesting.py:156
+#: registry/models/harvest.py:1375 registry/serializers/harvesting.py:156
 msgid "the moment the last failed decision of this reference was recorded"
 msgstr ""
 "der Zeitpunkt, an dem die letzte fehlgeschlagene Entscheidung über diese "
 "Referenz gespeichert wurde"
 
-#: registry/models/harvest.py:1941 registry/models/metadata.py:771
+#: registry/models/harvest.py:1950 registry/models/metadata.py:771
 #: registry/models/monitoring.py:129 registry/models/service.py:493
 #: registry/models/update.py:183 registry/serializers/monitoring.py:542
-#: registry/serializers/service.py:992 registry/serializers/update.py:101
+#: registry/serializers/service.py:1017 registry/serializers/update.py:101
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:1942
+#: registry/models/harvest.py:1951
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:1969
+#: registry/models/harvest.py:1978
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:1970
+#: registry/models/harvest.py:1979
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -1482,7 +1483,7 @@ msgstr "Style"
 msgid "Select a style for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:200 registry/serializers/service.py:748
+#: registry/models/mapcontext.py:200 registry/serializers/service.py:773
 msgid "preview image"
 msgstr "Vorschau"
 
@@ -1862,7 +1863,7 @@ msgstr ""
 "ist."
 
 #: registry/models/metadata.py:1321 registry/models/service.py:663
-#: registry/serializers/service.py:172 registry/serializers/service.py:671
+#: registry/serializers/service.py:172 registry/serializers/service.py:695
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
@@ -2254,7 +2255,7 @@ msgid "Select one or more feature types."
 msgstr "Wählen Sie einen oder mehere Medientypen."
 
 #: registry/models/security.py:383 registry/serializers/service.py:488
-#: registry/serializers/service.py:692
+#: registry/serializers/service.py:717
 msgid "camouflage"
 msgstr "tarnen"
 
@@ -2269,7 +2270,7 @@ msgstr ""
 "werden."
 
 #: registry/models/security.py:393 registry/serializers/service.py:494
-#: registry/serializers/service.py:698
+#: registry/serializers/service.py:723
 msgid "log response"
 msgstr "Antworten protokollieren"
 
@@ -3030,7 +3031,7 @@ msgstr "Die Extra-Dienste denen dieses Element angehört."
 msgid "keywords help to find layers by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:106
+#: registry/serializers/service.py:106 registry/serializers/service.py:672
 msgid "related dataset metadata objects"
 msgstr "zugehörige Datensatz-Metadatenobjekte"
 
@@ -3087,12 +3088,12 @@ msgid "available styles of this layer."
 msgstr "verfügbare Stile dieser Ebene."
 
 #: registry/serializers/service.py:192 registry/serializers/service.py:500
-#: registry/serializers/service.py:704
+#: registry/serializers/service.py:729
 msgid "is secured"
 msgstr "ist abgesichert"
 
 #: registry/serializers/service.py:194 registry/serializers/service.py:506
-#: registry/serializers/service.py:710
+#: registry/serializers/service.py:735
 msgid "is spatial secured"
 msgstr "ist räumlich abgesichert"
 
@@ -3102,7 +3103,7 @@ msgstr ""
 "true, wenn die Ebene durch ein erlaubtes Operationsobjekt räumlich "
 "abgesichert ist."
 
-#: registry/serializers/service.py:200 registry/serializers/service.py:716
+#: registry/serializers/service.py:200 registry/serializers/service.py:741
 msgid "capabilities url"
 msgstr "Capabilities URL"
 
@@ -3209,33 +3210,33 @@ msgstr ""
 "Kennung und nichts, wenn die letzte Aktualisierung des Dienstes nicht "
 "fehlgeschlagen ist"
 
-#: registry/serializers/service.py:475 registry/serializers/service.py:780
-#: registry/serializers/service.py:940
+#: registry/serializers/service.py:475 registry/serializers/service.py:805
+#: registry/serializers/service.py:965
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
-#: registry/serializers/service.py:476 registry/serializers/service.py:781
-#: registry/serializers/service.py:941
+#: registry/serializers/service.py:476 registry/serializers/service.py:806
+#: registry/serializers/service.py:966
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
-#: registry/serializers/service.py:490 registry/serializers/service.py:694
+#: registry/serializers/service.py:490 registry/serializers/service.py:719
 msgid "true means the service only accessable via mrmap proxy"
 msgstr "true bedeutet, dass der Dienst nur über den mrmap-Proxy erreichbar ist"
 
-#: registry/serializers/service.py:496 registry/serializers/service.py:700
+#: registry/serializers/service.py:496 registry/serializers/service.py:725
 msgid "true means that all responses via mrmap proxy are detected and logged"
 msgstr ""
 "true bedeutet, dass alle Antworten über den mrmap-Proxy erkannt und "
 "protokolliert werden"
 
-#: registry/serializers/service.py:502 registry/serializers/service.py:706
+#: registry/serializers/service.py:502 registry/serializers/service.py:731
 msgid "true means the service is secured by a allowed operation object."
 msgstr ""
 "true bedeutet, dass der Dienst durch ein erlaubtes Operationsobjekt "
 "abgesichert ist."
 
-#: registry/serializers/service.py:508 registry/serializers/service.py:712
+#: registry/serializers/service.py:508 registry/serializers/service.py:737
 msgid ""
 "true means the service is spatial secured by a allowed operation object."
 msgstr ""
@@ -3252,13 +3253,13 @@ msgstr ""
 "die ursprüngliche XML-Sicherungsdatei als gesicherte URL, um das XML-Feld "
 "wiederherzustellen."
 
-#: registry/serializers/service.py:519 registry/serializers/service.py:789
-#: registry/serializers/service.py:955
+#: registry/serializers/service.py:519 registry/serializers/service.py:814
+#: registry/serializers/service.py:980
 msgid "monitoring settings"
 msgstr "Monitoring-Einstellungen"
 
-#: registry/serializers/service.py:520 registry/serializers/service.py:790
-#: registry/serializers/service.py:956
+#: registry/serializers/service.py:520 registry/serializers/service.py:815
+#: registry/serializers/service.py:981
 msgid "This are the configured monitoring settings."
 msgstr "Dies sind die konfigurierten Monitoring-Einstellungen."
 
@@ -3303,11 +3304,11 @@ msgid "The selected organization grants all rights on the registered service."
 msgstr ""
 "Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
 
-#: registry/serializers/service.py:617 registry/serializers/service.py:824
+#: registry/serializers/service.py:617 registry/serializers/service.py:849
 msgid "collect metadata records"
 msgstr "Metadaten erfassen"
 
-#: registry/serializers/service.py:618 registry/serializers/service.py:825
+#: registry/serializers/service.py:618 registry/serializers/service.py:850
 msgid ""
 "If checked, Mr. Map collects all related metadata documents after the "
 "registration task."
@@ -3323,32 +3324,51 @@ msgstr "Die Extra-Dienste denen dieses Element angehört."
 msgid "keywords help to find featuretypes by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:672
+#: registry/serializers/service.py:682
+msgid "metadata references uncollected"
+msgstr "Metadaten-Verweise nicht erfasst"
+
+#: registry/serializers/service.py:684
+msgid ""
+"true means the capabilities of this feature type reference metadata "
+"documents while no dataset metadata record is linked to it: the references "
+"were not collected. This is the state of a service registered before feature "
+"type references were collected (#1257) and of a collection whose references "
+"all failed; a single linked record answers false."
+msgstr ""
+"true bedeutet, dass die Capabilities dieses Feature-Typs Metadatendokumente "
+"referenzieren, während kein Datensatz-Metadatenobjekt mit ihm verknüpft ist: "
+"die Verweise wurden nicht erfasst. Dies ist der Zustand eines Dienstes, der "
+"registriert wurde, bevor Feature-Typ-Verweise erfasst wurden (#1257), sowie "
+"einer Erfassung, deren Verweise alle fehlgeschlagen sind; ein einzelner "
+"verknüpfter Datensatz beantwortet dies mit false."
+
+#: registry/serializers/service.py:696
 msgid "available reference systems of this featuretype."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/serializers/service.py:718
+#: registry/serializers/service.py:743
 msgid ""
 "the url of the capabilities document which advertises only this featuretype."
 msgstr ""
 "Die URL des Capabilities Dokuments, das nur dieses Featuretype anbietet."
 
-#: registry/serializers/service.py:882
+#: registry/serializers/service.py:907
 msgid "harvest aborted"
 msgstr "Harvesting abgebrochen"
 
-#: registry/serializers/service.py:884
+#: registry/serializers/service.py:909
 msgid ""
 "true if the last harvesting job of the catalogue ended before it was done"
 msgstr ""
 "true, wenn der letzte Harvesting-Lauf des Katalogs vor seinem Ende "
 "abgebrochen wurde"
 
-#: registry/serializers/service.py:888
+#: registry/serializers/service.py:913
 msgid "harvest incomplete"
 msgstr "Harvesting unvollständig"
 
-#: registry/serializers/service.py:890
+#: registry/serializers/service.py:915
 msgid ""
 "true if the last harvesting job of the catalogue left records behind - "
 "records it could not import into the registry or records its pages did not "
@@ -3358,20 +3378,20 @@ msgstr ""
 "Datensätze, die er nicht in die Registry übernehmen konnte, oder Datensätze, "
 "die seine Seiten nicht geliefert haben"
 
-#: registry/serializers/service.py:895
+#: registry/serializers/service.py:920
 msgid "harvest failed at"
 msgstr "Harvesting fehlgeschlagen am"
 
-#: registry/serializers/service.py:897
+#: registry/serializers/service.py:922
 msgid "the point in time the last harvesting job of the catalogue was made"
 msgstr ""
 "der Zeitpunkt, an dem der letzte Harvesting-Lauf des Katalogs erstellt wurde"
 
-#: registry/serializers/service.py:901
+#: registry/serializers/service.py:926
 msgid "harvest job"
 msgstr "Ernteaufgabe"
 
-#: registry/serializers/service.py:903
+#: registry/serializers/service.py:928
 msgid ""
 "the harvesting job of the catalogue which ended before it was done or which "
 "left records behind, answered as its identifier and nothing if the last "
@@ -3381,15 +3401,15 @@ msgstr ""
 "Datensätze zurückließ, beantwortet als ihre Kennung und nichts, wenn das "
 "letzte Harvesting des Katalogs nichts zu beachten hat"
 
-#: registry/serializers/service.py:947
+#: registry/serializers/service.py:972
 msgid "periodic harvesting jobs"
 msgstr "periodische Ernteaufgaben"
 
-#: registry/serializers/service.py:948
+#: registry/serializers/service.py:973
 msgid "this are the related harvesting job objects."
 msgstr "dies sind die zugehörigen Ernteaufgaben."
 
-#: registry/serializers/service.py:994
+#: registry/serializers/service.py:1019
 msgid "the catalogue service, where this operation url is part of."
 msgstr "der Katalogdienst, zu dem diese Operations-URL gehört."
 

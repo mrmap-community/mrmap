@@ -121,6 +121,7 @@ class UpdateMetadataCollectionTests(WorkerRunMixin, TransactionTestCase):
         self.assertTrue(job.still_works)
 
         process = job.background_process
+        process.refresh_from_db()
         self.assertEqual(process.status, ProcessStatusEnum.RUNNING)
         self.assertIsNone(process.done_at)
 
@@ -366,11 +367,13 @@ class UpdateMetadataCollectionTests(WorkerRunMixin, TransactionTestCase):
 @override_settings(CHANNEL_LAYERS={
     "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
 class AdvertisedReferencesTests(TransactionTestCase):
-    """What an update collects: the references describing the service as it
-    stands published. The rows a rejected candidate carried die with it
-    through the ``describes`` cascade - simulated here the way the adoption
-    deletes the candidate - so elements which were never adopted collect
-    nothing, and only elements of this service ever do."""
+    """What an update collects: the references describing one service and its
+    elements - the rows the capabilities mapping leaves behind. The reference
+    of a foreign element never answers for this service, and a service (or a
+    CSW) without references answers empty. That the rows of a rejected
+    candidate are gone before an update's step reads them is the cascade of
+    their ``describes`` key, which the candidate deletion of the adoption
+    already exercises in ``tests_update_candidates``."""
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
                 "test_wms.json", "test_wfs.json", "test_csw.json"]

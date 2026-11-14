@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 15:58+0100\n"
+"POT-Creation-Date: 2026-11-14 17:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1123,8 +1123,8 @@ msgstr "Featuretype:"
 msgid "the feature type targeted by this check"
 msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
-#: registry/models/conformity.py:176 registry/models/metadata.py:1626
-#: registry/models/metadata.py:1627 registry/serializers/service.py:105
+#: registry/models/conformity.py:176 registry/models/metadata.py:1654
+#: registry/models/metadata.py:1655 registry/serializers/service.py:105
 #: registry/serializers/service.py:677
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
@@ -1814,14 +1814,14 @@ msgstr "Treffer"
 msgid "how many times this metadata was requested by a client"
 msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
-#: registry/models/metadata.py:943 registry/models/metadata.py:1565
-#: registry/models/metadata.py:1649 registry/models/metadata.py:1720
+#: registry/models/metadata.py:943 registry/models/metadata.py:1593
+#: registry/models/metadata.py:1677 registry/models/metadata.py:1748
 #: registry/serializers/service.py:96 registry/serializers/service.py:668
 msgid "keywords"
 msgstr "Schlüsselwörter"
 
-#: registry/models/metadata.py:944 registry/models/metadata.py:1566
-#: registry/models/metadata.py:1650 registry/models/metadata.py:1721
+#: registry/models/metadata.py:944 registry/models/metadata.py:1594
+#: registry/models/metadata.py:1678 registry/models/metadata.py:1749
 msgid "all keywords which are related to the content of this metadata."
 msgstr ""
 "Alle Schlüsselwörter, welche mit dem Inhalt des Metadatensatzes in "
@@ -1890,8 +1890,8 @@ msgid ""
 "generic profile, see MetadataProfile.generic()"
 msgstr ""
 "das Profil, unter dem dieser Datensatz bearbeitet wird; seine Abschnitte und "
-"Regeln beschreiben ihn (#1240). Datensätze, die per Import oder über die "
-"api angelegt werden, beantworten das beim Start gesetzte iso19139-generic-"
+"Regeln beschreiben ihn (#1240). Datensätze, die per Import oder über die api "
+"angelegt werden, beantworten das beim Start gesetzte iso19139-generic-"
 "Profil, siehe MetadataProfile.generic()"
 
 #: registry/models/metadata.py:1382
@@ -1906,8 +1906,8 @@ msgstr "Dienste"
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
-#: registry/models/metadata.py:1397 registry/models/metadata.py:1591
-#: registry/models/metadata.py:1727
+#: registry/models/metadata.py:1397 registry/models/metadata.py:1619
+#: registry/models/metadata.py:1755
 msgid "contact"
 msgstr "Kontakt"
 
@@ -1966,94 +1966,94 @@ msgstr "Zeitbereich"
 msgid "all time extents which are available for this metadata record."
 msgstr "alle Zeitbereiche, die für diesen Metadatensatz verfügbar sind."
 
-#: registry/models/metadata.py:1574 registry/models/service.py:837
+#: registry/models/metadata.py:1602 registry/models/service.py:837
 #: registry/serializers/monitoring.py:71
 msgid "layers"
 msgstr "Ebenen"
 
-#: registry/models/metadata.py:1575
+#: registry/models/metadata.py:1603
 msgid ""
 "all layers which are linking to this dataset metadata in there capabilities."
 msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:1584 registry/models/service.py:1071
+#: registry/models/metadata.py:1612 registry/models/service.py:1071
 #: registry/serializers/monitoring.py:445
 msgid "feature types"
 msgstr "Merkmalstypen"
 
-#: registry/models/metadata.py:1585
+#: registry/models/metadata.py:1613
 msgid ""
 "all feature types which are linking to this dataset metadata in there "
 "capabilities."
 msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
 
-#: registry/models/metadata.py:1592
+#: registry/models/metadata.py:1620
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: registry/models/metadata.py:1596
+#: registry/models/metadata.py:1624
 msgid "format"
 msgstr "Format"
 
-#: registry/models/metadata.py:1597
+#: registry/models/metadata.py:1625
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: registry/models/metadata.py:1602
+#: registry/models/metadata.py:1630
 msgid "Flag to signal if the described data has a topologically consistence."
 msgstr ""
 "Bit zum signalisieren, ob die beschriebene Information eine topologische "
 "Konsistenz besitzt."
 
-#: registry/models/metadata.py:1613 registry/models/metadata.py:1736
+#: registry/models/metadata.py:1641 registry/models/metadata.py:1764
 msgid "categories"
 msgstr "Kategorien"
 
-#: registry/models/metadata.py:1614
+#: registry/models/metadata.py:1642
 msgid "the topic categories of the dataset"
 msgstr "die Themenkategorien des Datensatzes"
 
-#: registry/models/metadata.py:1659 registry/models/service.py:342
+#: registry/models/metadata.py:1687 registry/models/service.py:342
 msgid "web map services"
 msgstr "Ihre registrierten Web Map Services"
 
-#: registry/models/metadata.py:1660
+#: registry/models/metadata.py:1688
 msgid ""
 "all wms which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WMS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1669 registry/models/service.py:447
+#: registry/models/metadata.py:1697 registry/models/service.py:447
 msgid "web feature services"
 msgstr "Ihre registrierten Web Feature Services"
 
-#: registry/models/metadata.py:1670
+#: registry/models/metadata.py:1698
 msgid ""
 "all wfs which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WFS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1679 registry/models/service.py:494
+#: registry/models/metadata.py:1707 registry/models/service.py:494
 msgid "catalogue services"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/metadata.py:1680
+#: registry/models/metadata.py:1708
 msgid ""
 "all csw which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle CSW, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1728
+#: registry/models/metadata.py:1756
 msgid "this is the contact which provides this application."
 msgstr "Die Organisation, welche die Anwendung anbietet."
 
-#: registry/models/metadata.py:1737
+#: registry/models/metadata.py:1765
 msgid "the topic categories of the application"
 msgstr "die Themenkategorien der Anwendung"
 
-#: registry/models/metadata.py:1749 registry/models/metadata.py:1750
+#: registry/models/metadata.py:1777 registry/models/metadata.py:1778
 msgid "application metadata"
 msgstr "Anwendung Metadaten"
 
@@ -3007,6 +3007,19 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
+#: registry/serializers/metadata.py:344
+msgid "This field is read-only and can not be written."
+msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
+
+#: registry/serializers/metadata.py:368
+msgid ""
+"The profile of this record names structural rules which this version can not "
+"evaluate; the write is refused instead of skipping the validation."
+msgstr ""
+"Das Profil dieses Datensatzes nennt strukturelle Regeln, die diese Version "
+"nicht auswerten kann; die Schreiboperation wird abgelehnt, statt die "
+"Überprüfung zu überspringen."
+
 #: registry/serializers/monitoring.py:72 registry/serializers/monitoring.py:78
 #: registry/serializers/monitoring.py:169
 #: registry/serializers/monitoring.py:274
@@ -3675,6 +3688,19 @@ msgstr "Diese Ressource ist aktiviert."
 #: registry/settings.py:84
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
+
+#: registry/views/metadata.py:232
+msgid ""
+"Writing metadata records is not enabled in this deployment: a mutation would "
+"leave the ISO document served by the CSW stale behind the written fields "
+"until the write-back, validation and publishing parts of the metadata editor "
+"are integrated (#1241)."
+msgstr ""
+"Das Schreiben von Metadatensätzen ist in dieser Installation nicht "
+"aktiviert: Eine Änderung würde das vom CSW ausgelieferte ISO-Dokument "
+"veraltet hinter den geschriebenen Feldern zurücklassen, bis die Teile des "
+"Metadaten-Editors für Zurückschreiben, Überprüfung und Veröffentlichen "
+"integriert sind (#1241)."
 
 #: system/apps.py:44
 msgid "System"

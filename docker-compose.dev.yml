@@ -103,6 +103,14 @@ services:
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
       DJANGO_DEBUG: 0
       MRMAP_PRODUCTION: False
+      # The acceptance suite specifies today's permission answers of the record
+      # endpoints (#727, change_application_record_permissions.feature: the pair
+      # of grants must answer 200). The editor activation gate of #1241 is a
+      # deployment posture, not a permission, and it would answer 403 in front
+      # of those grants; the behave runner is not a public deployment, so it
+      # opens the gate and keeps the matrix specified. The shipped default (and
+      # the closed-gate 403) is pinned by tests.django.registry.tests_metadata_record_writes.
+      MRMAP_METADATA_EDITOR_WRITES_ENABLED: "True"
     depends_on:
       - postgis
       - redis

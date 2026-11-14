@@ -1551,6 +1551,34 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             **kwargs
         ).delete()
 
+    def save(self, *args, mark_customized: bool = True, **kwargs):
+        """An editor-style update of a record also bumps `date_stamp` (#1241).
+
+        The harvest overwrite gate of `get_or_create_metadatarecord` replaces a
+        stored record whenever the parsed document carries a newer date stamp.
+        An edit which marked the record customized but left the stamp at the
+        catalogue's value would tell the next re-harvest that an older document
+        is still the newer answer - the curated fields would be lost on the
+        re-read despite the flag. The bump is what "the harvest overwrite gate
+        (`is_customized`/`date_stamp`) is untouched" (§5 of the metadata-editor
+        document, decision of the #1238 review) means for a write through the
+        api: the same side effect an ORM save of a record has in the editor's
+        own terms - `is_customized` set by :meth:`AbstractMetadata.save`, the
+        stamp carried past every document which could still be offered.
+
+        A write of the harvesting process keeps both the flag and the stamp the
+        parsed document carried: `mark_customized=False` skips the bump for the
+        same reason it skips the flag (#858). The override lives on
+        `MetadataRecord`, not on `AbstractMetadata`: the date stamp of a
+        layer, feature type or service is a mapped field of one parsed document
+        and no row with a harvest overwrite gate of its own - the gate and its
+        protection are answered by the record, which is where the bump belongs.
+        """
+        if not self._state.adding and mark_customized:
+            self.date_stamp = now()
+
+        return super().save(*args, mark_customized=mark_customized, **kwargs)
+
 
 class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.

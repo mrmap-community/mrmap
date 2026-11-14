@@ -1,8 +1,10 @@
 from registry.filters.metadata import (ApplicationMetadataRecordSpatialFilterSet,
                                        DatasetMetadataRecordSpatialFilterSet,
                                        ServiceMetadataRecordSpatialFilterSet)
+from django.conf import settings
 from django.db.models import F
 from django.db.models.query import Prefetch
+from django.utils.translation import gettext_lazy as _
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (HistoryInformationViewSetMixin, NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
@@ -26,6 +28,7 @@ from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
+from rest_framework.permissions import BasePermission
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
@@ -205,6 +208,38 @@ METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES = {
 }
 
 
+class MetadataRecordWritesEnabled(BasePermission):
+    """The activation gate of the metadata editor's record writes (#1241).
+
+    The record endpoints answer the default json:api CRUD contract — POST,
+    PUT, PATCH on the record resources (the cross-cutting decision of the
+    #1238 review: no bespoke action endpoints) — but until the XML write-back
+    (#1242), the profile validation (#1243) and the atomic publishing/harvest
+    overwrite gate (#1244) are integrated, a mutation would commit model
+    fields while the ISO document served by the CSW stays stale or invalid.
+    The readiness clarification of #1241 (2026-11-12) keeps such writes
+    refused for the public until that gate passes: POST/PUT/PATCH answer 403
+    with the reason while ``MRMAP_METADATA_EDITOR_WRITES_ENABLED`` is off.
+
+    Reads answer as always and DELETE stays exactly at today's
+    ``canDelete`` behaviour — a deletion removes the record together with the
+    document served for it, so it leaves no stale document behind. The gate is
+    a deployment posture, not a grant: it refuses an operator's deployment as
+    well as any client, and no permission a user could hold bypasses it.
+    """
+
+    message = _(
+        "Writing metadata records is not enabled in this deployment: a "
+        "mutation would leave the ISO document served by the CSW stale "
+        "behind the written fields until the write-back, validation and "
+        "publishing parts of the metadata editor are integrated (#1241).")
+
+    def has_permission(self, request, view):
+        if request.method not in ("POST", "PUT", "PATCH"):
+            return True
+        return settings.MRMAP_METADATA_EDITOR_WRITES_ENABLED
+
+
 class DatasetMetadataViewSetMixin(
     HistoryInformationViewSetMixin,
     PreloadNotIncludesMixin,
@@ -339,7 +374,8 @@ class DatasetMetadataViewSetMixin(
         ],
         **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -497,7 +533,8 @@ class ServiceMetadataViewSetMixin(
             )
         ]
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -569,7 +606,8 @@ class ApplicationMetadataViewSetMixin(
         ],
         **METADATA_RECORD_PREFETCH_FOR_NOT_INCLUDES,
     }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly,
+                          MetadataRecordWritesEnabled]
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)

@@ -388,14 +388,17 @@ results.append(check("a blocker merged into develop unblocks",
                      res["eligible"] == [1259] and verdict(res, 1259)["reasons"] == [],
                      f"eligible={res['eligible']} reasons={verdict(res, 1259)['reasons']}"))
 
-# 9b. Merged into another branch (master) is not the base branch: still blocked.
+# 9b. Merged into master and that commit is NOT on develop: still blocked, and
+#     the reason names both the branch it went to and the base it is missing on.
 f = Fixture(order=[1259]).issue(1259, ["agent: approved"], approved_by="jokiefer")
-f.blocked(1259, [1257]).blocker(1257, closed_by=[901]).merged_pr(901, base="master", sha="d" * 40)
+f.blocked(1259, [1257]).blocker(1257, closed_by=[901])
+f.merged_pr(901, base="master", sha="d" * 40, on_base=False)
 res = json.loads(screen(f)[1])
-results.append(check("a blocker merged only into master does not unblock",
+results.append(check("a blocker merged into master but not on develop does not unblock",
                      res["eligible"] == []
                      and tokens(res, 1259) == ["blocker-closed-without-implementation-1257"]
-                     and "master" in verdict(res, 1259)["reasons"][0],
+                     and "master" in verdict(res, 1259)["reasons"][0]
+                     and "origin/develop" in verdict(res, 1259)["reasons"][0],
                      f"reasons={verdict(res, 1259)['reasons']}"))
 
 # 9c. Merged into develop but not yet reachable from origin/develop: still blocked.
@@ -417,6 +420,29 @@ results.append(check("one unsatisfied of several blockers keeps the issue blocke
                      res["eligible"] == [] and "blocked-by-open-1265" in tokens(res, 1264)
                      and "blocker-closed-without-implementation-1265" not in tokens(res, 1264),
                      f"tokens={tokens(res, 1264)}"))
+
+# 9e. The live case of #1360: the implementing PR was merged into `master`, this
+#     repository's default branch, while `develop` was not yet the integration
+#     branch, and its merge commit IS an ancestor of origin/develop. The branch
+#     a PR names as its base is not the question - the commit on the base is.
+f = Fixture(order=[1259]).issue(1259, ["agent: approved"], approved_by="jokiefer")
+f.blocked(1259, [1257]).blocker(1257, closed_by=[901])
+f.merged_pr(901, base="master", sha="9" * 40, on_base=True)
+res = json.loads(screen(f)[1])
+results.append(check("a PR merged into master whose merge commit is on develop unblocks",
+                     res["eligible"] == [1259] and verdict(res, 1259)["reasons"] == [],
+                     f"eligible={res['eligible']} reasons={verdict(res, 1259)['reasons']}"))
+
+# 9f. The same proof through the timeline fallback, which is how #981 really
+#     reads: closed by hand, so the native closed-by connection is empty, and
+#     PR #995 names it by the branch convention. The merge proof is identical.
+f = Fixture(order=[1259]).issue(1259, ["agent: approved"], approved_by="jokiefer")
+f.blocked(1259, [1257]).blocker(1257, closed_by=[])
+f.tl[1257] = [902]
+f.merged_pr(902, base="master", sha="a" * 39 + "b", on_base=True, head="feature/issue-1257-work")
+res = json.loads(screen(f)[1])
+results.append(check("a hand-closed blocker named by a master-merged PR on develop unblocks",
+                     res["eligible"] == [1259], f"eligible={res['eligible']}"))
 
 # 10. An issue with an active wip claim is excluded, and a released claim is not.
 f = Fixture(order=[1257, 1258])
@@ -739,6 +765,23 @@ results.append(check("mention-only, wrong-base and unmerged timeline PRs satisfy
                      res["eligible"] == []
                      and tokens(res, 20) == ["blocker-closed-without-implementation-21"],
                      f"tokens={tokens(res, 20)}"))
+
+# 29b. Naming is read before the merge proof: a PR that only mentions the
+#      blocker is dismissed on its own text, so git is never asked about a
+#      commit nothing in this verdict depends on (a master-only merge may not
+#      even be an object in this clone, and that must not fail the screen).
+f = Fixture(order=[20])
+f.issue(20, ["agent: approved"], approved_by="jokiefer")
+f.blocked(20, [21])
+f.blocker(21, closed_by=[])
+f.tl[21] = [604]
+f.merged_pr(604, base="master", sha="4" * 40, on_base=False, body="mentioned #21, nothing more")
+res = json.loads(screen(f)[1])
+asked = [c for c in f.calls if "merge-base" in c and "4" * 40 in c]
+results.append(check("a mention-only timeline PR is dismissed before git is asked about it",
+                     res["eligible"] == []
+                     and tokens(res, 20) == ["blocker-closed-without-implementation-21"]
+                     and not asked, f"tokens={tokens(res, 20)} asked={asked}"))
 
 # 30. A timeline that cannot be read fails closed (it is Rule 4 evidence now).
 results.append(fails("an unreadable blocker timeline fails closed",

@@ -185,6 +185,9 @@ def is_gml32(output_format):
     return output_format.lower().replace(" ", "") in GML_32
 
 
+EPSG_4326 = "EPSG:4326"
+
+
 def identify_request(service, selection, version, info_format):
     """Build the same-origin security proxy URL for an identify done in the browser.
 
@@ -197,7 +200,7 @@ def identify_request(service, selection, version, info_format):
     params = {"SERVICE": "WMS", "VERSION": version, "REQUEST": "GetFeatureInfo",
               "LAYERS": selection, "QUERY_LAYERS": selection, "STYLES": "",
               "FEATURE_COUNT": INFO_FEATURE_COUNT, "INFO_FORMAT": info_format}
-    params["CRS" if version == "1.3.0" else "SRS"] = "EPSG:4326"
+    params["CRS" if version == "1.3.0" else "SRS"] = EPSG_4326
     return f"{reverse('wms-operation', kwargs={'pk': service.pk})}?{urlencode(params)}"
 
 
@@ -217,7 +220,7 @@ def selected_configuration(service, selection, client):
         image_format = next((fmt for fmt in ("image/png", "image/jpeg") if fmt in formats), None)
         if not image_format:
             raise PreviewError("format")
-        if "EPSG:4326" not in crs:
+        if EPSG_4326 not in crs:
             raise PreviewError("crs")
         info_formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetFeatureInfo']/*[local-name()='Format']/text()")
         info_format = negotiate_info_format(info_formats)
@@ -299,7 +302,7 @@ class WfsPreviewProxy(PreviewProxyMixin, WebFeatureServiceProxy):
             geometry=adjust_axis_order(allowed).ogr, value_reference=geom_property, operator="Within")
         builder.and_filter(viewport_filter, security_filter)
         xml = builder.build_get_feature([self.preview_element.identifier], filter_xml=viewport_filter,
-                                        srs_name="EPSG:4326", count=FEATURE_LIMIT)
+                                        srs_name=EPSG_4326, count=FEATURE_LIMIT)
         xml.set("outputFormat", self.ogc_request.ogc_query_params["OUTPUTFORMAT"])
         # Bind QName prefixes to their capabilities namespace, not arbitrary input.
         prefix = self.preview_element.identifier.split(":")[0]
@@ -363,10 +366,10 @@ def data_preview(service, caller, query, client=None, request_params=None):
     if protocol == "WMS":
         params.update(REQUEST="GetMap", LAYERS=selection, STYLES="", FORMAT=output_format,
                       WIDTH=integer(query.get("width"), 800, 2048), HEIGHT=integer(query.get("height"), 400, 2048), TRANSPARENT="TRUE")
-        params["CRS" if version == "1.3.0" else "SRS"] = "EPSG:4326"
+        params["CRS" if version == "1.3.0" else "SRS"] = EPSG_4326
         proxy = WmsPreviewProxy()
     else:
-        params.update(REQUEST="GetFeature", SRSNAME="EPSG:4326", OUTPUTFORMAT=output_format)
+        params.update(REQUEST="GetFeature", SRSNAME=EPSG_4326, OUTPUTFORMAT=output_format)
         params["TYPENAMES" if version.startswith("2.") else "TYPENAME"] = selection
         params["COUNT" if version.startswith("2.") else "MAXFEATURES"] = FEATURE_LIMIT
         params["BBOX"] += ",EPSG:4326" if version != "1.0.0" else ""

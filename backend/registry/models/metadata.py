@@ -261,8 +261,11 @@ class Language(ChoiceModel):
     objects = ChoiceManager()
 
 
+FK_TARGET_LAYER = "registry.Layer"
+
+
 class Style(models.Model):
-    layer = models.ForeignKey(to="registry.Layer",
+    layer = models.ForeignKey(to=FK_TARGET_LAYER,
                               on_delete=models.CASCADE,
                               editable=False,
                               verbose_name=_("related layer"),
@@ -722,8 +725,11 @@ def drop_superseded_relations_for_link(link, describes, created_instance):
             origin=MetadataOriginEnum.CAPABILITIES.value)
 
 
+FK_TARGET_WMS = "registry.WebMapService"
+
+
 class WebMapServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.WebMapService",
+    describes = models.ForeignKey(to=FK_TARGET_WMS,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
@@ -733,7 +739,7 @@ class WebMapServiceRemoteMetadata(RemoteMetadata):
 
 
 class LayerRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.Layer",
+    describes = models.ForeignKey(to=FK_TARGET_LAYER,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
@@ -742,8 +748,11 @@ class LayerRemoteMetadata(RemoteMetadata):
                                               " was found in the GetCapabilites document of the related service."))
 
 
+FK_TARGET_WFS = "registry.WebFeatureService"
+
+
 class WebFeatureServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.WebFeatureService",
+    describes = models.ForeignKey(to=FK_TARGET_WFS,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
@@ -752,8 +761,11 @@ class WebFeatureServiceRemoteMetadata(RemoteMetadata):
                                               " was found in the GetCapabilites document of the related service."))
 
 
+FK_TARGET_FEATURE_TYPE = "registry.FeatureType"
+
+
 class FeatureTypeRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.FeatureType",
+    describes = models.ForeignKey(to=FK_TARGET_FEATURE_TYPE,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
@@ -762,8 +774,11 @@ class FeatureTypeRemoteMetadata(RemoteMetadata):
                                               " was found in the GetCapabilites document of the related service."))
 
 
+FK_TARGET_CSW = "registry.CatalogueService"
+
+
 class CatalogueServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.CatalogueService",
+    describes = models.ForeignKey(to=FK_TARGET_CSW,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
@@ -865,6 +880,9 @@ class MetadataProfile(models.Model):
         return cls.objects.filter(pk=GENERIC_ISO19139_PROFILE_PK).first()
 
 
+RELATED_METADATA = "%(class)s_metadata"
+
+
 class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
@@ -937,15 +955,15 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                        editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       blank=True,
-                                      related_name="%(class)s_metadata",
-                                      related_query_name="%(class)s_metadata",
+                                      related_name=RELATED_METADATA,
+                                      related_query_name=RELATED_METADATA,
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
     languages = models.ManyToManyField(to=Language,
                                        blank=True,
-                                       related_name="%(class)s_metadata",
-                                       related_query_name="%(class)s_metadata",
+                                       related_name=RELATED_METADATA,
+                                       related_query_name=RELATED_METADATA,
                                        verbose_name=_("languages"),
                                        help_text=_("languages used for documenting metadata"))
 
@@ -1151,31 +1169,31 @@ class MetadataRelation(models.Model):
 
     """
     # resource relations
-    layer = models.ForeignKey(to="registry.Layer",
+    layer = models.ForeignKey(to=FK_TARGET_LAYER,
                               on_delete=models.CASCADE,
                               null=True,  # nullable to support polymorph using in MetadataRecord model
                               blank=True,
                               related_name="metadata_relations",
                               related_query_name="metadata_relation")
-    feature_type = models.ForeignKey(to="registry.FeatureType",
+    feature_type = models.ForeignKey(to=FK_TARGET_FEATURE_TYPE,
                                      on_delete=models.CASCADE,
                                      null=True,  # nullable to support polymorph using in MetadataRecord model
                                      blank=True,
                                      related_name="metadata_relations",
                                      related_query_name="metadata_relation")
-    csw = models.ForeignKey(to="registry.CatalogueService",
+    csw = models.ForeignKey(to=FK_TARGET_CSW,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
                             related_name="metadata_relations",
                             related_query_name="metadata_relation")
-    wms = models.ForeignKey(to="registry.WebMapService",
+    wms = models.ForeignKey(to=FK_TARGET_WMS,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
                             related_name="metadata_relations",
                             related_query_name="metadata_relation")
-    wfs = models.ForeignKey(to="registry.WebFeatureService",
+    wfs = models.ForeignKey(to=FK_TARGET_WFS,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
@@ -1359,6 +1377,11 @@ class MetadataRelation(models.Model):
         return blockers
 
 
+RELATED_METADATA_RECORD = "%(app_label)s_%(class)s_metadata_record"
+
+RELATED_METADATA_RECORDS = "%(app_label)s_%(class)s_metadata_records"
+
+
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
 
     # the authoring profile of the record (#1240). It sits on the record and
@@ -1380,9 +1403,9 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
 
-    harvested_through = models.ManyToManyField(to="registry.CatalogueService",
-                                               related_name="%(app_label)s_%(class)s_metadata_records",
-                                               related_query_name="%(app_label)s_%(class)s_metadata_record",
+    harvested_through = models.ManyToManyField(to=FK_TARGET_CSW,
+                                               related_name=RELATED_METADATA_RECORDS,
+                                               related_query_name=RELATED_METADATA_RECORD,
                                                editable=False,
                                                blank=True,
                                                verbose_name=_("services"),
@@ -1587,25 +1610,25 @@ class DatasetMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.DatasetMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
         help_text=_("all keywords which are related to the content of this metadata."))
 
-    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
+    self_pointing_layers = models.ManyToManyField(to=FK_TARGET_LAYER,
                                                   through=MetadataRelation,
                                                   editable=False,
-                                                  related_name="%(app_label)s_%(class)s_metadata_records",
-                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                  related_name=RELATED_METADATA_RECORDS,
+                                                  related_query_name=RELATED_METADATA_RECORD,
                                                   blank=True,
                                                   verbose_name=_("layers"),
                                                   help_text=_("all layers which are linking to this dataset metadata in"
                                                               " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
+    self_pointing_feature_types = models.ManyToManyField(to=FK_TARGET_FEATURE_TYPE,
                                                          through=MetadataRelation,
                                                          editable=False,
-                                                         related_name="%(app_label)s_%(class)s_metadata_records",
-                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                         related_name=RELATED_METADATA_RECORDS,
+                                                         related_query_name=RELATED_METADATA_RECORD,
                                                          blank=True,
                                                          verbose_name=_(
                                                              "feature types"),
@@ -1635,8 +1658,8 @@ class DatasetMetadataRecord(MetadataRecord):
                                          default="")
     categories = models.ManyToManyField(to=IsoCategory,
                                         blank=True,
-                                        related_name="%(class)s_metadata",
-                                        related_query_name="%(class)s_metadata",
+                                        related_name=RELATED_METADATA,
+                                        related_query_name=RELATED_METADATA,
                                         verbose_name=_("categories"),
                                         help_text=_("the topic categories of the dataset"))
 
@@ -1662,6 +1685,9 @@ class DatasetMetadataRecord(MetadataRecord):
         ] + AbstractMetadata.Meta.indexes
 
 
+RELATED_SERVICE_METADATA = "%(app_label)s_%(class)s_service_metadata"
+
+
 class ServiceMetadataRecord(MetadataRecord):
     """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
 
@@ -1671,41 +1697,35 @@ class ServiceMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.ServiceMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
         help_text=_("all keywords which are related to the content of this metadata."))
 
-    self_pointing_wms = models.ManyToManyField(to="registry.WebMapService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "web map services"),
-                                                  help_text=_("all wms which are linking to this service metadata in"
-                                                              " there capabilities."))
-    self_pointing_wfs = models.ManyToManyField(to="registry.WebFeatureService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "web feature services"),
-                                                  help_text=_("all wfs which are linking to this service metadata in"
-                                                              " there capabilities."))
-    self_pointing_csw = models.ManyToManyField(to="registry.CatalogueService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "catalogue services"),
-                                                  help_text=_("all csw which are linking to this service metadata in"
-                                                              " there capabilities."))
+    self_pointing_wms = models.ManyToManyField(to=FK_TARGET_WMS,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("web map services"),
+                                               help_text=_("all wms which are linking to this service metadata in there capabilities."))
+    self_pointing_wfs = models.ManyToManyField(to=FK_TARGET_WFS,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("web feature services"),
+                                               help_text=_("all wfs which are linking to this service metadata in there capabilities."))
+    self_pointing_csw = models.ManyToManyField(to=FK_TARGET_CSW,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("catalogue services"),
+                                               help_text=_("all csw which are linking to this service metadata in there capabilities."))
 
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
@@ -1742,8 +1762,8 @@ class ApplicationMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.ApplicationMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
         help_text=_("all keywords which are related to the content of this metadata."))
 
@@ -1758,8 +1778,8 @@ class ApplicationMetadataRecord(MetadataRecord):
                                                              blank=True)
     categories = models.ManyToManyField(to=IsoCategory,
                                         blank=True,
-                                        related_name="%(class)s_metadata",
-                                        related_query_name="%(class)s_metadata",
+                                        related_name=RELATED_METADATA,
+                                        related_query_name=RELATED_METADATA,
                                         verbose_name=_("categories"),
                                         help_text=_("the topic categories of the application"))
 

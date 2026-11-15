@@ -13,6 +13,9 @@ from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ReferenceSystem, Style, TimeExtent)
 
 
+LEFT_JOIN = "LEFT JOIN"
+
+
 class LayerQuerySet(QuerySet):
     sparse_fields = {}
 
@@ -291,7 +294,7 @@ class LayerQuerySet(QuerySet):
                 select=heritage_cte.join(
                     qs,
                     id=heritage_cte.col.id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 
@@ -303,7 +306,7 @@ class LayerQuerySet(QuerySet):
                 select=aggregated_cte.join(
                     qs,
                     id=aggregated_cte.col.id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 
@@ -315,7 +318,7 @@ class LayerQuerySet(QuerySet):
                 select=security_cte.join(
                     qs,
                     id=security_cte.col.layer_id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 

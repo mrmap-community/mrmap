@@ -2,6 +2,10 @@ from registry.mappers.configs.iso_access import (DISTRIBUTOR_ONLINE_LINKS,
                                                  ONLINE_LINKS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
+XPATH_CI_CONTACT = "./gmd:contact/gmd:CI_ResponsibleParty"
+
+XPATH_POINT_OF_CONTACT = "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty"
+
 XPATH_MAP = {
     ("ISO", "dataset"): {
         "_namespaces": {
@@ -71,14 +75,14 @@ XPATH_MAP = {
                 },
                 "dataset_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_POINT_OF_CONTACT,
                     # dataset records of many catalogues name the responsible party
                     # only in gmd:contact
-                    "_fallback_xpaths": ("./gmd:contact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_CI_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_POINT_OF_CONTACT,
                         },
                     },
                     "fields": {
@@ -90,14 +94,14 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_CI_CONTACT,
                     # records without a metadata contact often still name the
                     # party which provides the data
-                    "_fallback_xpaths": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_POINT_OF_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_CI_CONTACT,
                         },
                     },
                     "fields": {

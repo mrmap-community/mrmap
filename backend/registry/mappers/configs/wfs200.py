@@ -1,5 +1,7 @@
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
+XPATH_SERVICE_PROVIDER = "./ows:ServiceProvider"
+
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("WFS", "2.0.0"): {
@@ -42,11 +44,11 @@ XPATH_MAP = {
                 },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./ows:ServiceProvider",
+                    "_base_xpath": XPATH_SERVICE_PROVIDER,
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./ows:ServiceProvider",
+                            "xpath": XPATH_SERVICE_PROVIDER,
                         },
                     },
                     "fields": {
@@ -64,11 +66,11 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./ows:ServiceProvider",
+                    "_base_xpath": XPATH_SERVICE_PROVIDER,
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./ows:ServiceProvider",
+                            "xpath": XPATH_SERVICE_PROVIDER,
                         },
                     },
                     "fields": {

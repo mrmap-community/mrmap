@@ -9,6 +9,13 @@ from registry.ows_lib.request.utils import update_queryparams
 from requests import Request
 
 
+CRS_84 = "CRS:84"
+
+EPSG_4326 = "EPSG:4326"
+
+NAME_TAG = "{*}Name"
+
+
 class WebMapServiceClient(OgcClient):
     """WebMapService class which implements some basic functionality for all wms client applications"""
 
@@ -47,7 +54,7 @@ class WebMapServiceClient(OgcClient):
         width, height = self._get_preview_size(crs, bbox, width, height, fixed_width, fixed_height)
         image_format = self._get_preview_format()
         return self.get_map_request(
-            layers=[layer.findtext("{*}Name").strip() for layer in layers],
+            layers=[layer.findtext(NAME_TAG).strip() for layer in layers],
             styles=[""] * len(layers),
             crs=crs,
             bbox=bbox,
@@ -65,14 +72,14 @@ class WebMapServiceClient(OgcClient):
                 # Some services advertise names for organizational groups that
                 # they reject in GetMap. Prefer their concrete leaf layers.
                 return [selected for child in children for selected in select(child)]
-            if (layer.findtext("{*}Name") or "").strip():
+            if (layer.findtext(NAME_TAG) or "").strip():
                 return [layer]
             return []
 
         layers_by_name = {}
         for root in self._capabilities_etree.findall("{*}Capability/{*}Layer"):
             for layer in select(root):
-                layers_by_name.setdefault(layer.findtext("{*}Name").strip(), layer)
+                layers_by_name.setdefault(layer.findtext(NAME_TAG).strip(), layer)
         layers = list(layers_by_name.values())
         if not layers:
             raise ValueError("Capabilities contain no named layers to preview")
@@ -117,11 +124,11 @@ class WebMapServiceClient(OgcClient):
                         value.get(name) for name in ("minx", "miny", "maxx", "maxy"))
 
         if geographic is not None:
-            if "CRS:84" in supported:
-                extents.setdefault("CRS:84", geographic)
-            if "EPSG:4326" in supported:
+            if CRS_84 in supported:
+                extents.setdefault(CRS_84, geographic)
+            if EPSG_4326 in supported:
                 west, south, east, north = geographic
-                extents.setdefault("EPSG:4326", (south, west, north, east)
+                extents.setdefault(EPSG_4326, (south, west, north, east)
                                    if self.service_version == "1.3.0" else geographic)
         return supported, extents
 
@@ -133,7 +140,7 @@ class WebMapServiceClient(OgcClient):
         available = common.intersection(*(set(extents) for _, extents in configurations))
         if not available:
             raise ValueError("Preview layers have no bounding boxes in a common advertised CRS")
-        preferred = [value for value in ("CRS:84", "EPSG:4326", "EPSG:3857") if value in available]
+        preferred = [value for value in (CRS_84, EPSG_4326, "EPSG:3857") if value in available]
         crs = preferred[0] if preferred else min(available)
         bounds = [extents[crs] for _, extents in configurations]
         return crs, (min(value[0] for value in bounds), min(value[1] for value in bounds),
@@ -143,7 +150,7 @@ class WebMapServiceClient(OgcClient):
         fixed = {"fixedWidth": set(), "fixedHeight": set()}
         for selected in layers:
             for layer in selected.iter("{*}Layer"):
-                if not (layer.findtext("{*}Name") or "").strip():
+                if not (layer.findtext(NAME_TAG) or "").strip():
                     continue
                 attributes = {}
                 dimensions = {}
@@ -185,7 +192,7 @@ class WebMapServiceClient(OgcClient):
             else:
                 height = limit
         dx, dy = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        if self.service_version == "1.3.0" and crs not in {"CRS:27", "CRS:83", "CRS:84"}:
+        if self.service_version == "1.3.0" and crs not in {"CRS:27", "CRS:83", CRS_84}:
             try:
                 authority, code = get_epsg_srid(crs)
                 if not authority or not authority.isalnum() or type(code) is not int:

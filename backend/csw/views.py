@@ -86,7 +86,10 @@ CAPABILITIES_SECTIONS = (
 # answers the document as application/xml and builds no other encoding of it, so
 # an AcceptFormats list without this type names a document this endpoint does
 # not have.
-CAPABILITIES_FORMATS = ("application/xml",)
+
+APPLICATION_XML = "application/xml"
+
+CAPABILITIES_FORMATS = (APPLICATION_XML,)
 
 # The paging attributes of a GetRecords (Table 65): the name of the attribute,
 # the value an absent attribute answers, and the bounds of the type of the
@@ -467,14 +470,14 @@ class CswServiceView(View):
                 "GetRecords": {
                     "CONSTRAINTLANGUAGE": ["FILTER", "CQL_TEXT"],
                     "outputSchema": [GMD_OUTPUT_SCHEMA],
-                    "outputFormat": ["application/xml"],
+                    "outputFormat": [APPLICATION_XML],
                     "ElementSetName": ["full"],
                     "resultType": ["results", "hits", "validate"],
                     "typeNames": [DEFAULT_TYPE_NAMES],
                 },
                 "GetRecordById": {
                     "outputSchema": [GMD_OUTPUT_SCHEMA],
-                    "outputFormat": ["application/xml"],
+                    "outputFormat": [APPLICATION_XML],
                     "ElementSetName": ["full"],
                     "typeNames": [DEFAULT_TYPE_NAMES],
                 },
@@ -595,7 +598,7 @@ class CswServiceView(View):
         return HttpResponse(
             status=200,
             content=capabilitites_doc,
-            content_type="application/xml"
+            content_type=APPLICATION_XML
         )
 
     def requested_paging(self):
@@ -809,7 +812,7 @@ class CswServiceView(View):
             encoding="utf-8",
             xml_declaration=True
         )
-        return HttpResponse(status=200, content=content, content_type="application/xml")
+        return HttpResponse(status=200, content=content, content_type=APPLICATION_XML)
 
     def get_record_by_id(self, request):
         """Answer the ``GetRecordById`` operation with the stored documents.
@@ -878,7 +881,7 @@ class CswServiceView(View):
 
         return HttpResponse(
             status=200, content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
-            content_type="application/xml")
+            content_type=APPLICATION_XML)
 
     def requested_type_names(self):
         """The typeNames the DescribeRecord request asks for.
@@ -933,7 +936,7 @@ class CswServiceView(View):
         return HttpResponse(
             status=200,
             content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
-            content_type="application/xml")
+            content_type=APPLICATION_XML)
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method

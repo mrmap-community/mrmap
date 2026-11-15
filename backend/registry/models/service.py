@@ -551,6 +551,9 @@ class OperationUrl(models.Model):
         return f"{OGCOperationEnum(self.operation).label} | {self.url} ({HttpMethodEnum(self.method).label})"
 
 
+CONSTRAINT_UNIQUE_OPERATION_SERVICE = "%(app_label)s_%(class)s_unique_together_method_id_operation_service"
+
+
 class WebMapServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(
         to=WebMapService,
@@ -565,7 +568,7 @@ class WebMapServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
 
@@ -586,7 +589,7 @@ class WebFeatureServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
 
@@ -606,9 +609,12 @@ class CatalogueServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
+
+
+RELATED_CLASS_SUFFIX = "%(class)s"
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
@@ -639,8 +645,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     )
     reference_systems = models.ManyToManyField(
         to="ReferenceSystem",  # to avoid circular import error
-        related_name="%(class)s",
-        related_query_name="%(class)s",
+        related_name=RELATED_CLASS_SUFFIX,
+        related_query_name=RELATED_CLASS_SUFFIX,
         blank=True,
         editable=False,
         verbose_name=_("reference systems"),
@@ -650,8 +656,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         to="TimeExtent",
         blank=True,
         editable=False,
-        related_name="%(class)s",
-        related_query_name="%(class)s",
+        related_name=RELATED_CLASS_SUFFIX,
+        related_query_name=RELATED_CLASS_SUFFIX,
         verbose_name=_("time extent"),
         help_text=_("all time extents which are available for this layer."),
     )

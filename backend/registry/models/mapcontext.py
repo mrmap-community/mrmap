@@ -163,6 +163,9 @@ class MapContext(models.Model):
         return display_prop
 
 
+IMAGE_PNG = "image/png"
+
+
 class RenderingOffering(models.Model):
     # FUTURE: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
     rendering_layer: Layer = models.ForeignKey(
@@ -248,8 +251,8 @@ class RenderingOffering(models.Model):
                     {
                         "code": "GetMap",
                         "method": "GET",
-                        "type": "image/png",
-                        "href": self.rendering_layer.get_map_url(format="image/png", style=self.layer_style),
+                        "type": IMAGE_PNG,
+                        "href": self.rendering_layer.get_map_url(format=IMAGE_PNG, style=self.layer_style),
                         "active": self.rendering_active
                     }
                 ]
@@ -277,7 +280,7 @@ class SelectionOffering(models.Model):
 
     def selection_offering(self):
         if self.selection_layer_id:
-            href = self.selection_layer.get_feature_info_url(format="image/png")
+            href = self.selection_layer.get_feature_info_url(format=IMAGE_PNG)
             return {
                 "code": WMS_OFFERING_CODE,
                 "operations": [

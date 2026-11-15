@@ -534,12 +534,17 @@ class ExceptionResponseCheckResult(models.Model):
         abstract = True
 
 
+RELATED_SETTING = "%(app_label)s_%(class)s"
+
+RELATED_SETTING_PLURAL = "%(app_label)s_%(class)ss"
+
+
 class WebMapServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebMapServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -574,8 +579,8 @@ class WebFeatureServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebFeatureServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -607,8 +612,8 @@ class CatalogueServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=CatalogueServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -811,8 +816,8 @@ class WebMapServiceProbe(Probe):
     setting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
         help_text=_('The related setting object')
     )
@@ -895,8 +900,8 @@ class WebFeatureServiceProbe(Probe):
     setting = models.ForeignKey(
         to=WebFeatureServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
         help_text=_('The related setting object')
     )
@@ -964,8 +969,8 @@ class CatalogueServiceProbe(Probe):
     setting = models.ForeignKey(
         to=CatalogueServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
         help_text=_('The related setting object')
     )

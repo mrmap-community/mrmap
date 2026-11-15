@@ -80,6 +80,9 @@ class Contact(models.Model):
         )
 
 
+CAN_PUBLISH_FOR_ORGANIZATION = "accounts.can_publish_for_organization"
+
+
 class Organization(Group, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
@@ -116,7 +119,7 @@ class Organization(Group, Contact):
             all publishers for this organization (QuerySet)
         """
         return get_objects_for_group(group=self,
-                                     perms='accounts.can_publish_for_organization',
+                                     perms=CAN_PUBLISH_FOR_ORGANIZATION,
                                      klass=Organization,
                                      accept_global_perms=False).exclude(pk=self.pk)
 
@@ -126,14 +129,14 @@ class Organization(Group, Contact):
 
     def add_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            assign_perm(perm='accounts.can_publish_for_organization',
+            assign_perm(perm=CAN_PUBLISH_FOR_ORGANIZATION,
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
 
     def remove_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            remove_perm(perm='accounts.can_publish_for_organization',
+            remove_perm(perm=CAN_PUBLISH_FOR_ORGANIZATION,
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')

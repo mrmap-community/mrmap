@@ -241,6 +241,9 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
         ]
 
 
+APPLICATION_JSON = "application/json"
+
+
 class HarvestingJob(ProcessingData):
     """ helper model to visualize harvesting job workflow """
     service: CatalogueService = models.ForeignKey(
@@ -730,7 +733,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": created_by.pk
             } if created_by else None
@@ -745,7 +748,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": get_user_model().objects.get(
                     username=settings.MRMAP_USER).pk
@@ -1977,7 +1980,7 @@ class PeriodicHarvestingJob(PeriodicTask):
                 http_request = {
                     "path": "/periodic-harvesting-job",
                     "method": "GET",
-                    "content_type": "application/json",
+                    "content_type": APPLICATION_JSON,
                     "data": {},
                     "user_pk": str(system_user.pk)
                 }

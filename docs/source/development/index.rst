@@ -25,6 +25,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    decision-requests
+   schedule-optimization-v3
    code-quality
    keyword-triggers
    definition_of_done

@@ -1,4 +1,5 @@
 from registry.mappers.configs.iso_access import (DISTRIBUTOR_ONLINE_LINKS,
+                                                 ISO_19139_ELEMENT_ORDER,
                                                  ONLINE_LINKS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
@@ -13,6 +14,7 @@ XPATH_MAP = {
             "xlink": NAMESPACE_LOOKUP["xlink"],
         },
         "_schema": "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd identifier of the mapped metadata schema - not a network endpoint
+        "_element_order": ISO_19139_ELEMENT_ORDER,
         "_pre_save": [
         ],
         "dataset": {
@@ -23,12 +25,12 @@ XPATH_MAP = {
                 "charset": {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
-                    # TODO: "_reverse_parser": "",
+                    "_reverse_parser": "registry.mappers.parsers.value.int_to_charset",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
-                    "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
-                    # TODO: "_reverse_parser": "",
+                    "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum",
+                    "_reverse_parser": "registry.mappers.parsers.value.int_to_update_frequency",
                 },
                 "title": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString",
@@ -36,7 +38,7 @@ XPATH_MAP = {
                 "date_stamp": {
                     "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
                     "_parser": "registry.mappers.parsers.value.string_to_datetime",
-                    # TODO: "_reverse_parser": "",
+                    "_reverse_parser": "registry.mappers.parsers.value.datetime_to_string",
                 },
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
@@ -68,6 +70,9 @@ XPATH_MAP = {
                         "_identifier": {
                             "xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString[text()='{keyword}']",
                         },
+                        # the element one row of the collection is written as;
+                        # the write mapper (#1242) creates and removes rows here
+                        "_row": "./gmd:keyword",
                     },
                     "fields": {
                         "keyword": "./."
@@ -119,6 +124,8 @@ XPATH_MAP = {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.language_identifier",
                         },
+                        # one gmd:language wrapper per row, see #1242
+                        "_row": "./gmd:language",
                     },
                     "fields": {
                         "value": {
@@ -136,6 +143,8 @@ XPATH_MAP = {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.refence_system_identifier",
                         },
+                        # one gmd:referenceSystemInfo block per row, see #1242
+                        "_row": "./gmd:referenceSystemInfo",
                     },
                     "_parser": "registry.mappers.parsers.iso.parse_reference_system",
                     "_reverse_parser": "registry.mappers.parsers.iso.serialize_reference_system",
@@ -148,6 +157,8 @@ XPATH_MAP = {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.category_identifier",
                         },
+                        # one gmd:topicCategory wrapper per row, see #1242
+                        "_row": "./gmd:topicCategory",
                     },
                     "_parser": "registry.mappers.parsers.iso.parse_topic_category",
                     "_reverse_parser": "registry.mappers.parsers.iso.serialize_topic_category",

@@ -11,6 +11,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
+from registry.serializers.scheduling import (SCHEDULE_WARNING_ATTRIBUTES,
+                                             ScheduleWarningsSerializerMixin)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
@@ -33,6 +35,7 @@ def validate_harvestable_service(service):
 
 
 class PeriodicHarvestingJobSerializer(
+    ScheduleWarningsSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     TimeUntilNextRunMixin,
@@ -72,7 +75,8 @@ class PeriodicHarvestingJobSerializer(
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
                   'time_until_next_run', 'next_run_at',
-                  'enabled', 'last_run_at', 'total_run_count')
+                  'enabled', 'last_run_at', 'total_run_count',
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
     def validate_service(self, value):
         return validate_harvestable_service(value)

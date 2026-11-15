@@ -19,6 +19,8 @@ from registry.querys.historical import with_delta_size, with_prev_record_id
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
+from registry.serializers.scheduling import (SCHEDULE_WARNING_ATTRIBUTES,
+                                             ScheduleWarningsSerializerMixin)
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -30,8 +32,15 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
 
 
 class UpdateSettingSerializer(
-    Serializer
+    ScheduleWarningsSerializerMixin
 ):
+    """Base of the update settings of every kind of service.
+
+    The schedule warnings are declared once here - the metaclass collects them
+    for each concrete serializer, which names `schedule_warnings` in its own
+    Meta.fields.
+    """
+
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoringsetting-detail',
     )
@@ -69,7 +78,8 @@ class WebMapServiceUpdateSettingSerializer(
     class Meta:
         model = WebMapServiceUpdateSetting
         fields = ('url', 'service', 'schedule_interval', 'enabled',
-                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+                  'last_run_at', 'next_run_expected_at', 'run_overdue',
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class WebFeatureServiceUpdateSettingSerializer(
@@ -87,7 +97,8 @@ class WebFeatureServiceUpdateSettingSerializer(
     class Meta:
         model = WebFeatureServiceUpdateSetting
         fields = ('url', 'service', 'schedule_interval', 'enabled',
-                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+                  'last_run_at', 'next_run_expected_at', 'run_overdue',
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class CatalogueServiceUpdateSettingSerializer(
@@ -106,7 +117,8 @@ class CatalogueServiceUpdateSettingSerializer(
     class Meta:
         model = CatalogueServiceUpdateSetting
         fields = ('url', 'service', 'schedule_interval', 'enabled',
-                  'last_run_at', 'next_run_expected_at', 'run_overdue')
+                  'last_run_at', 'next_run_expected_at', 'run_overdue',
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class UpdateJobBaseSerializer(Serializer):

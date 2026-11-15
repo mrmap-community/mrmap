@@ -115,3 +115,18 @@ Feature: PeriodicHarvestingJob List Endpoint
         When I send the request with GET method
         Then I expect the response status is 400
         Then I expect that response json has an attribute "errors.[0].code" with value "invalid"
+
+    # The saved schedule shows its recurrence risk without opening the edit
+    # form (#1332). The fixture left Alpha's last dispatch on 2026-11-05, so
+    # the nightly harvest missed its time - the overdue warning leads, and the
+    # one completed harvest of Alpha is named as too little evidence to judge
+    # the interval against. The disabled schedule of Beta answers nothing.
+    Scenario: The schedules answer their warnings beside the next run
+        Given I set a queryparam "filter[service.id.in]" with value "aaaa1080-0000-4000-8000-00000000000a,bbbb1080-0000-4000-8000-00000000000b"
+        Given I set a queryparam "sort" with value "id"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "data.[0].attributes.scheduleWarnings.[0].code" with value "schedule_overdue"
+        Then I expect that response json has an attribute "data.[0].attributes.scheduleWarnings.[1].code" with value "insufficient_evidence"
+        Then I expect that response json has an attribute "data.[0].attributes.scheduleWarnings.[1].unknownReason" with value "too_few_samples"
+        Then I expect that response json has an attribute "data.[1].attributes.scheduleWarnings" with value "[]"

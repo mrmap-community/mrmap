@@ -27,6 +27,28 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     monthly: "Jeden Monat am Tag %{day} um %{time} Uhr",
     yearly: "Jedes Jahr am %{day}. %{month} um %{time} Uhr",
   },
+  // die Antwort der Zeitplan-Formulare vor dem Speichern (#1327); die
+  // Warnungen selbst kommen übersetzt aus dem Vorschau-Endpunkt
+  schedulePreview: {
+    title: "Zeitplan-Vorschau",
+    description:
+      "Was dieser Zeitplan bedeuten würde, beantwortet bevor etwas gespeichert wird.",
+    button: "Zeitplan vorschauen",
+    loading: "Wird geprüft…",
+    missingService:
+      "Dieses Formular ist keinem Dienst zugeordnet, sein Zeitplan kann nicht vorgeschaut werden.",
+    nextRuns: "Nächste Läufe",
+    interval: "Abstand zwischen den Läufen",
+    p50: "Median der Laufdauer",
+    p95: "95. Perzentil der Laufdauer",
+    samples: "Vergleichbare abgeschlossene Läufe",
+    unknown: "unbekannt",
+    warnings: "Warnungen",
+    capacity: "Worker-Kapazität",
+    stale:
+      "Das Formular wurde nach dieser Antwort geändert; Vorschau erneut ausführen.",
+    error: "Die Vorschau konnte nicht beantwortet werden: %{detail}",
+  },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
     description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",

@@ -40,6 +40,28 @@ export interface RelatedResource {
   id: Identifier
 }
 
+/** Answer of a `custom` call: this react-admin version types the data
+ * provider with an open index signature instead of a `custom` member, so
+ * the project names the contract of its own implementation here. */
+export interface CustomResult<T = unknown> {
+  data: T
+  meta?: unknown
+}
+
+/** Options of a `custom` call; `body` is the request document, which
+ * react-admin's own Options type reserves for transport bodies. */
+export interface CustomCallOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  body?: unknown
+  headers?: Record<string, string>
+  signal?: AbortSignal
+  [key: string]: unknown
+}
+
+/** The signature of the provider's `custom`: `path` is the OpenAPI
+ * operation id of the call. */
+export type CustomMethod = <T = unknown>(path: string, options?: CustomCallOptions, b?: unknown) => Promise<CustomResult<T>>
+
 export interface GetListJsonApiParams extends GetListParams {
   meta?: {
     relatedResource?: RelatedResource
@@ -509,6 +531,33 @@ const dataProvider = ({
         })
       }
       return await Promise.resolve({ data: results })
+    },
+
+    // react-admin's escape hatch for POSTs which are not CRUD: `path` is the
+    // OpenAPI operation id of the call, so a non-CRUD endpoint such as the
+    // schedule draft preview (#1327) still goes through the schema instead
+    // of a hand-rolled fetch. `options.body` is the json:api document the
+    // caller built; the answer arrives as the encapsulated primary resource.
+    custom: async <T = unknown>(path: string, options: CustomCallOptions = {}): Promise<CustomResult<T>> => {
+      checkOperationExists(httpClient, path)
+
+      const conf = httpClient.getAxiosConfigForOperation(path, [undefined, options.body === undefined ? undefined : { data: options.body }, attachHeaders(httpClient.axiosConfigDefaults)])
+
+      return await httpClient.client.request(conf).then((response: AxiosResponse) => {
+        const jsonApiDocument = response.data as JsonApiDocument
+        const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
+        return {
+          data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) as unknown as T,
+          meta: {
+            systemTime: getSystemTime(jsonApiDocument, systemTime)
+          }
+        }
+      }).catch(error => {
+        if (axios.isAxiosError(error) && error.status === 400) {
+          handleBadRequest(error)
+        }
+        throw error
+      })
     },
 
     // async realtime features

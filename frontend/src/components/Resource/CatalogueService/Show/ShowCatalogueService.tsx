@@ -6,6 +6,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Alert } from "@mui/material";
 
 import CronInput from "../../../Input/CronInput";
+import SchedulePreviewPanel from "../../Generic/Schedule/SchedulePreviewPanel";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
 import ServiceMetadataTab from "../../Generic/ServiceShow/ServiceMetadataTab";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
@@ -52,6 +53,38 @@ const HarvestingRunsTab = () => {
               emptyText: "—",
             },
           },
+        ]}
+      />
+    </HarvestingTab>
+  );
+};
+
+/**
+ * The harvesting schedules of this catalogue. The preview panel rides along
+ * into the create and edit dialogs: harvesting saves the crontab together
+ * with the job, so the pre-save answer belongs to this form (#1327).
+ */
+const HarvestingSchedulesTab = () => {
+  const service = useRecordContext();
+  return (
+    <HarvestingTab>
+      <ServiceRelatedTab
+        resource="PeriodicHarvestingJob"
+        header={<HarvestingScheduleWarnings />}
+        defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
+        formFieldOverrides={[
+          {
+            component: CronInput,
+            props: { source: "scheduling" },
+          },
+        ]}
+        referenceInputs={[
+          <SchedulePreviewPanel
+            key="schedule-preview"
+            operation="harvest"
+            serviceKind="CatalogueService"
+            serviceId={service?.id}
+          />,
         ]}
       />
     </HarvestingTab>
@@ -113,21 +146,7 @@ const tabs: ServiceTab[] = [
     label: "serviceShow.schedules",
     resource: "PeriodicHarvestingJob",
     operation: "list_related_PeriodicHarvestingJob_of_CatalogueService",
-    content: (
-      <HarvestingTab>
-        <ServiceRelatedTab
-          resource="PeriodicHarvestingJob"
-          header={<HarvestingScheduleWarnings />}
-          defaultSelectedColumns={["enabled", "scheduling", "timeUntilNextRun"]}
-          formFieldOverrides={[
-            {
-              component: CronInput,
-              props: { source: "scheduling" },
-            },
-          ]}
-        />
-      </HarvestingTab>
-    ),
+    content: <HarvestingSchedulesTab />,
   },
   {
     path: "CatalogueServiceMonitoringSetting/*",

@@ -9,7 +9,7 @@ import {
 } from "react-admin";
 import { Route, Routes } from "react-router-dom";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { choiceLabel } from "./RecordFields";
@@ -64,9 +64,6 @@ vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
       {resource} {JSON.stringify(filter)}
     </div>
   ),
-}));
-vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
-  default: () => <div>Edit form</div>,
 }));
 vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
@@ -277,11 +274,21 @@ describe("record detail pages", () => {
     expect(screen.getByText(/CatalogueService/)).toBeInTheDocument();
   });
 
-  it("offers an edit form only with permission", async () => {
+  it("links to the full screen editor only with permission", async () => {
     setup("ServiceMetadataRecord", "", true);
-    const edit = await screen.findByRole("button", { name: "ra.action.edit" });
-    fireEvent.click(edit);
-    expect(await screen.findByText("Edit form")).toBeInTheDocument();
+    const edit = await screen.findByRole("link", { name: "ra.action.edit" });
+    expect(edit).toHaveAttribute(
+      "href",
+      "/metadata/ServiceMetadataRecord/record-1/edit",
+    );
+  });
+
+  it("hides the editor link without edit permission", async () => {
+    setup("ServiceMetadataRecord", "", false);
+    await screen.findByRole("heading", { name: "Parsed record" });
+    expect(
+      screen.queryByRole("link", { name: "ra.action.edit" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the relations of a service record by the column each group fills", async () => {

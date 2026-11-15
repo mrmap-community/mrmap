@@ -913,7 +913,7 @@ msgstr "leerer Datensatz-Kontakt"
 msgid "wrong datestamp format"
 msgstr "falsches Datumsstempel-Format"
 
-#: registry/admin/harvest.py:20
+#: registry/admin/harvest.py:20 registry/enums/capacity.py:53
 msgid "unknown"
 msgstr "unbekannt"
 
@@ -924,6 +924,86 @@ msgstr "Art des Fehlers"
 #: registry/apps.py:224
 msgid "Registry"
 msgstr "Registrierung"
+
+#: registry/enums/capacity.py:32
+msgid "monitoring"
+msgstr "Monitoring"
+
+#: registry/enums/capacity.py:33
+msgid "update"
+msgstr "Aktualisierung"
+
+#: registry/enums/capacity.py:34
+msgid "harvest"
+msgstr "Ernte"
+
+#: registry/enums/capacity.py:50
+msgid "measured elapsed time"
+msgstr "gemessene Gesamtzeit"
+
+#: registry/enums/capacity.py:51
+msgid "measured worker time"
+msgstr "gemessene Worker-Zeit"
+
+#: registry/enums/capacity.py:52
+msgid "estimated from older observations"
+msgstr "aus älteren Beobachtungen geschätzt"
+
+#: registry/enums/capacity.py:64
+msgid "no setting and no schedule proposal was answered to the estimator"
+msgstr "der Schätzung wurde weder eine Einstellung noch ein Zeitplan-Vorschlag übergeben"
+
+#: registry/enums/capacity.py:66
+msgid "the setting has no crontab schedule configured"
+msgstr "für diese Einstellung ist kein Crontab-Zeitplan konfiguriert"
+
+#: registry/enums/capacity.py:68
+msgid "the schedule is disabled and dispatches no run"
+msgstr "der Zeitplan ist deaktiviert und löst keinen Lauf aus"
+
+#: registry/enums/capacity.py:70
+msgid "the one-off schedule already ran and will not fire again"
+msgstr "der einmalige Zeitplan wurde bereits ausgelöst und wird nicht erneut ausgelöst"
+
+#: registry/enums/capacity.py:72
+msgid "no comparable run of this service has finished successfully"
+msgstr "kein vergleichbarer Lauf dieses Dienstes ist erfolgreich abgeschlossen worden"
+
+#: registry/enums/capacity.py:74
+msgid "too few completed runs to answer a p95 without guessing"
+msgstr "zu wenige abgeschlossene Läufe, um einen p95-Wert ohne Raten zu beantworten"
+
+#: registry/enums/capacity.py:76
+msgid "the completed runs are all older than the observation window"
+msgstr "alle abgeschlossenen Läufe sind älter als der Beobachtungszeitraum"
+
+#: registry/enums/capacity.py:78
+msgid "the completed runs of the window answer no measurable duration"
+msgstr "die abgeschlossenen Läufe im Zeitraum liefern keine messbare Dauer"
+
+#: registry/enums/capacity.py:80
+msgid "no service of this kind answers under this id"
+msgstr "unter dieser Id antwortet kein Dienst dieser Art"
+
+#: registry/enums/capacity.py:82
+msgid "this kind of service has no runs of this periodic operation"
+msgstr "diese Art von Dienst hat keine Läufe dieser periodischen Operation"
+
+#: registry/enums/capacity.py:84
+msgid "the answered setting is not the setting of this service and operation"
+msgstr "die genannte Einstellung ist nicht die Einstellung dieses Dienstes für diese Operation"
+
+#: registry/enums/capacity.py:86
+msgid "the proposed crontab or timezone cannot be parsed"
+msgstr "der vorgeschlagene Crontab-Ausdruck oder die Zeitzone kann nicht interpretiert werden"
+
+#: registry/enums/capacity.py:88
+msgid "no authoritative enqueue-to-start pair is recorded per task"
+msgstr "pro Aufgabe wird kein maßgebliches Paar aus Einreihung und tatsächlichem Start aufgezeichnet"
+
+#: registry/enums/capacity.py:90
+msgid "no durable per-task worker events are recorded to attribute a run's slot occupancy to"
+msgstr "es werden keine dauerhaften Worker-Ereignisse pro Aufgabe aufgezeichnet, auf die sich die Worker-Slot-Belegung eines Laufes zurückführen ließe"
 
 #: registry/enums/harvesting.py:8
 msgid "new"
@@ -2995,6 +3075,18 @@ msgstr ""
 "wieder her oder führen Sie den Aktualisierungsworkflow des Dienstes aus, der "
 "das Dokument erneut beim entfernten Dienst abruft und es als "
 "Aktualisierungskandidat bereitlegt."
+
+#: registry/querys/capacity.py:113
+msgid "potential overlap or skipped dispatch: the measured elapsed time of completed runs exceeds the wait of the schedule until its next run. Whether runs really overlap or a dispatch is skipped is task-specific and depends on concurrency and locking guards which this estimate does not verify."
+msgstr "mögliche Überlappung oder ausgelassene Auslösung: die gemessene Gesamtzeit abgeschlossener Läufe übersteigt die Wartezeit des Zeitplans bis zu dessen nächstem Lauf. Ob Läufe tatsächlich überlappen oder eine Auslösung ausgelassen wird, ist aufgabenspezifisch und hängt von Nebenläufigkeits- und Sperrmechanismen ab, die diese Schätzung nicht überprüft."
+
+#: registry/querys/capacity.py:122
+msgid "no durable per-task worker events exist to sum: measuring worker slot occupancy needs a durable, reliably attributable start/finish event pair per task attempt - fan-out children and chord callbacks included - which the phase-2 instrumentation of #1330 will record"
+msgstr "dauerhafte Worker-Ereignisse pro Aufgabe fehlen, um sie aufzusummieren: Die Messung der Worker-Slot-Belegung braucht ein dauerhaftes, zuverlässig zuordenbares Start-/Ende-Ereignispaar pro Versuch einer Aufgabe - Fan-out-Kinder und Chord-Callbacks eingeschlossen -, das erst die Phase-2-Instrumentierung aus #1330 aufzeichnen wird"
+
+#: registry/querys/capacity.py:130
+msgid "queue wait needs the recorded pair of task enqueue and actual task start; the deployment records neither, so no pair exists to measure"
+msgstr "die Wartezeit in der Warteschlange braucht das aufgezeichnete Paar aus Einreihung der Aufgabe und tatsächlichem Start; beides wird in der Installation nicht aufgezeichnet, es existiert kein Paar, das man messen könnte"
 
 #: registry/serializers/harvesting.py:31
 msgid "The internal MrMap catalogue cannot be harvested."

@@ -72,6 +72,11 @@ class ServiceElementHistoryInformationSerializer(HistoryInformationSerializer):
         return created_at if created_at is not None else getattr(instance, 'service_created_at', None)
 
 
+IS_SECURED_LABEL = _("is secured")
+
+IS_SPATIAL_SECURED_LABEL = _("is spatial secured")
+
+
 class LayerSerializer(
         StringRepresentationSerializer,
         ServiceElementHistoryInformationSerializer,
@@ -185,9 +190,9 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
-    is_secured = BooleanField(label=_("is secured"), read_only=True)
+    is_secured = BooleanField(label=IS_SECURED_LABEL, read_only=True)
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true is the layer is spatial secured by a allowed operation object."),
         read_only=True
@@ -425,6 +430,15 @@ class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
                      self.get_perm_checker().has_perm(permission, obj)))
 
 
+MONITORING_SETTINGS_HELP_TEXT = _("This are the configured monitoring settings.")
+
+MONITORING_SETTINGS_LABEL = _("monitoring settings")
+
+OPERATION_URLS_HELP_TEXT = _("this are the urls to use for the ogc operations.")
+
+OPERATION_URLS_LABEL = _("operation urls")
+
+
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
     ExplorerAttributesSerializer,
@@ -468,8 +482,8 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebMapServiceOperationUrl,
         many=True,
         read_only=True,
@@ -493,13 +507,13 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -512,8 +526,8 @@ class WebMapServiceListSerializer(
     )
     web_map_service_monitoring_settings = ResourceRelatedField(
         source="web_map_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebMapServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -722,13 +736,13 @@ class FeatureTypeSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -798,8 +812,8 @@ class WebFeatureServiceSerializer(
     )
 
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebFeatureServiceOperationUrl,
         many=True,
         read_only=True,
@@ -807,8 +821,8 @@ class WebFeatureServiceSerializer(
 
     web_feature_service_monitoring_settings = ResourceRelatedField(
         source="web_feature_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebFeatureServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -958,8 +972,8 @@ class CatalogueServiceSerializer(
         related_link_url_kwarg="parent_lookup_catalogueservice_metadata",
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=CatalogueServiceOperationUrl,
         many=True,
         read_only=True,
@@ -973,8 +987,8 @@ class CatalogueServiceSerializer(
     )
     catalogue_service_monitoring_settings = ResourceRelatedField(
         source="catalogue_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=CatalogueServiceMonitoringSetting,
         many=True,
         read_only=True,

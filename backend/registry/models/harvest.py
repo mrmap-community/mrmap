@@ -58,6 +58,9 @@ EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
                           " or local-name()='ServiceExceptionReport']")
 
 
+CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
+
+
 class ProcessingData(models.Model):
     phase = models.CharField(
         max_length=512,
@@ -76,7 +79,7 @@ class ProcessingData(models.Model):
         # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
         # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
         # "not recorded" instead of inventing a moment.
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
@@ -134,7 +137,7 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                    "processing duration"),
                                                help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
     history_date = models.DateTimeField(auto_now_add=True,
-                                        verbose_name=_('Created DateTime'),
+                                        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
                                         help_text=_(
                                             'Datetime field when the relation was created'),
                                         )
@@ -1919,7 +1922,7 @@ class HarvestingLog(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the task result was created in UTC')
     )
     level = models.PositiveSmallIntegerField(

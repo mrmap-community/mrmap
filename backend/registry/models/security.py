@@ -143,13 +143,14 @@ class ServiceAuthentication(models.Model):
         return auth
 
 
+SERVICE_AUTH_HELP_TEXT = _("the optional authentication type and credentials to request the service.")
+
+
 class WebMapServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=WebMapService,
         verbose_name=_("web map service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,
@@ -162,9 +163,7 @@ class WebFeatureServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=WebFeatureService,
         verbose_name=_("web feature service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,
@@ -177,9 +176,7 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=CatalogueService,
         verbose_name=_("web feature service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,

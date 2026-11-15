@@ -94,6 +94,9 @@ class MonitoringSettingMixin:
                 })
 
 
+MONITORED_SERVICE_HELP_TEXT = _("this is the service which shall be monitored")
+
+
 class WebMapServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
     MONITORING_TASK = "registry.tasks.monitoring.create_wms_monitoring_run"
 
@@ -103,7 +106,7 @@ class WebMapServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="web_map_service_monitorings",
         related_query_name="web_map_service_monitoring",
         verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class WebFeatureServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
@@ -115,7 +118,7 @@ class WebFeatureServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="web_feature_service_monitorings",
         related_query_name="web_feature_service_monitoring",
         verbose_name=_("web feature service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class CatalogueServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
@@ -127,7 +130,7 @@ class CatalogueServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="catalogue_service_monitorings",
         related_query_name="catalogue_service_monitoring",
         verbose_name=_("catalogue service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class MonitoringRun(models.Model):
@@ -782,6 +785,9 @@ class Probe(models.Model):
         return result
 
 
+CHECK_RESPONSE_CONTAINS_VERBOSE_NAME = _("Check response does contain")
+
+
 class CapabilitiesProbe(Probe):
     """Probe which requests and validates the capabilities of a service."""
 
@@ -791,7 +797,7 @@ class CapabilitiesProbe(Probe):
         max_length=256,
         default="Title>,Abstract>",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: Title>,Abstract>")
     )
 
@@ -812,6 +818,9 @@ class CapabilitiesProbe(Probe):
             self.check_does_not_contain(response=response)
 
 
+RELATED_SETTING_HELP_TEXT = _('The related setting object')
+
+
 class WebMapServiceProbe(Probe):
     setting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
@@ -819,7 +828,7 @@ class WebMapServiceProbe(Probe):
         related_name=RELATED_SETTING_PLURAL,
         related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -903,7 +912,7 @@ class WebFeatureServiceProbe(Probe):
         related_name=RELATED_SETTING_PLURAL,
         related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -939,7 +948,7 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
         max_length=256,
         default="FeatureCollection",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: FeatureCollection")
     )
 
@@ -972,7 +981,7 @@ class CatalogueServiceProbe(Probe):
         related_name=RELATED_SETTING_PLURAL,
         related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -1020,7 +1029,7 @@ class CatalogueServiceGetRecordsProbe(CatalogueServiceProbe):
         max_length=256,
         default="GetRecordsResponse",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: GetRecordsResponse")
     )
 

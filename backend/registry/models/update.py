@@ -85,6 +85,9 @@ def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     }
 
 
+UPDATED_SERVICE_HELP_TEXT = _("this is the service which shall be updated")
+
+
 class WebMapServiceUpdateSetting(PeriodicTask):
     @property
     def next_run_expected_at(self):
@@ -96,7 +99,7 @@ class WebMapServiceUpdateSetting(PeriodicTask):
         related_name="web_map_service_update_settings",
         related_query_name="web_map_service_update_setting",
         verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -139,7 +142,7 @@ class WebFeatureServiceUpdateSetting(PeriodicTask):
         related_name="web_feature_service_update_settings",
         related_query_name="web_feature_service_update_setting",
         verbose_name=_("web feature service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -182,7 +185,7 @@ class CatalogueServiceUpdateSetting(PeriodicTask):
         related_name="catalogue_service_update_settings",
         related_query_name="catalogue_service_update_setting",
         verbose_name=_("catalogue service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -606,6 +609,9 @@ def update_job_for_process(background_process_pk):
     return None
 
 
+RESUME_REVIEW_REQUIRED_MSG = _("Can only resume a job with status REVIEW_REQUIRED")
+
+
 class WebMapServiceUpdateJob(ServiceUpdateJob):
     #: the update of a WMS collects the metadata its capabilities advertise
     #: (#1274)
@@ -846,7 +852,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_layers_updateable():
             raise ValueError(
                 _(
@@ -1052,7 +1058,7 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_featuretypes_updateable():
             raise ValueError(
                 _(
@@ -1148,7 +1154,7 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         on_commit(lambda: run_csw_update.apply_async(
             kwargs={"update_job_id": self.pk}))
 

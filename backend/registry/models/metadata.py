@@ -728,14 +728,16 @@ def drop_superseded_relations_for_link(link, describes, created_instance):
 FK_TARGET_WMS = "registry.WebMapService"
 
 
+REMOTE_METADATA_SERVICE_HELP_TEXT = _("the service where this remote metadata is related to. This remote metadata was found in the GetCapabilites document of the related service.")
+
+
 class WebMapServiceRemoteMetadata(RemoteMetadata):
     describes = models.ForeignKey(to=FK_TARGET_WMS,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("web map service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 class LayerRemoteMetadata(RemoteMetadata):
@@ -744,8 +746,7 @@ class LayerRemoteMetadata(RemoteMetadata):
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("layer"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 FK_TARGET_WFS = "registry.WebFeatureService"
@@ -757,8 +758,7 @@ class WebFeatureServiceRemoteMetadata(RemoteMetadata):
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("web feature service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 FK_TARGET_FEATURE_TYPE = "registry.FeatureType"
@@ -770,8 +770,7 @@ class FeatureTypeRemoteMetadata(RemoteMetadata):
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("featuretype"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 FK_TARGET_CSW = "registry.CatalogueService"
@@ -783,8 +782,7 @@ class CatalogueServiceRemoteMetadata(RemoteMetadata):
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("catalogue service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 class MetadataTermsOfUse(models.Model):
@@ -883,6 +881,9 @@ class MetadataProfile(models.Model):
 RELATED_METADATA = "%(class)s_metadata"
 
 
+KEYWORDS_HELP_TEXT = _("all keywords which are related to the content of this metadata.")
+
+
 class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
@@ -958,7 +959,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       related_name=RELATED_METADATA,
                                       related_query_name=RELATED_METADATA,
                                       verbose_name=_("keywords"),
-                                      help_text=_("all keywords which are related to the content of this metadata."))
+                                      help_text=KEYWORDS_HELP_TEXT)
 
     languages = models.ManyToManyField(to=Language,
                                        blank=True,
@@ -1613,7 +1614,7 @@ class DatasetMetadataRecord(MetadataRecord):
         related_name=RELATED_METADATA,
         related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
     self_pointing_layers = models.ManyToManyField(to=FK_TARGET_LAYER,
                                                   through=MetadataRelation,
@@ -1700,7 +1701,7 @@ class ServiceMetadataRecord(MetadataRecord):
         related_name=RELATED_METADATA,
         related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
     self_pointing_wms = models.ManyToManyField(to=FK_TARGET_WMS,
                                                through=MetadataRelation,
@@ -1765,7 +1766,7 @@ class ApplicationMetadataRecord(MetadataRecord):
         related_name=RELATED_METADATA,
         related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
     application_contact = models.ForeignKey(to=MetadataContact,
                                             on_delete=models.RESTRICT,

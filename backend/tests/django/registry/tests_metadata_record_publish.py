@@ -321,7 +321,10 @@ class ReferenceSystemPublishTests(PublishApiMixin, TestCase):
     """A relation written through the api reaches the served document."""
 
     def test_a_reference_system_patch_lands_in_the_served_document(self):
-        system = ReferenceSystem.objects.create(code="4326", prefix="EPSG")
+        # get_or_create: the corpus fixtures seed EPSG:4326 in some full-suite
+        # orders; the row is a shared lookup the harvest would reuse anyway
+        system, _ = ReferenceSystem.objects.get_or_create(
+            code="4326", prefix="EPSG")
         record = self.record()
 
         status, answer = self.patch_record(record, relationships={

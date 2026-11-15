@@ -182,7 +182,7 @@ const XmlSourceDocument = () => {
             ))}
           </Alert>
         )}
-        {url ? (
+        {url && !loadFailed ? (
           <>
             <Editor
               height="60vh"

@@ -284,7 +284,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         # (contains info about which layers are restricted or if there was an error during mask creation)
         if self.access_denied_img is not None:
             old_format = img.format
-            # FIXME: for alpha_composite both images needs to be RGBA!
+            # FUTURE: for alpha_composite both images needs to be RGBA!
             # img = Image.alpha_composite(img, self.access_denied_img)
             img = Image.composite(img, img, self.access_denied_img)
             img.format = old_format
@@ -455,7 +455,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
                 )
                 geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
-                # FIXME: depends on xml wms version not on the registered service version
+                # FUTURE: depends on xml wms version not on the registered service version
                 axis_order_correction = (
                     True if self.service.major_service_version >= 2 else False
                 )

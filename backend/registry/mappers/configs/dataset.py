@@ -23,12 +23,10 @@ XPATH_MAP = {
                 "charset": {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
-                    # TODO: "_reverse_parser": "",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
-                    # TODO: "_reverse_parser": "",
                 },
                 "title": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString",
@@ -36,14 +34,12 @@ XPATH_MAP = {
                 "date_stamp": {
                     "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
                     "_parser": "registry.mappers.parsers.value.string_to_datetime",
-                    # TODO: "_reverse_parser": "",
                 },
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
                     "_inputs": (
                         "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon"
-                    # TODO: "_reverse_parser": "",
                 },
                 "code": {
                     "_inputs": (
@@ -159,7 +155,6 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
-                    # TODO: "__reverse_parser": "",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.timeextent_identifier",

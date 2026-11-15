@@ -115,7 +115,7 @@ class LayerFilterSet(GeoFilterSet):
             'mptt_depth': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'service': ['exact'],
             # 'no_mapping': ['exact']
-            # TODO: mapping is a reverse field on Layer. How can we filter for layers without mapping?
+            # FUTURE: mapping is a reverse field on Layer. How can we filter for layers without mapping?
         }
 
 

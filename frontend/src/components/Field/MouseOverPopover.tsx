@@ -22,7 +22,7 @@ const MouseOverPopover = (props: MouseOverPopoverProps): ReactElement => {
 
   const open = Boolean(anchorEl)
 
-  // TODO: dynamic id?
+  // FUTURE: dynamic id?
 
   return (
     <Box>

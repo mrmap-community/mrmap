@@ -172,8 +172,8 @@ def reverse_parse_operation_urls(
     online_resource.set(f"{{{nsmap["xlink"]}}}href", instance.url)
 
     # 2️⃣ Remove all existing <Format> elements
-    # TODO: Format is placed under wms:HTTP
-    # TODO: remove existing formats from xml
+    # FUTURE: Format is placed under wms:HTTP
+    # FUTURE: remove existing formats from xml
     for fmt_el in xml_element.findall(f".//{"wms:" if "wms" in nsmap else ""}Format", namespaces=nsmap):
         parent = fmt_el.getparent()
         if parent is not None:

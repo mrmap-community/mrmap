@@ -166,7 +166,6 @@ def remove_element_or_attribute(xml_element, xpath: str, nsmap: dict):
         leaf, _ = ensure_path(xml_element, parent_path, nsmap)
         if attr_name in leaf.attrib:
             del leaf.attrib[attr_name]
-        # TODO:
         remove_empty_parents(leaf, xml_element)
     else:
         leaf, _ = ensure_path(xml_element, xpath, nsmap)

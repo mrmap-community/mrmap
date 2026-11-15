@@ -607,7 +607,7 @@ class HarvestingJob(ProcessingData):
             description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
-    # TODO: implement three phases:
+    # FUTURE: implement three phases
     # 1. fetch total_records
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
@@ -1861,7 +1861,7 @@ class TemporaryMdMetadataFile(models.Model):
                 raise e
 
     def update_relations(self, exists, update, db_metadata, duration):
-        # TODO: is this relation still needed?
+        # FUTURE: is this relation still needed?
         # Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
@@ -1963,7 +1963,7 @@ class PeriodicHarvestingJob(PeriodicTask):
         help_text=_("this is the service which shall be harvested"))
 
     def __init__(self, *args, **kwargs) -> None:
-        # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
+        # FUTURE: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
         super().__init__(*args, **kwargs)
         if not self.pk:
             if not self.task:

@@ -109,7 +109,7 @@ class HistoryInformationViewSetMixin:
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
-        # TODO: only needed if sparsefields contains created_by, created_at, updated_by or updated_at. We need to check this to prevent unnecessary prefetching.
+        # FUTURE: only needed if sparsefields contains created_by, created_at, updated_by or updated_at. We need to check this to prevent unnecessary prefetching.
         try:
             sparse_fields = get_sparse_fields(self.request)
             resource_based_sparse_fields = sparse_fields.get(
@@ -238,7 +238,7 @@ class AsyncCreateMixin:
         task_function.apply_async(
             kwargs=task_kwargs, task_id=str(task_id))
 
-        # TODO: add auth information and other headers we need here
+        # FUTURE: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
             path=request.build_absolute_uri(
                 reverse("notify:backgroundprocess-detail",
@@ -365,7 +365,7 @@ class PreloadNotIncludesMixin:
 
 class SparseFieldMixin:
     def initial(self, *args, **kwargs):
-        # todo: get all sparsefield parameters
+        # FUTURE: get all sparsefield parameters
         fields_snake = self.request.GET.get(
             f"fields[{self.queryset.model.__name__}]", "").split(',')
         self.sparse_fields = {

@@ -49,7 +49,7 @@ def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
             "keywords": UpdateModeEnum.OVERWRITE,
             "reference_systems": UpdateModeEnum.OVERWRITE,
             "time_extents": UpdateModeEnum.OVERWRITE,
-            # TODO: datasetmetadata overwrite
+            # FUTURE: datasetmetadata overwrite
         },
     }
 

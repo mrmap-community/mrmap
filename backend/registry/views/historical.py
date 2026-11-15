@@ -50,7 +50,7 @@ class HistoricalViewSetMixin:
             ]
             qs = qs.select_related("history_user").defer(*defer)
         elif include and "historyUser" in include:
-            # TODO: select_for_includes setup does not work for history records...
+            # FUTURE: select_for_includes setup does not work for history records...
             qs = qs.select_related("history_user")
 
         # At the end of the existing get_queryset(), before returning qs:

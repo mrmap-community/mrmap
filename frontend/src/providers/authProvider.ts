@@ -191,7 +191,7 @@ const tokenAuthProvider = (
     },
     /* The permission checks of #836 live in canAccess below, which answers
       from the closure snapshot - no query, no per-render fetch. getPermissions
-      stays unimplemented on purpose, and the old loop TODO is resolved to
+      stays unimplemented on purpose, and the old loop's open question is resolved to
       this documented constraint: in react-admin 5.15 the CoreAdminRoutes
       mounts LogoutOnMount on the catch-all "*" route, and useLogout only
       avoids the trap because it defers navigate plus queryClient.clear by one

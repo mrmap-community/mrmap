@@ -18,7 +18,7 @@ from registry.models.service import CatalogueService as DBCatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 
-# TODO: log the request on this view. HTTP_Referer, searchUrl, searchText, HTTP_USER_AGENT, catalogueId
+# FUTURE: log the request on this view. HTTP_Referer, searchUrl, searchText, HTTP_USER_AGENT, catalogueId
 @method_decorator(csrf_exempt, name="dispatch")
 class MapBenderSearchApi(View):
     """
@@ -33,7 +33,7 @@ class MapBenderSearchApi(View):
         return response
 
     def get_search_text_filter(self):
-        # TODO: implement , seperated search values
+        # FUTURE: implement , seperated search values
         search_text = self.request.GET.get("searchText", "*")
         if search_text == "*":
             search_text = ""
@@ -60,13 +60,13 @@ class MapBenderSearchApi(View):
         # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
         search_bbox = self.request.GET.get("searchBbox")
         if search_bbox:
-            # TODO: the_geom col name need to be checked by capabilitites of the remote csw to set the corret geometry col
+            # FUTURE: the_geom col name need to be checked by capabilitites of the remote csw to set the corret geometry col
             if cql_filter_expr != "":
                 cql_filter_expr += f"AND BBOX(the_geom, {search_bbox})"
             else:
                 cql_filter_expr += f"BBOX(the_geom, {search_bbox})"
 
-        # TODO: implement inside or outside bbox as cql filter
+        # FUTURE: implement inside or outside bbox as cql filter
         # search_type_bbox = request.GET.get(
         #    "searchTypeBbox")  # inside / outside
         return cql_filter_expr
@@ -128,7 +128,7 @@ class MapBenderSearchApi(View):
 
                 content["md"]["nresults"] = total_records
         except DBCatalogueService.DoesNotExist:
-            # TODO: response with error code
+            # FUTURE: response with error code
             pass
         except ValidationError:
             pass
@@ -150,7 +150,7 @@ class MapBenderSearchApi(View):
         elif search_resources == "application":
             records = application_records()
         else:
-            # TODO: implement other hierachylevels also
+            # FUTURE: implement other hierachylevels also
             # return empty result for all other hierachylevels
             records = None
 
@@ -175,7 +175,7 @@ class MapBenderSearchApi(View):
 
         srv = []
         for record in result:
-            # TODO: #527
+            # FUTURE: #527
             srv.append({
                 "id": record.pk,
                 "date": record.date_stamp,
@@ -235,7 +235,7 @@ class MapBenderSearchApi(View):
                     "delLink": del_link_search_resources,
                     "item": [
                         {
-                            "title": search_resources,  # TODO
+                            "title": search_resources,
                             "delLink": del_link_search_resources,
                         }
                     ]
@@ -251,7 +251,6 @@ class MapBenderSearchApi(View):
                         "delLink": "searchText=&catalogueId=6&searchResources=dataset&target=webclient&searchTypeBbox=inside",
                         "item": [
                             {
-                                # TODO
                                 "title": "inside 7.18159618172,50.2823608933,7.26750846535,50.3502633407",
                                 "delLink": "searchText=&catalogueId=6&searchResources=dataset&target=webclient&searchTypeBbox=inside"
                             }

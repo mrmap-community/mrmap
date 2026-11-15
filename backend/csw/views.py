@@ -232,7 +232,7 @@ class CswServiceView(View):
             return MissingServiceParameterException(ogc_request=self.ogc_request)
         # The ElementSetName of a request is read and answered where the response
         # is built (see get_records), which is also where a posted request is
-        # covered: these KVP checks can not cover it (FIXME: if post method, this
+        # covered: these KVP checks can not cover it (open: if post method, this
         # will not cover the check)
 
         # an empty parameter is the parameter left to its default, as it was

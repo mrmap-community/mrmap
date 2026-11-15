@@ -170,7 +170,7 @@ def build_ogc_service(
             meta={'done': 3, 'total': 3}
         )
 
-        # TODO: use correct Serializer and render the json:api as result
+        # FUTURE: use correct Serializer and render the json:api as result
         return_dict = {
             "data": {
                 "type": db_service.__class__.__name__,

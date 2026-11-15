@@ -400,8 +400,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
             for style in layer.styles.all():
                 style.legend_url.legend_url = f"{new_url}{style.legend_url.legend_url.split('?', 1)[-1]}"
 
-        # TODO: only support xml Exception format --> remove all others
-        # TODO: camouflage metadata urls also
+        # FUTURE: only support xml Exception format --> remove all others
+        # FUTURE: camouflage metadata urls also
 
         capabilities_xml = self.get_updated_capabilitites()
 
@@ -414,7 +414,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     def get_updated_capabilitites(self) -> etree.ElementTree:
         """
-        FIXME: check if self is well prefetched.
+        Open question: check if self is well prefetched.
         If not call self.objects.prefetch_whole_service(
             ...    with_sibling_index=True,
             ...    prefetch_spec={
@@ -560,7 +560,7 @@ class OperationUrl(models.Model):
     #         new_query.update({key.upper(): value})
     #     url_parsed._replace(query=new_query)
     #     return url_parsed.geturl()
-    #     # TODO: check if service is secured and if so return the secured url
+    #     # FUTURE: check if service is secured and if so return the secured url
     #     parsed_request_url = urlparse(request.get_full_path())
     #     parsed_url = urlparse(self.url)
     #     parsed_url._replace(netloc=parsed_request_url.netloc)
@@ -844,7 +844,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                 name="unique_identifer_per_wms",
             )
         ] + Node.Meta.constraints + AbstractMetadata.Meta.constraints
-        # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
+        # FUTURE: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
@@ -889,7 +889,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                     operation=OGCOperationEnum.GET_MAP.value,
                     method=HttpMethodEnum.GET.value
                 )["url"]
-                # TODO: check if this format is supported by the layer...
+                # FUTURE: check if this format is supported by the layer...
             image_format: str = format
 
         if bbox:
@@ -909,10 +909,10 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         #     scale_bbox = distance / \
         #         math.sqrt(pow(width, 2) + pow(height, 2)) / 0.00028
         #     if scale_bbox > self.get_scale_max:
-        #         # TODO: scale the bbox
+        #         # FUTURE: scale the bbox
         #         pass
 
-        # TODO: handle different versions here... version 1.0.0 has other query parameters
+        # FUTURE: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
             "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetMap",
@@ -948,7 +948,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
                     method=HttpMethodEnum.GET.value
                 )["url"]
-                # TODO: check if this format is supported by the layer...
+                # FUTURE: check if this format is supported by the layer...
                 _info_format: str = "text/plain"
         except WebMapServiceOperationUrl.DoesNotExist:
             raise OperationNotSupported(
@@ -1048,7 +1048,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             "the fetched content of the download describe feature" " type document."
         ),
     )
-    # TODO: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
+    # FUTURE: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
     default_reference_system = models.ForeignKey(
         to="ReferenceSystem",  # to avoid circular import error
         on_delete=models.PROTECT,

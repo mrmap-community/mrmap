@@ -69,7 +69,7 @@ export const capsulateJsonApiPrimaryData = (data: Partial<RaRecord>, type: strin
           relationships[relationName] = { data: { id: relationData.id, type: relationResourceType?.enum?.[0] } }
         }
       }
-      // TODO: delete attributes.relationName does not work (no-dynamic-delete)
+      // FUTURE: delete attributes.relationName does not work (no-dynamic-delete)
       delete attributes[relationName]  
     }
   }
@@ -334,7 +334,7 @@ export const getArrayInput = (
     definition.component = AutocompleteArrayInput;
     definition.props.choices = nestedSchema.enum.map(choice => ({id: choice, name: choice}));
   } else if (nestedSchema.type === 'object') {
-    // TODO: nested resource
+    // FUTURE: nested resource
     // 1. get all nested fields of this object...
     // 2. create all nested fields...
     // 3. set children prop
@@ -416,7 +416,7 @@ export const getFieldForFormat = (
       definition.props.showTime = true;
       break;
     case 'duration':
-      // TODO: is there a durationinput?
+      // FUTURE: is there a durationinput?
       // https://mui.com/x/react-date-pickers/
       definition.component = TextInput;
       break;
@@ -542,7 +542,7 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
               create: <CreateSuggestionDialog guesserProps={{
                 resource: fieldSchema.reference
               }}/>,
-              createLabel: 'type something to create a new object', // TODO: use translate
+              createLabel: 'type something to create a new object', // FUTURE: use translate
               sort:{ field: 'name', order: 'ASC' }
             })
           }: 

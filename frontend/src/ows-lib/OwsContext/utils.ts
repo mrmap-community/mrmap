@@ -54,8 +54,8 @@ export const prepareGetMapUrl = (
     const params = url.searchParams
     updateOrAppendSearchParam(params, 'SERVICE', 'WMS')
     updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
-    updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // TODO: version dependend
-    updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // TODO: should be configureable
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // FUTURE: version dependend
+    updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // FUTURE: should be configureable
     updateOrAppendSearchParam(params, 'LAYERS', layerName)
     updateOrAppendSearchParam(params, 'TRANSPARENT', 'true')
 

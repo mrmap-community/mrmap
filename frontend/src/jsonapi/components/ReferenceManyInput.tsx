@@ -120,7 +120,7 @@ export const ReferenceManyInput = (
   const includedObjects = useMemo<RaRecord[]>(() => {
       if (currentRecordValues === undefined) return []
       return currentRecordValues.map((value: RaRecord) => {
-          // FIXME: check if all needed field values are contained
+          // FUTURE: check if all needed field values are contained
           if (typeof value === 'object' && value.id && value.stringRepresentation) {
             return value; // already has completed data
           }

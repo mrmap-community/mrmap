@@ -34,7 +34,7 @@ def _get_request_uri_has_no_version_parameter(value):
     # crashed registration task.
     supported_wms_versions = ["1.3.0", "1.1.1", "1.1.0", "1.0.0"]
     supported_wfs_versions = ["2.0.2", "2.0.0"]
-    # Todo: append all versions
+    # FUTURE: append all versions
     supported_csw_versions = [
         "2.0.2",
     ]

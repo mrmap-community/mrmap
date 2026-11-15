@@ -614,7 +614,7 @@ class XmlMapper:
             case _:
                 logging.warning(
                     f"multiple elements found with xpath: {base_xpath}")
-                # TODO: should we simply remove all xml_elements first and then simply create it from db?
+                # FUTURE: should we simply remove all xml_elements first and then simply create it from db?
                 child_xml_element = child_xml_element[0]
         if not instance and not child_xml_element:
             # nothing to do. xml has no element and db has no instance. thats fine.
@@ -721,7 +721,7 @@ class XmlMapper:
                 else:
                     if not field:
                         # happens if a one to one kind relation is None.
-                        # TODO: find all child elements based on xpath and remove them
+                        # FUTURE: find all child elements based on xpath and remove them
                         # xpath = xpath_or_spec.get("fields", {}).get(field_name)
                         # remove_element_or_attribute(
                         #    xml_element,

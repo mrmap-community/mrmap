@@ -164,7 +164,7 @@ class MapContext(models.Model):
 
 
 class RenderingOffering(models.Model):
-    # TODO: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
+    # FUTURE: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
     rendering_layer: Layer = models.ForeignKey(
         to=Layer,
         on_delete=models.PROTECT,
@@ -218,7 +218,7 @@ class RenderingOffering(models.Model):
     def clean(self):
         errors = {}
         if self.rendering_layer:
-            # TODO: move this to checkContraints
+            # FUTURE: move this to checkContraints
             # Check scale min/max values against the possible configureable values.
             if self.layer_scale_min and self.rendering_layer.get_scale_min:
                 if self.layer_scale_min < self.rendering_layer.get_scale_min:
@@ -333,7 +333,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
 
     @property
     def folder_name(self) -> str:
-        # TODO: use array index notation /0/1 ...
+        # FUTURE: use array index notation /0/1 ...
         if self.is_root_node:
             return f"/{self.id}"
         else:

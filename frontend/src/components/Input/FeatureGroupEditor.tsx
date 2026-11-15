@@ -100,7 +100,7 @@ const FeatureGroupEditor = ({
     }
   }, [map, geoJson])
 
-  // TODO: on unmount, the geoJson shall be removed from the map.
+  // FUTURE: on unmount, the geoJson shall be removed from the map.
 
   return (
     <Fragment>

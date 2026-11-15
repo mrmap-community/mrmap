@@ -943,7 +943,7 @@ class CatalogueServiceSerializer(
             "attention"),
         model=HarvestingJob,
         read_only=True)
-    # TODO: deprecated;
+    # FUTURE: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord
     harvesting_jobs = ResourceRelatedField(

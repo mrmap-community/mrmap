@@ -592,12 +592,12 @@ class OGCRequest(Request):
         :rtype: etree._Element
         """
         if self._xml_request is None:
-            # TODO: implement the xml request generation for other requests too.
-            if self.is_get_feature_request:  # NOSONAR: See todo above
+            # FUTURE: implement the xml request generation for other requests too.
+            if self.is_get_feature_request:  # NOSONAR: See FUTURE note above
                 if self.is_post:
                     self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:
-                    # FIXME: depending on version, different xml mapper are needed...
+                    # FUTURE: depending on version, different xml mapper are needed...
                     self._xml_request = self.build_get_feature_from_get()
             elif self.is_get_records_request:
                 if self.is_post:

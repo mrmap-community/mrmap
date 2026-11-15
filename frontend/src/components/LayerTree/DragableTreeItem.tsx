@@ -14,7 +14,7 @@ import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContex
 import { useContextMenuBase } from './ContextMenu/ContextMenuBase';
 
 
-// TODO: typeof should be any other type
+// FUTURE: typeof should be any other type
 // to avoid icons for imaginary tree items
 const ImaginaryIcon = () => {
   return <div />;

@@ -62,7 +62,6 @@ class Command(BaseCommand):
              ret_list (list): Contains the category objects with updated languages
         """
         return
-        # FIXME
         # # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # # based on the parsed type of origin
         # if origin == CategoryOriginEnum.ISO.value:
@@ -87,7 +86,6 @@ class Command(BaseCommand):
         # for item in items:
         #     if origin == CategoryOriginEnum.ISO.value:
         #         item = item["value"]
-        #     # FIXME
         #     """
         #     category = Category.objects.get(online_link=item[link])
         #     if lang_key == "locale_1":
@@ -115,7 +113,6 @@ class Command(BaseCommand):
              ret_list (list): Contains all retrieved category objects in english language
         """
         return
-        # FIXME:
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
         # if origin == CategoryOriginEnum.ISO.value:
@@ -139,7 +136,6 @@ class Command(BaseCommand):
         # for item in items:
         #     if origin == CategoryOriginEnum.ISO.value:
         #         item = item["value"]
-        #         # FIXME
         #         """
         #     category = Category.objects.get_or_create(
         #         type=origin,

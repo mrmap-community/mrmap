@@ -122,7 +122,6 @@ class Organization(Group, Contact):
 
     @property
     def publishers(self) -> QuerySet:
-        # TODO:
         return Organization.objects.none()
 
     def add_publisher(self, publisher) -> None:

@@ -192,7 +192,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         #  Transaction: Transaction operations does not contains area of interest.
         #   F. E. the transaction request
         #   could contain an update for a not spatial value of some column. Then the request has no spatial limitation. Insert operation --> same problem
-        # TODO: cause it is very complex to differ all the cases (UPDATE, INSERT, DELETE) in a transaction, we will do this in future.
+        # FUTURE: cause it is very complex to differ all the cases (UPDATE, INSERT, DELETE) in a transaction, we will do this in future.
         #       We could secure the transaction on table column level.
         #       * secure on feature level per permission (update, delete)
         #       * secure on table level for insert permission

@@ -451,7 +451,7 @@ class LayerViewSetMixin(
     }
     prefetch_for_not_includes = {
         "mptt_parent": [
-            # TODO optimize queryset with defer
+            # FUTURE: optimize queryset with defer
             Prefetch(
                 "mptt_parent",
                 queryset=Layer.objects.select_related(

@@ -39,7 +39,6 @@ class Command(BaseCommand):
         num_updated_licences = 0
         for licence in LICENCES:
             pass
-            # FIXME
             """
             existing_licence = Licence.objects.get_or_create(
                 identifier=licence.get("identifier", None)
@@ -62,7 +61,6 @@ class Command(BaseCommand):
 
         # Deactivate licences, which are not present in LICENCES anymore
         num_deactivated_licences = 0
-        # FIXME
         """
         active_licences = Licence.objects.all()
         identifier_keys = [licence["identifier"] for licence in LICENCES]

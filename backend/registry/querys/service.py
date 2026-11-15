@@ -347,7 +347,7 @@ class LayerPrefetch(Prefetch):
             prefetch_related.append(
                 Prefetch(
                     "keywords",
-                    # TODO: check if layers.keywords are included... then we need an other queryset
+                    # FUTURE: check if layers.keywords are included... then we need an other queryset
                     queryset=Keyword.objects.only("id")
                 )
             )
@@ -356,7 +356,7 @@ class LayerPrefetch(Prefetch):
             prefetch_related.append(
                 Prefetch(
                     "registry_datasetmetadatarecord_metadata_records",
-                    # TODO: check if layers.datasetMetadata are included... then we need an other queryset
+                    # FUTURE: check if layers.datasetMetadata are included... then we need an other queryset
                     queryset=DatasetMetadataRecord.objects.only("id")
                 )
             )

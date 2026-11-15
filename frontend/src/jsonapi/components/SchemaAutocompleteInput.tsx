@@ -171,7 +171,7 @@ const SchemaAutocompleteInput = ({
     setFilter((prev) => ({ ...prev, search: searchText }));
   }, []);
 
-  // TODO: check if the resource has create endpoint; if so, we add an create component here
+  // FUTURE: check if the resource has create endpoint; if so, we add an create component here
   if (multiple) {
     return (
       <AutocompleteArrayInput

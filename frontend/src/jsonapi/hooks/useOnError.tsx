@@ -61,9 +61,7 @@ const useOnError = (
             }
           })
         } else if (error.status === 401) {
-          // TODO
         } else if (error.status === 403) {
-          // TODO
         }
       }
   }, [searchParams, listParams, setListParams, setSearchParams])

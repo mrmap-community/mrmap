@@ -522,7 +522,7 @@ CHANNEL_LAYERS = {
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
 MIN_PASSWORD_LENGTH = 9
-MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
+MIN_USERNAME_LENGTH = 5  # FUTURE: For production use another, more appropriate length!
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",

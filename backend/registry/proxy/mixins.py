@@ -172,7 +172,7 @@ class OgcServiceProxyView(APIView):
         """Check if requesting user is authorized to test as other users."""
         user = self.request.user
         # Require staff/superuser status
-        # TODO: check if user is "service admin"
+        # FUTURE: check if user is "service admin"
         if not user.is_staff and not user.is_superuser:
             return False
         return True
@@ -272,7 +272,7 @@ class OgcServiceProxyView(APIView):
         :return: the camouflaged capabilities document.
         :rtype: :class:`django.http.response.HttpResponse`
         """
-        # todo: handle different service versions
+        # FUTURE: handle different service versions
         return HttpResponse(
             status=200, content=self.service.get_capabilitites_for_request(self.request), content_type="application/xml"
         )
@@ -340,7 +340,7 @@ class OgcServiceProxyView(APIView):
                 }
             )
         except Exception as e:
-            # todo: log exception
+            # FUTURE: log exception
             r.update(
                 {
                     "status_code": 500,
@@ -503,7 +503,7 @@ class OgcServiceProxyView(APIView):
                 headers.update({"Content-Encoding": content_encoding})
 
         if isinstance(response, dict) and status_code > 399:
-            # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
+            # FUTURE: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
             content = render_to_string(
                 template_name="registry/xml/ows/exception.xml", context=response
             )

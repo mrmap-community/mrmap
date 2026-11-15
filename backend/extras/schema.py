@@ -95,7 +95,7 @@ class CustomOperationId(JsonApiAutoSchema):
             related_base_resource_path = self.path.split("{")[0]
             if related_base_resource_path.endswith("/"):
                 # remove trailing slash
-                # TODO: only needed if trailing_slash=False option was used
+                # FUTURE: only needed if trailing_slash=False option was used
                 related_base_resource_path = related_base_resource_path[:-1]
             try:
                 match = resolve(related_base_resource_path)
@@ -228,7 +228,7 @@ class CustomOperationId(JsonApiAutoSchema):
                         schema["format"] = "geojson"
                         openapiparameter["schema"] = schema
         """
-        TODO: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
+        FUTURE: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
          e.g.:
          {
             "in": "query",

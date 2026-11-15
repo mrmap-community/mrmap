@@ -877,7 +877,7 @@ class GetMapProbe(WebMapServiceProbe):
         return client.get_map_request(
             layers=[layer.identifier for layer in self.layers.all()],
             crs=str(self.reference_system),
-            # TODO: use configured styles instead
+            # FUTURE: use configured styles instead
             styles=",".join(["" for layer in layers]),
             height=self.height,
             width=self.width,

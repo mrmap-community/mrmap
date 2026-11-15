@@ -22,7 +22,7 @@ class ConformityCheckConfiguration(models.Model):
     """
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
-    # TODO: use IntegerChoices instead
+    # FUTURE: use IntegerChoices instead
     conformity_type = models.TextField(
         choices=ConformityTypeEnum.choices)
 

@@ -531,7 +531,7 @@ def fetch_metadata_document(link, reference="the reference"):
         backoff_factor=0.1
     )
     session.mount(link, HTTPAdapter(max_retries=retries))
-    # FIXME: Re add authentication
+    # FUTURE: Re add authentication
     request = Request(method="GET",
                       url=link,
                       # auth=auth,
@@ -586,7 +586,7 @@ class RemoteMetadata(models.Model):
 
 
     """
-    # TODO: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
+    # FUTURE: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
     #  service fk to the service which was registered. Additional: we need to refactor the GenericForeignKey... We need
     #  then m2m relations to layers, featuretypes and services
     link = models.URLField(max_length=4094,
@@ -1119,7 +1119,7 @@ class LayerMetadata(AbstractMetadata):
     #    if adding:
     #        xml = MdMetadata.from_field_dict(self.__dict__)
     #        xml_string = xml.serializeDocument()
-    #        # FIXME: documents are created on the fly by registry.models.DocumentModelMixin
+    #        # open: documents are created on the fly by registry.models.DocumentModelMixin
     #        Document.objects.create(layer_metadata=self,
     #                               xml=xml_string,
     #                              xml_backup=xml_string)
@@ -1377,7 +1377,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                             "records created by an import or through the api answer the seeded "
                                             "iso19139-generic profile, see MetadataProfile.generic()"))
 
-    # TODO: check if this is calculate able
+    # FUTURE: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
 

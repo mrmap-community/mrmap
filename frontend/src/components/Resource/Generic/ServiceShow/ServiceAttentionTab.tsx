@@ -13,6 +13,8 @@ import {
 
 import { Alert, Stack, Typography } from "@mui/material";
 
+import ContextualIncidents from "../../OperationalIncident/Context/ContextualIncidents";
+
 /** the interval the attention of a service is asked for again, in milliseconds */
 export const ATTENTION_REFETCH_INTERVAL = 60000;
 
@@ -175,14 +177,14 @@ export const ServiceAttentionTab = (): ReactNode => {
     Boolean((record as RaRecord | undefined)?.[alert.flag]),
   );
 
-  if (alerts.length === 0) {
-    return (
+  // the operational incidents about this service are shown above the states
+  // the service itself flags: the two are different authorities (#1322) - the
+  // alerts below stay authoritative, the banner adds the incident api's view
+  const attention =
+    alerts.length === 0 ? (
       <Alert severity="success">{translate("serviceAttention.none")}</Alert>
-    );
-  }
-
-  return (
-    <Stack spacing={1.5}>
+    ) : (
+      <Stack spacing={1.5}>
       {alerts.map((alert) => {
         // a date is only shown with the state it belongs to, and only when the
         // service answered the point in time of that state - and it is named by
@@ -213,6 +215,13 @@ export const ServiceAttentionTab = (): ReactNode => {
           </Alert>
         );
       })}
+      </Stack>
+    );
+
+  return (
+    <Stack spacing={2}>
+      <ContextualIncidents />
+      {attention}
     </Stack>
   );
 };

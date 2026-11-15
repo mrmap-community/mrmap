@@ -24,6 +24,8 @@ from registry.models.monitoring import (
     WebMapServiceMonitoringSetting)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
+from registry.serializers.schedule_warnings import (SCHEDULE_WARNING_ATTRIBUTES,
+                                                    ScheduleWarningsSerializerMixin)
 from rest_framework.fields import (CharField, DateTimeField, DurationField,
                                    IntegerField, SerializerMethodField)
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -108,6 +110,7 @@ class MonitoringSettingSerializerMixin:
 
 
 class WebMapServiceMonitoringSettingSerializer(
+    ScheduleWarningsSerializerMixin,
     MonitoringSettingSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -148,7 +151,8 @@ class WebMapServiceMonitoringSettingSerializer(
         model = WebMapServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
                   "get_capabilitites_probes", "get_map_probes", "enabled",
-                  "last_run_at", "next_run_expected_at", "run_overdue")
+                  "last_run_at", "next_run_expected_at", "run_overdue",
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class WebMapServiceMonitoringRunSerializer(
@@ -317,6 +321,7 @@ class GetMapProbeResultSerializer(
 
 
 class WebFeatureServiceMonitoringSettingSerializer(
+    ScheduleWarningsSerializerMixin,
     MonitoringSettingSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -357,7 +362,8 @@ class WebFeatureServiceMonitoringSettingSerializer(
         model = WebFeatureServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
                   "get_capabilities_probes", "get_feature_probes", "enabled",
-                  "last_run_at", "next_run_expected_at", "run_overdue")
+                  "last_run_at", "next_run_expected_at", "run_overdue",
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class WebFeatureServiceMonitoringRunSerializer(
@@ -530,6 +536,7 @@ class WebFeatureServiceGetFeatureProbeResultSerializer(
 
 
 class CatalogueServiceMonitoringSettingSerializer(
+    ScheduleWarningsSerializerMixin,
     MonitoringSettingSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -570,7 +577,8 @@ class CatalogueServiceMonitoringSettingSerializer(
         model = CatalogueServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
                   "get_capabilities_probes", "get_records_probes", "enabled",
-                  "last_run_at", "next_run_expected_at", "run_overdue")
+                  "last_run_at", "next_run_expected_at", "run_overdue",
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
 
 class CatalogueServiceMonitoringRunSerializer(

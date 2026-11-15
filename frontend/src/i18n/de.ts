@@ -665,6 +665,27 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     noNextRun: "Kein nächster Lauf",
     attentionTitle: "Zeitpläne, die Aufmerksamkeit brauchen",
   },
+  scheduleWarnings: {
+    columnLabel: "Zeitplanwarnungen",
+    codes: {
+      schedule_overdue: "Zeitplan überfällig",
+      schedule_too_tight: "Intervall kürzer als beobachtete Laufzeit",
+      insufficient_evidence: "Datenlage unzureichend",
+      schedule_expired: "Zeitplan abgelaufen",
+    },
+    reasons: {
+      no_completed_runs: "Noch kein abgeschlossener Lauf hat diesen Zeitplan gemessen",
+      too_few_samples: "Zu wenige abgeschlossene Läufe für eine Bewertung",
+    },
+    interval: "Intervall: %{value}",
+    observed: "Beobachtete Laufzeit: %{value}",
+    samples: "%{smart_count} abgeschlossener Lauf gemessen |||| %{smart_count} abgeschlossene Läufe gemessen",
+    lastDone: "Letzter Lauf:",
+    expectedAt: "Erwartet seit:",
+    expiredAt: "Abgelaufen seit:",
+    computedAt: "Berechnet:",
+    checkSchedule: "Zeitplan prüfen",
+  },
   harvestingStats: {
     records: "Datensätze",
     day: "Tag",

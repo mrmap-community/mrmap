@@ -12,8 +12,10 @@ from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from MrMap import VERSION
 from rest_framework.permissions import IsAdminUser
 from rest_framework_json_api.views import ModelViewSet, generics
+from system.capacity_snapshot import get_capacity_snapshot
 from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
-from system.serializers import (CrontabScheduleSerializer,
+from system.serializers import (CapacitySnapshotSerializer,
+                                CrontabScheduleSerializer,
                                 PeriodicTaskSerializer, SystemSerializer,
                                 SystemStatusSerializer)
 from system.status import get_status_snapshot
@@ -139,6 +141,34 @@ class SystemStatusView(generics.RetrieveAPIView):
 
     def get_object(self):
         return get_status_snapshot()
+
+
+class CapacitySnapshotView(generics.RetrieveAPIView):
+    """The deployment capacity snapshot of #1326 - admin only, read only.
+
+    ``GET`` answers the materialized snapshot: unique worker pools and
+    their queue subscriptions, the integer depth and measured occupancy of
+    every queue, the periodic demand of the horizon and ``rho`` only where
+    both sides are comparable (always a ``periodic_only`` lower bound).
+    The global workload and machine topology are exactly what #1326 says
+    only a deployment administrator may see, so this answers 403 without a
+    body section before any observation runs - a refusal cannot even pay
+    for, or leak, a snapshot. Until the roles of #727 land,
+    ``IsAdminUser`` is the deployment's admin answer, like the system
+    status beside it.
+
+    The answer is served from the cache (#1326: no 43k-schedule scan per
+    request); see ``system/capacity_snapshot.py`` for what may and may not
+    be claimed, and ``docs/source/development/capacity-snapshot.rst`` for
+    the reading guide.
+    """
+
+    serializer_class = CapacitySnapshotSerializer
+    permission_classes = [IsAdminUser]
+    http_method_names = ["get", "head", "options"]
+
+    def get_object(self):
+        return get_capacity_snapshot()
 
 
 class MediaDumpNotFoundView(View):

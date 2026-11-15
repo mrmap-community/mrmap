@@ -25,14 +25,15 @@ logger = get_task_logger(__name__)
 def run_conformity_check(self, run_id: int, **kwargs):
     run = ConformityCheckRun.objects.get(id=run_id)
     if run is None:
-        raise Exception(f'No conformity check run with id {run_id}')
+        raise ConformityCheckRun.DoesNotExist(
+            f'No conformity check run with id {run_id}')
     config = run.config
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         task = run_conformity_check_internal.s(run_id, **kwargs)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
         task = run_conformity_check_etf.s(run_id, **kwargs)
     else:
-        raise Exception(
+        raise ValueError(
             f"Could not check conformity. Invalid conformity type: "
             f"{config.conformity_type}.")
     task.apply_async()
@@ -51,7 +52,8 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
     try:
         run = ConformityCheckRun.objects.get(id=run_id)
         if run is None:
-            raise Exception(f'No conformity check run with id {run_id}')
+            raise ConformityCheckRun.DoesNotExist(
+                f'No conformity check run with id {run_id}')
         config_ext = ConformityCheckConfigurationExternal.objects.get(
             pk=run.config.id)
         client = EtfClient(config_ext.external_url)
@@ -95,7 +97,8 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
     try:
         run = ConformityCheckRun.objects.get(id=run_id)
         if run is None:
-            raise Exception(f'No conformity check run with id {run_id}')
+            raise ConformityCheckRun.DoesNotExist(
+                f'No conformity check run with id {run_id}')
         checker = QualityInternal(run)
         run = checker.run()
     except Exception:

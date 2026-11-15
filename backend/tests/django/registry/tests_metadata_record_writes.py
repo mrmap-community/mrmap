@@ -15,18 +15,21 @@ decision of the #1238 review). What a record write answers is pinned here:
 * a write which names a read-only field is a 400 naming the field via
   `errors[].source.pointer`, never the silent drop a `read_only` DRF field
   performs today (#1240 pinned those fields as readOnly);
-* the profile's structural rules are asked as part of the same request -
-  fail-closed, while #1243 has not filled the rule content;
+* the profile's structural rules are asked as part of the same request
+  (#1243), fail-closed for rule shapes this version can not assess;
+* a successful save IS the publish (#1244): the record's ISO document is
+  regenerated from the saved row inside the same transaction - the round trip
+  itself is pinned by `tests_metadata_record_publish`;
 * the permission behaviour is today's guardian `canEdit`/`canDelete` with no
   new role concept.
 
-And the activation gate of the readiness clarification (2026-11-12): while
-the XML write-back (#1242), the validation rules (#1243) and the publishing
-gate (#1244) are not integrated, public POST/PUT/PATCH answer 403 with the
-reason - no enabled path may commit model fields while the ISO document the
-CSW serves would go stale behind them. These tests run the write paths with
-the gate flipped on (`override_settings`); the closed-gate class pins that
-the shipped default refuses them.
+And the activation gate: since #1244 integrates the round trip (a successful
+save regenerates the served ISO document in the same transaction), the shipped
+default answers the write paths openly; the gate itself stays a deployment
+posture - while ``MRMAP_METADATA_EDITOR_WRITES_ENABLED`` is off, public
+POST/PUT/PATCH answer 403 with the reason. The closed-gate class pins that
+posture; the write classes above run without an override and pin the
+default-open posture.
 """
 
 import json
@@ -136,9 +139,8 @@ class RecordWriteSerializerCreationTests(TestCase):
         self.assertEqual(record.origin, MetadataOriginEnum.EDITOR.value)
 
 
-@override_settings(MRMAP_METADATA_EDITOR_WRITES_ENABLED=True)
 class RecordWriteApiTests(TestCase):
-    """The write endpoints with the activation gate open (#1241 behaviour)."""
+    """The write endpoints at the shipped default, gate open since #1244."""
 
     fixtures = ["test_users.json"]
 
@@ -292,8 +294,8 @@ class RecordWriteApiTests(TestCase):
             "/data/attributes/isBroken"})
 
     def test_a_profile_which_names_rules_refuses_the_write_fail_closed(self):
-        """The rule content of #1243 does not exist yet - an unevaluated rule
-        set must never answer a payload as validated."""
+        """A rule object of a shape the evaluator can not assess (the shape
+        #1243 predates) must never let a payload pass as validated."""
         governed = MetadataProfile.objects.create(
             name="iso19139-gdi-de", label="GDI-DE",
             rules=[{"type": "gdi-de-mandatory"}])
@@ -329,12 +331,16 @@ class RecordWriteApiTests(TestCase):
 
 
 class RecordWriteActivationGateTests(TestCase):
-    """The shipped default: the record writes answer 403, with the reason.
+    """The activation gate as deployment posture: open default, closed option.
 
-    The readiness clarification of #1241 (2026-11-12): during the intermediate
-    PRs of the editor epic there is no enabled public path which could publish
-    inconsistent metadata. The endpoints exist (the json:api CRUD defaults of
-    #1241); they refuse mutations until #1244 integrates the round trip.
+    With the round trip integrated (#1244) the shipped default answers the
+    record writes openly - a curator's PATCH succeeds without any override.
+    A deployment that sets ``MRMAP_METADATA_EDITOR_WRITES_ENABLED=False``
+    deliberately keeps its editor read-only: POST/PUT/PATCH answer 403 with
+    the reason. The gate is a deployment posture, not a grant - no permission
+    bypasses it. Reads answer as always and DELETE stays at today's behaviour
+    in both postures: a deletion removes the record together with the document
+    served for it, so it leaves no stale document behind.
     """
 
     fixtures = ["test_users.json"]
@@ -345,7 +351,7 @@ class RecordWriteActivationGateTests(TestCase):
         get_user_model().objects.get_or_create(username="AnonymousUser")
         cls.contact = MetadataContact.objects.create(name="Gate contact")
         cls.record = DatasetMetadataRecord.objects.create(
-            title="Record of the closed gate",
+            title="Record at the gate",
             dataset_contact=cls.contact,
             metadata_contact=cls.contact)
         cls.curator = get_user_model().objects.create_user(
@@ -356,6 +362,21 @@ class RecordWriteActivationGateTests(TestCase):
         assign_perm("registry.change_datasetmetadatarecord", cls.curator,
                     cls.record)
 
+    def test_the_shipped_default_answers_the_write_paths_open(self):
+        """No override: the record write is the ordinary CRUD answer (#1244)."""
+        client = APIClient()
+        client.force_authenticate(user=self.curator)
+        status, answer = api(
+            client, "patch",
+            f"/api/registry/dataset-metadata/{self.record.pk}",
+            {"data": {"type": "DatasetMetadataRecord",
+                      "id": str(self.record.pk),
+                      "attributes": {"title": "The default opens writes"}}})
+        self.assertEqual(status, 200, answer)
+        self.record.refresh_from_db()
+        self.assertEqual(self.record.title, "The default opens writes")
+
+    @override_settings(MRMAP_METADATA_EDITOR_WRITES_ENABLED=False)
     def test_post_and_patch_and_put_answer_403_while_the_gate_is_closed(self):
         client = APIClient()
         client.force_authenticate(user=self.curator)
@@ -370,7 +391,7 @@ class RecordWriteActivationGateTests(TestCase):
                                  "id": str(self.contact.pk)}}}}}
         status, answer = api(client, "post", "/api/registry/dataset-metadata", body)
         self.assertEqual(status, 403, answer)
-        self.assertIn("not enabled", answer["errors"][0]["detail"])
+        self.assertIn("disabled", answer["errors"][0]["detail"])
 
         body["data"]["id"] = str(self.record.pk)
         for method in ("patch", "put"):
@@ -379,8 +400,9 @@ class RecordWriteActivationGateTests(TestCase):
                 f"/api/registry/dataset-metadata/{self.record.pk}", body)
             self.assertEqual(status, 403, (method, answer))
         self.record.refresh_from_db()
-        self.assertEqual(self.record.title, "Record of the closed gate")
+        self.assertEqual(self.record.title, "Record at the gate")
 
+    @override_settings(MRMAP_METADATA_EDITOR_WRITES_ENABLED=False)
     def test_a_superuser_is_refused_like_any_client(self):
         """The gate is a deployment posture, not a grant - no permission
         bypasses it."""
@@ -396,6 +418,7 @@ class RecordWriteActivationGateTests(TestCase):
                       "attributes": {"title": "Even the admin"}}})
         self.assertEqual(status, 403, answer)
 
+    @override_settings(MRMAP_METADATA_EDITOR_WRITES_ENABLED=False)
     def test_reads_answer_as_always_while_the_gate_is_closed(self):
         client = APIClient()
         status, answer = api(client, "get", "/api/registry/dataset-metadata")

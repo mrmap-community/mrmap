@@ -13,13 +13,15 @@ C on #1243). Pinned here, top-down:
   nothing is evaluated whose shape the version can not assess (fail-closed,
   #1241);
 * the endpoint: PATCH/PUT run the rules over the RESULTING document - the
-  record's document with the patched values overlaid and written through the
-  write mapper (#1242) - and refuse violations of `error` severity with one
-  json:api error object per finding ({source.pointer, detail, rule,
-  severity, meta.family, meta.severityCounts}) while the stored document and
-  the row stay byte-for-byte as they were; warnings never refuse; a POST
-  (which has no document to govern until the write path of #1244 generates
-  one) and records without a document pass;
+  record's stored document with the row's and the payload's values written
+  through the publish seam (#1244) - and refuse violations of `error`
+  severity with one json:api error object per finding ({source.pointer,
+  detail, rule, severity, meta.family, meta.severityCounts}); a refused
+  write changes nothing, neither the row nor the document, and an accepted
+  write commits exactly the document the rules were run over; warnings never
+  refuse; a POST and records serving no document yet pass - nothing for the
+  document rules to govern at validation time, their first document is the
+  one this very save publishes at commit (#1244);
 * the overlay converts the patched fields into the shape the write mapper
   reads (contact -> its four-field dict, keyword/language rows).
 """
@@ -324,11 +326,24 @@ class ProfileRulesOnSaveApiTests(TestCase):
         self.assertEqual(status, 200, answer)
         record.refresh_from_db()
         self.assertEqual(record.title, "Curated title")
-        # the document write-back commits with the write path of #1244; the
-        # validation itself stored nothing - the served document is what it
-        # was, the AC's "a failed validation leaves xml_backup_file
-        # untouched" holds a fortiori
-        self.assertEqual(self.document_bytes(record), before)
+        # the accepted write IS the publish (#1244): the stored document
+        # becomes the one the rules were run over - the drift this fixture
+        # constructed (document without title and abstract while the row
+        # carries both) is healed by the write, and nothing the document
+        # held besides the patched fields is lost on the way
+        document = self.document_bytes(record)
+        self.assertNotEqual(document, before)
+        values = MDMetadataXmlMapper \
+            .extract_mapped_values(document)[0]["values"]
+        self.assertEqual(values["title"], "Curated title")
+        self.assertEqual(values["abstract"], "Curated abstract")
+        self.assertEqual(str(values["file_identifier"]).strip(), self.fid)
+        # repaired means whole: the served document answers a single record
+        # and every seeded rule holds over it now
+        root = etree.fromstring(document)
+        self.assertEqual(len(root.xpath(
+            "//*[local-name()='MD_Metadata']")), 1)
+        self.assertEqual(evaluate_rules(GENERIC_RULES, document), [])
 
     def test_a_warning_never_refuses_a_write(self):
         warning_only = MetadataProfile.objects.create(
@@ -357,10 +372,11 @@ class ProfileRulesOnSaveApiTests(TestCase):
 
     def test_a_post_with_a_rule_carrying_profile_still_creates_the_record(
             self):
-        """A created record carries no document until #1244 generates one -
-        the document rules have nothing to govern; the shape guard still
-        refused unassessable rule sets on the way (POST is not a free pass
-        for data this version can not read)."""
+        """A created record serves no document yet - the document rules have
+        nothing to govern at validation time; the first document arrives with
+        this save's publish (#1244, pinned in tests_metadata_record_publish).
+        The shape guard still refused unassessable rule sets on the way (POST
+        is not a free pass for data this version can not read)."""
         assign_perm("registry.add_datasetmetadatarecord", self.curator)
         body = api_body(
             attributes={"title": "Created under a rule set"},
@@ -379,7 +395,9 @@ class ProfileRulesOnSaveApiTests(TestCase):
 
     def test_a_record_without_a_document_is_not_blocked_by_document_rules(
             self):
-        """api-created records before #1244: same posture as the POST."""
+        """A legacy record serving no document: same posture as the POST at
+        validation time - its first served document is the one this write
+        publishes at commit (#1244)."""
         record = self.record(with_document=False)
         status, answer = self.patch(record, {"title": "No document, no rule"})
         self.assertEqual(status, 200, answer)

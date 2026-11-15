@@ -593,7 +593,7 @@ class OGCRequest(Request):
         """
         if self._xml_request is None:
             # FUTURE: implement the xml request generation for other requests too.
-            if self.is_get_feature_request:  # NOSONAR: See FUTURE note above
+            if self.is_get_feature_request:  # NOSONAR see FUTURE note above
                 if self.is_post:
                     self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:

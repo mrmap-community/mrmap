@@ -49,7 +49,7 @@ class HistoricalViewSetMixin:
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("history_user").defer(*defer)
-        elif include and "historyUser" in include:
+        else:
             # FUTURE: select_for_includes setup does not work for history records...
             qs = qs.select_related("history_user")
 

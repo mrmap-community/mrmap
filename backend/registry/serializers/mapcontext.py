@@ -191,4 +191,3 @@ class MapContextIncludeSerializer(
     class Meta:
         model = MapContext
         fields = "__all__"
-        fields = "__all__"

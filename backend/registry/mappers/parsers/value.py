@@ -163,7 +163,8 @@ def _split_code(_mapper, code_string):
             tmp = code_string.split("/")
             _code = tmp[len(tmp) - 1]
             _code_space = code_string.replace(_code, "")
-        elif parsed_url.scheme == "http" or parsed_url.scheme == "https" and "#" in code_string:
+        elif parsed_url.scheme == "https" and "#" in code_string:
+            # an http url always took the branch above
             tmp = code_string.split("#")
             _code = tmp[1]
             _code_space = tmp[0]

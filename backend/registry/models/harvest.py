@@ -1871,7 +1871,12 @@ class TemporaryMdMetadataFile(models.Model):
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
-        collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
+        if exists and update:
+            collecting_state = CollectingStatenEnum.UPDATED.value
+        elif exists:
+            collecting_state = CollectingStatenEnum.EXISTING.value
+        else:
+            collecting_state = CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
             db_metadata,
             collecting_state,

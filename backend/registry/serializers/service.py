@@ -162,13 +162,6 @@ class LayerSerializer(
         label=_("maximum scale"),
         read_only=True,
         help_text=_("the maximum scale value."))
-    styles = SerializerMethodResourceRelatedField(
-        label=_("styles"),
-        help_text=_("related styles of this layer."),
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name="registry:layer-styles-list",
-        related_link_url_kwarg="parent_lookup_layer",
-    )
     reference_systems = SerializerMethodResourceRelatedField(
         label=_("reference systems"),
         help_text=_("available reference systems of this layer."),
@@ -1029,5 +1022,4 @@ class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSer
 
     class Meta:
         model = CatalogueServiceOperationUrl
-        fields = "__all__"
         fields = "__all__"

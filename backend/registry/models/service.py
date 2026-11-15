@@ -198,7 +198,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             # is the most efficient way to do it.
             if isinstance(self, WebMapService):
                 self.layers.update(is_active=self.is_active)
-            elif isinstance(self, WebFeatureService):
+            else:
+                # old only ever holds a WMS or WFS row, so this is
+                # the WFS case whenever the branch runs
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
@@ -243,7 +245,12 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         return cap_url
 
     def get_secured_capabilities_url(self, request) -> str:
-        url_name = "wms-operation" if self.service_type == "WMS" else "wfs-operation" if self.service_type == "WFS" else "csw-operation"
+        if self.service_type == "WMS":
+            url_name = "wms-operation"
+        elif self.service_type == "WFS":
+            url_name = "wfs-operation"
+        else:
+            url_name = "csw-operation"
 
         proxy_url = self.get_secured_url(
             request=request,
@@ -1034,7 +1041,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         null=True,
         verbose_name=_("describe feature type"),
         help_text=_(
-            "the fetched content of the download describe feature" " type document."
+            "the fetched content of the download describe feature type document."
         ),
     )
     # FUTURE: this srs needs to be added to reference_systems per annotation or otherwise for search purpose

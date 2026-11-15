@@ -52,8 +52,8 @@ class OGCServiceXmlMapper(XmlMapper):
             v for (s, v) in XPATH_MAP.keys() if s == service_type]
         if not available_versions:
             raise ValueError(f"No mapping for {service_type}")
-        fallback_version = sorted(available_versions, key=lambda v: tuple(
-            int(x) for x in v.split(".")))[-1]
+        fallback_version = max(available_versions, key=lambda v: tuple(
+            int(x) for x in v.split(".")))
         return XPATH_MAP[(service_type, fallback_version)]
 
 

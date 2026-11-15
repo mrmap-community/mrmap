@@ -953,12 +953,11 @@ def sweep_registration_orphan_files():
             continue
         process_pk = int(process_dir)
         rows = TemporaryMdMetadataFile.objects.filter(
-            background_process_id=process_pk).only(
-                "md_metadata_file", "claim_token")
-        live_names = {row.md_metadata_file.name for row in rows
-                      if row.md_metadata_file.name}
-        live_tokens = {str(row.claim_token) for row in rows
-                       if row.claim_token is not None}
+            background_process_id=process_pk)
+        live_names = {name for name in rows.values_list(
+            "md_metadata_file", flat=True) if name}
+        live_tokens = {str(token) for token in rows.values_list(
+            "claim_token", flat=True) if token is not None}
         try:
             _, file_names = storage.listdir(f"{base}/{process_dir}")
         except FileNotFoundError:

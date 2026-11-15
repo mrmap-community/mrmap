@@ -17,7 +17,7 @@ logger: Logger = settings.ROOT_LOGGER
 
 
 class PersistenceHandler:
-    def __init__(self, mapper, defaults={}, change_reason=None):
+    def __init__(self, mapper, defaults=None, change_reason=None):
         """
         mapper: XmlMapper-Instanz
         defaults: field values the caller adds to a parsed instance, keyed per
@@ -27,7 +27,7 @@ class PersistenceHandler:
             metadata record; None leaves the reason of that row empty
         """
         self.mapper = mapper
-        self.defaults = defaults
+        self.defaults = defaults if defaults is not None else {}
         self.change_reason = change_reason
         self.final_instances_map = {}
 
@@ -169,7 +169,7 @@ class PersistenceHandler:
             original_obj = original_objects.get(key)
             if original_obj is not None:
                 for attr, value in original_obj.__dict__.items():
-                    if (attr.endswith("_parsed") or attr.endswith('_custom_state')) and not hasattr(final_obj, attr):
+                    if attr.endswith(("_parsed", "_custom_state")) and not hasattr(final_obj, attr):
                         setattr(final_obj, attr, value)
 
     # ------------------------

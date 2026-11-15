@@ -374,11 +374,11 @@ class OgcServiceProxyView(APIView):
                 else:
                     user = self.request.user
                 regex = re.compile("^HTTP_")
-                headers = dict(
-                    (regex.sub("", header), value)
+                headers = {
+                    regex.sub("", header): value
                     for (header, value) in self.request.META.items()
                     if header.startswith("HTTP_")
-                )
+                }
 
                 # Determine the original user and test user for logging
                 is_test_request = self.test_context is not None

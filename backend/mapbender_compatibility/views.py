@@ -46,13 +46,11 @@ class MapBenderSearchApi(View):
 
         cql_filter_expr = f"Type LIKE '{search_resources}'"  # noqa
 
-        first_loop = True
         for any_text in any_text_filters:
-
-            if first_loop:
-                cql_filter_expr += f" And AnyText LIKE '{any_text}'"
-            else:
-                cql_filter_expr += f" Or AnyText LIKE '{any_text}'"
+            # the first_loop flag of the original implementation never
+            # flipped, so every search text was ANDed - the FUTURE note
+            # above owns the comma semantics
+            cql_filter_expr += f" And AnyText LIKE '{any_text}'"
 
         # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
         search_bbox = self.request.GET.get("searchBbox")

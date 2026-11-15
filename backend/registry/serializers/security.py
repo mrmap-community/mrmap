@@ -197,4 +197,3 @@ class WebFeatureServiceProxySettingSerializer(
     class Meta:
         model = WebFeatureServiceProxySetting
         fields = '__all__'
-        fields = '__all__'

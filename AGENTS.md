@@ -394,6 +394,11 @@ After modifications:
 
 ### SonarCloud findings
 
+Agent pre-push Sonar setup is documented in `docs/source/development/code-quality.rst` under
+"Agent Sonar setup": the external launcher injects `SONAR_TOKEN`, and
+`python3 scripts/git_checks.py install --sonar` enables the required static preflight. Credentials
+stay in the process environment; the full CI coverage gate still applies.
+
 SonarCloud scans the new code of a change and answers the pull request with its findings. Solve a
 reported finding where it was reported: fix the flagged code or resolve the finding in the report.
 Do not push new code around a finding to work around it — new code is scanned as new code too, the

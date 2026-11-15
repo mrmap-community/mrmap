@@ -32,4 +32,11 @@ export const isSameValue = (
 ): boolean =>
   element.kind === "attribute"
     ? isEqual(current ?? null, next ?? null)
-    : isEqual(relatedIds(current).map(String).sort(), relatedIds(next).map(String).sort());
+    : isEqual(
+        relatedIds(current)
+          .map(String)
+          .sort((a, b) => a.localeCompare(b)),
+        relatedIds(next)
+          .map(String)
+          .sort((a, b) => a.localeCompare(b)),
+      );

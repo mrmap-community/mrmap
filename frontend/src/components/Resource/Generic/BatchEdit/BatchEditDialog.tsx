@@ -64,16 +64,24 @@ export const BATCH_EDIT_MAX_RECORDS = 25;
 type Phase = "change" | "preview" | "result";
 
 type OutcomeStatus =
-  | "pending"
-  | "applying"
-  | "applied"
-  | "rejected"
-  | "skipped";
+  "pending" | "applying" | "applied" | "rejected" | "skipped";
 
 interface Outcome {
   status: OutcomeStatus;
   detail?: string;
 }
+
+/** The chip spelling of an outcome - stated once per status instead of a
+ *  ternary chain the reader has to unwind. */
+const outcomeChipColor = (status: OutcomeStatus) => {
+  if (status === "applied") return "success" as const;
+  if (status === "rejected") return "error" as const;
+  if (status === "applying") return "primary" as const;
+  return "default" as const;
+};
+
+const outcomeChipVariant = (status: OutcomeStatus) =>
+  status === "applied" || status === "rejected" ? "filled" : "outlined";
 
 interface BatchEditDialogProps {
   /** The json:api type of the selected records. */
@@ -156,7 +164,8 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
   const records = useMemo(() => current.data ?? [], [current.data]);
 
   // the label of the value about to be written, when it names a related record
-  const newRefIds = element?.reference !== undefined ? relatedIds(editValue) : [];
+  const newRefIds =
+    element?.reference !== undefined ? relatedIds(editValue) : [];
   const newRefs = useGetMany(
     element?.reference ?? resource,
     { ids: newRefIds },
@@ -188,7 +197,12 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
       );
       if (items.length === 0) return translate("batchEdit.noValue");
       return (
-        <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+        >
           {items.map((item) => {
             const id = (item as RaRecord).id;
             const full = store.find((entry) => entry.id === id) ?? item;
@@ -223,7 +237,9 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
         if (details.length > 0) return details.join(" · ");
       }
       if (error.response?.status !== undefined)
-        return translate("batchEdit.httpError", { status: error.response.status });
+        return translate("batchEdit.httpError", {
+          status: error.response.status,
+        });
     }
     return error instanceof Error && error.message !== ""
       ? error.message
@@ -259,11 +275,15 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
       results = { ...results, [key]: { status: "applying" } };
       setOutcomes(results);
       try {
-        await dataProvider.update(resource, {
+        // sequential on purpose by decision of #1249: every record is
+        // validated and answered on its own, its chip updates in order, and a
+        // run must not hit the write path concurrently
+        const params = {
           id: row.record.id,
           data: { [element.source]: editValue },
           previousData: row.record,
-        });
+        };
+        await dataProvider.update(resource, params); // NOSONAR S9382 - the parallelism it asks for is what this design deliberately does not want
         applied += 1;
         results = { ...results, [key]: { status: "applied" } };
       } catch (error) {
@@ -303,27 +323,34 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
     />
   );
 
-  const actions =
-    phase === "change" ? (
-      <>
-        <Button label="ra.action.cancel" onClick={close} />
-        {submitButton}
-      </>
-    ) : phase === "preview" ? (
-      <>
-        <Button label="batchEdit.back" onClick={() => setPhase("change")} />
-        <Button
-          label={translate("batchEdit.apply", {
-            smart_count: sendable.length,
-          })}
-          onClick={apply}
-          variant="contained"
-          disabled={overCap || sendable.length === 0}
-        />
-      </>
-    ) : (
+  const actions = (() => {
+    if (phase === "change") {
+      return (
+        <>
+          <Button label="ra.action.cancel" onClick={close} />
+          {submitButton}
+        </>
+      );
+    }
+    if (phase === "preview") {
+      return (
+        <>
+          <Button label="batchEdit.back" onClick={() => setPhase("change")} />
+          <Button
+            label={translate("batchEdit.apply", {
+              smart_count: sendable.length,
+            })}
+            onClick={apply}
+            variant="contained"
+            disabled={overCap || sendable.length === 0}
+          />
+        </>
+      );
+    }
+    return (
       <Button label="ra.action.close" onClick={onClose} disabled={running} />
     );
+  })();
 
   const outcomeCell = (record: RaRecord): ReactNode => {
     const outcome = outcomes[String(record.id)];
@@ -332,20 +359,8 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
       <Stack spacing={0.5} sx={{ minWidth: 140 }}>
         <Chip
           size="small"
-          color={
-            outcome.status === "applied"
-              ? "success"
-              : outcome.status === "rejected"
-                ? "error"
-                : outcome.status === "applying"
-                  ? "primary"
-                  : "default"
-          }
-          variant={
-            outcome.status === "applied" || outcome.status === "rejected"
-              ? "filled"
-              : "outlined"
-          }
+          color={outcomeChipColor(outcome.status)}
+          variant={outcomeChipVariant(outcome.status)}
           label={translate(`batchEdit.outcome.${outcome.status}`)}
         />
         {outcome.detail !== undefined && (
@@ -434,7 +449,8 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
                     renderValue={(value) =>
                       value === ""
                         ? translate("batchEdit.elementPlaceholder")
-                        : (elements.find((item) => item.source === value)?.label ?? value)
+                        : (elements.find((item) => item.source === value)
+                            ?.label ?? value)
                     }
                   >
                     <MenuItem value="" disabled>
@@ -448,7 +464,9 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
                   </Select>
                   {element !== undefined && (
                     <Typography variant="caption" color="text.secondary">
-                      {translate("batchEdit.isoPath", { path: element.isoPath })}
+                      {translate("batchEdit.isoPath", {
+                        path: element.isoPath,
+                      })}
                     </Typography>
                   )}
                 </Box>
@@ -508,11 +526,15 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
                       {rows.map((row) => (
                         <TableRow key={String(row.record.id)}>
                           <TableCell>
-                            {row.record.title ?? row.record.stringRepresentation ?? row.record.id}
+                            {row.record.title ??
+                              row.record.stringRepresentation ??
+                              row.record.id}
                           </TableCell>
                           <TableCell>
                             {formatValue(
-                              element !== undefined ? row.record[element.source] : undefined,
+                              element !== undefined
+                                ? row.record[element.source]
+                                : undefined,
                             )}
                           </TableCell>
                           <TableCell>

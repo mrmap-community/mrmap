@@ -115,3 +115,86 @@ def delete_old_slow_request_dumps(self, *args, **kwargs):
         summary["directory"], summary["expired"], summary["excess"],
         summary["remaining"], summary["retention_days"], summary["max_files"])
     return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def bound_task_attempt_samples(self, *args, **kwargs):
+    """Keeps the attempt samples of #1330 honest and bounded.
+
+    Three sweeps over the ``CeleryTaskAttempt`` rows, in the order they must
+    happen:
+
+    *   attempts which never reported an end within
+        ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` get the ``abandoned``
+        quality flag - the lost worker or hard-killed process becomes an
+        explicitly uncertain observation instead of an open row nobody talks
+        about. The flag never fabricates a duration; the aggregation already
+        ignores open rows for the occupied seconds. A task which runs past
+        the grace but does finish writes its terminal row beside it, and a
+        finished attempt with a flagged open twin is no longer counted as
+        uncertain - the flag only marks what stayed without an end.
+    *   rows recorded before ``CAPACITY_TELEMETRY_RETENTION_DAYS`` go; they
+        have told what they had to tell to the snapshot window of #1326.
+    *   ``CAPACITY_TELEMETRY_MAX_ATTEMPTS`` bounds the table for a deployment
+        whose retention choice outran its disk: the oldest rows go first.
+
+    Runs on ``db-routines`` as a singleton, hourly on a beat row created at
+    migrate (``system/apps.py``).
+    """
+    from django.utils import timezone
+
+    from system.models import AttemptQuality, CeleryTaskAttempt
+
+    summary = {"flagged": 0, "expired": 0, "over_cap": 0, "remaining": 0}
+    now = timezone.now()
+
+    # 1. declare the crash residue uncertain, in bounded pages: the page
+    #    bound is also the statement bound of a single sweep
+    page_size = 500
+    grace_hours = max(1, int(getattr(
+        settings, "CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS", 48)))
+    grace_since = now - timedelta(hours=grace_hours)
+    flag = AttemptQuality.ABANDONED.value
+    while True:
+        stale = list(
+            CeleryTaskAttempt.objects
+            .filter(outcome="", started_at__lt=grace_since)
+            .exclude(quality__contains=[flag])
+            .order_by("started_at")[:page_size])
+        if not stale:
+            break
+        for row in stale:
+            row.quality = sorted(set(row.quality or []) | {flag})
+        CeleryTaskAttempt.objects.bulk_update(stale, ["quality"])
+        summary["flagged"] += len(stale)
+        if len(stale) < page_size:
+            break
+
+    # 2. retention
+    retention_days = max(0, int(getattr(
+        settings, "CAPACITY_TELEMETRY_RETENTION_DAYS", 14)))
+    if retention_days:
+        expired, _per_model = CeleryTaskAttempt.objects.filter(
+            recorded_at__lt=now - timedelta(days=retention_days)).delete()
+        summary["expired"] = expired
+
+    # 3. hard cap: the oldest survivors when the count exceeded the bound
+    max_rows = max(0, int(getattr(
+        settings, "CAPACITY_TELEMETRY_MAX_ATTEMPTS", 200_000)))
+    if max_rows:
+        total = CeleryTaskAttempt.objects.count()
+        if total > max_rows:
+            excess_ids = CeleryTaskAttempt.objects.order_by(
+                "recorded_at").values_list("id", flat=True)[:total - max_rows]
+            over_cap, _per_model = CeleryTaskAttempt.objects.filter(
+                id__in=list(excess_ids)).delete()
+            summary["over_cap"] = over_cap
+            total -= over_cap
+        summary["remaining"] = total
+
+    logger.info(
+        "Task attempt samples (#1330): %s open attempts past the grace flagged "
+        "abandoned, %s past retention and %s over cap deleted, %s left.",
+        summary["flagged"], summary["expired"], summary["over_cap"],
+        summary["remaining"])
+    return summary

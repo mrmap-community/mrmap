@@ -8,7 +8,13 @@ decision of the #1238 review). What a record write answers is pinned here:
   creates a stored record with the server-assigned uuid, `origin` EDITOR -
   the value of a curator creation, the reading of the AC's "origin=
   customized" on the existing enum, the issue carries the word for review -
-  and the generic profile the creation paths fall back to (#1240);
+  `is_customized` True, because a record which came into existence at the
+  curator's desk is curated content and no catalogue's copy (#1248), and the
+  generic profile the creation paths fall back to (#1240);
+* a creation may name the record's file identifier and the answer to a
+  collision is a 400 pointing at that field, before the row is written; left
+  blank, the model generates the uuid. The identifier stays read-only from the
+  second request on (#1248);
 * PATCH touches only the sent fields and marks the record through the normal
   model save: `is_customized=True` and `date_stamp` bumped, the side effects
   the harvest overwrite gate of #1244 relies on;
@@ -39,6 +45,7 @@ from uuid import UUID
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from guardian.shortcuts import assign_perm
+from lxml import etree
 from rest_framework.test import APIClient
 from registry.enums.metadata import MetadataOriginEnum
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
@@ -138,6 +145,17 @@ class RecordWriteSerializerCreationTests(TestCase):
             application_contact=self.contact)
         self.assertEqual(record.origin, MetadataOriginEnum.EDITOR.value)
 
+    def test_a_created_record_is_curated_content_of_every_kind(self):
+        """#1248: a record authored here is customized from its first row on."""
+        for serializer, attrs in (
+                (ServiceMetadataRecordSerializer, {}),
+                (DatasetMetadataRecordSerializer,
+                 {"dataset_contact": self.contact}),
+                (ApplicationMetadataRecordSerializer,
+                 {"application_contact": self.contact})):
+            with self.subTest(serializer=serializer.__name__):
+                self.assertTrue(self._create(serializer, **attrs).is_customized)
+
 
 class RecordWriteApiTests(TestCase):
     """The write endpoints at the shipped default, gate open since #1244."""
@@ -196,8 +214,11 @@ class RecordWriteApiTests(TestCase):
         self.assertEqual(record.origin, MetadataOriginEnum.EDITOR.value)
         # the #1240 creation path: no profile named means the generic one
         self.assertEqual(record.profile_id, self.profile.pk)
-        # a creation is not yet an edit: both update side effects are off
-        self.assertFalse(record.is_customized)
+        # the creation is itself the curation: the record is authored here and
+        # is no catalogue's copy, which is what the flag answers (#1248)
+        self.assertTrue(record.is_customized)
+        # the update side effects stay with an update: the creation carries its
+        # own stamp and no editor has changed a field of it yet
         self.assertIsNotNone(record.date_stamp)
 
     def test_a_post_without_the_model_grant_is_denied(self):
@@ -269,6 +290,12 @@ class RecordWriteApiTests(TestCase):
         self.assertEqual(self.record.title, "Harvested dataset record")
 
     def test_a_post_naming_several_read_only_fields_refuses_them_all(self):
+        """Every member the server owns, on every verb.
+
+        `file_identifier` is the one member a creation may name (#1248), so it
+        is not among the offenders here — its own tests below pin what a
+        creation does with it and that an update still may not name it.
+        """
         self.grant("add", DatasetMetadataRecord)
         client = APIClient()
         client.force_authenticate(user=self.curator)
@@ -277,7 +304,7 @@ class RecordWriteApiTests(TestCase):
             self.dataset_body(
                 attributes={
                     "title": "Stamped by the client",
-                    "fileIdentifier": "client-wants-this",
+                    "dateStamp": "2020-01-01T00:00:00Z",
                     "origin": MetadataOriginEnum.CATALOGUE.value,
                     "isBroken": True},
                 # the required contacts must be in the payload: without them,
@@ -289,7 +316,7 @@ class RecordWriteApiTests(TestCase):
         self.assertEqual(status, 400, answer)
         pointers = {error["source"]["pointer"] for error in answer["errors"]}
         self.assertEqual(pointers, {
-            "/data/attributes/fileIdentifier",
+            "/data/attributes/dateStamp",
             "/data/attributes/origin",
             "/data/attributes/isBroken"})
 
@@ -328,6 +355,132 @@ class RecordWriteApiTests(TestCase):
         self.assertEqual(status, 201, answer)
         record = ServiceMetadataRecord.objects.get(pk=answer["data"]["id"])
         self.assertEqual(record.origin, MetadataOriginEnum.EDITOR.value)
+
+
+class RecordCreationFileIdentifierTests(TestCase):
+    """The file identifier a creation names (#1248).
+
+    The create screen asks the curator for the ISO ``fileIdentifier`` of the
+    record they author. Three answers are pinned here, none of which leaves a
+    half-written record behind: a free identifier becomes the row's value and
+    the value of the document served for it; a taken one is refused with the
+    pointer of the member the curator typed; a blank one lets the model
+    generate the uuid. Afterwards the value is immutable — it is the identifier
+    by which a catalogue's document finds the row
+    (``get_or_create_metadatarecord()``), so renaming it would move the record
+    to another identity instead of editing it.
+    """
+
+    fixtures = ["test_users.json"]
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        get_user_model().objects.get_or_create(username="AnonymousUser")
+        cls.contact = MetadataContact.objects.create(name="Identifier contact")
+        cls.profile = ensure_generic_profile()
+        cls.curator = get_user_model().objects.create_user(
+            "identifier-curator", password="test")
+
+    def grant(self, action, model, obj=None):
+        assign_perm(f"registry.{action}_{model._meta.model_name}",
+                    self.curator, obj)
+
+    def curator_client(self):
+        # not named `client`: TestCase._pre_setup assigns an instance
+        # attribute of that name, which would shadow the method
+        client = APIClient()
+        client.force_authenticate(user=self.curator)
+        return client
+
+    def body(self, attributes=None, pk=None):
+        contact = {"data": {
+            "type": "MetadataContact", "id": str(self.contact.pk)}}
+        data = {"type": "DatasetMetadataRecord",
+                "attributes": {"title": "Created at the desk",
+                               **(attributes or {})},
+                "relationships": {"metadataContact": contact,
+                                  "datasetContact": contact}}
+        if pk:
+            data["id"] = str(pk)
+        return {"data": data}
+
+    def test_a_named_identifier_becomes_the_row_and_the_document(self):
+        self.grant("add", DatasetMetadataRecord)
+        status, answer = api(
+            self.curator_client(), "post", "/api/registry/dataset-metadata",
+            self.body(attributes={"fileIdentifier": "de-bbk-nrw-2026-0001"}))
+        self.assertEqual(status, 201, answer)
+        record = DatasetMetadataRecord.objects.get(pk=answer["data"]["id"])
+        self.assertEqual(record.file_identifier, "de-bbk-nrw-2026-0001")
+        # row and served document agree from the first save: the publish writes
+        # the row's identifier into the document's gmd:fileIdentifier (#1244)
+        root = etree.fromstring(record.xml_backup)
+        identifiers = root.xpath(
+            "//*[local-name()='fileIdentifier']"
+            "//*[local-name()='CharacterString']/text()")
+        self.assertEqual(identifiers, ["de-bbk-nrw-2026-0001"])
+
+    def test_a_collision_is_answered_on_the_field_before_the_record(self):
+        DatasetMetadataRecord.objects.create(
+            title="Already in the catalogue",
+            dataset_contact=self.contact, metadata_contact=self.contact,
+            file_identifier="de-bbk-nrw-2026-0001")
+        self.grant("add", DatasetMetadataRecord)
+        status, answer = api(
+            self.curator_client(), "post", "/api/registry/dataset-metadata",
+            self.body(attributes={"fileIdentifier": "de-bbk-nrw-2026-0001"}))
+        self.assertEqual(status, 400, answer)
+        self.assertEqual(
+            [error["source"]["pointer"] for error in answer["errors"]],
+            ["/data/attributes/fileIdentifier"])
+        self.assertIn("already exists", answer["errors"][0]["detail"])
+        # the refused creation wrote no row: the one which was there before is
+        # still the only one carrying that identifier
+        self.assertEqual(DatasetMetadataRecord.objects.count(), 1)
+
+    def test_a_blank_identifier_is_generated_by_the_server(self):
+        self.grant("add", DatasetMetadataRecord)
+        status, answer = api(
+            self.curator_client(), "post", "/api/registry/dataset-metadata",
+            self.body(attributes={"fileIdentifier": "   "}))
+        self.assertEqual(status, 201, answer)
+        record = DatasetMetadataRecord.objects.get(pk=answer["data"]["id"])
+        # the model's uuid4 default: a curator who does not name the record
+        # gets an identifier the server generated
+        self.assertEqual(UUID(record.file_identifier).hex,
+                         record.file_identifier.replace("-", ""))
+
+    def test_an_over_long_identifier_names_the_field_it_refuses(self):
+        self.grant("add", DatasetMetadataRecord)
+        status, answer = api(
+            self.curator_client(), "post", "/api/registry/dataset-metadata",
+            self.body(attributes={"fileIdentifier": "x" * 1001}))
+        self.assertEqual(status, 400, answer)
+        self.assertEqual(
+            [error["source"]["pointer"] for error in answer["errors"]],
+            ["/data/attributes/fileIdentifier"])
+        self.assertEqual(DatasetMetadataRecord.objects.count(), 0)
+
+    def test_the_identifier_is_read_only_once_the_record_exists(self):
+        """The creation exception does not reach an update (#1241 stays)."""
+        record = DatasetMetadataRecord.objects.create(
+            title="Created, then renamed?",
+            dataset_contact=self.contact, metadata_contact=self.contact,
+            file_identifier="de-bbk-nrw-2026-0001")
+        self.grant("change", DatasetMetadataRecord)
+        self.grant("change", DatasetMetadataRecord, record)
+        status, answer = api(
+            self.curator_client(), "patch",
+            f"/api/registry/dataset-metadata/{record.pk}",
+            self.body(attributes={"fileIdentifier": "something-else"},
+                      pk=record.pk))
+        self.assertEqual(status, 400, answer)
+        self.assertEqual(
+            [error["source"]["pointer"] for error in answer["errors"]],
+            ["/data/attributes/fileIdentifier"])
+        record.refresh_from_db()
+        self.assertEqual(record.file_identifier, "de-bbk-nrw-2026-0001")
 
 
 class RecordWriteActivationGateTests(TestCase):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 16:05+0100\n"
+"POT-Creation-Date: 2026-11-15 19:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3396,7 +3396,11 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
-#: registry/serializers/metadata.py:369
+#: registry/serializers/metadata.py:64
+msgid "The source document must be sent as the document text."
+msgstr "Das Quelldokument muss als Dokumenttext gesendet werden."
+
+#: registry/serializers/metadata.py:492
 msgid ""
 "The ISO document served for this record could not be regenerated from its "
 "stored fields; the write is refused so that the served document never "
@@ -3406,11 +3410,42 @@ msgstr ""
 "gespeicherten Feldern nicht neu erzeugt werden; die Schreiboperation wird "
 "abgelehnt, damit das ausgelieferte Dokument dem Datensatz nie widerspricht."
 
-#: registry/serializers/metadata.py:403
+#: registry/serializers/metadata.py:514
+msgid ""
+"The submitted source document could not be published as the record's "
+"document; the write is refused and nothing changed."
+msgstr ""
+"Das übermittelte Quelldokument konnte nicht als Dokument des Datensatzes "
+"veröffentlicht werden; die Schreiboperation wird abgelehnt und nichts wurde "
+"geändert."
+
+#: registry/serializers/metadata.py:556
 msgid "This field is read-only and can not be written."
 msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
 
-#: registry/serializers/metadata.py:439
+#: registry/serializers/metadata.py:599
+msgid "The file identifier must be a text."
+msgstr "Der Dateienidentifikator muss ein Text sein."
+
+#: registry/serializers/metadata.py:609
+#, python-format
+msgid ""
+"The file identifier is too long; it may hold at most %(max_length)s "
+"characters."
+msgstr ""
+"Der Dateienidentifikator ist zu lang; er darf höchstens %(max_length)s "
+"Zeichen enthalten."
+
+#: registry/serializers/metadata.py:616
+msgid ""
+"A record with this file identifier already exists. The file identifier is "
+"the identifier of the record inside its ISO document and must be unique."
+msgstr ""
+"Ein Datensatz mit diesem Dateienidentifikator existiert bereits. Der "
+"Dateienidentifikator ist die Kennung des Datensatzes in seinem ISO-Dokument "
+"und muss eindeutig sein."
+
+#: registry/serializers/metadata.py:653
 msgid ""
 "This field is read out of the record's ISO document but the document has no "
 "writable mapping for it; accepting this write would leave the served "
@@ -3420,7 +3455,44 @@ msgstr ""
 "Dokument hat keine beschreibbare Zuordnung dafür; diese Schreiboperation "
 "würde das ausgelieferte Dokument hinter dem Datensatz zurücklassen."
 
-#: registry/serializers/metadata.py:477
+#: registry/serializers/metadata.py:697
+msgid ""
+"A created record receives its first document from its fields; the raw source "
+"document is written onto an existing record."
+msgstr ""
+"Ein neu erzeugter Datensatz erhält sein erstes Dokument aus seinen Feldern; "
+"das rohe Quelldokument wird auf einen bestehenden Datensatz geschrieben."
+
+#: registry/serializers/metadata.py:716
+msgid ""
+"The raw source document replaces every form-mapped value of the record; it "
+"must be written on its own, without other attributes."
+msgstr ""
+"Das rohe Quelldokument ersetzt jeden vom Formular abgebildeten Wert des "
+"Datensatzes; es muss für sich allein, ohne weitere Attribute, gesendet "
+"werden."
+
+#: registry/serializers/metadata.py:728
+#, python-format
+msgid ""
+"The source document is not well-formed XML (line %(line)s, column "
+"%(column)s)."
+msgstr ""
+"Das Quelldokument ist nicht wohlgeformtes XML (Zeile %(line)s, Spalte "
+"%(column)s)."
+
+#: registry/serializers/metadata.py:740
+msgid ""
+"The submitted document can not become this record's source document: it must "
+"carry exactly this record - identified by its fileIdentifier, with a "
+"parseable dateStamp - as the kind of ISO 19139 document the record is."
+msgstr ""
+"Das übermittelte Dokument kann nicht das Quelldokument dieses Datensatzes "
+"werden: Es muss genau diesen Datensatz enthalten – identifiziert durch seine "
+"fileIdentifier, mit einem parsebaren dateStamp – als die Art von ISO-19139-"
+"Dokument, als die der Datensatz geführt wird."
+
+#: registry/serializers/metadata.py:778
 msgid ""
 "The profile of this record names structural rules which this version can not "
 "evaluate; the write is refused instead of skipping the validation."
@@ -3429,7 +3501,7 @@ msgstr ""
 "nicht auswerten kann; die Schreiboperation wird abgelehnt, statt die "
 "Überprüfung zu überspringen."
 
-#: registry/serializers/metadata.py:520
+#: registry/serializers/metadata.py:831
 msgid ""
 "The structural rules of this record's profile could not be assessed against "
 "its ISO document; the write is refused instead of skipping the validation."
@@ -4134,7 +4206,7 @@ msgstr ""
 "Das Schreiben von Metadatensätzen ist in dieser Installation deaktiviert "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
 
-#: system/apps.py:44
+#: system/apps.py:76
 msgid "System"
 msgstr "System"
 

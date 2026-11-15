@@ -223,8 +223,15 @@ const handleBadRequest = (error: AxiosError) => {
     const jsonApiResponse = error.response.data as JsonApiDocument
     const jsonApiErrors = jsonApiResponse.errors
     
-    const raErrorPayload: { errors: Record<string, string | { serverError: string }> } = {
-      errors: {}
+    // the mapped `errors` object feeds react-admin's per-field messages; the
+    // untouched json:api error objects ride along so the record editor's
+    // findings rail can show rule id, severity and ISO family (#1245)
+    const raErrorPayload: {
+      errors: Record<string, string | { serverError: string }>
+      jsonApiErrors?: unknown[]
+    } = {
+      errors: {},
+      jsonApiErrors: jsonApiErrors as unknown[] | undefined,
     }
 
     jsonApiErrors?.forEach(jsonApiError => {

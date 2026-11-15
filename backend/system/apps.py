@@ -7,6 +7,10 @@ from django.utils.translation import gettext_lazy as _
 #: tests look the row up by it
 SLOW_REQUEST_DUMP_CLEANUP_TASK_NAME = "delete old slow request dumps"
 
+#: the name the bounding sweep of the #1330 attempt samples has in the schedule
+#: of beat; the tests look the row up by it
+TASK_ATTEMPT_BOUNDING_TASK_NAME = "bound celery task attempt samples"
+
 
 def create_slow_request_dump_cleanup_task(sender, **kwargs):
     """Creates the periodic task which keeps the slow request dumps bounded.
@@ -37,6 +41,34 @@ def create_slow_request_dump_cleanup_task(sender, **kwargs):
     )
 
 
+def create_task_attempt_bounding_task(sender, **kwargs):
+    """Creates the periodic task which keeps the #1330 attempt samples bounded.
+
+    The attempt rows are the measurement source of the capacity snapshots,
+    and rows of an abandoned attempt are of use only until the grace declared
+    them uncertain: retention and the row cap of ``system.tasks`` take them
+    back. Like every other beat schedule of this deployment the row lives in
+    the database, keyed by its name.
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at ten to the hour: the housekeeping of the deployment is spread over
+    # the hour (import every five minutes, dump at :05, probe artifacts at
+    # :20, job history at :30, incidents at :40) and this sweep takes the
+    # next free slot
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="50", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
+
+    PeriodicTask.objects.get_or_create(
+        name=TASK_ATTEMPT_BOUNDING_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "system.tasks.bound_task_attempt_samples",
+        }
+    )
+
+
 class SystemConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'system'
@@ -44,7 +76,16 @@ class SystemConfig(AppConfig):
     verbose_name = _('System')
 
     def ready(self):
+        # the attempt collector of #1330: the celery seams connect on the
+        # import, like the incident publishers of #1320; the receivers read
+        # the settings at every signal, so a process which is not a worker
+        # (or a deployment which turned the telemetry off) stays inert
+        import system.capacity_telemetry  # noqa
         post_migrate.connect(
             create_slow_request_dump_cleanup_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_task_attempt_bounding_task,
             sender=self
         )

@@ -9,7 +9,7 @@ distinguishes: the document it builds is built FROM the row, so the served
 document and the stored record can only ever disagree while a transaction is
 still running.
 
-The one seam, both directions:
+The one seam, every direction:
 
 * :func:`build_resulting_document` answers the document a record's stored
     fields would serve - the record's current document with the row's mapped
@@ -27,6 +27,13 @@ The one seam, both directions:
     commit. On rollback the written file stays as unreferenced garbage of the
     media storage and the row keeps pointing at the old document - "a rejected
     write changes nothing" holds for everything this system serves.
+* the raw write of #1247 goes the third way: the editor submits a document
+    and :func:`build_source_document` validates THAT document against the
+    record - the document is the source and the row's mapped values follow it
+    (:func:`publish_source_document`). The same :func:`_force_header` keeps
+    the document's ``fileIdentifier`` and ``dateStamp`` on the row's terms,
+    so even the escape hatch can not serve a document which disagrees with
+    the record it stands for.
 
 Concurrency is last-write-wins (decision 6 of §7): no lock is taken here, no
 revision token is answered; the last committed publish is the document.
@@ -47,17 +54,22 @@ from logging import Logger
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, models
 from django.db.models.fields.related_descriptors import ManyToManyDescriptor
 from lxml import etree
+from lxml.etree import XMLSyntaxError
 
 from registry.exceptions.metadata import PublishRefused
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.parsers.value import string_to_datetime
 from registry.mappers.persistence.custom import (
     METADATA_RECORD_TYPE_KEYS, XML_BACKUP_NAME)
 from registry.mappers.rules import OVERLAYABLE_FIELDS, copy_record, \
     overlay_write_values
 from registry.mappers.xml_mapper import is_value_spec
+from registry.models.metadata import (IsoCategory, Keyword, Language,
+                                      MetadataContact, ReferenceSystem)
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -299,6 +311,251 @@ def _entry_writable(entry) -> bool:
         return bool(entry.get("_base_xpath")) and bool(
             entry.get("fields") or entry.get("_reverse_parser"))
     return bool(entry.get("_reverse_parser"))
+
+
+#: the scalar fields the raw-XML write of #1247 re-extracts from a submitted
+#: document into the row: the form-mapped columns of
+#: :data:`registry.mappers.rules.OVERLAYABLE_FIELDS` which are plain columns;
+#: the relation names are handled by their own lookup below.
+SOURCE_SCALAR_FIELDS = ("title", "abstract", "charset",
+                        "update_frequency_code", "access_constraints",
+                        "equivalent_scale", "ground_res")
+
+#: the contact FKs of the record kinds, by the name the configs answer
+_SOURCE_CONTACT_FIELDS = ("metadata_contact", "dataset_contact",
+                          "application_contact")
+
+
+def _contact_key_fields() -> tuple:
+    """The columns a MetadataContact row is identified by.
+
+    Derived from the model's own unique constraint ("we store only atomic
+    contact records, identified by all fields") - not kept as a second list.
+    """
+    for constraint in MetadataContact._meta.constraints:
+        if isinstance(constraint, models.UniqueConstraint):
+            return tuple(constraint.fields)
+    return ()
+
+
+def _contact_row_for(current, contact_values: dict):
+    """The MetadataContact row a document's contact dict names.
+
+    The document speaks the four mapped CI_ResponsibleParty values; a row is
+    identified by the full constraint tuple, so the lookup carries the mapped
+    values plus the empty default the other columns carry. A current FK which
+    agrees on every mapped value is KEPT: the document can not speak the
+    other columns, and pointing the record at a fresh row would drop the
+    address detail a harvest parsed beside the mapped four.
+    """
+    if not isinstance(contact_values, dict):
+        return None
+    lookup = {field: str(contact_values.get(field) or "")
+              for field in _contact_key_fields()}
+    mapped = ("name", "person_name", "phone", "email")
+    if current is not None and all(
+            str(getattr(current, field, "") or "") == lookup.get(field)
+            for field in mapped):
+        return current
+    contact = MetadataContact.objects.filter(**lookup).first()
+    if contact is not None:
+        return contact
+    try:
+        return MetadataContact.objects.create(**lookup)
+    except IntegrityError:
+        # a concurrent writer created the same row meanwhile: take theirs
+        return MetadataContact.objects.filter(**lookup).first()
+
+
+def _choice_rows(model, rows, key: str):
+    """The lookup-table rows one extracted collection names by its key.
+
+    Entries which name no value are skipped - a row which names nothing
+    keeps the record's current collection instead of crashing the write.
+    """
+    rows_of = []
+    for entry in rows or []:
+        if not isinstance(entry, dict):
+            continue
+        value = entry.get(key)
+        if value is None:
+            continue
+        row, _ = model.objects.get_or_create(**{key: value})
+        rows_of.append(row)
+    return rows_of
+
+
+def _reextract_into_row(record, values: dict):
+    """Write what the submitted document names into the record's row (#1247).
+
+    The inverse of the form write: the fields the editor maps take the value
+    the DOCUMENT names; a field the document leaves out keeps the row's value
+    (that is the rule the screen states: the next form save regenerates the
+    mapped elements from the database, so a left-out element returns from the
+    value which survived here). ``file_identifier`` and ``date_stamp`` are
+    never re-extracted: their row state is the record's identity and the
+    editor stamp of this save, and the header force wrote the ROW's values
+    into the document, not the other way. A value whose shape the column can
+    not hold (the epic #669 structures the configs read but no record column
+    carries) is skipped for the same reason the form write refuses it.
+    """
+    for name in SOURCE_SCALAR_FIELDS:
+        value = values.get(name)
+        if value is None or isinstance(value, (list, dict)):
+            continue
+        setattr(record, name, value)
+    for name in _SOURCE_CONTACT_FIELDS:
+        if name not in values:
+            continue
+        contact = _contact_row_for(getattr(record, name, None),
+                                   values[name])
+        if contact is not None:
+            setattr(record, name, contact)
+    for name in ("keywords", "languages", "categories", "reference_systems"):
+        rows_of = values.get(name)
+        if not isinstance(rows_of, list) or not hasattr(record, name):
+            # not a collection this record kind carries (the service record
+            # names no categories) or the document names none
+            continue
+        if name == "keywords":
+            record.keywords.set(_choice_rows(Keyword, rows_of, "keyword"))
+        elif name == "languages":
+            record.languages.set(_choice_rows(Language, rows_of, "value"))
+        elif name == "categories":
+            record.categories.set(_choice_rows(IsoCategory, rows_of, "value"))
+        else:
+            rows = []
+            for entry in rows_of:
+                if not isinstance(entry, dict):
+                    continue
+                row, _ = ReferenceSystem.objects.get_or_create(
+                    prefix=entry.get("prefix") or "",
+                    code=entry.get("code") or "")
+                rows.append(row)
+            record.reference_systems.set(rows)
+
+
+def _assert_located_date_stamp(document: bytes, record):
+    """The tree-level header guard: THIS record's node names a dateStamp.
+
+    A value check can not do this: :func:`string_to_datetime` raises on
+    garbage and on nothing, and the mapping pipeline catches that to answer
+    the CURRENT TIME for the failed field — a stripped or corrupt dateStamp
+    node therefore extracts as a perfectly plausible stamp (observed on the
+    first CI run of #1247). Only the located node itself tells whether the
+    curator's document names a stamp the header force can write into.
+    """
+    try:
+        root = etree.fromstring(document)
+    except XMLSyntaxError:
+        raise PublishRefused("the submitted document is not well-formed XML")
+    nodes = [
+        element for element in root.iter()
+        if isinstance(element.tag, str)
+        and etree.QName(element).localname == "MD_Metadata"
+        and "".join(element.xpath(
+            "./*[local-name()='fileIdentifier']//text()")).strip()
+        == str(record.file_identifier)
+    ]
+    if len(nodes) != 1:
+        raise PublishRefused(
+            "the submitted document does not carry this record exactly once")
+    stamps = nodes[0].xpath(
+        "./*[local-name()='dateStamp']/*[local-name()='DateTime'"
+        " or local-name()='Date']/text()")
+    text = next((stamp for stamp in stamps if stamp and stamp.strip()), None)
+    if text is None:
+        raise PublishRefused(
+            "the submitted document carries no dateStamp node")
+    try:
+        string_to_datetime(None, text.strip())
+    except ValueError:
+        raise PublishRefused(
+            "the dateStamp of the submitted document is not a parseable date")
+
+
+def build_source_document(record, document: bytes):
+    """The submitted raw document with the record's header written into it.
+
+    The raw write of #1247 makes the SUBMITTED document the source: unlike
+    :func:`build_resulting_document` nothing is overlaid from the row onto
+    it, and its mapped values flow the other way, into the row (see
+    :func:`publish_source_document`). Three things keep the identity rules of
+    the corpus intact, all of them the fail-closed posture of the form write:
+
+    * the record must appear in the submitted document EXACTLY ONCE - the
+      same :func:`_locate_record` the publish asks, so a document naming
+      another record (or this one twice, or not at all) is refused;
+    * the located node must name its ``fileIdentifier`` and carry a parseable
+      ``dateStamp``: the write mapper can FILL those header nodes but never
+      CREATE them (#1242), and without them the identity and the stamp of
+      the record could not be written into the document it is served as. The
+      dateStamp is checked on the NODE, not on the extracted value: the
+      extractor answers a missing node with the current time rather than with
+      nothing (its parse-failure fallback), so only the tree tells whether the
+      curator's document names a stamp at all;
+    * the header then becomes the ROW's - :func:`_force_header` with the
+      row's ``file_identifier`` and the ``date_stamp`` the editor save
+      bumped - so the served document can never disagree with the row it
+      stands for, the invariant of this whole module.
+
+    Returns:
+        (bytes, dict): the document as the publish will store it, and the
+        values extracted from the SUBMITTED document (before the header
+        force) - the re-extraction source for the row.
+
+    Raises:
+        PublishRefused: when the document can not become this record's
+            source document - fail-closed, never a write whose served
+            document is unknown.
+    """
+    kind = record_kind(record)
+    try:
+        records = MDMetadataXmlMapper.extract_mapped_values(document)
+    except Exception:
+        logger.exception(
+            "a submitted source document for record %s (%s) can not be "
+            "mapped", record.pk, kind)
+        raise PublishRefused("the submitted document can not be mapped")
+    position = _locate_record(records, record)
+    extracted = copy_record(records[position])["values"]
+    if not str(extracted.get("file_identifier") or "").strip():
+        raise PublishRefused(
+            "the submitted document names no fileIdentifier")
+    _assert_located_date_stamp(document, record)
+    entry = copy_record(records[position])
+    _force_header(entry["values"], record)
+    records[position] = entry
+    try:
+        published, warnings = MDMetadataXmlMapper.write_mapped_records(
+            document, records)
+    except Exception:
+        logger.exception(
+            "the write mapper refused the submitted source document of "
+            "record %s", record.pk)
+        raise PublishRefused("the write mapper refused the submitted "
+                             "document")
+    for warning in warnings:
+        logger.debug("write mapper: record %s: %s", record.pk, warning)
+    return published, extracted
+
+
+def publish_source_document(record, document: bytes, values: dict):
+    """Store the validated source document and re-extract its values (#1247).
+
+    The write of the document itself: the bytes are the ones validation
+    accepted, header included - what the rules were run over is what gets
+    served. Like :func:`publish_document` the assignment joins the next
+    ``save()`` of the row, so document and re-extracted values commit in one
+    statement inside the caller's transaction; ``mark_customized=False``
+    because the flag and the stamp bump are the row save of the write
+    itself (#1247 AC 4), this is the publishing half. On rollback the
+    written file is unreferenced garbage of the media storage, never served.
+    """
+    _reextract_into_row(record, values)
+    record.xml_backup_file = ContentFile(document, name=XML_BACKUP_NAME)
+    record.save(mark_customized=False)
+    return record
 
 
 def non_roundtrippable_fields(model, field_names) -> set:

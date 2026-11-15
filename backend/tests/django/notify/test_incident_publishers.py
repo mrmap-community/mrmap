@@ -268,7 +268,7 @@ class RecoveryTests(PublisherTestMixin, TestCase):
             code="operational_retry_window_expired",
             source="harvesting", severity="warning",
             summary="a verdict of the watchdog",
-            resource={"catalogue_service": self.catalogue.pk})
+            resource={"catalogue_service": self.catalogue})
         # a system-scoped verdict of the same code stays standing: its key
         # is the code over no resource, not the key of this resource
         OperationalIncident.objects.report(

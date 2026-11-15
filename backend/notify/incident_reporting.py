@@ -137,6 +137,11 @@ def source_and_resource(process):
     process type without an incident source (registering) or, when the
     process names a related model which the incident model cannot type,
     the empty resource which is a system-scoped incident (#1319).
+
+    The resource value is the related instance of the typed field - the
+    shape which ``report`` of #1319 assigns to the foreign key; the process
+    only names its resource by content type and pk, so the instance is
+    built unsaved from those two and carries nothing but its identity.
     """
     source = INCIDENT_PROCESS_SOURCES.get(process.process_type)
     if source is None:
@@ -147,7 +152,11 @@ def source_and_resource(process):
         field = incident_resource_field_by_model().get(
             (content_type.app_label, content_type.model))
         if field is not None:
-            resource = {field: process.related_id}
+            from notify.models import OperationalIncident
+
+            related_model = OperationalIncident._meta.get_field(
+                field).related_model
+            resource = {field: related_model(pk=process.related_id)}
     return source, resource
 
 

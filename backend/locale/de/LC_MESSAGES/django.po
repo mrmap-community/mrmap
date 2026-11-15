@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 19:13+0100\n"
+"POT-Creation-Date: 2026-11-15 19:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3400,7 +3400,7 @@ msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 msgid "The source document must be sent as the document text."
 msgstr "Das Quelldokument muss als Dokumenttext gesendet werden."
 
-#: registry/serializers/metadata.py:465
+#: registry/serializers/metadata.py:492
 msgid ""
 "The ISO document served for this record could not be regenerated from its "
 "stored fields; the write is refused so that the served document never "
@@ -3410,7 +3410,7 @@ msgstr ""
 "gespeicherten Feldern nicht neu erzeugt werden; die Schreiboperation wird "
 "abgelehnt, damit das ausgelieferte Dokument dem Datensatz nie widerspricht."
 
-#: registry/serializers/metadata.py:487
+#: registry/serializers/metadata.py:514
 msgid ""
 "The submitted source document could not be published as the record's "
 "document; the write is refused and nothing changed."
@@ -3419,11 +3419,33 @@ msgstr ""
 "veröffentlicht werden; die Schreiboperation wird abgelehnt und nichts wurde "
 "geändert."
 
-#: registry/serializers/metadata.py:523
+#: registry/serializers/metadata.py:556
 msgid "This field is read-only and can not be written."
 msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
 
-#: registry/serializers/metadata.py:559
+#: registry/serializers/metadata.py:599
+msgid "The file identifier must be a text."
+msgstr "Der Dateienidentifikator muss ein Text sein."
+
+#: registry/serializers/metadata.py:609
+#, python-format
+msgid ""
+"The file identifier is too long; it may hold at most %(max_length)s "
+"characters."
+msgstr ""
+"Der Dateienidentifikator ist zu lang; er darf höchstens %(max_length)s "
+"Zeichen enthalten."
+
+#: registry/serializers/metadata.py:616
+msgid ""
+"A record with this file identifier already exists. The file identifier is "
+"the identifier of the record inside its ISO document and must be unique."
+msgstr ""
+"Ein Datensatz mit diesem Dateienidentifikator existiert bereits. Der "
+"Dateienidentifikator ist die Kennung des Datensatzes in seinem ISO-Dokument "
+"und muss eindeutig sein."
+
+#: registry/serializers/metadata.py:653
 msgid ""
 "This field is read out of the record's ISO document but the document has no "
 "writable mapping for it; accepting this write would leave the served "
@@ -3433,7 +3455,7 @@ msgstr ""
 "Dokument hat keine beschreibbare Zuordnung dafür; diese Schreiboperation "
 "würde das ausgelieferte Dokument hinter dem Datensatz zurücklassen."
 
-#: registry/serializers/metadata.py:603
+#: registry/serializers/metadata.py:697
 msgid ""
 "A created record receives its first document from its fields; the raw source "
 "document is written onto an existing record."
@@ -3441,7 +3463,7 @@ msgstr ""
 "Ein neu erzeugter Datensatz erhält sein erstes Dokument aus seinen Feldern; "
 "das rohe Quelldokument wird auf einen bestehenden Datensatz geschrieben."
 
-#: registry/serializers/metadata.py:622
+#: registry/serializers/metadata.py:716
 msgid ""
 "The raw source document replaces every form-mapped value of the record; it "
 "must be written on its own, without other attributes."
@@ -3450,7 +3472,7 @@ msgstr ""
 "Datensatzes; es muss für sich allein, ohne weitere Attribute, gesendet "
 "werden."
 
-#: registry/serializers/metadata.py:634
+#: registry/serializers/metadata.py:728
 #, python-format
 msgid ""
 "The source document is not well-formed XML (line %(line)s, column "
@@ -3459,7 +3481,7 @@ msgstr ""
 "Das Quelldokument ist nicht wohlgeformtes XML (Zeile %(line)s, Spalte "
 "%(column)s)."
 
-#: registry/serializers/metadata.py:646
+#: registry/serializers/metadata.py:740
 msgid ""
 "The submitted document can not become this record's source document: it must "
 "carry exactly this record - identified by its fileIdentifier, with a "
@@ -3470,7 +3492,7 @@ msgstr ""
 "fileIdentifier, mit einem parsebaren dateStamp – als die Art von ISO-19139-"
 "Dokument, als die der Datensatz geführt wird."
 
-#: registry/serializers/metadata.py:684
+#: registry/serializers/metadata.py:778
 msgid ""
 "The profile of this record names structural rules which this version can not "
 "evaluate; the write is refused instead of skipping the validation."
@@ -3479,7 +3501,7 @@ msgstr ""
 "nicht auswerten kann; die Schreiboperation wird abgelehnt, statt die "
 "Überprüfung zu überspringen."
 
-#: registry/serializers/metadata.py:737
+#: registry/serializers/metadata.py:831
 msgid ""
 "The structural rules of this record's profile could not be assessed against "
 "its ISO document; the write is refused instead of skipping the validation."
@@ -3629,7 +3651,9 @@ msgstr "Einstellungs-Id"
 
 #: registry/serializers/scheduling.py:109
 msgid "the setting being edited; absent previews a new one."
-msgstr "die bearbeitete Einstellung; ohne sie wird eine neue in der Vorschau betrachtet."
+msgstr ""
+"die bearbeitete Einstellung; ohne sie wird eine neue in der Vorschau "
+"betrachtet."
 
 #: registry/serializers/scheduling.py:113
 msgid "scheduling"
@@ -3640,9 +3664,8 @@ msgid ""
 "the proposed crontab: five fields \"minute hour day-of-month month day-of-"
 "week\", with the timezone suffix the harvesting form writes."
 msgstr ""
-"der vorgeschlagene Crontab: fünf Felder \"Minute Stunde Tag des Monats "
-"Monat Wochentag\", mit dem Zeitzonensuffix, das das Harvesting-Formular "
-"schreibt."
+"der vorgeschlagene Crontab: fünf Felder \"Minute Stunde Tag des Monats Monat "
+"Wochentag\", mit dem Zeitzonensuffix, das das Harvesting-Formular schreibt."
 
 #: registry/serializers/scheduling.py:121
 msgid "timezone"
@@ -3652,7 +3675,9 @@ msgstr "Zeitzone"
 msgid ""
 "the timezone the crontab runs in; the current schedule's by default, UTC "
 "without one."
-msgstr "die Zeitzone, in der der Crontab läuft; ohne Angabe die der aktuellen Planung, sonst UTC."
+msgstr ""
+"die Zeitzone, in der der Crontab läuft; ohne Angabe die der aktuellen "
+"Planung, sonst UTC."
 
 #: registry/serializers/scheduling.py:128
 msgid "enabled"
@@ -3690,7 +3715,9 @@ msgstr "der Zeitpunkt, nach dem der Zeitplan nicht mehr auslöst."
 msgid ""
 "A new schedule needs the crontab it proposes; only an existing setting may "
 "be previewed without one."
-msgstr "Ein neuer Zeitplan benötigt den Crontab, den er vorschlägt; nur eine vorhandene Einstellung kann ohne ihn in der Vorschau betrachtet werden."
+msgstr ""
+"Ein neuer Zeitplan benötigt den Crontab, den er vorschlägt; nur eine "
+"vorhandene Einstellung kann ohne ihn in der Vorschau betrachtet werden."
 
 #: registry/serializers/service.py:61
 msgid "the web map service, where this operation url is part of."
@@ -4256,7 +4283,8 @@ msgstr ""
 
 #: registry/views/scheduling.py:106
 msgid "Preview a proposed schedule without saving it"
-msgstr "Einen vorgeschlagenen Zeitplan ohne Speichern in der Vorschau betrachten"
+msgstr ""
+"Einen vorgeschlagenen Zeitplan ohne Speichern in der Vorschau betrachten"
 
 #: registry/views/scheduling.py:108
 msgid ""
@@ -4264,7 +4292,11 @@ msgid ""
 "the coming occurrences, the wait between them, the measured end-to-end "
 "durations of the service's completed runs and stable warning codes for the "
 "proposal."
-msgstr "In der Wirkung schreibgeschützt: speichert nichts, stellt nichts in die Warteschlange und löst nichts aus. Beantwortet die kommenden Vorkommnisse, die Wartezeit zwischen ihnen, die gemessenen Durchlaufzeiten der abgeschlossenen Läufe des Dienstes und stabile Warn-Codes für den Vorschlag."
+msgstr ""
+"In der Wirkung schreibgeschützt: speichert nichts, stellt nichts in die "
+"Warteschlange und löst nichts aus. Beantwortet die kommenden Vorkommnisse, "
+"die Wartezeit zwischen ihnen, die gemessenen Durchlaufzeiten der "
+"abgeschlossenen Läufe des Dienstes und stabile Warn-Codes für den Vorschlag."
 
 #: registry/views/scheduling.py:126
 msgid "This kind of service has no runs of this periodic operation."
@@ -4277,22 +4309,30 @@ msgstr "Unter dieser Id antwortet kein Dienst dieser Art."
 #: registry/views/scheduling.py:135
 msgid ""
 "The view permission on the service is required to preview its schedules."
-msgstr "Die Ansehen-Berechtigung für den Dienst ist erforderlich, um seine Zeitpläne in der Vorschau zu betrachten."
+msgstr ""
+"Die Ansehen-Berechtigung für den Dienst ist erforderlich, um seine Zeitpläne "
+"in der Vorschau zu betrachten."
 
 #: registry/views/scheduling.py:145
 msgid "The answered setting is not the setting of this service and operation."
-msgstr "Die beantwortete Einstellung ist nicht die Einstellung dieses Dienstes und dieser Operation."
+msgstr ""
+"Die beantwortete Einstellung ist nicht die Einstellung dieses Dienstes und "
+"dieser Operation."
 
 #: registry/views/scheduling.py:150
 msgid ""
 "The change permission on the setting is required to preview an edit of it."
-msgstr "Die Bearbeiten-Berechtigung für die Einstellung ist erforderlich, um eine Änderung an ihr in der Vorschau zu betrachten."
+msgstr ""
+"Die Bearbeiten-Berechtigung für die Einstellung ist erforderlich, um eine "
+"Änderung an ihr in der Vorschau zu betrachten."
 
 #: registry/views/scheduling.py:159
 msgid ""
 "The add permission on the setting kind is required to preview a schedule "
 "which does not exist yet."
-msgstr "Die Hinzufügen-Berechtigung für die Art der Einstellung ist erforderlich, um einen Zeitplan in der Vorschau zu betrachten, der noch nicht existiert."
+msgstr ""
+"Die Hinzufügen-Berechtigung für die Art der Einstellung ist erforderlich, um "
+"einen Zeitplan in der Vorschau zu betrachten, der noch nicht existiert."
 
 #: system/apps.py:76
 msgid "System"

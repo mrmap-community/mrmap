@@ -287,7 +287,8 @@ class HookTests(unittest.TestCase):
                 else:
                     self.assertTrue(any(args[-4:] == ["up", "-d", "postgis", "redis"] for args in compose))
                     self.assertEqual(checks[0][-1], "pre-commit-check")
-                    self.assertEqual(checks[1][-1], "npm run lint && npm run type-check")
+                    self.assertEqual(checks[1][-1], "npm run lint && npm run type-check && "
+                                     "npm run test -- --run src/i18n")
                 self.assertEqual(containers.env["COMPOSE_PROJECT_NAME"], containers.project)
                 self.assertNotIn("COMPOSE_FILE", containers.env)
 

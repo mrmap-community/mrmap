@@ -197,7 +197,8 @@ class Containers:
         if frontend:
             command = (["npx", "--no-install", "eslint", "--max-warnings", "0",
                         "--", *frontend] if stage == "commit" else
-                       ["/bin/sh", "-c", "npm run lint && npm run type-check"])
+                       ["/bin/sh", "-c", "npm run lint && npm run type-check && "
+                        "npm run test -- --run src/i18n"])
             self.compose("run", "--rm", "--no-deps", "-T", "frontend-tests", *command)
 
     def close(self):

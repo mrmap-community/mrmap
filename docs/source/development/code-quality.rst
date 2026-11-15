@@ -40,7 +40,7 @@ Flake8 exclusion. An available ``.venv/bin/flake8`` or ``flake8`` on ``PATH`` av
 Python lint; frontend lint and the Python fallback use the existing dependency images.
 
 ``pre-push`` runs the existing backend pre-submit check (lint, migration drift and translations)
-when backend files changed, and frontend lint plus strict type checking when frontend files
+when backend files changed, and frontend lint, strict type checking and translation tests when frontend files
 changed. Deletions and renames count as changes. Documentation-only changes skip application
 checks and do not start Docker. Full tests, coverage and SonarCloud stay in CI; run relevant
 tests locally as described below. Hooks can be bypassed, so they do not replace required CI checks.
@@ -91,6 +91,12 @@ files described in :ref:`development`:
 ``lint`` is read-only. Use ``lint:fix`` to apply ESLint fixes deliberately, preferably with a
 specific file path through ``npx eslint --fix <path>`` during scoped work. ``format`` rewrites
 files with Prettier and is separate from the required checks.
+
+Frontend translation tests run with ``npm run test -- --run src/i18n`` in ``frontend-tests``.
+They check matching English/German keys, non-empty strings and consistent ``%{placeholder}``
+names for all MrMap application messages. React-Admin's built-in ``ra`` catalog is separate;
+it includes framework defaults and intentionally blank options. The same tests run in the
+pre-push hook for frontend changes and in the existing CI frontend suite.
 
 Vitest includes untested application files in coverage, excludes specs, fixtures and type
 declarations, and writes ``frontend/coverage/index.html``, ``lcov.info`` and

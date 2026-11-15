@@ -32,6 +32,48 @@ const leafPaths = (value: unknown, prefix = ""): string[] =>
       )
     : [prefix];
 
+// React-Admin's `ra` catalog is supplied by the English package and a separate
+// German catalog. Check the MrMap application messages, not those framework
+// defaults (which include an intentionally blank boolean option).
+const applicationMessages = {
+  en: Object.fromEntries(Object.entries(en).filter(([key]) => key !== "ra")),
+  de: Object.fromEntries(Object.entries(de).filter(([key]) => key !== "ra")),
+};
+
+const placeholders = (message: string): string[] =>
+  [...new Set(Array.from(message.matchAll(/%\{([^{}]+)\}/g), ([, name]) => name.trim()))].sort();
+
+describe("application translations", () => {
+  it("carries the same application keys in English and German", () => {
+    expect(leafPaths(applicationMessages.de).sort()).toEqual(
+      leafPaths(applicationMessages.en).sort(),
+    );
+  });
+
+  it.each(Object.entries(applicationMessages))(
+    "%s answers non-empty strings for every application key",
+    (locale, messages) => {
+      for (const path of leafPaths(messages)) {
+        const value = lodashGet(messages, path);
+        expect(typeof value, `${locale}.${path}`).toBe("string");
+        expect((value as string).trim(), `${locale}.${path}`).not.toBe("");
+      }
+    },
+  );
+
+  it("keeps interpolation placeholders consistent between languages", () => {
+    for (const path of leafPaths(applicationMessages.en)) {
+      const english = lodashGet(applicationMessages.en, path);
+      const german = lodashGet(applicationMessages.de, path);
+      expect(typeof english, `en.${path}`).toBe("string");
+      expect(typeof german, `de.${path}`).toBe("string");
+      expect(placeholders(german as string), path).toEqual(
+        placeholders(english as string),
+      );
+    }
+  });
+});
+
 describe("harvesting translations", () => {
   it.each(harvestingBlocks)(
     "%s carries the same keys in English and German",

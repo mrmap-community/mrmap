@@ -594,7 +594,7 @@ class RemoteMetadata(models.Model):
     link = models.URLField(max_length=4094,
                            verbose_name=_("download link"),
                            help_text=_("the url where the metadata could be downloaded from."))
-    remote_content = models.TextField(null=True,
+    remote_content = models.TextField(blank=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
 
@@ -789,18 +789,18 @@ class MetadataTermsOfUse(models.Model):
     """ Abstract model class to define some fields which describes the terms of use for an metadata
 
     """
-    access_constraints = models.TextField(null=True,
-                                          blank=True,
-                                          verbose_name=_("access constraints"),
-                                          help_text=_("access constraints for the given resource."))
-    fees = models.TextField(null=True,
-                            blank=True,
-                            verbose_name=_("fees"),
-                            help_text=_("Costs and of terms of use for the given resource."))
-    use_limitation = models.TextField(null=True,
-                                      blank=True)
-    license_source_note = models.TextField(null=True,
-                                           blank=True, )
+    access_constraints = models.TextField(
+        blank=True,
+        verbose_name=_("access constraints"),
+        help_text=_("access constraints for the given resource."))
+    fees = models.TextField(
+        blank=True,
+        verbose_name=_("fees"),
+        help_text=_("Costs and of terms of use for the given resource."))
+    use_limitation = models.TextField(
+        blank=True)
+    license_source_note = models.TextField(
+        blank=True)
     licence = models.ForeignKey(to=Licence,
                                 on_delete=models.RESTRICT,
                                 blank=True,

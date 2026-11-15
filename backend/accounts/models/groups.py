@@ -21,44 +21,41 @@ class Contact(models.Model):
     person_name = models.CharField(
         max_length=200,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("Contact person"),
     )
     email = models.EmailField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("E-Mail")
+        max_length=100, default="", blank=True, verbose_name=_("E-Mail")
     )
     phone = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Phone")
+        max_length=100, default="", blank=True, verbose_name=_("Phone")
     )
     facsimile = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Facsimile")
+        max_length=100, default="", blank=True, verbose_name=_("Facsimile")
     )
     city = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("City")
+        max_length=100, default="", blank=True, verbose_name=_("City")
     )
     postal_code = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Postal code")
+        max_length=100, default="", blank=True, verbose_name=_("Postal code")
     )
     address_type = models.CharField(
         max_length=100,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("Address type"),
     )
     address = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Address")
+        max_length=100, default="", blank=True, verbose_name=_("Address")
     )
     state_or_province = models.CharField(
         max_length=100,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("State or province"),
     )
     country = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Country")
+        max_length=100, default="", blank=True, verbose_name=_("Country")
     )
 
     def __str__(self):
@@ -91,7 +88,6 @@ class Organization(Group, Contact):
 
     description = models.TextField(
         default="",
-        null=True,
         blank=True,
         verbose_name=_("description"),
         help_text=_("Describe what this organization representing"),
@@ -143,7 +139,7 @@ class Organization(Group, Contact):
 
 
 class BaseInternalRequest(models.Model):
-    message = models.TextField(null=True, blank=True)
+    message = models.TextField(blank=True)
     activation_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:

@@ -116,7 +116,7 @@ class ConformityCheckRun(models.Model):
     config = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
-    report = models.TextField(blank=True, null=True)
+    report = models.TextField(blank=True)
     report_type = models.TextField(
         choices=ReportType.choices)
 

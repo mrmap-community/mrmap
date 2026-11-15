@@ -3383,6 +3383,28 @@ msgstr ""
 msgid "This field is read-only and can not be written."
 msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
 
+#: registry/serializers/metadata.py:476
+msgid "The file identifier must be a text."
+msgstr "Der Dateienidentifikator muss ein Text sein."
+
+#: registry/serializers/metadata.py:486
+#, python-format
+msgid ""
+"The file identifier is too long; it may hold at most %(max_length)s "
+"characters."
+msgstr ""
+"Der Dateienidentifikator ist zu lang; er darf höchstens %(max_length)s "
+"Zeichen enthalten."
+
+#: registry/serializers/metadata.py:493
+msgid ""
+"A record with this file identifier already exists. The file identifier is "
+"the identifier of the record inside its ISO document and must be unique."
+msgstr ""
+"Ein Datensatz mit diesem Dateienidentifikator existiert bereits. Der "
+"Dateienidentifikator ist die Kennung des Datensatzes in seinem ISO-Dokument "
+"und muss eindeutig sein."
+
 #: registry/serializers/metadata.py:559
 msgid ""
 "This field is read out of the record's ISO document but the document has no "

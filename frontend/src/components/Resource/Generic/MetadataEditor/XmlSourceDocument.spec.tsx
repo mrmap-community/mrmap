@@ -44,11 +44,6 @@ vi.mock("../../../MUI/SimpleCard", () => ({
   ),
 }));
 
-const state = vi.hoisted(() => ({
-  record: undefined as Record<string, unknown> | undefined,
-  mutate: vi.fn(),
-}));
-
 const stored = "<xml>stored document</xml>";
 
 const serveDocument = () => {
@@ -93,7 +88,7 @@ describe("the xml source screen of a record", () => {
       canEdit: true,
     });
     const editor = await screen.findByTestId("editor");
-    expect(editor).toHaveValue(stored);
+    await waitFor(() => expect(editor).toHaveValue(stored));
     expect(fetchMock).toHaveBeenCalledWith("/media/xml_backup/doc.xml");
   });
 
@@ -119,6 +114,7 @@ describe("the xml source screen of a record", () => {
       canEdit: true,
     });
     const editor = await screen.findByTestId("editor");
+    await waitFor(() => expect(editor).toHaveValue(stored));
     const save = screen.getByRole("button", { name: "sourceSave" });
     // nothing edited yet — the screen offers nothing to save
     expect(save).toBeDisabled();
@@ -128,8 +124,8 @@ describe("the xml source screen of a record", () => {
     fireEvent.click(save);
 
     expect(state.mutate).toHaveBeenCalledWith(
+      "DatasetMetadataRecord",
       {
-        resource: "DatasetMetadataRecord",
         id: 1,
         data: { xmlBackupFile: "<xml>edited</xml>" },
         previousData: state.record,
@@ -149,6 +145,7 @@ describe("the xml source screen of a record", () => {
       canEdit: true,
     });
     const editor = await screen.findByTestId("editor");
+    await waitFor(() => expect(editor).toHaveValue(stored));
     fireEvent.change(editor, { target: { value: "<xml>weg</xml>" } });
     fireEvent.click(screen.getByRole("button", { name: "sourceDiscard" }));
     expect(editor).toHaveValue(stored);
@@ -163,9 +160,10 @@ describe("the xml source screen of a record", () => {
       canEdit: true,
     });
     const editor = await screen.findByTestId("editor");
+    await waitFor(() => expect(editor).toHaveValue(stored));
     fireEvent.change(editor, { target: { value: "<xml><oops" } });
     fireEvent.click(screen.getByRole("button", { name: "sourceSave" }));
-    const options = state.mutate.mock.calls[0][1] as {
+    const options = state.mutate.mock.calls[0][2] as {
       onError: (error: unknown) => void;
     };
     options.onError({

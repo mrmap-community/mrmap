@@ -321,7 +321,7 @@ const en = lodashMerge(
       "storedXml": "Download stored XML",
       "storedXmlHint": "The xml document the harvest import stored beside this record.",
       "noStoredXml": "No xml document stored for this record.",
-      "source": "XML source",
+      "xmlSource": "XML source",
       "sourceHint": "The ISO document served for this record. Edits are validated before they commit; a refused write changes nothing. The fields the form maps are re-extracted from this document on save — the next form save regenerates the mapped elements from these values.",
       "sourceSave": "Save document",
       "sourceDiscard": "Discard changes",

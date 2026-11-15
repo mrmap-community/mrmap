@@ -88,7 +88,7 @@ const RecordShow = ({ documents = false }: { documents?: boolean }) => {
             own `xmlBackupFile` attribute (#1247) */}
         <TabbedShowLayout.Tab
           path="source"
-          label={translate("recordShow.source")}
+          label={translate("recordShow.xmlSource")}
         >
           <XmlSourceDocument />
         </TabbedShowLayout.Tab>

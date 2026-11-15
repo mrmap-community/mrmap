@@ -301,7 +301,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "storedXml": "Gespeichertes XML herunterladen",
     "storedXmlHint": "Das XML-Dokument, das die Datenübernahme neben diesem Datensatz gespeichert hat.",
     "noStoredXml": "Für diesen Datensatz ist kein XML-Dokument gespeichert.",
-    "source": "XML-Quelltext",
+    "xmlSource": "XML-Quelltext",
     "sourceHint": "Das für diesen Datensatz ausgelieferte ISO-Dokument. Änderungen werden vor dem Speichern geprüft; ein abgelehnter Speichern ändert nichts. Die vom Formular abgebildeten Felder werden beim Speichern aus diesem Dokument rückgewonnen — das nächste Speichern im Formular erzeugt die abgebildeten Elemente aus diesen Werten.",
     "sourceSave": "Dokument speichern",
     "sourceDiscard": "Änderungen verwerfen",

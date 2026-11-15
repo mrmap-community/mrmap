@@ -238,7 +238,7 @@ describe("record detail pages", () => {
     setup("DatasetMetadataRecord", "source");
     await waitFor(() =>
       expect(
-        screen.getByRole("tab", { name: "recordShow.source" }),
+        screen.getByRole("tab", { name: "recordShow.xmlSource" }),
       ).toHaveAttribute("aria-selected", "true"),
     );
     // no document on this record — the screen states that honestly

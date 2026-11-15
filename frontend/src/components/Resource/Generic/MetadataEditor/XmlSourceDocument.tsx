@@ -134,8 +134,8 @@ const XmlSourceDocument = () => {
     if (!record || !resource) return;
     setFailures([]);
     update(
+      resource,
       {
-        resource,
         id: record.id,
         data: { xmlBackupFile: text },
         previousData: record,
@@ -146,14 +146,14 @@ const XmlSourceDocument = () => {
           // the effect above reloads the bytes which serve now
           notify("recordShow.sourceSaved", { type: "success" });
         },
-        onError: (error) => setFailures(failureDetails(error)),
+        onError: (error: unknown) => setFailures(failureDetails(error)),
       },
     );
   };
 
   if (!record) return null;
   return (
-    <SimpleCard title={translate("recordShow.source")}>
+    <SimpleCard title={translate("recordShow.xmlSource")}>
       <GlobalStyles
         styles={{
           [`.${CHANGED_LINE_CLASS}`]: {
@@ -199,7 +199,7 @@ const XmlSourceDocument = () => {
                 fontSize: 13,
               }}
             />
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}

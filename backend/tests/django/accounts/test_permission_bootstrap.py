@@ -226,7 +226,7 @@ class SharedObjectPermissionTableTestCase(TestCase):
         not in would never be part of the comparison.
         """
         organization = Organization.objects.create(name=ORGANIZATION_NAME)
-        assign_perm(perm='registry.view_organization',
+        assign_perm(perm='accounts.view_organization',
                     user_or_group=Group.objects.get(name="Group2"),
                     obj=organization)
 

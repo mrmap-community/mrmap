@@ -317,7 +317,14 @@ class ServiceLookupPathTestCase(ServiceGrantTestCaseMixin, TestCase):
             {"view_user", "change_user", "delete_user"})
         for row in rows:
             self.assertEqual(row.object_pk, str(user.pk))
+            # the user grants are ``accounts`` permission rows: the ``User``
+            # model lives there, so its default permissions do too (#729)
+            self.assertEqual(
+                row.permission.content_type.app_label, "accounts")
+            self.assertEqual(row.permission.content_type.model, "user")
         self.assertTrue(user.has_perm('accounts.view_user', user))
-        assign_perm(perm='view_user', user_or_group=user, obj=user)  # idempotent
+        assign_perm(
+            perm='accounts.view_user',
+            user_or_group=user, obj=user)  # idempotent
         self.assertEqual(UserObjectPermission.objects.filter(
             user=user, permission__codename='view_user').count(), 1)

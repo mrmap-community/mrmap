@@ -609,6 +609,27 @@ const en = lodashMerge(
       noNextRun: "No next run",
       attentionTitle: "Schedules which need attention",
     },
+    scheduleWarnings: {
+      columnLabel: "Schedule warnings",
+      codes: {
+        schedule_overdue: "Schedule overdue",
+        schedule_too_tight: "Interval shorter than observed runtime",
+        insufficient_evidence: "Insufficient data",
+        schedule_expired: "Schedule expired",
+      },
+      reasons: {
+        no_completed_runs: "No completed run has measured this schedule yet",
+        too_few_samples: "Too few completed runs to judge by",
+      },
+      interval: "Interval: %{value}",
+      observed: "Observed duration: %{value}",
+      samples: "%{smart_count} completed run measured |||| %{smart_count} completed runs measured",
+      lastDone: "Last run:",
+      expectedAt: "Expected since:",
+      expiredAt: "Expired since:",
+      computedAt: "Computed:",
+      checkSchedule: "Review schedule",
+    },
     harvestingStats: {
       records: "Records",
       day: "Day",

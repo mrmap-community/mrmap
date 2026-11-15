@@ -482,9 +482,9 @@ class PeriodicHarvestingJobWarningsTest(ScheduleWarningsEndpointMixin,
     def test_the_screen_which_shows_no_warnings_pays_for_no_evidence(self):
         """the sparse-field gate of the schedules endpoint (#1082 pattern)"""
         self.harvesting_runs(self.csw, MIN_RELIABLE_SAMPLES, minutes=90)
-        with patch('registry.views.scheduling.schedule_warnings_by_id') \
+        with patch('registry.views.schedule_warnings.schedule_warnings_by_id') \
                 as batch, \
-                patch('registry.serializers.scheduling.'
+                patch('registry.serializers.schedule_warnings.'
                       'schedule_warnings_by_id') as single:
             self.ask(self.ROUTE, **{'fields[%s]' % self.RESOURCE: 'enabled'})
             batch.assert_not_called()

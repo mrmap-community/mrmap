@@ -24,8 +24,8 @@ from registry.models.monitoring import (
     WebMapServiceMonitoringSetting)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
-from registry.serializers.scheduling import (SCHEDULE_WARNING_ATTRIBUTES,
-                                             ScheduleWarningsSerializerMixin)
+from registry.serializers.schedule_warnings import (SCHEDULE_WARNING_ATTRIBUTES,
+                                                    ScheduleWarningsSerializerMixin)
 from rest_framework.fields import (CharField, DateTimeField, DurationField,
                                    IntegerField, SerializerMethodField)
 from rest_framework_json_api.relations import ResourceRelatedField

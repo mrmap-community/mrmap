@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 19:50+0100\n"
+"POT-Creation-Date: 2026-11-15 20:49+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2620,7 +2620,7 @@ msgid ""
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/models/security.py:196 registry/models/security.py:208
-#: registry/models/service.py:528
+#: registry/models/service.py:528 registry/serializers/scheduling.py:108
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
@@ -3625,11 +3625,11 @@ msgstr "GetRecords-Überprüfungsergebnisse"
 msgid "results for get records requests"
 msgstr "Ergebnisse für GetRecords-Anfragen"
 
-#: registry/serializers/scheduling.py:135
+#: registry/serializers/schedule_warnings.py:135
 msgid "schedule warnings"
 msgstr "Warnungen zum Zeitplan"
 
-#: registry/serializers/scheduling.py:137
+#: registry/serializers/schedule_warnings.py:137
 msgid ""
 "the recurrence-risk states of this saved schedule: a tighter interval than "
 "the runs it schedules measurably take, a run which missed its time, an "
@@ -3643,6 +3643,113 @@ msgstr ""
 "ein Urteil - als stabile Codes mit sicheren Parametern beantwortet, leer "
 "wenn der Zeitplan keine Aufmerksamkeit braucht. Eine Warnung blockiert das "
 "Speichern nie."
+
+#: registry/serializers/scheduling.py:50
+msgid ""
+"Invalid timezone - expected an IANA timezone name or a UTC offset like UTC+2"
+msgstr ""
+"Ungültige Zeitzone - erwartet wird ein IANA-Zonenname oder ein UTC-Offset "
+"wie UTC+2"
+
+#: registry/serializers/scheduling.py:56
+msgid "Invalid crontab - the fields are no schedule Celery can run"
+msgstr ""
+"Ungültiger Crontab - die Felder ergeben keinen Zeitplan, den Celery "
+"ausführen kann"
+
+#: registry/serializers/scheduling.py:109
+msgid "the periodic operation the setting schedules."
+msgstr "die periodische Operation, die die Einstellung plant."
+
+#: registry/serializers/scheduling.py:113
+msgid "service kind"
+msgstr "Dienstart"
+
+#: registry/serializers/scheduling.py:114
+msgid "the kind of the service the setting belongs to."
+msgstr "die Art des Dienstes, zu dem die Einstellung gehört."
+
+#: registry/serializers/scheduling.py:117
+msgid "service id"
+msgstr "Dienst-Id"
+
+#: registry/serializers/scheduling.py:118
+msgid "the service the proposed setting would schedule."
+msgstr "der Dienst, den die vorgeschlagene Einstellung planen würde."
+
+#: registry/serializers/scheduling.py:122
+msgid "setting id"
+msgstr "Einstellungs-Id"
+
+#: registry/serializers/scheduling.py:123
+msgid "the setting being edited; absent previews a new one."
+msgstr ""
+"die bearbeitete Einstellung; ohne sie wird eine neue in der Vorschau "
+"betrachtet."
+
+#: registry/serializers/scheduling.py:127
+msgid "scheduling"
+msgstr "Zeitplanung"
+
+#: registry/serializers/scheduling.py:129
+msgid ""
+"the proposed crontab: five fields \"minute hour day-of-month month day-of-"
+"week\", with the timezone suffix the harvesting form writes."
+msgstr ""
+"der vorgeschlagene Crontab: fünf Felder \"Minute Stunde Tag des Monats Monat "
+"Wochentag\", mit dem Zeitzonensuffix, das das Harvesting-Formular schreibt."
+
+#: registry/serializers/scheduling.py:135
+msgid "timezone"
+msgstr "Zeitzone"
+
+#: registry/serializers/scheduling.py:137
+msgid ""
+"the timezone the crontab runs in; the current schedule's by default, UTC "
+"without one."
+msgstr ""
+"die Zeitzone, in der der Crontab läuft; ohne Angabe die der aktuellen "
+"Planung, sonst UTC."
+
+#: registry/serializers/scheduling.py:142
+msgid "enabled"
+msgstr "aktiviert"
+
+#: registry/serializers/scheduling.py:143
+msgid "whether the proposed schedule dispatches."
+msgstr "ob der vorgeschlagene Zeitplan auslöst."
+
+#: registry/serializers/scheduling.py:147
+msgid "one off"
+msgstr "einmalig"
+
+#: registry/serializers/scheduling.py:148
+msgid "whether the setting fires only once."
+msgstr "ob die Einstellung nur einmal auslöst."
+
+#: registry/serializers/scheduling.py:152
+msgid "start time"
+msgstr "Startzeit"
+
+#: registry/serializers/scheduling.py:153
+msgid "the earliest moment the schedule may dispatch."
+msgstr "der früheste Zeitpunkt, zu dem der Zeitplan auslösen darf."
+
+#: registry/serializers/scheduling.py:157
+msgid "expires"
+msgstr "läuft ab"
+
+#: registry/serializers/scheduling.py:158
+msgid "the moment after which the schedule stops dispatching."
+msgstr "der Zeitpunkt, nach dem der Zeitplan nicht mehr auslöst."
+
+#: registry/serializers/scheduling.py:179
+msgid ""
+"A new schedule needs the crontab it proposes; only an existing setting may "
+"be previewed without one."
+msgstr ""
+"Ein neuer Zeitplan benötigt den Crontab, den er vorschlägt; nur eine "
+"vorhandene Einstellung kann ohne ihn in der Vorschau betrachtet werden."
 
 #: registry/serializers/service.py:61
 msgid "the web map service, where this operation url is part of."
@@ -4205,6 +4312,59 @@ msgid ""
 msgstr ""
 "Das Schreiben von Metadatensätzen ist in dieser Installation deaktiviert "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
+
+#: registry/views/scheduling.py:106
+msgid "Preview a proposed schedule without saving it"
+msgstr ""
+"Einen vorgeschlagenen Zeitplan ohne Speichern in der Vorschau betrachten"
+
+#: registry/views/scheduling.py:108
+msgid ""
+"Read-only in effect: never persists, queues or dispatches anything. Answers "
+"the coming occurrences, the wait between them, the measured end-to-end "
+"durations of the service's completed runs and stable warning codes for the "
+"proposal."
+msgstr ""
+"In der Wirkung schreibgeschützt: speichert nichts, stellt nichts in die "
+"Warteschlange und löst nichts aus. Beantwortet die kommenden Vorkommnisse, "
+"die Wartezeit zwischen ihnen, die gemessenen Durchlaufzeiten der "
+"abgeschlossenen Läufe des Dienstes und stabile Warn-Codes für den Vorschlag."
+
+#: registry/views/scheduling.py:126
+msgid "This kind of service has no runs of this periodic operation."
+msgstr "Diese Art von Dienst hat keine Läufe dieser periodischen Operation."
+
+#: registry/views/scheduling.py:132
+msgid "No service of this kind answers under this id."
+msgstr "Unter dieser Id antwortet kein Dienst dieser Art."
+
+#: registry/views/scheduling.py:135
+msgid ""
+"The view permission on the service is required to preview its schedules."
+msgstr ""
+"Die Ansehen-Berechtigung für den Dienst ist erforderlich, um seine Zeitpläne "
+"in der Vorschau zu betrachten."
+
+#: registry/views/scheduling.py:145
+msgid "The answered setting is not the setting of this service and operation."
+msgstr ""
+"Die beantwortete Einstellung ist nicht die Einstellung dieses Dienstes und "
+"dieser Operation."
+
+#: registry/views/scheduling.py:150
+msgid ""
+"The change permission on the setting is required to preview an edit of it."
+msgstr ""
+"Die Bearbeiten-Berechtigung für die Einstellung ist erforderlich, um eine "
+"Änderung an ihr in der Vorschau zu betrachten."
+
+#: registry/views/scheduling.py:159
+msgid ""
+"The add permission on the setting kind is required to preview a schedule "
+"which does not exist yet."
+msgstr ""
+"Die Hinzufügen-Berechtigung für die Art der Einstellung ist erforderlich, um "
+"einen Zeitplan in der Vorschau zu betrachten, der noch nicht existiert."
 
 #: system/apps.py:76
 msgid "System"

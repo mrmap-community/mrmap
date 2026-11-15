@@ -34,7 +34,7 @@ from registry.serializers.harvesting import (
     HarvestingJobSerializer, HarvestingLogListSerializer,
     HarvestingLogSerializer, PeriodicHarvestingJobSerializer,
     TemporaryMdMetadataFileSerializer)
-from registry.views.scheduling import ScheduleWarningsViewsetMixin
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework.filters import OrderingFilter
 from rest_framework_json_api.django_filters.backends import DjangoFilterBackend
 from rest_framework_json_api.filters import (IncludedResourcesFilter,

@@ -1,166 +1,293 @@
-"""The read representation of the schedule warnings of a saved setting.
+"""The draft-preview contract of the scheduling screen (#1327).
 
-`registry.querys.schedule_warnings` decides the recurrence risk of a persisted
-schedule; this module is how the settings endpoints answer it: a
-`scheduleWarnings` attribute next to the schedule itself, so the lists of
-monitoring, update and harvesting settings - and the detail panels which reuse
-them - show the state of a saved schedule without opening an edit form
-(#1332).
+The request serializer validates a *proposed* schedule the way the save
+path of each setting family validates it - the five crontab fields the
+monitoring and update forms take (`extras.fields.CrontabStringField`) and,
+for the harvesting form, the optional timezone suffix it appends
+(`system.fields.CrontabStringField`). It answers the very same field error
+messages; nothing of it persists: the unsaved `CrontabSchedule` behind the
+proposal is only asked for its `schedule` so that Celery's own cron parser
+decides whether the fields are usable.
 
-The attribute carries the codes and the safe message parameters which the
-draft preview of #1327 shares; it is answered only for persisted settings,
-never for a draft, and it blocks nothing: a valid schedule stays saveable
-however tight its schedule is.
-
-The answer of a list is batched: the viewset reads the whole page at once
-(`registry.views.scheduling.ScheduleWarningsViewsetMixin`) and hands it to the
-serializers through the serializer context; a single read answers its own row
-alone. Like the other python-decided answers of the schedules, the attribute
-is gated by the sparse fieldset of the request where the endpoint knows one:
-a screen which shows no warning pays for no evidence query (#1082 pattern).
+The response serializer answers what the proposal would mean: the coming
+occurrences, the wait between them, the end-to-end durations the completed
+runs of the same service measured (with their evidence quality), and the
+stable warning codes - the machine-readable `EstimateGapEnum` values of the
+estimator (#1325) plus `schedule_tighter_than_elapsed` for the #693 rule.
+#1332 shows the saved schedules' warnings and must reuse exactly these
+codes, severity and evidence semantics. A warning never rejects a save;
+`capacity` is null with its reason while the phase-2 worker telemetry of
+#1330 does not exist.
 """
+from zoneinfo import ZoneInfo
+
+import re
+
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import extend_schema_field
-from registry.querys.schedule_warnings import schedule_warnings_by_id
-from rest_framework_json_api.serializers import (ModelSerializer,
-                                                 SerializerMethodField)
+from django_celery_beat.models import CrontabSchedule
+from rest_framework.fields import (BooleanField, CharField, ChoiceField,
+                                   DateTimeField, FloatField, IntegerField,
+                                   ListField, ReadOnlyField)
+from rest_framework.serializers import ValidationError
+from rest_framework_json_api.serializers import Serializer
+from rest_framework_json_api.utils import format_field_name
+from system.fields import CRONTAB_TIME_REGEX, parse_timezone
 
-#: the attribute every scheduled setting answers, for their Meta.fields
-SCHEDULE_WARNING_ATTRIBUTES = ('schedule_warnings',)
+#: the codes a preview answer may carry besides the estimator's gaps -
+#: stable across #1327's preview and #1332's saved-schedule warnings
+WARNING_CODE_SCHEDULE_TIGHTER = 'schedule_tighter_than_elapsed'
 
+#: the field error of the monitoring and update save path
+#  (`extras.fields.CrontabStringField`), answered word for word
+MONITORING_CRONTAB_ERROR = (
+    'Invalid crontab format \u2014 expected 5 fields: '
+    'minute hour day month weekday')
 
-@extend_schema_field({
-    'type': 'array',
-    'nullable': True,
-    'description': (
-        'the schedule warnings of this persisted setting, empty if it needs '
-        'no attention; nothing only while the request did not ask the answer '
-        'of a screen which shows none'),
-    'items': {
-        'type': 'object',
-        'properties': {
-            'code': {
-                'type': 'string',
-                'enum': [
-                    'schedule_overdue', 'schedule_too_tight',
-                    'insufficient_evidence', 'schedule_expired'],
-                'description': (
-                    'the stable state which decided this warning, shared '
-                    'with the draft preview of #1327'),
-            },
-            'severity': {
-                'type': 'string',
-                'enum': ['warning', 'info'],
-                'description': (
-                    'warning for a schedule which cannot keep its promise, '
-                    'info for a muted state like an inadequate evidence base'),
-            },
-            'interval': {
-                'type': 'string',
-                'nullable': True,
-                'description': (
-                    'the wait between two runs as "H:MM:SS", or nothing '
-                    'while the schedule answers no next run'),
-            },
-            'observedDuration': {
-                'type': 'string',
-                'nullable': True,
-                'description': (
-                    'the measured average duration of the finished runs as '
-                    '"H:MM:SS", nothing without a reliable measurement'),
-            },
-            'sampleCount': {
-                'type': 'integer',
-                'nullable': True,
-                'description': (
-                    'how many finished runs the evidence counts, nothing '
-                    'where the state is decided without evidence'),
-            },
-            'lastDoneAt': {
-                'type': 'string',
-                'format': 'date-time',
-                'nullable': True,
-                'description': (
-                    'the end of the newest run which measured the evidence'),
-            },
-            'expectedAt': {
-                'type': 'string',
-                'format': 'date-time',
-                'nullable': True,
-                'description': (
-                    'the moment an overdue schedule was expected at'),
-            },
-            'expiredAt': {
-                'type': 'string',
-                'format': 'date-time',
-                'nullable': True,
-                'description': (
-                    'the moment an expired schedule passed its validity'),
-            },
-            'unknownReason': {
-                'type': 'string',
-                'nullable': True,
-                'enum': ['no_completed_runs', 'too_few_samples', None],
-                'description': (
-                    'why an "insufficient_evidence" answer cannot be decided '
-                    'against measured runs'),
-            },
-            'computedAt': {
-                'type': 'string',
-                'format': 'date-time',
-                'description': (
-                    'the moment this answer was decided at - the answer is '
-                    'computed at the read, so a relevant change is reflected '
-                    'by the next request'),
-            },
-        },
-        'required': ['code', 'severity', 'computedAt'],
-    },
-})
-class ScheduleWarningsField(SerializerMethodField):
-    """The warning rows of a schedule, typed for the OpenAPI schema."""
+#: the refusal of a timezone token the parser cannot resolve - answered as
+#: this stable message only; what the parser itself said stays in the
+#: exception chain and never reaches the caller (#1327, CodeQL)
+TIMEZONE_ERROR = _(
+    'Invalid timezone - expected an IANA timezone name or a UTC offset '
+    'like UTC+2')
+
+#: the refusal of five fields Celery cannot schedule, worded for the
+#: screen without the parser's internal message (#1327, CodeQL)
+CRONTAB_UNUSABLE_ERROR = _(
+    'Invalid crontab - the fields are no schedule Celery can run')
 
 
-class ScheduleWarningsSerializerMixin(ModelSerializer):
-    """Answers the schedule warnings of a persisted setting.
+def timezone_name(token):
+    """The ZoneInfo name behind a timezone token as the forms write it.
 
-    The rows are read per page by `registry.querys.schedule_warnings` and
-    handed over by the viewset through the context; a serializer without that
-    context - a single read - answers its own row alone. Concrete settings
-    serializers inherit the declaration and name `schedule_warnings` in their
-    Meta.fields, like `ServiceAlertSerializerMixin` does for the services.
+    Accepts the IANA names and the `UTC+2` spelling the harvesting form
+    appends, resolving the latter the same way `system.fields` does, so the
+    estimator - which asks `ZoneInfo` by name - gets a name it can load.
+    """
+    try:
+        zone = parse_timezone(token)
+    except (ValueError, KeyError) as error:
+        # the parser's own wording stays in the chain; the caller gets the
+        # stable message, so no internal detail flows into a response
+        raise ValidationError(TIMEZONE_ERROR) from error
+    return getattr(zone, 'key', str(zone))
+
+
+def split_scheduling(scheduling):
+    """The five crontab fields and the resolved timezone name of a string.
+
+    Answers (None, None) for an empty string - an edit which only flips
+    `enabled` carries no crontab and keeps the current one. The caller must
+    have validated the string before (the request serializer does).
+    """
+    data = (scheduling or '').strip()
+    if not data:
+        return None, None
+    match = re.fullmatch(CRONTAB_TIME_REGEX, data)
+    if match is None:
+        return None, None
+    groups = match.groupdict()
+    fields = [groups['minute'], groups['hour'], groups['day_of_month'],
+              groups['month_of_year'], groups['day_of_week']]
+    token = groups.get('timezone')
+    return fields, (timezone_name(token) if token else None)
+
+
+class SchedulePreviewRequestSerializer(Serializer):
+    """The unsaved draft a schedule screen proposes, validated not persisted.
+
+    `scheduling` is the five-field crontab as the form writes it; the
+    harvesting family may carry the timezone inside the string as its save
+    path accepts, the other families take a timezone only through the
+    separate `timezone` attribute. Without `scheduling` the current crontab
+    of `setting_id` answers, so an edit which only flips `enabled` can be
+    previewed too.
     """
 
-    schedule_warnings = ScheduleWarningsField(
-        label=_("schedule warnings"),
+    operation = ChoiceField(
+        choices=('monitoring', 'update', 'harvest'),
+        label=_('operation'),
+        help_text=_("the periodic operation the setting schedules."),
+    )
+    service_kind = ChoiceField(
+        choices=('WebMapService', 'WebFeatureService', 'CatalogueService'),
+        label=_('service kind'),
+        help_text=_("the kind of the service the setting belongs to."),
+    )
+    service_id = CharField(
+        label=_('service id'),
+        help_text=_("the service the proposed setting would schedule."),
+    )
+    setting_id = IntegerField(
+        required=False, allow_null=True,
+        label=_('setting id'),
+        help_text=_("the setting being edited; absent previews a new one."),
+    )
+    scheduling = CharField(
+        required=False, allow_blank=True,
+        label=_('scheduling'),
         help_text=_(
-            "the recurrence-risk states of this saved schedule: a tighter "
-            "interval than the runs it schedules measurably take, a run "
-            "which missed its time, an expired validity or an evidence base "
-            "too small to judge - answered as stable codes with safe "
-            "parameters, empty if the schedule needs no attention. A "
-            "warning never blocks a save."),
-        read_only=True)
+            "the proposed crontab: five fields \"minute hour day-of-month "
+            "month day-of-week\", with the timezone suffix the harvesting "
+            "form writes."),
+    )
+    timezone = CharField(
+        required=False, allow_blank=True,
+        label=_('timezone'),
+        help_text=_(
+            "the timezone the crontab runs in; the current schedule's by "
+            "default, UTC without one."),
+    )
+    enabled = BooleanField(
+        required=False, default=True,
+        label=_('enabled'),
+        help_text=_("whether the proposed schedule dispatches."),
+    )
+    one_off = BooleanField(
+        required=False, default=False,
+        label=_('one off'),
+        help_text=_("whether the setting fires only once."),
+    )
+    start_time = DateTimeField(
+        required=False, allow_null=True,
+        label=_('start time'),
+        help_text=_("the earliest moment the schedule may dispatch."),
+    )
+    expires = DateTimeField(
+        required=False, allow_null=True,
+        label=_('expires'),
+        help_text=_("the moment after which the schedule stops dispatching."),
+    )
 
-    def _answers_schedule_warnings(self) -> bool:
-        """Whether the request of this answer wants the warnings at all.
+    def validate(self, attrs):
+        """Decide the proposed crontab with the canonical Celery parser.
 
-        The evidence query and the crontab decision are only paid for a
-        request which asks the answer - the same sparse-field gate which
-        decides the next-run answers of the schedules (#1082). An endpoint
-        which knows no sparse fieldset always answers.
+        The five-field rule and the error wording belong to the save path
+        of the answered family; what is added here is that an unsaved
+        `CrontabSchedule` must hand out a usable Celery `schedule`, which
+        is exactly what the preview asks of it later - so fields Celery
+        rejects answer as field errors here instead of as a degraded
+        estimate there. Nothing of it touches the database.
         """
-        view = self.context.get("view")
-        check = getattr(view, "check_sparse_fields_contains", None)
-        return True if check is None else check("scheduleWarnings")
+        scheduling = (attrs.get('scheduling') or '').strip()
+        timezone = (attrs.get('timezone') or '').strip()
+        harvest = attrs.get('operation') == 'harvest'
+        if not scheduling:
+            if timezone:
+                attrs['timezone'] = timezone_name(timezone)
+            if not attrs.get('setting_id'):
+                raise ValidationError({'scheduling': _(
+                    'A new schedule needs the crontab it proposes; only '
+                    'an existing setting may be previewed without one.')})
+            return attrs
+        embedded = None
+        match = re.fullmatch(CRONTAB_TIME_REGEX, scheduling)
+        parts = scheduling.split()
+        if match is None or (not harvest and len(parts) != 5):
+            # answered word for word as the save path of the family answers
+            raise ValidationError({'scheduling': (
+                f'Invalid crontab string format: {scheduling}'
+                if harvest else MONITORING_CRONTAB_ERROR)})
+        if harvest and match.groupdict().get('timezone'):
+            embedded = timezone_name(match.groupdict()['timezone'])
+        elif not harvest and match.groupdict().get('timezone'):
+            # the monitoring and update forms write five fields only
+            raise ValidationError({'scheduling': MONITORING_CRONTAB_ERROR})
+        resolved = timezone_name(timezone) if timezone else embedded
+        crontab = CrontabSchedule(
+            minute=match.groupdict()['minute'],
+            hour=match.groupdict()['hour'],
+            day_of_month=match.groupdict()['day_of_month'],
+            month_of_year=match.groupdict()['month_of_year'],
+            day_of_week=match.groupdict()['day_of_week'],
+            timezone=ZoneInfo(resolved or 'UTC'))
+        try:
+            # Celery's own parser decides whether the fields are usable
+            crontab.schedule
+        except Exception as error:
+            # its message may name internals; the screen gets the stable
+            # wording on the field it asked about instead
+            raise ValidationError(
+                {'scheduling': CRONTAB_UNUSABLE_ERROR}) from error
+        if resolved:
+            attrs['timezone'] = resolved
+        attrs['scheduling'] = scheduling
+        return attrs
 
-    def get_schedule_warnings(self, obj):
-        if not self._answers_schedule_warnings():
-            return None
-        batch = self.context.get("schedule_warnings")
-        if batch is not None:
-            return batch.get(obj.pk, [])
-        return schedule_warnings_by_id([obj]).get(obj.pk, [])
+
+class ElapsedEvidenceSerializer(Serializer):
+    """The end-to-end durations the completed comparable runs measured.
+
+    Every number answers only while its evidence allows it (#1325): the
+    median and p95 are measured inside the lookback window, the average is
+    the #693-compatible average over comparable runs of any age and is
+    never presented as a p95.
+    """
+
+    evidence = CharField(read_only=True)
+    p50_seconds = FloatField(read_only=True, allow_null=True)
+    p95_seconds = FloatField(read_only=True, allow_null=True)
+    average_seconds = FloatField(read_only=True, allow_null=True)
+    sample_count = IntegerField(read_only=True)
+    p95_minimum_samples = IntegerField(read_only=True)
+    failed_count = IntegerField(read_only=True)
+    incomplete_count = IntegerField(read_only=True)
+    lookback_days = IntegerField(read_only=True)
+    last_measurement_at = DateTimeField(read_only=True, allow_null=True)
+
+    def to_representation(self, instance):
+        """Answer the nested object in the camel case of the resource.
+
+        The json:api renderer names the attributes of the resource in
+        camel case but leaves the value of a nested object untouched; the
+        screen reads this one by camel case keys, so it is answered in the
+        very spelling the renderer would have used (`format_field_name` is
+        the renderer's own formatter).
+        """
+        answered = super().to_representation(instance)
+        return {format_field_name(name): value
+                for name, value in answered.items()}
+
+
+class WarningSerializer(Serializer):
+    """One informational warning: its stable code and its readable reason."""
+
+    code = CharField(read_only=True)
+    message = CharField(read_only=True)
+
+
+class SchedulePreviewSerializer(Serializer):
+    """What a proposed schedule would mean, answered without saving it.
+
+    The answer is a projection, not a stored resource: it carries no url,
+    and none of its warnings rejects a save. The `as_of` moment and the
+    `setting_revision` let the screen notice that the draft or the setting
+    moved on since the answer and ask again.
+    """
+
+    id = CharField(read_only=True)
+    operation = CharField(read_only=True)
+    service_kind = CharField(read_only=True)
+    service_id = CharField(read_only=True)
+    setting_id = IntegerField(read_only=True, allow_null=True)
+    #: the crontab the answer was decided from, timezone suffix included
+    scheduling = CharField(read_only=True, allow_null=True)
+    enabled = BooleanField(read_only=True)
+    next_occurrences = ListField(
+        child=DateTimeField(), read_only=True)
+    interval_seconds = FloatField(read_only=True, allow_null=True)
+    potential_overlap = BooleanField(read_only=True, allow_null=True)
+    overlap_basis = CharField(read_only=True, allow_null=True)
+    elapsed = ElapsedEvidenceSerializer(read_only=True)
+    warning_codes = ListField(child=CharField(), read_only=True)
+    warnings = ListField(child=WarningSerializer(), read_only=True)
+    #: phase-2 only: null while no reliable capacity telemetry exists
+    capacity = ReadOnlyField(allow_null=True)
+    capacity_reason = CharField(read_only=True)
+    #: the change moment of the setting the preview was decided against,
+    #: null for a new one - the screen uses it to notice a concurrent edit
+    setting_revision = DateTimeField(read_only=True, allow_null=True)
+    as_of = DateTimeField(read_only=True)
+    expires_at = DateTimeField(read_only=True)
 
     class Meta:
-        abstract = True
+        resource_name = 'SchedulingPreview'

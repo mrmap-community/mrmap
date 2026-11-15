@@ -11,8 +11,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
-from registry.serializers.scheduling import (SCHEDULE_WARNING_ATTRIBUTES,
-                                             ScheduleWarningsSerializerMixin)
+from registry.serializers.schedule_warnings import (SCHEDULE_WARNING_ATTRIBUTES,
+                                                    ScheduleWarningsSerializerMixin)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,

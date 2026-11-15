@@ -39,7 +39,7 @@ from registry.serializers.monitoring import (
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from registry.views.scheduling import ScheduleWarningsViewsetMixin
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 

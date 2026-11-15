@@ -19,8 +19,8 @@ from registry.querys.historical import with_delta_size, with_prev_record_id
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
-from registry.serializers.scheduling import (SCHEDULE_WARNING_ATTRIBUTES,
-                                             ScheduleWarningsSerializerMixin)
+from registry.serializers.schedule_warnings import (SCHEDULE_WARNING_ATTRIBUTES,
+                                                    ScheduleWarningsSerializerMixin)
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField

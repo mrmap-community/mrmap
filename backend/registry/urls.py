@@ -5,6 +5,7 @@ from registry.views import historical as historical_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
+from registry.views import scheduling as scheduling_views
 from registry.views import security as security_views
 from registry.views import service as service_views
 from registry.views import statistical as stats_views
@@ -395,6 +396,13 @@ router.register(r'historical-csw',
 
 urlpatterns = router.urls + [
     path('service-alerts', ServiceAlertListView.as_view(), name='service-alert-list'),
+    # the side-effect-free draft preview of a proposed schedule, asked before
+    # the screen saves (#1327)
+    path(
+        route=r'scheduling/preview',
+        view=scheduling_views.SchedulingPreviewView.as_view(),
+        name='scheduling-preview'
+    ),
     # the stored response body of one probe result, answered as a plain file
     # and not as a json:api resource (#682)
     path(

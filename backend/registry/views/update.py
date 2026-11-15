@@ -26,7 +26,7 @@ from registry.serializers.update import (
     WebFeatureServiceUpdateSettingSerializer, WebMapServiceUpdateJobSerializer,
     WebMapServiceUpdateSettingSerializer)
 from rest_framework.response import Response
-from registry.views.scheduling import ScheduleWarningsViewsetMixin
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import get_history_manager_for_model
 

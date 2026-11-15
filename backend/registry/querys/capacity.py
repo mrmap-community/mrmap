@@ -69,8 +69,8 @@ from django.db.models import (Avg, Count, DurationField, ExpressionWrapper,
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import CrontabSchedule
-from extras.scheduling import (next_run_expected_at, run_interval,
-                               schedule_is_tighter_than)
+from extras.scheduling import (next_run_expected_at, next_run_occurrences,
+                               run_interval, schedule_is_tighter_than)
 from notify.enums import ProcessStatusEnum
 from registry.enums.capacity import (EstimateGapEnum, EvidenceQualityEnum,
                                      RunOperationEnum)
@@ -141,11 +141,20 @@ class ScheduleProposal:
             "minute hour day-of-month month day-of-week"
         timezone (str): the name of the timezone to run the crontab in; the
             timezone of the current schedule by default, UTC without one
+        one_off (bool or None): the proposed `one_off` flag; None keeps the
+            value of the answered setting (#1327)
+        start_time (datetime or None): the proposed start; None keeps the
+            value of the answered setting (#1327)
+        expires (datetime or None): the proposed end; None keeps the value
+            of the answered setting (#1327)
     """
 
     enabled: bool = True
     crontab: str = None
     timezone: str = None
+    one_off: bool = None
+    start_time: datetime = None
+    expires: datetime = None
 
 
 @dataclass(frozen=True)
@@ -156,6 +165,9 @@ class ScheduleAnswer:
     crontab: str = None
     next_run_expected_at: datetime = None
     run_interval_seconds: float = None
+    #: the coming occurrences of the schedule, ascending, decided by the
+    #: same canonical stepping as `next_run_expected_at` (#1327)
+    next_occurrences: tuple = ()
     gaps: tuple = ()
 
 
@@ -280,8 +292,12 @@ RUN_MODEL_OF = {
 UNSAVED_CRONTAB_ID = -1
 
 
-class _EffectiveSchedule:
+class DraftSchedule:
     """A draft or proposed schedule, answering what `extras.scheduling` reads.
+
+    Public so that the draft-preview endpoint of #1327 can ask the canonical
+    scheduling helpers about an unsaved proposal through the very same
+    stand-in the estimator uses, instead of a second implementation.
 
     `next_run_expected_at` and `run_interval` are the canonical decision of
     Celery's schedule semantics, which #1325 reuses, and they read exactly
@@ -291,7 +307,7 @@ class _EffectiveSchedule:
     and the timing baseline of the real setting whenever it has one.
     """
 
-    def __init__(self, setting, crontab, enabled, current_time):
+    def __init__(self, setting, crontab, enabled, current_time, proposal=None):
         self.crontab = crontab
         if crontab is None:
             self.crontab_id = None
@@ -300,13 +316,29 @@ class _EffectiveSchedule:
         else:
             self.crontab_id = UNSAVED_CRONTAB_ID
         self.enabled = enabled
-        self.one_off = bool(getattr(setting, 'one_off', False))
+        # a proposed `one_off`/start/end replaces the answered setting's
+        # value - replacement semantics of the preview: the old contribution
+        # never counts beside the proposed one (#1327)
+        one_off = bool(getattr(setting, 'one_off', False))
+        start_time = getattr(setting, 'start_time', None)
+        expires = getattr(setting, 'expires', None)
+        if proposal is not None:
+            if proposal.one_off is not None:
+                one_off = bool(proposal.one_off)
+            if proposal.start_time is not None:
+                start_time = proposal.start_time
+            if proposal.expires is not None:
+                expires = proposal.expires
+        self.one_off = one_off
         self.total_run_count = getattr(setting, 'total_run_count', 0) or 0
         self.last_run_at = getattr(setting, 'last_run_at', None)
+        # an unsaved row is created at the answered moment: Beat's baseline
+        # for a setting which never dispatched is its `date_changed`, and a
+        # draft has no row yet whose change date could be older (#1327)
         self.date_changed = (getattr(setting, 'date_changed', None)
-                             if setting is not None else current_time)
-        self.start_time = getattr(setting, 'start_time', None)
-        self.expires = getattr(setting, 'expires', None)
+                             or current_time)
+        self.start_time = start_time
+        self.expires = expires
 
 
 @dataclass(frozen=True)
@@ -383,8 +415,8 @@ def _schedule(setting, proposal, current_time):
 
     effective = setting if (
         setting is not None and proposal is None and setting.pk is not None
-        and setting.crontab_id is not None) else _EffectiveSchedule(
-            setting, crontab, enabled, current_time)
+        and setting.crontab_id is not None) else DraftSchedule(
+            setting, crontab, enabled, current_time, proposal)
 
     if not enabled:
         gaps.append(EstimateGapEnum.SCHEDULE_DISABLED.value)
@@ -396,7 +428,9 @@ def _schedule(setting, proposal, current_time):
     return ScheduleAnswer(
         enabled=enabled, crontab=str(crontab),
         next_run_expected_at=expected_at,
-        run_interval_seconds=_seconds(interval), gaps=tuple(gaps)), effective
+        run_interval_seconds=_seconds(interval),
+        next_occurrences=tuple(next_run_occurrences(effective)),
+        gaps=tuple(gaps)), effective
 
 
 def _parse_proposal(proposal, setting):

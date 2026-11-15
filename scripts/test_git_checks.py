@@ -84,6 +84,19 @@ class HookTests(unittest.TestCase):
             hooks.install_hooks(self.root)
         self.assertEqual(self.git("config", "--get", "core.hooksPath"), ".custom-hooks")
 
+    def test_installed_wrappers_allow_older_branches_without_runner(self):
+        self.templates()
+        self.commit()
+        hooks.install_hooks(self.root)
+        result = subprocess.run(["git", "commit", "--allow-empty", "-qm", "older branch"],
+                                cwd=self.root, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"skipping local checks", result.stderr)
+        result = subprocess.run([str(self.root / ".git/hooks/pre-push"), "origin", "fixture"],
+                                cwd=self.root, capture_output=True, input=b"")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"skipping local checks", result.stderr)
+
     def test_documentation_skips_snapshot_and_containers(self):
         with patch.object(hooks, "export_tree") as export, patch.object(hooks, "Containers") as docker:
             hooks.check_tree(self.root, "commit", None, ["docs/example.rst"])

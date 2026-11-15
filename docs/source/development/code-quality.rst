@@ -30,7 +30,8 @@ worktrees. It refuses to overwrite custom hooks or redirect an existing ``core.h
 integrate the tracked wrappers manually if you already have either setup. Re-running the
 installer updates only MrMap's wrappers. Remove them with ``python3 scripts/git_checks.py uninstall``.
 The checks themselves live in ``scripts/git_checks.py`` and follow the checked-out branch;
-no hook framework or tracked executable-bit changes are needed.
+no hook framework or tracked executable-bit changes are needed. On older branches without
+that runner, the wrappers print a skip message so other worktrees can still commit and push.
 
 ``pre-commit`` lints changed, staged backend Python and frontend JavaScript/TypeScript files.
 It uses the existing Flake8 and ESLint configurations; changing a lint configuration or its

@@ -225,11 +225,14 @@ class CreationTest(WriteMapperTest):
         records[0]["values"]["access_constraints"] = "Zugang beschränkt"
         out, _ = self.write(raw, records)
 
+        # count() instead of a second filter predicate: the chained
+        # "[...][@a='v']" form raises "Invalid type" on this document with
+        # libxml2 2.14 (#1242 CI), count() evaluates everywhere identically
         created = etree.fromstring(out).xpath(
             "//*[local-name()='MD_LegalConstraints']"
-            "[.//*[local-name()='MD_RestrictionCode'"
-            "[@codeListValue='otherRestrictions']]"
-            "/*[local-name()='otherConstraints']]")
+            "[count(.//*[local-name()='MD_RestrictionCode']"
+            "[@codeListValue='otherRestrictions'])>0]"
+            "[count(.//*[local-name()='otherConstraints'])>0]")
         self.assertEqual(len(created), 1)
         self.assertTrue(etree.tostring(created[0]).startswith(
             b"<ns0:MD_LegalConstraints"))
@@ -294,8 +297,8 @@ class CollectionTest(WriteMapperTest):
         self.assertEqual([row["value"] for row in reread], existing + [other])
         # the created wrapper satisfies the predicate the config reads with
         codes = etree.fromstring(out).xpath(
-            "//*[local-name()='LanguageCode']"
-            "[@codeListValue='" + str(LanguageChoices(other).label) + "']")
+            "//*[local-name()='LanguageCode'"
+            " and @codeListValue='" + str(LanguageChoices(other).label) + "']")
         self.assertTrue(codes)
         self.assertTrue(all(
             c.get("codeList") ==

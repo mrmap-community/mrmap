@@ -351,7 +351,7 @@ class ScopeTests(TestCase):
     def test_a_job_incident_is_answered_from_its_service(self):
         catalogue = CatalogueService.objects.get(pk=CSW_PK)
         job = HarvestingJob.objects.create(
-            service=catalogue, phase="collect", date_created=now())
+            service=catalogue, date_created=now())
         incident = OperationalIncident.objects.create(
             dedup_key="scope|job", code="scope",
             source=IncidentSourceEnum.HARVESTING.value,

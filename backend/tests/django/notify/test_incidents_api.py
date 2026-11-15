@@ -60,7 +60,7 @@ class OperationalIncidentApiTests(TestCase):
             retry_count=3,
             retry_scheduled_until=now() + timedelta(minutes=5))
         self.job = HarvestingJob.objects.create(
-            service=self.catalogue, phase="collect", date_created=now())
+            service=self.catalogue, date_created=now())
         self.on_job, _ = OperationalIncident.objects.report(
             code="harvest_stalled",
             source=IncidentSourceEnum.HARVESTING.value,

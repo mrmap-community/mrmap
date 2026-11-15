@@ -507,7 +507,7 @@ class OperationalIncidentManager(models.Manager):
             field, value = resource.popitem()
             model = self.model._meta.get_field(
                 field).related_model
-            key = f"{code}|{model._meta.label}|{getattr(value, 'pk', value)}"
+            key = f"{code}|{model._meta.label_lower}|{getattr(value, 'pk', value)}"
         if len(key) > self.DEDUP_KEY_MAX_LENGTH:
             raise ValueError("The dedup key of an incident is too long.")
         return key

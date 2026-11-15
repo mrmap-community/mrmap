@@ -108,8 +108,9 @@ services:
       # of grants must answer 200). The editor activation gate of #1241 is a
       # deployment posture, not a permission, and it would answer 403 in front
       # of those grants; the behave runner is not a public deployment, so it
-      # opens the gate and keeps the matrix specified. The shipped default (and
-      # the closed-gate 403) is pinned by tests.django.registry.tests_metadata_record_writes.
+      # pins the gate open and keeps the matrix specified independently of the
+      # shipped default. The default-open write path and the closed-gate 403
+      # are pinned by tests.django.registry.tests_metadata_record_writes.
       MRMAP_METADATA_EDITOR_WRITES_ENABLED: "True"
     depends_on:
       - postgis

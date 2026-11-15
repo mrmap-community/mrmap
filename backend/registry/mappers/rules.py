@@ -63,13 +63,13 @@ CRASH_SEVERITY = "error"
 #: the record fields whose patched value the overlay can convert into the
 #: shape the write mapper reads: scalar fields pass through, the three
 #: contact FKs become the dict of the four configured contact fields, the
-#: keyword / language / category M2M lists become one row per instance as
-#: the reader answers them.
+#: keyword / language / category / reference system M2M lists become one row
+#: per instance as the reader answers them.
 OVERLAYABLE_FIELDS = frozenset({
     "title", "abstract", "charset", "update_frequency_code",
     "access_constraints", "equivalent_scale", "ground_res",
     "metadata_contact", "dataset_contact", "application_contact",
-    "keywords", "languages", "categories",
+    "keywords", "languages", "categories", "reference_systems",
 })
 
 #: the fields a rule may still name although no payload can patch them:
@@ -235,6 +235,12 @@ def _convert_value(name, value):
         return [{"value": language.value} for language in value]
     if name == "categories":
         return [{"value": category.value} for category in value]
+    if name == "reference_systems":
+        # the row the extraction answers is the pair the parser split out of
+        # the code text; the write serializes it back through the spec's
+        # _reverse_parser
+        return [{"code": system.code, "prefix": system.prefix}
+                for system in value]
     return _UNCHANGED
 
 

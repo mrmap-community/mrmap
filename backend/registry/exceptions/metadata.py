@@ -17,6 +17,21 @@ class UnknownMetadataKind(ValueError):
     """
 
 
+class PublishRefused(Exception):
+    """The served ISO document of a record can not be regenerated from its row.
+
+    The publish step of the metadata editor (#1244) derives the document the
+    CSW serves from the fields a write just committed, through the write mapper
+    of #1242. Whenever that derivation can not run to its end - the record is
+    not the single node its own document names, the mapper can not read the
+    stored bytes, or the write-back refuses the combination - the whole write
+    is refused rather than committed: a stored record whose served document
+    disagrees with it is exactly the state the readiness clarification of #1244
+    forbids, and "no verdict" never passes as "valid" (the fail-closed posture
+    #1241 shipped and #1243 kept).
+    """
+
+
 class MetadataFetchTimeout(Timeout):
     """The server behind a metadata link stayed silent past the timeout.
 

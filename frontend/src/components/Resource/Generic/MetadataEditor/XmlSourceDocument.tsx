@@ -1,8 +1,4 @@
 import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
-
-import { Editor } from "@monaco-editor/react";
-import SaveIcon from "@mui/icons-material/Save";
-import { Alert, Button, GlobalStyles, Stack, Typography } from "@mui/material";
 import {
   useNotify,
   useRecordContext,
@@ -10,6 +6,10 @@ import {
   useTranslate,
   useUpdate,
 } from "react-admin";
+
+import { Editor } from "@monaco-editor/react";
+import SaveIcon from "@mui/icons-material/Save";
+import { Alert, Button, GlobalStyles, Stack, Typography } from "@mui/material";
 
 import SimpleCard from "../../../MUI/SimpleCard";
 import { changedLinesOf } from "./changedLines";

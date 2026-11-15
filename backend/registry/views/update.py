@@ -26,11 +26,12 @@ from registry.serializers.update import (
     WebFeatureServiceUpdateSettingSerializer, WebMapServiceUpdateJobSerializer,
     WebMapServiceUpdateSettingSerializer)
 from rest_framework.response import Response
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import get_history_manager_for_model
 
 
-class WebMapServiceUpdateSettingViewSetMixing:
+class WebMapServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
     queryset = WebMapServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebMapServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -304,7 +305,7 @@ class NestedLayerMappingViewSet(
     """ Nested list endpoint for resource `LayerMapping` """
 
 
-class WebFeatureServiceUpdateSettingViewSetMixing:
+class WebFeatureServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
     queryset = WebFeatureServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebFeatureServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -390,7 +391,7 @@ class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedMode
     """Nested list endpoint for resource `FeatureTypeMapping`"""
 
 
-class CatalogueServiceUpdateSettingViewSetMixing:
+class CatalogueServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
     queryset = CatalogueServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = CatalogueServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

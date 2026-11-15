@@ -29,6 +29,7 @@ import PortalSearch from './PortalSearch/PortalSearch';
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
 import HistoryList from './Resource/Generic/History/HistoryList';
+import MetadataEditorRoute from './Resource/Generic/MetadataEditor/MetadataEditorRoute';
 import ServiceExplorer from './Resource/ServiceExplorer/ServiceExplorer';
 
 const STORE_VERSION = '1'
@@ -150,6 +151,11 @@ const MrMapFrontend = (): ReactElement => {
             <Route path="/viewer" element={<MapViewer />} />
             <Route path="/service-explorer" element={<ServiceExplorer />} />
             <Route path="/search" element={<PortalSearch />} />
+            {/* full screen record editor (#1245); :type is the JSON:API name */}
+            <Route
+              path="/metadata/:type/:id/edit"
+              element={<MetadataEditorRoute />}
+            />
           </CustomRoutes>
         } 
       </Admin>

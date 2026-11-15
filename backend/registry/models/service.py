@@ -524,21 +524,18 @@ class OperationUrl(models.Model):
     )
     operation: str = models.PositiveSmallIntegerField(
         choices=OGCOperationEnum.choices,
-        # editable=False,
         verbose_name=_("operation"),
         help_text=_("the operation you can perform with this url."),
     )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     url: str = models.URLField(
         max_length=4096,
-        # editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
     )
     mime_types = models.ManyToManyField(
         to="MimeType",  # use string to avoid from circular import error
         blank=True,
-        # editable=False,
         related_name="%(class)s_operation_urls",
         related_query_name="%(class)s_operation_url",
         verbose_name=_("internet mime type"),
@@ -553,25 +550,11 @@ class OperationUrl(models.Model):
     def __str__(self):
         return f"{OGCOperationEnum(self.operation).label} | {self.url} ({HttpMethodEnum(self.method).label})"
 
-    # def get_url(self, request):
-    #     url_parsed = urlparse(self.url)
-    #     new_query = {}
-    #     for key, value in parse_qs(url_parsed.query).items():
-    #         new_query.update({key.upper(): value})
-    #     url_parsed._replace(query=new_query)
-    #     return url_parsed.geturl()
-    #     # FUTURE: check if service is secured and if so return the secured url
-    #     parsed_request_url = urlparse(request.get_full_path())
-    #     parsed_url = urlparse(self.url)
-    #     parsed_url._replace(netloc=parsed_request_url.netloc)
-    #     return parsed_url.geturl()
-
 
 class WebMapServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
-        # editable=False,
         related_name="operation_urls",
         related_query_name="operation_url",
         verbose_name=_("related web map service"),

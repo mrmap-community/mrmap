@@ -534,7 +534,6 @@ def fetch_metadata_document(link, reference="the reference"):
     # FUTURE: Re add authentication
     request = Request(method="GET",
                       url=link,
-                      # auth=auth,
                       )
 
     try:

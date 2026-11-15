@@ -51,10 +51,6 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
 
 class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("web map service"),
         help_text=_(
@@ -601,7 +597,6 @@ class WebMapServiceCreateSerializer(
     get_capabilities_url = URLField(
         label=_("get capabilities url"),
         help_text=_("a valid get capabilities url."),
-        # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
         validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebMapServiceAuthentication.objects,
@@ -635,14 +630,9 @@ class WebMapServiceCreateSerializer(
 
 class WebFeatureServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = SerializerMethodField()
-
     class Meta:
         model = WebFeatureServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class FeatureTypeSerializer(
@@ -873,14 +863,9 @@ class WebFeatureServiceCreateSerializer(
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = SerializerMethodField()
-
     class Meta:
         model = CatalogueServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class CatalogueServiceCreateSerializer(
@@ -950,7 +935,6 @@ class CatalogueServiceSerializer(
         model=HarvestingJob,
         many=True,
         read_only=True,
-        # related_link_view_name="registry:csw-datasetmetadata-list",
         # related_link_url_kwarg="parent_lookup_harvested_through",
     )
     running_harvesting_job = SerializerMethodResourceRelatedField(
@@ -1021,10 +1005,6 @@ class CatalogueServiceSerializer(
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("catalogue service"),
         help_text=_(

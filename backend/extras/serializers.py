@@ -101,7 +101,6 @@ class HistoryInformationSerializer(ModelSerializer):
     created_by = SerializerMethodResourceRelatedField(
         model=get_user_model(),
         required=False,
-        # related_link_view_name='accounts:user-detail',
         # related_link_url_kwarg='pk',
     )
     last_modified_by = SerializerMethodResourceRelatedField(

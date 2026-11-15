@@ -22,7 +22,6 @@ class GroupSerializer(
         label=_("users"),
         help_text=_("users who are members of this group"),
         many=True,
-        # related_link_view_name='accounts:group-users-list',
         # related_link_url_kwarg='parent_lookup_group',
         queryset=User.objects
     )

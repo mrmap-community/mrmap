@@ -46,9 +46,6 @@ class MapBenderSearchApi(View):
 
         cql_filter_expr = f"Type LIKE '{search_resources}'"  # noqa
 
-        # language_code = self.request.GET.get("languageCode", 'en')
-        # cql_filter_expr += f" AND ResourceLanguage LIKE '{language_code}'" # noqa
-
         first_loop = True
         for any_text in any_text_filters:
 

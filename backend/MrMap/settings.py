@@ -912,10 +912,6 @@ REST_FRAMEWORK = {
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }
 
-# REST_KNOX = {
-#     'TOKEN_TTL': timedelta(hours=1),
-#     'AUTO_REFRESH': True,
-# }
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

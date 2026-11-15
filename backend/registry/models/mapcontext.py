@@ -208,9 +208,6 @@ class RenderingOffering(models.Model):
         blank=True,
         verbose_name=_("rendering active"),
         help_text=_("should this offering be visible?"))
-    # transparency = models.IntegerField(
-    #     null=True,
-    #     blank=True)
 
     class Meta:
         abstract = True

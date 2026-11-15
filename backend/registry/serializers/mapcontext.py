@@ -23,14 +23,8 @@ class MapContextLayerSerializer(
         help_text=_('an identifying name for this map context layer'),
         required=True
     )
-    # description = CharField(
-    #     label=_("description"),
-    #     help_text=_("a short description for this map context layer")
-    # )
     mptt_tree_id = IntegerField(
-        # queryset=Tree.objects,
         label=_("tree id"),
-        # model=Tree,
         read_only=True
     )
     mptt_parent = ResourceRelatedField(

@@ -490,20 +490,17 @@ class ServiceMetadataRecordSerializer(
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        # related_link_view_name='registry:servicemetadata-metadatacontact-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
     )
     licence = ResourceRelatedField(
         queryset=Licence.objects,
         required=False,
-        # related_link_view_name='registry:servicemetadata-licence-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord'
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         required=False,
-        # related_link_view_name='registry:servicemetadata-keywords-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata'
     )
     reference_systems = ResourceRelatedField(

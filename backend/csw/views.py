@@ -592,8 +592,6 @@ class CswServiceView(View):
             encoding="UTF-8"
         ).decode("utf-8")
 
-        # if (settings.DEBUG):
-        # return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})
         return HttpResponse(
             status=200,
             content=capabilitites_doc,
@@ -811,8 +809,6 @@ class CswServiceView(View):
             encoding="utf-8",
             xml_declaration=True
         )
-        # if (settings.DEBUG):
-        #    return TemplateResponse(request, "csw/debug.html", {"content": content})
         return HttpResponse(status=200, content=content, content_type="application/xml")
 
     def get_record_by_id(self, request):

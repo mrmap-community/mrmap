@@ -96,8 +96,6 @@ class OgcServiceProxyView(APIView):
     test_context = None
     service_type = None
 
-    # authentication_classes = (TokenAuthentication,)
-
     @property
     def is_get_request(self) -> bool:
         return self.request.method == "GET"
@@ -310,7 +308,6 @@ class OgcServiceProxyView(APIView):
             request = Request(
                 method=self.ogc_request.method,
                 url=url,
-                # params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
                 data=self.ogc_request.data if self.ogc_request.method == "POST" else None,
                 # Authenticate upstream with the registered service credentials,
                 # never with the caller's MrMap token or browser cookies.

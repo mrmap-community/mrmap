@@ -346,6 +346,7 @@ class OperationalIncidentApiTests(TestCase):
         which grows the page linearly shows up red here.
         """
         client = self.client_for(self.admin)
+        self.listed(client)  # settle the process wide caches of both paths
         with CaptureQueriesContext(connections["default"]) as many:
             self.assertEqual(len(self.listed(client)["data"]), 4)
         with CaptureQueriesContext(connections["default"]) as one:
@@ -391,6 +392,7 @@ class OperationalIncidentApiTests(TestCase):
         more queries than a single one.
         """
         client = self.client_for(self.owner)
+        self.listed(client)  # the guardian lookups settle their own caches
         with CaptureQueriesContext(connections["default"]) as many:
             self.assertEqual(len(self.listed(client)["data"]), 2)
         with CaptureQueriesContext(connections["default"]) as one:

@@ -31,9 +31,8 @@ from notify.incident_reporting import (operation_code,
 from notify.models import BackgroundProcess, OperationalIncident
 from registry.models.service import CatalogueService, WebMapService
 
-#: the catalogue of ``test_csw.json`` and the WMS of ``test_wms.json``
-CSW_PK = "639cb553-8c30-4e72-a38d-10351ce81cf1"
-WMS_PK = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+#: the catalogue of ``test_csw.json``
+CSW_PK = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
 TASK_NAME = "registry.tasks.harvest.fetch_md_metadata"
 
@@ -269,13 +268,13 @@ class RecoveryTests(PublisherTestMixin, TestCase):
             source="harvesting", severity="warning",
             summary="a verdict of the watchdog",
             resource={"catalogue_service": self.catalogue.pk})
-        # an incident of another resource stays standing
+        # a system-scoped verdict of the same code stays standing: its key
+        # is the code over no resource, not the key of this resource
         OperationalIncident.objects.report(
             code="operational_retry_window_expired",
             source="harvesting", severity="warning",
             summary="a verdict about nothing",
-            resource=None,
-            dedup_key="operational_retry_window_expired|system")
+            resource=None)
 
         BackgroundProcess.objects.report(
             self.process.pk, ProcessStatusEnum.COMPLETED)

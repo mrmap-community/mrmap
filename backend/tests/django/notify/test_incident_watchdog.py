@@ -29,7 +29,7 @@ from notify.models import BackgroundProcess, OperationalIncident
 from registry.models.harvest import HarvestingJob
 from registry.models.service import CatalogueService, WebMapService
 
-CSW_PK = "639cb553-8c30-4e72-a38d-10351ce81cf1"
+CSW_PK = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 WMS_PK = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
 OTHER_WMS_PK = "1b195589-dcfa-403f-9e66-e7e1c0a67024"
 
@@ -111,8 +111,7 @@ class StalledRetryWindowTests(WatchdogTestMixin, TestCase):
     def test_a_stalled_import_chord_becomes_one_credible_verdict(self):
         """AC 2 of #1320, and nothing of the job's own state moves."""
         job = HarvestingJob.objects.create(
-            service=self.catalogue, phase="records to db",
-            date_created=now())
+            service=self.catalogue, date_created=now())
         process = job.background_process
         # the sequence a real run leaves behind: work started, a task
         # reported its retry, the attempt never came (#1038)

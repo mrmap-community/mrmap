@@ -404,7 +404,13 @@ class MetadataReadOnlySchemaTests(SimpleTestCase):
                                         f"{component_name}.{name} is offered for writing")
 
     def test_the_derivation_covers_every_non_editable_model_field(self):
-        """The pin above holds for ALL of them, not only for the named four."""
+        """The pin above holds for ALL of them, not only for the named four.
+
+        Exactly one non-editable model field is offered for writing: the raw
+        source document of #1247 — the writable representation the write
+        serializer mixin declares for every record kind. The exception is
+        asserted here, not exempted: the member must answer writable.
+        """
         components = schemas()
         properties = component_properties(components["DatasetMetadataRecord"])
         for model_field in DatasetMetadataRecord._meta.get_fields():
@@ -414,5 +420,25 @@ class MetadataReadOnlySchemaTests(SimpleTestCase):
                 continue  # the resource id is the envelope's own field
             name = format_field_name(model_field.name)
             with self.subTest(field=name):
+                if name == format_field_name("xml_backup_file"):
+                    self.assertIn(name, properties)
+                    self.assertFalse(properties[name].get("readOnly"),
+                                     f"{name} is the writable source document")
+                    continue
                 if name in properties:
                     self.assertTrue(properties[name].get("readOnly"))
+
+    def test_the_source_document_writes_on_every_record_kind(self):
+        """#1247: one declaration for all three record kinds — the source
+        member answers writable everywhere and carries no `x-iso-path`:
+        it is not ONE mapped element, it is the whole document."""
+        components = schemas()
+        for record, (_, component_names) in IsoPathSchemaTests.RECORDS.items():
+            for component_name in component_names:
+                properties = component_properties(components[component_name])
+                name = format_field_name("xml_backup_file")
+                with self.subTest(component=component_name):
+                    property_schema = properties[name]
+                    self.assertFalse(property_schema.get("readOnly"),
+                                     f"{component_name}.{name} not writable")
+                    self.assertNotIn("x-iso-path", property_schema)

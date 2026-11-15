@@ -237,6 +237,22 @@ describe("record detail pages", () => {
       screen.queryByRole("tab", { name: "recordShow.documents" }),
     ).not.toBeInTheDocument();
   });
+  it("offers the xml source screen on every record kind", async () => {
+    setup("DatasetMetadataRecord", "source");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("tab", { name: "recordShow.source" }),
+      ).toHaveAttribute("aria-selected", "true"),
+    );
+    // no document on this record — the screen states that honestly
+    expect(
+      screen.getByText("recordShow.sourceHint"),
+    ).toBeInTheDocument();
+    const alerts = screen.getAllByRole("alert").map((a) => a.textContent);
+    expect(alerts.some((text) => text?.includes("recordShow.noStoredXml"))).toBe(
+      true,
+    );
+  });
   it("shows the harvesting relations of the application run by its own record column", async () => {
     setup("ApplicationMetadataRecord", "harvests");
     await waitFor(() =>

@@ -247,3 +247,29 @@ def iso_bbox_to_multipolygon(mapper, elements=[]):
 
     if polygons:
         return MultiPolygon(polygons)
+
+
+# reverse parsers (#1242): the write mapper turns a mapped value back into the
+# external representation the _parser of the same spec reads
+
+def int_to_charset(mapper, value):
+    return MetadataCharsetChoices(value).label
+
+
+def int_to_update_frequency(mapper, value):
+    return UpdateFrequencyChoices(value).label
+
+
+def datetime_to_string(mapper, value):
+    """The gco:DateTime text for an aware datetime.
+
+    Rendered in the deployment's current timezone without an offset, the
+    shape string_to_datetime() reads back as the same instant - which is what
+    lets the write mapper notice an unchanged date_stamp and leave the node
+    alone instead of rewriting the representation on every save.
+    """
+    if value is None:
+        return None
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime("%Y-%m-%dT%H:%M:%S")

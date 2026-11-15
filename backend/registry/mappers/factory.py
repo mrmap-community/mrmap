@@ -130,6 +130,74 @@ class MDMetadataXmlMapper(XmlMapper):
                     })
         return records
 
+    @classmethod
+    def write_mapped_records(cls, xml, records, hierarchy_level=None):
+        """Write mapped records back into an ISO 19139 document (#1242).
+
+        The inverse of extract_mapped_values(): takes the document and one
+        record per MD_Metadata node - in document order, in the shape the
+        extraction answers ({"spec", "model", "values"} or a bare values
+        dict) - and returns the serialized document with those values
+        written in. The same traversal machinery, configs and parsers serve
+        both directions, so what the editor shows is exactly what it can
+        write.
+
+        Unmapped content is carried through untouched; a write never
+        removes more than surplus rows of a collection it was asked to
+        rewrite, and fields without a reverse mapping are skipped and named
+        in the answer. Node identity is preserved: the MD_Metadata nodes are
+        written inside the live tree - unlike from_xml(), which detaches
+        each node into its own document and would drop every write.
+
+        Args:
+            xml: the XML source, see load_file.
+            records: one dict per MD_Metadata node of the document.
+            hierarchy_level: force the record kind like extract_mapped_values.
+
+        Returns:
+            (bytes, list) of the serialized document and the warnings the
+            mappers collected while writing.
+
+        Raises:
+            ValueError: when the record count does not match the node count
+                or a record does not belong to the record kind its node maps
+                as.
+        """
+        content = load_file(xml)
+        root = etree.fromstring(content)
+
+        md_nodes = root.xpath("//*[local-name()='MD_Metadata']")
+        if not md_nodes:
+            raise ValueError("No MD_Metadata elements found")
+        if len(md_nodes) != len(records):
+            raise ValueError(
+                f"the document carries {len(md_nodes)} MD_Metadata nodes, "
+                f"{len(records)} records were given")
+
+        warnings = []
+        for md_node, record in zip(md_nodes, records):
+            hierarchy = hierarchy_level or cls._detect_hierarchy_level(md_node)
+            mapping = cls._select_mapping(hierarchy)
+            spec_key = next(
+                (key for key, value in mapping.items()
+                 if not key.startswith("_") and isinstance(value, dict)
+                 and "_model" in value), None)
+            model_label = mapping[spec_key].get("_model")
+            given_spec = record.get("spec")
+            given_model = record.get("model")
+            if given_spec not in (None, spec_key) or \
+                    given_model not in (None, model_label):
+                raise ValueError(
+                    f"record for '{given_spec or given_model}' does not map "
+                    f"to the document's kind '{spec_key}'")
+            values = record.get("values", record)
+            mapper = cls(xml=md_node, mapping=mapping, cache=LocalXmlCache())
+            mapper.write_mapped_values(values)
+            warnings.extend(mapper.warnings)
+
+        return etree.tostring(
+            root, xml_declaration=True, encoding="utf-8"), warnings
+
     @staticmethod
     def _detect_hierarchy_level(md_node):
         result = md_node.xpath(

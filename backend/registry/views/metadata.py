@@ -213,26 +213,25 @@ class MetadataRecordWritesEnabled(BasePermission):
 
     The record endpoints answer the default json:api CRUD contract — POST,
     PUT, PATCH on the record resources (the cross-cutting decision of the
-    #1238 review: no bespoke action endpoints) — but until the XML write-back
-    (#1242), the profile validation (#1243) and the atomic publishing/harvest
-    overwrite gate (#1244) are integrated, a mutation would commit model
-    fields while the ISO document served by the CSW stays stale or invalid.
-    The readiness clarification of #1241 (2026-11-12) keeps such writes
-    refused for the public until that gate passes: POST/PUT/PATCH answer 403
-    with the reason while ``MRMAP_METADATA_EDITOR_WRITES_ENABLED`` is off.
+    #1238 review: no bespoke action endpoints). Since #1244 a committed write
+    is an atomic publish: the fields, the profile validation (#1243) and the
+    regenerated ISO document served by the CSW (the publish seam of
+    registry.mappers.publish) land in one transaction, so the condition which
+    made #1241 refuse the public with 403 — a committed model field whose
+    served document stays stale — no longer exists. The gate itself stays a
+    deployment posture: its setting (``MRMAP_METADATA_EDITOR_WRITES_ENABLED``,
+    on since #1244) answers every write with the reason for an operator who
+    keeps a deployment read-only, and no permission a user could hold
+    bypasses it.
 
     Reads answer as always and DELETE stays exactly at today's
     ``canDelete`` behaviour — a deletion removes the record together with the
-    document served for it, so it leaves no stale document behind. The gate is
-    a deployment posture, not a grant: it refuses an operator's deployment as
-    well as any client, and no permission a user could hold bypasses it.
+    document served for it, so it leaves no stale document behind.
     """
 
     message = _(
-        "Writing metadata records is not enabled in this deployment: a "
-        "mutation would leave the ISO document served by the CSW stale "
-        "behind the written fields until the write-back, validation and "
-        "publishing parts of the metadata editor are integrated (#1241).")
+        "Writing metadata records is disabled in this deployment "
+        "(MRMAP_METADATA_EDITOR_WRITES_ENABLED).")
 
     def has_permission(self, request, view):
         if request.method not in ("POST", "PUT", "PATCH"):

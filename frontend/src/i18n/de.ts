@@ -27,6 +27,28 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     monthly: "Jeden Monat am Tag %{day} um %{time} Uhr",
     yearly: "Jedes Jahr am %{day}. %{month} um %{time} Uhr",
   },
+  // die Antwort der Zeitplan-Formulare vor dem Speichern (#1327); die
+  // Warnungen selbst kommen übersetzt aus dem Vorschau-Endpunkt
+  schedulePreview: {
+    title: "Zeitplan-Vorschau",
+    description:
+      "Was dieser Zeitplan bedeuten würde, beantwortet bevor etwas gespeichert wird.",
+    button: "Zeitplan vorschauen",
+    loading: "Wird geprüft…",
+    missingService:
+      "Dieses Formular ist keinem Dienst zugeordnet, sein Zeitplan kann nicht vorgeschaut werden.",
+    nextRuns: "Nächste Läufe",
+    interval: "Abstand zwischen den Läufen",
+    p50: "Median der Laufdauer",
+    p95: "95. Perzentil der Laufdauer",
+    samples: "Vergleichbare abgeschlossene Läufe",
+    unknown: "unbekannt",
+    warnings: "Warnungen",
+    capacity: "Worker-Kapazität",
+    stale:
+      "Das Formular wurde nach dieser Antwort geändert; Vorschau erneut ausführen.",
+    error: "Die Vorschau konnte nicht beantwortet werden: %{detail}",
+  },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
     description: "Wählen Sie WMS oder WFS und geben Sie die GetCapabilities-URL ein.",
@@ -287,6 +309,23 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "customizedHint": "Dieser Datensatz wurde von mrmap geschrieben und kann von seiner übernommenen Quelle abweichen.",
     "relationsReadonly": "Verknüpfungen werden auf der Datensatzseite verwaltet; der Editor zeigt sie schreibgeschützt an."
   },
+  recordCreate: {
+    "startTitle": "Startpunkt",
+    "profileHint": "Das Profil bestimmt, welche Felder das Formular abfragt und welche ISO-Abschnitte sofort mit Inhalt entstehen.",
+    "templateTitle": "Vorlage",
+    "templateChoice": "Leerer Datensatz",
+    "templateComingSoon": "Vorlagen folgen später",
+    "templateHint": "Das Anlegen auf Basis eines vorhandenen Datensatzes oder einer Vorlage ist der nächste Schritt dieses Workflows und in dieser Version noch nicht enthalten.",
+    "getTitle": "Was Sie erhalten",
+    "getCreated": "Entsteht jetzt mit Inhalt:",
+    "getAddedLater": "Wird später im erweiterten Modus ergänzt:",
+    "getIdentity": "Die Kennung wird für Sie erzeugt; Sie können auch eine eigene setzen - sie darf noch nicht existieren.",
+    "getMarked": "Der Datensatz wird als vom Editor gespeichert markiert; ein Harvest, der später dieselbe Kennung mit einem neueren Datum liefert, kann ihn weiterhin aktualisieren.",
+    "fileIdentifier": "Datei-Kennung",
+    "fileIdentifierHint": "Optional. Leer lassen, um eine erzeugte UUID zu erhalten.",
+    "noProfiles": "Es konnten keine Metadatenprofile geladen werden. Seite neu laden oder Profile prüfen.",
+    "profileLoading": "Profile werden geladen...",
+  },
   recordShow: {
     "catalogue": "Katalog",
     "linkOrigin": "Herkunft der Verknüpfung",
@@ -319,7 +358,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "usage": "Nutzung und Lizenzierung",
     "searchable": "Für die Suche veröffentlicht",
     "unpublished": "Nicht für die Suche veröffentlicht",
-    "writtenAgain": "Mehrfach gespeichert",
+    "editorSaved": "Vom Editor gespeichert",
     "broken": "Fehlerhafter Datensatz",
     "openData": "Offene Daten",
     "copyId": "UUID kopieren",

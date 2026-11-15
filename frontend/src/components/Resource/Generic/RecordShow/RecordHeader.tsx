@@ -58,7 +58,7 @@ const RecordHeader = () => {
           )}
         />
         {record.isCustomized && (
-          <Chip size="small" label={translate("recordShow.writtenAgain")} />
+          <Chip size="small" label={translate("recordShow.editorSaved")} />
         )}
         {record.isBroken && (
           <Tooltip

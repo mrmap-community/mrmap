@@ -1,7 +1,7 @@
 import type { ListGuesserProps } from "../../../../jsonapi/components/ListGuesser";
 import type { FieldDefinition } from "../../../../jsonapi/utils";
 
-import { useMemo } from "react";
+import { type ReactElement, useMemo } from "react";
 import {
   BasenameContextProvider,
   CreateButton,
@@ -39,11 +39,15 @@ export function ServiceEmptyList() {
 export default function ServiceRelatedTab({
   resource,
   formFieldOverrides = [],
+  referenceInputs,
   ...listProps
-}: { resource: string; formFieldOverrides?: FieldDefinition[] } & Omit<
-  ListGuesserProps,
-  "resource" | "relatedResource"
->) {
+}: {
+  resource: string;
+  formFieldOverrides?: FieldDefinition[];
+  /** extra children of the create and edit dialogs' form, e.g. the
+   * schedule preview of a scheduling resource (#1327) */
+  referenceInputs?: ReactElement[];
+} & Omit<ListGuesserProps, "resource" | "relatedResource">) {
   const parentResource = useResourceContext();
   const record = useRecordContext();
   const { refetch } = useShowContext();
@@ -108,11 +112,13 @@ export default function ServiceRelatedTab({
           resource,
           defaultValues: source ? { [source]: record } : undefined,
           updateFieldDefinitions: overrides,
+          referenceInputs,
           mutationOptions: { onSuccess },
         }}
         editGuesserProps={{
           resource,
           updateFieldDefinitions: overrides,
+          referenceInputs,
           mutationOptions: { onSuccess },
         }}
       />

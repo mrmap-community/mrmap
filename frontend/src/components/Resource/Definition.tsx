@@ -33,6 +33,7 @@ import ListCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ListCatal
 import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatalogueServiceUpdateJob';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
+import { CreateMetadataRecord } from './Generic/MetadataEditor/CreateMetadataRecord';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
 import HarvestingJobRowActions from './HarvestingJob/HarvestingJobRowActions';
 import ListHarvestingJob from './HarvestingJob/ListHarvestingJob';
@@ -149,9 +150,14 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
-  {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
-  {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
-  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, options: { menu: { group: "Metadata", order: 25 } }},
+  // `create` is the blank-record wizard of issue #1248: the POST contract is
+  // identical for all three record types, so one screen serves all of them.
+  {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, create: CreateMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
+  {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, create: CreateMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
+  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, create: CreateMetadataRecord, options: { menu: { group: "Metadata", order: 25 } }},
+  // not a screen of its own, but the blank-record wizard fetches the profiles
+  // through the data provider, which needs the resource registered
+  {name: "MetadataProfile", icon: PlagiarismIcon},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
   {name: "MetadataRelation"},
   {name: "TimeExtent"},

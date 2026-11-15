@@ -30,6 +30,28 @@ const en = lodashMerge(
       monthly: "Every month on day %{day} at %{time}",
       yearly: "Every year on %{month} %{day} at %{time}",
     },
+    // the pre-save answer of the schedule forms (#1327); the warning
+    // messages themselves come translated from the preview endpoint
+    schedulePreview: {
+      title: "Schedule preview",
+      description:
+        "What this schedule would mean, answered before anything is saved.",
+      button: "Preview schedule",
+      loading: "Checking…",
+      missingService:
+        "This form is not bound to a service, so its schedule cannot be previewed.",
+      nextRuns: "First runs",
+      interval: "Interval between runs",
+      p50: "Median run duration",
+      p95: "95th percentile run duration",
+      samples: "Comparable completed runs",
+      unknown: "unknown",
+      warnings: "Warnings",
+      capacity: "Worker capacity",
+      stale:
+        "The form changed since this answer; run the preview again.",
+      error: "The preview could not be answered: %{detail}",
+    },
     viewerAdd: {
       title: "Add map service",
       description: "Select WMS or WFS and enter its GetCapabilities URL.",
@@ -307,6 +329,23 @@ const en = lodashMerge(
       "customizedHint": "This record was written by mrmap and may differ from its harvested source.",
       "relationsReadonly": "Relations are managed on the record's own page; the editor shows them read-only."
     },
+    recordCreate: {
+      startTitle: "Start point",
+      profileHint: "The profile decides which fields the form asks for and which ISO sections are created with content right away.",
+      templateTitle: "Template",
+      templateChoice: "Blank record",
+      templateComingSoon: "Templates are coming later",
+      templateHint: "Starting from an existing record or a template is the next step of this workflow and not part of this version yet.",
+      getTitle: "What you get",
+      getCreated: "Created with content now:",
+      getAddedLater: "Added later in Advanced mode:",
+      getIdentity: "The identifier is generated for you, but you can set one yourself - it must not exist yet.",
+      getMarked: "The record is marked as saved by the editor; a harvest that later delivers the same identifier with a newer date can still update it.",
+      fileIdentifier: "File identifier",
+      fileIdentifierHint: "Optional. Leave empty to get a generated UUID.",
+      noProfiles: "No metadata profile could be loaded. Refresh the page or check the profiles.",
+      profileLoading: "Loading profiles...",
+    },
     recordShow: {
       "catalogue": "Catalogue",
       "linkOrigin": "Link origin",
@@ -339,7 +378,7 @@ const en = lodashMerge(
       "usage": "Usage & licensing",
       "searchable": "Published to search",
       "unpublished": "Not published to search",
-      "writtenAgain": "Written more than once",
+      "editorSaved": "Saved by the editor",
       "broken": "Broken record",
       "openData": "Open data",
       "copyId": "Copy UUID",

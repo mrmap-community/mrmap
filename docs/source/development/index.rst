@@ -19,6 +19,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    environment
    celery-queues
    celery-result-backend
+   celery-capacity-telemetry
    background-notifications
    background-operations
    background-jobs

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 14:35+0100\n"
+"POT-Creation-Date: 2026-11-15 19:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -951,7 +951,9 @@ msgstr "aus älteren Beobachtungen geschätzt"
 
 #: registry/enums/capacity.py:64
 msgid "no setting and no schedule proposal was answered to the estimator"
-msgstr "der Schätzung wurde weder eine Einstellung noch ein Zeitplan-Vorschlag übergeben"
+msgstr ""
+"der Schätzung wurde weder eine Einstellung noch ein Zeitplan-Vorschlag "
+"übergeben"
 
 #: registry/enums/capacity.py:66
 msgid "the setting has no crontab schedule configured"
@@ -963,15 +965,19 @@ msgstr "der Zeitplan ist deaktiviert und löst keinen Lauf aus"
 
 #: registry/enums/capacity.py:70
 msgid "the one-off schedule already ran and will not fire again"
-msgstr "der einmalige Zeitplan wurde bereits ausgelöst und wird nicht erneut ausgelöst"
+msgstr ""
+"der einmalige Zeitplan wurde bereits ausgelöst und wird nicht erneut "
+"ausgelöst"
 
 #: registry/enums/capacity.py:72
 msgid "no comparable run of this service has finished successfully"
-msgstr "kein vergleichbarer Lauf dieses Dienstes ist erfolgreich abgeschlossen worden"
+msgstr ""
+"kein vergleichbarer Lauf dieses Dienstes ist erfolgreich abgeschlossen worden"
 
 #: registry/enums/capacity.py:74
 msgid "too few completed runs to answer a p95 without guessing"
-msgstr "zu wenige abgeschlossene Läufe, um einen p95-Wert ohne Raten zu beantworten"
+msgstr ""
+"zu wenige abgeschlossene Läufe, um einen p95-Wert ohne Raten zu beantworten"
 
 #: registry/enums/capacity.py:76
 msgid "the completed runs are all older than the observation window"
@@ -991,19 +997,29 @@ msgstr "diese Art von Dienst hat keine Läufe dieser periodischen Operation"
 
 #: registry/enums/capacity.py:84
 msgid "the answered setting is not the setting of this service and operation"
-msgstr "die genannte Einstellung ist nicht die Einstellung dieses Dienstes für diese Operation"
+msgstr ""
+"die genannte Einstellung ist nicht die Einstellung dieses Dienstes für diese "
+"Operation"
 
 #: registry/enums/capacity.py:86
 msgid "the proposed crontab or timezone cannot be parsed"
-msgstr "der vorgeschlagene Crontab-Ausdruck oder die Zeitzone kann nicht interpretiert werden"
+msgstr ""
+"der vorgeschlagene Crontab-Ausdruck oder die Zeitzone kann nicht "
+"interpretiert werden"
 
 #: registry/enums/capacity.py:88
 msgid "no authoritative enqueue-to-start pair is recorded per task"
-msgstr "pro Aufgabe wird kein maßgebliches Paar aus Einreihung und tatsächlichem Start aufgezeichnet"
+msgstr ""
+"pro Aufgabe wird kein maßgebliches Paar aus Einreihung und tatsächlichem "
+"Start aufgezeichnet"
 
 #: registry/enums/capacity.py:90
-msgid "no durable per-task worker events are recorded to attribute a run's slot occupancy to"
-msgstr "es werden keine dauerhaften Worker-Ereignisse pro Aufgabe aufgezeichnet, auf die sich die Worker-Slot-Belegung eines Laufes zurückführen ließe"
+msgid ""
+"no durable per-task worker events are recorded to attribute a run's slot "
+"occupancy to"
+msgstr ""
+"es werden keine dauerhaften Worker-Ereignisse pro Aufgabe aufgezeichnet, auf "
+"die sich die Worker-Slot-Belegung eines Laufes zurückführen ließe"
 
 #: registry/enums/harvesting.py:8
 msgid "new"
@@ -2604,7 +2620,7 @@ msgid ""
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/models/security.py:196 registry/models/security.py:208
-#: registry/models/service.py:528
+#: registry/models/service.py:528 registry/serializers/scheduling.py:94
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
@@ -3077,16 +3093,40 @@ msgstr ""
 "Aktualisierungskandidat bereitlegt."
 
 #: registry/querys/capacity.py:113
-msgid "potential overlap or skipped dispatch: the measured elapsed time of completed runs exceeds the wait of the schedule until its next run. Whether runs really overlap or a dispatch is skipped is task-specific and depends on concurrency and locking guards which this estimate does not verify."
-msgstr "mögliche Überlappung oder ausgelassene Auslösung: die gemessene Gesamtzeit abgeschlossener Läufe übersteigt die Wartezeit des Zeitplans bis zu dessen nächstem Lauf. Ob Läufe tatsächlich überlappen oder eine Auslösung ausgelassen wird, ist aufgabenspezifisch und hängt von Nebenläufigkeits- und Sperrmechanismen ab, die diese Schätzung nicht überprüft."
+msgid ""
+"potential overlap or skipped dispatch: the measured elapsed time of "
+"completed runs exceeds the wait of the schedule until its next run. Whether "
+"runs really overlap or a dispatch is skipped is task-specific and depends on "
+"concurrency and locking guards which this estimate does not verify."
+msgstr ""
+"mögliche Überlappung oder ausgelassene Auslösung: die gemessene Gesamtzeit "
+"abgeschlossener Läufe übersteigt die Wartezeit des Zeitplans bis zu dessen "
+"nächstem Lauf. Ob Läufe tatsächlich überlappen oder eine Auslösung "
+"ausgelassen wird, ist aufgabenspezifisch und hängt von Nebenläufigkeits- und "
+"Sperrmechanismen ab, die diese Schätzung nicht überprüft."
 
 #: registry/querys/capacity.py:122
-msgid "no durable per-task worker events exist to sum: measuring worker slot occupancy needs a durable, reliably attributable start/finish event pair per task attempt - fan-out children and chord callbacks included - which the phase-2 instrumentation of #1330 will record"
-msgstr "dauerhafte Worker-Ereignisse pro Aufgabe fehlen, um sie aufzusummieren: Die Messung der Worker-Slot-Belegung braucht ein dauerhaftes, zuverlässig zuordenbares Start-/Ende-Ereignispaar pro Versuch einer Aufgabe - Fan-out-Kinder und Chord-Callbacks eingeschlossen -, das erst die Phase-2-Instrumentierung aus #1330 aufzeichnen wird"
+msgid ""
+"no durable per-task worker events exist to sum: measuring worker slot "
+"occupancy needs a durable, reliably attributable start/finish event pair per "
+"task attempt - fan-out children and chord callbacks included - which the "
+"phase-2 instrumentation of #1330 will record"
+msgstr ""
+"dauerhafte Worker-Ereignisse pro Aufgabe fehlen, um sie aufzusummieren: Die "
+"Messung der Worker-Slot-Belegung braucht ein dauerhaftes, zuverlässig "
+"zuordenbares Start-/Ende-Ereignispaar pro Versuch einer Aufgabe - Fan-out-"
+"Kinder und Chord-Callbacks eingeschlossen -, das erst die Phase-2-"
+"Instrumentierung aus #1330 aufzeichnen wird"
 
 #: registry/querys/capacity.py:130
-msgid "queue wait needs the recorded pair of task enqueue and actual task start; the deployment records neither, so no pair exists to measure"
-msgstr "die Wartezeit in der Warteschlange braucht das aufgezeichnete Paar aus Einreihung der Aufgabe und tatsächlichem Start; beides wird in der Installation nicht aufgezeichnet, es existiert kein Paar, das man messen könnte"
+msgid ""
+"queue wait needs the recorded pair of task enqueue and actual task start; "
+"the deployment records neither, so no pair exists to measure"
+msgstr ""
+"die Wartezeit in der Warteschlange braucht das aufgezeichnete Paar aus "
+"Einreihung der Aufgabe und tatsächlichem Start; beides wird in der "
+"Installation nicht aufgezeichnet, es existiert kein Paar, das man messen "
+"könnte"
 
 #: registry/serializers/harvesting.py:31
 msgid "The internal MrMap catalogue cannot be harvested."
@@ -3427,8 +3467,8 @@ msgid ""
 msgstr ""
 "Das übermittelte Dokument kann nicht das Quelldokument dieses Datensatzes "
 "werden: Es muss genau diesen Datensatz enthalten – identifiziert durch seine "
-"fileIdentifier, mit einem parsebaren dateStamp – als die Art von "
-"ISO-19139-Dokument, als die der Datensatz geführt wird."
+"fileIdentifier, mit einem parsebaren dateStamp – als die Art von ISO-19139-"
+"Dokument, als die der Datensatz geführt wird."
 
 #: registry/serializers/metadata.py:684
 msgid ""
@@ -3562,6 +3602,95 @@ msgstr "GetRecords-Überprüfungsergebnisse"
 #: registry/serializers/monitoring.py:606
 msgid "results for get records requests"
 msgstr "Ergebnisse für GetRecords-Anfragen"
+
+#: registry/serializers/scheduling.py:95
+msgid "the periodic operation the setting schedules."
+msgstr "die periodische Operation, die die Einstellung plant."
+
+#: registry/serializers/scheduling.py:99
+msgid "service kind"
+msgstr "Dienstart"
+
+#: registry/serializers/scheduling.py:100
+msgid "the kind of the service the setting belongs to."
+msgstr "die Art des Dienstes, zu dem die Einstellung gehört."
+
+#: registry/serializers/scheduling.py:103
+msgid "service id"
+msgstr "Dienst-Id"
+
+#: registry/serializers/scheduling.py:104
+msgid "the service the proposed setting would schedule."
+msgstr "der Dienst, den die vorgeschlagene Einstellung planen würde."
+
+#: registry/serializers/scheduling.py:108
+msgid "setting id"
+msgstr "Einstellungs-Id"
+
+#: registry/serializers/scheduling.py:109
+msgid "the setting being edited; absent previews a new one."
+msgstr "die bearbeitete Einstellung; ohne sie wird eine neue in der Vorschau betrachtet."
+
+#: registry/serializers/scheduling.py:113
+msgid "scheduling"
+msgstr "Zeitplanung"
+
+#: registry/serializers/scheduling.py:115
+msgid ""
+"the proposed crontab: five fields \"minute hour day-of-month month day-of-"
+"week\", with the timezone suffix the harvesting form writes."
+msgstr ""
+"der vorgeschlagene Crontab: fünf Felder \"Minute Stunde Tag des Monats "
+"Monat Wochentag\", mit dem Zeitzonensuffix, das das Harvesting-Formular "
+"schreibt."
+
+#: registry/serializers/scheduling.py:121
+msgid "timezone"
+msgstr "Zeitzone"
+
+#: registry/serializers/scheduling.py:123
+msgid ""
+"the timezone the crontab runs in; the current schedule's by default, UTC "
+"without one."
+msgstr "die Zeitzone, in der der Crontab läuft; ohne Angabe die der aktuellen Planung, sonst UTC."
+
+#: registry/serializers/scheduling.py:128
+msgid "enabled"
+msgstr "aktiviert"
+
+#: registry/serializers/scheduling.py:129
+msgid "whether the proposed schedule dispatches."
+msgstr "ob der vorgeschlagene Zeitplan auslöst."
+
+#: registry/serializers/scheduling.py:133
+msgid "one off"
+msgstr "einmalig"
+
+#: registry/serializers/scheduling.py:134
+msgid "whether the setting fires only once."
+msgstr "ob die Einstellung nur einmal auslöst."
+
+#: registry/serializers/scheduling.py:138
+msgid "start time"
+msgstr "Startzeit"
+
+#: registry/serializers/scheduling.py:139
+msgid "the earliest moment the schedule may dispatch."
+msgstr "der früheste Zeitpunkt, zu dem der Zeitplan auslösen darf."
+
+#: registry/serializers/scheduling.py:143
+msgid "expires"
+msgstr "läuft ab"
+
+#: registry/serializers/scheduling.py:144
+msgid "the moment after which the schedule stops dispatching."
+msgstr "der Zeitpunkt, nach dem der Zeitplan nicht mehr auslöst."
+
+#: registry/serializers/scheduling.py:165
+msgid ""
+"A new schedule needs the crontab it proposes; only an existing setting may "
+"be previewed without one."
+msgstr "Ein neuer Zeitplan benötigt den Crontab, den er vorschlägt; nur eine vorhandene Einstellung kann ohne ihn in der Vorschau betrachtet werden."
 
 #: registry/serializers/service.py:61
 msgid "the web map service, where this operation url is part of."
@@ -4125,7 +4254,47 @@ msgstr ""
 "Das Schreiben von Metadatensätzen ist in dieser Installation deaktiviert "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
 
-#: system/apps.py:44
+#: registry/views/scheduling.py:106
+msgid "Preview a proposed schedule without saving it"
+msgstr "Einen vorgeschlagenen Zeitplan ohne Speichern in der Vorschau betrachten"
+
+#: registry/views/scheduling.py:108
+msgid ""
+"Read-only in effect: never persists, queues or dispatches anything. Answers "
+"the coming occurrences, the wait between them, the measured end-to-end "
+"durations of the service's completed runs and stable warning codes for the "
+"proposal."
+msgstr "In der Wirkung schreibgeschützt: speichert nichts, stellt nichts in die Warteschlange und löst nichts aus. Beantwortet die kommenden Vorkommnisse, die Wartezeit zwischen ihnen, die gemessenen Durchlaufzeiten der abgeschlossenen Läufe des Dienstes und stabile Warn-Codes für den Vorschlag."
+
+#: registry/views/scheduling.py:126
+msgid "This kind of service has no runs of this periodic operation."
+msgstr "Diese Art von Dienst hat keine Läufe dieser periodischen Operation."
+
+#: registry/views/scheduling.py:132
+msgid "No service of this kind answers under this id."
+msgstr "Unter dieser Id antwortet kein Dienst dieser Art."
+
+#: registry/views/scheduling.py:135
+msgid ""
+"The view permission on the service is required to preview its schedules."
+msgstr "Die Ansehen-Berechtigung für den Dienst ist erforderlich, um seine Zeitpläne in der Vorschau zu betrachten."
+
+#: registry/views/scheduling.py:145
+msgid "The answered setting is not the setting of this service and operation."
+msgstr "Die beantwortete Einstellung ist nicht die Einstellung dieses Dienstes und dieser Operation."
+
+#: registry/views/scheduling.py:150
+msgid ""
+"The change permission on the setting is required to preview an edit of it."
+msgstr "Die Bearbeiten-Berechtigung für die Einstellung ist erforderlich, um eine Änderung an ihr in der Vorschau zu betrachten."
+
+#: registry/views/scheduling.py:159
+msgid ""
+"The add permission on the setting kind is required to preview a schedule "
+"which does not exist yet."
+msgstr "Die Hinzufügen-Berechtigung für die Art der Einstellung ist erforderlich, um einen Zeitplan in der Vorschau zu betrachten, der noch nicht existiert."
+
+#: system/apps.py:76
 msgid "System"
 msgstr "System"
 

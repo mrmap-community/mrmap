@@ -28,6 +28,37 @@ def _next_run_after(setting, baseline):
     return start + delta
 
 
+def next_run_occurrences(setting, count=3):
+    """The next `count` occurrences of the crontab of a setting, ascending.
+
+    The list starts where `next_run_expected_at` answers the next dispatch
+    and steps forward through the same canonical calculation. It is therefore
+    DST-honest the same way: the moments are the instants the schedule
+    dispatches at, so "0 8 * * *" places its two occurrences across the
+    spring change of time 23 real hours apart and its two across the autumn
+    one 25. A setting which answers no next run answers no occurrences
+    (#1327).
+
+    Anyone measuring the distance between two answered moments must ask it
+    of the instants, not of the wall time: the CPython difference of two
+    zone-aware moments sharing one tzinfo answers the calendar distance, so
+    normalize (`astimezone(UTC)`) before subtracting.
+
+    Args:
+        setting: the setting which schedules the runs
+        count: how many occurrences to answer at most
+
+    Returns:
+        list: the coming moments of the schedule, possibly fewer than `count`
+    """
+    occurrences = []
+    expected_at = next_run_expected_at(setting)
+    while expected_at is not None and len(occurrences) < count:
+        occurrences.append(expected_at)
+        expected_at = _next_run_after(setting, expected_at)
+    return occurrences
+
+
 def run_interval(setting):
     """How long the schedule of a setting waits between two of its runs.
 

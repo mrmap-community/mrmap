@@ -147,10 +147,10 @@ const useContextualIncidents = ({
     return () => {
       void dataProvider.unsubscribe(INCIDENT_REALTIME_TOPIC, refresh);
     };
-    // the refetch callbacks are stable per query; re-binding on each render
-    // would re-subscribe on every poll, so only identity changes rebind
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataProvider, enabled]);
+    // the refetch callbacks are stable per query, so the bus is re-subscribed
+    // only when the identity of the screen or its query changes - not on every
+    // poll - the recovery the Incident Center (#1321) practices
+  }, [dataProvider, enabled, activeWindow.refetch, resolvedWindow.refetch]);
 
   const active = useMemo(
     () =>

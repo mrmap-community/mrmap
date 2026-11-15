@@ -883,7 +883,7 @@ class GetMapProbe(WebMapServiceProbe):
             layers=[layer.identifier for layer in self.layers.all()],
             crs=str(self.reference_system),
             # FUTURE: use configured styles instead
-            styles=",".join(["" for layer in layers]),
+            styles=",".join([""] * len(layers)),
             height=self.height,
             width=self.width,
             format=str(self.format) if self.format else "image/png",
@@ -1085,7 +1085,7 @@ def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
         for result in named.filter(date_created__lt=cutoff):
             try:
                 result.response_body.delete(save=False)
-            except (FileNotFoundError, OSError):
+            except OSError:
                 pass  # the storage does not hold it - which is what to clear
             result.response_body = None
             result.save(update_fields=["response_body"])

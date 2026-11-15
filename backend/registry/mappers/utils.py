@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import IO, Union
+from typing import IO
 from xml.sax.saxutils import escape as xml_escape
 
 from django.apps import apps
@@ -22,7 +22,7 @@ def load_function(path: str):
     return getattr(mod, func_name)
 
 
-def load_file(xml: Union[str, Path, bytes, IO]) -> bytes:
+def load_file(xml: str | Path | bytes | IO) -> bytes:
     """Normalize different input types to raw XML bytes for lxml."""
     if isinstance(xml, etree._ElementTree):
         return etree.tostring(xml.getroot())
@@ -175,7 +175,6 @@ def remove_element_or_attribute(xml_element, xpath: str, nsmap: dict):
         else:
             # if no parent, just clear the text
             leaf.text = None
-    return  # early exit after removal
 
 
 def set_text_or_attribute(xml_element, xpath: str, nsmap: dict, value):
@@ -378,29 +377,26 @@ def ensure_element_for_instance(
     Ensure that the XML element for a Django instance exists
     and return it.
     """
-    try:
-        xpath_for_creation = build_concrete_xpath(mapper, spec, instance)
+    xpath_for_creation = build_concrete_xpath(mapper, spec, instance)
 
-        parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
-        leaf_tag = extract_tag_name(leaf_part)
+    parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
+    leaf_tag = extract_tag_name(leaf_part)
 
-        # Ensure the parent path exists
-        parent_xpath = "/".join(parent_parts)
-        parent_elem, _ = ensure_path(parent, parent_xpath, nsmap)
+    # Ensure the parent path exists
+    parent_xpath = "/".join(parent_parts)
+    parent_elem, _ = ensure_path(parent, parent_xpath, nsmap)
 
-        # Resolve namespace-aware tag
-        if ":" in leaf_tag:
-            prefix, local = leaf_tag.split(":", 1)
-            ns_uri = nsmap[prefix]
-            tag = f"{{{ns_uri}}}{local}"
-        else:
-            tag = leaf_tag
+    # Resolve namespace-aware tag
+    if ":" in leaf_tag:
+        prefix, local = leaf_tag.split(":", 1)
+        ns_uri = nsmap[prefix]
+        tag = f"{{{ns_uri}}}{local}"
+    else:
+        tag = leaf_tag
 
-        # ALWAYS create a new leaf element
+    # ALWAYS create a new leaf element
 
-        return etree.SubElement(parent_elem, tag)
-    except Exception as e:
-        raise e
+    return etree.SubElement(parent_elem, tag)
 
 
 def normalize_key_value(field, value):

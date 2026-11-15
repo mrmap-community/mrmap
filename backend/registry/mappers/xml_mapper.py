@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import IO, Union
+from typing import IO
 from uuid import uuid4
 
 from django.apps import apps
@@ -43,7 +43,7 @@ class XmlMapper:
 
     def __init__(
         self,
-        xml: Union[str, Path, bytes, IO, etree._Element],
+        xml: str | Path | bytes | IO | etree._Element,
         mapping: dict,
         uuid=None,
         warnings=None,
@@ -182,7 +182,7 @@ class XmlMapper:
                 try:
                     res = element.xpath(xpath_expr, namespaces=namespaces)
                 except etree.XPathEvalError as e:
-                    logging.error(
+                    logging.exception(
                         f"Error parsing field with xpath '{xpath_expr}': {e}"
                     )
                 if not res:
@@ -200,7 +200,7 @@ class XmlMapper:
                     logging.debug(
                         f"{xpath_or_spec["_parser"]} does return None with args: {values}")
             except Exception as e:
-                logging.error(
+                logging.exception(
                     f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
                 parsed = None
 
@@ -294,7 +294,7 @@ class XmlMapper:
         for field_name, xpath_or_spec in self._get_foreign_fields(spec).items():
             if isinstance(xpath_or_spec, str):
                 # this is an xpath... this is only possible for parent/child (self) related fields
-                if not model_cls._meta.get_field(field_name).remote_field.model == model_cls:
+                if model_cls._meta.get_field(field_name).remote_field.model != model_cls:
                     raise ImproperlyConfigured(
                         f'field {field_name} does not reverence to it self')
                 # self reference parent/child possible
@@ -753,9 +753,6 @@ class XmlMapper:
         Supports element text or attributes (e.g., ./@attr or ./@prefix:attr)
         """
         namespaces = self.mapping.get("_namespaces", {})
-        if not value:
-            pass
-            # remove_element_or_attribute(xml_element, xpath, namespaces)
-        else:
+        if value:
             # set value normally
             set_text_or_attribute(xml_element, xpath, namespaces, value)

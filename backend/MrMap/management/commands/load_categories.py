@@ -16,9 +16,6 @@ from MrMap.management.commands.setup_settings import CATEGORIES, CATEGORIES_LANG
 class Command(BaseCommand):
     help = "Loads all categories, declared in the settings.py, into the database."
 
-    def add_arguments(self, parser):
-        pass
-
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Load categories..."))
@@ -59,7 +56,6 @@ class Command(BaseCommand):
         Returns:
              ret_list (list): Contains the category objects with updated languages
         """
-        return
         # # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # # based on the parsed type of origin
         # if origin == CategoryOriginEnum.ISO.value:
@@ -110,4 +106,3 @@ class Command(BaseCommand):
         Returns:
              ret_list (list): Contains all retrieved category objects in english language
         """
-        return

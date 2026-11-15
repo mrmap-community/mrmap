@@ -113,7 +113,7 @@ class PersistenceHandler:
         model_cls = instances[0].__class__
         db_instances = []
         for inst in instances:
-            obj, created = model_cls.objects.get_or_create(
+            obj, _ = model_cls.objects.get_or_create(
                 **{f: getattr(inst, f) for f in key_fields},
                 defaults={f.name: getattr(
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}

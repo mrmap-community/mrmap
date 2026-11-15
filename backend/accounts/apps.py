@@ -23,7 +23,7 @@ def create_default_user_and_org(sender, **kwargs):
 
     from .models import Organization
 
-    User = get_user_model()
+    user_model = get_user_model()
 
     # Default Superuser
     # the setting, not the raw env value: the setting is where MRMAP_USER is
@@ -31,8 +31,8 @@ def create_default_user_and_org(sender, **kwargs):
     # the same deployment value (#1278)
     username = settings.MRMAP_USER
     password = os.environ.get("MRMAP_PASSWORD")
-    if username and password and not User.objects.filter(username=username).exists():
-        User.objects.create_superuser(username=username, password=password)
+    if username and password and not user_model.objects.filter(username=username).exists():
+        user_model.objects.create_superuser(username=username, password=password)
 
     # Default Organization
     # the parsed flag from settings, not the raw env value: a deployment

@@ -1576,16 +1576,15 @@ class TemporaryMdMetadataFile(models.Model):
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding or self.re_schedule
         retried = self.re_schedule
-        if self.re_schedule:
-            if self.background_process_id is None:
-                # the harvesting semantics of ``re_schedule``: the last
-                # verdict is wiped so the next delivery reports fresh. A
-                # registration retry (#1265) deliberately keeps its verdict
-                # fields: the failed reference must stay inspectable - what
-                # kind and what text decided it - until the new attempt
-                # overwrites them or consumes the row with success.
-                self.has_import_error = False
-                self.import_error = ""
+        if self.re_schedule and self.background_process_id is None:
+            # the harvesting semantics of ``re_schedule``: the last
+            # verdict is wiped so the next delivery reports fresh. A
+            # registration retry (#1265) deliberately keeps its verdict
+            # fields: the failed reference must stay inspectable - what
+            # kind and what text decided it - until the new attempt
+            # overwrites them or consumes the row with success.
+            self.has_import_error = False
+            self.import_error = ""
         self.re_schedule = False
 
         ret = super().save(*args, **kwargs)
@@ -1888,12 +1887,12 @@ def registration_work_file_names(process_pks):
     """
     if not process_pks:
         return []
-    return [
-        name for name in TemporaryMdMetadataFile.objects.filter(
+    return list(
+        TemporaryMdMetadataFile.objects.filter(
             background_process_id__in=list(process_pks))
         .exclude(md_metadata_file="")
         .exclude(md_metadata_file=None)
-        .values_list("md_metadata_file", flat=True)]
+        .values_list("md_metadata_file", flat=True))
 
 
 def extented_description_file_path(instance, filename):

@@ -276,7 +276,7 @@ ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in list(ALLOWED_HOSTS)])
+        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS])
 ).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):

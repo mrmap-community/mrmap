@@ -291,7 +291,7 @@ class CswServiceView(View):
             try:
                 documents.append(etree.fromstring(record.xml_backup))
             except (OSError, ValueError, SyntaxError) as e:
-                logger.error(
+                logger.exception(
                     "the stored document of the record '%s' cannot be served: "
                     "%s", record.file_identifier, e)
                 return DocumentUnavailable(
@@ -406,7 +406,7 @@ class CswServiceView(View):
         if not sections:
             return
 
-        for element in list(capabilities):
+        for element in capabilities[:]:
             if etree.QName(element).localname not in sections:
                 capabilities.remove(element)
 

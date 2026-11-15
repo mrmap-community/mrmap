@@ -16,7 +16,7 @@ class UniqueConstraintDefaultValueManager(models.Manager):
     """
 
     def get_or_create(self, defaults: Mapping[str, Any] | None = None, **kwargs: Any) -> tuple[models.Model, bool]:
-        for constraint in list(filter(lambda constraint: isinstance(constraint, UniqueConstraint), self.model._meta.constraints)):
+        for constraint in filter(lambda constraint: isinstance(constraint, UniqueConstraint), self.model._meta.constraints):
             for field in constraint.fields:
                 kwargs.update({
                     field: kwargs.get(field, self.model._meta.get_field(field).get_default()),

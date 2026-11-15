@@ -191,10 +191,10 @@ class OgcServiceProxyView(APIView):
             raise PermissionDenied
 
         # Step 2: Retrieve the test user
-        User = get_user_model()
+        user_model = get_user_model()
         try:
-            test_user = User.objects.get(username=test_user_identifier)
-        except User.DoesNotExist:
+            test_user = user_model.objects.get(username=test_user_identifier)
+        except user_model.DoesNotExist:
             raise Http404(f"User '{test_user_identifier}' not found")
 
         if not test_user.is_active:
@@ -461,10 +461,9 @@ class OgcServiceProxyView(APIView):
                     else:
                         response_log.save()
         except Exception:
-            logging.error(
+            logging.exception(
                 "Could not log the proxied response of service %s",
-                self.service.pk,
-                exc_info=True)
+                self.service.pk)
 
     def return_http_response(self, response):
         """Return the http response for the client.

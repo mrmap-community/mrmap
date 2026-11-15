@@ -177,7 +177,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             # a service which advertises no POST endpoint for GetFeature cannot
             # be asked the secured document at all; that is a property of the
             # service and not a missing permission of the caller (#1155)
-            logging.error(e, exc_info=True)
+            logging.exception(e)
             return MrMapNotImplementedError(
                 service_type=self.ogc_request.service_type.lower(),
                 service_version=self.ogc_request.service_version,

@@ -15,7 +15,7 @@ from django.utils.timezone import now
 from epsg_cache.utils import adjust_axis_order
 from guardian.core import ObjectPermissionChecker
 from lxml import etree
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum, OGCServiceVersionEnum
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.managers.security import GEOMETRY_DATA_TYPES
@@ -134,7 +134,7 @@ def validate_image(content):
             if image.width > 2048 or image.height > 2048:
                 raise PreviewError("limit", 502)
             image.verify()
-    except (UnidentifiedImageError, OSError, SyntaxError, EOFError, Image.DecompressionBombError):
+    except (OSError, SyntaxError, EOFError, Image.DecompressionBombError):
         raise PreviewError("malformed")
 
 
@@ -323,7 +323,7 @@ def json_features(content):
     """Read the GeoJSON answer of a GetFeature request."""
     try:
         return json.loads(content)
-    except (ValueError, UnicodeDecodeError, RecursionError):
+    except (ValueError, RecursionError):
         raise PreviewError("malformed")
 
 

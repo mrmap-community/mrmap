@@ -153,10 +153,10 @@ class CustomOperationId(JsonApiAutoSchema):
 
     def _patch_extend_filter_parameter(self, field, parameter):
         model = get_view_model(self.view)
-        # lookup_parts is an array of parts but it is limited to only one possible lookup expression
+        # the lookup of the filter is limited to one possible lookup expression
         try:
             fields_lookup = _fields_lookup_of_model(model)
-            lookup_parts, field_parts, expression = _solve_filter_lookup(
+            _, field_parts, _ = _solve_filter_lookup(
                 model, field.field_name)
 
             if field_parts[0] in fields_lookup:

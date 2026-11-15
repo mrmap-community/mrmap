@@ -215,9 +215,9 @@ class LayerSerializer(
         model = Layer
         fields = "__all__"
 
-    def _convert_dict_to_object(self, objs, Model, defaults={}):
+    def _convert_dict_to_object(self, objs, model_cls, defaults={}):
         if objs and isinstance(objs, list) and isinstance(objs[0], dict):
-            return [Model(**defaults, **obj) for obj in objs]
+            return [model_cls(**defaults, **obj) for obj in objs]
         return objs
 
     def get_reference_systems(self, instance):
@@ -553,7 +553,7 @@ class WebMapServiceListSerializer(
         return instance.get_secured_capabilities_url(request=request)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         # The preview image is asked by the details of a service and by the details
         # panel beside the list of the services, so both serializers answer it. It is
         # read from the stored capabilities only: a preview never needs more than the
@@ -769,7 +769,7 @@ class WebFeatureServiceSerializer(
         label=_("preview image"), read_only=True)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         return reverse("registry:wfs-preview-image", kwargs={"pk": instance.pk},
                        request=self.context.get("request"))
 

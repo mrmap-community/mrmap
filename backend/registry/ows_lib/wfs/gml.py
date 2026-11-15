@@ -188,7 +188,7 @@ def _local_geometry(element, srs_name, requested, dimension=None):
     if name == POINT and len(local[0].text.split()) != 2:
         raise GmlError("gmlSchema")
     if name == GEOMETRY_COLLECTION:
-        for child in list(local):
+        for child in local[:]:
             if _name(child) in GEOMETRIES:
                 wrapper = etree.Element(f"{{{GML}}}geometryMember")
                 local.replace(child, wrapper)

@@ -541,7 +541,7 @@ class OGCRequest(Request):
 
         xml = unescape(self.ogc_query_params.get("FILTER", ""))
         try:
-            filter = etree.fromstring(xml.encode("utf-8")) if xml else None
+            filter_element = etree.fromstring(xml.encode("utf-8")) if xml else None
         except XMLSyntaxError as e:
             raise InvalidFilterParam(str(e))
 
@@ -553,7 +553,7 @@ class OGCRequest(Request):
 
         self._xml_request = builder.build_get_feature(
             type_names=self.requested_entities,
-            filter_xml=filter,
+            filter_xml=filter_element,
             srs_name=self.ogc_query_params.get("SRSNAME", None),
             output_format=self.ogc_query_params.get("OUTPUTFORMAT", None),
             # an empty COUNT or startIndex is no number to page with and is left

@@ -140,6 +140,51 @@ def _jsonable(value):
     return value
 
 
+def _inspect_broadcast(timeout):
+    """``active`` and ``reserved`` as the fleet answered them.
+
+    A side whose read raised (console unreachable, worker mid-start) is
+    ``None`` — an unknown, not an empty answer.
+    """
+    inspect = app.control.inspect(timeout=timeout)
+    answers = {}
+    for name, read in (("active", inspect.active),
+                       ("reserved", inspect.reserved)):
+        try:
+            answers[name] = read()
+        except Exception as error:
+            logger.debug("capacity messages: inspect %s failed: %s",
+                         name, error)
+            answers[name] = None
+    return answers
+
+
+def _workers_holding(answers):
+    """Per-worker active/reserved counts as the fleet reported them."""
+    workers = {}
+    for kind in ("active", "reserved"):
+        reply = answers[kind] or {}
+        for node, entries in reply.items():
+            if not isinstance(entries, list):
+                continue
+            entry = workers.setdefault(
+                str(node), {"active": None, "reserved": None})
+            entry[kind] = len(entries)
+    return workers
+
+
+def _messages_totals(answers):
+    """Fleet-wide active/reserved counts; None per side never heard."""
+    totals = {}
+    for kind in ("active", "reserved"):
+        if answers[kind] is None:
+            totals[kind] = None
+            continue
+        totals[kind] = sum(len(entries) for entries in answers[kind].values()
+                           if isinstance(entries, list))
+    return totals
+
+
 def observe_message_backlog(force=False):
     """What the fleet holds in hand right now: active and reserved messages.
 
@@ -157,16 +202,7 @@ def observe_message_backlog(force=False):
             return cached
     observed_at = timezone.now()
     timeout = float(_setting("CAPACITY_TOPOLOGY_TIMEOUT_SECONDS", 1.0))
-    inspect = app.control.inspect(timeout=timeout)
-    answers = {}
-    for name, read in (("active", inspect.active),
-                       ("reserved", inspect.reserved)):
-        try:
-            answers[name] = read()
-        except Exception as error:  # console unreachable, worker mid-start
-            logger.debug("capacity messages: inspect %s failed: %s",
-                         name, error)
-            answers[name] = None
+    answers = _inspect_broadcast(timeout)
     if answers["active"] is None and answers["reserved"] is None:
         verdict = {
             "available": False,
@@ -176,25 +212,11 @@ def observe_message_backlog(force=False):
         cache.set(MESSAGES_CACHE_KEY, verdict, ttl)
         return verdict
 
-    workers = {}
-    for kind in ("active", "reserved"):
-        reply = answers[kind] or {}
-        for node, entries in reply.items():
-            if not isinstance(entries, list):
-                continue
-            entry = workers.setdefault(
-                str(node), {"active": None, "reserved": None})
-            entry[kind] = len(entries)
-    totals = {
-        kind: (sum(len(entries) for entries in answers[kind].values()
-                   if isinstance(entries, list))
-               if answers[kind] is not None else None)
-        for kind in ("active", "reserved")}
     verdict = {
         "available": True,
         "observed_at": observed_at,
-        "workers": workers,
-        "totals": totals,
+        "workers": _workers_holding(answers),
+        "totals": _messages_totals(answers),
         "observed_with": "celery inspect active/reserved",
     }
     partial = [kind for kind in ("active", "reserved")
@@ -446,6 +468,36 @@ def _fleet_slot_seconds(pools, horizon_seconds):
     return total * horizon_seconds
 
 
+def _queue_entry(name, declared, zero_consumers, topology_ok, consumers,
+                 depth_entry, depths, demand_entry, observed):
+    """One queue's answer row: depth, consumers and periodic demand.
+
+    The capacity-dependent keys (eligible slots, status, rho) are filled
+    by the caller once ``_eligible_capacity`` has been consulted.
+    """
+    return {
+        "name": name,
+        "declared": name in declared,
+        "queue_depth": depth_entry.get("depth"),
+        "queue_depth_reason": depth_entry.get("reason") or (
+            None if depths.get("available") else depths.get("reason")),
+        "consumers": consumers,
+        "zero_consumers": (
+            name in zero_consumers if topology_ok else None),
+        "periodic_occurrences": demand_entry.get("occurrences", 0),
+        "periodic_demand_worker_seconds":
+            demand_entry.get("demand_worker_seconds"),
+        "periodic_demand_coverage": demand_entry.get("cost_coverage"),
+        "periodic_cost_sources": demand_entry.get(
+            "cost_sources", {"periodic_name": 0, "task_average": 0,
+                             "unknown": 0}),
+        "histogram_seconds": demand_entry.get("histogram_seconds"),
+        "histogram_occurrences":
+            demand_entry.get("histogram_occurrences"),
+        "observed": observed.get(name),
+    }
+
+
 def _queue_answers(declared, demand, topology, depths, messages, observed,
                    pools, horizon_seconds, gaps):
     """The per-queue section: depth, consumers, demand, evidence, rho.
@@ -473,27 +525,9 @@ def _queue_answers(declared, demand, topology, depths, messages, observed,
         if not depths.get("available") or depth_entry.get("depth") is None:
             gaps.add(GAP_QUEUE_DEPTH_UNOBSERVED)
 
-        entry = {
-            "name": name,
-            "declared": name in declared,
-            "queue_depth": depth_entry.get("depth"),
-            "queue_depth_reason": depth_entry.get("reason") or (
-                None if depths.get("available") else depths.get("reason")),
-            "consumers": consumers,
-            "zero_consumers": (
-                name in zero_consumers if topology_ok else None),
-            "periodic_occurrences": demand_entry.get("occurrences", 0),
-            "periodic_demand_worker_seconds":
-                demand_entry.get("demand_worker_seconds"),
-            "periodic_demand_coverage": demand_entry.get("cost_coverage"),
-            "periodic_cost_sources": demand_entry.get(
-                "cost_sources", {"periodic_name": 0, "task_average": 0,
-                                 "unknown": 0}),
-            "histogram_seconds": demand_entry.get("histogram_seconds"),
-            "histogram_occurrences":
-                demand_entry.get("histogram_occurrences"),
-            "observed": observed.get(name),
-        }
+        entry = _queue_entry(name, declared, zero_consumers, topology_ok,
+                             consumers, depth_entry, depths, demand_entry,
+                             observed)
         slots, complete, exclusive = _eligible_capacity(
             name, consumers, slots_of, queues_of, demand, topology_ok)
         entry["eligible_workers_complete"] = complete
@@ -518,11 +552,30 @@ def _queue_answers(declared, demand, topology, depths, messages, observed,
                 "rho are unknown, not zero")
         else:
             entry["status"] = "ok"
-            entry["rho"] = _queue_rho(entry, horizon_seconds)
+            entry["rho"] = _queue_rho(entry)
         entry["drain_estimate"] = None
         entry["drain_reason"] = _drain_reason(entry, messages)
         answers[name] = entry
     return answers
+
+
+def _sharing_of(name, worker, queues_of, demand):
+    """How one consumer shares its slots: ``(serves_only_this, shares_busy)``.
+
+    ``shares_busy`` is the double-count guard: the worker also serves a
+    queue with scheduled demand in this horizon, so no verifiable
+    assignment of its slots to a single queue exists. Sharing with a
+    verifiably idle queue is no guard - checkable, not assumed.
+    """
+    only_this = True
+    shares_busy = False
+    for other in (queues_of.get(worker) or []):
+        if other == name:
+            continue
+        only_this = False
+        if (demand["queues"].get(other) or {}).get("occurrences"):
+            shares_busy = True
+    return only_this, shares_busy
 
 
 def _eligible_capacity(name, consumers, slots_of, queues_of, demand,
@@ -545,20 +598,19 @@ def _eligible_capacity(name, consumers, slots_of, queues_of, demand,
         if worker not in slots_of or slots_of[worker] is None:
             complete = False
             continue
-        for other in (queues_of.get(worker) or []):
-            if other != name:
-                exclusive = False
-                other_demand = demand["queues"].get(other) or {}
-                if other_demand.get("occurrences"):
-                    # this pool is shared with a queue that has real
-                    # scheduled demand: multiplying its slots here would
-                    # double count, and no verifiable assignment exists
-                    return None, complete, False
+        only_this, shares_busy = _sharing_of(name, worker, queues_of, demand)
+        if not only_this:
+            exclusive = False
+        if shares_busy:
+            # this pool is shared with a queue that has real scheduled
+            # demand: multiplying its slots here would double count, and
+            # no verifiable assignment exists
+            return None, complete, False
         slots += slots_of[worker]
     return slots, complete, exclusive
 
 
-def _queue_rho(entry, horizon_seconds):
+def _queue_rho(entry):
     """rho for one queue - only when both sides are whole and comparable."""
     if entry["status"] != "ok" or not entry["eligible_workers_complete"]:
         return None
@@ -676,8 +728,11 @@ def _confidence(topology, depths, messages, demand, pools):
         and not any(p["slots"] is None for p in pools)
         and not any(p["queues"] is None for p in pools)
         and not messages.get("partial")
-        and (demand["totals"]["cost_coverage"] == 1.0
-             or not demand["totals"]["occurrences"]))
+        # coverage is a float; >= (with the None kept as "not complete")
+        # is the same statement as == 1.0 without the float equality
+        and (not demand["totals"]["occurrences"]
+             or (demand["totals"]["cost_coverage"] is not None
+                 and demand["totals"]["cost_coverage"] >= 1)))
     return "complete" if complete else "partial"
 
 
@@ -726,6 +781,57 @@ def _store(snapshot):
     cache.set(SNAPSHOT_CACHE_KEY, snapshot, _ttl() * 3)
 
 
+def _acquire_build_lock():
+    """Whether this reader is the one allowed to build right now."""
+    return cache.add(BUILD_LOCK_KEY, True, _setting(
+        "CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS", 300))
+
+
+def _build_cold_or_verdict():
+    """The first snapshot of a cold cache - or an honest verdict."""
+    if not _acquire_build_lock():
+        return _verdict("a capacity snapshot is being built", None)
+    try:
+        try:
+            fresh = build_capacity_snapshot()
+            _store(fresh)
+        except Exception as error:
+            logger.warning("capacity snapshot build failed: %s", error)
+            return _verdict(
+                "the capacity snapshot could not be built", str(error))
+        return dict(fresh, stale=False)
+    finally:
+        cache.delete(BUILD_LOCK_KEY)
+
+
+def _serve_or_refresh(snapshot):
+    """The cached answer: fresh, served stale, or rebuilt under the lock."""
+    fingerprint = capacity_demand.schedule_fingerprint()
+    age = (timezone.now() - snapshot["built_at"]).total_seconds()
+    changed = snapshot["schedule_fingerprint"] != fingerprint
+    if not changed and age <= _ttl():
+        return dict(snapshot, stale=False)
+    if not _acquire_build_lock():
+        return dict(snapshot, stale=True)
+    try:
+        if not changed and age < _min_rebuild():
+            # the definitions did not move; the horizon start ages
+            # by less than a rebuild is worth - beat's refresh and
+            # the next read past the distance will fix it
+            return dict(snapshot, stale=True)
+        try:
+            fresh = build_capacity_snapshot()
+            _store(fresh)
+        except Exception as error:
+            logger.warning(
+                "capacity snapshot rebuild failed, serving the stale "
+                "answer: %s", error)
+            return dict(snapshot, stale=True)
+        return dict(fresh, stale=False)
+    finally:
+        cache.delete(BUILD_LOCK_KEY)
+
+
 def get_capacity_snapshot():
     """The reader's entry point: serve the materialized answer, honestly.
 
@@ -740,44 +846,9 @@ def get_capacity_snapshot():
     is a fail-closed verdict instead of a half-built number.
     """
     snapshot = cache.get(SNAPSHOT_CACHE_KEY)
-    if snapshot is not None:
-        fingerprint = capacity_demand.schedule_fingerprint()
-        age = (timezone.now() - snapshot["built_at"]).total_seconds()
-        changed = snapshot["schedule_fingerprint"] != fingerprint
-        if not changed and age <= _ttl():
-            return dict(snapshot, stale=False)
-        if cache.add(BUILD_LOCK_KEY, True, _setting(
-                "CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS", 300)):
-            try:
-                if not changed and age < _min_rebuild():
-                    # the definitions did not move; the horizon start ages
-                    # by less than a rebuild is worth - beat's refresh and
-                    # the next read past the distance will fix it
-                    return dict(snapshot, stale=True)
-                fresh = build_capacity_snapshot()
-                _store(fresh)
-                return dict(fresh, stale=False)
-            except Exception as error:
-                logger.warning(
-                    "capacity snapshot rebuild failed, serving the stale "
-                    "answer: %s", error)
-                return dict(snapshot, stale=True)
-            finally:
-                cache.delete(BUILD_LOCK_KEY)
-        return dict(snapshot, stale=True)
-    if cache.add(BUILD_LOCK_KEY, True, _setting(
-            "CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS", 300)):
-        try:
-            fresh = build_capacity_snapshot()
-            _store(fresh)
-            return dict(fresh, stale=False)
-        except Exception as error:
-            logger.warning("capacity snapshot build failed: %s", error)
-            return _verdict(
-                "the capacity snapshot could not be built", str(error))
-        finally:
-            cache.delete(BUILD_LOCK_KEY)
-    return _verdict("a capacity snapshot is being built", None)
+    if snapshot is None:
+        return _build_cold_or_verdict()
+    return _serve_or_refresh(snapshot)
 
 
 def _verdict(reason, detail):

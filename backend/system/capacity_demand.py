@@ -230,6 +230,22 @@ def _baseline_of(row, at):
     return max(baseline, at)
 
 
+def _grid_next(grids, t):
+    """The next wall-clock-grid instant of t's day, None on offset days.
+
+    ``None`` means "no fast path here": the caller steps with Beat's
+    canonical ``next_run_after`` instead. Days whose UTC offset changes
+    carry no grid for exactly that reason.
+    """
+    day_instants = grids.day(t.date())
+    if day_instants is _NO_DAY:
+        return None
+    index = bisect_right(day_instants, t)
+    if index < len(day_instants):
+        return day_instants[index]
+    return None
+
+
 def _count_crontab_occurrences(row, lower, upper, one_off, budgets,
                                schedules, grids_by_pk):
     """The instants the crontab of a row still fires within (lower, upper].
@@ -258,12 +274,7 @@ def _count_crontab_occurrences(row, lower, upper, one_off, budgets,
             break
         instants.append(t)
         # the fast path: the next grid instant of the same wall-clock day
-        nxt = None
-        day_instants = grids.day(t.date())
-        if day_instants is not _NO_DAY:
-            index = bisect_right(day_instants, t)
-            if index < len(day_instants):
-                nxt = day_instants[index]
+        nxt = _grid_next(grids, t)
         t = nxt if nxt is not None else next_run_after(effective, t)
     if truncated:
         budgets.truncated_settings += 1
@@ -338,7 +349,7 @@ def schedule_fingerprint(force=False):
         cached = cache.get(FINGERPRINT_CACHE_KEY)
         if cached is not None:
             return cached
-    digest = hashlib.md5()
+    digest = hashlib.sha256()
     count = 0
     for row in (PeriodicTask.objects
                 .order_by("pk")
@@ -425,6 +436,71 @@ def ensure_task_registry():
             continue  # an app without tasks declares no routes
 
 
+def _exclusion_of(row, at):
+    """Why this row contributes no future demand, or None if it is walked.
+
+    ``no_schedule`` can only be a row that reached the table without going
+    through the model's own validation (dcb's ``save()`` refuses it); it is
+    counted and named rather than crashing the walk.
+    """
+    if row.crontab_id is None and row.interval_id is None:
+        return "no_schedule"
+    if row.one_off and row.total_run_count > 0:
+        return "one_off_ran"
+    if row.expires is not None and row.expires <= at:
+        return "expired"
+    return None
+
+
+def _walk_row(row, at, end, budgets, schedules, grids_by_pk):
+    """The instants a live row still fires within the horizon.
+
+    Beat disables a row once ``now`` reaches ``expires``: the dispatch
+    exactly at the expiry moment is already no future demand - hence the
+    exclusive upper bound when ``expires`` falls inside the horizon.
+    """
+    upper = end
+    if row.expires is not None and row.expires < upper:
+        upper = row.expires - timedelta(microseconds=1)
+    lower = _baseline_of(row, at)
+    if row.crontab_id is not None:
+        instants, _truncated = _count_crontab_occurrences(
+            row, lower, upper, row.one_off, budgets, schedules, grids_by_pk)
+    else:
+        instants, _truncated = _count_interval_occurrences(
+            row, lower, upper, row.one_off, budgets)
+    return instants
+
+
+def _new_queue_entry(buckets):
+    """A queue's demand accumulator: counts, seconds and both histograms."""
+    return {
+        "occurrences": 0,
+        "costed_occurrences": 0,
+        "demand_seconds": 0.0,
+        "cost_sources": {"periodic_name": 0, "task_average": 0,
+                         "unknown": 0},
+        "histogram_seconds": [0.0] * buckets,
+        "histogram_occurrences": [0] * buckets,
+    }
+
+
+def _accumulate_occurrences(entry, totals, instants, cost, at,
+                            bucket_seconds, buckets):
+    """Fold one walked row's instants into its queue and the grand totals."""
+    for moment in instants:
+        bucket = _bucket_of(moment, at, bucket_seconds, buckets)
+        entry["occurrences"] += 1
+        entry["histogram_occurrences"][bucket] += 1
+        totals["occurrences"] += 1
+        if cost is not None:
+            entry["costed_occurrences"] += 1
+            entry["demand_seconds"] += cost
+            entry["histogram_seconds"][bucket] += cost
+            totals["demand_seconds"] += cost
+            totals["costed"] += 1
+
+
 def periodic_demand(at, horizon_days=None, costs=None, task_routes=None):
     """The periodic demand of the next ``horizon_days`` days, per queue.
 
@@ -486,30 +562,13 @@ def periodic_demand(at, horizon_days=None, costs=None, task_routes=None):
             .order_by("pk")[:int(getattr(
                 settings, "CAPACITY_SNAPSHOT_MAX_SCHEDULES", 100_000))])
     for row in rows.iterator():
-        if row.crontab_id is None and row.interval_id is None:
-            excluded["no_schedule"] += 1
+        reason = _exclusion_of(row, at)
+        if reason is not None:
+            excluded[reason] += 1
             continue
-        if row.one_off and row.total_run_count > 0:
-            excluded["one_off_ran"] += 1
-            continue
-        if row.expires is not None and row.expires <= at:
-            excluded["expired"] += 1
-            continue
-        lower = _baseline_of(row, at)
-        upper = end
-        if row.expires is not None and row.expires < upper:
-            # beat disables the row once now reaches expires: the dispatch
-            # exactly at the expiry moment is already no future demand
-            upper = row.expires - timedelta(microseconds=1)
-
         try:
-            instants, truncated = (
-                _count_crontab_occurrences(
-                    row, lower, upper, row.one_off, budgets, schedules,
-                    grids_by_pk)
-                if row.crontab_id is not None else
-                _count_interval_occurrences(
-                    row, lower, upper, row.one_off, budgets))
+            instants = _walk_row(row, at, end, budgets, schedules,
+                                 grids_by_pk)
         except Exception as error:
             # a definition this Celery refuses to build at all: the
             # day-of-week "7", which django-celery-beat's own validator
@@ -529,28 +588,11 @@ def periodic_demand(at, horizon_days=None, costs=None, task_routes=None):
         walked += 1
 
         queue = _queue_of(row, task_routes, default_queue)
-        entry = queues.setdefault(queue, {
-            "occurrences": 0,
-            "costed_occurrences": 0,
-            "demand_seconds": 0.0,
-            "cost_sources": {"periodic_name": 0, "task_average": 0,
-                             "unknown": 0},
-            "histogram_seconds": [0.0] * buckets,
-            "histogram_occurrences": [0] * buckets,
-        })
+        entry = queues.setdefault(queue, _new_queue_entry(buckets))
         cost, source = _cost_of(row, costs)
         entry["cost_sources"][source if cost is not None else "unknown"] += 1
-        for moment in instants:
-            bucket = _bucket_of(moment, at, bucket_seconds, buckets)
-            entry["occurrences"] += 1
-            entry["histogram_occurrences"][bucket] += 1
-            totals["occurrences"] += 1
-            if cost is not None:
-                entry["costed_occurrences"] += 1
-                entry["demand_seconds"] += cost
-                entry["histogram_seconds"][bucket] += cost
-                totals["demand_seconds"] += cost
-                totals["costed"] += 1
+        _accumulate_occurrences(entry, totals, instants, cost, at,
+                                bucket_seconds, buckets)
 
     for entry in queues.values():
         entry["demand_worker_seconds"] = _seconds_or_none(

@@ -1,0 +1,5 @@
+#!/bin/sh
+# MrMap managed hook; checks live in scripts/git_checks.py.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+exec python3 scripts/git_checks.py commit

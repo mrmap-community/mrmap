@@ -1,5 +1,6 @@
 {
     "recommendations": [
+        "SonarSource.sonarlint-vscode",
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
         "ms-toolsai.jupyter",

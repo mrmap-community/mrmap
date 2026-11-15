@@ -16,6 +16,63 @@ See :ref:`development-vscode-cfg` for save actions and Docker-only editor setup.
 Flake8 checks Python; autopep8 formats it. ESLint checks frontend code and owns import sorting.
 TypeScript checks remain strict. Formatting cannot fix every lint or type error.
 
+Local Git hooks
+---------------
+
+Enable the tracked hooks once from the repository root (Python 3 and Git are required):
+
+.. code-block:: bash
+
+   python3 scripts/git_checks.py install
+
+The installer puts executable wrappers in Git's hooks directory, which is shared by linked
+worktrees. It refuses to overwrite custom hooks or redirect an existing ``core.hooksPath``;
+integrate the tracked wrappers manually if you already have either setup. Re-running the
+installer updates only MrMap's wrappers. Remove them with ``python3 scripts/git_checks.py uninstall``.
+The checks themselves live in ``scripts/git_checks.py`` and follow the checked-out branch;
+no hook framework or tracked executable-bit changes are needed.
+
+``pre-commit`` lints changed, staged backend Python and frontend JavaScript/TypeScript files.
+It uses the existing Flake8 and ESLint configurations; changing a lint configuration or its
+dependency manifest runs the corresponding full lint. Backend tests retain the existing CI
+Flake8 exclusion. An available ``.venv/bin/flake8`` or ``flake8`` on ``PATH`` avoids Docker for
+Python lint; frontend lint and the Python fallback use the existing dependency images.
+
+``pre-push`` runs the existing backend pre-submit check (lint, migration drift and translations)
+when backend files changed, and frontend lint plus strict type checking when frontend files
+changed. Deletions and renames count as changes. Documentation-only changes skip application
+checks and do not start Docker. Full tests, coverage and SonarCloud stay in CI; run relevant
+tests locally as described below. Hooks can be bypassed, so they do not replace required CI checks.
+
+Checks run on a temporary export of the index or the actual pushed tree, including when a ref
+other than the checked-out branch is pushed. Partially staged edits and working files are left
+untouched. Existing remote refs are compared with the remote object Git supplies. A new ref uses
+the merge base with the fetched remote default branch (or ``<remote>/master``); without that
+baseline, its entire tree is checked. Fetch the remote if a comparison object is missing.
+Deleted remote refs need no checks. Each updated ref is checked separately.
+
+Docker checks require the usual ``.env`` and ``docker/backend/.mrmap.env`` in this checkout.
+Prepare the immutable dependency images before the first code check, and again after dependency
+changes, using the resolver described in :doc:`prebuilt-images`:
+
+.. code-block:: bash
+
+   python3 scripts/dev_image_id.py --resolve --image backend --build
+   python3 scripts/dev_image_id.py --resolve --image frontend --build
+
+Hooks reuse or pull matching images; they never build an image or install host Node/GDAL.
+Every invocation asks ``scripts/agent_capacity`` before starting Docker, creates a separate
+Compose project with no published dependency ports, and removes its containers, networks and
+volumes afterwards, including on failure or interruption. Cached images remain available.
+The frontend image seeds its disposable dependency volume, so no ``npm ci`` is needed for each
+check. Hooks do not use or restart the developer's services. Missing prerequisites and failed
+checks stop the Git operation with an error.
+
+To invoke the commit checks directly, run ``python3 scripts/git_checks.py commit``. Push checks
+read Git's ref-update records from standard input and normally run through ``git push``.
+The offline hook regression suite is ``python3 scripts/test_git_checks.py`` and is included in
+``scripts/check_repo_tooling.sh``.
+
 Frontend checks
 ---------------
 
@@ -96,6 +153,14 @@ in ``.github/workflows/quality-assurance.yml`` waits for ``backend-coverage`` an
 rerun either test suite. ``sonar-project.properties`` defines the analysis scope and report
 locations. Tests are classified separately; generated migrations, fixtures, static assets,
 templates, declarations and coverage output are excluded from application analysis.
+
+For feedback before pushing, install the recommended SonarQube for IDE extension and configure
+its connected mode to bind this workspace to the ``mrmap-community_mrmap`` SonarQube Cloud
+project. Keep authentication tokens in the extension's credential storage. Connected mode
+synchronizes the project's quality profile, but not every server-side analysis can run locally;
+see the `supported rules documentation
+<https://docs.sonarsource.com/sonarqube-for-vs-code/using/rules>`_. The Git hooks do not submit
+SonarCloud analyses or require a Sonar token. The CI analysis remains the full quality gate.
 
 Coverage reports contain paths relative to ``backend/`` and ``frontend/``. The analysis job
 adjusts only its downloaded copies so those paths resolve from the repository root: the lcov

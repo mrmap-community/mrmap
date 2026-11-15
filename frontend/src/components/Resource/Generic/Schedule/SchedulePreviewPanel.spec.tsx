@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SchedulePreviewPanel, {
   type SchedulePreviewAnswer,
+  type ScheduleSuggestion,
 } from "./SchedulePreviewPanel";
 
 const { MockHttpError } = vi.hoisted(() => {
@@ -22,6 +23,7 @@ const state = vi.hoisted(() => ({
   custom: vi.fn(),
   record: undefined as { id: string | number } | undefined,
   values: {} as Record<string, unknown>,
+  setValue: vi.fn(),
 }));
 
 vi.mock("react-admin", () => ({
@@ -38,6 +40,7 @@ vi.mock("react-admin", () => ({
 
 vi.mock("react-hook-form", () => ({
   useWatch: () => state.values,
+  useFormContext: () => ({ setValue: state.setValue }),
 }));
 
 const answer = (
@@ -72,9 +75,33 @@ const answer = (
   ],
   capacity: null,
   capacityReason: "no durable per-task worker events are recorded",
+  suggestions: [],
+  suggestionsReason: null,
+  suggestionsReasonCode: null,
+  suggestionsHorizonDays: null,
   settingRevision: null,
   asOf: "2026-11-15T09:00:00Z",
   expiresAt: "2026-11-15T09:02:00Z",
+  ...overrides,
+});
+
+/** one alternative as the engine of #1328 answers it */
+const suggestion = (
+  overrides: Partial<ScheduleSuggestion> = {},
+): ScheduleSuggestion => ({
+  crontab: "7,37 * * * *",
+  timezone: "UTC",
+  horizonDays: 7,
+  horizonStart: "2026-11-16T00:00:00Z",
+  horizonEnd: "2026-11-23T00:00:00Z",
+  firingCount: 336,
+  queue: "monitoring",
+  originalWorkerSeconds: 3360,
+  expectedWorkerSeconds: 0,
+  sampleCount: 25,
+  costCoverage: 1,
+  snapshotAt: "2026-11-16T00:00:00Z",
+  reason: "keeps the 336 firings and expects less occupancy",
   ...overrides,
 });
 
@@ -213,6 +240,94 @@ describe("SchedulePreviewPanel", () => {
         "error:Invalid crontab format — expected 5 fields",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("answers the alternatives with their evidence and applies none", async () => {
+    state.custom.mockResolvedValue({
+      data: answer({ suggestions: [suggestion()] }),
+    });
+    render(
+      <SchedulePreviewPanel
+        operation="monitoring"
+        serviceKind="WebMapService"
+        serviceId="42"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /button/i }));
+    expect(await screen.findByText("7,37 * * * *")).toBeInTheDocument();
+    // the verified cadence and the measured occupancy travel with it
+    expect(await screen.findByText("336 / 7 d")).toBeInTheDocument();
+    expect(await screen.findByText("0 s / 56 min")).toBeInTheDocument();
+    expect(
+      await screen.findByText("keeps the 336 firings and expects less occupancy"),
+    ).toBeInTheDocument();
+    // nothing was applied: only an explicit click writes the form
+    expect(state.setValue).not.toHaveBeenCalled();
+  });
+
+  it("writes the clicked alternative into the crontab field of the form", async () => {
+    state.custom.mockResolvedValue({
+      data: answer({ suggestions: [suggestion()] }),
+    });
+    render(
+      <SchedulePreviewPanel
+        operation="monitoring"
+        serviceKind="WebMapService"
+        serviceId="42"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /button/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /7,37/ }));
+    expect(state.setValue).toHaveBeenCalledWith(
+      "scheduleInterval",
+      "7,37 * * * *",
+      expect.objectContaining({ shouldDirty: true }),
+    );
+  });
+
+  it("keeps the timezone the harvesting form carries when applying", async () => {
+    state.values = { ...state.values, scheduling: "0 12 * * 1-5 UTC+2" };
+    state.custom.mockResolvedValue({
+      data: answer({
+        suggestions: [
+          suggestion({ crontab: "5 12 * * 1-5", firingCount: 5 }),
+        ],
+      }),
+    });
+    render(<SchedulePreviewPanel operation="harvest" serviceKind="CatalogueService" />);
+    fireEvent.click(screen.getByRole("button", { name: /button/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /5 12/ }));
+    expect(state.setValue).toHaveBeenCalledWith(
+      "scheduling",
+      "5 12 * * 1-5 UTC+2",
+      expect.objectContaining({ shouldDirty: true }),
+    );
+  });
+
+  it("says why nothing was suggested instead of showing a free minute", async () => {
+    state.custom.mockResolvedValue({
+      data: answer({
+        suggestionsReason:
+          "the deployment capacity snapshot answers no verified cost",
+        suggestionsReasonCode: "capacity_unverified",
+        suggestionsHorizonDays: 7,
+      }),
+    });
+    render(
+      <SchedulePreviewPanel
+        operation="monitoring"
+        serviceKind="WebMapService"
+        serviceId="42"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /button/i }));
+    expect(
+      await screen.findByText(
+        "the deployment capacity snapshot answers no verified cost",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+    expect(state.setValue).not.toHaveBeenCalled();
   });
 
   it("refuses to ask for a schedule it cannot attribute to a service", () => {

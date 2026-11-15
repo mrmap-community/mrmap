@@ -57,10 +57,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models
 from django.db.models.fields.related_descriptors import ManyToManyDescriptor
 from lxml import etree
+from lxml.etree import XMLSyntaxError
 
 from registry.exceptions.metadata import PublishRefused
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.parsers.value import string_to_datetime
 from registry.mappers.persistence.custom import (
     METADATA_RECORD_TYPE_KEYS, XML_BACKUP_NAME)
 from registry.mappers.rules import OVERLAYABLE_FIELDS, copy_record, \
@@ -433,6 +435,45 @@ def _reextract_into_row(record, values: dict):
             record.reference_systems.set(rows)
 
 
+def _assert_located_date_stamp(document: bytes, record):
+    """The tree-level header guard: THIS record's node names a dateStamp.
+
+    A value check can not do this: :func:`string_to_datetime` raises on
+    garbage and on nothing, and the mapping pipeline catches that to answer
+    the CURRENT TIME for the failed field — a stripped or corrupt dateStamp
+    node therefore extracts as a perfectly plausible stamp (observed on the
+    first CI run of #1247). Only the located node itself tells whether the
+    curator's document names a stamp the header force can write into.
+    """
+    try:
+        root = etree.fromstring(document)
+    except XMLSyntaxError:
+        raise PublishRefused("the submitted document is not well-formed XML")
+    nodes = [
+        element for element in root.iter()
+        if isinstance(element.tag, str)
+        and etree.QName(element).localname == "MD_Metadata"
+        and "".join(element.xpath(
+            "./*[local-name()='fileIdentifier']//text()")).strip()
+        == str(record.file_identifier)
+    ]
+    if len(nodes) != 1:
+        raise PublishRefused(
+            "the submitted document does not carry this record exactly once")
+    stamps = nodes[0].xpath(
+        "./*[local-name()='dateStamp']/*[local-name()='DateTime'"
+        " or local-name()='Date']/text()")
+    text = next((stamp for stamp in stamps if stamp and stamp.strip()), None)
+    if text is None:
+        raise PublishRefused(
+            "the submitted document carries no dateStamp node")
+    try:
+        string_to_datetime(None, text.strip())
+    except ValueError:
+        raise PublishRefused(
+            "the dateStamp of the submitted document is not a parseable date")
+
+
 def build_source_document(record, document: bytes):
     """The submitted raw document with the record's header written into it.
 
@@ -445,10 +486,14 @@ def build_source_document(record, document: bytes):
     * the record must appear in the submitted document EXACTLY ONCE - the
       same :func:`_locate_record` the publish asks, so a document naming
       another record (or this one twice, or not at all) is refused;
-    * the located node must name its ``fileIdentifier`` and a parseable
+    * the located node must name its ``fileIdentifier`` and carry a parseable
       ``dateStamp``: the write mapper can FILL those header nodes but never
       CREATE them (#1242), and without them the identity and the stamp of
-      the record could not be written into the document it is served as;
+      the record could not be written into the document it is served as. The
+      dateStamp is checked on the NODE, not on the extracted value: the
+      extractor answers a missing node with the current time rather than with
+      nothing (its parse-failure fallback), so only the tree tells whether the
+      curator's document names a stamp at all;
     * the header then becomes the ROW's - :func:`_force_header` with the
       row's ``file_identifier`` and the ``date_stamp`` the editor save
       bumped - so the served document can never disagree with the row it
@@ -477,9 +522,7 @@ def build_source_document(record, document: bytes):
     if not str(extracted.get("file_identifier") or "").strip():
         raise PublishRefused(
             "the submitted document names no fileIdentifier")
-    if not str(extracted.get("date_stamp") or "").strip():
-        raise PublishRefused(
-            "the submitted document names no parseable dateStamp")
+    _assert_located_date_stamp(document, record)
     entry = copy_record(records[position])
     _force_header(entry["values"], record)
     records[position] = entry

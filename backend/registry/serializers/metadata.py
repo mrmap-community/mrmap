@@ -577,10 +577,10 @@ class RecordWriteSerializerMixin:
         of the form write:
 
         * it is written onto an EXISTING record — a POST has no document to
-          replace, its first document comes from its fields (#1244); a PUT
-          which names the document beside the required attributes it must
-          name is refused by the stand-alone rule below, which makes the
-          raw write a deliberate PATCH, as the screen sends it;
+          replace, its first document comes from its fields (#1244); the PUT
+          never reaches this guard at all — the detail view answers PATCH,
+          not PUT (#1244's http_method_names), which makes the raw write a
+          deliberate PATCH, as the screen sends it;
         * it stands ALONE: the raw write re-extracts every form-mapped value
           from the document, so any other member of the same payload would
           be silently undone — refusing the combination is the only answer

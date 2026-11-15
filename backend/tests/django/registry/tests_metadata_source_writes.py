@@ -22,7 +22,8 @@ WRITABLE representation: the document text. Pinned top-down:
 * an invalid document is refused like any failing on-save validation (#1243)
   BEFORE anything commits: not well-formed, naming another record, missing
   a dateStamp, violating a profile rule, POSTed, or sent alongside other
-  members — each one a json:api 400 naming the member, nothing changed;
+  members — each one a json:api 400 naming the member, nothing changed; a
+  PUT is not even routed (the detail view answers PATCH, not PUT, #1244);
 * permission and gate behave as on every other write (#1241): canEdit or
   403, closed gate or 403.
 """
@@ -143,7 +144,9 @@ class SourceAttributeAnswerTests(SourceApiMixin, TestCase):
         self.assertIn("record.xml", url)
         download = self.api_client().get(url)
         self.assertEqual(status, 200)
-        self.assertEqual(download.content, self.document_bytes(record))
+        # the media answer is a FileResponse — its bytes are the stream
+        self.assertEqual(b"".join(download.streaming_content),
+                         self.document_bytes(record))
 
     def test_a_record_without_a_document_answers_no_url(self):
         record = self.record(with_document=False)
@@ -193,6 +196,9 @@ class RawSourceWriteTests(SourceApiMixin, TestCase):
             self.doc, "//*[local-name()='northBoundLatitude']", "50.5")
         status, answer = self.patch_source(record, submitted.decode("utf-8"))
         self.assertEqual(status, 200, answer)
+        # the view published ANOTHER instance of this row — the file pointer
+        # of this one is stale until refreshed
+        record.refresh_from_db()
         root = etree.fromstring(self.document_bytes(record))
         self.assertEqual(
             root.xpath("//*[local-name()='northBoundLatitude']")[0].text,
@@ -252,14 +258,15 @@ class RawSourceWriteTests(SourceApiMixin, TestCase):
         elements from the database — so a left-out element must return from
         the value that survived the raw write in the row."""
         record = self.record()
-        # the corpus dataset document names no ground resolution
-        record.ground_res = "1:100000"
+        # the corpus dataset document names no ground resolution (and the
+        # column is a float — the ISO "1:100000" spelling is not its shape)
+        record.ground_res = 2.5
         record.save(mark_customized=False)
 
         status, answer = self.patch_source(record, self.doc.decode("utf-8"))
         self.assertEqual(status, 200, answer)
         record.refresh_from_db()
-        self.assertEqual(record.ground_res, "1:100000")
+        self.assertEqual(record.ground_res, 2.5)
 
     def test_a_record_serving_no_document_yet_accepts_its_first(self):
         """Legacy records without a stored document join the source view:
@@ -371,7 +378,11 @@ class RawSourceWriteRefusalTests(SourceApiMixin, TestCase):
 
     def test_a_POST_naming_the_document_is_refused(self):
         """A created record gets its first document from its fields (#1244);
-        the raw write replaces a served document, so it needs a record."""
+        the raw write replaces a served document, so it needs a record. The
+        creator grant is what lets the POST reach that guard at all — without
+        the model grant the permission layer answers 403 first, which
+        tests_metadata_record_writes pins separately."""
+        assign_perm("registry.add_datasetmetadatarecord", self.curator)
         record_title = "Creation with a source document"
         status, answer = api(
             self.api_client(), "post", "/api/registry/dataset-metadata",
@@ -393,9 +404,11 @@ class RawSourceWriteRefusalTests(SourceApiMixin, TestCase):
         self.assertFalse(DatasetMetadataRecord.objects.filter(
             title=record_title).exists())
 
-    def test_a_PUT_naming_only_the_document_is_refused(self):
-        """The raw write is a deliberate PATCH; the PUT's required members
-        collide with the stand-alone rule — fail-closed either way."""
+    def test_a_PUT_naming_the_document_is_not_even_routed(self):
+        """The json:api detail view answers PATCH, never PUT (the
+        http_method_names of #1244) — the raw write is a deliberate PATCH
+        also on this ground. A 405 changes nothing, fail-closed like every
+        other refusal."""
         record = self.record()
         before = self.document_bytes(record)
         status, answer = api(
@@ -403,7 +416,9 @@ class RawSourceWriteRefusalTests(SourceApiMixin, TestCase):
             f"/api/registry/dataset-metadata/{record.pk}",
             api_body(pk=record.pk,
                      attributes={WIRE: self.doc.decode("utf-8")}))
-        self.assert_refused(record, status, answer, before)
+        self.assertEqual(status, 405, answer)
+        record.refresh_from_db()
+        self.assertEqual(self.document_bytes(record), before)
 
     def test_an_empty_keywords_write_still_holds_the_choice_rows(self):
         """Guard for the re-extraction helper of #1247: keyword rows the

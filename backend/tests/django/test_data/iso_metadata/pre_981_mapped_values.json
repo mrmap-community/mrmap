@@ -96,7 +96,7 @@
    "spec": "application",
    "values": {
     "abstract": "Elektronisches Wasserstra\u00dfen-Informationssystem der WSV. ELWIS ist ein Online-Serviceangebot der Wasserstra\u00dfen- und Schifffahrtsverwaltung des Bundes (WSV) mit Informationen f\u00fcr alle Nutzer der Wasserstra\u00dfen- Schifffahrtstreibende, Gewerbe und Freizeit - und sonstige Interessierte an den Wasserstra\u00dfen.\n\nMit Hilfe der Informationen in ELWIS soll den Schifffahrtstreibenden geholfen werden, ihre Fahrt besser planen zu k\u00f6nnen. Das wirkt sich u.a. positiv auf den Verkehrsfluss und somit auch auf die Sicherheit auf den Wasserstra\u00dfen aus. Mit ELWIS k\u00f6nnen aber auch andere Nutzer wichtige Informationen erhalten, z.B. \u00fcber Wasserst\u00e4nde. Die WSV stellt hierf\u00fcr wichtige Informationen zentral \u00fcber ELWIS zur Verf\u00fcgung.",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "info@elwis.de",
      "name": "GDWS - Generaldirektion Wasserstra\u00dfen und Schifffahrt",
@@ -181,7 +181,7 @@
    "spec": "application",
    "values": {
     "abstract": "PEGELONLINE (www.pegelonline.wsv.de) ist das gew\u00e4sserkundliche Informationssystem der WSV. PEGELONLINE bietet den Zugang zu unplausibilisierten Messwerten (Rohdaten) f\u00fcr Wasserst\u00e4nde und Abfl\u00fcsse sowie weiteren Parametern, die an den Pegeln der WSV gemessen, zu PEGELONLINE \u00fcbertragen und f\u00fcr 30 Tage kostenfrei zur Verf\u00fcgung gestellt werden. Alle ver\u00f6ffentlichten Messstellen der WSV sind hier dokumentiert (http://www.pegelonline.wsv.de/gast/pegelinformationen). Die Messwerte k\u00f6nnen mittels verschiedener Webservices visualisiert und bezogen werden. (http://www.pegelonline.wsv.de/webservice/ueberblick)",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "gdws@wsv.bund.de",
      "name": "GDWS - Generaldirektion Wasserstra\u00dfen und Schifffahrt",
@@ -242,7 +242,7 @@
    "spec": "application",
    "values": {
     "abstract": "Portal zur Darstellung von kommunalen Geodaten der Stadt Schw\u00e4bisch Hall aus den Bereichen Stadtkarte, Stadtinformationen/POI, Bodenrichtwertkarte, Fl\u00e4chennutzungsplan, Bebauungsplan, Wahlbezirke, Grundschulbezirke, Statistische Einheiten (Stadtteil, Stadtviertel), Gedenkorte, H\u00e4userlexikon, Bauplatz, Historische Luftbilder.",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "info@ibbgdv.de",
      "name": "ibb DV-Systems GmbH",
@@ -389,7 +389,7 @@
    "spec": "application",
    "values": {
     "abstract": "Der Kreis Herford hat mit Hilfe des Planungsb\u00fcros Bockermann+Fritze ein Alltagsradwegenetz ausgearbeitet. Die Ergebnisse wurden im Fr\u00fchjahr 2023 im Umwelt- und Planungsausschuss des Kreises Herford pr\u00e4sentiert. Das Alltagsradwegenetz stellt einen m\u00f6glichen Ausbau der Fahrradinfrastruktur im Kreis Herford dar, mit dem das Ziel verfolgt wird, ein leistungsf\u00e4higes Radwegenetz f\u00fcr Berufspendler aufzubauen. Die Schwierigkeit bei der Realisierung besteht unter anderem in dem begrenzten Stra\u00dfenraum (Bebauung, Eigentumsverh\u00e4ltnisse und topographische Rahmenbedingungen) sowie den unterschiedlichen Zust\u00e4ndigkeiten (Kommunen, Kreis, Land, Bund). Dadurch sind \u00c4nderungen der Planung / Abweichungen in der Umsetzung jederzeit m\u00f6glich. Weiteren Informationen zum Alltagsradwegenetz sowie zu den Freizeitrouten im Kreis Herford sind unter Info-Links zu finden.",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "radverkehr@kreis-herford.de",
      "name": "Stabsbereich Kreisentwicklung und Klimaschutz",
@@ -512,7 +512,7 @@
    "spec": "application",
    "values": {
     "abstract": "Daten der nach dem Bundes- Immissionsschutzgesetz genehmigungsbed\u00fcrftigen Anlagen.",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "edgar.neuwirth@staunsn.mv-regierung.de",
      "name": "Staatliches Amt f\u00fcr Landwirtschaft und Umwelt Westmecklenburg, Dienststelle Schwerin (StALU WM SN)",
@@ -583,7 +583,7 @@
    "spec": "application",
    "values": {
     "abstract": "Mit Hilfe der Anwendung k\u00f6nnen nicht amtliche Ausz\u00fcge aus der Liegenschaftskarte als PDF erstellt werden.",
-    "access_constraints": null,
+    "access_constraints": "",
     "application_contact": {
      "email": "gis@gt-net.de",
      "name": "Kreis G\u00fctersloh",
@@ -1006,7 +1006,7 @@
    "spec": "service",
    "values": {
     "abstract": "Die Rohstoffgewinnungsstellen stellen historische und aktuelle Abbaustellen dar, welche durch die Gewinnungsfl\u00e4chen n\u00e4her bestimmt werden. Durch Auswertungen von Luftbildern und Digitalem Gel\u00e4ndemodell, sowie durch Gel\u00e4ndebefahrungen wurde der Zustand der Rohstoffgewinnungsfl\u00e4che in Abbau, Aufgelassen, Halde, Verf\u00fcllung, Wasser und Betriebsgel\u00e4nde unterteilt. In kleineren Ma\u00dfst\u00e4ben werden die Gewinnungsfl\u00e4chen durch einen Umgriff des gesamten Abbaugebiets dargestellt. Die Ausdehnung der Fl\u00e4chen und der Betriebszustand der Abbaustellen spiegeln den Zustand zum Aufnahmezeitpunkt des letzten Luftbildes wieder und stellt nicht den Tagesaktuellen Zustand dar. Der Darstellungsma\u00dfstab f\u00fcr die einzelnen Themen ist: Gewinnungsstellen (aktiv): ab 1 : 7.500, Gewinnungsstellen (inaktiv): ab 1 : 7.500 bis 150.000, Gewinnungsfl\u00e4chen nutzungsdifferenziert (aktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsfl\u00e4chen nutzungsdifferenziert (inaktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsfl\u00e4chen \u00dcbersicht (aktiv): 1 : 50.000 bis 1 : 200.000, Gewinnungsfl\u00e4chen \u00dcbersicht (inaktiv): 1 : 50.000 bis 1 : 200.000 Ma\u00dfstab: 1:null; Bodenaufl\u00f6sung: 1m; Scanaufl\u00f6sung (DPI): null",
-    "access_constraints": null,
+    "access_constraints": "",
     "bounding_geometry": {
      "__geom__": {
       "srid": 4326,
@@ -1091,7 +1091,7 @@
    "spec": "service",
    "values": {
     "abstract": "Die Daten der Verkehrsnetze f\u00fcr das Hamburger Stadtgebiet werden von diesem WebMapService (WMS) dargestellt.\n\nDie Daten zu Verkehrsnetzen auf der Basis von ATKIS werden vom Landesbetrieb Geoinformation und Vermessung gepflegt, die Stra\u00dfendaten aus der HH-SIB von der Beh\u00f6rde f\u00fcr Wirtschaft.\n\n\nZur genaueren Beschreibung der Daten und Datenverantwortung nutzen Sie bitte den Verweis zur Datensatzbeschreibung.",
-    "access_constraints": null,
+    "access_constraints": "",
     "bounding_geometry": {
      "__geom__": {
       "srid": 4326,

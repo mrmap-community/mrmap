@@ -52,6 +52,25 @@ class HarvestingTask(Task):
         already answer, so nothing of that needs a second implementation here.
         """
         harvesting_job_id = (kwargs or {}).get("harvesting_job_id")
+
+        # #1320: the task giving up is the terminal moment of its
+        # operation - publish the incident of it before the abort of the
+        # job decides about the process, so the incident and the persisted
+        # state of the source agree from the first read. A task without a
+        # process to report about stays invisible, as everywhere else.
+        process_pk = (kwargs or {}).get("background_process_pk")
+        if process_pk is None and harvesting_job_id is not None:
+            from registry.models.harvest import HarvestingJob  # avoid circular import errors
+
+            process_pk = HarvestingJob.objects.filter(
+                pk=harvesting_job_id).values_list(
+                    "background_process_id", flat=True).first()
+        from notify.incident_reporting import publish_terminal_failure
+
+        publish_terminal_failure(
+            process_pk, self.name, exc,
+            retries=getattr(self.request, "retries", None))
+
         if harvesting_job_id is None:
             # a task which is not about one job can not end one
             return

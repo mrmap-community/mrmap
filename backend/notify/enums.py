@@ -92,3 +92,49 @@ class OperationStateEnum(TextChoices):
         if not total_steps:
             return cls.RUNNING_INDETERMINATE.value
         return cls.RUNNING.value
+
+
+class IncidentSourceEnum(TextChoices):
+    """The domain of the deployment whose operations an incident reports.
+
+    An incident never owns the state of the work it reports - the
+    ``BackgroundProcess`` and the job or run behind it stay authoritative -
+    so the source names which domain's reporters may raise and resolve the
+    kind behind a code. System sources are the watchdogs of the deployment
+    itself (a queue without a consumer, a stalled sweep); they name no
+    resource and belong to the administrators alone.
+    """
+
+    HARVESTING = "harvesting", "harvesting"
+    UPDATE = "update", "update"
+    MONITORING = "monitoring", "monitoring"
+    SYSTEM = "system", "system"
+
+
+class IncidentSeverityEnum(TextChoices):
+    """How much attention an incident asks for.
+
+    The two values are the ones the alerts of the services already answer
+    (`registry/models/alerts.py`): an error asks for immediate action, a
+    warning for attention while the operation still moves. A retry of a task
+    is a warning, its exhaustion the same code as an error - the code of an
+    incident never changes with its severity.
+    """
+
+    WARNING = "warning", "warning"
+    ERROR = "error", "error"
+
+
+class IncidentStatusEnum(TextChoices):
+    """The lifecycle of an incident (#1319).
+
+    ``ACTIVE`` is the deduplicated state: while it holds, a recurrence of the
+    same problem raises the occurrence count of the row instead of creating
+    another one. ``RESOLVED`` is terminal - recovery resolves an active
+    incident and history stays inspectable; a problem which returns after its
+    resolution is a new incident which shares its dedup key with the resolved
+    history. Nothing moves a row back from ``RESOLVED``.
+    """
+
+    ACTIVE = "active", "active"
+    RESOLVED = "resolved", "resolved"

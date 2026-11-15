@@ -763,6 +763,16 @@ MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
 BACKGROUND_PROCESS_RETENTION_DAYS = int(
     os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
 
+# how many days a resolved operational incident stays inspectable; the sweep
+# which notify/tasks.py names deletes the incidents which were resolved
+# before this many days (#1319). The incidents which still stand are never
+# touched - an active incident is the open problem itself - and the
+# authoritative history of the reported operation is the job history of
+# #1208 with its own retention. 0 keeps every resolved incident until an
+# operator removes it
+OPERATIONAL_INCIDENT_RETENTION_DAYS = int(
+    os.getenv("MRMAP_OPERATIONAL_INCIDENT_RETENTION_DAYS", "90"))
+
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
 # record (#859): a harvest of 70,000 records publishes ~280 broker messages, task

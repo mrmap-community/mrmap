@@ -102,7 +102,8 @@ class WatchdogTestMixin:
 class StalledRetryWindowTests(WatchdogTestMixin, TestCase):
     """The #1038 shape: a window which expired with nothing behind it."""
 
-    fixtures = ["test_csw.json", "test_wms.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)
@@ -224,7 +225,7 @@ class StalledRetryWindowTests(WatchdogTestMixin, TestCase):
 class VerdictResolutionTests(WatchdogTestMixin, TestCase):
     """The verdicts of the watchdog resolve when their evidence moves."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)
@@ -272,7 +273,7 @@ class VerdictResolutionTests(WatchdogTestMixin, TestCase):
 class MissingConsumerTests(WatchdogTestMixin, TestCase):
     """The queue-without-consumer evidence belongs to the admins."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)

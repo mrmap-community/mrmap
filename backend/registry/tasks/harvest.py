@@ -65,11 +65,12 @@ class HarvestingTask(Task):
             process_pk = HarvestingJob.objects.filter(
                 pk=harvesting_job_id).values_list(
                     "background_process_id", flat=True).first()
-        from notify.incident_reporting import publish_terminal_failure
+        from notify.incident_reporting import (publish_terminal_failure,
+                                               task_retries)
 
         publish_terminal_failure(
             process_pk, self.name, exc,
-            retries=getattr(self.request, "retries", None))
+            retries=task_retries(self))
 
         if harvesting_job_id is None:
             # a task which is not about one job can not end one

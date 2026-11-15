@@ -99,7 +99,8 @@ class PublisherTestMixin:
 class RetryIncidentTests(PublisherTestMixin, TestCase):
     """Retries of one operation are one incident whose count moves."""
 
-    fixtures = ["test_csw.json", "test_wms.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)
@@ -184,7 +185,7 @@ class RetryIncidentTests(PublisherTestMixin, TestCase):
 class TerminalFailureTests(PublisherTestMixin, TestCase):
     """Exhaustion and giving up are the standing incident turning error."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)
@@ -228,7 +229,7 @@ class TerminalFailureTests(PublisherTestMixin, TestCase):
 class RecoveryTests(PublisherTestMixin, TestCase):
     """Authoritative success is what resolves; a failure is not."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)
@@ -305,7 +306,7 @@ class RecoveryTests(PublisherTestMixin, TestCase):
 class PublisherRaceTests(PublisherTestMixin, TransactionTestCase):
     """The dedup invariant holds against concurrent reports (#1320 AC)."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def setUp(self):
         self.catalogue = CatalogueService.objects.get(pk=CSW_PK)

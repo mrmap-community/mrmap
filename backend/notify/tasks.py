@@ -112,11 +112,12 @@ class BackgroundProcessBased(Task):
         # #1320: the moment this task answers that it will not try again -
         # published after the failed state was written, so the terminal
         # incident and the persisted source state agree by construction
-        from notify.incident_reporting import publish_terminal_failure
+        from notify.incident_reporting import (publish_terminal_failure,
+                                               task_retries)
 
         publish_terminal_failure(
             getattr(self, "background_process_pk", None), self.name, exc,
-            retries=getattr(self.request, "retries", None))
+            retries=task_retries(self))
 
     def log_process(self, description, log_type=None):
         """A durable log entry on the process which this task reports to.

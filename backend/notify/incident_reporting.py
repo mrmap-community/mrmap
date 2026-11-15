@@ -265,6 +265,18 @@ def publish_task_retry(sender, request, reason, **kwargs):
             pk, e)
 
 
+def task_retries(task):
+    """The retries-counter of a task, readable outside a run as well.
+
+    ``Task.request`` is a property over the worker's context stack, and the
+    lookup itself raises ``AttributeError`` outside a running task - which
+    is how the tests of #1177 call ``on_failure`` directly. The counter is
+    evidence for the incident's summary, never a reason to break the
+    failure handling it is reported from (#1320).
+    """
+    return getattr(getattr(task, "request", None), "retries", None)
+
+
 def publish_terminal_failure(process_pk, task_name, exc, retries=None):
     """Publish the terminal failure of an operation which gave up.
 

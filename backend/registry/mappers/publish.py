@@ -64,7 +64,7 @@ logger: Logger = settings.ROOT_LOGGER
 #: the ``codeList`` the mapped corpus and the charset predicate of the configs
 #: cite for ``MD_ScopeCode``; normative codelist reference text, not a network
 #: endpoint the code ever calls
-SCOPE_CODE_LIST = ("http://wis.wmo.int/2011/schemata/iso19139_2007/schema/"
+SCOPE_CODE_LIST = ("http://wis.wmo.int/2011/schemata/iso19139_2007/schema/"  # NOSONAR normative WMO/ISO 19139 codelist reference, written as the codeList attribute of the mapped document and matched literally - never requested over the network
                    "resources/Codelist/ML_gmxCodelists.xml#MD_ScopeCode")
 
 
@@ -205,8 +205,13 @@ def _locate_record(records, record):
     return positions[0]
 
 
-def build_resulting_document(record, attrs=None, seed_missing=True) -> bytes:
+def build_resulting_document(record, attrs=None,
+                             seed_missing=True) -> bytes | None:
     """The document this record's stored fields would serve, as bytes.
+
+    Answers None only for the ``seed_missing=False`` posture over a record
+    without a readable stored document; with the default the seed guarantees
+    a document for every record.
 
     Args:
         record: the (saved) metadata record

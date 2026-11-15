@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   DeleteButton,
   useGetRecordRepresentation,
@@ -6,11 +5,9 @@ import {
   useRecordContext,
   useResourceContext,
   useResourceDefinition,
-  useShowContext,
   useTranslate,
-  Toolbar,
-  SaveButton,
 } from "react-admin";
+import { Link } from "react-router-dom";
 
 import {
   Button,
@@ -20,10 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import EditGuesser from "../../../../jsonapi/components/EditGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
-import ContextBasedDialog from "../../../Dialog/Dialog";
-import DialogHeader from "../../../Dialog/DialogHeader";
 import RecordFields, { choiceLabel } from "./RecordFields";
 
 const RecordHeader = () => {
@@ -33,8 +27,6 @@ const RecordHeader = () => {
   const translate = useTranslate();
   const notify = useNotify();
   const { hasEdit, options } = useResourceDefinition();
-  const { refetch } = useShowContext();
-  const [editing, setEditing] = useState(false);
   const fields = useFieldsForOperation({
     operationId: `retrieve_${resource}`,
     forInput: false,
@@ -95,7 +87,7 @@ const RecordHeader = () => {
       />
       <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
         {hasEdit && record.canEdit && (
-          <Button onClick={() => setEditing(true)}>
+          <Button component={Link} to={`/metadata/${resource}/${record.id}/edit`}>
             {translate("ra.action.edit")}
           </Button>
         )}
@@ -118,44 +110,6 @@ const RecordHeader = () => {
           </Button>
         )}
       </Stack>
-      <ContextBasedDialog
-        open={editing}
-        onClose={() => setEditing(false)}
-        maxWidth="lg"
-        fullWidth
-        contentDividers={false}
-        title={
-          <DialogHeader onClose={() => setEditing(false)}>
-            {translate("ra.action.edit")} {representation(record)}
-          </DialogHeader>
-        }
-      >
-        {editing && (
-            <EditGuesser
-              id={record.id}
-              resource={resource}
-              redirect={false}
-              actions={false}
-              simpleFormProps={{
-                toolbar: (
-                  <Toolbar>
-                    <SaveButton />
-                  </Toolbar>
-                ),
-              }}
-              mutationOptions={{
-                onSuccess: () => {
-                  setEditing(false);
-                  void refetch();
-                  notify("ra.notification.updated", {
-                    type: "info",
-                    messageArgs: { smart_count: 1 },
-                  });
-                },
-              }}
-            />
-        )}
-      </ContextBasedDialog>
     </Stack>
   );
 };

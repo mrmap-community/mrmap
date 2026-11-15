@@ -11,7 +11,9 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import connections
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils.timezone import now
 from guardian.shortcuts import assign_perm
@@ -26,7 +28,7 @@ JSONAPI = "application/vnd.api+json"
 
 #: the WMS of ``test_wms.json`` and the first catalogue of ``test_csw.json``
 WMS_PK = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
-CSW_PK = "639cb553-8c30-4e72-a38d-10351ce81cf1"
+CSW_PK = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
 
 class OperationalIncidentApiTests(TestCase):
@@ -58,7 +60,7 @@ class OperationalIncidentApiTests(TestCase):
             retry_count=3,
             retry_scheduled_until=now() + timedelta(minutes=5))
         self.job = HarvestingJob.objects.create(
-            service=self.catalogue, phase="collect", date_created=now())
+            service=self.catalogue, date_created=now())
         self.on_job, _ = OperationalIncident.objects.report(
             code="harvest_stalled",
             source=IncidentSourceEnum.HARVESTING.value,
@@ -331,35 +333,73 @@ class OperationalIncidentApiTests(TestCase):
     # query cost regression
     # ------------------------------------------------------------------
 
-    def test_the_list_of_a_page_costs_one_page_and_its_count(self):
+    def test_the_list_of_a_page_does_not_grow_with_its_rows(self):
         """The page of the notification center is one bounded read.
 
-        The affected resource is answered from the foreign key ids the rows
-        already carry, so no relation is followed per row; the permission
-        narrowing is one query with guardian subqueries. The count is the
-        second query pagination needs. Pinned so an include or a per-row
-        lookup which grows the page linearly shows up red here.
+        Measured the way the read endpoints of the registry are measured:
+        the same request once with every visible row and once with a
+        single one must cost the same number of queries. The affected
+        resource rides along on the foreign key ids the rows carry, so no
+        relation is followed per row; the permission narrowing is one
+        query whose guardian lookups are constant per request and the
+        count of pagination is one query. An include or a per-row lookup
+        which grows the page linearly shows up red here.
         """
         client = self.client_for(self.admin)
-        url = reverse("notify:operationalincident-list")
-        client.get(url)  # warm up: superuser path without guardian reads
-        with self.assertNumQueries(2):
-            client.get(url)
+        self.listed(client)  # settle the process wide caches of both paths
+        with CaptureQueriesContext(connections["default"]) as many:
+            self.assertEqual(len(self.listed(client)["data"]), 4)
+        with CaptureQueriesContext(connections["default"]) as one:
+            self.assertEqual(
+                len(self.listed(client, **{"page[size]": "1"})["data"]), 1)
+        self.assertEqual(
+            len(one), len(many),
+            msg=f"four rows cost {len(many)} queries while one row costs "
+                f"{len(one)}; a relation is read per row")
 
     def test_a_detail_is_one_read(self):
+        """The detail answer reads the incident and nothing else.
+
+        The absolute number of a full request carries the auth and
+        session handling around it and drifts with that; what may not
+        drift is the reading of the data behind the answer: exactly one
+        read of the incident table and no read of any affected resource,
+        which the answer takes from the foreign key ids the row carries.
+        """
         client = self.client_for(self.admin)
         url = reverse("notify:operationalincident-detail",
                       kwargs={"pk": self.on_service.pk})
-        client.get(url)
-        with self.assertNumQueries(1):
-            client.get(url)
+        with CaptureQueriesContext(connections["default"]) as context:
+            response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        sql = [query["sql"] for query in context]
+        incident_reads = [
+            statement for statement in sql
+            if "notify_operationalincident" in statement]
+        resource_reads = [
+            statement for statement in sql
+            if "registry_webmapservice" in statement
+            or "registry_catalogueservice" in statement]
+        self.assertEqual(len(incident_reads), 1, msg=sql)
+        self.assertEqual(resource_reads, [], msg=sql)
 
     def test_the_owner_page_answers_its_rows_without_per_row_reads(self):
-        """The guardian subqueries are part of the one page read."""
+        """The guardian narrowing rides along in the one page read.
+
+        The same comparison for the owner of two resources: the guardian
+        lookups are constant per request - the permissions ride along as
+        subqueries of the page - so the two visible rows may not cost
+        more queries than a single one.
+        """
         client = self.client_for(self.owner)
-        url = reverse("notify:operationalincident-list")
-        client.get(url)  # the guardian lookups settle their own caches
-        # page + count: the three service permissions ride along as
-        # subqueries, not as separate list fetches
-        with self.assertNumQueries(2):
-            client.get(url)
+        self.listed(client)  # the guardian lookups settle their own caches
+        with CaptureQueriesContext(connections["default"]) as many:
+            self.assertEqual(len(self.listed(client)["data"]), 2)
+        with CaptureQueriesContext(connections["default"]) as one:
+            self.assertEqual(
+                len(self.listed(client, **{"page[size]": "1"})["data"]), 1)
+        self.assertEqual(
+            len(one), len(many),
+            msg=f"the owner's two rows cost {len(many)} queries while one "
+                f"row costs {len(one)}; a permission or relation is read "
+                "per row")

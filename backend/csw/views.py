@@ -911,7 +911,7 @@ class CswServiceView(View):
             ]
         return list(dict.fromkeys(names)) or list(SUPPORTED_RECORD_TYPE_NAMES)
 
-    def describe_record(self, request):
+    def describe_record(self, _request):
         """Answer the schema description of the requested record types.
 
         See :mod:`csw.describe_record` for what a SchemaComponent of this

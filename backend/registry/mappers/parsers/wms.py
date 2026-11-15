@@ -9,7 +9,7 @@ from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
 
 
-def timeextent_to_value(mapper, el, instance):
+def timeextent_to_value(_mapper, _el, instance):
     return instance.xml_value()
 
 
@@ -60,7 +60,7 @@ def parse_timeextent(mapper, el):
     return instances
 
 
-def _parse_duration(mapper, duration_str):
+def _parse_duration(_mapper, duration_str):
     """
     ISO-8601 Duration Parser.
     Unterstützt Tage, Monate, Jahre, Stunden, Minuten, Sekunden.

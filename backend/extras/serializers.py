@@ -172,7 +172,7 @@ class CheckConstraintSerializerMixin:
 
 
 class SystemInfoSerializerMixin:
-    def get_root_meta(self, resource, many):
+    def get_root_meta(self, _resource, _many):
 
         return {
             "system_time": timezone.localtime(timezone.now())

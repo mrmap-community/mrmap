@@ -12,7 +12,7 @@ from registry.models.metadata import IsoCategory, ReferenceSystem, TimeExtent
 logger: Logger = settings.ROOT_LOGGER
 
 
-def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeResult):
+def parse_reference_system(_mapper, el: etree._Element | etree._ElementUnicodeResult):
 
     # An element without character content is a missing value, not an import
     # error: lxml answers None for the text of an empty
@@ -37,11 +37,11 @@ def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeRes
     return ReferenceSystem(prefix=prefix, code=code)
 
 
-def serialize_reference_system(mapper, instance: ReferenceSystem):
+def serialize_reference_system(_mapper, instance: ReferenceSystem):
     return f"http://www.opengis.net/def/crs/EPSG/0/{instance.code}"
 
 
-def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResult):
+def parse_topic_category(_mapper, el: etree._Element | etree._ElementUnicodeResult):
     # An element without character content is a missing value, not an import
     # error: lxml answers None for the text of an empty
     # <gmd:MD_TopicCategoryCode/>, which is the ordinary shape of an optional
@@ -56,7 +56,7 @@ def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResul
         return IsoCategory(value=value)
 
 
-def serialize_topic_category(mapper, instance: IsoCategory):
+def serialize_topic_category(_mapper, instance: IsoCategory):
     return CategoryChoices(instance.value).label
 
 

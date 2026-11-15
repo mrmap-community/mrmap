@@ -14,12 +14,12 @@ from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
 from registry.mappers.parsers.utils import get_tag
 
 
-def boolean_to_int(mapper, value: bool = False) -> int:
+def boolean_to_int(_mapper, value: bool = False) -> int:
     """Wandelt False in 0 und True in 1 um."""
     return int(value)
 
 
-def str_to_bool(mapper, value: str = "0") -> bool:
+def str_to_bool(_mapper, value: str = "0") -> bool:
     """Wandelt den String '0' in False und '1' in True um. Andere Werte werfen einen ValueError."""
     if value == "0" or value == "false":
         return False
@@ -28,12 +28,12 @@ def str_to_bool(mapper, value: str = "0") -> bool:
     raise ValueError(f"Ungültiger Wert {value!r}, nur '0' oder '1' erlaubt.")
 
 
-def str_to_int(mapper, value: str = "0") -> int:
+def str_to_int(_mapper, value: str = "0") -> int:
     """Wandelt den String '0' in 0 und '1' in 1 um. Andere Werte werfen einen ValueError."""
     return int(value)
 
 
-def srs_to_prefix(mapper, value: str):
+def srs_to_prefix(_mapper, value: str):
     match value.split(":"):
         case [prefix, _]:
             # example: EPSG:4326
@@ -48,7 +48,7 @@ def srs_to_prefix(mapper, value: str):
             return ""
 
 
-def srs_to_code(mapper, value: str):
+def srs_to_code(_mapper, value: str):
     match value.split(":"):
         case [_, code]:
             # example: EPSG:4326
@@ -63,7 +63,7 @@ def srs_to_code(mapper, value: str):
             return ""
 
 
-def bbox_to_polygon(mapper, minx, maxx, miny, maxy):
+def bbox_to_polygon(_mapper, minx, maxx, miny, maxy):
     """
     Erwartet values als Sequenz: (minx, maxx, miny, maxy)
     Gibt ein Polygon zurück.
@@ -77,7 +77,7 @@ def bbox_to_polygon(mapper, minx, maxx, miny, maxy):
         return Polygon.from_bbox((minx, miny, maxx, maxy))
 
 
-def polygon_to_bbox(mapper, polygon):
+def polygon_to_bbox(_mapper, polygon):
     """
     Erwartet ein GEOS Polygon,
     gibt eine Liste von Strings zurück: [minx, maxx, miny, maxy]
@@ -94,49 +94,49 @@ def polygon_to_bbox(mapper, polygon):
     return [str(xmin), str(xmax), str(ymin), str(ymax)]
 
 
-def version_to_int(mapper, version):
+def version_to_int(_mapper, version):
     return OGCServiceVersionEnum(version).value
 
 
-def int_to_version(mapper, version: int):
+def int_to_version(_mapper, version: int):
     return OGCServiceVersionEnum(version).label
 
 
-def method_to_enum(mapper, url_element):
+def method_to_enum(_mapper, url_element):
     tag = get_tag(url_element)
     if tag:
         return HttpMethodEnum(tag)
 
 
-def serialize_method(mapper, value):
+def serialize_method(_mapper, value):
     return HttpMethodEnum(value).label
 
 
-def operation_to_enum(mapper, operation_str):
+def operation_to_enum(_mapper, operation_str):
     return OGCOperationEnum(operation_str)
 
 
-def serialize_operation(mapper, value):
+def serialize_operation(_mapper, value):
     return OGCOperationEnum(value).label
 
 
-def charset_to_enum(mapper, charset_str):
+def charset_to_enum(_mapper, charset_str):
     return MetadataCharsetChoices(charset_str)
 
 
-def language_to_enum(mapper, language_str):
+def language_to_enum(_mapper, language_str):
     return LanguageChoices(language_str)
 
 
-def int_to_language(mapper, value):
+def int_to_language(_mapper, value):
     return LanguageChoices(value).label
 
 
-def update_frequency_code_to_enum(mapper, update_frequence_code_str):
+def update_frequency_code_to_enum(_mapper, update_frequence_code_str):
     return UpdateFrequencyChoices(update_frequence_code_str)
 
 
-def string_to_datetime(mapper, value: str):
+def string_to_datetime(_mapper, value: str):
     dt = parse_datetime(value)
     if dt:
         return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
@@ -149,7 +149,7 @@ def string_to_datetime(mapper, value: str):
     raise ValueError(f"Ungültiges Datumsformat: {value}")
 
 
-def _split_code(mapper, code_string):
+def _split_code(_mapper, code_string):
     _code = ""
     _code_space = ""
     if code_string:
@@ -212,7 +212,7 @@ def _parse_geographic_bbox(mapper, element):
         ))
 
 
-def _parse_bounding_polygon(mapper, element):
+def _parse_bounding_polygon(_mapper, element):
     geometries = []
     for gmd_polygon in element.iterfind("./gmd:polygon"):
         srs_name = gmd_polygon.findtext("./@srsName")

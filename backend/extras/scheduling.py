@@ -14,11 +14,18 @@ def next_run_expected_at(setting):
         return None
     if setting.start_time is not None:
         baseline = max(baseline, setting.start_time)
-    return _next_run_after(setting, baseline)
+    return next_run_after(setting, baseline)
 
 
-def _next_run_after(setting, baseline):
-    """The next occurrence of the crontab of a setting after a moment."""
+def next_run_after(setting, baseline):
+    """The next occurrence of the crontab of a setting after a moment.
+
+    The canonical step of a Beat-semantics occurrence walk: it is the one
+    question answered against Celery's own crontab arithmetic, so a reader
+    which has to know *every* occurrence of a schedule within a horizon
+    (the capacity snapshot of #1326) counts the same moments beat will
+    dispatch, and does not re-derive the matching rules elsewhere.
+    """
     baseline = baseline.astimezone(setting.crontab.timezone)
     schedule = setting.crontab.schedule
     # Anchor both sides of Celery's calculation to the baseline. Using the
@@ -46,7 +53,7 @@ def run_interval(setting):
     expected_at = next_run_expected_at(setting)
     if expected_at is None:
         return None
-    return _next_run_after(setting, expected_at) - expected_at
+    return next_run_after(setting, expected_at) - expected_at
 
 
 def schedule_is_tighter_than(setting, duration):

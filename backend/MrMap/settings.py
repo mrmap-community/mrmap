@@ -540,6 +540,41 @@ CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
 CAPACITY_TOPOLOGY_TIMEOUT_SECONDS = 1.0
+# the capacity snapshot of #1326 is a materialized answer, not a per-request
+# scan: it is built at most once per interval and served from the cache until
+# its TTL expires or the schedules it counted have demonstrably changed
+# (schedule fingerprint below). The walk budgets are the worst case of one
+# build; a deployment that outruns them gets a labeled lower bound, never a
+# silently truncated number.
+CAPACITY_SNAPSHOT_TTL_SECONDS = 900
+CAPACITY_SNAPSHOT_HORIZON_DAYS = 7
+CAPACITY_SNAPSHOT_MAX_HORIZON_DAYS = 31
+# the shared verdict of "a build is running" and the shortest distance two
+# builds may have, so a busy fleet of readers cannot stack refreshes
+CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS = 300
+CAPACITY_SNAPSHOT_MIN_REBUILD_SECONDS = 60
+# how often the schedule fingerprint may be re-read: one bounded aggregate
+# statement per this interval, shared by every reader of the endpoint
+CAPACITY_FINGERPRINT_CACHE_SECONDS = 30
+# the horizon histogram: bucket width and the resulting bucket cap
+# (horizon 7 d at 3600 s = 168 buckets; the cap bounds 31 d horizons)
+CAPACITY_SNAPSHOT_BUCKET_SECONDS = 3600
+CAPACITY_SNAPSHOT_MAX_BUCKETS = 744
+# walk budgets of one build; over them the walk stops and the affected
+# schedules are reported as truncated, keeping the build cost bounded
+CAPACITY_SNAPSHOT_MAX_SCHEDULES = 100_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES = 2_000_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES_PER_SETTING = 20_000
+# the window the per-occurrence costs are measured from, and how few terminal
+# samples a name may answer a mean cost from; fewer answer no cost, which
+# keeps the demand a labeled lower bound instead of a guess
+CAPACITY_COST_LOOKBACK_DAYS = 7
+CAPACITY_COST_MIN_SAMPLES = 3
+# the groups one grouped cost query may return before it reports truncation
+CAPACITY_COST_GROUP_LIMIT = 5_000
+# a purely advisory line a deployment may draw under rho to ask for attention
+# - a tunable threshold, not a statement that capacity above it is safe
+CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
 
 ################################################################
 # django channels settings

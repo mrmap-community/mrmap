@@ -198,3 +198,32 @@ def bound_task_attempt_samples(self, *args, **kwargs):
         summary["flagged"], summary["expired"], summary["over_cap"],
         summary["remaining"])
     return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def refresh_capacity_snapshot(self, *args, **kwargs):
+    """Keeps the #1326 capacity snapshot materialized.
+
+    The endpoint is a cache read by design - the walk of every enabled
+    schedule belongs here, on beat's cadence, not on an administrator's
+    request. ``refresh`` rebuilds only when the cached snapshot went stale
+    (its TTL expired or the schedule fingerprint moved) and only while no
+    other build holds the lock, so a beat fire that finds the snapshot
+    current costs one fingerprint read and answers "unchanged".
+
+    Runs on ``db-routines`` as a singleton, twice an hour on a beat row
+    created at migrate (``system/apps.py``); the TTL in ``settings.py`` and
+    this cadence are what bound the age of what the endpoint serves.
+    """
+    from system.capacity_snapshot import refresh
+
+    summary = refresh()
+    if summary.get("refreshed"):
+        logger.info(
+            "Capacity snapshot (#1326): rebuilt for a %s day horizon over "
+            "%s schedules, %s dispatches expected, confidence %s, cost "
+            "%.2f s.",
+            summary["horizon_days"], summary["schedules_walked"],
+            summary["occurrences"], summary["confidence"],
+            summary["cost_seconds"])
+    return summary

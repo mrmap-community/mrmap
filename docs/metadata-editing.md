@@ -5,9 +5,10 @@ the write path and what it guarantees, how authoring profiles are created, when
 and how validation runs, what a save does to the served document, and what v1
 deliberately does not do. It was written against the merged foundation of the
 epic **metadata-editor** ([#1239](https://github.com/mrmap-community/mrmap/issues/1239)):
-the API, write mapper, validation and publish (#1240–#1244) are implemented and
-described here as built; the editor UI and its follow-ups (#1245–#1249) build on
-exactly these contracts and are marked where they are still in delivery.
+the API, write mapper, validation and publish (#1240–#1244) and the full-screen
+editor (#1245) are implemented and described here as built; the remaining
+stories (#1246–#1249) build on exactly these contracts and are marked where
+they are still in delivery.
 
 The research and gap analysis behind these decisions — the GeoNetwork study,
 the evidence grading and the mockups — remains in
@@ -167,8 +168,9 @@ The profile's structural rules are evaluated **as part of the normal PUT/PATCH
 write** (`RecordWriteSerializerMixin.validate`), before DRF stores anything.
 Editor, batch edit (#1249) and a future CSW `Transaction` handler therefore get
 the same verdict through one enforcement path. The frontend pre-validates from
-the same rule objects it fetched (§2) purely to answer faster; the server's
-verdict on the write is authoritative.
+the same rule objects it fetched (§2) to answer faster — how much of the
+verdict the client can honestly know is §3.2; the server's verdict on the write
+is authoritative.
 
 ### 3.2 What the rules run over
 
@@ -177,7 +179,11 @@ document with the row's values and the payload's values written through the
 publish seam in memory (`publish.build_resulting_document`, #1244) — never over
 a disconnected representation. What validation evaluates is literally what the
 publish would persist, so a payload can not pass validation and then produce a
-violating document.
+violating document. Only the server can build that document — it needs the
+write mapper — so the client's pre-validation (§2, built for #1245 as
+`MetadataEditor/rules.ts`) honestly checks what it knows: the presence of each
+rule's `field` in the values a save would send, merged with the server's verdict
+by rule id. The server's answer on the write stays authoritative.
 
 Two fail-closed postures belong to this contract (#1241, kept by #1243):
 
@@ -210,19 +216,22 @@ defines the shape):
 
 Every `assert` is a boolean XPath 1.0 written in the prefix-independent
 `local-name()` form: a document may bind the ISO namespaces to any prefixes,
-and the browser's DOM XPath evaluates the very same string for the editor's
-findings rail (#1245), where no prefix table is available either.
+and the expression must evaluate over any of them. The form stays
+browser-portable — DOM XPath has no access to a document's prefix table either
+— even though the shipped editor pre-validates field presence rather than
+running the XPath itself (§3.2).
 
 An `error` finding blocks the save; a `warning` never does. A refused save
 answers one **json:api error object per finding** (`rules.findings_to_errors`):
 
 * `source.pointer` — `/data/attributes/<camelCaseField>` or `/data` — is the
-  member the editor jumps to;
+  member the editor jumps to (the merged findings rail does exactly this);
 * `rule` cites the rule id, so the client can match its own copy of the rule;
 * `severity` grades the finding;
-* `meta.family` plus `meta.severityCounts` (string counts) carry the grouping
-  the findings rail renders — the GeoNetwork lesson that families, not raw
-  engine text, are what a curator reads.
+* `meta.family` plus `meta.severityCounts` (string counts) carry the per-family
+  grouping for consumers that group — the GeoNetwork lesson that families, not
+  raw engine text, are what a curator reads; the shipped v1 rail orders errors
+  before warnings and shows each finding's own message, never engine output.
 
 **No rule-engine text ever surfaces to the client.** A rule whose XPath call
 itself breaks is answered with severity `error` and a detail naming the rule
@@ -314,7 +323,8 @@ items, and are already baked in: a **standalone validate endpoint**
 ([r4537341050](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537341050))
 and **fully new React components** in the editor
 ([r4537359916](https://github.com/mrmap-community/mrmap/pull/1238#discussion_r4537359916)
-— React Admin components, extended only where needed, decide §6). Multi-step
+— React Admin components, extended only where needed, which is how the editor
+of §6 is composed). Multi-step
 approval workflows and ISO 19115-3 authoring are out per the epic's acceptance
 criteria.
 
@@ -326,10 +336,10 @@ criteria.
 | record CRUD, refused members, write-back semantics (#1241, #1242) | `registry/serializers/metadata.py` (`RecordWriteSerializerMixin`), `registry/mappers/xml_mapper.py` | `tests_metadata_record_writes.py`, `mappers/tests_write_mapper.py` |
 | rules on save, json:api error objects (#1243) | `registry/mappers/rules.py`, migration 0052 | `tests_record_validation_on_save.py` |
 | atomic publish, harvest gate (#1244) | `registry/mappers/publish.py`, `MetadataRecord.save` | `tests_metadata_record_publish.py` |
+| full-screen editor: route not dialog, section rail, Simple/Advanced, findings rail, pre-validation (#1245) | `frontend/src/components/Resource/Generic/MetadataEditor/` | `MetadataEditor.spec.tsx`, `rules.spec.ts`, `sections.spec.ts` |
 
-The editor UI stories ([#1245](https://github.com/mrmap-community/mrmap/issues/1245)
-–[#1249](https://github.com/mrmap-community/mrmap/issues/1249)) consume these
-contracts without adding new ones: the editor is a route built from React Admin
-components, it pre-validates with the fetched rules and shows the §3.3 error
-objects as findings — anything it needs beyond what is documented here would be
-a design change, not an implementation detail.
+The full-screen editor (#1245) consumes these contracts without adding new
+ones, and the stories still in delivery — widgets (#1246), XML source view
+(#1247), blank creation (#1248), batch editing (#1249) — are expected to do the
+same: anything they need beyond what is documented here would be a design
+change, not an implementation detail.

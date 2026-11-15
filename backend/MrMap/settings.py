@@ -502,6 +502,46 @@ CELERY_TASK_QUEUES = (
 )
 
 ################################################################
+# Celery capacity telemetry (#1330)
+################################################################
+# The bounded attempt samples the capacity snapshots of #1326 read: every
+# worker records per attempt how long it really occupied a slot and, when the
+# message carried the publish stamp, how long it had waited in the broker.
+# The collector never blocks the task it observes: it buffers in the worker
+# process, writes in batches of at most FLUSH_THRESHOLD attempts, and goes
+# quiet for a cooldown when the database does not answer. The limits below
+# bound the buffer, the table and the retention; what they cost in honesty is
+# stated openly - dropped or abandoned attempts are missing samples, never
+# invented ones (docs/source/development/celery-capacity-telemetry.rst).
+# "off" turns the whole collection and the publish stamping off; on is the
+# default because the measurement is what #1326 needs to become truthful.
+CAPACITY_TELEMETRY_ENABLED = os.environ.get(
+    "MRMAP_CAPACITY_TELEMETRY", "").strip().lower() not in (
+    "off", "0", "false")
+# tests which drive the celery signals by hand set this to record outside of
+# real worker processes; a deployment must leave it False
+CAPACITY_TELEMETRY_COLLECT_ANY_PROCESS = False
+# attempts a worker process keeps before its buffer starts dropping open
+# observations under overload (drops are counted and logged, #1330)
+CAPACITY_TELEMETRY_BUFFER_LIMIT = 1000
+# buffered attempts that trigger a batched write, and the maximum age of a
+# buffered attempt before the next signal flushes - one INSERT per batch
+CAPACITY_TELEMETRY_FLUSH_THRESHOLD = 100
+CAPACITY_TELEMETRY_FLUSH_SECONDS = 30
+# how long a failed flush silences the collector instead of retrying per task
+CAPACITY_TELEMETRY_RETRY_COOLDOWN_SECONDS = 60
+# the sweep of system.tasks keeps the table bounded by these two bounds; the
+# grace must stay above the longest task this deployment runs on purpose,
+# because an attempt without an end within the grace is declared abandoned
+CAPACITY_TELEMETRY_RETENTION_DAYS = 14
+CAPACITY_TELEMETRY_MAX_ATTEMPTS = 200_000
+CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
+# the broker round trip of the topology inspect and how long its answer is
+# shared, so a snapshot request never pays for a broadcast
+CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
+CAPACITY_TOPOLOGY_TIMEOUT_SECONDS = 1.0
+
+################################################################
 # django channels settings
 ################################################################
 CHANNEL_LAYERS = {

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 19:30+0100\n"
+"POT-Creation-Date: 2026-11-15 19:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2620,7 +2620,7 @@ msgid ""
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/models/security.py:196 registry/models/security.py:208
-#: registry/models/service.py:528 registry/serializers/scheduling.py:94
+#: registry/models/service.py:528 registry/serializers/scheduling.py:108
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
@@ -3625,41 +3625,54 @@ msgstr "GetRecords-Überprüfungsergebnisse"
 msgid "results for get records requests"
 msgstr "Ergebnisse für GetRecords-Anfragen"
 
-#: registry/serializers/scheduling.py:95
+#: registry/serializers/scheduling.py:50
+msgid ""
+"Invalid timezone - expected an IANA timezone name or a UTC offset like UTC+2"
+msgstr ""
+"Ungültige Zeitzone - erwartet wird ein IANA-Zonenname oder ein UTC-Offset "
+"wie UTC+2"
+
+#: registry/serializers/scheduling.py:56
+msgid "Invalid crontab - the fields are no schedule Celery can run"
+msgstr ""
+"Ungültiger Crontab - die Felder ergeben keinen Zeitplan, den Celery "
+"ausführen kann"
+
+#: registry/serializers/scheduling.py:109
 msgid "the periodic operation the setting schedules."
 msgstr "die periodische Operation, die die Einstellung plant."
 
-#: registry/serializers/scheduling.py:99
+#: registry/serializers/scheduling.py:113
 msgid "service kind"
 msgstr "Dienstart"
 
-#: registry/serializers/scheduling.py:100
+#: registry/serializers/scheduling.py:114
 msgid "the kind of the service the setting belongs to."
 msgstr "die Art des Dienstes, zu dem die Einstellung gehört."
 
-#: registry/serializers/scheduling.py:103
+#: registry/serializers/scheduling.py:117
 msgid "service id"
 msgstr "Dienst-Id"
 
-#: registry/serializers/scheduling.py:104
+#: registry/serializers/scheduling.py:118
 msgid "the service the proposed setting would schedule."
 msgstr "der Dienst, den die vorgeschlagene Einstellung planen würde."
 
-#: registry/serializers/scheduling.py:108
+#: registry/serializers/scheduling.py:122
 msgid "setting id"
 msgstr "Einstellungs-Id"
 
-#: registry/serializers/scheduling.py:109
+#: registry/serializers/scheduling.py:123
 msgid "the setting being edited; absent previews a new one."
 msgstr ""
 "die bearbeitete Einstellung; ohne sie wird eine neue in der Vorschau "
 "betrachtet."
 
-#: registry/serializers/scheduling.py:113
+#: registry/serializers/scheduling.py:127
 msgid "scheduling"
 msgstr "Zeitplanung"
 
-#: registry/serializers/scheduling.py:115
+#: registry/serializers/scheduling.py:129
 msgid ""
 "the proposed crontab: five fields \"minute hour day-of-month month day-of-"
 "week\", with the timezone suffix the harvesting form writes."
@@ -3667,11 +3680,11 @@ msgstr ""
 "der vorgeschlagene Crontab: fünf Felder \"Minute Stunde Tag des Monats Monat "
 "Wochentag\", mit dem Zeitzonensuffix, das das Harvesting-Formular schreibt."
 
-#: registry/serializers/scheduling.py:121
+#: registry/serializers/scheduling.py:135
 msgid "timezone"
 msgstr "Zeitzone"
 
-#: registry/serializers/scheduling.py:123
+#: registry/serializers/scheduling.py:137
 msgid ""
 "the timezone the crontab runs in; the current schedule's by default, UTC "
 "without one."
@@ -3679,39 +3692,39 @@ msgstr ""
 "die Zeitzone, in der der Crontab läuft; ohne Angabe die der aktuellen "
 "Planung, sonst UTC."
 
-#: registry/serializers/scheduling.py:128
+#: registry/serializers/scheduling.py:142
 msgid "enabled"
 msgstr "aktiviert"
 
-#: registry/serializers/scheduling.py:129
+#: registry/serializers/scheduling.py:143
 msgid "whether the proposed schedule dispatches."
 msgstr "ob der vorgeschlagene Zeitplan auslöst."
 
-#: registry/serializers/scheduling.py:133
+#: registry/serializers/scheduling.py:147
 msgid "one off"
 msgstr "einmalig"
 
-#: registry/serializers/scheduling.py:134
+#: registry/serializers/scheduling.py:148
 msgid "whether the setting fires only once."
 msgstr "ob die Einstellung nur einmal auslöst."
 
-#: registry/serializers/scheduling.py:138
+#: registry/serializers/scheduling.py:152
 msgid "start time"
 msgstr "Startzeit"
 
-#: registry/serializers/scheduling.py:139
+#: registry/serializers/scheduling.py:153
 msgid "the earliest moment the schedule may dispatch."
 msgstr "der früheste Zeitpunkt, zu dem der Zeitplan auslösen darf."
 
-#: registry/serializers/scheduling.py:143
+#: registry/serializers/scheduling.py:157
 msgid "expires"
 msgstr "läuft ab"
 
-#: registry/serializers/scheduling.py:144
+#: registry/serializers/scheduling.py:158
 msgid "the moment after which the schedule stops dispatching."
 msgstr "der Zeitpunkt, nach dem der Zeitplan nicht mehr auslöst."
 
-#: registry/serializers/scheduling.py:165
+#: registry/serializers/scheduling.py:179
 msgid ""
 "A new schedule needs the crontab it proposes; only an existing setting may "
 "be previewed without one."

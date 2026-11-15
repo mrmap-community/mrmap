@@ -319,6 +319,18 @@ class PreviewValidationTest(SchedulePreviewTestCase):
         response, _ = self.ask(self.draft(scheduling='* * * * 99'),
                                self.manager)
         self.assertEqual(response.status_code, 400, response.content)
+        # the refusal names the field and stays on the stable wording -
+        # the parser's internal message never reaches the caller (CodeQL)
+        self.assertIn(b'/data/attributes/scheduling', response.content)
+        self.assertIn(b'no schedule Celery can run', response.content)
+        self.assertNotIn(b'Day of week', response.content)
+
+    def test_an_unresolvable_timezone_token_answers_a_stable_refusal(self):
+        response, _ = self.ask(self.draft(timezone='UTC+99'), self.manager)
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn(b'Invalid timezone', response.content)
+        # the parser's lookup failure stays inside the process
+        self.assertNotIn(b'Etc/GMT-99', response.content)
 
     def test_a_new_schedule_without_a_crontab_is_answered_as_incomplete(self):
         response, _ = self.ask(self.draft(scheduling=''), self.manager)

@@ -43,6 +43,18 @@ MONITORING_CRONTAB_ERROR = (
     'Invalid crontab format \u2014 expected 5 fields: '
     'minute hour day month weekday')
 
+#: the refusal of a timezone token the parser cannot resolve - answered as
+#: this stable message only; what the parser itself said stays in the
+#: exception chain and never reaches the caller (#1327, CodeQL)
+TIMEZONE_ERROR = _(
+    'Invalid timezone - expected an IANA timezone name or a UTC offset '
+    'like UTC+2')
+
+#: the refusal of five fields Celery cannot schedule, worded for the
+#: screen without the parser's internal message (#1327, CodeQL)
+CRONTAB_UNUSABLE_ERROR = _(
+    'Invalid crontab - the fields are no schedule Celery can run')
+
 
 def timezone_name(token):
     """The ZoneInfo name behind a timezone token as the forms write it.
@@ -54,7 +66,9 @@ def timezone_name(token):
     try:
         zone = parse_timezone(token)
     except (ValueError, KeyError) as error:
-        raise ValidationError(str(error))
+        # the parser's own wording stays in the chain; the caller gets the
+        # stable message, so no internal detail flows into a response
+        raise ValidationError(TIMEZONE_ERROR) from error
     return getattr(zone, 'key', str(zone))
 
 
@@ -190,7 +204,10 @@ class SchedulePreviewRequestSerializer(Serializer):
             # Celery's own parser decides whether the fields are usable
             crontab.schedule
         except Exception as error:
-            raise ValidationError({'scheduling': str(error)})
+            # its message may name internals; the screen gets the stable
+            # wording on the field it asked about instead
+            raise ValidationError(
+                {'scheduling': CRONTAB_UNUSABLE_ERROR}) from error
         if resolved:
             attrs['timezone'] = resolved
         attrs['scheduling'] = scheduling

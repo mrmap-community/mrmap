@@ -1,12 +1,17 @@
 import re
 
 from accounts.serializers.users import UserSerializer
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
                                 StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from guardian.core import ObjectPermissionChecker
 from registry.enums.metadata import MetadataOriginEnum
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.rules import (assessable_rule, copy_record,
+                                    evaluate_rules, findings_to_errors,
+                                    overlay_write_values)
 from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadataRecord,
                                       IsoCategory, Keyword, Language, Licence,
                                       MetadataContact, MetadataProfile,
@@ -19,6 +24,8 @@ from rest_framework.relations import (Hyperlink, HyperlinkedIdentityField)
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (ModelSerializer,
                                                  ValidationError)
+
+logger = settings.ROOT_LOGGER
 
 
 class MimeTypeSerializer(
@@ -273,10 +280,16 @@ class RecordWriteSerializerMixin:
       dropping a ``read_only`` DRF field performs today;
     * the structural rules of the record's profile are asked as part of the
       normal CRUD request — the payload is validated on POST/PUT/PATCH, never
-      through a separate call (§5 of the metadata-editor document). #1243 fills
-      the rule content; until a rule type has an evaluator here, a profile
-      which names rules is refused outright: an unevaluated rule set must never
-      answer a payload as valid (fail-closed);
+      through a separate call (§5 of the metadata-editor document). #1243
+      supplies the rule content and the evaluator: PUT/PATCH run the profile's
+      rules over the RESULTING ISO document — the record's document with the
+      patched values written through the write mapper of #1242, in memory —
+      and answer violations as json:api error objects citing the rule ids,
+      before anything is stored. A POST creates a record without a document
+      (the document generation joins this path with #1244), so document rules
+      have nothing to govern yet; a rule set this version can not assess
+      stays refused outright on every verb (fail-closed): an unevaluated rule
+      set must never answer a payload as valid;
     * a record created through the api came from the editor: ``origin`` answers
       ``MetadataOriginEnum.EDITOR``, the value of a curator creation which the
       relation bookkeeping of #1245/#1261 already speaks. A created record
@@ -298,7 +311,7 @@ class RecordWriteSerializerMixin:
     def validate(self, attrs):
         attrs = super().validate(attrs)
         self._reject_non_writable_members()
-        self._reject_unassessable_profile_rules(attrs)
+        self._validate_profile_rules(attrs)
         return attrs
 
     def create(self, validated_data):
@@ -345,30 +358,125 @@ class RecordWriteSerializerMixin:
                 for name in offenders
             })
 
-    def _reject_unassessable_profile_rules(self, attrs):
-        """Ask the profile rules of this write — and fail closed while none is
-        evaluable (#1241, rule content from #1243).
+    def _validate_profile_rules(self, attrs):
+        """Run the profile's ISO rule set over the resulting document (#1243).
 
         The profile which governs the write is the one the payload names, the
         one the record under update carries, or the generic profile a created
-        record falls back to (the creation paths of #1240). The seeded generic
-        profile carries ``rules == []``, so writes pass while #1243 has not
-        filled the rule content — there is nothing to ask. A profile which
-        names a rule is refused: this version ships no evaluator for any rule
-        type and a silent pass would present an unevaluated rule set as a
-        validated payload.
+        record falls back to (the creation paths of #1240). A rule set this
+        version can not assess is refused on every verb (the fail-closed rule
+        #1241 shipped and #1243 keeps for rule shapes it can not evaluate).
+        A created record carries no document yet — the document generation of
+        the write path joins this with #1244 — so the document rules have
+        nothing to govern on POST; the record is refused by the rules the
+        moment its served document exists. On PUT/PATCH the rules run over the
+        document the save WOULD produce: the record's current document with
+        the patched values overlaid and written through the write mapper of
+        #1242, in memory (readiness clarification: the same mapper semantics,
+        never a disconnected representation). Violations of `error` severity
+        refuse the write with one json:api error object per finding, warnings
+        ride along in that answer but never refuse alone — the document stays
+        untouched either way, this runs before DRF saves anything.
         """
         profile = attrs.get("profile", None)
         if profile is None:
             profile = (self.instance.profile if self.instance is not None
                        else MetadataProfile.generic())
         rules = (profile.rules or []) if profile is not None else []
-        if rules:
+        if not rules:
+            return
+        if not all(assessable_rule(rule) for rule in rules):
             raise ValidationError(_(
                 "The profile of this record names structural rules which this "
                 "version can not evaluate; the write is refused instead of "
                 "skipping the validation."
             ))
+        if self.instance is None:
+            # POST: no document is served for the created record until the
+            # write path generates one with #1244 — nothing to validate over
+            return
+        document = self._resulting_document(attrs)
+        if document is None:
+            # the record carries no document yet (an api-created record
+            # before the document generation of #1244): same posture as POST
+            return
+        findings = evaluate_rules(rules, document)
+        if not any(f.severity == "error" for f in findings):
+            # warnings never block a save; the editor rail shows them from
+            # the rules it fetched with the record (#1245)
+            return
+        raise ValidationError({
+            "non_field_errors": findings_to_errors(findings),
+        })
+
+    def _resulting_document(self, attrs):
+        """The document bytes the save of this payload would produce.
+
+        The write mapper round trip of #1242 over the record's current
+        document: extract the mapped values, overlay what this payload
+        patches, write back — nothing is stored, only the answer is
+        evaluated. Returns None for a record without a document; refuses
+        the write (fail-closed) when the record can not be located in its
+        own document or the write mapper refuses the combination: without
+        an assessment the payload must not pass.
+        """
+        try:
+            content = self.instance.xml_backup
+        except OSError:
+            # the file field names a file this deployment does not hold:
+            # same posture as "no document yet", the record's document
+            # arrives with the write path of #1244
+            return None
+        if not content:
+            return None
+        model_label = (f"{self.instance._meta.app_label}."
+                       f"{self.instance.__class__.__name__}")
+        file_identifier = str(self.instance.file_identifier)
+        try:
+            records = MDMetadataXmlMapper.extract_mapped_values(content)
+        except Exception:
+            logger.exception(
+                "the document of record %s can not be mapped for validation",
+                self.instance.pk)
+            raise self._unassessable_document_error()
+        positions = [
+            index for index, record in enumerate(records)
+            if record.get("model") == model_label
+            and str(record["values"].get("file_identifier") or "").strip()
+            == file_identifier
+        ]
+        if len(positions) != 1:
+            # validation needs THE node this record stands for; guessing it
+            # among several or answering for none is exactly the
+            # disconnected assessment the readiness clarification refuses
+            logger.error(
+                "record %s does not appear exactly once in its own document "
+                "(%d matching nodes of %d)", self.instance.pk,
+                len(positions), len(records))
+            raise self._unassessable_document_error()
+        record = copy_record(records[positions[0]])
+        overlay_write_values(record["values"], attrs)
+        records[positions[0]] = record
+        try:
+            document, warnings = MDMetadataXmlMapper.write_mapped_records(
+                content, records)
+        except Exception:
+            logger.exception(
+                "the write mapper refused the resulting document of record %s",
+                self.instance.pk)
+            raise self._unassessable_document_error()
+        for warning in warnings:
+            logger.debug("write mapper: record %s: %s",
+                         self.instance.pk, warning)
+        return document
+
+    @staticmethod
+    def _unassessable_document_error():
+        return ValidationError(_(
+            "The structural rules of this record's profile could not be "
+            "assessed against its ISO document; the write is refused "
+            "instead of skipping the validation."
+        ))
 
 
 class DatasetMetadataRecordSerializer(

@@ -36,6 +36,10 @@ from tests.django.registry.tests_query_performance import QueryMeasurementMixin
 # to be named to be found by Django (same reading as tests_history_delta_size)
 PROFILE_SEED = import_module(
     "registry.migrations.0049_the_profile_of_metadata_is_data")
+# the migration which fills the generic profile's ISO 19139 rule set (#1243);
+# a recreated row carries it like the migrated one
+PROFILE_RULES = import_module(
+    "registry.migrations.0052_the_generic_profile_names_its_rules")
 
 
 def ensure_generic_profile():
@@ -52,7 +56,7 @@ def ensure_generic_profile():
             "name": "iso19139-generic",
             "label": "Generic",
             "sections": PROFILE_SEED.GENERIC_ISO19139_SECTIONS,
-            "rules": [],
+            "rules": PROFILE_RULES.GENERIC_ISO19139_RULES,
         })
     return profile
 
@@ -170,8 +174,11 @@ class MetadataProfileResourceTests(QueryMeasurementMixin, TestCase):
                      for field in section["fields"]
                      if field["field"] == "title")
         self.assertEqual(title["requirement"], "mandatory")
-        # the structural rules are filled by #1243; the attribute exists now
-        self.assertEqual(attributes["rules"], [])
+        # the ISO structural rule set of #1243 rides on the profile as a
+        # plain json:api attribute (Q1 option C): the editor rail and the
+        # save-time evaluation on the server read the very same list
+        self.assertEqual(attributes["rules"],
+                         PROFILE_RULES.GENERIC_ISO19139_RULES)
 
     @classmethod
     def setUpTestData(cls):

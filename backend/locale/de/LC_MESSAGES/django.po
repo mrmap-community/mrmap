@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 00:31+0100\n"
+"POT-Creation-Date: 2026-11-15 07:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -318,12 +318,12 @@ msgstr "Wählen Sie einen gültigen Status eines Hintergrundprozesses."
 msgid "Select a valid state of a background operation."
 msgstr "Wählen Sie einen zulässigen Zustand einer Hintergrund-Operation."
 
-#: notify/filters.py:79 notify/models.py:792 notify/serializers.py:65
-#: notify/serializers.py:239
+#: notify/filters.py:79 notify/models.py:792 notify/serializers.py:66
+#: notify/serializers.py:240
 msgid "status"
 msgstr "Status"
 
-#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:72
+#: notify/filters.py:85 notify/filters.py:92 notify/serializers.py:73
 msgid "state"
 msgstr "Zustand"
 
@@ -395,7 +395,7 @@ msgstr "beschreibt, welche Art von Prozess dies ist"
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:119 notify/serializers.py:82
+#: notify/models.py:119 notify/serializers.py:83
 msgid "revision"
 msgstr "Revision"
 
@@ -424,8 +424,8 @@ msgstr ""
 "von einer Aktualisierung, die auf ihre Prüfung wartet, und gelöscht, wenn "
 "die Arbeit weitergeht"
 
-#: notify/models.py:136 notify/models.py:831 notify/serializers.py:94
-#: notify/serializers.py:284
+#: notify/models.py:136 notify/models.py:831 notify/serializers.py:95
+#: notify/serializers.py:285
 msgid "retry count"
 msgstr "Anzahl der Wiederholungen"
 
@@ -436,7 +436,7 @@ msgstr ""
 "wie viele Wiederholungen seiner Aufgaben der Prozess seit seiner Anlage "
 "gemeldet hat"
 
-#: notify/models.py:145 notify/serializers.py:100
+#: notify/models.py:145 notify/serializers.py:101
 msgid "retry reason"
 msgstr "Grund der Wiederholung"
 
@@ -446,8 +446,8 @@ msgstr ""
 "woran die zuletzt gemeldete Wiederholung einer Aufgabe dieses Prozesses "
 "gescheitert ist"
 
-#: notify/models.py:153 notify/models.py:839 notify/serializers.py:105
-#: notify/serializers.py:291
+#: notify/models.py:153 notify/models.py:839 notify/serializers.py:106
+#: notify/serializers.py:292
 msgid "retry scheduled until"
 msgstr "Wiederholung geplant bis"
 
@@ -459,11 +459,11 @@ msgstr ""
 "bis wann der nächste Versuch der wiederholten Aufgabe fällig ist; solange "
 "dieses Fenster offen ist, meldet sich der Prozess als wiederholend"
 
-#: notify/models.py:185 notify/serializers.py:121
+#: notify/models.py:185 notify/serializers.py:122
 msgid "references total"
 msgstr "Metadatenreferenzen gesamt"
 
-#: notify/models.py:187 notify/serializers.py:123
+#: notify/models.py:187 notify/serializers.py:124
 msgid ""
 "how many metadata references the collection of this process planned; empty "
 "where the process collected no references"
@@ -471,21 +471,21 @@ msgstr ""
 "wie viele Metadatenreferenzen die Sammlung dieses Prozesses geplant hat; "
 "leer, wenn der Prozess keine Metadatenreferenzen gesammelt hat"
 
-#: notify/models.py:193 notify/serializers.py:128
+#: notify/models.py:193 notify/serializers.py:129
 msgid "references stored"
 msgstr "Metadatenreferenzen gespeichert"
 
-#: notify/models.py:195 notify/serializers.py:130
+#: notify/models.py:195 notify/serializers.py:131
 msgid "how many references of the collection produced a stored metadata record"
 msgstr ""
 "wie viele Metadatenreferenzen der Sammlung einen gespeicherten Metadatensatz "
 "hervorgebracht haben"
 
-#: notify/models.py:201 notify/serializers.py:135
+#: notify/models.py:201 notify/serializers.py:136
 msgid "references failed"
 msgstr "Metadatenreferenzen fehlgeschlagen"
 
-#: notify/models.py:203 notify/serializers.py:137
+#: notify/models.py:203 notify/serializers.py:138
 msgid ""
 "how many references of the collection could not be collected, including the "
 "documents which carry no identifiable record"
@@ -493,11 +493,11 @@ msgstr ""
 "wie viele Metadatenreferenzen der Sammlung nicht gesammelt werden konnten, "
 "einschließlich der Dokumente ohne identifizierbaren Metadatensatz"
 
-#: notify/models.py:209 notify/serializers.py:142
+#: notify/models.py:209 notify/serializers.py:143
 msgid "references skipped"
 msgstr "Metadatenreferenzen übersprungen"
 
-#: notify/models.py:211 notify/serializers.py:144
+#: notify/models.py:211 notify/serializers.py:145
 msgid ""
 "how many references the collection planned but never reported an outcome for"
 msgstr ""
@@ -573,7 +573,7 @@ msgstr ""
 "Störung mit dem Schlüssel aktiv ist, erhöht ein erneutes Auftreten des "
 "Problems dessen Anzahl, statt einen weiteren Eintrag zu erzeugen"
 
-#: notify/models.py:769 notify/serializers.py:221
+#: notify/models.py:769 notify/serializers.py:222
 msgid "code"
 msgstr "Code"
 
@@ -585,19 +585,19 @@ msgstr ""
 "der strukturierte Störungs-Code, stabil je Bedeutung; Meldende desselben "
 "Problems melden denselben Code und nie einen neuen"
 
-#: notify/models.py:776 notify/serializers.py:227
+#: notify/models.py:776 notify/serializers.py:228
 msgid "source"
 msgstr "Quelle"
 
-#: notify/models.py:778 notify/serializers.py:229
+#: notify/models.py:778 notify/serializers.py:230
 msgid ""
 "which domain of the deployment raised the incident: harvesting, update, "
 "monitoring or the deployment itself"
 msgstr ""
-"welcher Bereich der Installation die Störung hervorgerufen hat: "
-"Harvesting, Update, Monitoring oder die Installation selbst"
+"welcher Bereich der Installation die Störung hervorgerufen hat: Harvesting, "
+"Update, Monitoring oder die Installation selbst"
 
-#: notify/models.py:783 notify/serializers.py:233
+#: notify/models.py:783 notify/serializers.py:234
 msgid "severity"
 msgstr "Schweregrad"
 
@@ -617,19 +617,19 @@ msgstr ""
 "der Lebenszyklus der Störung: aktiv, solange das Problem besteht, behoben, "
 "sobald die Wiederherstellung sie behoben hat; eine Behebung ist endgültig"
 
-#: notify/models.py:799 notify/serializers.py:267
+#: notify/models.py:799 notify/serializers.py:268
 msgid "first occurrence"
 msgstr "erstes Vorkommnis"
 
-#: notify/models.py:801 notify/serializers.py:269
+#: notify/models.py:801 notify/serializers.py:270
 msgid "the moment the incident was reported for the first time"
 msgstr "der Zeitpunkt, an dem die Störung erstmals gemeldet wurde"
 
-#: notify/models.py:804 notify/serializers.py:272
+#: notify/models.py:804 notify/serializers.py:273
 msgid "last occurrence"
 msgstr "letztes Vorkommnis"
 
-#: notify/models.py:806 notify/serializers.py:274
+#: notify/models.py:806 notify/serializers.py:275
 msgid ""
 "the moment the incident was reported for the last time; every recurrence "
 "moves it"
@@ -637,7 +637,7 @@ msgstr ""
 "der Zeitpunkt, an dem die Störung letztmals gemeldet wurde; jedes erneute "
 "Auftreten verschiebt ihn"
 
-#: notify/models.py:811 notify/serializers.py:278
+#: notify/models.py:811 notify/serializers.py:279
 msgid "occurrence count"
 msgstr "Anzahl der Vorkommnisse"
 
@@ -649,11 +649,11 @@ msgstr ""
 "wie oft das Problem hinter dem Deduplizierungsschlüssel gemeldet wurde, "
 "während die Störung aktiv war"
 
-#: notify/models.py:817 notify/serializers.py:255
+#: notify/models.py:817 notify/serializers.py:256
 msgid "summary"
 msgstr "Zusammenfassung"
 
-#: notify/models.py:819 notify/serializers.py:257
+#: notify/models.py:819 notify/serializers.py:258
 msgid ""
 "the safe, human readable summary of the incident; it never carries a "
 "credential, a raw response or a stack trace"
@@ -661,17 +661,17 @@ msgstr ""
 "die sichere, lesbare Zusammenfassung der Störung; sie enthält niemals "
 "Zugangsdaten, eine Rohantwort oder einen Stack-Trace"
 
-#: notify/models.py:824 notify/serializers.py:261
+#: notify/models.py:824 notify/serializers.py:262
 msgid "details"
 msgstr "Details"
 
-#: notify/models.py:826 notify/serializers.py:263
+#: notify/models.py:826 notify/serializers.py:264
 msgid ""
 "redacted, bounded structured metadata of the incident; the full evidence "
 "stays in the log of the reported process"
 msgstr ""
-"redigierte, begrenzte strukturierte Metadaten der Störung; die "
-"vollständigen Belege bleiben im Protokoll der gemeldeten Operation"
+"redigierte, begrenzte strukturierte Metadaten der Störung; die vollständigen "
+"Belege bleiben im Protokoll der gemeldeten Operation"
 
 #: notify/models.py:833
 msgid ""
@@ -681,7 +681,7 @@ msgstr ""
 "wie viele Wiederholungsversuche die meldende Operation mit ihrer letzten "
 "Meldung genannt hat, oder keine, wenn sie keine kennt"
 
-#: notify/models.py:841 notify/serializers.py:293
+#: notify/models.py:841 notify/serializers.py:294
 msgid ""
 "until when the next attempt of the reported operation is due; while this "
 "window is open the incident reports a retry, not a failure"
@@ -690,11 +690,11 @@ msgstr ""
 "dieses Fenster offen ist, meldet die Störung einen Wiederholungsversuch, "
 "keinen Fehler"
 
-#: notify/models.py:848 notify/serializers.py:299
+#: notify/models.py:848 notify/serializers.py:300
 msgid "resolved at"
 msgstr "Behoben am"
 
-#: notify/models.py:850 notify/serializers.py:301
+#: notify/models.py:850 notify/serializers.py:302
 msgid "the moment recovery resolved the incident, empty while it is active"
 msgstr ""
 "der Zeitpunkt, an dem die Wiederherstellung die Störung behoben hat, leer "
@@ -717,8 +717,8 @@ msgid ""
 "The details of an incident exceed their bounded size and have to be "
 "sanitized before they are stored."
 msgstr ""
-"Die Details einer Störung überschreiten ihre begrenzte Größe und müssen "
-"vor dem Speichern bereinigt werden."
+"Die Details einer Störung überschreiten ihre begrenzte Größe und müssen vor "
+"dem Speichern bereinigt werden."
 
 #: notify/permissions.py:17
 msgid "You are not allowed to change the resource of this process."
@@ -728,27 +728,27 @@ msgstr "Sie dürfen die Ressource dieses Prozesses nicht ändern."
 msgid "You are not allowed to retry the references of this process."
 msgstr "Sie dürfen die Referenzen dieses Prozesses nicht wiederholen."
 
-#: notify/serializers.py:45
+#: notify/serializers.py:46
 msgid "date created"
 msgstr "Erstellt am"
 
-#: notify/serializers.py:46
+#: notify/serializers.py:47
 msgid "the datetime when this process was created"
 msgstr "der Zeitpunkt, an dem dieser Prozess erstellt wurde"
 
-#: notify/serializers.py:49
+#: notify/serializers.py:50
 msgid "date at"
 msgstr "Datum von"
 
-#: notify/serializers.py:50
+#: notify/serializers.py:51
 msgid "the datetime when this process reached its terminal state"
 msgstr "der Zeitpunkt, an dem dieser Prozess seinen Endzustand erreicht hat"
 
-#: notify/serializers.py:53
+#: notify/serializers.py:54
 msgid "time until decided"
 msgstr "Zeit bis zur Entscheidung"
 
-#: notify/serializers.py:55
+#: notify/serializers.py:56
 msgid ""
 "the seconds between the creation and the decision of the process, the "
 "waiting and retry intervals of its tasks included; empty while it still runs"
@@ -757,29 +757,29 @@ msgstr ""
 "Warte- und Wiederholungsintervalle seiner Aufgaben eingeschlossen; leer "
 "solange er noch läuft"
 
-#: notify/serializers.py:60
+#: notify/serializers.py:61
 msgid "progress"
 msgstr "Fortschritt"
 
-#: notify/serializers.py:61
+#: notify/serializers.py:62
 msgid "the current workflow progress from 0 to 100"
 msgstr "der aktuelle Fortschritt des Workflows von 0 bis 100"
 
-#: notify/serializers.py:66
+#: notify/serializers.py:67
 msgid "the current workflow status."
 msgstr "der aktuelle Status des Workflows."
 
-#: notify/serializers.py:68
+#: notify/serializers.py:69
 msgid "related resource"
 msgstr "zugehörige Ressource"
 
-#: notify/serializers.py:70
+#: notify/serializers.py:71
 msgid "the resource this process belongs to, addressed by its type and id"
 msgstr ""
 "die Ressource, zu der dieser Prozess gehört, adressiert über ihren Typ und "
 "ihre ID"
 
-#: notify/serializers.py:74
+#: notify/serializers.py:75
 msgid ""
 "the normalized state of the reported operation: queued while it waits for a "
 "worker, running while it works, running_indeterminate while it works without "
@@ -794,7 +794,7 @@ msgstr ""
 "action_required während eine Entscheidung eines Menschen erwartet wird, "
 "sowie die abschließenden failed, completed oder aborted"
 
-#: notify/serializers.py:84
+#: notify/serializers.py:85
 msgid ""
 "the number of the state report which every message about this process "
 "carries; a client which learns states out of order keeps the highest "
@@ -804,11 +804,11 @@ msgstr ""
 "ein Client, der Zustände in falscher Reihenfolge empfängt, behält die "
 "höchste Revision, die er von einem Prozess gesehen hat"
 
-#: notify/serializers.py:88
+#: notify/serializers.py:89
 msgid "error summary"
 msgstr "Fehlerzusammenfassung"
 
-#: notify/serializers.py:90
+#: notify/serializers.py:91
 msgid ""
 "what the last error of the reported operation told, or nothing where it "
 "never reported one"
@@ -816,7 +816,7 @@ msgstr ""
 "was der letzte Fehler der gemeldeten Operation mitgeteilt hat, oder nichts, "
 "wenn sie nie einen gemeldet hat"
 
-#: notify/serializers.py:96
+#: notify/serializers.py:97
 msgid ""
 "how many retries of its tasks the reported operation has reported since it "
 "was made"
@@ -824,11 +824,11 @@ msgstr ""
 "wie viele Wiederholungen ihrer Aufgaben die gemeldete Operation seit ihrer "
 "Anlage gemeldet hat"
 
-#: notify/serializers.py:102
+#: notify/serializers.py:103
 msgid "what the last reported retry of the operation failed on"
 msgstr "woran die zuletzt gemeldete Wiederholung der Operation gescheitert ist"
 
-#: notify/serializers.py:108
+#: notify/serializers.py:109
 msgid ""
 "until when the next attempt of a retried task of the operation is due; while "
 "this window is open the operation reports itself as retrying"
@@ -837,15 +837,15 @@ msgstr ""
 "ist; solange dieses Fenster offen ist, meldet sich die Operation als "
 "wiederholend"
 
-#: notify/serializers.py:223
+#: notify/serializers.py:224
 msgid ""
 "the structured incident code, stable per meaning; later integrations refer "
 "to codes, never to worded messages"
 msgstr ""
-"der strukturierte Störungs-Code, stabil je Bedeutung; spätere "
-"Integrationen beziehen sich auf Codes, nie auf formulierte Meldungen"
+"der strukturierte Störungs-Code, stabil je Bedeutung; spätere Integrationen "
+"beziehen sich auf Codes, nie auf formulierte Meldungen"
 
-#: notify/serializers.py:235
+#: notify/serializers.py:236
 msgid ""
 "how much attention the incident asks for: a warning while the reported "
 "operation still moves, an error where it stands"
@@ -853,7 +853,7 @@ msgstr ""
 "wie viel Aufmerksamkeit die Störung verlangt: eine Warnung, solange die "
 "gemeldete Operation noch läuft, ein Fehler, wenn sie stillsteht"
 
-#: notify/serializers.py:241
+#: notify/serializers.py:242
 msgid ""
 "the lifecycle of the incident: active while the problem stands, resolved "
 "once recovery resolved it"
@@ -861,11 +861,11 @@ msgstr ""
 "der Lebenszyklus der Störung: aktiv, solange das Problem besteht, behoben, "
 "sobald die Wiederherstellung sie behoben hat"
 
-#: notify/serializers.py:244
+#: notify/serializers.py:245
 msgid "scope"
 msgstr "Geltungsbereich"
 
-#: notify/serializers.py:246
+#: notify/serializers.py:247
 msgid ""
 "whether the incident names an affected resource ('resource') or reports "
 "about the deployment itself ('system')"
@@ -873,11 +873,11 @@ msgstr ""
 "ob die Störung eine betroffene Ressource nennt ('resource') oder über die "
 "Installation selbst berichtet ('system')"
 
-#: notify/serializers.py:249
+#: notify/serializers.py:250
 msgid "affected resource"
 msgstr "betroffene Ressource"
 
-#: notify/serializers.py:251
+#: notify/serializers.py:252
 msgid ""
 "the resource this incident stands for, addressed by its type and id; empty "
 "for a system incident"
@@ -885,7 +885,7 @@ msgstr ""
 "die Ressource, für die diese Störung steht, adressiert über ihren Typ und "
 "ihre ID; bei einer Systemstörung leer"
 
-#: notify/serializers.py:280
+#: notify/serializers.py:281
 msgid ""
 "how often the problem behind the incident was reported while it was active; "
 "a retry is an occurrence, not a new incident"
@@ -893,7 +893,7 @@ msgstr ""
 "wie oft das Problem hinter der Störung gemeldet wurde, während sie aktiv "
 "war; ein Wiederholungsversuch ist ein Vorkommnis, keine neue Störung"
 
-#: notify/serializers.py:286
+#: notify/serializers.py:287
 msgid ""
 "how many retries the reported operation told with its last report, or none "
 "where it knows none"
@@ -1348,6 +1348,15 @@ msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 #: registry/filters/service.py:168
 msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
+
+#: registry/mappers/rules.py:138
+#, python-format
+msgid ""
+"The validation rule %(rule)s could not be evaluated; the server log carries "
+"the reason."
+msgstr ""
+"Die Prüfregel %(rule)s konnte nicht ausgewertet werden; das Serverprotokoll "
+"enthält den Grund."
 
 #: registry/models/conformity.py:142
 msgid "the service targeted by this check"
@@ -3255,11 +3264,11 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
-#: registry/serializers/metadata.py:344
+#: registry/serializers/metadata.py:357
 msgid "This field is read-only and can not be written."
 msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
 
-#: registry/serializers/metadata.py:368
+#: registry/serializers/metadata.py:390
 msgid ""
 "The profile of this record names structural rules which this version can not "
 "evaluate; the write is refused instead of skipping the validation."
@@ -3267,6 +3276,15 @@ msgstr ""
 "Das Profil dieses Datensatzes nennt strukturelle Regeln, die diese Version "
 "nicht auswerten kann; die Schreiboperation wird abgelehnt, statt die "
 "Überprüfung zu überspringen."
+
+#: registry/serializers/metadata.py:476
+msgid ""
+"The structural rules of this record's profile could not be assessed against "
+"its ISO document; the write is refused instead of skipping the validation."
+msgstr ""
+"Die strukturellen Regeln des Profils dieses Datensatzes konnten nicht gegen "
+"sein ISO-Dokument ausgewertet werden; die Schreiboperation wird abgelehnt, "
+"statt die Überprüfung zu überspringen."
 
 #: registry/serializers/monitoring.py:72 registry/serializers/monitoring.py:78
 #: registry/serializers/monitoring.py:169

@@ -30,7 +30,65 @@ def git(root, *args, env=None):
     return run(["git", *args], cwd=root, env=env, capture=True)
 
 
-def install_hooks(root, uninstall=False):
+def sonar_configuration(root, required=False):
+    configured = git(root, "config", "--bool", "--default", "false", "--get",
+                     "mrmap.sonarPrePush").decode().strip() == "true"
+    token = os.environ.get("SONAR_TOKEN", "").strip()
+    if not (required or configured or token):
+        return None
+    if not token:
+        raise RuntimeError("SONAR_TOKEN is required; inject it through the agent launcher")
+    scanner = shutil.which("sonar-scanner")
+    if not scanner:
+        raise RuntimeError("provision SonarScanner CLI on the agent's PATH before pushing")
+    if git(root, "rev-parse", "--is-shallow-repository").decode().strip() == "true":
+        raise RuntimeError("Sonar needs full Git history; run git fetch --unshallow")
+    # Public identifiers of the existing SonarCloud project; CI can override
+    # the same properties with its repository variables.
+    return {
+        "scanner": scanner,
+        "organization": os.environ.get("SONAR_ORGANIZATION") or "mrmap-community",
+        "project": os.environ.get("SONAR_PROJECT_KEY") or "mrmap-community_mrmap",
+        "target": os.environ.get("SONAR_TARGET_BRANCH") or "master",
+    }
+
+
+def scan_sonar(snapshot, configuration, revision, remote_ref):
+    if not (snapshot / "sonar-project.properties").is_file():
+        raise RuntimeError("the pushed tree must contain sonar-project.properties")
+    environment = os.environ.copy()
+    # Git's exported local environment describes the original checkout. Use
+    # the exported commit's own Git metadata and no inherited CI/PR context.
+    for name in git(snapshot, "rev-parse", "--local-env-vars").decode().splitlines():
+        environment.pop(name, None)
+    for name in list(environment):
+        if name.startswith("GITHUB_"):
+            environment.pop(name)
+    for name in ("SONAR_SCANNER_JSON_PARAMS", "SONARQUBE_SCANNER_PARAMS"):
+        environment.pop(name, None)
+    environment["SONAR_HOST_URL"] = "https://sonarcloud.io"
+    branch = f"pre-push/{remote_ref.removeprefix('refs/heads/')}"
+    print(f"git checks: Sonar static analysis on {branch} (coverage remains in CI)", flush=True)
+    run([
+        configuration["scanner"],
+        "-Dsonar.host.url=https://sonarcloud.io",
+        f"-Dsonar.organization={configuration['organization']}",
+        f"-Dsonar.projectKey={configuration['project']}",
+        f"-Dsonar.branch.name={branch}",
+        f"-Dsonar.branch.target={configuration['target']}",
+        f"-Dsonar.scm.revision={revision}",
+        "-Dsonar.qualitygate.wait=true",
+        "-Dsonar.qualitygate.timeout=300",
+        # This separate preview branch checks static rules and duplication.
+        # A pre-push run has no full-suite coverage reports; never publish its
+        # coverage result over the real branch/PR analysis produced by CI.
+        "-Dsonar.coverage.exclusions=**",
+        "-Dsonar.python.coverage.reportPaths=",
+        "-Dsonar.javascript.lcov.reportPaths=",
+    ], cwd=snapshot, env=environment)
+
+
+def install_hooks(root, uninstall=False, sonar=False):
     """Install tiny executable wrappers without changing tracked file modes.
 
     Git's hooks directory is shared by linked worktrees. Refuse to replace a
@@ -45,14 +103,19 @@ def install_hooks(root, uninstall=False):
     for target in targets:
         if target.is_symlink() or (target.exists() and not target.read_bytes().startswith(marker)):
             raise RuntimeError(f"custom hook at {target}; integrate the hooks manually")
+    if sonar:
+        sonar_configuration(root, required=True)
     if uninstall:
         for target in targets:
             target.unlink(missing_ok=True)
+        git(root, "config", "mrmap.sonarPrePush", "false")
     else:
         directory.mkdir(parents=True, exist_ok=True)
         for target in targets:
             shutil.copyfile(root / ".githooks" / target.name, target)
             target.chmod(0o755)
+        if sonar:
+            git(root, "config", "mrmap.sonarPrePush", "true")
     print(f"git checks: {'removed' if uninstall else 'installed'} hooks in {directory}")
 
 
@@ -71,10 +134,10 @@ def push_trees(root, lines, remote="origin"):
     or assume that the working HEAD is the ref being pushed.
     """
     for line in lines:
-        _local_ref, local_oid, _remote_ref, remote_oid = line.split()
+        _local_ref, local_oid, remote_ref, remote_oid = line.split()
         if set(local_oid) == {"0"}:
             continue
-        tree = git(root, "rev-parse", "--verify", f"{local_oid}^{{tree}}")
+        tree = git(root, "rev-parse", "--verify", f"{local_oid}^{{commit}}")
         tree = tree.decode().strip()
         if set(remote_oid) == {"0"}:
             baseline = git(root, "for-each-ref", "--format=%(symref)",
@@ -92,7 +155,7 @@ def push_trees(root, lines, remote="origin"):
                 ).split(b"\0") if path]
         else:
             paths = changed_paths(root, remote_oid, local_oid)
-        yield tree, paths
+        yield tree, paths, remote_ref
 
 
 def selection(paths, stage):
@@ -117,8 +180,15 @@ def selection(paths, stage):
     return python, javascript
 
 
-def export_tree(root, destination, tree):
+def export_tree(root, destination, tree, history=False):
     env = os.environ.copy()
+    if history:
+        for name in git(root, "rev-parse", "--local-env-vars").decode().splitlines():
+            env.pop(name, None)
+        run(["git", "clone", "--shared", "--no-checkout", "--quiet", "--",
+             root, destination], cwd=root, env=env)
+        git(destination, "checkout", "--detach", "--quiet", tree, env=env)
+        return
     if tree is not None:
         # A private index makes this work for refs other than HEAD, without
         # checking out a branch or touching the live index.
@@ -223,14 +293,19 @@ class Containers:
                 raise RuntimeError(f"{self.project} left {resource} resources: {leftovers}")
 
 
-def check_tree(root, stage, tree, paths):
+def check_tree(root, stage, tree, paths, remote_ref=""):
     backend, frontend = selection(paths, stage)
-    if not backend and not frontend:
+    sonar = None
+    if (stage == "push" and remote_ref.startswith("refs/heads/")
+            and (backend or frontend or "sonar-project.properties" in paths)):
+        # Check credentials before starting the heavier Docker checks.
+        sonar = sonar_configuration(root)
+    if not backend and not frontend and not sonar:
         return
     with tempfile.TemporaryDirectory(prefix="mrmap-git-checks-") as tmp:
         snapshot = Path(tmp) / "source"
         snapshot.mkdir()
-        export_tree(root, snapshot, tree)
+        export_tree(root, snapshot, tree, history=bool(sonar))
         if stage == "commit":
             # Deletions affect push checks but must not be passed to a linter.
             backend = [p for p in backend if (snapshot / "backend" / p).exists()]
@@ -248,23 +323,29 @@ def check_tree(root, stage, tree, paths):
                 containers.check(stage, backend, frontend)
             finally:
                 containers.close()
+        if sonar:
+            scan_sonar(snapshot, sonar, tree, remote_ref)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=("install", "uninstall", "commit", "push"))
+    parser.add_argument("--sonar", action="store_true",
+                        help="with install: require SonarScanner and SONAR_TOKEN on code pushes")
     parser.add_argument("remote", nargs="?", help="remote name supplied by Git")
     parser.add_argument("url", nargs="?", help="remote URL supplied by Git")
     args = parser.parse_args()
+    if args.sonar and args.stage != "install":
+        parser.error("--sonar is only supported with install")
     root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
     if args.stage in {"install", "uninstall"}:
-        install_hooks(root, uninstall=args.stage == "uninstall")
+        install_hooks(root, uninstall=args.stage == "uninstall", sonar=args.sonar)
         return
     if args.stage == "commit":
         check_tree(root, args.stage, None, changed_paths(root, "--cached"))
     else:
-        for tree, paths in push_trees(root, sys.stdin, args.remote or "origin"):
-            check_tree(root, args.stage, tree, paths)
+        for tree, paths, remote_ref in push_trees(root, sys.stdin, args.remote or "origin"):
+            check_tree(root, args.stage, tree, paths, remote_ref)
 
 
 if __name__ == "__main__":

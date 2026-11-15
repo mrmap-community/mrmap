@@ -42,8 +42,9 @@ Python lint; frontend lint and the Python fallback use the existing dependency i
 ``pre-push`` runs the existing backend pre-submit check (lint, migration drift and translations)
 when backend files changed, and frontend lint, strict type checking and translation tests when frontend files
 changed. Deletions and renames count as changes. Documentation-only changes skip application
-checks and do not start Docker. Full tests, coverage and SonarCloud stay in CI; run relevant
-tests locally as described below. Hooks can be bypassed, so they do not replace required CI checks.
+checks and do not start Docker. The optional agent Sonar setup below adds static analysis before
+pushing. Full tests and coverage remain in CI; run relevant tests locally as described below.
+Hooks can be bypassed, so they do not replace required CI checks.
 
 Checks run on a temporary export of the index or the actual pushed tree, including when a ref
 other than the checked-out branch is pushed. Partially staged edits and working files are left
@@ -73,6 +74,50 @@ To invoke the commit checks directly, run ``python3 scripts/git_checks.py commit
 read Git's ref-update records from standard input and normally run through ``git push``.
 The offline hook regression suite is ``python3 scripts/test_git_checks.py`` and is included in
 ``scripts/check_repo_tooling.sh``.
+
+Agent Sonar setup
+~~~~~~~~~~~~~~~~~
+
+Provision the official `SonarScanner CLI
+<https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/scanners/sonarscanner-cli>`_
+on the agent's ``PATH`` through the external agent bootstrap. The launcher or secret manager
+must inject ``SONAR_TOKEN`` into the agent process environment. The token needs Execute Analysis
+permission on the existing SonarQube Cloud project. Do not put it in Git, a tracked environment
+file, a command argument or the agent's chat. GitHub Actions secrets cannot be read back for local use.
+
+With the token already injected, enable the agent hooks once per checkout:
+
+.. code-block:: bash
+
+   # The launcher has already injected SONAR_TOKEN into this process environment.
+   sonar-scanner --version
+   python3 scripts/git_checks.py install --sonar
+
+Setup checks for the token, scanner and full Git history before installing. It stores only
+``mrmap.sonarPrePush=true`` in the local Git configuration, shared by linked worktrees. Every
+subsequent branch push with application changes requires a token and scanner; missing credentials,
+scanner failures, timeouts and a failing static quality gate stop the push. Documentation-only
+updates and remote ref deletions need no scan. Uninstalling the managed hooks clears the requirement.
+The presence of ``SONAR_TOKEN`` also enables scanning without the persisted requirement.
+
+The defaults are organization ``mrmap-community``, project ``mrmap-community_mrmap`` and target
+branch ``master``. Set ``SONAR_ORGANIZATION``, ``SONAR_PROJECT_KEY`` or ``SONAR_TARGET_BRANCH`` in
+the launcher if those differ. These identifiers are public; the token stays in the environment
+and is never saved by the hooks. Setup does not create a token or change project permissions.
+
+After the ordinary pre-push checks succeed, SonarScanner analyzes a temporary local clone of the
+actual pushed commit with its Git history. The existing ``sonar-project.properties`` supplies
+the analysis scope. Results are sent to a separate ``pre-push/<destination-branch>`` branch in
+SonarQube Cloud, targeted at ``SONAR_TARGET_BRANCH``; the scanner waits up to 300 seconds for its
+quality gate. This requires branch analysis support and an existing target-branch analysis.
+The temporary clone is removed after success, failure or interruption.
+
+This is a static preflight, not the full CI gate: source files are excluded from coverage only
+for this separate preview analysis, because the quick checks do not generate full-suite reports.
+Static rules and duplication remain checked. The real branch and PR results, their coverage
+thresholds and the CI workflow are untouched. A code push therefore also needs the full CI
+analysis before merging. API-created commits do not invoke Git hooks; an agent publishing through
+an API must run the pre-push runner explicitly with Git's ref-update input before publishing.
 
 Frontend checks
 ---------------
@@ -167,7 +212,8 @@ project. Keep authentication tokens in the extension's credential storage. Conne
 synchronizes the project's quality profile, but not every server-side analysis can run locally;
 see the `supported rules documentation
 <https://docs.sonarsource.com/sonarqube-for-vs-code/using/rules>`_. The Git hooks do not submit
-SonarCloud analyses or require a Sonar token. The CI analysis remains the full quality gate.
+SonarCloud analyses unless the agent Sonar setup above is enabled. The CI analysis remains the
+full quality gate including coverage.
 
 Coverage reports contain paths relative to ``backend/`` and ``frontend/``. The analysis job
 adjusts only its downloaded copies so those paths resolve from the repository root: the lcov

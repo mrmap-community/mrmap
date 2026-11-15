@@ -19,6 +19,12 @@ ZERO = "0" * 40
 
 class HookTests(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in ("SONAR_TOKEN", "SONAR_ORGANIZATION", "SONAR_PROJECT_KEY",
+                     "SONAR_TARGET_BRANCH"):
+            os.environ.pop(name, None)
         self.tmp = tempfile.TemporaryDirectory(prefix="mrmap-hook-tests-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "repo with spaces"
@@ -30,11 +36,11 @@ class HookTests(unittest.TestCase):
         self.write("README.md", "initial\n")
         self.commit()
 
-    def git(self, *args):
+    def git(self, *args, cwd=None):
         env = os.environ.copy()
         for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
             env.pop(name, None)
-        return subprocess.check_output(["git", *args], cwd=self.root, env=env).decode().strip()
+        return subprocess.check_output(["git", *args], cwd=cwd or self.root, env=env).decode().strip()
 
     def write(self, relative, content):
         path = self.root / relative
@@ -103,6 +109,145 @@ class HookTests(unittest.TestCase):
             hooks.check_tree(self.root, "push", "HEAD", ["backend/AGENTS.md"])
             export.assert_not_called()
             docker.assert_not_called()
+
+    def test_sonar_setup_checks_prerequisites_before_installing(self):
+        self.templates()
+        with self.assertRaisesRegex(RuntimeError, "SONAR_TOKEN"):
+            hooks.install_hooks(self.root, sonar=True)
+        self.assertFalse((self.root / ".git/hooks/pre-commit").exists())
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value"}), patch.object(hooks.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "SonarScanner CLI"):
+                hooks.install_hooks(self.root, sonar=True)
+        self.assertFalse((self.root / ".git/hooks/pre-commit").exists())
+
+    def test_sonar_setup_requires_future_tokens_without_storing_one(self):
+        self.templates()
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value"}), patch.object(hooks.shutil, "which", return_value="/fake/sonar-scanner"):
+            hooks.install_hooks(self.root, sonar=True)
+        self.assertEqual(self.git("config", "--get", "mrmap.sonarPrePush"), "true")
+        self.assertNotIn("test-value", (self.root / ".git/config").read_text())
+        with self.assertRaisesRegex(RuntimeError, "SONAR_TOKEN"):
+            hooks.sonar_configuration(self.root)
+        hooks.install_hooks(self.root, uninstall=True)
+        self.assertIsNone(hooks.sonar_configuration(self.root))
+
+    def test_sonar_missing_token_blocks_before_docker_or_export(self):
+        self.git("config", "mrmap.sonarPrePush", "true")
+        with patch.object(hooks, "Containers") as docker, patch.object(hooks, "export_tree") as export:
+            with self.assertRaisesRegex(RuntimeError, "SONAR_TOKEN"):
+                hooks.check_tree(self.root, "push", "HEAD", ["backend/a.py"], "refs/heads/topic")
+            docker.assert_not_called()
+            export.assert_not_called()
+        # Documentation-only pushes still need no scanner or credential.
+        hooks.check_tree(self.root, "push", "HEAD", ["docs/topic.rst"], "refs/heads/topic")
+
+    def test_sonar_token_enables_scan_with_public_project_defaults(self):
+        self.assertIsNone(hooks.sonar_configuration(self.root))
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value"}), patch.object(hooks.shutil, "which", return_value="/fake/sonar-scanner"):
+            configuration = hooks.sonar_configuration(self.root)
+        self.assertEqual(configuration["organization"], "mrmap-community")
+        self.assertEqual(configuration["project"], "mrmap-community_mrmap")
+        self.assertEqual(configuration["target"], "master")
+        self.assertNotIn("test-value", str(configuration))
+
+    def test_sonar_setup_refuses_shallow_history(self):
+        shallow = Path(self.tmp.name) / "shallow"
+        subprocess.run(["git", "clone", "--quiet", "--no-local", "--depth=1",
+                        str(self.root), str(shallow)], check=True)
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value"}), patch.object(hooks.shutil, "which", return_value="/fake/sonar-scanner"):
+            with self.assertRaisesRegex(RuntimeError, "full Git history"):
+                hooks.sonar_configuration(shallow)
+
+    def test_sonar_scan_preserves_pushed_revision_history_and_credentials(self):
+        self.write("sonar-project.properties", "sonar.sources=backend\n")
+        self.write("backend/a.py", "pushed\n")
+        pushed = self.commit()
+        self.write("backend/a.py", "working edit\n")
+        index_before = self.git("ls-files", "--stage")
+        observed = []
+        original_run = hooks.run
+
+        def scan(args, **kwargs):
+            if args[0] == "/fake/sonar-scanner":
+                snapshot = kwargs["cwd"]
+                observed.append((list(args), kwargs["env"], (snapshot / "backend/a.py").read_text(),
+                                 self.git("rev-parse", "HEAD", cwd=snapshot), snapshot))
+                return b""
+            return original_run(args, **kwargs)
+
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value", "GITHUB_ACTIONS": "true", "GITHUB_HEAD_REF": "unrelated"}), patch.object(hooks.shutil, "which", return_value="/fake/sonar-scanner"), patch.object(hooks, "run", side_effect=scan), patch.object(hooks, "Containers") as docker:
+            hooks.check_tree(self.root, "push", pushed, ["backend/a.py"], "refs/heads/topic")
+            docker.return_value.close.assert_called_once()
+        self.assertEqual(len(observed), 1)
+        args, env, contents, checked_out, snapshot = observed[0]
+        self.assertEqual(contents, "pushed\n")
+        self.assertEqual(checked_out, pushed)
+        self.assertIn(f"-Dsonar.scm.revision={pushed}", args)
+        self.assertIn("-Dsonar.branch.name=pre-push/topic", args)
+        self.assertIn("-Dsonar.qualitygate.wait=true", args)
+        self.assertIn("-Dsonar.coverage.exclusions=**", args)
+        self.assertNotIn("test-value", " ".join(args))
+        self.assertEqual(env["SONAR_TOKEN"], "test-value")
+        self.assertNotIn("GITHUB_ACTIONS", env)
+        self.assertNotIn("GITHUB_HEAD_REF", env)
+        self.assertFalse(snapshot.exists())
+        self.assertEqual((self.root / "backend/a.py").read_text(), "working edit\n")
+        self.assertEqual(self.git("ls-files", "--stage"), index_before)
+
+    def test_sonar_failure_blocks_push_and_removes_snapshot(self):
+        self.write("sonar-project.properties", "sonar.sources=backend\n")
+        self.write("backend/a.py", "pushed\n")
+        pushed = self.commit()
+        snapshots = []
+        original_scan = hooks.scan_sonar
+        original_run = hooks.run
+
+        def fail_command(args, **kwargs):
+            if args[0] == "/fake/sonar-scanner":
+                raise subprocess.CalledProcessError(1, args)
+            return original_run(args, **kwargs)
+
+        def fail_scan(snapshot, configuration, revision, ref):
+            snapshots.append(snapshot)
+            with patch.object(hooks, "run", side_effect=fail_command):
+                original_scan(snapshot, configuration, revision, ref)
+
+        with patch.dict(os.environ, {"SONAR_TOKEN": "test-value"}), patch.object(hooks.shutil, "which", return_value="/fake/sonar-scanner"), patch.object(hooks, "scan_sonar", side_effect=fail_scan), patch.object(hooks, "Containers") as docker:
+            with self.assertRaises(subprocess.CalledProcessError):
+                hooks.check_tree(self.root, "push", pushed, ["backend/a.py"], "refs/heads/topic")
+            docker.return_value.close.assert_called_once()
+        self.assertEqual(len(snapshots), 1)
+        self.assertFalse(snapshots[0].exists())
+
+    def test_failed_sonar_command_blocks_real_push(self):
+        remote = Path(self.tmp.name) / "remote.git"
+        subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+        self.git("remote", "add", "origin", str(remote))
+        self.git("push", "-q", "origin", "HEAD:master")
+        self.write("sonar-project.properties", "sonar.sources=.\n")
+        pushed = self.commit()
+        self.templates()
+        runner = self.root / "scripts/git_checks.py"
+        runner.parent.mkdir()
+        shutil.copy2(ROOT / "scripts/git_checks.py", runner)
+        log = self.root / "scanner.log"
+        scanner = self.write("bin/sonar-scanner", f"#!{sys.executable}\n" +
+                             "import sys\n" +
+                             f"with open({str(log)!r}, 'w') as log:\n" +
+                             "    log.write(' '.join(sys.argv[1:]))\n" +
+                             "raise SystemExit(1)\n")
+        scanner.chmod(0o755)
+        hooks.install_hooks(self.root)
+        env = {**os.environ, "SONAR_TOKEN": "test-value",
+               "PATH": f"{scanner.parent}:{os.environ['PATH']}"}
+        result = subprocess.run(["git", "push", "origin", "HEAD:topic"],
+                                cwd=self.root, env=env, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.git("ls-remote", "origin", "refs/heads/topic"), "")
+        self.assertIn(f"-Dsonar.scm.revision={pushed}", log.read_text())
+        self.assertIn("-Dsonar.branch.name=pre-push/topic", log.read_text())
+        self.assertNotIn(b"test-value", result.stderr)
+        self.assertNotIn("test-value", log.read_text())
 
     def test_staged_content_and_config_ignore_working_edits(self):
         self.write("backend/setup.cfg", "[flake8]\nignore = E501\n")
@@ -188,7 +333,7 @@ class HookTests(unittest.TestCase):
         updates = [self.update(pushed, base), self.update(ZERO, pushed)]
         trees = list(hooks.push_trees(self.root, updates))
         self.assertEqual(len(trees), 1)
-        tree, paths = trees[0]
+        tree, paths, _ref = trees[0]
         self.assertEqual(paths, ["backend/a.py"])
         with tempfile.TemporaryDirectory() as tmp:
             snapshot = Path(tmp) / "snapshot"
@@ -203,14 +348,14 @@ class HookTests(unittest.TestCase):
         self.git("update-ref", "refs/remotes/origin/master", base)
         self.write("docs/topic.rst", "new docs\n")
         head = self.commit()
-        _tree, paths = next(hooks.push_trees(self.root, [self.update(head)]))
+        _tree, paths, _ref = next(hooks.push_trees(self.root, [self.update(head)]))
         self.assertEqual(paths, ["docs/topic.rst"])
         self.assertEqual(hooks.selection(paths, "push"), (False, False))
 
     def test_unknown_remote_baseline_checks_entire_tree(self):
         self.write("frontend/src/a.ts", "export {};\n")
         head = self.commit()
-        _tree, paths = next(hooks.push_trees(self.root, [self.update(head)]))
+        _tree, paths, _ref = next(hooks.push_trees(self.root, [self.update(head)]))
         self.assertIn("frontend/src/a.ts", paths)
 
     def test_missing_remote_object_fails_instead_of_skipping(self):
@@ -223,7 +368,7 @@ class HookTests(unittest.TestCase):
         base = self.commit()
         self.git("mv", "backend/a.py", "README.py")
         head = self.commit()
-        _tree, paths = next(hooks.push_trees(self.root, [self.update(head, base)]))
+        _tree, paths, _ref = next(hooks.push_trees(self.root, [self.update(head, base)]))
         self.assertEqual(hooks.selection(paths, "push"), (True, False))
         with patch.object(hooks, "Containers") as docker:
             hooks.check_tree(self.root, "commit", head, paths)

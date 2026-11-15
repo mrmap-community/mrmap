@@ -27,13 +27,13 @@ from registry.models.service import CatalogueService, WebMapService
 #: of ``test_csw.json``
 WMS_PK = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
 OTHER_WMS_PK = "1b195589-dcfa-403f-9e66-e7e1c0a67024"
-CSW_PK = "639cb553-8c30-4e72-a38d-10351ce81cf1"
+CSW_PK = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
 
 class DeduplicationTests(TestCase):
     """The report of a standing problem is one incident, not one per retry."""
 
-    fixtures = ["test_wms.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
 
     def setUp(self):
         self.service = WebMapService.objects.get(pk=WMS_PK)
@@ -144,7 +144,7 @@ class DeduplicationTests(TestCase):
 class LifecycleTests(TestCase):
     """The lifecycle has one transition and it is terminal."""
 
-    fixtures = ["test_wms.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
 
     def setUp(self):
         self.service = WebMapService.objects.get(pk=WMS_PK)
@@ -207,7 +207,8 @@ class LifecycleTests(TestCase):
 class DatabaseConstraintTests(TestCase):
     """The typed resource and lifecycle promises are guarded in the database."""
 
-    fixtures = ["test_wms.json", "test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json",
+                "test_wms.json", "test_csw.json"]
 
     def setUp(self):
         self.service = WebMapService.objects.get(pk=WMS_PK)
@@ -336,7 +337,7 @@ class SanitizationTests(TestCase):
 class ScopeTests(TestCase):
     """Scope is derived from the typed relations, never stored beside them."""
 
-    fixtures = ["test_csw.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_csw.json"]
 
     def test_a_resource_incident_reports_the_resource_scope(self):
         incident = OperationalIncident(

@@ -1,7 +1,7 @@
 import { useTranslate } from "react-admin";
 
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import i18nProvider from "../../providers/i18nProvider";
 import CustomMenu from "./Menu";
@@ -28,8 +28,15 @@ const resources = vi.hoisted(() => {
     },
     // A resource no resources block names keeps its name as it does today.
     Layer: menuEntry("Layer", "WMS", 20),
+    // The Accounts group #836 gates: an administration user opens it, a
+    // plain user sees neither the entries nor the group.
+    User: menuEntry("User", "Accounts", 10),
+    Organization: menuEntry("Organization", "Accounts", 20),
   };
 });
+
+/** Which checks the mocked react-admin access hooks are to answer how. */
+const access = vi.hoisted(() => ({ denied: [] as string[], pending: false }));
 
 // The menu renders its entries through these react-admin pieces; the test
 // asserts the text the menu hands them, so they are replaced by their label.
@@ -38,6 +45,15 @@ vi.mock("react-admin", () => ({
   MenuItemLink: ({ primaryText }: { primaryText: string }) => (
     <span>{primaryText}</span>
   ),
+  useCanAccessResources: ({ resources: names }: { resources: string[] }) =>
+    access.pending
+      ? { canAccess: undefined, isPending: true }
+      : {
+          canAccess: Object.fromEntries(
+            names.map(name => [name, !access.denied.includes(name)])
+          ),
+          isPending: false,
+        },
   useResourceDefinitions: () => resources,
   useSidebarState: () => [true, vi.fn()],
   useTranslate: vi.fn(),
@@ -87,5 +103,60 @@ describe.each([
       screen.queryByText("serviceAlerts.title"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Layer")).toBeInTheDocument();
+  });
+});
+
+/**
+ * #836: the menu asks react-admin's access hook per group, so a user whose
+ * snapshot does not carry administration loses the Accounts entries - and
+ * with them the empty group - while a granted one keeps everything.
+ */
+describe("menu entries gated by canAccess", () => {
+  beforeEach(async () => {
+    await i18nProvider.changeLocale("en");
+    vi.mocked(useTranslate).mockReturnValue(i18nProvider.translate);
+    access.denied = [];
+    access.pending = false;
+  });
+
+  afterEach(() => {
+    access.denied = [];
+    access.pending = false;
+  });
+
+  it("hides the denied entries and the group they would empty", () => {
+    access.denied = ["User", "Organization"];
+    render(<CustomMenu />);
+
+    expect(screen.queryByText("User")).not.toBeInTheDocument();
+    expect(screen.queryByText("Organization")).not.toBeInTheDocument();
+    expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
+    // granted groups are untouched
+    expect(screen.getByText("Layer")).toBeInTheDocument();
+  });
+
+  it("keeps the group as long as one entry is granted", () => {
+    access.denied = ["User"];
+    render(<CustomMenu />);
+
+    expect(screen.getByText("Organization")).toBeInTheDocument();
+    expect(screen.getByText("Accounts")).toBeInTheDocument();
+    expect(screen.queryByText("User")).not.toBeInTheDocument();
+  });
+
+  it("shows every entry once all are granted", () => {
+    render(<CustomMenu />);
+
+    expect(screen.getByText("User")).toBeInTheDocument();
+    expect(screen.getByText("Organization")).toBeInTheDocument();
+    expect(screen.getByText("Accounts")).toBeInTheDocument();
+  });
+
+  it("renders nothing of a group while its access check is still running", () => {
+    access.pending = true;
+    render(<CustomMenu />);
+
+    expect(screen.queryByText("Layer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
   });
 });

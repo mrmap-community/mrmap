@@ -159,63 +159,73 @@ class XmlMapper:
         """Parst ein einzelnes Feld oder Sub-Spec."""
         # Prüfen, ob das xpath_or_spec ein Sub-Spec (dict) ist
         if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
-            parser = self.__class__(
-                xml=element,
-                mapping=xpath_or_spec | {
-                    "_namespaces": self.mapping.get("_namespaces", {})},
-                uuid=self.uuid,
-                warnings=self.warnings,
-                # the shared cache and uuid are how a parent spec finds the
-                # instances a sub-mapper parsed - with an injectable cache this
-                # hand-off must travel through the constructor
-                cache=self.cache,
-            )
-            parsed = parser.traverse_spec(
-                xpath_or_spec,
-                namespaces,
-                is_many=is_many
-            )
-            return parsed
-        elif isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec and "_parser" in xpath_or_spec:
-            values = []
-            for xpath_expr in xpath_or_spec["_inputs"]:
-                try:
-                    res = element.xpath(xpath_expr, namespaces=namespaces)
-                except etree.XPathEvalError as e:
-                    logging.exception(
-                        f"Error parsing field with xpath '{xpath_expr}': {e}"
-                    )
-                if not res:
-                    logging.debug(
-                        f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
-                    values.append(xpath_or_spec.get("_default", None))
-                else:
-                    # Ob Attribut oder Elementtext
-                    node = res[0]
-                    values.append(node)
-            parser_func = load_function(xpath_or_spec["_parser"])
-            try:
-                parsed = parser_func(self, *values)
-                if parsed is None:
-                    logging.debug(
-                        f"{xpath_or_spec["_parser"]} does return None with args: {values}")
-            except Exception as e:
-                logging.exception(
-                    f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
-                parsed = None
+            return self._parse_sub_spec(
+                element, xpath_or_spec, namespaces, is_many)
+        if (isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec
+                and "_parser" in xpath_or_spec):
+            return self._parse_input_fields(
+                element, xpath_or_spec, namespaces)
+        # Einfache XPath-Auswertung
+        return self._parse_plain_xpath(element, xpath_or_spec, namespaces)
 
-            return parsed
-        else:
-            # Einfache XPath-Auswertung
-            values = element.xpath(xpath_or_spec, namespaces=namespaces)
-            if not values:
-                return None
-            elif len(values) == 1:
-                v = values[0]
-                return v.text if hasattr(v, "text") else str(v)
+    def _parse_sub_spec(self, element, sub_spec, namespaces, is_many):
+        parser = self.__class__(
+            xml=element,
+            mapping=sub_spec | {
+                "_namespaces": self.mapping.get("_namespaces", {})},
+            uuid=self.uuid,
+            warnings=self.warnings,
+            # the shared cache and uuid are how a parent spec finds the
+            # instances a sub-mapper parsed - with an injectable cache this
+            # hand-off must travel through the constructor
+            cache=self.cache,
+        )
+        return parser.traverse_spec(
+            sub_spec,
+            namespaces,
+            is_many=is_many
+        )
+
+    def _parse_input_fields(self, element, xpath_or_spec, namespaces):
+        values = []
+        for xpath_expr in xpath_or_spec["_inputs"]:
+            try:
+                res = element.xpath(xpath_expr, namespaces=namespaces)
+            except etree.XPathEvalError as e:
+                logging.exception(
+                    f"Error parsing field with xpath '{xpath_expr}': {e}"
+                )
+            if not res:
+                logging.debug(
+                    f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
+                values.append(xpath_or_spec.get("_default", None))
             else:
-                return [v.text if hasattr(v, "text") else str(v)
-                        for v in values]
+                # Ob Attribut oder Elementtext
+                node = res[0]
+                values.append(node)
+        parser_func = load_function(xpath_or_spec["_parser"])
+        try:
+            parsed = parser_func(self, *values)
+            if parsed is None:
+                logging.debug(
+                    f"{xpath_or_spec["_parser"]} does return None with args: {values}")
+        except Exception as e:
+            logging.exception(
+                f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
+            parsed = None
+
+        return parsed
+
+    @staticmethod
+    def _parse_plain_xpath(element, xpath_or_spec, namespaces):
+        values = element.xpath(xpath_or_spec, namespaces=namespaces)
+        if not values:
+            return None
+        if len(values) == 1:
+            v = values[0]
+            return v.text if hasattr(v, "text") else str(v)
+        return [v.text if hasattr(v, "text") else str(v)
+                for v in values]
 
     def handle_flat_field(self, field_name, instance, xml_element, xpath_or_spec, namespaces):
         """Sets the value of one concrete field on the parsed instance.
@@ -424,47 +434,58 @@ class XmlMapper:
     ):
         """Traversiert ein Mapping-Spec, inkl. Baumstruktur und Reverse-Relations."""
 
-        instances = [] if is_many else None
         elements = self._get_elements(spec, namespaces)
         if "_parser" in spec:
-            parser = load_function(spec.get("_parser"))
+            return self._traverse_with_parser(
+                spec, elements, namespaces, is_many)
+        return self._traverse_model_spec(
+            spec, elements, namespaces, is_many)
 
-            for el in elements:
-                path = self.get_element_path(el)
-                instance = parser(self, el)
-                if isinstance(instance, list):
-                    instances.extend(instance)
-                    for idx, inst in enumerate(instance):
-                        self.store_to_cache(f"{path}_{idx}", inst)
-                elif instance is not None:
-                    if is_many:
-                        instances.append(instance)
-                    else:
-                        instances = instance
-                    self.store_to_cache(path, instance)
+    def _traverse_with_parser(self, spec, elements, namespaces, is_many):
+        """Builds the instances through the spec's own _parser function."""
+        instances = [] if is_many else None
+        parser = load_function(spec.get("_parser"))
 
-            return instances
+        for el in elements:
+            path = self.get_element_path(el)
+            instance = parser(self, el)
+            if isinstance(instance, list):
+                instances.extend(instance)
+                for idx, inst in enumerate(instance):
+                    self.store_to_cache(f"{path}_{idx}", inst)
+                continue
+            if instance is None:
+                continue
+            if is_many:
+                instances.append(instance)
+            else:
+                instances = instance
+            self.store_to_cache(path, instance)
 
-        else:
-            model_cls = self._get_model_class(spec)
+        return instances
 
-            for el in elements:
-                path = self.get_element_path(el)
-                instance = model_cls()
+    def _traverse_model_spec(self, spec, elements, namespaces, is_many):
+        """Builds the instances field by field from the spec's model."""
+        instances = [] if is_many else None
+        model_cls = self._get_model_class(spec)
 
-                self.handle_flat_fields(instance, el, spec, namespaces)
-                self.handle_foreign_fields(instance, el, spec, namespaces)
-                self.handle_reverse_relations(instance, el, spec, namespaces)
-                self.handle_m2m_relations(instance, el, spec, namespaces)
-                self.handle_value_fields(instance, el, spec, namespaces)
+        for el in elements:
+            path = self.get_element_path(el)
+            instance = model_cls()
 
-                if is_many:
-                    instances.append(instance)
-                else:
-                    instances = instance
+            self.handle_flat_fields(instance, el, spec, namespaces)
+            self.handle_foreign_fields(instance, el, spec, namespaces)
+            self.handle_reverse_relations(instance, el, spec, namespaces)
+            self.handle_m2m_relations(instance, el, spec, namespaces)
+            self.handle_value_fields(instance, el, spec, namespaces)
 
-                self.store_to_cache(path, instance)
-            return instances
+            if is_many:
+                instances.append(instance)
+            else:
+                instances = instance
+
+            self.store_to_cache(path, instance)
+        return instances
 
     def xml_to_django(self):
         namespaces = self.mapping.get("_namespaces", None)
@@ -525,39 +546,49 @@ class XmlMapper:
         """
         fields = spec.get("fields")
         if not fields:
-            return {
-                field.name: getattr(instance, field.name, None)
-                for field in instance._meta.concrete_fields
-                if field is not instance._meta.pk
-                and not isinstance(field, ForeignKey)
-            }
+            return self._project_concrete_fields(instance)
         m2m_names = {
             field.name
             for field in type(instance)._meta.local_many_to_many
         }
         values = {}
         for name, xpath_or_spec in fields.items():
-            if is_value_spec(xpath_or_spec):
-                values[name] = getattr(instance, f"_{name}_values", [])
-            elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
-                if name in m2m_names:
-                    parsed = getattr(instance, f"_{name}_parsed", None) or []
-                    values[name] = [
-                        self._project_mapped_values(child, xpath_or_spec)
-                        for child in parsed
-                    ]
-                else:
-                    # a foreign key field carries the parsed related instance
-                    # or raises on access when the mapper left it empty - which
-                    # for an unsaved instance means: not mapped
-                    child = getattr(instance, name, None)
-                    values[name] = (
-                        self._project_mapped_values(child, xpath_or_spec)
-                        if child is not None else None
-                    )
-            else:
-                values[name] = getattr(instance, name, None)
+            values[name] = self._project_field_value(
+                instance, name, xpath_or_spec, name in m2m_names)
         return values
+
+    @staticmethod
+    def _project_concrete_fields(instance):
+        return {
+            field.name: getattr(instance, field.name, None)
+            for field in instance._meta.concrete_fields
+            if field is not instance._meta.pk
+            and not isinstance(field, ForeignKey)
+        }
+
+    def _project_field_value(self, instance, name, xpath_or_spec, is_m2m):
+        if is_value_spec(xpath_or_spec):
+            return getattr(instance, f"_{name}_values", [])
+        if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
+            return self._project_related_value(
+                instance, name, xpath_or_spec, is_m2m)
+        return getattr(instance, name, None)
+
+    def _project_related_value(self, instance, name, xpath_or_spec, is_m2m):
+        if is_m2m:
+            parsed = getattr(instance, f"_{name}_parsed", None) or []
+            return [
+                self._project_mapped_values(child, xpath_or_spec)
+                for child in parsed
+            ]
+        # a foreign key field carries the parsed related instance
+        # or raises on access when the mapper left it empty - which
+        # for an unsaved instance means: not mapped
+        child = getattr(instance, name, None)
+        return (
+            self._project_mapped_values(child, xpath_or_spec)
+            if child is not None else None
+        )
 
     ####################################
     #       Django -> XML stuff        #
@@ -650,8 +681,7 @@ class XmlMapper:
 
         if isinstance(spec, dict) and "_reverse_parser" in spec:
             # Use _reverse_parser if defined
-            reverse_parser_path = spec.get(
-                "_reverse_parser") if isinstance(spec, dict) else None
+            reverse_parser_path = spec.get("_reverse_parser")
             if reverse_parser_path:
                 parser_func = load_function(reverse_parser_path)
                 # parser function shall creates / update / delete the xml node
@@ -664,7 +694,9 @@ class XmlMapper:
         for field_name, xpath_or_spec in spec.get("fields", {}).items():
             if field_name in ignore_fields:
                 continue
-            if isinstance(xpath_or_spec, str) or isinstance(xpath_or_spec, dict) and "_model" not in xpath_or_spec:
+            if (isinstance(xpath_or_spec, str)
+                    or (isinstance(xpath_or_spec, dict)
+                        and "_model" not in xpath_or_spec)):
                 # simple concrete field
                 self.sync_field_to_xml(
                     xml_element,
@@ -672,67 +704,82 @@ class XmlMapper:
                     xpath_or_spec,
                     db_instance
                 )
-            elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
-                # related model
-                nsmap = self.mapping.get("_namespaces", {})
-                reverse = xpath_or_spec.get("_reverse", {}) or {}
-                # A spec may render an other set of instances than the relation it is
-                # parsed from. The name of a zero argument method of db_instance which
-                # returns the instances to render. Using it implies a 'many' relation.
-                source_name = reverse.get("_source")
-                field = getattr(db_instance, field_name, None)
-                is_many = True if source_name else is_many_relation(
-                    db_instance.__class__, field_name)
-                base_xpath = xpath_or_spec.get("_base_xpath", ".")
+                continue
+            # related model
+            self._sync_related_model(
+                xml_element, field_name, xpath_or_spec, db_instance)
 
-                try:
-                    delete_able_elements = {
-                        id(e): e
-                        for e in xml_element.xpath(base_xpath, namespaces=nsmap)
-                    }
-                except etree.XPathEvalError as e:
-                    msg = f"Error evaluating base_xpath '{base_xpath}' for field '{field_name}': {e}"
-                    logging.error(msg)
-                    raise ValueError(msg)
-                if is_many:
+    def _sync_related_model(self, xml_element, field_name, xpath_or_spec,
+                            db_instance):
+        """Renders the instances related through one field into the document."""
+        nsmap = self.mapping.get("_namespaces", {})
+        reverse = xpath_or_spec.get("_reverse", {}) or {}
+        # A spec may render an other set of instances than the relation it is
+        # parsed from. The name of a zero argument method of db_instance which
+        # returns the instances to render. Using it implies a 'many' relation.
+        source_name = reverse.get("_source")
+        field = getattr(db_instance, field_name, None)
+        is_many = True if source_name else is_many_relation(
+            db_instance.__class__, field_name)
 
-                    related_instances = getattr(
-                        db_instance, source_name)() if source_name else field.all()
+        delete_able_elements = self._renderable_elements(
+            xml_element, xpath_or_spec, nsmap, field_name)
 
-                    for related_obj in related_instances:
-                        synced = self.sync_xml_with_instance(
-                            xml_element,
-                            xpath_or_spec,
-                            related_obj)
+        if not is_many:
+            self._sync_related_one(
+                xml_element, xpath_or_spec, field)
+            return
 
-                        delete_able_elements.pop(
-                            id(synced), None)
+        related_instances = getattr(
+            db_instance, source_name)() if source_name else field.all()
 
-                    for elem in delete_able_elements.values():
-                        remove_element_or_attribute(elem, ".", nsmap)
+        for related_obj in related_instances:
+            synced = self.sync_xml_with_instance(
+                xml_element,
+                xpath_or_spec,
+                related_obj)
 
-                    # Remove wrapper elements which lost their last meaningfull child
-                    # while syncing, because they are not valid xml anymore.
-                    for prune_xpath in reverse.get("_prune", []):
-                        for orphan in xml_element.xpath(prune_xpath, namespaces=nsmap):
-                            parent = orphan.getparent()
-                            if parent is not None:
-                                parent.remove(orphan)
-                else:
-                    if not field:
-                        # happens if a one to one kind relation is None.
-                        # FUTURE: find all child elements based on xpath and remove them
-                        # xpath = xpath_or_spec.get("fields", {}).get(field_name)
-                        # remove_element_or_attribute(
-                        #    xml_element,
-                        #    xpath,
-                        #    nsmap
-                        # )
-                        continue
-                    self.sync_xml_with_instance(
-                        xml_element,
-                        xpath_or_spec,
-                        field)
+            delete_able_elements.pop(
+                id(synced), None)
+
+        for elem in delete_able_elements.values():
+            remove_element_or_attribute(elem, ".", nsmap)
+
+        # Remove wrapper elements which lost their last meaningfull child
+        # while syncing, because they are not valid xml anymore.
+        self._prune_wrapper_elements(xml_element, reverse, nsmap)
+
+    def _renderable_elements(self, xml_element, xpath_or_spec, nsmap,
+                             field_name):
+        """The elements the spec's base_xpath currently answers, by identity."""
+        base_xpath = xpath_or_spec.get("_base_xpath", ".")
+        try:
+            return {
+                id(e): e
+                for e in xml_element.xpath(base_xpath, namespaces=nsmap)
+            }
+        except etree.XPathEvalError as e:
+            msg = f"Error evaluating base_xpath '{base_xpath}' for field '{field_name}': {e}"
+            logging.error(msg)
+            raise ValueError(msg)
+
+    @staticmethod
+    def _prune_wrapper_elements(xml_element, reverse, nsmap):
+        for prune_xpath in reverse.get("_prune", []):
+            for orphan in xml_element.xpath(prune_xpath, namespaces=nsmap):
+                parent = orphan.getparent()
+                if parent is not None:
+                    parent.remove(orphan)
+
+    def _sync_related_one(self, xml_element, xpath_or_spec, field):
+        if not field:
+            # happens if a one to one kind relation is None.
+            # FUTURE: find all child elements based on xpath and remove them
+            return
+        self.sync_xml_with_instance(
+            xml_element,
+            xpath_or_spec,
+            field)
 
     def sync_field_to_xml(self, xml_element, field_name, xpath_or_spec, instance):
         value = getattr(instance, field_name, None)

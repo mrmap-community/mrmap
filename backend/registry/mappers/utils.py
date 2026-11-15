@@ -115,21 +115,33 @@ def get_unique_fields(model_cls: models.Model):
 def find_spec_for_instance(spec: dict, instance):
     """Sucht rekursiv das Spec für eine Instanz."""
     for key, value in spec.items():
-        if not isinstance(value, dict):
-            continue
-        model_label = value.get("_model")
-        if model_label:
-            model_cls = apps.get_model(model_label)
-            if isinstance(instance, model_cls):
-                return value
+        if _spec_matches_instance(value, instance):
+            return value
         # rekursiv
-        for field_spec in value.get("fields", {}).values():
-            if isinstance(field_spec, dict) and "_model" in field_spec:
-                found = find_spec_for_instance(
-                    {key: field_spec}, instance)
-                if found:
-                    return found
+        for field_spec in _model_field_specs(value):
+            found = find_spec_for_instance(
+                {key: field_spec}, instance)
+            if found:
+                return found
     return {}
+
+
+def _spec_matches_instance(value, instance):
+    """True when the spec names the model the instance is one of."""
+    if not isinstance(value, dict):
+        return False
+    model_label = value.get("_model")
+    if not model_label:
+        return False
+    return isinstance(instance, apps.get_model(model_label))
+
+
+def _model_field_specs(value):
+    """The nested field specs of a spec which carries a model."""
+    if not isinstance(value, dict):
+        return ()
+    return (fs for fs in value.get("fields", {}).values()
+            if isinstance(fs, dict) and "_model" in fs)
 
 
 def remove_empty_parents(element, stop_at):
@@ -153,28 +165,36 @@ def remove_empty_parents(element, stop_at):
 def remove_element_or_attribute(xml_element, xpath: str, nsmap: dict):
     # Remove element or attribute
     if xpath.startswith("@") or "/@" in xpath:
-        parent_path, attr_name = xpath.rsplit(
-            "/@", 1) if "/@" in xpath else (".", xpath[1:])
-        if ":" in attr_name:
-            prefix, local_name = attr_name.split(":", 1)
-            ns_uri = nsmap.get(prefix)
-            if not ns_uri:
-                raise ValueError(
-                    f"Namespace prefix '{prefix}' not found in mapping")
-            attr_name = f"{{{ns_uri}}}{local_name}"
-
-        leaf, _ = ensure_path(xml_element, parent_path, nsmap)
-        if attr_name in leaf.attrib:
-            del leaf.attrib[attr_name]
-        remove_empty_parents(leaf, xml_element)
+        _remove_attribute(xml_element, xpath, nsmap)
     else:
-        leaf, _ = ensure_path(xml_element, xpath, nsmap)
-        parent = leaf.getparent() if hasattr(leaf, 'getparent') else None
-        if parent is not None:
-            parent.remove(leaf)
-        else:
-            # if no parent, just clear the text
-            leaf.text = None
+        _remove_element(xml_element, xpath, nsmap)
+
+
+def _remove_attribute(xml_element, xpath: str, nsmap: dict):
+    parent_path, attr_name = xpath.rsplit(
+        "/@", 1) if "/@" in xpath else (".", xpath[1:])
+    if ":" in attr_name:
+        prefix, local_name = attr_name.split(":", 1)
+        ns_uri = nsmap.get(prefix)
+        if not ns_uri:
+            raise ValueError(
+                f"Namespace prefix '{prefix}' not found in mapping")
+        attr_name = f"{{{ns_uri}}}{local_name}"
+
+    leaf, _ = ensure_path(xml_element, parent_path, nsmap)
+    if attr_name in leaf.attrib:
+        del leaf.attrib[attr_name]
+    remove_empty_parents(leaf, xml_element)
+
+
+def _remove_element(xml_element, xpath: str, nsmap: dict):
+    leaf, _ = ensure_path(xml_element, xpath, nsmap)
+    parent = leaf.getparent() if hasattr(leaf, 'getparent') else None
+    if parent is not None:
+        parent.remove(leaf)
+    else:
+        # if no parent, just clear the text
+        leaf.text = None
 
 
 def set_text_or_attribute(xml_element, xpath: str, nsmap: dict, value):
@@ -229,45 +249,22 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     """
     identifier_cfg = spec.get("_reverse", {}).get("_identifier")
 
-    identifier_xpath = ""
+    if not identifier_cfg:
+        # Fallback to _base_xpath if no identifier was found
+        return spec.get("_base_xpath", ".")
 
-    if identifier_cfg:
-        # 🔹 CASE 1: compiler function (preferred)
-        if "compiler" in identifier_cfg:
-            try:
-                func = load_function(identifier_cfg["compiler"])
-                return func(mapper, instance)
-            except Exception as e:
-                raise RuntimeError(
-                    f"Error generating xpath via compiler "
-                    f"'{identifier_cfg['compiler']}': {e}"
-                )
+    # 🔹 CASE 1: compiler function (preferred)
+    if "compiler" in identifier_cfg:
+        return _identifier_via_compiler(identifier_cfg, mapper, instance)
 
-        # 🔹 CASE 2: literal / template XPath
-        elif "xpath" in identifier_cfg:
-            xpath_spec = identifier_cfg["xpath"]
-
-            if not isinstance(xpath_spec, str):
-                raise ValueError("_identifier['xpath'] must be a string")
-
-            field_names = set(re.findall(r"{([\w\.]+)}", xpath_spec))
-            field_values = {}
-
-            for name in field_names:
-                value = resolve_field(instance, name)
-                if value is None:
-                    raise KeyError(
-                        f"Instance missing field for xpath template '{identifier_cfg}': {name}")
-                field_values[name] = xml_escape(str(value))
-
-            identifier_xpath = xpath_spec.format(**field_values)
-
-        else:
-            raise ValueError(
-                "_identifier must define either 'compiler' or 'xpath'"
-            )
+    # 🔹 CASE 2: literal / template XPath
+    if "xpath" not in identifier_cfg:
+        raise ValueError(
+            "_identifier must define either 'compiler' or 'xpath'"
+        )
 
     # Normalize relative paths
+    identifier_xpath = _identifier_via_template(identifier_cfg, instance)
     if identifier_xpath:
         return identifier_xpath
 
@@ -277,48 +274,42 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     return base_xpath
 
 
+def _identifier_via_compiler(identifier_cfg, mapper, instance):
+    try:
+        func = load_function(identifier_cfg["compiler"])
+        return func(mapper, instance)
+    except Exception as e:
+        raise RuntimeError(
+            f"Error generating xpath via compiler "
+            f"'{identifier_cfg['compiler']}': {e}"
+        )
+
+
+def _identifier_via_template(identifier_cfg, instance):
+    xpath_spec = identifier_cfg["xpath"]
+
+    if not isinstance(xpath_spec, str):
+        raise ValueError("_identifier['xpath'] must be a string")
+
+    field_names = set(re.findall(r"{([\w\.]+)}", xpath_spec))
+    field_values = {}
+
+    for name in field_names:
+        value = resolve_field(instance, name)
+        if value is None:
+            raise KeyError(
+                f"Instance missing field for xpath template '{identifier_cfg}': {name}")
+        field_values[name] = xml_escape(str(value))
+
+    return xpath_spec.format(**field_values)
+
+
 def split_parent_and_leaf(xpath: str):
     s = xpath.strip("/")
     if not s:
         raise ValueError("Invalid XPath")
 
-    parts = []
-    buf = []
-    bracket_depth = 0
-    in_single = False
-    in_double = False
-
-    for ch in s:
-        # toggle quote states (ignore when inside the other quote type)
-        if ch == "'" and not in_double:
-            in_single = not in_single
-            buf.append(ch)
-            continue
-        if ch == '"' and not in_single:
-            in_double = not in_double
-            buf.append(ch)
-            continue
-
-        # track predicate depth only when not inside quotes
-        if not in_single and not in_double:
-            if ch == "[":
-                bracket_depth += 1
-                buf.append(ch)
-                continue
-            if ch == "]":
-                bracket_depth = max(0, bracket_depth - 1)
-                buf.append(ch)
-                continue
-            # split on slashes only at top level (not inside predicates)
-            if ch == "/" and bracket_depth == 0:
-                parts.append("".join(buf))
-                buf = []
-                continue
-
-        buf.append(ch)
-
-    if buf:
-        parts.append("".join(buf))
+    parts = _split_path_parts(s)
 
     if not parts:
         raise ValueError("Invalid XPath")
@@ -327,6 +318,51 @@ def split_parent_and_leaf(xpath: str):
     leaf_part = parts[-1]
 
     return parent_parts, leaf_part
+
+
+def _split_path_parts(s: str):
+    """The path parts, split on the slashes outside quotes and predicates."""
+    parts = []
+    buf = []
+    bracket_depth = 0
+    in_single = False
+    in_double = False
+
+    for ch in s:
+        # split on slashes only at top level (not inside predicates)
+        if (ch == "/" and not in_single and not in_double
+                and bracket_depth == 0):
+            parts.append("".join(buf))
+            buf = []
+            continue
+
+        in_single, in_double, bracket_depth = _advance_path_state(
+            ch, in_single, in_double, bracket_depth)
+        buf.append(ch)
+
+    if buf:
+        parts.append("".join(buf))
+
+    return parts
+
+
+def _advance_path_state(ch, in_single, in_double, bracket_depth):
+    """The scanner state after reading one more character.
+
+    Quote states toggle (ignored when inside the other quote type) and
+    predicate depth is tracked only when not inside quotes.
+    """
+    if ch == "'" and not in_double:
+        return not in_single, in_double, bracket_depth
+    if ch == '"' and not in_single:
+        return in_single, not in_double, bracket_depth
+    if in_single or in_double:
+        return in_single, in_double, bracket_depth
+    if ch == "[":
+        bracket_depth += 1
+    elif ch == "]":
+        bracket_depth = max(0, bracket_depth - 1)
+    return in_single, in_double, bracket_depth
 
 
 def extract_tag_name(xpath_part: str) -> str:
@@ -420,29 +456,33 @@ def normalize_key_value(field, value):
 
     # DateTimeRangeField
     if isinstance(field, DateTimeRangeField):
-        if not isinstance(value, Range):
-            return value
-
-        def normalize_dt(dt):
-            if dt is None:
-                return None
-            if is_naive(dt):
-                dt = make_aware(dt, get_default_timezone())
-            return dt.astimezone(get_default_timezone())
-
-        return (
-            normalize_dt(value.lower),
-            normalize_dt(value.upper),
-            value.bounds,
-        )
+        return _normalize_range(value)
 
     # datetime
     if isinstance(value, datetime):
-        if is_naive(value):
-            value = make_aware(value, get_default_timezone())
-        return value.astimezone(get_default_timezone())
+        return _normalize_datetime(value)
 
     return value
+
+
+def _normalize_range(value):
+    """The range of a DateTimeRangeField as its comparable tuple."""
+    if not isinstance(value, Range):
+        return value
+
+    return (
+        _normalize_datetime(value.lower),
+        _normalize_datetime(value.upper),
+        value.bounds,
+    )
+
+
+def _normalize_datetime(dt):
+    if dt is None:
+        return None
+    if is_naive(dt):
+        dt = make_aware(dt, get_default_timezone())
+    return dt.astimezone(get_default_timezone())
 
 
 def get_key_fields(model_cls):

@@ -92,35 +92,10 @@ class MapBenderSearchApi(View):
 
             gmd_metadata_response = client.send_request(csw_request)
 
-            if gmd_metadata_response.status_code >= 200 and gmd_metadata_response.status_code < 400:
-
-                xml = etree.fromstring(gmd_metadata_response.content)
-
-                total_records = int(xml.xpath("/csw:GetRecordsResponse/csw:SearchResults/@numberOfRecordsMatched", namespaces={
-                    "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
-                })[0] or 0)
-
-                mappers = MDMetadataXmlMapper.from_xml(
-                    gmd_metadata_response.content)
-                for mapper in mappers:
-                    data = mapper.xml_to_django()
-                    for md_metadata in data:
-                        get_record_by_id_url = client.get_record_by_id_request(
-                            id=md_metadata.file_identifier)
-
-                        srv.append({
-                            "id": md_metadata.file_identifier,
-                            "date": md_metadata.date_stamp,
-                            "datasetId": md_metadata.file_identifier,
-                            "previewUrl": "TODO",
-                            "respOrg": md_metadata.metadata_contact.name if md_metadata.metadata_contact else None,
-                            "bbox": ",".join([str(coord) for coord in md_metadata.bounding_geometry.extent]) if md_metadata.bounding_geometry else None,
-                            "title": md_metadata.title,
-                            "abstract": md_metadata.abstract,
-                            "mdLink": get_record_by_id_url.url,
-                            "htmlLink": f'https://www.geoportal.rlp.de/mapbender/php/mod_exportIso19139.php?url={parse.quote_plus(get_record_by_id_url.url)}&resolveCoupledResources=true',
-                        })
-
+            total_records, entries = self._remote_search_records(
+                client, gmd_metadata_response)
+            if total_records is not None:
+                srv.extend(entries)
                 content["md"]["nresults"] = total_records
         except DBCatalogueService.DoesNotExist:
             # FUTURE: response with error code
@@ -130,6 +105,46 @@ class MapBenderSearchApi(View):
 
         return content
 
+    def _remote_search_records(self, client, response):
+        """The number of matches and the mapbender rows of an answered
+        GetRecords; None answers a catalogue which did not answer well."""
+        if not (200 <= response.status_code < 400):
+            return None, []
+
+        xml = etree.fromstring(response.content)
+
+        total_records = int(xml.xpath("/csw:GetRecordsResponse/csw:SearchResults/@numberOfRecordsMatched", namespaces={
+            "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
+        })[0] or 0)
+
+        entries = []
+        mappers = MDMetadataXmlMapper.from_xml(
+            response.content)
+        for mapper in mappers:
+            data = mapper.xml_to_django()
+            for md_metadata in data:
+                entries.append(self._remote_search_entry(
+                    client, md_metadata))
+        return total_records, entries
+
+    @staticmethod
+    def _remote_search_entry(client, md_metadata):
+        get_record_by_id_url = client.get_record_by_id_request(
+            id=md_metadata.file_identifier)
+
+        return {
+            "id": md_metadata.file_identifier,
+            "date": md_metadata.date_stamp,
+            "datasetId": md_metadata.file_identifier,
+            "previewUrl": "TODO",
+            "respOrg": md_metadata.metadata_contact.name if md_metadata.metadata_contact else None,
+            "bbox": ",".join([str(coord) for coord in md_metadata.bounding_geometry.extent]) if md_metadata.bounding_geometry else None,
+            "title": md_metadata.title,
+            "abstract": md_metadata.abstract,
+            "mdLink": get_record_by_id_url.url,
+            "htmlLink": f'https://www.geoportal.rlp.de/mapbender/php/mod_exportIso19139.php?url={parse.quote_plus(get_record_by_id_url.url)}&resolveCoupledResources=true',
+        }
+
     def local_search(self):
         search_pages = int(self.request.GET.get("searchPages", 1) or 1)
         max_records = int(self.request.GET.get("maxResults", 10) or 10)
@@ -137,52 +152,15 @@ class MapBenderSearchApi(View):
 
         heap_count = start_position + max_records
 
-        search_resources = self.request.GET.get("searchResources", "dataset")
-        if search_resources == "dataset":
-            records = dataset_records()
-        elif search_resources == "service":
-            records = service_records()
-        elif search_resources == "application":
-            records = application_records()
-        else:
-            # FUTURE: implement other hierachylevels also
-            # return empty result for all other hierachylevels
-            records = None
+        records = self._local_search_resources()
 
         result = []
         total_records = 0
         if records is not None:
-            # the search words of the client are words of the vector of a record, and a
-            # record is found by a word of its title, its abstract or one of its
-            # keywords. Without a search word the client browses, which is not a search
-            # that matches nothing
-            search_words = Q()
-            for any_text in self.get_search_text_filter():
-                if any_text.strip():
-                    search_words |= Q(
-                        search_vector=client_search_query(any_text))
-            if search_words:
-                records = records.filter(search_words)
+            total_records, result = self._local_search_page(
+                records, start_position, heap_count)
 
-            total_records = records.count()
-            result = records.select_related(
-                "metadata_contact")[start_position: heap_count]
-
-        srv = []
-        for record in result:
-            # FUTURE: #527
-            srv.append({
-                "id": record.pk,
-                "date": record.date_stamp,
-                "datasetId": "TODO",
-                "previewUrl": "TODO",
-                "respOrg": record.metadata_contact.name if record.metadata_contact else None,
-                "bbox": ",".join([str(coord) for coord in record.bounding_geometry.extent]) if record.bounding_geometry else None,  # nopep8
-                "title": record.title,
-                "abstract": record.abstract,
-                "mdLink": "TODO",
-                "htmlLink": "TODO",
-            })
+        srv = [self._local_search_entry(record) for record in result]
         return {
             "md": {
                 "nresults": total_records,
@@ -191,6 +169,56 @@ class MapBenderSearchApi(View):
                 "genTime": 0,
             },
             "srv": srv
+        }
+
+    def _local_search_resources(self):
+        """The record source of the requested hierarchy level; None is the
+        level this search cannot serve."""
+        search_resources = self.request.GET.get("searchResources", "dataset")
+        if search_resources == "dataset":
+            return dataset_records()
+        elif search_resources == "service":
+            return service_records()
+        elif search_resources == "application":
+            return application_records()
+        # FUTURE: implement other hierachylevels also
+        # return empty result for all other hierachylevels
+        return None
+
+    def _local_search_page(self, records, start_position, heap_count):
+        """The searched page of the local records and the size of the
+        result set the client is told about."""
+        # the search words of the client are words of the vector of a record, and a
+        # record is found by a word of its title, its abstract or one of its
+        # keywords. Without a search word the client browses, which is not a search
+        # that matches nothing
+        search_words = Q()
+        for any_text in self.get_search_text_filter():
+            if any_text.strip():
+                search_words |= Q(
+                    search_vector=client_search_query(any_text))
+        if search_words:
+            records = records.filter(search_words)
+
+        total_records = records.count()
+        result = records.select_related(
+            "metadata_contact")[start_position: heap_count]
+        return total_records, result
+
+    @staticmethod
+    def _local_search_entry(record):
+        # FUTURE: #527
+        return {
+            "id": record.pk,
+            "date": record.date_stamp,
+            "datasetId": "TODO",
+            "previewUrl": "TODO",
+            "respOrg": record.metadata_contact.name if record.metadata_contact else None,
+            "bbox": ",".join([str(coord) for coord in record.bounding_geometry.extent]) if record.bounding_geometry else None,  # nopep8
+            "title": record.title,
+            "abstract": record.abstract,
+            "mdLink": "TODO",
+            "htmlLink": "TODO",
         }
 
     @property

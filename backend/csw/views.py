@@ -650,36 +650,13 @@ class CswServiceView(View):
         if isinstance(q, OGCServiceException):
             return q
 
-        # The element set the response is answered in is read from the request
-        # element -- both bindings carry their parameters in it (see
-        # csw/elementsets.py) -- and a value outside ElementSetType is refused
-        # before anything of the result set is read; 10.8.4.9, Table 65.
-        requested_set = requested_element_set(self.ogc_request.xml_request)
-        element_set = (requested_set or DEFAULT_ELEMENT_SET).lower()
-        if element_set not in ELEMENT_SETS:
-            return InvalidParameterValueException(
-                ogc_request=self.ogc_request,
-                locator="ElementSetName",
-                message=(
-                    f"ElementSetName must be one of "
-                    f"{', '.join(repr(name) for name in ELEMENT_SETS)}; "
-                    f"'{requested_set}' is none of them."))
+        element_set, error = self._requested_element_set()
+        if error is not None:
+            return error
 
-        # SortBy is read the same way and mapped onto the ordering of the record
-        # sources; a property this catalogue does not sort on is refused with the
-        # InvalidParameterValue 10.8.4.9 leaves for it.
-        sort_specs = []
-        for property_name, descending in requested_sort_by(self.ogc_request.xml_request):
-            field = sortable_field(property_name)
-            if field is None:
-                return InvalidParameterValueException(
-                    ogc_request=self.ogc_request,
-                    locator="SortBy" if self.ogc_request.is_get else "csw:SortBy",
-                    message=(
-                        f"The property '{property_name}' is not sortable. "
-                        f"Sortable properties are: "
-                        f"{', '.join(sortable_properties())}."))
-            sort_specs.append((field, descending))
+        sort_specs, error = self._requested_sort_specs()
+        if error is not None:
+            return error
 
         # The page the response ships is read the same way -- both bindings
         # carry the paging attributes on the request element -- and a value
@@ -697,26 +674,10 @@ class CswServiceView(View):
         # we need to construct the concrete filter by our self
         constraint = search_filter(q)
 
-        try:
-            # a GetRecords answers the stored document of a record and nothing
-            # else of it: the three sources stay whole querysets here -- the
-            # page query projects the few fields it reads of its own accord
-            # (see csw/elementsets.merged_page)
-            dataset_metadata_records_result = dataset_records().filter(
-                constraint)
-            service_metadata_records_result = service_records().filter(
-                constraint)
-            application_metadata_records_result = application_records().filter(
-                constraint)
-        except FieldError as e:
-            requested_field = str(e).split(":")[0].split("'")[1]
-            available_fields = field_mapping.keys()
-
-            return InvalidQuery(
-                ogc_request=self.ogc_request,
-                locator="Constraint" if self.ogc_request.is_get else "csw:Query",
-                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
-            )
+        sources, error = self._constrained_record_sources(constraint,
+                                                          field_mapping)
+        if error is not None:
+            return error
         # numberOfRecordsMatched is counted over the primary keys of the three
         # sources, not over their full distinct rows: a plain count() of these
         # distinct querysets wraps every column of the record table -- the
@@ -725,9 +686,7 @@ class CswServiceView(View):
         # (#1188; see csw/queryables.count_records).
         total_records = sum(
             count_records(queryset)
-            for queryset in (dataset_metadata_records_result,
-                             service_metadata_records_result,
-                             application_metadata_records_result))
+            for queryset in sources)
 
         # the paging attributes were refused or read above, before the result
         # set was asked of the database (#1149); the maximum page size this
@@ -762,49 +721,11 @@ class CswServiceView(View):
                 timestamp=self.start_time,
                 echoed_request=self.ogc_request.xml_request)
         else:
-            # The merged result set is paged in the database: the order every
-            # source answered its own records in is a total order over
-            # (sort criteria, pk, source), so ordering the union of the three
-            # projections by that order and slicing it answers the page with
-            # one query -- whose OFFSET the database skips without reading the
-            # records in front of the page. Merging the sources on this side
-            # could not: it had to materialise every record in front of the
-            # page from every source first, which is what made the cost of a
-            # page grow with its position (#1151).
-            if start_position >= total_records:
-                # the page starts past the end of the result set, which is
-                # known from the numberOfRecordsMatched counted above: the page
-                # is empty whatever the database would answer for it, and the
-                # empty page is answered without asking
-                result = []
-            else:
-                result = page_records(merged_page(
-                    (dataset_metadata_records_result,
-                     service_metadata_records_result,
-                     application_metadata_records_result),
-                    sort_specs, start_position, page_stop))
-
-            next_record = page_stop + 1
-            next_record = next_record if next_record < total_records else total_records
-
-            records_returned = len(result)
-
-            # Table 66: the response names the element set it answers with, and
-            # the non-full sets are the stored documents pruned to their view
-            gmd_records = self.read_stored_documents(result)
-            if isinstance(gmd_records, OGCServiceException):
-                return gmd_records
-            gmd_records = [project_gmd_record(document, element_set)
-                           for document in gmd_records]
-            xml = builder.build_get_records_response(
-                total_records=total_records,
-                records_returned=records_returned,
-                version="2.0.2",
-                time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record,
-                element_set=element_set,
-                gmd_records=gmd_records
-            )
+            xml = self._get_records_results_response(
+                builder, sources, sort_specs, element_set, start_position,
+                page_stop, total_records)
+            if isinstance(xml, OGCServiceException):
+                return xml
 
         content = etree.tostring(
             xml,
@@ -813,6 +734,116 @@ class CswServiceView(View):
             xml_declaration=True
         )
         return HttpResponse(status=200, content=content, content_type=APPLICATION_XML)
+
+    def _requested_element_set(self):
+        """The element set the response is answered in.
+
+        It is read from the request element -- both bindings carry their
+        parameters in it (see csw/elementsets.py) -- and a value outside
+        ElementSetType is refused before anything of the result set is read;
+        10.8.4.9, Table 65.
+        """
+        requested_set = requested_element_set(self.ogc_request.xml_request)
+        element_set = (requested_set or DEFAULT_ELEMENT_SET).lower()
+        if element_set not in ELEMENT_SETS:
+            return None, InvalidParameterValueException(
+                ogc_request=self.ogc_request,
+                locator="ElementSetName",
+                message=(
+                    f"ElementSetName must be one of "
+                    f"{', '.join(repr(name) for name in ELEMENT_SETS)}; "
+                    f"'{requested_set}' is none of them."))
+        return element_set, None
+
+    def _requested_sort_specs(self):
+        """SortBy read the same way as the element set and mapped onto the
+        ordering of the record sources; a property this catalogue does not
+        sort on is refused with the InvalidParameterValue 10.8.4.9 leaves
+        for it.
+        """
+        sort_specs = []
+        for property_name, descending in requested_sort_by(self.ogc_request.xml_request):
+            field = sortable_field(property_name)
+            if field is None:
+                return None, InvalidParameterValueException(
+                    ogc_request=self.ogc_request,
+                    locator="SortBy" if self.ogc_request.is_get else "csw:SortBy",
+                    message=(
+                        f"The property '{property_name}' is not sortable. "
+                        f"Sortable properties are: "
+                        f"{', '.join(sortable_properties())}."))
+            sort_specs.append((field, descending))
+        return sort_specs, None
+
+    def _constrained_record_sources(self, constraint, field_mapping):
+        """The three record sources under the constraint; a field the
+        queryables do not carry is refused with the InvalidQuery of #1188.
+
+        A GetRecords answers the stored document of a record and nothing
+        else of it: the three sources stay whole querysets here -- the page
+        query projects the few fields it reads of its own accord (see
+        csw/elementsets.merged_page).
+        """
+        try:
+            return (dataset_records().filter(constraint),
+                    service_records().filter(constraint),
+                    application_records().filter(constraint)), None
+        except FieldError as e:
+            requested_field = str(e).split(":")[0].split("'")[1]
+            available_fields = field_mapping.keys()
+
+            return None, InvalidQuery(
+                ogc_request=self.ogc_request,
+                locator="Constraint" if self.ogc_request.is_get else "csw:Query",
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
+            )
+
+    def _get_records_results_response(self, builder, sources, sort_specs,
+                                      element_set, start_position, page_stop,
+                                      total_records):
+        """The results response of one page of the merged result set.
+
+        The merged result set is paged in the database: the order every
+        source answered its own records in is a total order over
+        (sort criteria, pk, source), so ordering the union of the three
+        projections by that order and slicing it answers the page with one
+        query -- whose OFFSET the database skips without reading the
+        records in front of the page. Merging the sources on this side
+        could not: it had to materialise every record in front of the page
+        from every source first, which is what made the cost of a page
+        grow with its position (#1151).
+        """
+        if start_position >= total_records:
+            # the page starts past the end of the result set, which is
+            # known from the numberOfRecordsMatched counted above: the page
+            # is empty whatever the database would answer for it, and the
+            # empty page is answered without asking
+            result = []
+        else:
+            result = page_records(merged_page(
+                sources, sort_specs, start_position, page_stop))
+
+        next_record = page_stop + 1
+        next_record = next_record if next_record < total_records else total_records
+
+        records_returned = len(result)
+
+        # Table 66: the response names the element set it answers with, and
+        # the non-full sets are the stored documents pruned to their view
+        gmd_records = self.read_stored_documents(result)
+        if isinstance(gmd_records, OGCServiceException):
+            return gmd_records
+        gmd_records = [project_gmd_record(document, element_set)
+                       for document in gmd_records]
+        return builder.build_get_records_response(
+            total_records=total_records,
+            records_returned=records_returned,
+            version="2.0.2",
+            time_stamp=self.start_time,
+            next_record=0 if next_record == total_records else next_record,
+            element_set=element_set,
+            gmd_records=gmd_records
+        )
 
     def get_record_by_id(self, request):
         """Answer the ``GetRecordById`` operation with the stored documents.
@@ -952,7 +983,7 @@ class CswServiceView(View):
         elif self.ogc_request.is_get_record_by_id_request:
             return self.get_record_by_id(request=request)
         elif self.ogc_request.is_describe_record_request:
-            return self.describe_record(request=request)
+            return self.describe_record(request)
         # The operations of the minimal CSW profile (Table 60) are answered
         # above; everything else -- GetDomain and the transactional operations
         # which mrmap does not serve -- is refused below.

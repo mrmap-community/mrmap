@@ -35,7 +35,7 @@ from registry.exceptions.service import (CapabilitiesPersistenceError,
                                          NoContent)
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models import (CatalogueService, FeatureType, Layer,
+from registry.models import (FeatureType, Layer,
                              WebFeatureService, WebMapService)
 from registry.models.metadata import (DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata,
@@ -89,17 +89,7 @@ def build_ogc_service(
             phase='download_capabilities'
         )
 
-        auth = None
-        if service_auth_pk:
-            match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
-                case 'wms':
-                    auth = WebMapServiceAuthentication.objects.get(
-                        id=service_auth_pk)
-                case 'wfs':
-                    auth = WebFeatureServiceAuthentication.objects.get(
-                        id=service_auth_pk)
-                case _:
-                    auth = None
+        auth = _capabilities_auth(service_auth_pk, get_capabilities_url)
 
         session = Session()
         session.proxies = settings.PROXIES
@@ -151,15 +141,7 @@ def build_ogc_service(
         db_service.refresh_from_db()
 
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if isinstance(db_service, WebMapService):
-            self_url = reverse(
-                viewname='registry:wms-detail', args=[db_service.pk])
-        elif isinstance(db_service, WebFeatureService):
-            self_url = reverse(
-                viewname='registry:wfs-detail', args=[db_service.pk])
-        elif isinstance(db_service, CatalogueService):
-            self_url = reverse(
-                viewname='registry:csw-detail', args=[db_service.pk])
+        self_url = _service_self_url(db_service)
 
         if auth:
             auth.service = db_service
@@ -191,66 +173,8 @@ def build_ogc_service(
         raise e
 
     if collect_metadata_records:
-        if isinstance(db_service, (WebMapService, WebFeatureService)):
-            remote_metadata_list = advertised_references(db_service)
-
-            # the plan of the collection is sealed with its rows, its number
-            # of steps and its reference total in one transaction, before the
-            # first message can be answered: a client which reads the process
-            # while the fan-out runs already knows how many references were
-            # expected (#1259), and the row identity of #1263 is what makes a
-            # second delivery of this root find the plan sealed instead of
-            # writing the same references a second time. A service whose
-            # document advertised no metadata reference at all seals a plan
-            # of ZERO: a planned empty collection answers 0 where an
-            # uncollected run answers NULL (#1263).
-            sealed = plan_registration_references(
-                self, background_process_pk, remote_metadata_list, db_service)
-            if sealed is None:
-                settings.ROOT_LOGGER.warning(
-                    f"BackgroundProcess {background_process_pk} holds no "
-                    f"open plan to publish for: this delivery found its "
-                    f"reference plan already sealed, or the process decided "
-                    f"or gone. It writes no second fan-out.",
-                    stack_info=True)
-            elif sealed:
-                task_kwargs = {
-                    "http_request": http_request,
-                    "background_process_pk": background_process_pk
-                }
-                tasks = [
-                    collect_reference.s(
-                        temporary_md_metadata_file_id=row_id,
-                        **task_kwargs
-                    )
-                    for row_id in sealed]
-                # the chord body does not just close the process: it waits
-                # while references are still being worked on by deliveries
-                # whose message it never saw finish - the recovery's
-                # redeliveries and the losers of a contested claim - so a
-                # run never completes below an unfinished reference (#1263).
-                chord(tasks)(finish_metadata_collection.s(
-                    **task_kwargs), max_retries=300, interval=1)
-                # A publish the broker refuses leaves the sealed plan behind
-                # with nothing queued: the worker-start recovery and the
-                # hourly sweep read exactly that shape out of the database
-                # and re-drive it (#1263, like the harvest recovery of #891).
-            else:
-                # planned empty: the seal said 0 and there is nothing to
-                # wait for - the run completes with its zero-reference
-                # summary right here (#1263).
-                self.update_background_process(
-                    completed=True,
-                    service=db_service,
-                )
-        else:
-            # a registration which collects no references (a CSW) stays the
-            # plain run it was: no plan, no summary, completion as before.
-            self.update_background_process(
-                completed=True,
-                service=db_service,
-            )
-
+        _collect_advertised_references(
+            self, db_service, background_process_pk, http_request)
     else:
         self.update_background_process(
             completed=True,
@@ -258,6 +182,100 @@ def build_ogc_service(
         )
 
     return return_dict
+
+
+def _capabilities_auth(service_auth_pk, get_capabilities_url):
+    """The stored authentication of the service this url belongs to."""
+    if not service_auth_pk:
+        return None
+    match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
+        case 'wms':
+            return WebMapServiceAuthentication.objects.get(
+                id=service_auth_pk)
+        case 'wfs':
+            return WebFeatureServiceAuthentication.objects.get(
+                id=service_auth_pk)
+        case _:
+            return None
+
+
+def _service_self_url(db_service):
+    """The detail url of the service this task just built."""
+    if isinstance(db_service, WebMapService):
+        return reverse(
+            viewname='registry:wms-detail', args=[db_service.pk])
+    if isinstance(db_service, WebFeatureService):
+        return reverse(
+            viewname='registry:wfs-detail', args=[db_service.pk])
+    return reverse(
+        viewname='registry:csw-detail', args=[db_service.pk])
+
+
+def _collect_advertised_references(self, db_service, background_process_pk,
+                                   http_request):
+    """Fan out the metadata reference collection of the built service."""
+    if not isinstance(db_service, (WebMapService, WebFeatureService)):
+        # a registration which collects no references (a CSW) stays the
+        # plain run it was: no plan, no summary, completion as before.
+        self.update_background_process(
+            completed=True,
+            service=db_service,
+        )
+        return
+
+    remote_metadata_list = advertised_references(db_service)
+
+    # the plan of the collection is sealed with its rows, its number
+    # of steps and its reference total in one transaction, before the
+    # first message can be answered: a client which reads the process
+    # while the fan-out runs already knows how many references were
+    # expected (#1259), and the row identity of #1263 is what makes a
+    # second delivery of this root find the plan sealed instead of
+    # writing the same references a second time. A service whose
+    # document advertised no metadata reference at all seals a plan
+    # of ZERO: a planned empty collection answers 0 where an
+    # uncollected run answers NULL (#1263).
+    sealed = plan_registration_references(
+        self, background_process_pk, remote_metadata_list, db_service)
+    if sealed is None:
+        settings.ROOT_LOGGER.warning(
+            f"BackgroundProcess {background_process_pk} holds no "
+            f"open plan to publish for: this delivery found its "
+            f"reference plan already sealed, or the process decided "
+            f"or gone. It writes no second fan-out.",
+            stack_info=True)
+        return
+    if not sealed:
+        # planned empty: the seal said 0 and there is nothing to
+        # wait for - the run completes with its zero-reference
+        # summary right here (#1263).
+        self.update_background_process(
+            completed=True,
+            service=db_service,
+        )
+        return
+
+    task_kwargs = {
+        "http_request": http_request,
+        "background_process_pk": background_process_pk
+    }
+    tasks = [
+        collect_reference.s(
+            temporary_md_metadata_file_id=row_id,
+            **task_kwargs
+        )
+        for row_id in sealed]
+    # the chord body does not just close the process: it waits
+    # while references are still being worked on by deliveries
+    # whose message it never saw finish - the recovery's
+    # redeliveries and the losers of a contested claim - so a
+    # run never completes below an unfinished reference (#1263).
+    chord(tasks)(finish_metadata_collection.s(
+        **task_kwargs), max_retries=300, interval=1)
+    # A publish the broker refuses leaves the sealed plan behind
+    # with nothing queued: the worker-start recovery and the
+    # hourly sweep read exactly that shape out of the database
+    # and re-drive it (#1263, like the harvest recovery of #891).
 
 
 def advertised_references(service):
@@ -469,32 +487,9 @@ def collect_reference(
             reference=(f"registration reference of "
                        f"{row.described_display or row.requested_url}"))
     except (MetadataFetchTimeout, MetadataFetchUnreachable) as e:
-        if self.request.retries < self.max_retries:
-            # nothing is decided by a missing answer: the lease goes back so
-            # the retried delivery (or, if this worker dies with it, the
-            # recovery) can claim the row again (#1260, #1207)
-            row.release_claim(token)
-            raise
-        # the last attempt the retry policy permits got no answer either:
-        # this is the decision, and it names which of the two ways the
-        # document was lost. The row is kept for the retry of #1265.
-        kind = (ReferenceErrorKind.FETCH_TIMEOUT
-                if isinstance(e, MetadataFetchTimeout)
-                else ReferenceErrorKind.FETCH_UNREACHABLE)
-        if _decide_reference_failure(
-                background_process_pk, temporary_md_metadata_file_id,
-                token, kind, e, retried=retried):
-            settings.ROOT_LOGGER.warning(
-                f"Registration reference {temporary_md_metadata_file_id} "
-                f"of process {background_process_pk} was not answered "
-                f"after {self.max_retries} retries: {e}", stack_info=True)
-            self.log_process(
-                f"Could not fetch the reference document of "
-                f"'{row.described_display or row.requested_url}': {e} "
-                f"Given up after {self.max_retries} retries; the reference "
-                f"is kept and can be fetched again.",
-                LogTypeEnum.WARNING)
-        return None
+        return _decide_unanswered_reference(
+            self, row, e, background_process_pk,
+            temporary_md_metadata_file_id, token, retried)
     except NoContent as e:
         # an answer which is no document is decided by reading it again:
         # recorded, not retried - the row keeps it for inspection (#1263)
@@ -539,6 +534,60 @@ def collect_reference(
     # one decision about one reference: the record, its coupling, the row's
     # end state and the process' counters are written in the same
     # transaction, behind the row lock which re-checks the permit.
+    return _decide_stored_reference(
+        self, row, background_process_pk, temporary_md_metadata_file_id,
+        token, retried, storage_name)
+
+
+def _decide_unanswered_reference(task, row, error, background_process_pk,
+                                 temporary_md_metadata_file_id, token,
+                                 retried):
+    """Handle the fetch of a reference which was not answered.
+
+    A transport failure is not a decision: while retries are left the
+    lease goes back and the exception travels to the base class's
+    bounded retry. Only the last permitted attempt decides the row as
+    failed, naming which of the two ways the document was lost; the row
+    is kept for the retry of #1265.
+    """
+    if task.request.retries < task.max_retries:
+        # nothing is decided by a missing answer: the lease goes back so
+        # the retried delivery (or, if this worker dies with it, the
+        # recovery) can claim the row again (#1260, #1207)
+        row.release_claim(token)
+        raise error
+    kind = (ReferenceErrorKind.FETCH_TIMEOUT
+            if isinstance(error, MetadataFetchTimeout)
+            else ReferenceErrorKind.FETCH_UNREACHABLE)
+    if _decide_reference_failure(
+            background_process_pk, temporary_md_metadata_file_id,
+            token, kind, error, retried=retried):
+        settings.ROOT_LOGGER.warning(
+            f"Registration reference {temporary_md_metadata_file_id} "
+            f"of process {background_process_pk} was not answered "
+            f"after {task.max_retries} retries: {error}", stack_info=True)
+        task.log_process(
+            f"Could not fetch the reference document of "
+            f"'{row.described_display or row.requested_url}': {error} "
+            f"Given up after {task.max_retries} retries; the reference "
+            f"is kept and can be fetched again.",
+            LogTypeEnum.WARNING)
+    return None
+
+
+def _decide_stored_reference(task, row, background_process_pk,
+                             temporary_md_metadata_file_id, token, retried,
+                             storage_name):
+    """Import the fetched document behind its still-valid permit and
+    decide the reference in the same transaction (#1263).
+
+    Answers the task result of the outcome this delivery owns: the
+    decided failure, the created record - or None when the permit died
+    while the document was in flight and this delivery owns nothing to
+    report.
+    """
+    from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
+
     with transaction.atomic():
         process = BackgroundProcess.objects.select_for_update(of=("self",)).filter(
             pk=background_process_pk).first()
@@ -563,45 +612,13 @@ def collect_reference(
                 fresh.md_metadata_file = storage_name
                 record = fresh.import_registration_reference()
         except Exception as e:
-            # the savepoint above undid everything the mapping wrote; the
-            # row and its stored document carry the decision and its reason.
-            # An unmapped hierarchyLevel is the known kind; anything else
-            # the import could not get through is recorded as a failed
-            # import - visible, kept, and fetchable again (#1257, #1263).
-            kind = (ReferenceErrorKind.UNSUPPORTED_KIND
-                    if isinstance(e, UnknownMetadataKind)
-                    else ReferenceErrorKind.IMPORT_FAILED)
-            _decide_reference_failure_locked(
-                process, fresh, token, kind, e,
-                storage_name=storage_name, retried=retried)
-            settings.ROOT_LOGGER.warning(
-                f"Registration reference {temporary_md_metadata_file_id} "
-                f"of process {background_process_pk} could not be "
-                f"imported ({kind.value}): {e}", stack_info=True)
-            self.log_process(
-                f"The reference document of "
-                f"'{row.described_display or row.requested_url}' could not "
-                f"be imported ({kind.value}): {e}", LogTypeEnum.WARNING)
-            return {"data": None, "outcome": None,
-                    "error_kind": kind.value}
+            return _decide_import_failure(
+                task, process, fresh, token, retried, e, storage_name,
+                background_process_pk, temporary_md_metadata_file_id, row)
 
         if record is None:
-            # fetched and parsed, but no record identifies itself in it:
-            # the decided failure which names no record (#1261) - kept as
-            # the row's document for whoever reads the failed reference.
-            _decide_reference_failure_locked(
-                process, fresh, token,
-                ReferenceErrorKind.NO_IDENTIFIABLE_RECORD, None,
-                storage_name=storage_name, retried=retried)
-            self.log_process(
-                f"The reference document of "
-                f"'{row.described_display or row.requested_url}' was "
-                f"fetched and parsed, but it carries no identifiable "
-                f"record.", LogTypeEnum.WARNING)
-            return {
-                "data": None,
-                "outcome": CollectionStepOutcome.NO_IDENTIFIABLE_RECORD.value,
-            }
+            return _decide_no_identifiable_record(
+                task, process, fresh, token, retried, storage_name, row)
 
         # the reference is stored: the row's job is done, and the row goes
         # away with it - the absence is what a redelivery reads as decided.
@@ -613,7 +630,7 @@ def collect_reference(
             failed_delta=-1 if retried else 0,
             step_done=not retried)
 
-    self.update_state(state=states.STARTED, meta={'done': 1, 'total': 1})
+    task.update_state(state=states.STARTED, meta={'done': 1, 'total': 1})
     is_dataset = isinstance(record, DatasetMetadataRecord)
     return {
         "data": {
@@ -624,6 +641,54 @@ def collect_reference(
             }
         },
         "outcome": CollectionStepOutcome.RECORD_CREATED.value,
+    }
+
+
+def _decide_import_failure(task, process, fresh, token, retried, error,
+                           storage_name, background_process_pk,
+                           temporary_md_metadata_file_id, row):
+    """Record a reference whose import did not get through.
+
+    The savepoint in the caller undid everything the mapping wrote; the
+    row and its stored document carry the decision and its reason. An
+    unmapped hierarchyLevel is the known kind; anything else the import
+    could not get through is recorded as a failed import - visible, kept,
+    and fetchable again (#1257, #1263).
+    """
+    kind = (ReferenceErrorKind.UNSUPPORTED_KIND
+            if isinstance(error, UnknownMetadataKind)
+            else ReferenceErrorKind.IMPORT_FAILED)
+    _decide_reference_failure_locked(
+        process, fresh, token, kind, error,
+        storage_name=storage_name, retried=retried)
+    settings.ROOT_LOGGER.warning(
+        f"Registration reference {temporary_md_metadata_file_id} "
+        f"of process {background_process_pk} could not be "
+        f"imported ({kind.value}): {error}", stack_info=True)
+    task.log_process(
+        f"The reference document of "
+        f"'{row.described_display or row.requested_url}' could not "
+        f"be imported ({kind.value}): {error}", LogTypeEnum.WARNING)
+    return {"data": None, "outcome": None,
+            "error_kind": kind.value}
+
+
+def _decide_no_identifiable_record(task, process, fresh, token, retried,
+                                   storage_name, row):
+    """Record a reference fetched and parsed with no record in it (#1261) -
+    kept as the row's document for whoever reads the failed reference."""
+    _decide_reference_failure_locked(
+        process, fresh, token,
+        ReferenceErrorKind.NO_IDENTIFIABLE_RECORD, None,
+        storage_name=storage_name, retried=retried)
+    task.log_process(
+        f"The reference document of "
+        f"'{row.described_display or row.requested_url}' was "
+        f"fetched and parsed, but it carries no identifiable "
+        f"record.", LogTypeEnum.WARNING)
+    return {
+        "data": None,
+        "outcome": CollectionStepOutcome.NO_IDENTIFIABLE_RECORD.value,
     }
 
 
@@ -747,55 +812,70 @@ def finish_metadata_collection(self, *args, **kwargs):
     process an administrator decided about in the meantime, whose job must not
     stay unfinished forever.
     """
+    if self.background_process_pk is None:
+        self.update_background_process(
+            completed=True
+        )
+        return
+
+    if _wait_for_open_leases_or_close_run(self):
+        raise self.retry(countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
+                         max_retries=FINISH_WAIT_MAX_RETRIES)
+
+
+def _wait_for_open_leases_or_close_run(task):
+    """Under the process lock: wait while a delivery holds a lease, or
+    complete the run with the last decision it waited for (#1263).
+
+    Answers True when this body has to run again.
+    """
     from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
 
-    if self.background_process_pk is not None:
-        wait = False
-        with transaction.atomic():
-            process = BackgroundProcess.objects.select_for_update().filter(
-                pk=self.background_process_pk).first()
-            if process is None:
-                # the run was deleted while its chord answered - there is
-                # nothing to complete, and its deletion sweep owns the rows
-                return
-            leased = TemporaryMdMetadataFile.objects.filter(
-                background_process_id=self.background_process_pk,
-                state=ReferenceWorkStateEnum.LEASED.value,
-            ).exists()
-            if leased and self.request.retries < FINISH_WAIT_MAX_RETRIES:
-                wait = True
-            else:
-                if leased:
-                    # the wait itself ran out - only reachable while
-                    # something keeps re-leasing rows faster than they
-                    # decide. The completion below counts what stayed
-                    # undecided as skipped, exactly like any interrupted
-                    # plan; from the done_at written here on, the claim gate
-                    # refuses every late report about these rows.
-                    settings.ROOT_LOGGER.warning(
-                        f"BackgroundProcess {self.background_process_pk} "
-                        f"completed while registration work rows were still "
-                        f"leased - late outcomes are refused from here.",
-                        stack_info=True)
-                # A run which an update job reports is closed by that job, not
-                # here: the collection is a step of the update (#1274), so the
-                # update decides what its run did and the process of the job
-                # mirrors the status the job answers. A registration has
-                # nothing but its process and completes it right here.
-                from registry.models.update import \
-                    update_job_for_process  # local import: cycle
-                job = update_job_for_process(self.background_process_pk)
-                if job is not None:
-                    job.metadata_step_completed()
-                else:
-                    self.update_background_process(
-                        completed=True
-                    )
-        if wait:
-            raise self.retry(countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
-                             max_retries=FINISH_WAIT_MAX_RETRIES)
+    with transaction.atomic():
+        process = BackgroundProcess.objects.select_for_update().filter(
+            pk=task.background_process_pk).first()
+        if process is None:
+            # the run was deleted while its chord answered - there is
+            # nothing to complete, and its deletion sweep owns the rows
+            return False
+        leased = TemporaryMdMetadataFile.objects.filter(
+            background_process_id=task.background_process_pk,
+            state=ReferenceWorkStateEnum.LEASED.value,
+        ).exists()
+        if leased and task.request.retries < FINISH_WAIT_MAX_RETRIES:
+            return True
+        if leased:
+            # the wait itself ran out - only reachable while
+            # something keeps re-leasing rows faster than they
+            # decide. The completion below counts what stayed
+            # undecided as skipped, exactly like any interrupted
+            # plan; from the done_at written here on, the claim gate
+            # refuses every late report about these rows.
+            settings.ROOT_LOGGER.warning(
+                f"BackgroundProcess {task.background_process_pk} "
+                f"completed while registration work rows were still "
+                f"leased - late outcomes are refused from here.",
+                stack_info=True)
+        _close_finished_run(task)
+    return False
+
+
+def _close_finished_run(task):
+    """Close the run this collection belongs to.
+
+    A run which an update job reports is closed by that job, not here:
+    the collection is a step of the update (#1274), so the update
+    decides what its run did and the process of the job mirrors the
+    status the job answers. A registration has nothing but its process
+    and completes it right here.
+    """
+    from registry.models.update import \
+        update_job_for_process  # local import: cycle
+    job = update_job_for_process(task.background_process_pk)
+    if job is not None:
+        job.metadata_step_completed()
     else:
-        self.update_background_process(
+        task.update_background_process(
             completed=True
         )
 
@@ -932,8 +1012,7 @@ def sweep_registration_orphan_files():
     """
     from registry.tasks.harvest import _temp_files_storage  # local import
     from registry.models.harvest import (  # local import: cycle
-        REGISTRATION_FILE_SUBDIR, TEMPORARY_MD_METADATA_FILE_SUBDIR,
-        TemporaryMdMetadataFile)
+        REGISTRATION_FILE_SUBDIR, TEMPORARY_MD_METADATA_FILE_SUBDIR)
 
     storage = _temp_files_storage()
     base = f"{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{REGISTRATION_FILE_SUBDIR}"
@@ -943,49 +1022,77 @@ def sweep_registration_orphan_files():
         # no registration ever stored a document: nothing to reap
         return 0
 
-    deleted = 0
     grace = timedelta(seconds=REGISTRATION_ORPHAN_FILE_GRACE_SECONDS)
-    for process_dir in process_dirs:
-        if not process_dir.isdigit():
-            # not a process prefix this code wrote - never delete what the
-            # layout does not explain (same posture as the harvest sweep,
-            # which ignores non-numeric directories)
+    return sum(
+        _sweep_registration_process_dir(storage, base, process_dir, grace)
+        for process_dir in process_dirs)
+
+
+def _sweep_registration_process_dir(storage, base, process_dir, grace):
+    """Delete the orphaned documents below one process directory."""
+    from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
+
+    if not process_dir.isdigit():
+        # not a process prefix this code wrote - never delete what the
+        # layout does not explain (same posture as the harvest sweep,
+        # which ignores non-numeric directories)
+        return 0
+    process_pk = int(process_dir)
+    rows = TemporaryMdMetadataFile.objects.filter(
+        background_process_id=process_pk)
+    live_names = {name for name in rows.values_list(
+        "md_metadata_file", flat=True) if name}
+    live_tokens = {str(token) for token in rows.values_list(
+        "claim_token", flat=True) if token is not None}
+    try:
+        _, file_names = storage.listdir(f"{base}/{process_dir}")
+    except FileNotFoundError:
+        return 0
+    deleted = 0
+    for file_name in file_names:
+        full_name = f"{base}/{process_dir}/{file_name}"
+        if not _registration_file_is_orphan(
+                storage, full_name, file_name, live_names, live_tokens,
+                grace):
             continue
-        process_pk = int(process_dir)
-        rows = TemporaryMdMetadataFile.objects.filter(
-            background_process_id=process_pk)
-        live_names = {name for name in rows.values_list(
-            "md_metadata_file", flat=True) if name}
-        live_tokens = {str(token) for token in rows.values_list(
-            "claim_token", flat=True) if token is not None}
-        try:
-            _, file_names = storage.listdir(f"{base}/{process_dir}")
-        except FileNotFoundError:
-            continue
-        for file_name in file_names:
-            full_name = f"{base}/{process_dir}/{file_name}"
-            if full_name in live_names:
-                continue
-            if any(token in file_name for token in live_tokens):
-                # the document of an attempt whose lease still runs - not
-                # an orphan yet, whatever its row's stored name says
-                continue
-            try:
-                modified = storage.get_modified_time(full_name)
-                if modified > timezone.now() - grace:
-                    continue
-            except Exception:
-                # an unreadable age is no licence to delete: the next pass
-                # reads it, a byte too live stays a byte too live
-                continue
-            try:
-                storage.delete(full_name)
-                deleted += 1
-            except FileNotFoundError:
-                continue
-            except Exception:
-                settings.ROOT_LOGGER.warning(
-                    f"Could not delete the orphaned registration reference "
-                    f"document {full_name}; the next sweep tries again.",
-                    stack_info=True)
+        if _delete_registration_orphan(storage, full_name):
+            deleted += 1
     return deleted
+
+
+def _registration_file_is_orphan(storage, full_name, file_name, live_names,
+                                 live_tokens, grace):
+    """Whether no live row names this document and its age is past grace."""
+    if full_name in live_names:
+        return False
+    if any(token in file_name for token in live_tokens):
+        # the document of an attempt whose lease still runs - not
+        # an orphan yet, whatever its row's stored name says
+        return False
+    return _registration_orphan_is_old(storage, full_name, grace)
+
+
+def _registration_orphan_is_old(storage, full_name, grace):
+    """Whether the file is past the grace which covers the write window."""
+    try:
+        modified = storage.get_modified_time(full_name)
+    except Exception:
+        # an unreadable age is no licence to delete: the next pass
+        # reads it, a byte too live stays a byte too live
+        return False
+    return modified <= timezone.now() - grace
+
+
+def _delete_registration_orphan(storage, full_name):
+    """True when the file is gone afterwards."""
+    try:
+        storage.delete(full_name)
+        return True
+    except FileNotFoundError:
+        return False
+    except Exception:
+        settings.ROOT_LOGGER.warning(
+            f"Could not delete the orphaned registration reference "
+            f"document {full_name}; the next sweep tries again.",
+            stack_info=True)
+        return False

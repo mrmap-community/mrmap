@@ -791,95 +791,139 @@ def watch_import_backlog(harvesting_job_id, at=None):
             return
         waiting = TemporaryMdMetadataFile.objects.filter(
             job_id=job.pk, has_import_error=False).count()
-        untouched_since = (
-            job.import_backlog_seen_at
-            if job.import_backlog_seen == waiting
-            and job.import_backlog_seen_at is not None
-            and at - job.import_backlog_seen_at >= import_watch_interval()
-            else None)
+        untouched_since = _import_backlog_untouched_since(job, waiting, at)
         if untouched_since is None:
-            # the backlog moved since the last look, or this is the first look at
-            # it: nothing is overdue, and a stall the watchdog had reported is
-            # over with the drain. The count is the baseline of the next look.
-            if job.import_stalled_at is not None:
-                job.log(
-                    level=LogLevelEnum.WARNING.value,
-                    description=(
-                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: the import backlog of this "
-                        f"job drains again; {waiting} records are left to import"))
-                # the process which reported the stall reports the drain with
-                # it, so the operation leaves action-required on its own (#1207)
-                job.report_process_attention(False)
-            HarvestingJob.objects.filter(pk=job.pk).update(
-                import_backlog_seen=waiting,
-                import_backlog_seen_at=at,
-                import_stalled_at=None)
+            _reset_import_backlog_baseline(job, waiting, at)
             return
 
         registered = {
             str(_id) for _id in
             job.celery_task_ids.filter(creation=False).values_list(
                 "task_id", flat=True)}
-        state = import_run_message_state(registered)
-        publish_state = chord_publish_message_state(job.pk)
-        waited = int((at - untouched_since).total_seconds() // 60)
-        not_reported_yet = job.import_stalled_at is None
-        if not_reported_yet:
-            # the job itself answers what the watchdog sees: this run is no longer
-            # waiting on work which somebody is doing (#1038)
-            HarvestingJob.objects.filter(pk=job.pk).update(
-                import_stalled_at=untouched_since)
-            # and the process which reports the run says the same to the
-            # background job center: this one stands until a human acts (#1207)
-            job.report_process_attention(
-                True,
-                phase=f"{HARVEST_IMPORT_WATCH_ORIGIN}: import backlog stalled")
-        # what the waiting costs decides the broker and never a guess: a second
-        # publish of a backlog which is still queued is #891
-        if state is None or publish_state is None:
-            if not_reported_yet:
-                job.log(
-                    level=LogLevelEnum.WARNING.value,
-                    description=(
-                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
-                        f"waiting for their import for {waited} minutes and the "
-                        "broker could not answer whether a message of this run is "
-                        "still live, so nothing was published. Once the broker "
-                        f"answers again, resume with: manage.py "
-                        f"resume_harvesting_job {job.pk}"))
-            return
-        if state is False and publish_state is False:
-            if not_reported_yet:
-                job.log(
-                    level=LogLevelEnum.WARNING.value,
-                    description=(
-                        f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
-                        f"waiting for their import for {waited} minutes while the "
-                        f"broker holds no message of the run ({len(registered)} "
-                        "registered task ids) and no publish of its import chord; "
-                        "the backlog goes out again as one chord"))
-            # the fresh chord is measured from now on, so the next look asks about
-            # the new run instead of finding the old stall a second time
-            HarvestingJob.objects.filter(pk=job.pk).update(
-                import_backlog_seen=None,
-                import_backlog_seen_at=None,
-                import_stalled_at=None)
-            # the work went out again: whatever the human was awaited for,
-            # this run does not stand for it anymore (#1207)
-            job.report_process_attention(False)
-            resume_stale_import_run(
-                job, registered, origin=HARVEST_IMPORT_WATCH_ORIGIN)
-            return
-        if not_reported_yet:
-            job.log(
-                level=LogLevelEnum.WARNING.value,
-                description=(
-                    f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
-                    f"waiting for their import for {waited} minutes although the "
-                    "broker still holds a message of this run: the work is queued "
-                    "and nothing imports it. Check that the workers consume the "
-                    f"'{celery_queues.HARVEST_IMPORT}' queue the import backlog is "
-                    "routed to; nothing was published over it (#891)"))
+        _decide_stalled_import(job, waiting, registered, untouched_since, at)
+
+
+def _import_backlog_untouched_since(job, waiting, at):
+    """The moment the backlog has stood at this count - answers None when
+    it moved since the last look, or this is the first look at it."""
+    if (job.import_backlog_seen != waiting
+            or job.import_backlog_seen_at is None
+            or at - job.import_backlog_seen_at < import_watch_interval()):
+        return None
+    return job.import_backlog_seen_at
+
+
+def _reset_import_backlog_baseline(job, waiting, at):
+    """The backlog moved since the last look, or this is the first look at
+    it: nothing is overdue, and a stall the watchdog had reported is over
+    with the drain. The count is the baseline of the next look.
+    """
+    from registry.models.harvest import HarvestingJob  # avoid circular import
+
+    if job.import_stalled_at is not None:
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"{HARVEST_IMPORT_WATCH_ORIGIN}: the import backlog of this "
+                f"job drains again; {waiting} records are left to import"))
+        # the process which reported the stall reports the drain with
+        # it, so the operation leaves action-required on its own (#1207)
+        job.report_process_attention(False)
+    HarvestingJob.objects.filter(pk=job.pk).update(
+        import_backlog_seen=waiting,
+        import_backlog_seen_at=at,
+        import_stalled_at=None)
+
+
+def _decide_stalled_import(job, waiting, registered, untouched_since, at):
+    """Report a backlog which stands, and re-publish it only when the
+    broker proves the work is gone (#1038, #891).
+    """
+    state = import_run_message_state(registered)
+    publish_state = chord_publish_message_state(job.pk)
+    waited = int((at - untouched_since).total_seconds() // 60)
+    not_reported_yet = job.import_stalled_at is None
+    if not_reported_yet:
+        # the job itself answers what the watchdog sees: this run is no longer
+        # waiting on work which somebody is doing (#1038)
+        _mark_import_backlog_stalled(job, untouched_since)
+    # what the waiting costs decides the broker and never a guess: a second
+    # publish of a backlog which is still queued is #891
+    if state is None or publish_state is None:
+        _log_backlog_broker_unanswered(job, waiting, waited,
+                                       not_reported_yet)
+        return
+    if state is False and publish_state is False:
+        _republish_stranded_import_backlog(
+            job, waiting, waited, registered, not_reported_yet)
+        return
+    _log_backlog_queued_without_worker(job, waiting, waited,
+                                       not_reported_yet)
+
+
+def _mark_import_backlog_stalled(job, untouched_since):
+    from registry.models.harvest import HarvestingJob  # avoid circular import
+
+    HarvestingJob.objects.filter(pk=job.pk).update(
+        import_stalled_at=untouched_since)
+    # and the process which reports the run says the same to the
+    # background job center: this one stands until a human acts (#1207)
+    job.report_process_attention(
+        True,
+        phase=f"{HARVEST_IMPORT_WATCH_ORIGIN}: import backlog stalled")
+
+
+def _log_backlog_broker_unanswered(job, waiting, waited, not_reported_yet):
+    if not_reported_yet:
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                f"waiting for their import for {waited} minutes and the "
+                "broker could not answer whether a message of this run is "
+                "still live, so nothing was published. Once the broker "
+                f"answers again, resume with: manage.py "
+                f"resume_harvesting_job {job.pk}"))
+
+
+def _republish_stranded_import_backlog(job, waiting, waited, registered,
+                                       not_reported_yet):
+    if not_reported_yet:
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                f"waiting for their import for {waited} minutes while the "
+                f"broker holds no message of the run ({len(registered)} "
+                "registered task ids) and no publish of its import chord; "
+                "the backlog goes out again as one chord"))
+    from registry.models.harvest import HarvestingJob  # avoid circular import
+
+    # the fresh chord is measured from now on, so the next look asks about
+    # the new run instead of finding the old stall a second time
+    HarvestingJob.objects.filter(pk=job.pk).update(
+        import_backlog_seen=None,
+        import_backlog_seen_at=None,
+        import_stalled_at=None)
+    # the work went out again: whatever the human was awaited for,
+    # this run does not stand for it anymore (#1207)
+    job.report_process_attention(False)
+    resume_stale_import_run(
+        job, registered, origin=HARVEST_IMPORT_WATCH_ORIGIN)
+
+
+def _log_backlog_queued_without_worker(job, waiting, waited,
+                                       not_reported_yet):
+    if not_reported_yet:
+        job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"{HARVEST_IMPORT_WATCH_ORIGIN}: {waiting} records have been "
+                f"waiting for their import for {waited} minutes although the "
+                "broker still holds a message of this run: the work is queued "
+                "and nothing imports it. Check that the workers consume the "
+                f"'{celery_queues.HARVEST_IMPORT}' queue the import backlog is "
+                "routed to; nothing was published over it (#891)"))
 
 
 @shared_task(queue=celery_queues.DB_ROUTINES, base=SingletonTask)
@@ -1153,7 +1197,7 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
             seconds it took
     """
     from registry.models.harvest import (  # avoid circular import
-        HarvestingJob, HarvestingLog, TEMPORARY_MD_METADATA_FILE_SUBDIR,
+        HarvestingJob, TEMPORARY_MD_METADATA_FILE_SUBDIR,
         TemporaryMdMetadataFile)
 
     started = time.monotonic()
@@ -1190,29 +1234,7 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
         return summary
 
     if job is not None and job.phase == HarvestingPhaseEnum.COMPLETED.value:
-        # the ledger of the run outlives the rows which spelled it: an ERROR
-        # harvesting log entry is what keeps a run with import errors out of
-        # the complete snapshots once its error rows are gone (#1237). The
-        # job row is locked while the decision is taken, so two cleanups which
-        # meet here still write the entry once.
-        with transaction.atomic():
-            locked = HarvestingJob.objects.select_for_update().filter(
-                pk=harvesting_job_id).first()
-            if (locked is not None
-                    and locked.phase == HarvestingPhaseEnum.COMPLETED.value):
-                errors = TemporaryMdMetadataFile.objects.filter(
-                    job_id=harvesting_job_id, has_import_error=True)
-                if (errors.exists() and not HarvestingLog.objects.filter(
-                        harvesting_job_id=harvesting_job_id,
-                        description__startswith=(
-                            TEMP_FILE_CLEANUP_LOG_PREFIX)).exists()):
-                    locked.log(
-                        description=(
-                            f"{TEMP_FILE_CLEANUP_LOG_PREFIX} "
-                            f"{errors.count()} stored records of this run had "
-                            "import errors; their rows and files are taken "
-                            "back now (#1237)"),
-                        level=LogLevelEnum.ERROR.value)
+        _log_error_rows_ledger(harvesting_job_id)
 
     storage = _temp_files_storage()
     own_prefix = f"{TEMPORARY_MD_METADATA_FILE_SUBDIR}/{harvesting_job_id}/"
@@ -1236,20 +1258,9 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
             break
         cursor = batch_rows[-1][0]
         processed += len(batch_rows)
-        deletable, names = [], []
-        for pk, name in batch_rows:
-            if name and not (name.startswith(own_prefix)
-                             or name.startswith(legacy_prefix)):
-                # a row whose file lives somewhere else than the temporary
-                # tree of this run: deleting it could reach the media of a
-                # permanent record or the backlog of a running job, so the
-                # name is refused, the row stays, and the answer counts it for
-                # whoever has to look at this row by hand (#1237)
-                summary["rejected"] += 1
-                continue
-            deletable.append(pk)
-            if name:
-                names.append(name)
+        deletable, names, rejected = _split_temp_file_batch(
+            batch_rows, own_prefix, legacy_prefix)
+        summary["rejected"] += rejected
         if deletable:
             with transaction.atomic():
                 TemporaryMdMetadataFile.objects.filter(
@@ -1273,6 +1284,61 @@ def cleanup_harvesting_job_temp_files(harvesting_job_id, batch_size=None,
 
     summary["seconds"] = round(time.monotonic() - started, 1)
     return summary
+
+
+def _log_error_rows_ledger(harvesting_job_id):
+    """The ledger of the run outlives the rows which spelled it: an ERROR
+    harvesting log entry is what keeps a run with import errors out of the
+    complete snapshots once its error rows are gone (#1237). The job row is
+    locked while the decision is taken, so two cleanups which meet here
+    still write the entry once.
+    """
+    from registry.models.harvest import (  # avoid circular import
+        HarvestingJob, HarvestingLog, TemporaryMdMetadataFile)
+
+    with transaction.atomic():
+        locked = HarvestingJob.objects.select_for_update().filter(
+            pk=harvesting_job_id).first()
+        if (locked is None
+                or locked.phase != HarvestingPhaseEnum.COMPLETED.value):
+            return
+        errors = TemporaryMdMetadataFile.objects.filter(
+            job_id=harvesting_job_id, has_import_error=True)
+        if not errors.exists():
+            return
+        if HarvestingLog.objects.filter(
+                harvesting_job_id=harvesting_job_id,
+                description__startswith=(
+                    TEMP_FILE_CLEANUP_LOG_PREFIX)).exists():
+            return
+        locked.log(
+            description=(
+                f"{TEMP_FILE_CLEANUP_LOG_PREFIX} "
+                f"{errors.count()} stored records of this run had "
+                "import errors; their rows and files are taken "
+                "back now (#1237)"),
+            level=LogLevelEnum.ERROR.value)
+
+
+def _split_temp_file_batch(batch_rows, own_prefix, legacy_prefix):
+    """The rows whose stored name the cleanup may delete, their names, and
+    the count of the names it refused.
+    """
+    deletable, names, rejected = [], [], 0
+    for pk, name in batch_rows:
+        if name and not (name.startswith(own_prefix)
+                         or name.startswith(legacy_prefix)):
+            # a row whose file lives somewhere else than the temporary
+            # tree of this run: deleting it could reach the media of a
+            # permanent record or the backlog of a running job, so the
+            # name is refused, the row stays, and the answer counts it for
+            # whoever has to look at this row by hand (#1237)
+            rejected += 1
+            continue
+        deletable.append(pk)
+        if name:
+            names.append(name)
+    return deletable, names, rejected
 
 
 def cleanup_needs_continuation(summary):
@@ -1854,34 +1920,9 @@ def check_for_files_to_import(self, *args, **kwargs):
             with transaction.atomic():
                 for file in files:
                     filename = os.path.join(dirpath, file)
-                    try:
-                        xml = etree.parse(filename)
-                        md_metadatas = xml.xpath(
-                            "//*[local-name()='MD_Metadata']")
-                        for md_metadata in md_metadatas:
-                            md_xml = etree.tostring(
-                                md_metadata,
-                                pretty_print=True,
-                                xml_declaration=True,
-                                encoding="utf-8")
-                            db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
-                            # save the file without saving the instance in db...
-                            # this will be done with bulk_create
-                            db_md_metadata_file.md_metadata_file.save(
-                                name=f"file_import_{dt}_{idx}",
-                                content=ContentFile(
-                                    content=md_xml),
-                                save=False)
-                            db_md_metadata_file_list.append(
-                                db_md_metadata_file)
-                            idx += 1
-
-                    except Error as e:
-                        new_filename = f"ignore_{dt}_{file}"
-                        os.rename(filename, os.path.join(
-                            dirpath, new_filename))
-                        logger.error(
-                            f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
+                    idx = _store_dropped_md_metadata(
+                        dirpath, filename, file, dt, idx,
+                        db_md_metadata_file_list)
 
                 if db_md_metadata_file_list:
                     db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
@@ -1893,3 +1934,40 @@ def check_for_files_to_import(self, *args, **kwargs):
                     return [db_obj.pk for db_obj in db_objs]
 
     logger.info("No files to import")
+
+
+def _store_dropped_md_metadata(dirpath, filename, file, dt, idx, collected):
+    """Parse one dropped file and store every MD_Metadata it carries as a
+    pending instance; a file the parser refuses is renamed to be ignored.
+
+    Answers the running storage index.
+    """
+    from registry.models.harvest import TemporaryMdMetadataFile
+
+    try:
+        xml = etree.parse(filename)
+        md_metadatas = xml.xpath(
+            "//*[local-name()='MD_Metadata']")
+        for md_metadata in md_metadatas:
+            md_xml = etree.tostring(
+                md_metadata,
+                pretty_print=True,
+                xml_declaration=True,
+                encoding="utf-8")
+            db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
+            # save the file without saving the instance in db...
+            # this will be done with bulk_create
+            db_md_metadata_file.md_metadata_file.save(
+                name=f"file_import_{dt}_{idx}",
+                content=ContentFile(
+                    content=md_xml),
+                save=False)
+            collected.append(db_md_metadata_file)
+            idx += 1
+    except Error as e:
+        new_filename = f"ignore_{dt}_{file}"
+        os.rename(filename, os.path.join(
+            dirpath, new_filename))
+        logger.error(
+            f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
+    return idx

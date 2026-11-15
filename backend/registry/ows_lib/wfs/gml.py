@@ -157,23 +157,36 @@ def _local_geometry(element, srs_name, requested, dimension=None):
                   "geometryAsFollows": "geometryMember"}.get(name, name)
     local = etree.Element(f"{{{GML}}}{local_name}", nsmap={"gml": GML})
     if name in ("pos", "posList"):
-        if children:
-            raise GmlError("gmlSchema")
-        values = element.text.split() if element.text else []
-        if name == "pos" and len(values) != 2:
-            raise GmlError("gmlDimension")
-        if not values or len(values) % 2:
-            raise GmlError("malformed")
-        try:
-            values = [float(value) for value in values]
-            if not all(math.isfinite(value) for value in values):
-                raise ValueError
-        except ValueError as error:
-            raise GmlError("malformed") from error
-        if offset:
-            values = [value for pair in zip(values[1::2], values[::2]) for value in pair]
-        local.text = " ".join(map(str, values))
+        _fill_local_positions(local, name, element, offset)
         return local
+    _check_container_children(name, children)
+    local.extend(_local_geometry(child, srs_name, requested, dimension) for child in children)
+    _finalize_local_geometry(name, local)
+    return local
+
+
+def _fill_local_positions(local, name, element, offset):
+    """Validate a coordinate text and copy it into the local tree, in
+    longitude first order."""
+    if _elements(element):
+        raise GmlError("gmlSchema")
+    values = element.text.split() if element.text else []
+    if name == "pos" and len(values) != 2:
+        raise GmlError("gmlDimension")
+    if not values or len(values) % 2:
+        raise GmlError("malformed")
+    try:
+        values = [float(value) for value in values]
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError
+    except ValueError as error:
+        raise GmlError("malformed") from error
+    if offset:
+        values = [value for pair in zip(values[1::2], values[::2]) for value in pair]
+    local.text = " ".join(map(str, values))
+
+
+def _check_container_children(name, children):
     allowed = CHILDREN.get(name, set())
     if not children or any(_name(child) not in allowed for child in children):
         raise GmlError("gmlSchema")
@@ -184,7 +197,10 @@ def _local_geometry(element, srs_name, requested, dimension=None):
     if name in (POLYGON, "PolygonPatch") and (
             _name(children[0]) != "exterior" or sum(_name(child) == "exterior" for child in children) != 1):
         raise GmlError("gmlSchema")
-    local.extend(_local_geometry(child, srs_name, requested, dimension) for child in children)
+
+
+def _finalize_local_geometry(name, local):
+    """The checks and fixes which only the completed local tree answers."""
     if name == POINT and len(local[0].text.split()) != 2:
         raise GmlError("gmlSchema")
     if name == GEOMETRY_COLLECTION:
@@ -200,7 +216,6 @@ def _local_geometry(element, srs_name, requested, dimension=None):
             raise GmlError("gmlSchema")
         if list(map(float, positions[:2])) != list(map(float, positions[-2:])):
             local[0].text += " " + " ".join(positions[:2])
-    return local
 
 
 def _geometry(element, srs_name, requested):

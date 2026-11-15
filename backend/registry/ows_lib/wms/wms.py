@@ -104,33 +104,46 @@ class WebMapServiceClient(OgcClient):
         extents = {}
         geographic = None
         for ancestor in layer.xpath("ancestor-or-self::*[local-name()='Layer']"):
-            for value in ancestor.findall(f"{{*}}{self.crs_qp}"):
-                supported.update((value.text or "").split())
-            for value in ancestor.findall("{*}BoundingBox"):
-                crs = value.get(self.crs_qp)
-                if crs:
-                    # Capabilities BoundingBox already uses the protocol's axis order.
-                    extents[crs] = self._checked_preview_bbox(
-                        value.get(name) for name in ("minx", "miny", "maxx", "maxy"))
-            if self.service_version == "1.3.0":
-                value = ancestor.find("{*}EX_GeographicBoundingBox")
-                if value is not None:
-                    geographic = self._checked_preview_bbox(value.findtext(f"{{*}}{name}") for name in (
-                        "westBoundLongitude", "southBoundLatitude", "eastBoundLongitude", "northBoundLatitude"))
-            else:
-                value = ancestor.find("{*}LatLonBoundingBox")
-                if value is not None:
-                    geographic = self._checked_preview_bbox(
-                        value.get(name) for name in ("minx", "miny", "maxx", "maxy"))
-
-        if geographic is not None:
-            if CRS_84 in supported:
-                extents.setdefault(CRS_84, geographic)
-            if EPSG_4326 in supported:
-                west, south, east, north = geographic
-                extents.setdefault(EPSG_4326, (south, west, north, east)
-                                   if self.service_version == "1.3.0" else geographic)
+            self._collect_ancestor_supported_crs(ancestor, supported)
+            self._collect_ancestor_bounding_boxes(ancestor, extents)
+            geographic = self._ancestor_geographic_bbox(ancestor) or geographic
+        self._apply_geographic_extents(supported, extents, geographic)
         return supported, extents
+
+    def _collect_ancestor_supported_crs(self, ancestor, supported):
+        for value in ancestor.findall(f"{{*}}{self.crs_qp}"):
+            supported.update((value.text or "").split())
+
+    def _collect_ancestor_bounding_boxes(self, ancestor, extents):
+        for value in ancestor.findall("{*}BoundingBox"):
+            crs = value.get(self.crs_qp)
+            if crs:
+                # Capabilities BoundingBox already uses the protocol's axis order.
+                extents[crs] = self._checked_preview_bbox(
+                    value.get(name) for name in ("minx", "miny", "maxx", "maxy"))
+
+    def _ancestor_geographic_bbox(self, ancestor):
+        if self.service_version == "1.3.0":
+            value = ancestor.find("{*}EX_GeographicBoundingBox")
+            if value is None:
+                return None
+            return self._checked_preview_bbox(value.findtext(f"{{*}}{name}") for name in (
+                "westBoundLongitude", "southBoundLatitude", "eastBoundLongitude", "northBoundLatitude"))
+        value = ancestor.find("{*}LatLonBoundingBox")
+        if value is None:
+            return None
+        return self._checked_preview_bbox(
+            value.get(name) for name in ("minx", "miny", "maxx", "maxy"))
+
+    def _apply_geographic_extents(self, supported, extents, geographic):
+        if geographic is None:
+            return
+        if CRS_84 in supported:
+            extents.setdefault(CRS_84, geographic)
+        if EPSG_4326 in supported:
+            west, south, east, north = geographic
+            extents.setdefault(EPSG_4326, (south, west, north, east)
+                               if self.service_version == "1.3.0" else geographic)
 
     def _get_preview_extent(self, layers):
         configurations = [self._get_preview_layer_extents(layer) for layer in layers]
@@ -150,47 +163,73 @@ class WebMapServiceClient(OgcClient):
         fixed = {"fixedWidth": set(), "fixedHeight": set()}
         for selected in layers:
             for layer in selected.iter("{*}Layer"):
-                if not (layer.findtext(NAME_TAG) or "").strip():
-                    continue
-                attributes = {}
-                dimensions = {}
-                for ancestor in layer.xpath("ancestor-or-self::*[local-name()='Layer']"):
-                    attributes.update(ancestor.attrib)
-                    for dimension in ancestor.xpath("./*[local-name()='Dimension' or local-name()='Extent']"):
-                        name = (dimension.get("name") or "").lower()
-                        if self.service_version == "1.1.1" and dimension.tag.endswith("Dimension"):
-                            # 1.1.1 keeps dimension metadata and its values/default separate.
-                            dimensions.setdefault(name, None)
-                        else:
-                            dimensions[name] = dimension.get("default")
-                for name, default in dimensions.items():
-                    if not default:
-                        raise ValueError(f"Cannot preview dimension '{name}' without a default value")
-                for name, values in fixed.items():
-                    value = int(attributes.get(name, "0"))
-                    if value < 0:
-                        raise ValueError(f"Invalid {name} in capabilities")
-                    if value:
-                        values.add(value)
-                if attributes.get("noSubsets", "0").lower() in {"1", "true"}:
-                    _, extents = self._get_preview_layer_extents(layer)
-                    if extents.get(crs) != bbox:
-                        raise ValueError("Preview extent conflicts with a layer that disallows subsets")
+                self._apply_layer_preview_constraints(layer, fixed, crs, bbox)
         if any(len(values) > 1 for values in fixed.values()):
             raise ValueError("Preview layers require incompatible fixed image dimensions")
         return tuple(next(iter(values), 0) for values in fixed.values())
 
+    def _apply_layer_preview_constraints(self, layer, fixed, crs, bbox):
+        """The fixed dimensions and subset rules one named layer imposes on
+        the preview, collected into ``fixed``."""
+        if not (layer.findtext(NAME_TAG) or "").strip():
+            return
+        attributes, dimensions = self._layer_preview_context(layer)
+        for name, default in dimensions.items():
+            if not default:
+                raise ValueError(f"Cannot preview dimension '{name}' without a default value")
+        for name, values in fixed.items():
+            value = int(attributes.get(name, "0"))
+            if value < 0:
+                raise ValueError(f"Invalid {name} in capabilities")
+            if value:
+                values.add(value)
+        if attributes.get("noSubsets", "0").lower() in {"1", "true"}:
+            _, extents = self._get_preview_layer_extents(layer)
+            if extents.get(crs) != bbox:
+                raise ValueError("Preview extent conflicts with a layer that disallows subsets")
+
+    def _layer_preview_context(self, layer):
+        """The attributes and dimension defaults the layer answers with,
+        inherited from its ancestors."""
+        attributes = {}
+        dimensions = {}
+        for ancestor in layer.xpath("ancestor-or-self::*[local-name()='Layer']"):
+            attributes.update(ancestor.attrib)
+            for dimension in ancestor.xpath("./*[local-name()='Dimension' or local-name()='Extent']"):
+                name = (dimension.get("name") or "").lower()
+                if self.service_version == "1.1.1" and dimension.tag.endswith("Dimension"):
+                    # 1.1.1 keeps dimension metadata and its values/default separate.
+                    dimensions.setdefault(name, None)
+                else:
+                    dimensions[name] = dimension.get("default")
+        return attributes, dimensions
+
     def _get_preview_size(self, crs, bbox, width, height, fixed_width, fixed_height):
-        for name, limit in (("MaxWidth", width), ("MaxHeight", height)):
-            value = self._capabilities_etree.findtext(f"{{*}}Service/{{*}}{name}")
-            if value is not None:
-                limit = min(limit, int(value))
-            if limit < 1:
-                raise ValueError(f"Invalid advertised {name}")
-            if name == "MaxWidth":
-                width = limit
-            else:
-                height = limit
+        width = self._clamped_preview_limit("MaxWidth", width)
+        height = self._clamped_preview_limit("MaxHeight", height)
+        dx, dy = self._preview_extent_size(crs, bbox)
+        if not all(math.isfinite(value) for value in (dx, dy)):
+            raise ValueError("Preview extent is too large")
+        scale = min(width / dx, height / dy)
+        result_width, result_height = max(1, round(dx * scale)), max(1, round(dy * scale))
+        result_width, result_height = self._apply_fixed_dimensions(
+            fixed_width, fixed_height, result_width, result_height, dx, dy)
+        if result_width > width or result_height > height:
+            raise ValueError("Fixed image dimensions exceed preview size limits")
+        return result_width, result_height
+
+    def _clamped_preview_limit(self, name, limit):
+        """The requested side of the image, capped by the limit the
+        capabilities advertise for it."""
+        value = self._capabilities_etree.findtext(f"{{*}}Service/{{*}}{name}")
+        if value is not None:
+            limit = min(limit, int(value))
+        if limit < 1:
+            raise ValueError(f"Invalid advertised {name}")
+        return limit
+
+    def _preview_extent_size(self, crs, bbox):
+        """The extent's size in the axis order the preview answers with."""
         dx, dy = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if self.service_version == "1.3.0" and crs not in {"CRS:27", "CRS:83", CRS_84}:
             try:
@@ -202,18 +241,17 @@ class WebMapServiceClient(OgcClient):
                     dx, dy = dy, dx
             except GDALException:
                 raise ValueError(f"Cannot determine preview axis order for '{crs}'") from None
-        if not all(math.isfinite(value) for value in (dx, dy)):
-            raise ValueError("Preview extent is too large")
-        scale = min(width / dx, height / dy)
-        result_width, result_height = max(1, round(dx * scale)), max(1, round(dy * scale))
+        return dx, dy
+
+    @staticmethod
+    def _apply_fixed_dimensions(fixed_width, fixed_height, result_width,
+                                result_height, dx, dy):
         if fixed_width and fixed_height:
-            result_width, result_height = fixed_width, fixed_height
+            return fixed_width, fixed_height
         elif fixed_width:
-            result_width, result_height = fixed_width, max(1, round(fixed_width * dy / dx))
+            return fixed_width, max(1, round(fixed_width * dy / dx))
         elif fixed_height:
-            result_width, result_height = max(1, round(fixed_height * dx / dy)), fixed_height
-        if result_width > width or result_height > height:
-            raise ValueError("Fixed image dimensions exceed preview size limits")
+            return max(1, round(fixed_height * dx / dy)), fixed_height
         return result_width, result_height
 
     def _get_preview_format(self):

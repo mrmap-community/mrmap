@@ -207,25 +207,35 @@ def identify_request(service, selection, version, info_format):
 def selected_configuration(service, selection, client):
     """Negotiate only advertised formats/CRS using the stored capabilities."""
     root = client._capabilities_etree
-    protocol = service.service_type
-    if protocol == "WMS":
-        element = service.layers.with_inherited_attributes_cte().filter(identifier=selection).first()
-        nodes = root.xpath("//*[local-name()='Layer']/*[local-name()='Name' and text()=$name]/..", name=selection)
-        if not element or not nodes:
-            raise PreviewError("stale")
-        node = nodes[0]
-        crs = node.xpath("ancestor-or-self::*[local-name()='Layer']/*[local-name()='CRS' or local-name()='SRS']/text()")
-        crs = {part.upper() for item in crs for part in item.split()}
-        formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetMap']/*[local-name()='Format']/text()")
-        image_format = next((fmt for fmt in ("image/png", "image/jpeg") if fmt in formats), None)
-        if not image_format:
-            raise PreviewError("format")
-        if EPSG_4326 not in crs:
-            raise PreviewError("crs")
-        info_formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetFeatureInfo']/*[local-name()='Format']/text()")
-        info_format = negotiate_info_format(info_formats)
-        queryable = bool(element.is_queryable_inherited and info_format)
-        return element, image_format, queryable, info_format
+    if service.service_type == "WMS":
+        return _wms_selected_configuration(service, selection, client, root)
+    return _wfs_selected_configuration(service, selection, client, root)
+
+
+def _wms_selected_configuration(service, selection, client, root):
+    """The negotiated GetMap configuration of one advertised layer."""
+    element = service.layers.with_inherited_attributes_cte().filter(identifier=selection).first()
+    nodes = root.xpath("//*[local-name()='Layer']/*[local-name()='Name' and text()=$name]/..", name=selection)
+    if not element or not nodes:
+        raise PreviewError("stale")
+    node = nodes[0]
+    crs = node.xpath("ancestor-or-self::*[local-name()='Layer']/*[local-name()='CRS' or local-name()='SRS']/text()")
+    crs = {part.upper() for item in crs for part in item.split()}
+    formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetMap']/*[local-name()='Format']/text()")
+    image_format = next((fmt for fmt in ("image/png", "image/jpeg") if fmt in formats), None)
+    if not image_format:
+        raise PreviewError("format")
+    if EPSG_4326 not in crs:
+        raise PreviewError("crs")
+    info_formats = root.xpath("//*[local-name()='Request']/*[local-name()='GetFeatureInfo']/*[local-name()='Format']/text()")
+    info_format = negotiate_info_format(info_formats)
+    queryable = bool(element.is_queryable_inherited and info_format)
+    return element, image_format, queryable, info_format
+
+
+def _wfs_selected_configuration(service, selection, client, root):
+    """The negotiated GetFeature configuration of one advertised feature
+    type."""
     element = service.featuretypes.filter(identifier=selection).first()
     nodes = root.xpath("//*[local-name()='FeatureType']/*[local-name()='Name' and text()=$name]/..", name=selection)
     if not element or not nodes:
@@ -361,6 +371,21 @@ def data_preview(service, caller, query, client=None, request_params=None):
     if not query.get("bbox"):
         return {"configuration": configuration, "identify": identify, "discovery": "stored"}
     bbox = checked_bbox(query["bbox"])
+    proxy = _preview_proxy(service, caller, client, element, protocol,
+                           version, selection, output_format, bbox, query,
+                           request_params)
+    response = proxy.get_and_post(proxy.request)
+    return _preview_answer(protocol, configuration, identify, output_format,
+                           response, proxy, element)
+
+
+def _preview_proxy(service, caller, client, element, protocol, version,
+                   selection, output_format, bbox, query, request_params):
+    """The security proxy wired with the preview request it answers.
+
+    The proxy fetches through the same path the browser would take, so the
+    permission decision of the real proxy governs the preview too.
+    """
     ordered = [bbox[1], bbox[0], bbox[3], bbox[2]] if (protocol == "WMS" and version == "1.3.0") or (protocol == "WFS" and version != "1.0.0") else bbox
     params = {"SERVICE": protocol, "VERSION": version, "BBOX": ",".join(map(str, ordered))}
     if protocol == "WMS":
@@ -387,7 +412,12 @@ def data_preview(service, caller, query, client=None, request_params=None):
     proxy.preview_client = client
     proxy.preview_element = element
     proxy.preview_bbox = bbox
-    response = proxy.get_and_post(raw)
+    return proxy
+
+
+def _preview_answer(protocol, configuration, identify, output_format,
+                    response, proxy, element):
+    """The preview answer of an answered proxy request."""
     content = b"".join(response.streaming_content) if response.streaming else response.content
     if response.status_code in (401, 403):
         raise PreviewError("denied", 403)
@@ -472,25 +502,31 @@ def validate_features(collection, allowed=None):
         raise PreviewError("malformed")
     if crs and not str(crs.get("properties", {}).get("name", "")).upper().endswith((":4326", "::4326", "/4326", ":CRS84")):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
         raise PreviewError("crs")
+    for feature in collection["features"]:
+        _validate_feature(feature, allowed)
+
+
+def _validate_feature(feature, allowed):
+    """The shape of one feature, the sanity of its geometry and the area
+    it stays within."""
     # GeoJSON positions are longitude/latitude regardless of request axis order.
     from django.contrib.gis.geos import GEOSGeometry
-    for feature in collection["features"]:
-        if not isinstance(feature, dict) or feature.get("type") != "Feature" or not isinstance(feature.get("properties", {}), (dict, type(None))):
-            raise PreviewError("malformed")
-        geometry = feature.get("geometry")
-        if geometry is None:
-            continue
-        try:
-            geom = GEOSGeometry(json.dumps(geometry))
-            if geom.empty or not geom.valid:
-                raise ValueError
-            xmin, ymin, xmax, ymax = geom.extent
-            if not all(math.isfinite(value) for value in geom.extent) or not (-180 <= xmin <= xmax <= 180 and -90 <= ymin <= ymax <= 90):
-                raise ValueError
-        except Exception:
-            raise PreviewError("malformed")
-        if allowed is not None and not allowed.covers(geom):
-            raise PreviewError("denied", 403)
+    if not isinstance(feature, dict) or feature.get("type") != "Feature" or not isinstance(feature.get("properties", {}), (dict, type(None))):
+        raise PreviewError("malformed")
+    geometry = feature.get("geometry")
+    if geometry is None:
+        return
+    try:
+        geom = GEOSGeometry(json.dumps(geometry))
+        if geom.empty or not geom.valid:
+            raise ValueError
+        xmin, ymin, xmax, ymax = geom.extent
+        if not all(math.isfinite(value) for value in geom.extent) or not (-180 <= xmin <= xmax <= 180 and -90 <= ymin <= ymax <= 90):
+            raise ValueError
+    except Exception:
+        raise PreviewError("malformed")
+    if allowed is not None and not allowed.covers(geom):
+        raise PreviewError("denied", 403)
 
 
 def registered_previews(service, identifier, scope, user):
@@ -530,29 +566,44 @@ def catalogue_preview(service, caller, query):
     search = searches[0]
     if len(search) > PAGE_SIZE:
         raise PreviewError("limit", 502)
-    records = []
-    for node in search:
-        if node.tag != f"{{{GMD}}}MD_Metadata":
-            raise PreviewError("schema")
+    records = [_catalogue_preview_record(node, service, caller)
+               for node in search]
+    next_record, matched, returned = _catalogue_preview_paging(
+        search, records, start)
+    if returned != len(records) or next_record < 0 or matched < returned or (next_record and next_record <= start):
+        raise PreviewError("malformed")
+    return {"records": records, "start": start, "next": next_record, "matched": matched,
+            "pageSize": PAGE_SIZE, "fetchedAt": now().isoformat()}
+
+
+def _catalogue_preview_record(node, service, caller):
+    """The preview summary of one record document of the search result."""
+    if node.tag != f"{{{GMD}}}MD_Metadata":
+        raise PreviewError("schema")
+    try:
+        mapper = MDMetadataXmlMapper.from_xml(etree.tostring(node))[0]
+        scope = MDMetadataXmlMapper._detect_hierarchy_level(node)
+        spec = mapper.mapping[scope]
+        fields = spec["fields"]
+        values = {name: mapper.parse_field(node, fields[name], mapper.mapping["_namespaces"])
+                  for name in ("file_identifier", "title", "abstract", "bounding_geometry")}
+    except (ValueError, KeyError, IndexError):
+        raise PreviewError("schema")
+    geometry = values["bounding_geometry"]
+    extent = list(geometry.extent) if geometry and not geometry.empty else None
+    if extent:
         try:
-            mapper = MDMetadataXmlMapper.from_xml(etree.tostring(node))[0]
-            scope = MDMetadataXmlMapper._detect_hierarchy_level(node)
-            spec = mapper.mapping[scope]
-            fields = spec["fields"]
-            values = {name: mapper.parse_field(node, fields[name], mapper.mapping["_namespaces"])
-                      for name in ("file_identifier", "title", "abstract", "bounding_geometry")}
-        except (ValueError, KeyError, IndexError):
-            raise PreviewError("schema")
-        geometry = values["bounding_geometry"]
-        extent = list(geometry.extent) if geometry and not geometry.empty else None
-        if extent:
-            try:
-                checked_bbox(",".join(map(str, extent)))
-            except PreviewError:
-                extent = None
-        identifier = values["file_identifier"]
-        records.append({"identifier": identifier, "title": values["title"], "abstract": values["abstract"],
-                        "extent": extent, "previews": registered_previews(service, identifier, scope, caller.user) if identifier else []})
+            checked_bbox(",".join(map(str, extent)))
+        except PreviewError:
+            extent = None
+    identifier = values["file_identifier"]
+    return {"identifier": identifier, "title": values["title"], "abstract": values["abstract"],
+            "extent": extent, "previews": registered_previews(service, identifier, scope, caller.user) if identifier else []}
+
+
+def _catalogue_preview_paging(search, records, start):
+    """The paging attributes of the search results; refused when they do
+    not agree with the records read."""
     try:
         next_record = int(search.get("nextRecord", "0"))
         matched = int(search.get("numberOfRecordsMatched", "0"))
@@ -561,8 +612,7 @@ def catalogue_preview(service, caller, query):
             raise ValueError
     except ValueError:
         raise PreviewError("malformed")
-    return {"records": records, "start": start, "next": next_record, "matched": matched,
-            "pageSize": PAGE_SIZE, "fetchedAt": now().isoformat()}
+    return next_record, matched, returned
 
 
 def preview(service, caller, query):

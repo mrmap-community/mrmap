@@ -159,50 +159,57 @@ class CustomOperationId(JsonApiAutoSchema):
             _, field_parts, _ = _solve_filter_lookup(
                 model, field.field_name)
 
-            if field_parts[0] in fields_lookup:
+            if field_parts[0] not in fields_lookup:
+                return
 
-                model_field = fields_lookup[field_parts[0]]
-                if hasattr(model_field, "related_model") and model_field.related_model:
-                    last_seen_model = model_field.related_model
+            model_field = fields_lookup[field_parts[0]]
+            if hasattr(model_field, "related_model") and model_field.related_model:
+                self._patch_related_resource_fields(
+                    parameter, field_parts, model_field.related_model)
 
-                    for idx, part in enumerate(field_parts):
-                        # analyze the full path so we get the correct resource type for the filter parameter, in case of nested relationships
-                        if idx == 0:
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                part)
-                            continue
-                        related_fields = self._get_related_fields_of_model(
-                            last_seen_model)
-                        if part in related_fields:
-                            last_seen_model = related_fields[part].related_model
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                related_fields[part].target_field.name)
-                        else:
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                part)
-                            break
+            if hasattr(field, "lookup_expr"):
+                parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
 
-                    parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
-                        last_seen_model)
+            parameter["x-jsonapi-field-parts"] = [
+                format_field_name(part) for part in field_parts]
+            parameter["x-jsonapi-local-resource-field"] = format_field_name(
+                field_parts[0])
 
-                if hasattr(field, "lookup_expr"):
-                    parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
+            parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
+                field.lookup_expr, field.lookup_expr)
 
-                parameter["x-jsonapi-field-parts"] = [
-                    format_field_name(part) for part in field_parts]
-                parameter["x-jsonapi-local-resource-field"] = format_field_name(
-                    field_parts[0])
-
-                parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
-                    field.lookup_expr, field.lookup_expr)
-
-                label = field.label or getattr(
-                    model_field, "verbose_name", None)
-                if label:
-                    parameter["x-jsonapi-filter-label"] = label
+            label = field.label or getattr(
+                model_field, "verbose_name", None)
+            if label:
+                parameter["x-jsonapi-filter-label"] = label
 
         except FieldError:
             pass
+
+    def _patch_related_resource_fields(self, parameter, field_parts,
+                                       related_model):
+        """Follow the nested lookup path and name the resource it ends at."""
+        last_seen_model = related_model
+
+        for idx, part in enumerate(field_parts):
+            # analyze the full path so we get the correct resource type for the filter parameter, in case of nested relationships
+            if idx == 0:
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    part)
+                continue
+            related_fields = self._get_related_fields_of_model(
+                last_seen_model)
+            if part in related_fields:
+                last_seen_model = related_fields[part].related_model
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    related_fields[part].target_field.name)
+            else:
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    part)
+                break
+
+        parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
+            last_seen_model)
 
     def _get_filter_parameters(self):
         """

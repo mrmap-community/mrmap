@@ -220,28 +220,40 @@ class RenderingOffering(models.Model):
         if self.rendering_layer:
             # FUTURE: move this to checkContraints
             # Check scale min/max values against the possible configureable values.
-            if self.layer_scale_min and self.rendering_layer.get_scale_min:
-                if self.layer_scale_min < self.rendering_layer.get_scale_min:
-                    errors.update({'layer_scale_min': ValidationError(
-                        "configured layer minimum scale can't be smaller than the scale value of the layer.")})
-                if self.layer_scale_min > self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_min': ValidationError(
-                        "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
-            if self.layer_scale_max and self.rendering_layer.get_scale_max:
-                if self.layer_scale_max > self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_max': ValidationError(
-                        "configured layer maximum scale can't be greater than the scale value of the layer.")})
-                if self.layer_scale_max < self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_max': ValidationError(
-                        "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+            self._clean_scale(errors)
 
             # Check style configuration
-            if self.layer_style and not self.rendering_layer.styles.filter(pk=self.layer_style.pk).exists():
-                errors.update({'layer_style': ValidationError(
-                    "configured style is not a valid style for the selected layer.")})
+            self._clean_style(errors)
 
         if errors:
             raise ValidationError(errors)
+
+    def _clean_scale(self, errors):
+        """Collect the scale min/max violations against the rendering layer."""
+        layer = self.rendering_layer
+        if self.layer_scale_min and layer.get_scale_min:
+            if self.layer_scale_min < layer.get_scale_min:
+                errors.update({'layer_scale_min': ValidationError(
+                    "configured layer minimum scale can't be smaller than the scale value of the layer.")})
+            if self.layer_scale_min > layer.get_scale_max:
+                errors.update({'layer_scale_min': ValidationError(
+                    "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
+        if self.layer_scale_max and layer.get_scale_max:
+            if self.layer_scale_max > layer.get_scale_max:
+                errors.update({'layer_scale_max': ValidationError(
+                    "configured layer maximum scale can't be greater than the scale value of the layer.")})
+            if self.layer_scale_max < layer.get_scale_max:
+                errors.update({'layer_scale_max': ValidationError(
+                    "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+
+    def _clean_style(self, errors):
+        """Reject a configured style the rendering layer does not offer."""
+        if not self.layer_style:
+            return
+        if self.rendering_layer.styles.filter(pk=self.layer_style.pk).exists():
+            return
+        errors.update({'layer_style': ValidationError(
+            "configured style is not a valid style for the selected layer.")})
 
     def rendering_offering(self):
         if self.rendering_layer_id:

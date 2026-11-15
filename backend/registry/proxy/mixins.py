@@ -369,101 +369,113 @@ class OgcServiceProxyView(APIView):
             return
         try:
             with transaction.atomic():
-                if self.request.user.username == "":
-                    user = get_user_model().objects.get(username="AnonymousUser")
-                else:
-                    user = self.request.user
-                regex = re.compile("^HTTP_")
-                headers = {
-                    regex.sub("", header): value
-                    for (header, value) in self.request.META.items()
-                    if header.startswith("HTTP_")
-                }
-
-                # Determine the original user and test user for logging
-                is_test_request = self.test_context is not None
-                if is_test_request:
-                    # Log the original user who requested the test
-                    logged_user = self.test_context['original_user']
-                    test_user = self.test_context['test_user']
-                else:
-                    logged_user = user
-                    test_user = None
-
-                # HttpRequestLog and HttpResponseLog are abstract base classes, and
-                # an abstract model cannot be instantiated. The concrete pair of the
-                # service which is logged is the model behind its "http_request_logs"
-                # relation and the response which belongs to that one (#1153).
-                request_log_cls = self.service.http_request_logs.model
-                response_log_cls = request_log_cls._meta.get_field(
-                    "response").related_model
-
-                request_log = request_log_cls(
-                    timestamp=self.start_time,
-                    elapsed=datetime.datetime.now() - self.start_time,
-                    method=self.request.method,
-                    url=self.request.get_full_path(),
-                    headers=headers,
-                    service=self.service,
-                    user=logged_user,
-                    is_test_request=is_test_request,
-                    test_user=test_user,
-                )
-                # the body field keeps the document which was posted. A payload the
-                # parsers turned into an object is no document, so those requests
-                # are logged without one.
-                data = self.request.data
-                if isinstance(data, str):
-                    data = data.encode()
-                if isinstance(data, bytes):
-                    request_log.body.save(
-                        name=self._logged_body_name(self.request.content_type),
-                        content=ContentFile(data),
-                    )
-                else:
-                    request_log.save()
-                if isinstance(response, dict):
-                    # the dict of get_remote_response for a remote service which
-                    # never answered: only its own status and message are known, so
-                    # the fields which are not named keep their default value.
-                    response_log = response_log_cls(
-                        status_code=response.get("status_code") or 0,
-                        reason=response.get("reason") or "",
-                        elapsed=response.get("elapsed") or (
-                            datetime.datetime.now() - self.start_time),
-                        headers=response.get("headers") or {},
-                        url=response.get("url") or self.request.get_full_path(),
-                        request=request_log,
-                    )
-                    if response.get("content", None):
-                        response_log.content.save(
-                            name=self._logged_body_name(
-                                response.get("content_type")),
-                            content=ContentFile(response.get("content")),
-                        )
-                    else:
-                        response_log.save()
-                else:
-                    response_log = response_log_cls(
-                        status_code=response.status_code,
-                        reason=response.reason,
-                        elapsed=response.elapsed,
-                        headers=dict(response.headers),
-                        url=response.url,
-                        request=request_log,
-                    )
-                    if response.content:
-                        response_log.content.save(
-                            name=self._logged_body_name(
-                                response.headers.get("content-type")),
-                            content=ContentFile(response.content),
-                        )
-                    else:
-                        response_log.save()
+                request_log = self._write_request_log()
+                self._write_response_log(request_log, response)
         except Exception:
             logging.exception(
                 "Could not log the proxied response of service %s",
                 self.service.pk)
+
+    def _write_request_log(self):
+        """The request row of this proxy call, with its posted body if any."""
+        if self.request.user.username == "":
+            user = get_user_model().objects.get(username="AnonymousUser")
+        else:
+            user = self.request.user
+        regex = re.compile("^HTTP_")
+        headers = {
+            regex.sub("", header): value
+            for (header, value) in self.request.META.items()
+            if header.startswith("HTTP_")
+        }
+
+        # Determine the original user and test user for logging
+        is_test_request = self.test_context is not None
+        if is_test_request:
+            # Log the original user who requested the test
+            logged_user = self.test_context['original_user']
+            test_user = self.test_context['test_user']
+        else:
+            logged_user = user
+            test_user = None
+
+        # HttpRequestLog and HttpResponseLog are abstract base classes, and
+        # an abstract model cannot be instantiated. The concrete pair of the
+        # service which is logged is the model behind its "http_request_logs"
+        # relation and the response which belongs to that one (#1153).
+        request_log_cls = self.service.http_request_logs.model
+
+        request_log = request_log_cls(
+            timestamp=self.start_time,
+            elapsed=datetime.datetime.now() - self.start_time,
+            method=self.request.method,
+            url=self.request.get_full_path(),
+            headers=headers,
+            service=self.service,
+            user=logged_user,
+            is_test_request=is_test_request,
+            test_user=test_user,
+        )
+        # the body field keeps the document which was posted. A payload the
+        # parsers turned into an object is no document, so those requests
+        # are logged without one.
+        data = self.request.data
+        if isinstance(data, str):
+            data = data.encode()
+        if isinstance(data, bytes):
+            request_log.body.save(
+                name=self._logged_body_name(self.request.content_type),
+                content=ContentFile(data),
+            )
+        else:
+            request_log.save()
+        return request_log
+
+    def _write_response_log(self, request_log, response):
+        """The response row which belongs to the given request row."""
+        response_log_cls = request_log._meta.get_field(
+            "response").related_model
+        if isinstance(response, dict):
+            # the dict of get_remote_response for a remote service which
+            # never answered: only its own status and message are known, so
+            # the fields which are not named keep their default value.
+            response_log = self._response_log_from_dict(
+                response_log_cls, request_log, response)
+            content = response.get("content", None)
+            content_type = response.get("content_type")
+        else:
+            response_log = response_log_cls(
+                status_code=response.status_code,
+                reason=response.reason,
+                elapsed=response.elapsed,
+                headers=dict(response.headers),
+                url=response.url,
+                request=request_log,
+            )
+            content = response.content
+            content_type = response.headers.get("content-type")
+
+        if content:
+            response_log.content.save(
+                name=self._logged_body_name(content_type),
+                content=ContentFile(content),
+            )
+        else:
+            response_log.save()
+        return response_log
+
+    def _response_log_from_dict(self, response_log_cls, request_log,
+                                response):
+        """The response row of a remote service which never answered."""
+        return response_log_cls(
+            status_code=response.get("status_code") or 0,
+            reason=response.get("reason") or "",
+            elapsed=response.get("elapsed") or (
+                datetime.datetime.now() - self.start_time),
+            headers=response.get("headers") or {},
+            url=response.get("url") or self.request.get_full_path(),
+            request=request_log,
+        )
 
     def return_http_response(self, response):
         """Return the http response for the client.

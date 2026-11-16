@@ -66,7 +66,7 @@ def synchronize(apply=False):
     prs = gh_json("pr", "list", "-R", REPO, "--state", "open",
                   "--limit", "1000", "--json", "number,body,headRefName,isDraft,url")
     raw = gh_json("project", "item-list", str(PROJECT), "--owner", OWNER,
-                  "--limit", "1000", "--format", "json")
+                  "--limit", "1000", "--field", "Development Phase",\n                  "--field", "Agent Status", "--format", "json")
     fields = gh_json("project", "field-list", str(PROJECT), "--owner", OWNER,
                      "--format", "json")
     names = {f["name"] for f in fields.get("fields", [])}

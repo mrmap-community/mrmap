@@ -59,7 +59,7 @@ const ZoomToLayerItem = () => {
     close()
   },[feature, close])
 
-  if (!feature?.bbox || feature.bbox.length !== 4) {
+  if (feature?.bbox?.length !== 4) {
     return null
   }
 

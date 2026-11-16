@@ -53,11 +53,10 @@ export const DrawerBase = ({ children }: PropsWithChildren): ReactNode => {
     setDrawers(previous => {
       const previousInstance = previous[instanceKey]
       if (
-        previousInstance &&
-        previousInstance.anchor === instance.anchor &&
-        previousInstance.isOpen === instance.isOpen &&
-        previousInstance.width === instance.width &&
-        previousInstance.height === instance.height
+        previousInstance?.anchor === instance.anchor &&
+        previousInstance?.isOpen === instance.isOpen &&
+        previousInstance?.width === instance.width &&
+        previousInstance?.height === instance.height
       ) {
         return previous
       }

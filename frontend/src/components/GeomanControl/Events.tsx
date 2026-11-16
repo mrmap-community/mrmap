@@ -18,7 +18,7 @@ const Events = ({
   useEffect(() => {
     if (map) {
        !map.hasEventListeners("pm:create") && map.on("pm:create", (e) => {
-        onCreate && onCreate(e)
+        onCreate?.(e)
         
         onUpdate && !e.layer.hasEventListeners("pm:update") && e.layer.on("pm:update", () => {
            onUpdate(e)

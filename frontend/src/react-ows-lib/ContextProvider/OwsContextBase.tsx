@@ -77,7 +77,7 @@ export interface OwsContextBaseType {
 export const context = createContext<OwsContextBaseType | undefined>(undefined)
 
 const getOgcServiceExceptionMessage = (responseText: string): string | undefined => {
-  if (!responseText || !responseText.trim().startsWith('<')) {
+  if (!responseText?.trim().startsWith('<')) {
     return undefined
   }
 

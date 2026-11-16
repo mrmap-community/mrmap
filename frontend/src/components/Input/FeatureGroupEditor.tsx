@@ -52,7 +52,7 @@ const FeatureGroupEditor = ({
         }
       }
     })
-    geoJsonCallback && geoJsonCallback(multiPolygon)
+    geoJsonCallback?.(multiPolygon)
     // whatever the user left on the map is what the card shows: the hint is
     // only for a card without anything drawable, so it follows the drawing
     setShowNoGeometryHint(multiPolygon.coordinates.length === 0)

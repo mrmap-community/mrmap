@@ -170,16 +170,24 @@ class SchedulePreviewRequestSerializer(Serializer):
         """
         scheduling = (attrs.get('scheduling') or '').strip()
         timezone = (attrs.get('timezone') or '').strip()
-        harvest = attrs.get('operation') == 'harvest'
         if not scheduling:
-            if timezone:
-                attrs['timezone'] = timezone_name(timezone)
-            if not attrs.get('setting_id'):
-                raise ValidationError({'scheduling': _(
-                    'A new schedule needs the crontab it proposes; only '
-                    'an existing setting may be previewed without one.')})
-            return attrs
-        embedded = None
+            return self._validate_answered_setting(attrs, timezone)
+        return self._validate_proposal(attrs, scheduling, timezone)
+
+    def _validate_answered_setting(self, attrs, timezone):
+        """The answer for a request without a crontab: only the setting that
+        already exists may be previewed without one."""
+        if timezone:
+            attrs['timezone'] = timezone_name(timezone)
+        if not attrs.get('setting_id'):
+            raise ValidationError({'scheduling': _(
+                'A new schedule needs the crontab it proposes; only '
+                'an existing setting may be previewed without one.')})
+        return attrs
+
+    def _validate_proposal(self, attrs, scheduling, timezone):
+        """The answer for a proposed crontab, by the operation's own grammar."""
+        harvest = attrs.get('operation') == 'harvest'
         match = re.fullmatch(CRONTAB_TIME_REGEX, scheduling)
         parts = scheduling.split()
         if match is None or (not harvest and len(parts) != 5):
@@ -187,11 +195,8 @@ class SchedulePreviewRequestSerializer(Serializer):
             raise ValidationError({'scheduling': (
                 f'Invalid crontab string format: {scheduling}'
                 if harvest else MONITORING_CRONTAB_ERROR)})
-        if harvest and match.groupdict().get('timezone'):
-            embedded = timezone_name(match.groupdict()['timezone'])
-        elif not harvest and match.groupdict().get('timezone'):
-            # the monitoring and update forms write five fields only
-            raise ValidationError({'scheduling': MONITORING_CRONTAB_ERROR})
+        embedded = self._embedded_timezone(
+            match.groupdict().get('timezone'), harvest)
         resolved = timezone_name(timezone) if timezone else embedded
         crontab = CrontabSchedule(
             minute=match.groupdict()['minute'],
@@ -212,6 +217,16 @@ class SchedulePreviewRequestSerializer(Serializer):
             attrs['timezone'] = resolved
         attrs['scheduling'] = scheduling
         return attrs
+
+    def _embedded_timezone(self, embedded, harvest):
+        """The timezone a crontab string names itself: the harvest form may
+        write it and asks it of the string, the monitoring and update forms
+        write five fields only, so one there is the format error."""
+        if not embedded:
+            return None
+        if not harvest:
+            raise ValidationError({'scheduling': MONITORING_CRONTAB_ERROR})
+        return timezone_name(embedded)
 
 
 class ElapsedEvidenceSerializer(Serializer):

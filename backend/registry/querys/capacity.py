@@ -668,6 +668,40 @@ def _overlap(effective, schedule, elapsed):
         interval_seconds=schedule.run_interval_seconds)
 
 
+def _service_exists(kind, service_id):
+    """Whether a service of this kind answers under this identifier.
+
+    An answer which is not an identifier at all is not a service either, so
+    the database's complaint about it is the same unknown service as a
+    missing row - the estimate degrades, it never raises.
+    """
+    try:
+        return kind.service.objects.filter(pk=service_id).exists()
+    except (ValidationError, ValueError, TypeError):
+        return False
+
+
+def _setting_belongs(setting, model, operation, service_id):
+    """Whether the answered setting is the setting of this very pair."""
+    expected = SETTING_MODEL_OF.get((model, operation))
+    return (type(setting) is expected
+            and str(getattr(setting, 'service_id', None)) == str(service_id))
+
+
+def _history_of(kind, model, operation, setting, service_id, window_start):
+    """The run history of the operation of this service, or None when the
+    service kind does not run this operation at all."""
+    if operation is RunOperationEnum.HARVEST:
+        if kind.harvesting_job is None:
+            return None
+        return _harvest_history(kind, setting, service_id, window_start)
+    if model not in RUN_MODEL_OF[operation]:
+        return None
+    if operation is RunOperationEnum.MONITORING:
+        return _monitoring_history(kind, setting, service_id, window_start)
+    return _update_history(kind, setting, service_id, window_start)
+
+
 def periodic_capacity_estimate(service_kind, service_id, operation,
                                setting=None, proposal=None, scope=(),
                                at=None):
@@ -710,34 +744,19 @@ def periodic_capacity_estimate(service_kind, service_id, operation,
         return _degraded(operation, service_kind, service_id, setting, scope,
                          EstimateGapEnum.UNKNOWN_SERVICE.value)
 
-    try:
-        service_exists = kind.service.objects.filter(pk=service_id).exists()
-    except (ValidationError, ValueError, TypeError):
-        service_exists = False
-    if not service_exists:
+    if not _service_exists(kind, service_id):
         return _degraded(operation, service_kind, service_id, setting,
                          scope, EstimateGapEnum.UNKNOWN_SERVICE.value)
 
-    if setting is not None:
-        expected = SETTING_MODEL_OF.get((model, operation))
-        belongs = (type(setting) is expected
-                   and str(getattr(setting, 'service_id', None))
-                   == str(service_id))
-        if not belongs:
-            return _degraded(operation, model.__name__, service_id, setting,
-                             scope, EstimateGapEnum.INVALID_SETTING.value)
+    if setting is not None and not _setting_belongs(
+            setting, model, operation, service_id):
+        return _degraded(operation, model.__name__, service_id, setting,
+                         scope, EstimateGapEnum.INVALID_SETTING.value)
 
     schedule, effective = _schedule(setting, proposal, current_time)
-    if operation is RunOperationEnum.HARVEST:
-        if kind.harvesting_job is None:
-            return _degraded(operation, model.__name__, service_id, setting,
-                             scope,
-                             EstimateGapEnum.UNSUPPORTED_OPERATION.value)
-        history = _harvest_history(kind, setting, service_id, window_start)
-    elif model in RUN_MODEL_OF[operation]:
-        history = (_monitoring_history if operation is RunOperationEnum.MONITORING
-                   else _update_history)(kind, setting, service_id, window_start)
-    else:
+    history = _history_of(kind, model, operation, setting, service_id,
+                          window_start)
+    if history is None:
         return _degraded(operation, model.__name__, service_id, setting,
                          scope, EstimateGapEnum.UNSUPPORTED_OPERATION.value)
 

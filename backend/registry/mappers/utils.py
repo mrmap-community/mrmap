@@ -623,6 +623,19 @@ def _predicate_holds(el, predicate, nsmap):
             f"Unsupported predicate '[{predicate}]' for writing: {err}")
 
 
+def _children_named(el, tag, predicate, nsmap):
+    """The children one element offers to a step: real elements, of the tag
+    the step names, and only those the predicate holds for."""
+    for child in el:
+        if not isinstance(child.tag, str):
+            continue
+        if tag is not None and child.tag != tag:
+            continue
+        if predicate and not _predicate_holds(child, predicate, nsmap):
+            continue
+        yield child
+
+
 def find_mapped_elements(base_el, steps, nsmap):
     """The elements the child steps name below base_el, in document order."""
     current = [base_el]
@@ -630,17 +643,9 @@ def find_mapped_elements(base_el, steps, nsmap):
         if step.name == ".":
             continue
         tag = _step_qname_or_none(step, nsmap)
-        nxt = []
-        for el in current:
-            for child in el:
-                if not isinstance(child.tag, str):
-                    continue
-                if tag is not None and child.tag != tag:
-                    continue
-                if step.predicate and not _predicate_holds(
-                        child, step.predicate, nsmap):
-                    continue
-                nxt.append(child)
+        nxt = [child for el in current
+               for child in _children_named(
+                   el, tag, step.predicate, nsmap)]
         if not nxt:
             return []
         current = nxt

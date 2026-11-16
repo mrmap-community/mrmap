@@ -197,6 +197,46 @@ def duration_estimates(settings: list) -> dict:
             for row in settings if row.service_id in measured}
 
 
+def _row(code, severity, computed_at, **values):
+    """One warning row: the shape the screen reads, every field named once.
+
+    A field the rule does not answer is None, which is what the screen
+    renders as nothing - the vocabulary of the attention list (#1308).
+    """
+    row = {
+        'code': code,
+        'severity': severity,
+        'interval': None,
+        'observedDuration': None,
+        'sampleCount': None,
+        'lastDoneAt': None,
+        'expectedAt': None,
+        'expiredAt': None,
+        'unknownReason': None,
+        'computedAt': computed_at,
+    }
+    row.update(values)
+    return row
+
+
+def _evidence_rows(interval, samples, average, last_done, computed_at):
+    """The rows which judge the recurrence against the measured durations:
+    the tight schedule, the muted answer without a basis, or nothing when
+    the measured wait already fits."""
+    if average is not None and samples >= MIN_RELIABLE_SAMPLES:
+        if interval >= average:
+            return []
+        return [_row(SCHEDULE_TOO_TIGHT, WARNING, computed_at,
+                     interval=format_duration(interval),
+                     observedDuration=format_duration(average),
+                     sampleCount=samples, lastDoneAt=last_done)]
+    return [_row(INSUFFICIENT_EVIDENCE, INFO, computed_at,
+                 interval=format_duration(interval), sampleCount=samples,
+                 lastDoneAt=last_done,
+                 unknownReason=NO_COMPLETED_RUNS if samples == 0
+                 else TOO_FEW_SAMPLES)]
+
+
 def warnings_for_setting(setting, estimate, computed_at) -> list:
     """The warning rows which decide the recurrence risk of one setting.
 
@@ -227,32 +267,13 @@ def warnings_for_setting(setting, estimate, computed_at) -> list:
 
     rows = []
     if not expired and run_overdue(setting):
-        rows.append({
-            'code': SCHEDULE_OVERDUE,
-            'severity': WARNING,
-            'interval': format_duration(interval)
-            if interval is not None else None,
-            'observedDuration': None,
-            'sampleCount': None,
-            'lastDoneAt': None,
-            'expectedAt': expected_at,
-            'expiredAt': None,
-            'unknownReason': None,
-            'computedAt': current_time,
-        })
+        rows.append(_row(
+            SCHEDULE_OVERDUE, WARNING, current_time,
+            interval=format_duration(interval) if interval is not None else None,
+            expectedAt=expected_at))
     if expired:
-        rows.append({
-            'code': SCHEDULE_EXPIRED,
-            'severity': INFO,
-            'interval': None,
-            'observedDuration': None,
-            'sampleCount': None,
-            'lastDoneAt': None,
-            'expectedAt': None,
-            'expiredAt': setting.expires,
-            'unknownReason': None,
-            'computedAt': current_time,
-        })
+        rows.append(_row(SCHEDULE_EXPIRED, INFO, current_time,
+                         expiredAt=setting.expires))
         # an expired schedule answers no next run, so there is no recurrence
         # left to judge against measured durations
         return rows
@@ -260,37 +281,11 @@ def warnings_for_setting(setting, estimate, computed_at) -> list:
         # nothing scheduled after itself: no recurrence risk to speak about
         return rows
 
-    samples = (estimate or {}).get('samples') or 0
-    average = (estimate or {}).get('average')
-    if average is not None and samples >= MIN_RELIABLE_SAMPLES:
-        if interval < average:
-            rows.append({
-                'code': SCHEDULE_TOO_TIGHT,
-                'severity': WARNING,
-                'interval': format_duration(interval),
-                'observedDuration': format_duration(average),
-                'sampleCount': samples,
-                'lastDoneAt': (estimate or {}).get('last_done'),
-                'expectedAt': None,
-                'expiredAt': None,
-                'unknownReason': None,
-                'computedAt': current_time,
-            })
-    else:
-        rows.append({
-            'code': INSUFFICIENT_EVIDENCE,
-            'severity': INFO,
-            'interval': format_duration(interval),
-            'observedDuration': None,
-            'sampleCount': samples,
-            'lastDoneAt': (estimate or {}).get('last_done'),
-            'expectedAt': None,
-            'expiredAt': None,
-            'unknownReason': NO_COMPLETED_RUNS
-            if samples == 0 else TOO_FEW_SAMPLES,
-            'computedAt': current_time,
-        })
-    return rows
+    return rows + _evidence_rows(
+        interval,
+        (estimate or {}).get('samples') or 0,
+        (estimate or {}).get('average'),
+        (estimate or {}).get('last_done'), current_time)
 
 
 def schedule_warnings_by_id(settings: list) -> dict:

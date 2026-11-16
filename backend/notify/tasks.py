@@ -109,6 +109,15 @@ class BackgroundProcessBased(Task):
             phase=f"An error occurred: {exc}"[:512],
             failed=True
         )
+        # #1320: the moment this task answers that it will not try again -
+        # published after the failed state was written, so the terminal
+        # incident and the persisted source state agree by construction
+        from notify.incident_reporting import (publish_terminal_failure,
+                                               task_retries)
+
+        publish_terminal_failure(
+            getattr(self, "background_process_pk", None), self.name, exc,
+            retries=task_retries(self))
 
     def log_process(self, description, log_type=None):
         """A durable log entry on the process which this task reports to.
@@ -361,3 +370,40 @@ def delete_expired_background_processes(self, *args, **kwargs):
         "(retention %s days).", summary["purged"], summary["logs"],
         summary["files"], summary["retention_days"])
     return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def delete_expired_operational_incidents(self, *args, **kwargs):
+    """Takes back the resolved incidents whose retention has passed (#1319).
+
+    Runs as a singleton on the ``db-routines`` queue like the other
+    housekeeping. The incident history of a deployment grows with every
+    resolved incident; this sweep bounds it to the retention window while
+    the incidents which still stand are never touched - an active incident
+    is the open problem itself.
+    """
+    from notify.models import purge_expired_operational_incidents
+
+    summary = purge_expired_operational_incidents()
+    logger.info(
+        "Operational incidents: %s resolved incidents deleted "
+        "(retention %s days).", summary["purged"], summary["retention_days"])
+    return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def watch_operational_incidents(self, *args, **kwargs):
+    """Runs one bounded fire of the operational watchdog (beat, #1320).
+
+    A stuck operation cannot be trusted to report its own standing (#1038),
+    so this independent look asks which open operations wait for work which
+    no inspected worker is doing and which declared queue stands without a
+    consumer, and answers verdicts as incidents - never as a change of any
+    job's state. ``SingletonTask`` keeps a fire which is still reading the
+    broker from being stacked onto by the next one; the state it missed is
+    answered by that next fire at the latest.
+    """
+    from notify.incident_watchdog import watch_operational_work
+
+    verdicts = watch_operational_work()
+    return len(verdicts)

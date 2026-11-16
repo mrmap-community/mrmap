@@ -10,12 +10,13 @@ epic #727 text paraphrases. Those names are load bearing:
 interpolated name. #732 replaces the name-coupled groups with ``Role`` rows,
 so the names belong on record before they are gone.
 
-The permission strings of the signal name the ``registry`` app although
-``Organization`` lives in ``accounts`` and ``Group`` in ``auth``; the grants
-only work because guardian strips the app label and resolves the codename
-against the content type of the object. What they really point at is asserted
-here as ``Permission`` rows and content types: the honest-app_label half of
-#729 may rewrite the strings, and these rows must not move.
+The permission strings of the signal name the app their permission rows
+really belong to: ``accounts`` for the ``Organization`` grants and ``auth``
+for the grants on the administering groups, which are ``auth`` models. The
+strings were dishonest until the #729 rewrite renamed them, and guardian had
+always resolved them by codename against the content type of the object; the
+``Permission`` rows and content types asserted here are what that rewrite may
+not move.
 """
 from django.contrib.auth.models import Group
 from django.test import TestCase
@@ -80,12 +81,13 @@ class OrganizationGroupNamesTestCase(TestCase):
 
     def test_the_administrators_hold_view_and_change_on_every_administering_group(
             self):
-        """The signal's ``registry.view_group`` lands on ``auth`` permissions
+        """The signal's ``auth.view_group`` lands on ``auth`` permissions
 
         The Permission row behind the grant is ``auth.view_group`` /
-        ``auth.change_group`` - the app_label of the string is decorative
-        (guardian's ``_normalize_perm`` strips it). That dishonesty is what the
-        string rewrite of #729 fixes and what these rows keep identical.
+        ``auth.change_group`` - the honest app_label of #729 names ``auth``
+        because that is the app guardian resolves the codename in: the content
+        type of the granted group. These rows are what the string rewrite of
+        #729 had to keep identical.
         """
         for secured_model in get_secured_models():
             admins_group = Group.objects.get(
@@ -102,10 +104,11 @@ class OrganizationGroupNamesTestCase(TestCase):
                 self.assertEqual(row.permission.content_type.model, "group")
 
     def test_the_organization_grants_point_at_accounts_permission_rows(self):
-        """``registry.view_organization`` resolves onto ``accounts`` too
+        """``accounts.view_organization`` resolves onto ``accounts`` rows
 
-        The rows are the contract of the honest-app_label rewrite: same
-        codenames, same content type ``accounts.organization``, same groups.
+        The rows are the contract of the honest-app_label rewrite of #729:
+        same codenames, same content type ``accounts.organization``, same
+        groups.
         """
         rows = OrganizationGroupObjectPermission.objects.filter(
             content_object=self.organization)

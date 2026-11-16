@@ -255,7 +255,7 @@ class ProbeResponseContentEndpointTest(MonitoringArtifactTestMixin,
             username="artifact-admin", password="test")
         self.reader = get_user_model().objects.create_user(
             username="artifact-reader", password="test")
-        assign_perm("view_webmapservice", self.reader, self.wms)
+        assign_perm("registry.view_webmapservice", self.reader, self.wms)
         self.api = APIClient()
         self.api.credentials(HTTP_ACCEPT=JSONAPI)
 

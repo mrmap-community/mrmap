@@ -174,6 +174,28 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         verbose_name=_("update candidate"),
         help_text=_("this is the update candidate of this service.")
     )
+    # The typed ownership of #733: the question "which organization owns this
+    # resource?" is what the role work of #727 binds to, so it is answered by
+    # a column of every concrete OGC service and not by a guess. PROTECT,
+    # because deleting an organization may silently delete the services it
+    # owns. NULL is the shape of the rows stored before ownership was kept:
+    # they stay readable and no organization's permission decides on them
+    # (see the migration which adds the column). `editable=False` keeps the
+    # value out of forms and of the fields a ModelSerializer generates
+    # itself; the create serializers name the relation deliberately.
+    owner = models.ForeignKey(
+        to="accounts.Organization",
+        on_delete=models.PROTECT,
+        related_name="%(class)s_owned",
+        related_query_name="%(class)s_owned",
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("owner"),
+        help_text=_(
+            "The organization which owns this resource; the rights on the "
+            "registered service derive from it. Empty on resources stored "
+            "before ownership was kept."))
 
     objects = DefaultHistoryManager()
 
@@ -347,6 +369,18 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
+        # the global capabilities the role catalogue of #731 refers to. They
+        # are capabilities over registry resources as a whole: this model is
+        # their carrier because the service aggregate has no concrete parent
+        # (``OgcService`` is abstract), so no model spans all services. What a
+        # caller asks is always ``registry.<codename>``, which Django resolves
+        # by app_label and codename - the content type of the row only groups
+        # it in the admin.
+        permissions = [
+            ('publish_resource', 'Can publish a registry resource'),
+            ('share_resource', 'Can share a registry resource'),
+            ('manage_access_rules', 'Can manage access rules'),
+            ('manage_membership', 'Can manage organization memberships')]
         indexes = [
         ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 

@@ -353,6 +353,10 @@ class WebMapServiceViewSet(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,
@@ -725,6 +729,10 @@ class WebFeatureServiceViewSet(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,
@@ -1036,6 +1044,10 @@ class CatalogueServiceViewSetMixin(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": False,  # CSW has no remote metadata records
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,

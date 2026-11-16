@@ -5,6 +5,7 @@ from mptt2.admin import MPTTModelAdmin
 from registry.admin.harvest import TemporaryMdMetadataFileAdmin
 from registry.models.mapcontext import MapContextLayer
 from registry.models.service import Layer
+from system.admin import CeleryTaskAttemptAdmin
 
 # all other models
 models = apps.get_models()
@@ -13,6 +14,9 @@ for model in models:
     try:
         if model.__name__ == 'TemporaryMdMetadataFile':
             admin.site.register(model, TemporaryMdMetadataFileAdmin)
+        if model.__name__ == 'CeleryTaskAttempt':
+            # the measurements of #1330 are read, never edited or deleted
+            admin.site.register(model, CeleryTaskAttemptAdmin)
         if model.__name__ not in ['MapContextLayer', 'Layer']:
             admin.site.register(model)
     except AlreadyRegistered:

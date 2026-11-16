@@ -16,7 +16,7 @@ from requests import Response
 def authorize_preview(context):
     service = WebMapService.objects.get(pk='cd16cc1f-3abb-4625-bb96-fbe80dbe23e3')
     user = get_user_model().objects.get(username='User1')
-    assign_perm('view_webmapservice', user, service)
+    assign_perm('registry.view_webmapservice', user, service)
     xml = b'''<WMS_Capabilities version="1.3.0"><Capability><Request><GetMap><Format>image/png</Format></GetMap></Request>
         <Layer><CRS>EPSG:4326</CRS><Name>node1</Name><Layer><Name>node1.1</Name></Layer></Layer></Capability></WMS_Capabilities>'''
     service.xml_backup_file = SimpleUploadedFile('preview.xml', xml)

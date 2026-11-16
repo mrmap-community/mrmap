@@ -1,7 +1,8 @@
 from logging import Logger
 from django.conf import settings
 from django.db import models
-from registry.querys.metadata import (MetadataRelationQuerySet,
+from registry.querys.metadata import (MetadataContactQuerySet,
+                                      MetadataRelationQuerySet,
                                       TimeExtentQuerySet)
 from extras.managers import UniqueConstraintDefaultValueManager
 
@@ -64,3 +65,19 @@ class MetadataRelationManager(models.Manager):
 
     def publishable(self):
         return self.get_queryset().publishable()
+
+
+class MetadataContactManager(UniqueConstraintDefaultValueManager):
+    """ Manager which exposes the reuse answer of MrMap's contacts, see
+        :class:`registry.querys.metadata.MetadataContactQuerySet`.
+
+    It extends the manager the model already used: the contact rows are
+    identified by ALL their fields, so the default filling of that base
+    stays in charge of what POST writes.
+    """
+
+    def get_queryset(self):
+        return MetadataContactQuerySet(self.model, using=self._db)
+
+    def with_usage_count(self):
+        return self.get_queryset().with_usage_count()

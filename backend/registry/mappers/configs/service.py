@@ -1,4 +1,5 @@
 from registry.mappers.configs.iso_access import (COUPLED_RESOURCES,
+                                                 ISO_19139_ELEMENT_ORDER,
                                                  ONLINE_LINKS, OPERATES_ON,
                                                  SERVICE_OPERATIONS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -14,6 +15,7 @@ XPATH_MAP = {
             "xlink": NAMESPACE_LOOKUP["xlink"],
         },
         "_schema": "http://www.isotc211.org/2005/gmd",  # NOSONAR normative ISO 19139 gmd identifier of the mapped metadata schema - not a network endpoint
+        "_element_order": ISO_19139_ELEMENT_ORDER,
         "_pre_save": [
         ],
         "service": {
@@ -24,10 +26,12 @@ XPATH_MAP = {
                 "charset": {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
+                    "_reverse_parser": "registry.mappers.parsers.value.int_to_charset",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
-                    "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
+                    "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum",
+                    "_reverse_parser": "registry.mappers.parsers.value.int_to_update_frequency",
                 },
                 "title": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:abstract/gco:CharacterString",
@@ -35,12 +39,14 @@ XPATH_MAP = {
                 "date_stamp": {
                     "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
                     "_parser": "registry.mappers.parsers.value.string_to_datetime",
+                    "_reverse_parser": "registry.mappers.parsers.value.datetime_to_string",
                 },
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
                     "_inputs": (
                         "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon",
+                    "_reverse_parser": "registry.mappers.parsers.value.serialize_bounding_geometry",
                 },
 
                 "equivalent_scale": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer",
@@ -54,6 +60,9 @@ XPATH_MAP = {
                         "_identifier": {
                             "xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString[text()='{keyword}']",
                         },
+                        # the element one row of the collection is written as;
+                        # the write mapper (#1242) creates and removes rows here
+                        "_row": "./gmd:keyword",
                     },
                     "fields": {
                         "keyword": "./."
@@ -86,6 +95,8 @@ XPATH_MAP = {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.language_identifier",
                         },
+                        # one gmd:language wrapper per row, see #1242
+                        "_row": "./gmd:language",
                     },
                     "fields": {
                         "value": {
@@ -103,6 +114,8 @@ XPATH_MAP = {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.refence_system_identifier",
                         },
+                        # one gmd:referenceSystemInfo block per row, see #1242
+                        "_row": "./gmd:referenceSystemInfo",
                     },
                     "_parser": "registry.mappers.parsers.iso.parse_reference_system",
                     "_reverse_parser": "registry.mappers.parsers.iso.serialize_reference_system",
@@ -116,10 +129,12 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
+                    "_reverse_parser": "registry.mappers.parsers.iso.serialize_timeextent_fragment",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.timeextent_identifier",
                         },
+                        "_row": "./gmd:EX_TemporalExtent",
                     },
                 },
             }

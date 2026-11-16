@@ -18,7 +18,13 @@ import useSchemaRecordRepresentation from "../hooks/useSchemaRecordRepresentatio
 export interface SchemaAutocompleteInputProps extends AutocompleteArrayInputProps {
   reference: string;
   relatedResource?: RelatedResource;
-  source: string;
+  /**
+   * Omit `source` inside an ArrayInput row: the input then binds to the whole
+   * row value (the row record from the record context) instead of watching a
+   * form-root field. This is how an editor row per related record reuses the
+   * choices workflow below without watching the array at the form root.
+   */
+  source?: string;
   params?: GetListParams;
   getListParams?: GetListParams;
   initialFilter?: import("react-admin").FilterPayload;
@@ -63,17 +69,21 @@ const SchemaAutocompleteInput = ({
   const optionText = useSchemaRecordRepresentation({ resource: reference });
 
   const relatedRecord = useRecordContext(rest);
+  // without a source the input is bound to the whole ArrayField row value,
+  // which the row's record context carries; the empty-name watch subscribes
+  // to no field of the form root
   const formValues:
     Identifier | RaRecord | (Identifier | RaRecord | null)[] | null = useWatch({
-    name: source,
+    name: source ?? "",
   });
+  const boundValues = source === undefined ? (relatedRecord ?? null) : formValues;
   const valuesArray = useMemo(
     () =>
-      (Array.isArray(formValues) ? formValues : [formValues])
+      (Array.isArray(boundValues) ? boundValues : [boundValues])
         .filter((value) => value != null)
         .map((value) => (typeof value === "object" ? value : { id: value }))
         .filter((value) => value.id != null && value.id !== ""),
-    [formValues],
+    [boundValues],
   );
 
   const includedObjects = useMemo(() => {

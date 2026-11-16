@@ -14,11 +14,18 @@ def next_run_expected_at(setting):
         return None
     if setting.start_time is not None:
         baseline = max(baseline, setting.start_time)
-    return _next_run_after(setting, baseline)
+    return next_run_after(setting, baseline)
 
 
-def _next_run_after(setting, baseline):
-    """The next occurrence of the crontab of a setting after a moment."""
+def next_run_after(setting, baseline):
+    """The next occurrence of the crontab of a setting after a moment.
+
+    The canonical step of a Beat-semantics occurrence walk: it is the one
+    question answered against Celery's own crontab arithmetic, so a reader
+    which has to know *every* occurrence of a schedule within a horizon
+    (the capacity snapshot of #1326) counts the same moments beat will
+    dispatch, and does not re-derive the matching rules elsewhere.
+    """
     baseline = baseline.astimezone(setting.crontab.timezone)
     schedule = setting.crontab.schedule
     # Anchor both sides of Celery's calculation to the baseline. Using the
@@ -26,6 +33,37 @@ def _next_run_after(setting, baseline):
     schedule.nowfun = lambda: baseline
     start, delta, _ = schedule.remaining_delta(baseline)
     return start + delta
+
+
+def next_run_occurrences(setting, count=3):
+    """The next `count` occurrences of the crontab of a setting, ascending.
+
+    The list starts where `next_run_expected_at` answers the next dispatch
+    and steps forward through the same canonical calculation. It is therefore
+    DST-honest the same way: the moments are the instants the schedule
+    dispatches at, so "0 8 * * *" places its two occurrences across the
+    spring change of time 23 real hours apart and its two across the autumn
+    one 25. A setting which answers no next run answers no occurrences
+    (#1327).
+
+    Anyone measuring the distance between two answered moments must ask it
+    of the instants, not of the wall time: the CPython difference of two
+    zone-aware moments sharing one tzinfo answers the calendar distance, so
+    normalize (`astimezone(UTC)`) before subtracting.
+
+    Args:
+        setting: the setting which schedules the runs
+        count: how many occurrences to answer at most
+
+    Returns:
+        list: the coming moments of the schedule, possibly fewer than `count`
+    """
+    occurrences = []
+    expected_at = next_run_expected_at(setting)
+    while expected_at is not None and len(occurrences) < count:
+        occurrences.append(expected_at)
+        expected_at = next_run_after(setting, expected_at)
+    return occurrences
 
 
 def run_interval(setting):
@@ -46,7 +84,7 @@ def run_interval(setting):
     expected_at = next_run_expected_at(setting)
     if expected_at is None:
         return None
-    return _next_run_after(setting, expected_at) - expected_at
+    return next_run_after(setting, expected_at) - expected_at
 
 
 def schedule_is_tighter_than(setting, duration):

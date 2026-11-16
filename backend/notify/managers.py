@@ -1,5 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.db.models import (Case, F, OuterRef, Q, Subquery, TextField,
                               Value, When)
 from django.db.models.fields import FloatField, IntegerField
@@ -7,8 +7,9 @@ from django.db.models.functions import (Coalesce, Greatest, Least, Now, Round)
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from guardian.shortcuts import get_objects_for_user
-from notify.enums import (LogTypeEnum, OperationStateEnum,
-                          ProcessStatusEnum)
+from notify.enums import (IncidentSeverityEnum, IncidentSourceEnum,
+                          IncidentStatusEnum, LogTypeEnum,
+                          OperationStateEnum, ProcessStatusEnum)
 
 
 def capped_done_steps(steps):
@@ -468,3 +469,282 @@ class BackgroundProcessManager(models.Manager):
                 related_id__in=permitted.values("pk"))
 
         return queryset.filter(visible)
+
+
+class OperationalIncidentManager(models.Manager):
+    """The reporting, lifecycle and visibility of persisted incidents (#1319).
+
+    The manager is the one writer which producers of incidents (#1320) use:
+    ``report`` upserts the active incident of a dedup key idempotently - a
+    recurrence raises the occurrence count of the standing row instead of
+    creating a notification of its own - and ``resolve`` performs the single
+    lifecycle transition. ``visible_for_user`` implements the one
+    authorization rule which every read of the api runs over, so list,
+    detail, filter and count can never disagree about what a caller may see.
+    """
+
+    #: the longest dedup key an incident stores; the key is built from a
+    #: code, a model label and a primary key and therefore always fits
+    DEDUP_KEY_MAX_LENGTH = 255
+    #: how often ``report`` re-enters its decision when it loses a race with
+    #: a concurrent report or resolve of the same key
+    REPORT_RACES = 3
+
+    def build_dedup_key(self, code, **resource):
+        """The stable dedup key of one problem, independently of any retry.
+
+        The key names the problem, never an execution: a code plus the typed
+        resource it stands for, or the code plus ``system`` where the
+        problem is the deployment itself. A Celery retry of a task, a
+        second delivery of the same watchdog verdict and a UI which polls
+        twice all answer the same key, which is what lets ``report``
+        deduplicate them into one incident (#1319).
+        """
+        resource = self._single_resource(resource)
+        if not resource:
+            key = f"{code}|system"
+        else:
+            field, value = resource.popitem()
+            model = self.model._meta.get_field(
+                field).related_model
+            key = f"{code}|{model._meta.label_lower}|{getattr(value, 'pk', value)}"
+        if len(key) > self.DEDUP_KEY_MAX_LENGTH:
+            raise ValueError("The dedup key of an incident is too long.")
+        return key
+
+    def _single_resource(self, resource):
+        """The resource keyword arguments, kept to the one an incident names.
+
+        A reporter names its affected resource by one of the typed fields of
+        the model (or their ``_id`` form). Nothing more than one is accepted
+        - the database check refuses two anyway, and the dedup key of a
+        resource which could be two is not a stable key.
+        """
+        fields = self.model.RESOURCE_FIELDS
+        normalized = {}
+        for name, value in resource.items():
+            field = name[:-3] if name.endswith("_id") else name
+            if field not in fields:
+                raise ValueError(
+                    f"'{name}' is no typed resource of an incident.")
+            normalized[field] = value
+        filled = {f: v for f, v in normalized.items() if v is not None}
+        if len(filled) > 1:
+            raise ValueError(
+                "An incident names at most one affected resource.")
+        return filled
+
+    def report(self, code, source, severity, summary, resource=None,
+               details=None, occurred_at=None, retry_count=None,
+               retry_scheduled_until=None, dedup_key=None):
+        """Upsert the active incident of one dedup key, idempotently.
+
+        A recurrence of a problem which already stands as an active incident
+        is not a second incident: the occurrence count of the standing row
+        moves up, its last occurrence and its latest evidence replace the
+        older ones and nothing else happens - ten retries of one incident
+        are one incident (#1319), and the authoritative report of each
+        single execution stays where it always was, in the process log of
+        #1208. A problem which was resolved and returns is a new incident
+        with the same key: the resolved history row is never reopened, the
+        transition to ``resolved`` is terminal.
+
+        The deduplication races are decided by the database: the partial
+        unique index of ``dedup_key`` over the active rows refuses two
+        concurrent creators of the same problem, and the loser of that race
+        reads the winner's row and moves its counters instead. ``update``
+        never writes an incident which was resolved between the read and the
+        write - the write is conditional on the row still being active, and
+        a resolution which came in between turns this report into the
+        creator of the new incident it really is.
+
+        Args:
+            code (str): the structured incident code, stable per problem
+            source (IncidentSourceEnum): which domain reports the incident
+            severity (IncidentSeverityEnum): warning or error
+            summary (str): the safe human readable summary; stored truncated
+            resource (dict): at most one typed resource, e.g.
+                ``{"catalogue_service": job.service_id}``
+            details (dict): redacted structured metadata, stored bounded and
+                redacted by ``sanitize_incident_details``
+            occurred_at: the moment of this occurrence, now by default
+            retry_count: the retry the reported operation is at, if known
+            retry_scheduled_until: until when the operation's next attempt
+                is due, if known
+            dedup_key (str): the key to deduplicate by; built from the code
+                and the resource when not given
+
+        Returns:
+            tuple: the incident and whether it was created
+        """
+        from notify.models import (INCIDENT_SUMMARY_MAX_LENGTH,
+                                   sanitize_incident_details)
+
+        severity = IncidentSeverityEnum(severity).value
+        source = IncidentSourceEnum(source).value
+        summary = str(summary)[:INCIDENT_SUMMARY_MAX_LENGTH]
+        details = sanitize_incident_details(details)
+        resource = self._single_resource(resource or {})
+        key = dedup_key or self.build_dedup_key(code, **resource)
+        at = occurred_at or now()
+
+        for _ in range(self.REPORT_RACES):
+            active = self.get_queryset().filter(
+                dedup_key=key,
+                status=IncidentStatusEnum.ACTIVE.value).first()
+            if active is not None:
+                values = {
+                    "severity": severity,
+                    "summary": summary,
+                    "details": details,
+                    "last_occurred_at": at,
+                    "occurrence_count": F("occurrence_count") + 1,
+                }
+                if retry_count is not None:
+                    values["retry_count"] = max(int(retry_count), 0)
+                if retry_scheduled_until is not None:
+                    values["retry_scheduled_until"] = retry_scheduled_until
+                moved = self.get_queryset().filter(
+                    pk=active.pk,
+                    status=IncidentStatusEnum.ACTIVE.value).update(**values)
+                if moved:
+                    return self.get_queryset().get(pk=active.pk), False
+                # resolved by a concurrent resolver between read and write:
+                # this report is the recurrence of a resolved problem and
+                # has to create its new incident, which the next round does
+                continue
+            try:
+                with transaction.atomic():
+                    incident = self.model(
+                        code=code, source=source, severity=severity,
+                        summary=summary, details=details, dedup_key=key,
+                        first_occurred_at=at, last_occurred_at=at,
+                        retry_count=max(int(retry_count or 0), 0),
+                        retry_scheduled_until=retry_scheduled_until,
+                        **resource)
+                    incident.save()
+                return incident, True
+            except IntegrityError:
+                # a concurrent report created the active incident of this
+                # key; the next round deduplicates onto its row
+                continue
+        raise RuntimeError(
+            f"The report of the incident '{code}' lost every race.")
+
+    def resolve(self, dedup_key, at=None):
+        """Resolve the active incidents of one dedup key (#1319).
+
+        Recovery of the reported problem resolves the incident standing
+        under the key of that problem. This is the lifecycle's single
+        transition, active -> resolved; it is answered by one conditional
+        update and idempotent: resolving an already resolved problem moves
+        nothing and answers zero.
+
+        Returns:
+            int: how many incidents this call resolved
+        """
+        return self.get_queryset().filter(
+            dedup_key=dedup_key,
+            status=IncidentStatusEnum.ACTIVE.value).update(
+                status=IncidentStatusEnum.RESOLVED.value,
+                resolved_at=at or now())
+
+    def _service_of(self, field):
+        """The service model behind one typed resource field.
+
+        Walks the path which ``RESOURCE_FIELDS`` names from the resource to
+        the service whose view permission decides the visibility of an
+        incident about that resource - the path is empty for the services
+        themselves.
+        """
+        model = self.model._meta.get_field(field).related_model
+        for step in filter(None, self.model.RESOURCE_FIELDS[field].split("__")):
+            model = model._meta.get_field(step).related_model
+        return model
+
+    def _visible_service_ids(self, user):
+        """The visible service ids per service model of a deployment.
+
+        The same answer ``collect_service_alerts`` gives: for every kind of
+        service the services the caller may view, decided by guardian and
+        scoped to the published services - an update candidate is no service
+        of its own to which an incident could add visibility. The superuser
+        needs none of these queries; guardian answers everything to him, and
+        the view short-circuits him before this is ever called.
+        """
+        visible = {}
+        seen_models = set()
+        for field in self.model.RESOURCE_FIELDS:
+            service_model = self._service_of(field)
+            if service_model in seen_models:
+                continue
+            seen_models.add(service_model)
+            visible[service_model] = get_objects_for_user(
+                user, f'{service_model._meta.app_label}.view_'
+                      f'{service_model._meta.model_name}',
+                klass=service_model.objects.filter(
+                    update_candidate_of__isnull=True),
+                accept_global_perms=True)
+        return visible
+
+    def _visibility_q(self, visible):
+        """The Q which an incident has to answer to be visible.
+
+        An incident is visible exactly when the service behind its typed
+        resource is visible - services answer themselves, jobs and runs are
+        answered through their service. A system incident names no resource
+        and therefore answers none of these clauses: it is visible to the
+        superuser alone, who is short-circuited before this Q is built.
+        """
+        scope = Q()
+        for field, path in self.model.RESOURCE_FIELDS.items():
+            service_model = self._service_of(field)
+            lookup = f"{field}__{path}" if path else field
+            scope |= Q(**{f"{lookup}__in": visible[service_model]})
+        return scope
+
+    def service_scoped(self, queryset, service_pk):
+        """Narrow a queryset to the incidents which stand for one service.
+
+        The read of the contextual screen of #1322: all incidents whose
+        affected resource is the service itself or a job or run belonging
+        to it.
+        """
+        return queryset.filter(self._service_q(service_pk))
+
+    def _service_q(self, service_pk):
+        """The Q naming the incidents which belong to one service."""
+        scope = Q()
+        for field, path in self.model.RESOURCE_FIELDS.items():
+            lookup = f"{field}__{path}" if path else field
+            # the primary key of a service is a uuid; the lookup answers the
+            # matching column whatever kind of service the value names
+            scope |= Q(**{f"{lookup}": service_pk})
+        return scope
+
+    def visible_for_user(self, user, queryset=None):
+        """The incidents which the caller may view - the one rule (#1319).
+
+        A superuser sees every incident. An authenticated user sees the
+        incidents whose affected service he may view, decided by the same
+        guardian permissions which hide the services themselves; jobs and
+        runs which belong to a visible service are visible incidents of
+        that service. System incidents - the ones naming no resource, the
+        deployment's own watchdog findings - answer no service and are
+        therefore never part of this answer: they belong to a superuser
+        alone. An anonymous caller never reaches a queryset at all, the api
+        refuses him the endpoint.
+
+        Every read of the api - the list, the detail, every filter and with
+        them every count and page total - runs over exactly this narrowing,
+        which is why a total of a count or the existence behind a detail
+        url can never name an incident the caller may not see.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+        if user is None or not user.is_authenticated:
+            return queryset.none()
+        if user.is_superuser:
+            return queryset
+        return queryset.filter(self._visibility_q(
+            self._visible_service_ids(user)))

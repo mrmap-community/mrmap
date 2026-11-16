@@ -19,6 +19,9 @@ export interface GeoEditorProps {
   geoJson?: GeoJSONType | string
   geoJsonCallback?: (multiPolygon: MultiPolygon) => void
   editable?: boolean
+  /** which drawing tools the control offers; both by default */
+  drawRectangle?: boolean
+  drawPolygon?: boolean
 }
 
 
@@ -27,6 +30,8 @@ const FeatureGroupEditor = ({
   geoJson,
   geoJsonCallback,
   editable = true,
+  drawRectangle = true,
+  drawPolygon = true,
 }: GeoEditorProps): ReactNode => {
   const map = useMap()
   const translate = useTranslate()
@@ -112,6 +117,8 @@ const FeatureGroupEditor = ({
         drawMarker={false}
         drawText={false}
         drawPolyline={false}
+        drawRectangle={drawRectangle}
+        drawPolygon={drawPolygon}
         oneBlock={false}
         rotateMode={false}
       />

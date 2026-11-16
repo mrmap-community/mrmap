@@ -17,7 +17,7 @@ from requests import Response
 def prepare_wfs_thumbnail(context):
     service = WebFeatureService.objects.get(pk='9cc4889d-0cd4-4c3b-8975-58de6d30db41')
     user = get_user_model().objects.get(username='User1')
-    assign_perm('view_webfeatureservice', user, service)
+    assign_perm('registry.view_webfeatureservice', user, service)
     capabilities = b'''<wfs:WFS_Capabilities xmlns:wfs="http://www.opengis.net/wfs/2.0"
         xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xlink="http://www.w3.org/1999/xlink"
         xmlns:ms="https://example.test/ms" version="2.0.0">

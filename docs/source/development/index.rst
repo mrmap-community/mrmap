@@ -19,12 +19,16 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    environment
    celery-queues
    celery-result-backend
+   celery-capacity-telemetry
+   celery-task-orm-audit
+   capacity-snapshot
    background-notifications
    background-operations
    background-jobs
    prebuilt-images
    agent-capacity
    decision-requests
+   schedule-optimization-v3
    code-quality
    keyword-triggers
    definition_of_done

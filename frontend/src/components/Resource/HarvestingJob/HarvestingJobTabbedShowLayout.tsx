@@ -32,6 +32,7 @@ import {
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import ListHarvestingLog from "../HarvestingLog/ListHarvestingLog";
+import ContextualIncidents from "../OperationalIncident/Context/ContextualIncidents";
 import HarvestingJobTimingCharts from "./HarvestingJobTimingCharts";
 import HarvestingRunMissingRecords from "./HarvestingRunMissingRecords";
 import HarvestingRunSummary from "./HarvestingRunSummary";
@@ -103,6 +104,9 @@ const HarvestingJobTabbedShowLayout = () => {
   const logTabAllowed = !logProbePending && !isForbidden(logProbeError);
   return (
     <Stack spacing={2} sx={{ p: { xs: 1, md: 2 } }}>
+      {/* the incidents about this run, above its summary: the run stays the
+          authority on where it is, the banner says why it may be stuck (#1322) */}
+      <ContextualIncidents />
       <HarvestingRunSummary logTabAllowed={logTabAllowed} />
       <Card variant="outlined">
         <TabbedShowLayout>

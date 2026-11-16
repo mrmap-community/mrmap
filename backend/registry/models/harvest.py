@@ -362,6 +362,11 @@ class HarvestingJob(ProcessingData):
     class Meta(ProcessingData.Meta):
         verbose_name = _("Harvesting Job")
         verbose_name_plural = _("Harvesting Jobs")
+        # the capability the role catalogue of #731 gives to 'harvester':
+        # starting harvests is not the same act as editing a service, so it is
+        # its own codename; the carrier is this model because a harvest is the
+        # aggregate it starts
+        permissions = [('harvest', 'Can run a harvesting job')]
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
         # the newest job of one service answers its harvesting alerts - with

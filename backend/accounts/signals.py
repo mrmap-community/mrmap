@@ -61,19 +61,27 @@ def handle_organization_creation(instance, created, raw=False, **kwargs):
     with atomic():
         organization = instance  # only for better reading
 
+        # every permission string names the app its permission's ``Permission``
+        # row really belongs to: an ``Organization`` is an ``accounts`` model
+        # and an administering group is an ``auth`` one. Guardian resolves an
+        # object grant by the codename and the content type of the object
+        # (``guardian/shortcuts.py`` ``_normalize_perm`` strips the app_label),
+        # so a wrong label here would stay invisible in the grants and only
+        # mislead the next reader (#729)
+
         # create organization administrator and member group
         orga_admins = Group.objects.create(
             name=f"{organization.name} Administrators")
-        assign_perm(perm='registry.view_organization',
+        assign_perm(perm='accounts.view_organization',
                     user_or_group=orga_admins, obj=organization)
-        assign_perm(perm='registry.change_organization',
+        assign_perm(perm='accounts.change_organization',
                     user_or_group=orga_admins, obj=organization)
 
         orga_members = Group.objects.create(
             name=f"{organization.name} Members")
-        assign_perm(perm='registry.view_organization',
+        assign_perm(perm='accounts.view_organization',
                     user_or_group=orga_members, obj=organization)
-        assign_perm(perm='registry.can_publish_for_organization',
+        assign_perm(perm='accounts.can_publish_for_organization',
                     user_or_group=orga_members, obj=organization)
 
         # create groups for any configured secured model
@@ -82,10 +90,10 @@ def handle_organization_creation(instance, created, raw=False, **kwargs):
             secured_model_admins = Group.objects.create(
                 name=f"{organization.name} {secured_model._meta.model_name} Admins")
 
-            assign_perm(perm='registry.view_group',
+            assign_perm(perm='auth.view_group',
                         user_or_group=orga_admins,
                         obj=secured_model_admins)
-            assign_perm(perm='registry.change_group',
+            assign_perm(perm='auth.change_group',
                         user_or_group=orga_admins,
                         obj=secured_model_admins)
 

@@ -718,6 +718,9 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "WebMapService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )
@@ -976,6 +979,9 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "WebFeatureService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )
@@ -1148,6 +1154,9 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "CatalogueService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )

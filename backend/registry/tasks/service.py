@@ -12,6 +12,7 @@ from datetime import timedelta
 from itertools import chain
 from urllib import parse
 
+from accounts.models.groups import Organization
 from celery import chord, shared_task, states
 from celery.signals import worker_ready
 from django.conf import settings
@@ -78,6 +79,7 @@ def build_ogc_service(
         service_auth_pk: None,
         http_request,
         background_process_pk,
+        owner_pk=None,
         **kwargs):
     try:
         self.update_state(state=states.STARTED, meta={
@@ -130,7 +132,17 @@ def build_ogc_service(
                 f"'{mapper.xml_root.attrib.get('version')}' is not supported "
                 "from Mr. Map.")
         db_service = data[0]
-        handler = PersistenceHandler(mapper)
+        # The ownership decided at POST time (#733) is written with the row
+        # the mapper just built: the default is keyed by the name of the
+        # concrete service class the document mapped to, so it lands on the
+        # service and on nothing else. A message which carries no owner -
+        # one queued before this field existed - stores an ownerless service,
+        # the same shape the migration documents for the legacy rows.
+        defaults = {}
+        if owner_pk:
+            defaults[db_service.__class__.__name__] = {
+                "owner": Organization.objects.get(pk=owner_pk)}
+        handler = PersistenceHandler(mapper, defaults=defaults)
         try:
             handler.persist_all()
         except IntegrityError as e:

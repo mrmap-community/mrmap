@@ -29,7 +29,7 @@ export const context = createContext<ContextMenuBaseType | undefined>(undefined)
 
 
 export const ContextMenuBase = ({children, onOpenControls}: PropsWithChildren<{ onOpenControls?: () => void }>): ReactNode => {
-  const [controlsId, updateControlsId] = useState<string | number>();
+  const [controlsId, setControlsId] = useState<string | number>();
   const [pinnedId, setPinnedId] = useState<string | number>();
   const [node, setNode] = useState<OWSResource | undefined>(undefined)
   const [itemId, setItemId] = useState<string | undefined>(undefined)
@@ -39,14 +39,14 @@ export const ContextMenuBase = ({children, onOpenControls}: PropsWithChildren<{ 
   const [mouseY, setMouseY] = useState<number | undefined>()
   const [record, setRecord] = useState<RaRecord | undefined>()
 
-  const setControlsId = useCallback((id?: string | number) => {
-    updateControlsId(id);
+  const openControlsFor = useCallback((id?: string | number) => {
+    setControlsId(id);
     if (id !== undefined) onOpenControls?.();
   }, [onOpenControls]);
 
   const value = useMemo<ContextMenuBaseType>(() => {
     return {
-      controlsId, setControlsId, pinnedId, setPinnedId,
+      controlsId, setControlsId: openControlsFor, pinnedId, setPinnedId,
       node: node,
       record: record,
       itemId: itemId,
@@ -69,7 +69,7 @@ export const ContextMenuBase = ({children, onOpenControls}: PropsWithChildren<{ 
         setMouseY(undefined)
       }
     }
-  }, [node, isOpen, anchorElement, mouseX, mouseY, record, itemId, controlsId, pinnedId, setControlsId])
+  }, [node, isOpen, anchorElement, mouseX, mouseY, record, itemId, controlsId, pinnedId, openControlsFor])
     
 
   return (

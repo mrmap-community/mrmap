@@ -60,8 +60,6 @@ const useOnError = (
               setSearchParams(searchParams)
             }
           })
-        } else if (error.status === 401) {
-        } else if (error.status === 403) {
         }
       }
   }, [searchParams, listParams, setListParams, setSearchParams])

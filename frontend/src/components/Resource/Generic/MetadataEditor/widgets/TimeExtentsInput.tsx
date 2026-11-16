@@ -18,7 +18,7 @@ import { IncludedRecordFields } from "../../RecordShow/RecordFields";
 // asks); the ISO instant is completed explicitly so the naive wall-clock
 // entry is sent as the UTC time it was meant to be
 const toInstant = (value: string): string =>
-  `${value.length === 16 ? `${value}:00` : value}Z`;
+  value.length === 16 ? `${value}:00Z` : `${value}Z`;
 
 /**
  * Temporal extent editor for the `timeExtents` relation (#1246).

@@ -17,6 +17,7 @@ Audit/initial setup: 2026-11-16, OpenCode v2.2.5.
 | `mui-x-docs` | GitMCP, repo pinned `mui/mui-x@v9.16.0` | remote HTTPS | repo base (committed) | MUI X (DataGrid, Charts, TreeView) 9.16.0 docs |
 | `orm-lens` | `orm-lens[mcp]==1.18.0` | stdio (venv) | repo base + local venv | Static Django ORM analysis: models, relations, N+1, indexes — no DB, no Django boot |
 | `postgres` | `@yawlabs/postgres-mcp@0.13.13` | stdio (npx) | local override (DSN) | Dev-database schema inspection, read-only SQL, EXPLAIN, index/health checks |
+| `sonarqube` | SonarQube Cloud hosted service | remote HTTPS (OAuth) | repo base (committed) | Quality gates, issues, rules and measures for MrMap (read-only) |
 
 Pinned versions match the installed stack: `backend/.requirements/base.txt`
 (Django 6.0.8) and `frontend/package-lock.json` (react-admin 5.15.5,
@@ -26,7 +27,7 @@ Pinned versions match the installed stack: `backend/.requirements/base.txt`
 ## Configuration locations (two-tier model)
 
 - **Committed base — `opencode.json` (repo root)**: every secret-free server:
-  the four GitMCP doc servers, `orm-lens`, `playwright`, and a *disabled*
+  the four GitMCP doc servers, the hosted `sonarqube` integration, `orm-lens`, `playwright`, and a *disabled*
   `postgres` stub that reads `{env:MRMAP_MCP_DATABASE_URL}`. Because it is a
   tracked file, **every clone, worktree and host gets these servers
   automatically** — including AO agents working in worktrees.
@@ -144,7 +145,7 @@ by slot 0 (one forwarder can only serve one DB).
   `mrmap-mcp-dbproxy` (node, ~64 MB limit, restartable by docker). Remove it
   with `docker rm -f mrmap-mcp-dbproxy` when the postgres MCP is not needed;
   the MCP server then simply fails its connection until the proxy is back.
-- The four GitMCP servers are remote endpoints: nothing to start locally;
+- The four GitMCP servers and hosted SonarQube Cloud MCP are remote endpoints: nothing to start locally;
   each OpenCode directory keeps one HTTPS connection.
 
 ## Available tools (verified counts)
@@ -167,6 +168,7 @@ by slot 0 (one forwarder can only serve one DB).
   `describe_model`, `find_relations`, `cascade_preview`, `er_diagram`,
   `describe_migration_dependency`, `suggest_indexes`, `signal_graph`,
   `migration_risk`, `blast_radius`, `drift`, `impact`, `nplusone_scan`.
+- `sonarqube`: SonarQube Cloud-hosted read-only OAuth tools (available tool list depends on the Cloud service and account permissions). Requires a per-user login; not yet functionally verified through OpenCode in this PR update.
 - `postgres` (23): `pg_readonly` (always read-only), `pg_query` (read-only
   since `ALLOW_WRITES` is unset), `pg_list_schemas/tables/views/functions/
   extensions`, `pg_describe_table`, `pg_search_columns`, `pg_explain`,
@@ -203,9 +205,10 @@ by slot 0 (one forwarder can only serve one DB).
 
 ## Test results (2026-11-16)
 
-Every server below was verified by a **real MCP tool invocation through
+The original seven servers below were verified by **real MCP tool invocations through
 OpenCode** (`opencode run` sessions in this project directory), not by HTTP
-probing or install checks alone.
+probing or install checks alone. The SonarQube connection was added later and is
+**pending** per-user authentication and a live tool invocation.
 
 | Server | Connected | Functional test via OpenCode | Result |
 |--------|-----------|------------------------------|--------|
@@ -216,6 +219,7 @@ probing or install checks alone.
 | django-docs | yes (4 tools) | searches for select_related / prefetch_related / Prefetch / QuerySet evaluation all fulfilled (`docs/ref/models/querysets.txt` content); first burst of 4 concurrent calls hit GitMCP rate-limit on 2 queries, sequential retry succeeded → call GitMCP sequentially | **PASS** |
 | orm-lens 1.18.0 | yes (14 tools) | `describe_model("registry.WebMapService")` → real metadata (backend/registry/models/service.py:235); `find_relations` → real inbound FKs; `nplusone_scan` → genuine static finding at `registry/models/service.py:293` (`for layer in self.layers.all(): for style in layer.styles.all()` — a real N+1 loop, self-acknowledged in a code comment) | **PASS** |
 | postgres 0.13.13 | yes (23 tools) | `pg_health` → PostgreSQL 18.6 on dev DB `mrmap`; `pg_list_schemas` → public; `pg_list_tables` → spatial_ref_sys; `pg_describe_table` → column `srid`; `pg_explain` (no ANALYZE) → "Index Only Scan using spatial_ref_sys_pkey" | **PASS** |
+| sonarqube (hosted) | not tested | `opencode mcp auth sonarqube`, followed by live `list_organizations`, quality-gate and issue tool calls | **PENDING — user OAuth authorization + live agent verification** |
 | gedaechtnis (pre-existing, OTA) | yes | untouched, still connected | preserved |
 
 Raw JSON traces of the OpenCode test sessions: `/tmp/opencode/mcp-test/`
@@ -249,6 +253,7 @@ Cline/AO via its own MCP settings file if you choose to mirror the entries
 | ORM performance | orm-lens, postgres | `orm_lens_*`, `postgres_*` (never set `ALLOW_WRITES`) |
 | UI testing | playwright | `playwright_*` |
 | Integration testing | django-docs, react-admin-docs, playwright | combined allow |
+| Code quality audit | sonarqube, django-docs, react-admin-docs | `sonarqube_*` with read-only OAuth scope |
 
 Example (add under an entry in `agents` in the respective config):
 
@@ -276,8 +281,29 @@ Example (add under an entry in `agents` in the respective config):
 | `modelcontextprotocol/server-postgres` | Archived/unmaintained reference server. |
 | GitHub MCP (remote `api.githubcopilot.com/mcp` or ghcr image) | Redundant: `gh` CLI is already authenticated (repo/read:org/workflow) and agents use it directly; adds a token-forwarding layer for no new capability. |
 | Playwright **CLI** + skills (microsoft/playwright-cli) | Deliberately not installed alongside the MCP: one browser-automation path only. MCP was chosen because OpenCode/AO consume MCP config natively and Code Mode already bounds tool-schema token cost; CLI+skills would double the browser stack and favor a different agent runtime. |
-| OpenAPI/drf-spectacular, Celery, Docker, SonarCloud, Python-lint MCPs | No capability beyond existing tools (repo `openapi-audit` assets, docker CLI, `sonar-scanner` in `~/bin`, `mrp flake8`/pre-commit, LSPs). Per task rule: don't install redundant servers. |
+| OpenAPI/drf-spectacular, Celery, Docker, Python-lint MCPs | No capability beyond existing tools (repo `openapi-audit` assets, docker CLI, `mrp flake8`/pre-commit, LSPs). Per task rule: don't install redundant servers. |
 | Generic "Django ORM inspection" MCPs | Most require a **booted Django app or live DB connection** (contradicts the static-analysis requirement) or only introspect models — conflated with N+1 detection. `orm-lens` does static model analysis *and* genuine static N+1 findings (`nplusone_scan`), no boot, no DB. |
+
+
+## SonarQube Cloud hosted MCP (added to PR #1431)
+
+The SonarQube Cloud-hosted MCP is configured in the committed `opencode.json`:
+
+```json
+"sonarqube": {
+  "type": "remote",
+  "url": "https://api.sonarcloud.io/mcp",
+  "oauth": { "scope": "mcp:tools:read" }
+}
+```
+
+- Authentication is **per user / per OpenCode host**, not stored in Git. Run `opencode mcp auth sonarqube` from the MrMap checkout, then `opencode mcp list` or check `/mcps`.
+- This endpoint targets the SonarQube Cloud global/EU environment. If MrMap is hosted in SonarQube Cloud US, configure a **local override** pointing to `https://api.sonarqube.us/mcp` rather than changing the shared entry.
+- `mcp:tools:read` intentionally excludes write tools. Do not request `mcp:tools:write` or manage issue status through this integration unless explicitly approved.
+- Confirm the OAuth flow works with the installed OpenCode version, then call SonarQube tools to list accessible organizations, locate MrMap's project, retrieve its quality gate, and list several unresolved issues. Do not claim a successful connection before these live calls complete.
+- The hosted service has a reduced tool set compared with the locally hosted official container. If a required capability is missing, document it; do not automatically deploy an additional SonarQube server.
+- Official references: https://github.com/SonarSource/sonarqube-mcp-server and https://mcp.sonarqube.com/ .
+- The new SonarQube entry is remote and needs **no changes** to `scripts/mcp-setup.sh` or the database-specific local override.
 
 ## Troubleshooting
 

@@ -722,7 +722,7 @@ def _seed_chain_condition(child, condition, step, nsmap):
         el.text = value
 
 
-def _new_child(parent, raw_name, tag, element_order=None):
+def _new_child(parent, _raw_name, tag, element_order=None):
     """Create *tag* below *parent* at the position the schema order names."""
     el = etree.SubElement(parent, tag)
     if element_order:

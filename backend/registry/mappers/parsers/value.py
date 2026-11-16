@@ -252,11 +252,11 @@ def iso_bbox_to_multipolygon(mapper, elements=[]):
 # reverse parsers (#1242): the write mapper turns a mapped value back into the
 # external representation the _parser of the same spec reads
 
-def int_to_charset(mapper, value):
+def int_to_charset(_mapper, value):
     return MetadataCharsetChoices(value).label
 
 
-def int_to_update_frequency(mapper, value):
+def int_to_update_frequency(_mapper, value):
     return UpdateFrequencyChoices(value).label
 
 

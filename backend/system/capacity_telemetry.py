@@ -327,7 +327,7 @@ def _flush_if_due(force=False):
     flush_attempts()
 
 
-def flush_attempts(force=True):
+def flush_attempts():
     """Writes the buffered attempts with one insert and trims what is settled.
 
     One ``INSERT ... ON CONFLICT DO NOTHING`` for the whole batch: open
@@ -552,6 +552,6 @@ def flush_on_process_shutdown(**kwargs):
     if not collection_enabled():
         return
     try:
-        flush_attempts(force=True)
+        flush_attempts()
     except Exception as error:
         logger.debug("capacity telemetry: shutdown flush failed: %s", error)

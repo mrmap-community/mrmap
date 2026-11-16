@@ -521,7 +521,7 @@ def _monitoring_history(kind, setting, service_id, window_start):
         incomplete=base.filter(not_reached).count())
 
 
-def _update_history(kind, setting, service_id, window_start):
+def _update_history(kind, _setting, service_id, window_start):
     """What the update jobs of the service answer.
 
     The verified pair of an update is `date_created` to `done_at`; a job
@@ -553,7 +553,7 @@ def _update_history(kind, setting, service_id, window_start):
             status=UpdateJobStatusEnum.ERROR.value).count())
 
 
-def _harvest_history(kind, setting, service_id, window_start):
+def _harvest_history(kind, _setting, service_id, window_start):
     """What the harvesting runs of the catalogue answer.
 
     Completed runs are measured exactly the way #693 measures them - the

@@ -179,6 +179,13 @@ const EditorFieldRow = ({
 // the row component readable without importing the whole namespace
 type EditorFieldLike = EditorSection["groups"][number]["fields"][number];
 
+/** the identity of one rendered group: its ISO element plus the first field
+ * it renders. Both stay what they were while the group renders the same
+ * fields, unlike the position of the group, which moves the moment a card in
+ * front of it is added or dropped */
+const groupKey = (group: EditorSection["groups"][number]): string =>
+  `${group.elementPath ?? "flat"}:${group.fields[0]?.source ?? ""}`;
+
 interface SectionPaneProps {
   section: EditorSection;
   mode: EditorMode;
@@ -200,10 +207,10 @@ const SectionPane = ({
       <Typography variant="h5" component="h2">
         {section.label}
       </Typography>
-      {fields.map((group, index) =>
+      {fields.map((group) =>
         mode === "advanced" && group.elementPath ? (
           <SimpleCard
-            key={`${group.elementPath}:${index}`}
+            key={groupKey(group)}
             title={
               <Stack
                 direction="row"
@@ -237,7 +244,7 @@ const SectionPane = ({
             ))}
           </SimpleCard>
         ) : (
-          <Stack key={`group:${index}`} spacing={2}>
+          <Stack key={groupKey(group)} spacing={2}>
             {group.fields.map((field) => (
               <EditorFieldRow
                 key={field.source}

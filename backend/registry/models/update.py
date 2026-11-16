@@ -757,7 +757,6 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
-    @atomic
     @staticmethod
     def _layer_target(mapping, targets):
         """The layer of the published service this mapping writes onto."""
@@ -789,6 +788,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             batch_size=500,
         )
 
+    @atomic
     def update_layers(self):
         if not self.are_all_layers_updateable():
             return UpdateJobStatusEnum.REVIEW_REQUIRED

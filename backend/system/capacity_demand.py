@@ -281,6 +281,51 @@ def _count_crontab_occurrences(row, lower, upper, one_off, budgets,
     return instants, truncated
 
 
+class _CrontabHolder:
+    """The ``extras.scheduling`` view of a bare crontab row (no task row)."""
+
+    def __init__(self, view):
+        self.crontab = view
+
+
+def walk_crontab(crontab, lower, upper, max_occurrences):
+    """The instants a crontab fires within (lower, upper], bounded walk.
+
+    Public so the cadence check of #1328 can count the occurrences of an
+    **unsaved** `CrontabSchedule` through the very same stepping the
+    snapshot walks saved rows with: the wall-clock grid on steady days, the
+    canonical Beat step (`next_run_after`) where the grid refuses - the
+    offset-changing day included. A proposal is therefore counted by the
+    same Celery arithmetic the dispatch will later obey, and original and
+    alternative are compared over an identical window.
+
+    Args:
+        crontab (CrontabSchedule): the saved or unsaved row to step
+        lower (datetime): the exclusive lower bound the walk starts from
+        upper (datetime): the inclusive upper bound of the window
+        max_occurrences (int): the budget; more ends the walk as truncated
+
+    Returns:
+        tuple: ``(instants, truncated)`` - a truncated count is a partial
+            answer, so a caller verifying counts must treat it as no answer.
+    """
+    schedules = {}
+    schedule = _celery_schedule(crontab, schedules)
+    grids = _DayGrids(schedule, crontab.timezone)
+    effective = _CrontabHolder(_CrontabView(crontab, schedules))
+    instants = []
+    truncated = False
+    t = next_run_after(effective, lower)
+    while t is not None and t <= upper:
+        if len(instants) + 1 > max_occurrences:
+            truncated = True
+            break
+        instants.append(t)
+        nxt = _grid_next(grids, t)
+        t = nxt if nxt is not None else next_run_after(effective, t)
+    return instants, truncated
+
+
 def _count_interval_occurrences(row, lower, upper, one_off, budgets):
     """The dispatches an interval schedule still fires within (lower, upper].
 
@@ -319,7 +364,7 @@ def _count_interval_occurrences(row, lower, upper, one_off, budgets):
     return instants, truncated
 
 
-def _queue_of(row, task_routes, default_queue):
+def queue_of(row, task_routes, default_queue):
     """The queue a dispatch of this row lands on.
 
     ``PeriodicTask.queue`` is what beat hands the producer (it overrides the
@@ -489,7 +534,7 @@ def _accumulate_occurrences(entry, totals, instants, cost, at,
                             bucket_seconds, buckets):
     """Fold one walked row's instants into its queue and the grand totals."""
     for moment in instants:
-        bucket = _bucket_of(moment, at, bucket_seconds, buckets)
+        bucket = bucket_of(moment, at, bucket_seconds, buckets)
         entry["occurrences"] += 1
         entry["histogram_occurrences"][bucket] += 1
         totals["occurrences"] += 1
@@ -587,7 +632,7 @@ def periodic_demand(at, horizon_days=None, costs=None, task_routes=None):
             continue
         walked += 1
 
-        queue = _queue_of(row, task_routes, default_queue)
+        queue = queue_of(row, task_routes, default_queue)
         entry = queues.setdefault(queue, _new_queue_entry(buckets))
         cost, source = _cost_of(row, costs)
         entry["cost_sources"][source if cost is not None else "unknown"] += 1
@@ -647,7 +692,7 @@ def _cost_of(row, costs):
     return None, None
 
 
-def _bucket_of(moment, start, bucket_seconds, buckets):
+def bucket_of(moment, start, bucket_seconds, buckets):
     """The histogram bucket an occurrence belongs to, 0-based.
 
     Bucket 0 covers the partial window from ``start`` to the first bucket

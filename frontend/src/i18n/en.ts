@@ -48,6 +48,12 @@ const en = lodashMerge(
       unknown: "unknown",
       warnings: "Warnings",
       capacity: "Worker capacity",
+      suggestions: "Cadence-preserving alternatives",
+      suggestionApply: "Use",
+      suggestionFirings: "Firings in the checked horizon",
+      suggestionOccupancy: "Expected queue occupancy",
+      suggestionSamples: "Measured task samples (queue)",
+      noSuggestions: "No alternative suggested",
       stale:
         "The form changed since this answer; run the preview again.",
       error: "The preview could not be answered: %{detail}",

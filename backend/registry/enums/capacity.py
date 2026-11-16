@@ -89,3 +89,34 @@ class EstimateGapEnum(TextChoices):
     WORKER_TELEMETRY_MISSING = "worker_telemetry_missing", _(
         "no durable per-task worker events are recorded to attribute "
         "a run's slot occupancy to")
+
+
+class SuggestionGapEnum(TextChoices):
+    """Why the cadence suggestions of #1328 answer nothing, machine readable.
+
+    A refusal is the honest answer of the suggestion engine: it never
+    invents an "empty-looking" minute when the cadence cannot be preserved
+    or the deployment capacity was not verified. The label is the reason an
+    administrator reads; the value is what a screen matches on.
+    """
+
+    NOT_PERIODIC = "not_periodic", _(
+        "the answered schedule is disabled, one-off or carries no crontab: "
+        "there is no periodic cadence whose alternative could be suggested")
+    SCHEDULE_ENDED = "schedule_end_before_horizon", _(
+        "the schedule ends before the evaluated horizon begins: nothing is "
+        "scheduled left to re-time")
+    CADENCE_NO_SPACE = "cadence_no_candidate_space", _(
+        "the minute field of the schedule leaves no cadence-preserving "
+        "minute shift to evaluate")
+    CADENCE_UNVERIFIABLE = "cadence_not_verifiable", _(
+        "no alternative fired the same number of times as the schedule "
+        "within the evaluated horizon, so no cadence-preserving alternative "
+        "could be verified")
+    CAPACITY_UNVERIFIED = "capacity_unverified", _(
+        "the deployment capacity snapshot answers no verified cost and "
+        "worker topology for the queue of this schedule: no reliable "
+        "capacity-based suggestion")
+    NO_MEASURED_IMPROVEMENT = "no_measured_improvement", _(
+        "no cadence-preserving alternative measured a lower expected queue "
+        "occupancy within the evaluated horizon")

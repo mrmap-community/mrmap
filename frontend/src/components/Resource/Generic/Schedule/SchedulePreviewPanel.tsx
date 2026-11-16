@@ -8,7 +8,7 @@ import {
   useTranslate,
   type Identifier,
 } from "react-admin";
-import { useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 
 import { Alert, Button, Stack, Typography } from "@mui/material";
 
@@ -49,9 +49,36 @@ export interface SchedulePreviewAnswer {
   warnings: { code: string; message: string }[];
   capacity: unknown | null;
   capacityReason: string;
+  /** the cadence-preserving alternatives of #1328; empty whenever the
+   * engine refused, and a refusal carries its reason below */
+  suggestions: ScheduleSuggestion[];
+  suggestionsReason: string | null;
+  suggestionsReasonCode: string | null;
+  suggestionsHorizonDays: number | null;
   settingRevision: string | null;
   asOf: string;
   expiresAt: string;
+}
+
+/** One cadence-preserving alternative of #1328: an entire crontab which
+ * fires exactly as often as the answered proposal over the evaluated
+ * horizon - the count was verified for both by the canonical Beat walk -
+ * ranked by the measured worker-seconds of the deployment snapshot. The
+ * numbers are a measured preference, never a claim of a free slot. */
+export interface ScheduleSuggestion {
+  crontab: string;
+  timezone: string;
+  horizonDays: number;
+  horizonStart: string;
+  horizonEnd: string;
+  firingCount: number;
+  queue: string;
+  originalWorkerSeconds: number;
+  expectedWorkerSeconds: number;
+  sampleCount: number;
+  costCoverage: number;
+  snapshotAt: string;
+  reason: string;
 }
 
 export interface SchedulePreviewPanelProps {
@@ -131,6 +158,13 @@ const Metric = ({ label, value }: { label: string; value: ReactNode }) => (
  * occurrences, the wait between them, the durations the service's completed
  * runs measured and the warnings of the proposal (#1327).
  *
+ * Where the deployment's verified capacity data underpins it, the answer
+ * also carries the cadence-preserving alternatives of #1328: entire crontabs
+ * which fire exactly as often as the proposal, with the measured occupancy
+ * they expect. Applying one takes an explicit click - the panel never
+ * touches the form by itself - and where the engine refused, the answer
+ * says why instead of showing an "empty-looking" minute.
+ *
  * Asking is side-effect-free on both sides: the endpoint never persists and
  * this panel never submits the form - the preview is read-only information
  * beside the save, and none of its warnings blocks the save. The button is
@@ -147,6 +181,7 @@ const SchedulePreviewPanel = ({
   const translate = useTranslate();
   const dataProvider = useDataProvider();
   const record = useRecordContext();
+  const form = useFormContext();
 
   const [answer, setAnswer] = useState<SchedulePreviewAnswer | null>(null);
   const [askedDraft, setAskedDraft] = useState<string | null>(null);
@@ -212,6 +247,24 @@ const SchedulePreviewPanel = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Writes one alternative into the crontab field of the form. This is the
+   * only way a suggestion reaches the schedule: an explicit click. What the
+   * form carries beside the five cadence fields - its timezone suffix - is
+   * kept, a suggestion never moves the zone. */
+  const apply = (suggestion: ScheduleSuggestion) => {
+    const source = CRONTAB_SOURCE[operation];
+    const suffix = String(values[source] ?? "")
+      .trim()
+      .split(/\s+/)
+      .slice(5)
+      .join(" ");
+    form?.setValue(
+      source,
+      suffix === "" ? suggestion.crontab : `${suggestion.crontab} ${suffix}`,
+      { shouldDirty: true, shouldTouch: true, shouldValidate: true },
+    );
   };
 
   const unknown = translate("schedulePreview.unknown");
@@ -300,6 +353,66 @@ const SchedulePreviewPanel = ({
                 ))}
               </Stack>
             )}
+            {(answer.suggestions ?? []).length > 0 && (
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary">
+                  {translate("schedulePreview.suggestions")}
+                </Typography>
+                {(answer.suggestions ?? []).map((suggestion) => (
+                  <Alert
+                    key={`${suggestion.crontab}@${suggestion.horizonDays}`}
+                    severity="info"
+                    action={
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => apply(suggestion)}
+                      >
+                        {translate("schedulePreview.suggestionApply")}:{" "}
+                        <Typography component="span" variant="inherit">
+                          {suggestion.crontab}
+                        </Typography>
+                      </Button>
+                    }
+                  >
+                    <Stack spacing={0.25}>
+                      <Metric
+                        label={translate(
+                          "schedulePreview.suggestionFirings",
+                        )}
+                        value={`${suggestion.firingCount} / ${suggestion.horizonDays} d`}
+                      />
+                      <Metric
+                        label={translate(
+                          "schedulePreview.suggestionOccupancy",
+                        )}
+                        value={`${formatSeconds(suggestion.expectedWorkerSeconds)} / ${formatSeconds(suggestion.originalWorkerSeconds)}`}
+                      />
+                      <Metric
+                        label={translate(
+                          "schedulePreview.suggestionSamples",
+                        )}
+                        value={
+                          <>{`${suggestion.sampleCount} (${suggestion.queue})`}</>
+                        }
+                      />
+                      <Typography variant="caption">
+                        {suggestion.reason}
+                      </Typography>
+                    </Stack>
+                  </Alert>
+                ))}
+              </Stack>
+            )}
+            {answer.suggestions.length === 0 &&
+              answer.suggestionsReason !== null && (
+                <Typography variant="caption" color="text.secondary">
+                  {translate("schedulePreview.noSuggestions")}:{" "}
+                  <Typography component="span" variant="inherit" color="inherit">
+                    {answer.suggestionsReason}
+                  </Typography>
+                </Typography>
+              )}
             {answer.capacity === null && (
               <Typography variant="caption" color="text.secondary">
                 {translate("schedulePreview.capacity")}:{" "}

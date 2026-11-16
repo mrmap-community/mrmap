@@ -47,7 +47,9 @@ export interface SchedulePreviewAnswer {
   };
   warningCodes: string[];
   warnings: { code: string; message: string }[];
-  capacity: unknown | null;
+  /** the capacity section of the estimate, in whatever shape the backend
+   * answers it; null is the answer that no capacity was computable */
+  capacity: unknown;
   capacityReason: string;
   settingRevision: string | null;
   asOf: string;
@@ -205,10 +207,10 @@ const SchedulePreviewPanel = ({
       );
       setAnswer(data);
       setAskedDraft(draftKey);
-    } catch (caught) {
+    } catch (error_) {
       setAnswer(null);
       setAskedDraft(null);
-      setError(errorDetail(caught));
+      setError(errorDetail(error_));
     } finally {
       setLoading(false);
     }

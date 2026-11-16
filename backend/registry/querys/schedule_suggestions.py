@@ -165,19 +165,19 @@ class CadenceSuggestion:
         reason (str): the explained preference, advisory wording
     """
 
-    crontab: str = None
-    timezone: str = None
-    horizon_days: int = None
-    horizon_start: datetime = None
-    horizon_end: datetime = None
-    firing_count: int = None
-    queue: str = None
-    original_worker_seconds: float = None
-    expected_worker_seconds: float = None
+    crontab: str | None = None
+    timezone: str | None = None
+    horizon_days: int | None = None
+    horizon_start: datetime | None = None
+    horizon_end: datetime | None = None
+    firing_count: int | None = None
+    queue: str | None = None
+    original_worker_seconds: float | None = None
+    expected_worker_seconds: float | None = None
     sample_count: int = 0
-    cost_coverage: float = None
-    snapshot_at: datetime = None
-    reason: str = None
+    cost_coverage: float | None = None
+    snapshot_at: datetime | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -191,9 +191,9 @@ class SuggestionAnswer:
     """
 
     suggestions: tuple = ()
-    reason_code: str = None
-    reason: str = None
-    horizon_days: int = None
+    reason_code: str | None = None
+    reason: str | None = None
+    horizon_days: int | None = None
 
 
 def _refuse(code, horizon_days=None, detail=None):

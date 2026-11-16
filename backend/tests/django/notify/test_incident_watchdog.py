@@ -20,6 +20,7 @@ from unittest.mock import patch
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
+from MrMap.celery import app
 from notify.enums import (IncidentSeverityEnum, IncidentStatusEnum,
                           ProcessStatusEnum)
 from notify.incident_watchdog import (CONSUMER_CODE_PREFIX, RETRY_WINDOW_CODE,
@@ -46,7 +47,17 @@ def broker(inspect, active=None, reserved=None, scheduled=None,
     all; otherwise every view answers its empty shape unless named, and
     ``active_queues`` defaults to a worker consuming every declared queue
     - the normal state a verdict must never interrupt.
+
+    The answer a previous inspection cached goes first, before any view of
+    this fire is stated: `Control.inspect` is a cached_property, so the
+    first real inspection of the process - which the reporting paths of
+    #1179 are, and their tests run them - stays in the instance dict of the
+    app's control object, where it wins over the class patch. Left there,
+    the watchdog asks a broker it cannot reach, answers "no worker" and
+    publishes nothing, so every test of this module would depend on which
+    test ran before it.
     """
+    app.control.__dict__.pop("inspect", None)
     views = inspect.return_value
     if dark:
         for name in ("active", "reserved", "scheduled", "active_queues"):

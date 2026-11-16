@@ -46,35 +46,24 @@ export type IndicatorState = "ok" | "warning" | "error" | "unknown";
 export const indicatorStates = (record: RaRecord): { key: string; state: IndicatorState }[] => {
   const indicators: { key: string; state: IndicatorState }[] = [];
   // an absent attribute is unknown and never a passed check
-  indicators.push({
-    key: "broken",
-    state: record.isBroken === true ? "error" : record.isBroken === false ? "ok" : "unknown",
-  });
+  let brokenState: IndicatorState = "unknown";
+  if (record.isBroken === true) brokenState = "error";
+  else if (record.isBroken === false) brokenState = "ok";
+  indicators.push({ key: "broken", state: brokenState });
   const quality = record.insufficientQuality;
-  indicators.push({
-    key: "quality",
-    state:
-      typeof quality === "string"
-        ? quality.trim() === ""
-          ? "ok"
-          : "warning"
-        : "unknown",
-  });
+  let qualityState: IndicatorState = "unknown";
+  if (typeof quality === "string") qualityState = quality.trim() === "" ? "ok" : "warning";
+  indicators.push({ key: "quality", state: qualityState });
   // the licence arrives as a json:api relationship, which the data provider may
   // answer unwrapped; a null in any shape is the explicit statement that the
   // record names no licence and an absent value stays unknown. Coverage has its
   // own chip in the result row already and is only counted as a facet here.
   const licence = record.licence as { data?: unknown } | null | undefined;
   const licenceData = licence !== null && typeof licence === "object" && "data" in licence ? licence.data : licence;
-  indicators.push({
-    key: "licence",
-    state:
-      licence === undefined || licenceData === undefined
-        ? "unknown"
-        : licenceData === null
-          ? "warning"
-          : "ok",
-  });
+  let licenceState: IndicatorState = "ok";
+  if (licence === undefined || licenceData === undefined) licenceState = "unknown";
+  else if (licenceData === null) licenceState = "warning";
+  indicators.push({ key: "licence", state: licenceState });
   return indicators;
 };
 

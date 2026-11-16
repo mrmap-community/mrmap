@@ -10,11 +10,9 @@ export const getDuration = (dateCreated: string, dateDone?: string) => {
 export const formatMonitoringRun = (dateCreated: string, dateDone?: string) => {
   const created = new Date(dateCreated);
 
-  const dateLabel = isToday(created)
-    ? "Today"
-    : isYesterday(created)
-      ? "Yesterday"
-      : format(created, "dd.MM.yyyy");
+  let dateLabel = format(created, "dd.MM.yyyy");
+  if (isToday(created)) dateLabel = "Today";
+  else if (isYesterday(created)) dateLabel = "Yesterday";
 
   const timeLabel = format(created, "HH:mm");
 

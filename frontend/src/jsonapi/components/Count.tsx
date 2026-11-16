@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent } from 'react';
+import { useMemo, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-admin';
 
 import ErrorIcon from '@mui/icons-material/Error';
@@ -86,17 +86,14 @@ export const Count = ({
         }
     }, { refetchInterval });
 
-    const body = isPending ? (
-        oneSecondHasPassed ? (
-            <CircularProgress size={14} />
-        ) : (
-            ''
-        )
-    ) : error ? (
-        <ErrorIcon color="error" fontSize="small" titleAccess="error" />
-    ) : (
-        total
-    );
+    let body: ReactNode;
+    if (isPending) {
+        body = oneSecondHasPassed ? <CircularProgress size={14} /> : '';
+    } else if (error) {
+        body = <ErrorIcon color="error" fontSize="small" titleAccess="error" />;
+    } else {
+        body = total;
+    }
 
     return link ? (
         <Link

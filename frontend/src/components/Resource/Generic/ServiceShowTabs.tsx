@@ -54,12 +54,14 @@ const ServiceShowTabs = ({
         }
 
         const tabProps = (tab as ReactElement<ServiceShowTabProps>).props;
-        const path =
-          typeof tabProps.path === "string"
-            ? tabProps.path.replace(/\/\*$/, "")
-            : index > 0
-              ? index
-              : "";
+        let path: string | number;
+        if (typeof tabProps.path === "string") {
+          path = tabProps.path.replace(/\/\*$/, "");
+        } else if (index > 0) {
+          path = index;
+        } else {
+          path = "";
+        }
 
         return cloneElement(tab as ReactElement<ServiceShowTabProps>, {
           context: "header",

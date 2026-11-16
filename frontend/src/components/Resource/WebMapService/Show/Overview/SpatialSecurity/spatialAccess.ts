@@ -21,12 +21,14 @@ export const getSpatialAccess = (
       rule.operations.some((item: RaRecord) => String(item.id) === operation) &&
       rule.securedLayers.some((item: RaRecord) => String(item.id) === layer),
   );
-  const status =
-    !hasServiceRules || matching.some((rule) => rule.allowedArea == null)
-      ? "unrestricted"
-      : matching.length
-        ? "restricted"
-        : "denied";
+  let status: "unrestricted" | "restricted" | "denied";
+  if (!hasServiceRules || matching.some((rule) => rule.allowedArea == null)) {
+    status = "unrestricted";
+  } else if (matching.length) {
+    status = "restricted";
+  } else {
+    status = "denied";
+  }
   const areas: FeatureCollection<Geometry> = {
     type: "FeatureCollection",
     features:

@@ -15,13 +15,18 @@ const SystemStatusIndicator = () => {
     const createPath = useCreatePath();
     if (forbidden) return null;
 
-    const state = translate(`systemStatus.${isPending ? 'checking' : `states.${health}`}`);
+    const stateKey = isPending ? 'checking' : `states.${health}`;
+    const state = translate(`systemStatus.${stateKey}`);
     const label = `${translate('systemStatus.title')}: ${state}`;
-    const icon = health === 'healthy' ? <CheckCircleOutlineIcon />
-        : health === 'down' ? <ErrorOutlineIcon />
-        : health === 'degraded' ? <WarningAmberIcon /> : <HelpOutlineIcon />;
-    const color = health === 'healthy' ? 'success' : health === 'down' ? 'error'
-        : health === 'degraded' ? 'warning' : 'default';
+    let icon = <HelpOutlineIcon />;
+    if (health === 'healthy') icon = <CheckCircleOutlineIcon />;
+    else if (health === 'down') icon = <ErrorOutlineIcon />;
+    else if (health === 'degraded') icon = <WarningAmberIcon />;
+
+    let color: 'success' | 'error' | 'warning' | 'default' = 'default';
+    if (health === 'healthy') color = 'success';
+    else if (health === 'down') color = 'error';
+    else if (health === 'degraded') color = 'warning';
 
     return (
         <Tooltip title={`${label} — ${translate('systemStatus.viewDetails')}`}>

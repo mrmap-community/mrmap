@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   EditButton,
+  type RaRecord,
   ResourceContextProvider,
   SearchInput,
   ShowButton,
@@ -60,62 +61,87 @@ export const ServiceResults = ({ resource }: { resource: string }) => {
             displayedFilters,
           )
         }
-        rowDetails={(record) => (
-          <>
-            <Chip
-              size="small"
-              label={translate(
-                `serviceExplorer.${record.isActive ? "active" : "inactive"}`,
-              )}
-            />
-            <Chip
-              size="small"
-              label={translate("serviceExplorer.hits", {
-                count: record.hits ?? 0,
-              })}
-            />
-            <Chip
-              size="small"
-              label={
-                choices?.find((choice) => choice.id === record.version)?.name ??
-                record.version
-              }
-            />
-            {record.serviceContact?.name && (
-              <Chip size="small" label={record.serviceContact.name} />
-            )}
-            <Chip
-              size="small"
-              label={translate(
-                resource === "CatalogueService"
-                  ? "serviceExplorer.records"
-                  : "serviceExplorer.elements",
-                { count: record.elementCount ?? 0 },
-              )}
-            />
-            {resource !== "CatalogueService" && (
-              <Chip
-                size="small"
-                label={translate(
-                  `serviceExplorer.${record.isSpatialSecured ? "spatialSecured" : record.isSecured ? "secured" : "public"}`,
-                )}
-              />
-            )}
-          </>
-        )}
-        rowActions={(record) => (
-          <>
-            <ShowButton />
-            {record.canEdit && <EditButton />}
-            {resource === "WebMapService" && <WmsViewerButtons />}
-            {resource === "WebFeatureService" && <WfsViewerButtons />}
-            {resource === "CatalogueService" && <HarvestButton />}
-          </>
-        )}
+        rowDetails={serviceRowDetails(translate, choices, resource)}
+        rowActions={serviceRowActions(resource)}
       />
     </>
   );
 };
+
+/** the security state a service row reports about itself */
+const securityKey = (isSpatialSecured?: boolean, isSecured?: boolean): string => {
+  if (isSpatialSecured) return "spatialSecured";
+  if (isSecured) return "secured";
+  return "public";
+};
+
+/** the detail chips a service row shows below itself */
+const serviceRowDetails =
+  (
+    translate: ReturnType<typeof useTranslate>,
+    choices: { id: unknown; name: string }[] | undefined,
+    resource: string,
+  ) => {
+    const rowDetails = (record: RaRecord) => (
+      <>
+        <Chip
+          size="small"
+          label={translate(
+            `serviceExplorer.${record.isActive ? "active" : "inactive"}`,
+          )}
+        />
+        <Chip
+          size="small"
+          label={translate("serviceExplorer.hits", {
+            count: record.hits ?? 0,
+          })}
+        />
+        <Chip
+          size="small"
+          label={
+            choices?.find((choice) => choice.id === record.version)?.name ??
+            record.version
+          }
+        />
+        {record.serviceContact?.name && (
+          <Chip size="small" label={record.serviceContact.name} />
+        )}
+        <Chip
+          size="small"
+          label={translate(
+            resource === "CatalogueService"
+              ? "serviceExplorer.records"
+              : "serviceExplorer.elements",
+            { count: record.elementCount ?? 0 },
+          )}
+        />
+        {resource !== "CatalogueService" && (
+          <Chip
+            size="small"
+            label={translate(
+              `serviceExplorer.${securityKey(record.isSpatialSecured, record.isSecured)}`,
+            )}
+          />
+        )}
+      </>
+    );
+    return rowDetails;
+  };
+
+/** the buttons a service row offers next to itself */
+const serviceRowActions =
+  (resource: string) => {
+    const rowActions = (record: RaRecord) => (
+      <>
+        <ShowButton />
+        {record.canEdit && <EditButton />}
+        {resource === "WebMapService" && <WmsViewerButtons />}
+        {resource === "WebFeatureService" && <WfsViewerButtons />}
+        {resource === "CatalogueService" && <HarvestButton />}
+      </>
+    );
+    return rowActions;
+  };
 
 const ServiceExplorer = () => {
   const translate = useTranslate();

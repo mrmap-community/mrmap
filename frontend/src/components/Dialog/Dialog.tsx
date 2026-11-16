@@ -78,6 +78,13 @@ const DialogShell = ({
   const contentId = `${id}-content`;
   const descriptionId = `${id}-description`;
 
+  let describedById: string | undefined;
+  if (description != null) {
+    describedById = descriptionId;
+  } else if (content != null || children != null) {
+    describedById = contentId;
+  }
+
   /* Edit and Form component needed to be outside the Dialog component.
   Otherwise the scroll feature is broken.
   See: https://github.com/mui/material-ui/issues/13253
@@ -90,13 +97,7 @@ const DialogShell = ({
       maxWidth={"xl"}
       fullWidth
       aria-labelledby={title != null ? titleId : undefined}
-      aria-describedby={
-        description != null
-          ? descriptionId
-          : content != null || children != null
-            ? contentId
-            : undefined
-      }
+      aria-describedby={describedById}
       {...dialogProps}
     >
       {title != null && <DialogTitle id={titleId}>{title}</DialogTitle>}

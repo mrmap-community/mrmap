@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useGetOne, type RaRecord } from 'react-admin';
 
 interface Observation {
@@ -53,13 +53,20 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     const stale = !!error || !data || data.stale || !Number.isFinite(observedAt) ||
         !Number.isFinite(data.staleAfter) || clock - observedAt > data.staleAfter * 1000;
     const states = systemComponents.map(name => data?.components[name]?.status);
-    const health: Health = stale ? 'unknown'
-        : states.includes('down') ? 'down'
-        : states.includes('degraded') ? 'degraded'
-        : states.every(status => status === 'healthy') ? 'healthy' : 'unknown';
+    let health: Health = 'unknown';
+    if (!stale) {
+        if (states.includes('down')) health = 'down';
+        else if (states.includes('degraded')) health = 'degraded';
+        else if (states.every(status => status === 'healthy')) health = 'healthy';
+    }
+
+    const value = useMemo(
+        () => ({ data, isPending, forbidden, stale, health }),
+        [data, isPending, forbidden, stale, health],
+    );
 
     return (
-        <SystemStatusContext.Provider value={{ data, isPending, forbidden, stale, health }}>
+        <SystemStatusContext.Provider value={value}>
             {children}
         </SystemStatusContext.Provider>
     );

@@ -41,8 +41,6 @@ import { DragableTreeItem } from './DragableTreeItem'
 
 export interface LayerTreeProps {
   initialExpanded?: string[],
-  layers?: RaRecord[]
-  featureTypes?: RaRecord[]
 }
 
 export interface LayerProperties {
@@ -135,9 +133,10 @@ const TreeItemLabel = memo(
     }, [owsContext, node])
 
     const isChecked = (operationCode: 'GetMap' | 'GetFeatureInfo') => {
-      const ownStates = getLayerStates(node, operationCode)
-      const states = ownStates.length > 0 ? ownStates
-        : operationCode === 'GetMap' ? layerStates.raster : layerStates.vector
+      let states = getLayerStates(node, operationCode)
+      if (states.length === 0) {
+        states = operationCode === 'GetMap' ? layerStates.raster : layerStates.vector;
+      }
       return states.length > 0 && states.every(state => state.active === true)
     }
 
@@ -241,8 +240,8 @@ const TreeItemLabel = memo(
             title={
               <Stack spacing={0.5}>
                 <Typography variant="caption">{translate('viewerUnsupported.resource')}</Typography>
-                {unsupportedReasons.map((reason, index) => (
-                  <Typography variant="caption" key={index}>
+                {unsupportedReasons.map(reason => (
+                  <Typography variant="caption" key={unsupportedReasonLabel(reason, translate)}>
                     {unsupportedReasonLabel(reason, translate)}
                   </Typography>
                 ))}
@@ -363,12 +362,20 @@ const PinnedTimeline = () => {
   </Paper>, map.getContainer());
 };
 
+interface TreeViewsProps {
+  initialExpanded?: string[],
+  /** the registered WMS layer records, fetched by the screen that renders the tree */
+  layers?: RaRecord[]
+  /** the registered WFS feature type records, fetched by the screen that renders the tree */
+  featureTypes?: RaRecord[]
+}
+
 const TreeViews = (
   { 
     initialExpanded = [],
     layers,
     featureTypes
-  }: LayerTreeProps
+  }: TreeViewsProps
 ) => {
   const { trees, owsContext, setFeatureActive } = useOwsContextBase()
   // the roots of the trees open as they arrive, so an imported service shows its layers right
@@ -464,7 +471,7 @@ const TreeViews = (
             }
           </DragableTreeItem >
         </RecordContextProvider>
-      ) : <Fragment></Fragment>
+      ) : null
   },[layers])
 
   return trees?.map(tree => {
@@ -558,7 +565,7 @@ const LayerTreeContent = ({
     const ids = records.map(d => d.id as Identifier)
     const dataObject: Record<string, RaRecord> = {}
     records.forEach((d: RaRecord) => {
-      if (d && d.id !== undefined) dataObject[d.id as Identifier] = d
+      if (d?.id !== undefined) dataObject[d.id as Identifier] = d
     })
 
     return {

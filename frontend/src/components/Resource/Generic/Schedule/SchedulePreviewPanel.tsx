@@ -257,7 +257,8 @@ const SchedulePreviewPanel = ({
    * kept, a suggestion never moves the zone. */
   const apply = (suggestion: ScheduleSuggestion) => {
     const source = CRONTAB_SOURCE[operation];
-    const suffix = String(values[source] ?? "")
+    const carried = (values[source] as string | undefined) ?? "";
+    const suffix = carried
       .trim()
       .split(/\s+/)
       .slice(5)

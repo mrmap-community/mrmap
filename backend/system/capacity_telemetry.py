@@ -533,7 +533,7 @@ def mark_attempt_revoked(sender=None, request=None, **kwargs):
         if not task_id:
             return
         task_id = str(task_id)[:64]
-        for (entry_task_id, _attempt_no), entry in list(_buffer.items()):
+        for (entry_task_id, _attempt_no), entry in _buffer.items():
             if entry_task_id == task_id and not entry.is_terminal:
                 _mark_terminal(entry, AttemptOutcome.REVOKED.value)
     except Exception as error:

@@ -7,6 +7,9 @@ Feature: WebMapService Add Endpoint
     Background: Setup baseurl, content-type and payload
         Given I use the endpoint http://localhost:8000/api/registry/wms
         Given I set the content type of the request to application/vnd.api+json
+        # since #733 the owner named in the payload must be an organization
+        # of the registering user, so the background makes User1 a member
+        Given User1 is member of the organization "Fixture Organization"
         Given I mock the function "delay" of the module "registry.tasks.service.build_ogc_service" with return value as object
             """
             {

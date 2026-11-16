@@ -31,8 +31,8 @@ const LayerLabel = ({
 }: LayerLabelProps) => {
   const { refetch } = useShowContext();
 
-  const hasIsActive = Object.prototype.hasOwnProperty.call(record, 'isActive');
-  const hasIsSearchable = Object.prototype.hasOwnProperty.call(record, 'isSearchable');
+  const hasIsActive = Object.hasOwn(record, 'isActive');
+  const hasIsSearchable = Object.hasOwn(record, 'isSearchable');
 
 
   const toggleIsActive = useMemo(()=>(

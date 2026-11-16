@@ -19,17 +19,20 @@ work of #727 may change it knowingly:
 * an organization created through the ORM gets its administrators and members
   group, one administering group per role-managed model and the object grants
   of ``handle_organization_creation``,
-* a service created through the ORM gets **nothing**: no resource model stores
-  an owner, so nothing knows which organization a new service belongs to. The
-  receiver says so once in the log instead of reading an ``owner`` attribute
-  which no model has,
+* a service created through the ORM gets the object grants of its owning
+  organization's administering group - since #733 the resource models store an
+  ``owner`` and the receiver reads it,
+* a service which comes into the world without an owner gets **nothing**:
+  nothing knows which organization it belongs to, and the receiver says so
+  once in the log instead of guessing one,
 * the models the bootstrap grants on are answered from guardian tables of their
   own, which is what keeps a grant of an integer primary key out of the table a
   lookup for a service reads.
 
 The last test of ``ServiceCreationTestCase`` is the grant this bootstrap was
-written for. It can only set ownership in memory because ownership is stored
-nowhere; #733 stores it and #734 replaces the grant with the role based one.
+written for. Since #733 stores ownership on the model, that test sets the
+field the way the registration task does; #734 replaces the grant with the
+role based one.
 """
 import importlib
 
@@ -294,9 +297,9 @@ class ServiceCreationTestCase(TestCase):
     def test_a_service_created_through_the_orm_names_the_missing_owner(self):
         """The receiver runs and says out loud that it found no owner
 
-        Reading ``instance.owner`` here raised ``AttributeError`` inside
-        ``post_save``, which every registration would have noticed. The receiver
-        may not depend on a field which no resource model has.
+        The stored owner is nullable - fixtures and plain ORM creates still
+        bring services into the world without one - so the receiver reads the
+        field defensively and may not depend on a value being there.
         """
         with self.assertLogs(LOGGER, level="WARNING") as logged:
             self.build_service("Orphaned").save()
@@ -307,7 +310,7 @@ class ServiceCreationTestCase(TestCase):
         self.assertIn("owner", message)
 
     def test_a_service_created_through_the_orm_has_no_object_grants(self):
-        """Nothing knows which organization a registered service belongs to"""
+        """A service which comes without an owning organization gets nothing"""
         service = self.build_service("Orphaned")
         service.save()
 
@@ -316,8 +319,8 @@ class ServiceCreationTestCase(TestCase):
     def test_the_bootstrap_grants_the_administering_group_of_the_owner(self):
         """The grant this receiver was written for, with ownership set by hand
 
-        No model stores the owner today, so ownership can only be given to the
-        instance in memory. #733 stores it and #734 grants by role instead.
+        #733 stores the owner on the model, so this test sets the field the way
+        the registration task does. #734 grants by role instead.
         """
         Organization.objects.create(name=ORGANIZATION_NAME)
         admins = Group.objects.get(

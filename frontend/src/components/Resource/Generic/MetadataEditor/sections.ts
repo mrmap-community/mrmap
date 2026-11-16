@@ -47,7 +47,7 @@ export const elementPathOf = (isoPath?: string): string | undefined => {
 const groupFields = (fields: EditorField[]): EditorFieldGroup[] => {
   const groups: EditorFieldGroup[] = [];
   for (const field of fields) {
-    const last = groups[groups.length - 1];
+    const last = groups.at(-1);
     if (last?.elementPath && last.elementPath === field.elementPath) {
       last.fields.push(field);
       continue;

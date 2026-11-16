@@ -183,10 +183,21 @@ class RawSourceWriteTests(SourceApiMixin, TestCase):
         self.assertEqual(len(root.xpath(
             "//*[local-name()='MD_Metadata']")), 1)
         # the header is the ROW's: the row's identifier and the stamp THIS
-        # editor save bumped (#1241 AC 2 applies to a raw write as to any)
-        self.assertEqual(
-            values["date_stamp"],
-            timezone.localtime(record.date_stamp).replace(microsecond=0))
+        # editor save bumped (#1241 AC 2 applies to a raw write as to any).
+        # The document renders whole seconds (datetime_to_string) while the
+        # row keeps microseconds, and the save path stamps publish and row in
+        # adjacent now() calls - assert "the stamp of THIS save" as the
+        # monotone statement it is (the document's second is the row's
+        # second, or the one before it), never a byte equality across a
+        # sub-second race. The foreign 2001 stamp of the submitted text
+        # cannot pass this either way.
+        header_stamp = values["date_stamp"]
+        row_stamp = timezone.localtime(record.date_stamp)
+        self.assertLessEqual(header_stamp, row_stamp)
+        self.assertLess(
+            (row_stamp - header_stamp).total_seconds(), 2,
+            f"document stamp {header_stamp} is not this save's row "
+            f"stamp {row_stamp}")
         self.assertTrue(record.is_customized)
 
     def test_content_the_form_does_not_map_serves_as_submitted(self):

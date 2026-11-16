@@ -313,7 +313,30 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "fieldsSection": "Felder",
     "sourceCard": "Herkunft",
     "customizedHint": "Dieser Datensatz wurde von mrmap geschrieben und kann von seiner übernommenen Quelle abweichen.",
-    "relationsReadonly": "Verknüpfungen werden auf der Datensatzseite verwaltet; der Editor zeigt sie schreibgeschützt an."
+    "relationsReadonly": "Verknüpfungen werden auf der Datensatzseite verwaltet; der Editor zeigt sie schreibgeschützt an.",
+    "keywords": {
+      "createHint": "Eingeben, um ein neues Keyword zu erzeugen",
+      "preview": "Geschrieben als"
+    },
+    "contacts": {
+      "reused": "%{smart_count} Datensatz nutzt diesen Kontakt |||| %{smart_count} Datensätze nutzen diesen Kontakt"
+    },
+    "extent": {
+      "bbox": "Begrenzungsrechteck",
+      "polygon": "Polygon",
+      "wgs84Hint": "Die Koordinaten sind WGS84 (EPSG:4326); die Ausdehnung wird genau wie gezeichnet gespeichert."
+    },
+    "timeExtents": {
+      "none": "Keine zeitlichen Ausdehnungen zugeordnet.",
+      "begin": "Beginn",
+      "end": "Ende",
+      "add": "Zeit hinzufügen",
+      "added": "Die Zeit wurde erzeugt und dem Datensatz zugeordnet.",
+      "addFailed": "Die Zeit konnte nicht erzeugt werden.",
+      "remove": "Diese Zeit vom Datensatz lösen",
+      "orderError": "Der Beginn darf nicht nach dem Ende liegen.",
+      "hintUtc": "Eingabe als UTC."
+    }
   },
   recordCreate: {
     "startTitle": "Startpunkt",

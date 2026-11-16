@@ -43,8 +43,9 @@ fields the model maintains itself - the bumped ``date_stamp`` of an editor
 save, the server-assigned ``file_identifier`` - travel with it, and a record
 whose row and document had drifted apart is healed towards the row, which is
 what "search/CSW serve exactly the saved content" means. Fields the write
-mapper can not write back (bounding geometry, time extents, the citation
-identifier - #1242 named them) are refused as WRITES by
+mapper can not write back (the citation identifier - #1242 named it;
+the extent fields of the same TODO list got their reverse parsers in
+#1246) are refused as WRITES by
 :func:`non_roundtrippable_fields` instead of being committed into the row
 while the document silently keeps its old value.
 """
@@ -564,10 +565,10 @@ def non_roundtrippable_fields(model, field_names) -> set:
     The readiness clarification of #1244 (2026-11-12): no enabled public
     write path may leave model fields, ``xml_backup_file`` and the CSW output
     out of sync. A field the configs READ from the document but the write
-    mapper can not WRITE (bounding geometry, time extents, the citation
-    identifier of #1242's TODOs) would do exactly that, so a payload naming
-    one is refused with the same posture as a rule set this version can not
-    evaluate: refusing is the only answer which never serves a stale value.
+    mapper can not WRITE (the citation identifier of #1242's TODOs) would do
+    exactly that, so a payload naming one is refused with the same posture as
+    a rule set this version can not evaluate: refusing is the only answer
+    which never serves a stale value.
 
     Args:
         model: the record model of the serializer

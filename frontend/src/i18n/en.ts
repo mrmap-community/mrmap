@@ -333,7 +333,30 @@ const en = lodashMerge(
       "fieldsSection": "Fields",
       "sourceCard": "Origin",
       "customizedHint": "This record was written by mrmap and may differ from its harvested source.",
-      "relationsReadonly": "Relations are managed on the record's own page; the editor shows them read-only."
+      "relationsReadonly": "Relations are managed on the record's own page; the editor shows them read-only.",
+      "keywords": {
+        "createHint": "Type to create a new keyword",
+        "preview": "Written as"
+      },
+      "contacts": {
+        "reused": "%{smart_count} record uses this contact |||| %{smart_count} records use this contact"
+      },
+      "extent": {
+        "bbox": "Bounding box",
+        "polygon": "Polygon",
+        "wgs84Hint": "Coordinates are WGS84 (EPSG:4326); the extent is stored exactly as drawn."
+      },
+      "timeExtents": {
+        "none": "No temporal extents attached.",
+        "begin": "Begin",
+        "end": "End",
+        "add": "Add time",
+        "added": "The time was created and attached to the record.",
+        "addFailed": "The time could not be created.",
+        "remove": "Detach this time from the record",
+        "orderError": "The begin must not be after the end.",
+        "hintUtc": "Entered as UTC."
+      }
     },
     recordCreate: {
       startTitle: "Start point",

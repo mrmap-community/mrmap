@@ -93,9 +93,9 @@ class _Attempt:
         self.task_name = task_name
         self.queue = queue
         self.worker = worker
-        self.root_id = root_id
-        self.parent_id = parent_id
-        self.periodic_name = periodic_name
+        self.root_id = root_id or ""
+        self.parent_id = parent_id or ""
+        self.periodic_name = periodic_name or ""
         self.published_at = published_at
         self.started_at = started_at
         self.finished_at = None

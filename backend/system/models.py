@@ -96,9 +96,9 @@ class CeleryTaskAttempt(models.Model):
     queue = models.CharField(max_length=64, blank=True, default="")
     worker = models.CharField(max_length=255, blank=True, default="")
 
-    root_id = models.CharField(max_length=64, blank=True, null=True)
-    parent_id = models.CharField(max_length=64, blank=True, null=True)
-    periodic_name = models.CharField(max_length=255, blank=True, null=True)
+    root_id = models.CharField(max_length=64, blank=True, default="")
+    parent_id = models.CharField(max_length=64, blank=True, default="")
+    periodic_name = models.CharField(max_length=255, blank=True, default="")
 
     published_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField()

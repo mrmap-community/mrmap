@@ -11,8 +11,6 @@ on:
     - cron: '17 5 * * *'
   issues:
     types: [opened, edited, closed, reopened, labeled, unlabeled]
-  pull_request:
-    types: [opened, reopened, synchronize, converted_to_draft, ready_for_review, closed, edited]
 
 permissions:
   contents: read
@@ -43,7 +41,7 @@ jobs:
       - name: Sync issue overview
         env:
           GH_TOKEN: ${{ secrets.MRMAP_PROJECTS_TOKEN }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: |
           if [ "$DRY_RUN" = 'true' ]; then
             python3 scripts/sync_project_overview.py

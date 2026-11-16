@@ -83,6 +83,10 @@ naming, including `querys/`.
 
 - Put reusable database selection logic in existing querysets/managers (`registry/querys/`,
   `registry/managers/`, shared mixins in `extras/managers.py`).
+- Give a Celery task (or any background consumer) with more than trivial database access a
+  task-specific read plan on the owning model's QuerySet/Manager, named after its consumer; the
+  naming, ownership and API contract and the reviewer checklist are in
+  `docs/source/development/queryset-manager-conventions.rst`.
 - Prefer ORM filtering and database-side annotations over Python-side processing when practical.
 - Avoid unnecessary queries and N+1 patterns; reuse existing `select_related`/`prefetch_related` helpers.
 - Keep querysets lazy unless evaluation is required.

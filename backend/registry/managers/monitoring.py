@@ -7,6 +7,23 @@ class MonitoringRunQuerySet(models.QuerySet):
     state of the runs based on the results of the probes of the run.
     """
 
+    def for_monitoring_task(self):
+        """Read plan of the ``run_{wms,wfs,csw}_monitoring`` tasks for one run.
+
+        The tasks read the run's own columns and its ``setting``: the setting
+        is what they ask for the probes to dispatch, so it is the only
+        relation joined in. The probe lists themselves stay lazy reads of the
+        setting's two probe relations — they are read once per kind and their
+        relation names differ per concrete model, so they do not belong into a
+        plan shared by all run models (#1397, cf. the monitoring family of
+        ``celery-task-orm-audit``).
+
+        Cardinality: 1 row (the tasks select one run by pk). Every concrete
+        run model resolves the join against its own ``setting`` relation, the
+        base model has no ``setting`` field and answers none.
+        """
+        return self.select_related("setting")
+
     def with_is_successful(self):
         """Annotate the success state of the runs, based on the results of
         the probes of the run.
@@ -42,6 +59,11 @@ class MonitoringRunManager(models.Manager):
 
     def get_queryset(self):
         return MonitoringRunQuerySet(self.model, using=self._db)
+
+    def for_monitoring_task(self):
+        """Queryset of this model's runs with the read plan of the monitoring
+        tasks (see `MonitoringRunQuerySet.for_monitoring_task`)."""
+        return self.get_queryset().for_monitoring_task()
 
     def with_is_successful(self):
         """QuerySet of all runs of this model with annotated success state."""

@@ -1028,7 +1028,8 @@ class XmlMapper:
         try:
             return model_cls(
                 **{k: v for k, v in item.items() if k in names})
-        except Exception as err:  # noqa: BLE001 - reported, not raised
+        # an unbuildable row is reported as a warning, never raised
+        except Exception as err:  # noqa: BLE001
             self.warnings.append(
                 f"can not build {spec.get('_model')} from {item!r}: {err}")
             return None

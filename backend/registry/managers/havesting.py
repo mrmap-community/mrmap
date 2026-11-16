@@ -511,7 +511,33 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         return self.with_run_progress(answer=RUN_PROGRESS_FIELDS)
 
 
-class TemporaryMdMetadataFileManager(models.Manager):
+class TemporaryMdMetadataFileQuerySet(models.QuerySet):
+    """QuerySet of the files a harvesting job left on its backlog."""
+
+    def for_harvest_import(self):
+        """Read plan of the import of one stored file (#1397).
+
+        The import (`registry.tasks.harvest.import_md_metadata_file`) reads
+        the row's own columns plus the job it belongs to, the catalogue
+        service of that job and the service's auth - the chain which builds
+        the client and the mapper for the record. Nothing else is joined:
+        the job's backlog is the table this import drains row by row, and a
+        plan which prefetched it would read the whole backlog per imported
+        file (#1397's do-not-prefetch-the-backlog case, cf. the harvesting
+        family of ``celery-task-orm-audit``).
+
+        The row lock the import takes stays an explicit call-site operation
+        (``select_for_update(of=("self",))``), not part of this plan, so the
+        locking scope of the task remains visible where it runs.
+
+        Cardinality: 1 row per import, three one-to-one joins.
+        """
+        return self.select_related("job", "job__service",
+                                   "job__service__auth")
+
+
+class TemporaryMdMetadataFileManager(
+        models.Manager.from_queryset(TemporaryMdMetadataFileQuerySet)):
 
     def bulk_create_with_task_scheduling(self, objs, *args, **kwargs):
         from notify.models import BackgroundProcess

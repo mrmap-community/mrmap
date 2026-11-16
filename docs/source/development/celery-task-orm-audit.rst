@@ -8,7 +8,8 @@ This page is the static, exhaustive audit of #1388: the matrix of every
 first-party Celery task, every ORM/query access path it reaches (including the
 transitive ones through model methods, ``save()`` overrides, signal receivers
 and helpers), and the owning QuerySet/Manager method each nontrivial path
-should live behind under the conventions of #1397. It is the input consumed
+should live behind under the :ref:`queryset-manager-conventions` established
+by #1397. It is the input consumed
 by #1392 (harvesting, import, registration), #1393 (monitoring, update) and
 #1394 (housekeeping, alerts, security, conformity, notify, system), and the
 checklist #1395 asserts with query-count tests.

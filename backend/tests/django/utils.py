@@ -1,9 +1,12 @@
+import re
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
 from celery import Celery
 from celery.app.trace import build_tracer
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 
 class MockResponse:
@@ -66,3 +69,40 @@ class WorkerRunMixin:
         request = {'id': task_id or self.task_id}
         trace = build_tracer(task.name, task, app=self.app)
         return trace(task_id or self.task_id, (), task_kwargs or {}, request)
+
+
+# every table a statement names in a FROM or JOIN clause - the same shape
+# `tests_query_performance.py` reads out of endpoint queries, here applied to
+# the statement of one queryset
+QUERY_TABLE_RE = re.compile(
+    r'(?:FROM|JOIN)\s+"?([a-zA-Z_0-9]+)"?', re.IGNORECASE)
+
+
+class QueryPlanMixin:
+    """Measure what a call answers and which tables it reads to answer it.
+
+    The query-plan methods of #1397 (`docs/source/development/
+    queryset-manager-conventions.rst`) promise two things a plain equality
+    test cannot see: that the call answers its rows with a stated number of
+    statements no matter how much data has accumulated around the row, and
+    that it reads exactly the relations its plan names. `measure` answers the
+    call and the statements it executed; `tables_read` names the tables of a
+    statement, so a red test points at the table that crept into the plan
+    instead of only complaining about a number. #1395 builds its repeatable
+    query-count and bound tests on this helper.
+    """
+
+    def measure(self, function, *args, **kwargs):
+        """Call ``function`` and answer ``(result, list of SQL statements)``."""
+        with CaptureQueriesContext(connection) as context:
+            result = function(*args, **kwargs)
+        return result, [q['sql'] for q in context.captured_queries]
+
+    @staticmethod
+    def tables_read(*sqls):
+        """The set of tables the given statements read (FROM and JOIN)."""
+        return {
+            table
+            for sql in sqls
+            for table in QUERY_TABLE_RE.findall(sql)
+        }

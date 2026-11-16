@@ -323,7 +323,7 @@ class BackgroundProcess(models.Model):
         related_pk = str(self.pk)
 
         i = app.control.inspect()
-        for queues in list(filter(lambda q: q is not None, (i.active(), i.reserved(), i.scheduled()))):
+        for queues in filter(lambda q: q is not None, (i.active(), i.reserved(), i.scheduled())):
             for task_list in queues.values():
                 for task in task_list:
                     if task.get("kwargs", {}).get("background_process_pk") == related_pk:
@@ -502,12 +502,12 @@ def purge_expired_background_processes(retention_days=None) -> dict:
 
     # the names before the rows: after the cascade there is nothing left
     # pointing at the stored files anymore
-    stored_files = [
-        name for name in BackgroundProcessLog.objects.filter(
+    stored_files = list(
+        BackgroundProcessLog.objects.filter(
             background_process_id__in=pks)
         .exclude(extented_description="")
         .exclude(extented_description=None)
-        .values_list("extented_description", flat=True)]
+        .values_list("extented_description", flat=True))
     # the retained registration work rows (#1263) cascade with the process
     # too; their stored documents are named here before the same cascade
     # takes their rows, so the loop below takes the bytes with them
@@ -525,7 +525,7 @@ def purge_expired_background_processes(retention_days=None) -> dict:
         try:
             default_storage.delete(name)
             files += 1
-        except (FileNotFoundError, OSError):
+        except OSError:
             pass  # the storage does not hold it - which is what this sweep wants
 
     return {"retention_days": days, "purged": purged, "logs": logs,

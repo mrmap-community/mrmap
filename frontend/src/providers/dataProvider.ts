@@ -1,6 +1,4 @@
-import type { JsonApiQueryParams } from '../jsonapi/types/jsonapi';
-
-import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
+import { CreateResult, GetListResult, GetManyResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
 import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
 
 import axios, { AxiosError } from 'axios';
@@ -8,7 +6,7 @@ import jsonpointer from 'jsonpointer';
 import { isEqual } from 'lodash';
 import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Operation, type ParamsArray } from 'openapi-client-axios';
 
-import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi';
+import { type JsonApiDocument, type JsonApiPrimaryData, type JsonApiQueryParams } from '../jsonapi/types/jsonapi';
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils';
 import { getAuthToken } from './authProvider';
 import i18nProvider from './i18nProvider';
@@ -418,12 +416,13 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-      let page = 1
-      let hasNextPage = true
       const pageSize = Math.max(params.ids.length, 1000)
-      const gathered = []
+      const gathered: RaRecord[] = []
 
-      while(hasNextPage){
+      // the pages must arrive one after the other, because the next one is only
+      // asked for once the last one answered that there is one, so the paging
+      // runs as a chain of requests rather than a loop with awaits
+      const gatherPage = async (page: number): Promise<void> => {
         // create a mutable copy and remove `ids` when using related routes
         const queryParams: Partial<GetManyParams> & GetListParams = {
           ...params,
@@ -441,16 +440,18 @@ const dataProvider = ({
           operationId, 
           [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)]
         )
-        
+
         const result = await handleListRequest(httpClient.client, conf, total, systemTime)
         gathered.push(...result.data)
-        hasNextPage = result.pageInfo?.hasNextPage ?? false
-        page += 1
+        if (result.pageInfo?.hasNextPage ?? false) {
+          await gatherPage(page + 1)
+        }
       }
+      await gatherPage(1)
       
-      return  {
-        data: gathered.filter(record => params.ids.includes(record.id))
-      }
+      return {
+        data: gathered.filter(record => params.ids.includes(record.id)),
+      } as GetManyResult
     },
 
     getManyReference: async (resource: string, params: GetManyReferenceParams) => {
@@ -499,38 +500,46 @@ const dataProvider = ({
       await updateResource(resource, params, systemTime),
 
     updateMany: async (resource: string, params: UpdateManyParams) => {
-      // Hacky many update via for loop. JSON:API does not support many update in a single transaction.
+      // JSON:API does not support many update in a single transaction, so the
+      // updates run one after the other and stop at the first failure; the
+      // chained promises keep that order without awaiting in a loop
       const results: Identifier[] = []
 
-      for (const id of params.ids) {
-        await updateResource(
-          resource,
-          {
-            id,
-            data: params.data,
-            previousData: {}
-          },
-          systemTime
-        ).then((data) => {
-          results.push(data.data.id)
-        })
-      }
+      await params.ids.reduce(
+        (chain, id) => chain.then(async () => {
+          const updated = await updateResource(
+            resource,
+            {
+              id,
+              data: params.data,
+              previousData: {}
+            },
+            systemTime
+          )
+          results.push(updated.data.id)
+        }),
+        Promise.resolve()
+      )
 
-      return await Promise.resolve({ data: results })
+      return { data: results }
     },
 
     delete: async (resource: string, params: DeleteParams) =>
       await deleteResource(resource, params),
     deleteMany: async (resource: string, params: DeleteManyParams) => {
+      // the deletes run one after the other and stop at the first failure, like
+      // the updates; the chained promises keep that order without a loop
       const results: Identifier[] = []
-      for (const id of params.ids) {
-        await deleteResource(
-          resource, { id }
-        ).then((data) => {
-          results.push(data.data.id)
-        })
-      }
-      return await Promise.resolve({ data: results })
+
+      await params.ids.reduce(
+        (chain, id) => chain.then(async () => {
+          const deleted = await deleteResource(resource, { id })
+          results.push(deleted.data.id)
+        }),
+        Promise.resolve()
+      )
+
+      return { data: results }
     },
 
     // react-admin's escape hatch for POSTs which are not CRUD: `path` is the
@@ -601,7 +610,7 @@ const dataProvider = ({
     attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
       realtimeSocket = realtimeBus
       if (!realtimeBus) {
-        return await Promise.reject()
+        throw new Error('no realtime socket to attach the message handler to')
       }
       realtimeBus.onmessage = realtimeOnMessage
       // the server does not know the topics of a former or still connecting
@@ -617,7 +626,9 @@ const dataProvider = ({
         total: 0
       }
       
-      for (const target of targets) {
+      // the searches are read-only, so the targets are asked at once; the map
+      // keeps the order of the targets within the results
+      const found = await Promise.all(targets.map(async (target) => {
         const operationId = `list_${target}` 
 
         checkOperationExists(httpClient, operationId)
@@ -625,24 +636,23 @@ const dataProvider = ({
         const parameters = buildQueryParams({filter: {search: query}})
         const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
         
-        await handleListRequest(httpClient.client, conf, total, systemTime).then((data) => {
-          searchResults.data.push(...data.data.map(record => ({
-            id: `${target}-${record.id}`,
-            type: target,
-            url: `/${target}/${record.id}`,
-            content: {
-              id: record.id,
-              label: record.stringRepresentation,
-              description: ''
-            }
+        const data = await handleListRequest(httpClient.client, conf, total, systemTime)
+        return data.data.map(record => ({
+          id: `${target}-${record.id}`,
+          type: target,
+          url: `/${target}/${record.id}`,
+          content: {
+            id: record.id,
+            label: record.stringRepresentation,
+            description: ''
           }
-          )))
-        })
-      }
+        }))
+      }))
 
+      searchResults.data = found.flat()
       searchResults.total = searchResults.data.length
 
-      return await Promise.resolve(searchResults)
+      return searchResults
     }
   }
 }

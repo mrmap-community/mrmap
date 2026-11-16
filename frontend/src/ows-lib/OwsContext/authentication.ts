@@ -1,3 +1,5 @@
+import type { Authentication } from "./types";
+
 import { v4 as uuidv4 } from "uuid";
 
 import { HeaderAuthentication } from "./contrib";
@@ -141,28 +143,63 @@ export const serializeOwsContext = (context: OWSContext): string =>
     2,
   );
 
+/** a capabilities url without the request parameters which ride along with it */
+const canonicalCapabilitiesUrl = (href: string): string => {
+  const url = new URL(href);
+  const keys = [...url.searchParams.keys()] // snapshot: the loop deletes entries, the live iterator would skip
+  for (const key of keys) {
+    if (["SERVICE", "REQUEST", "VERSION"].includes(key.toUpperCase()))
+      url.searchParams.delete(key);
+  }
+  url.searchParams.sort();
+  return url.href;
+};
+
+/** the operations a feature's offerings advertise */
+const featureOperations = (feature: OWSContext["features"][number]): Operation[] =>
+  feature.properties.offerings?.flatMap(
+    (offering) => offering.operations ?? [],
+  ) ?? [];
+
+/** whether one of the operations is the GetCapabilities the legacy entry was written for */
+const answersGetCapabilities = (operations: Operation[], legacyUrl: string): boolean =>
+  operations.some(
+    (operation) =>
+      operation.code === "GetCapabilities" &&
+      canonicalCapabilitiesUrl(operation.href) ===
+        canonicalCapabilitiesUrl(legacyUrl),
+  );
+
+/** stamps every operation which carries no authentication yet: same-origin ones
+ *  directly, the others as missing, which keeps them unauthorized for the viewer */
+const stampOperations = (operations: Operation[], authId: string, origin: string): void => {
+  for (const operation of operations) {
+    if (operation["x-authentication-id"] === undefined)
+      operation["x-authentication-id"] =
+        new URL(operation.href).origin === origin ? authId : `missing:${authId}`;
+  }
+};
+
+/** whether a legacy entry states all three parts of Basic auth as text */
+const isUsableLegacyEntry = (legacy: Authentication): boolean =>
+  Boolean(legacy) &&
+  typeof legacy.getCapabilitiesUrl === "string" &&
+  typeof legacy.username === "string" &&
+  typeof legacy.password === "string";
+
 /** Read the former capabilities-only Basic-auth entries without widening their service scope. */
 export const migrateLegacyAuthentications = (context: OWSContext) => {
-  const canonical = (href: string) => {
-    const url = new URL(href);
-    for (const key of [...url.searchParams.keys()]) {
-      if (["SERVICE", "REQUEST", "VERSION"].includes(key.toUpperCase()))
-        url.searchParams.delete(key);
-    }
-    url.searchParams.sort();
-    return url.href;
-  };
   const legacyEntries = Array.isArray(context.authentications) ? context.authentications : [];
   const migrated = new Set<(typeof legacyEntries)[number]>();
   for (const legacy of legacyEntries) {
+    if (!isUsableLegacyEntry(legacy)) continue;
     try {
-      if (!legacy || typeof legacy.getCapabilitiesUrl !== "string" || typeof legacy.username !== "string" || typeof legacy.password !== "string") continue;
       const origin = new URL(legacy.getCapabilitiesUrl).origin;
       const auth: HeaderAuthentication = {
         id: uuidv4(),
         type: "header",
         name: "Authorization",
-        value: legacy.username && legacy.password ? `Basic ${btoa(`${legacy.username}:${legacy.password}`)}` : "",
+        value: legacy.username && legacy.password ? `Basic ${btoa(legacy.username + ":" + legacy.password)}` : "",
         origin,
       };
       context.authenticationHeaders = [
@@ -171,26 +208,9 @@ export const migrateLegacyAuthentications = (context: OWSContext) => {
       ];
       migrated.add(legacy);
       for (const feature of context.features) {
-        const operations =
-          feature.properties.offerings?.flatMap(
-            (offering) => offering.operations ?? [],
-          ) ?? [];
-        if (
-          !operations.some(
-            (operation) =>
-              operation.code === "GetCapabilities" &&
-              canonical(operation.href) ===
-                canonical(legacy.getCapabilitiesUrl),
-          )
-        )
-          continue;
-        for (const operation of operations) {
-          if (operation["x-authentication-id"] === undefined)
-            operation["x-authentication-id"] =
-              new URL(operation.href).origin === origin
-                ? auth.id
-                : `missing:${auth.id}`;
-        }
+        const operations = featureOperations(feature);
+        if (!answersGetCapabilities(operations, legacy.getCapabilitiesUrl)) continue;
+        stampOperations(operations, auth.id, origin);
       }
     } catch {
       /* Malformed legacy credentials must never authorize an operation. */

@@ -18,9 +18,9 @@ const SelectedRecordContext = createContext<SelectedRecordContextValue | undefin
  * scope themselves to it without a click.
  */
 export const SelectedRecordContextProvider = ({ children, record }: PropsWithChildren<{ record?: RaRecord }>) => {
-  const [selection, setSelectedRecord] = useState<RaRecord>()
+  const [selection, setSelection] = useState<RaRecord>()
   const selectedRecord = record ?? selection
-  const value = useMemo(() => ({ selectedRecord, setSelectedRecord }), [selectedRecord])
+  const value = useMemo(() => ({ selectedRecord, setSelectedRecord: setSelection }), [selectedRecord])
 
   return (
     <SelectedRecordContext.Provider value={value}>

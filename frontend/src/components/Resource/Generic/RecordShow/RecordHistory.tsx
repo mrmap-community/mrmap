@@ -17,7 +17,7 @@ import HistoryList from "../History/HistoryList";
 import { recordHistorySource } from "../History/historySources";
 import { choiceLabel } from "./RecordFields";
 
-const CollectingState = ({ source }: { source: string; label?: string }) => {
+const CollectingState = ({ source }: { source: string }) => {
   const record = useRecordContext();
   const translate = useTranslate();
   const fields = useFieldsForOperation({
@@ -37,7 +37,7 @@ const CollectingState = ({ source }: { source: string; label?: string }) => {
   );
 };
 
-const HarvestCatalogue = ({ source }: { source: string; label?: string }) => (
+const HarvestCatalogue = ({ source }: { source: string }) => (
   <ReferenceField
     source={`${source}.id`}
     reference="HarvestingJob"
@@ -102,19 +102,20 @@ const RecordHistory = ({ harvests = false }: { harvests?: boolean }) => {
                   "historyDate",
                 ].includes(field.props.source),
               )
-              .map((field) =>
-                createElement(
-                  field.props.source === "collectingState"
-                    ? CollectingState
-                    : field.props.source.endsWith("Duration")
-                      ? TextField
-                      : field.component,
-                  { ...field.props, key: field.props.source },
-                ),
-              )}
+              .map((field) => {
+                let component = field.component;
+                if (field.props.source === "collectingState") {
+                  component = CollectingState;
+                } else if (field.props.source.endsWith("Duration")) {
+                  component = TextField;
+                }
+                return createElement(component, {
+                  ...field.props,
+                  key: field.props.source,
+                });
+              })}
             <HarvestCatalogue
               source="harvestingJob"
-              label="recordShow.catalogue"
             />
           </Datagrid>
         }

@@ -38,7 +38,6 @@ class CatalogueServiceClient(OgcClient):
     def queryable_type_name(self):
         """Returns the first matching string of the constraints list which matches the name 'type'"""
         prog = re.compile(r'(\w+:type$)|(^type$)')
-        # TODO
         if any((_match := prog.match(item.text)) for item in self.get_records_constraints):
             return _match.group(0)
         else:

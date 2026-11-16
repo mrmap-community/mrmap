@@ -40,7 +40,7 @@ describe('wfsToOWSResources', () => {
             expect(root.getWfsOffering()?.version).toBe('2.0.0')
             expect(resources.slice(1).every((resource, index) =>
                 resource.properties.folder === `/0/${index}`)).toBe(true)
-            expect(resources.length).toBe(capabilities.featureTypes.length + 1)
+            expect(resources).toHaveLength(capabilities.featureTypes.length + 1)
         })
 
         it('preserves qualified type, namespace, bounds, version and CRS on the resource', () => {
@@ -133,7 +133,7 @@ describe('wfsToOWSResources', () => {
         const features = featuresByName(capabilities)
         const resources = wfsToOWSResources(GET_CAPABILITIES_HREF, capabilities)
 
-        expect(resources.length).toBe(3)
+        expect(resources).toHaveLength(3)
         expect(features.get('alpha:parcels')?.getWfsOffering()?.namespace)
             .toBe('https://alpha.example.test/schema')
         expect(features.get('beta:parcels')?.getWfsOffering()?.namespace)
@@ -197,14 +197,14 @@ describe('OWSContext.appendWfs', () => {
         const restored = OWSContext.fromPlainObject(exported.context!)
         const restoredLeaf = restored.findResourceByFolder(wfsLeaf.properties.folder)
 
-        expect(restored.features.length).toBe(context.features.length)
+        expect(restored.features).toHaveLength(context.features.length)
         expect(restored.bbox).toEqual(context.bbox)
         expect(restoredLeaf?.properties.active).toBe(true)
         expect(restoredLeaf?.bbox).toEqual(wfsLeaf.bbox)
         expect(restoredLeaf?.getWfsOperationByCode('GetFeature')?.href)
             .toBe(wfsLeaf.getWfsOperationByCode('GetFeature')?.href)
-        expect(restored.features.filter(feature => feature.getWmsOffering() !== undefined).length)
-            .toBe(context.features.filter(feature => feature.getWmsOffering() !== undefined).length)
+        expect(restored.features.filter(feature => feature.getWmsOffering() !== undefined))
+            .toHaveLength(context.features.filter(feature => feature.getWmsOffering() !== undefined).length)
     })
 
     it('normalizes legacy WFS offerings and keeps unsupported alternatives losslessly', () => {
@@ -238,8 +238,8 @@ describe('OWSContext.appendWfs', () => {
         expect(result.hasErrors).toBe(false)
         // one warning for the unknown offering, one for the unknown operation; nothing is dropped
         expect(result.issues
-            .filter(issue => issue.severity === 'warning' && issue.path.includes('offerings')).length)
-            .toBe(2)
+            .filter(issue => issue.severity === 'warning' && issue.path.includes('offerings')))
+            .toHaveLength(2)
         expect(result.context?.features[0].properties.offerings?.[0].operations?.length).toBe(2)
     })
 })
@@ -259,7 +259,7 @@ describe('WFS request descriptors are separate from the WMS activation', () => {
         const context = buildMixedContext()
         const descriptors = context.getWfsFeatureRequests()
 
-        expect(descriptors.length).toBe(2)
+        expect(descriptors).toHaveLength(2)
         const urls = descriptors.map(descriptor => new URL(descriptor.operation.href))
         expect(urls.map(url => url.origin + url.pathname).sort()).toEqual([
             'https://example.test/wfs',
@@ -273,13 +273,13 @@ describe('WFS request descriptors are separate from the WMS activation', () => {
         context.activateFeature('/0/0', false)
         context.activateFeature('/1', false)
 
-        expect(context.getWfsFeatureRequests().length).toBe(0)
+        expect(context.getWfsFeatureRequests()).toHaveLength(0)
 
         const groupOnly = new OWSContext()
         groupOnly.appendWfs('https://example.test/wfs', minimalCapabilities)
         groupOnly.activateFeature('/0', true)
         // activating the whole tree activates the group node too, which has no GetFeature operation
-        expect(groupOnly.getWfsFeatureRequests().length).toBe(1)
+        expect(groupOnly.getWfsFeatureRequests()).toHaveLength(1)
     })
 
     it('leaves the WMS optimized URLs untouched for WFS features', () => {

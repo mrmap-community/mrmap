@@ -14,7 +14,7 @@ The stored files of these tests are rows without content: the import below the
 to the media root of them.
 """
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -118,7 +118,7 @@ class ImportProgressBatcherTest(ProgressMixin, TestCase):
         with override_settings(HARVEST_IMPORT_PROGRESS_STEPS=1000,
                                HARVEST_IMPORT_PROGRESS_SECONDS=30), \
                 patch("registry.tasks.harvest._import_progress_clock",
-                      new=lambda: clock[0]):
+                      new=Mock(side_effect=lambda: clock[0])):
             credit_import_progress(self.pk)
             self.assertEqual(0, self._process(self.job).done_steps)
 

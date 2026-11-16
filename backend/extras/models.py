@@ -18,7 +18,7 @@ class HistoricalRecordMixin:
                 del self.skip_history_when_saving
         return ret
 
-# TODO: use get_current_timezone() to get the current timezone info for template purpose? #from django.utils.timezone import get_current_timezone
+# FUTURE: use get_current_timezone() to get the current timezone info for template purpose? #from django.utils.timezone import get_current_timezone
 
 
 class AdditionalTimeFieldsHistoricalModel(Model):

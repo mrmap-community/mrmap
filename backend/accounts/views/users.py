@@ -38,7 +38,7 @@ class UserViewSetMixin:
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
         new_data = response.data
-        # FIXME: password attribute is still present in the rendered data, but with value null
+        # FUTURE: password attribute is still present in the rendered data, but with value null
         new_data.pop('password')
         return Response(new_data, status=response.status_code, headers=response.headers)
 

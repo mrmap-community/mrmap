@@ -79,6 +79,25 @@ const AccessRules = () => {
  * Feature type rows next to the read oriented inspection of the clicked row,
  * so a user can read a feature type before opening its editor.
  */
+/** the buttons read their service from the record context, so the record they
+ *  open is named here rather than taken from whatever screen renders this tab */
+const featureTypeViewerActions = (service?: RaRecord) => {
+  const viewerActions = (featureType?: RaRecord) => (
+      <RecordContextProvider value={service}>
+        <WfsViewerButtons
+          key={String(featureType?.id)}
+          element={featureType}
+          size="small"
+        />
+      </RecordContextProvider>
+  );
+  return viewerActions;
+};
+
+const featureTypeHistory = (featureType?: RaRecord) => (
+  <ElementHistory resource="FeatureType" record={featureType} />
+);
+
 function FeatureTypesTab() {
   const record = useRecordContext();
   const [selected, setSelected] = useState<RaRecord>();
@@ -97,18 +116,8 @@ function FeatureTypesTab() {
           id={selected?.id}
           serviceResource="WebFeatureService"
           serviceId={record?.id}
-          viewerActions={(featureType) => (
-            // the buttons read their service from the record context, so the record they open is
-            // named here rather than taken from whatever screen renders this tab
-            <RecordContextProvider value={record}>
-              <WfsViewerButtons
-                key={String(featureType?.id)}
-                element={featureType}
-                size="small"
-              />
-            </RecordContextProvider>
-          )}
-          history={(featureType) => <ElementHistory resource="FeatureType" record={featureType} />}
+          viewerActions={featureTypeViewerActions(record)}
+          history={featureTypeHistory}
         />
       </Grid>
     </Grid>

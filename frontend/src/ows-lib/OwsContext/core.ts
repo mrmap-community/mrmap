@@ -36,9 +36,9 @@ export class OWSResource implements IOWSResource {
   ) {
     this.properties = normalizeResourceProperties(properties)
     this.id = id
-    this.bbox = bbox ? JSON.parse(JSON.stringify(bbox)) : undefined
+    this.bbox = bbox ? structuredClone(bbox) : undefined
     this.type = 'Feature'
-    this.geometry = geometry ? JSON.parse(JSON.stringify(geometry)) : undefined
+    this.geometry = geometry ? structuredClone(geometry) : undefined
     this.children = children ?? []
   }
 
@@ -148,7 +148,7 @@ export class OWSContext implements IOWSContext {
     this.rebuildFolderLookup()
     this.bbox = bbox;
     // every document the viewer creates references the core requirements class of the standard
-    this.properties = ensureCoreProfile(JSON.parse(JSON.stringify(properties)));
+    this.properties = ensureCoreProfile(structuredClone(properties));
   }
   [name: string]: unknown;
 
@@ -239,7 +239,7 @@ export class OWSContext implements IOWSContext {
 
   getNextRootId(): number {
     let nextRootId = 0
-    this.features.filter(feature => feature.properties.folder && feature.properties.folder.split('/').length === 2).forEach(rootNode => {
+    this.features.filter(feature => feature.properties.folder?.split('/').length === 2).forEach(rootNode => {
       const rootFolder = Number.parseInt(rootNode.properties.folder?.split('/')[1] ?? '-1')
       if (rootFolder === nextRootId) {
         nextRootId = rootFolder + 1
@@ -248,38 +248,101 @@ export class OWSContext implements IOWSContext {
     return nextRootId
   }
 
-  isMoveNeeded(source: OWSResource, target: OWSResource, position: Position) {
-    if (target.properties.folder === undefined ||
-      source.properties.folder === undefined ||
-      source === target
-    ) return false
-
+  /** the requested move changes nothing: the source already sits at the very position */
+  private isAlreadyInPlace(source: OWSResource, target: OWSResource, position: Position): boolean {
     if (source.isSiblingOf(target)){
       if (position === Position.left && source.getFolderIndex() === target.getFolderIndex() -1){
         //console.log('no move needed. source is left sibling of target')
-        return false
+        return true
       }
       if (position === Position.right && source.getFolderIndex() - 1 === target.getFolderIndex()){
         //console.log('no move needed. source is right sibling of target.')
-        return false
+        return true
       }
     }
 
     if (position === Position.firstChild && source.isChildOf(target)) {
       if (source.getFolderIndex() === 0){
         //console.log('no move needed. source is the first child of target')
-        return false
+        return true
       } 
     }
 
     if (position === Position.lastChild && source.isChildOf(target)) {
       if (source.getFolderIndex() === this.getLastChildFoderIndex(target)){
         //console.log('no move needed. source is the last child of target')
-        return false
+        return true
       } 
     }
 
+    return false
+  }
+
+  isMoveNeeded(source: OWSResource, target: OWSResource, position: Position) {
+    if (target.properties.folder === undefined ||
+      source.properties.folder === undefined ||
+      source === target
+    ) return false
+
+    if (this.isAlreadyInPlace(source, target, position)) return false
+
     return true
+  }
+
+  /** where the run of right siblings continues: behind the last of them, or behind the target */
+  private nextRightStart(rightSiblings: OWSResource[], target: OWSResource): number {
+    return rightSiblings[0] !== undefined
+      ? rightSiblings[0].getFolderIndex() + 1
+      : this.getLastChildFoderIndex(target) + 1
+  }
+
+  /** inserts the source subtree left of the target, making space in the sibling run;
+   *  answers whether the structure was left untouched */
+  private placeLeftOfTarget(target: OWSResource, currentSourceSubtree: OWSResource[]): boolean {
+    const currentTargetRightSiblingsIncludeSelf = this.getRightSiblingsOf(target, true, true).filter(feature => !currentSourceSubtree.includes(feature))
+    const targetIndex = target.getFolderIndex()
+    const newStartIndex = targetIndex || 0
+
+    // move source subtrees to target position
+    updateFolders(currentSourceSubtree, target.getParentFolder() ?? '', newStartIndex)
+
+    // shift all right siblings of target one to the right (make some space for source tree to insert it)
+    const nextRightStartIndex = this.nextRightStart(currentTargetRightSiblingsIncludeSelf, target)
+    if (nextRightStartIndex === undefined) return true
+    updateFolders(currentTargetRightSiblingsIncludeSelf, target.getParentFolder() ?? '', nextRightStartIndex)
+    return false
+  }
+
+  /** inserts the source subtree right of the target, making space in the sibling run
+   *  and closing the gap it leaves behind; answers whether nothing was to do */
+  private placeRightOfTarget(
+    source: OWSResource,
+    target: OWSResource,
+    currentSourceSubtree: OWSResource[],
+    currentSourceSiblingtrees: OWSResource[],
+    currentSourceParentFolder: string
+  ): boolean {
+    const currentTargetRightSiblings = this.getRightSiblingsOf(target, false, true).filter(feature => {
+      return !currentSourceSubtree.includes(feature)
+    })
+    const targetIndex = target.getFolderIndex()
+    const newStartIndex = targetIndex ? targetIndex + 1 : 1
+
+    if (currentTargetRightSiblings[0] && currentTargetRightSiblings[0].getFolderIndex() - 1 === newStartIndex) return true // same position... nothing to do here
+
+    // shift all right siblings of target one to the right (make some space for source tree to insert it)
+    const nextRightStartIndex = this.nextRightStart(currentTargetRightSiblings, target)
+    if (nextRightStartIndex === undefined) return true
+    updateFolders(currentTargetRightSiblings, target.getParentFolder() ?? '', nextRightStartIndex)
+
+    // shift source siblings one to the left (only needed if the source is removed as sibling)
+    if (!source.isSiblingOf(target)) {
+      updateFolders(currentSourceSiblingtrees, currentSourceParentFolder,)
+    }
+
+    // move source tree to new position
+    updateFolders(currentSourceSubtree, target.getParentFolder() ?? '', newStartIndex)
+    return false
   }
 
   moveFeature(source: OWSResource, target: OWSResource, position: Position = Position.lastChild): OWSResource[] {
@@ -295,45 +358,15 @@ export class OWSContext implements IOWSContext {
     const currentSourceSiblingtrees = this.getSiblingsOf(source, false, true)
 
     const currentSourceParentFolder = source.getParentFolder() ?? '/'
-    const currentSourceFolders = currentSourceSubtree.map(node => node.properties.folder).filter(folder => folder !== undefined)
+    const currentSourceFolders = new Set(currentSourceSubtree.map(node => node.properties.folder).filter(folder => folder !== undefined))
 
-    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => descendant.properties.folder && !currentSourceFolders.includes(descendant.properties.folder))
-
-    const currentTargetRightSiblingsIncludeSelf = this.getRightSiblingsOf(target, true, true).filter(feature => !currentSourceSubtree.includes(feature))
-    const currentTargetRightSiblings = this.getRightSiblingsOf(target, false, true).filter(feature => {
-      return !currentSourceSubtree.includes(feature)
-    })
+    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => descendant.properties.folder && !currentSourceFolders.has(descendant.properties.folder))
 
     if (position === Position.left) {
-      const targetIndex = target.getFolderIndex()
-      const newStartIndex = targetIndex || 0
-      
-      // move source subtrees to target position
-      updateFolders(currentSourceSubtree, target.getParentFolder() ?? '', newStartIndex)
-
-      // shift all right siblings of target one to the right (make some space for source tree to insert it)
-      const nextRightStartIndex = currentTargetRightSiblingsIncludeSelf[0] !== undefined ? currentTargetRightSiblingsIncludeSelf[0].getFolderIndex() + 1 : this.getLastChildFoderIndex(target) + 1
-      if (nextRightStartIndex === undefined) return this.features
-      updateFolders(currentTargetRightSiblingsIncludeSelf, target.getParentFolder() ?? '', nextRightStartIndex)
+      if (this.placeLeftOfTarget(target, currentSourceSubtree)) return this.features
 
     } else if (position === Position.right) {
-      const targetIndex = target.getFolderIndex()
-      const newStartIndex = targetIndex ? targetIndex + 1 : 1
-
-      if (currentTargetRightSiblings[0] && currentTargetRightSiblings[0].getFolderIndex() - 1 === newStartIndex) return this.features // same position... nothing to do here
-
-      // shift all right siblings of target one to the right (make some space for source tree to insert it)
-      const nextRightStartIndex = currentTargetRightSiblings[0] !== undefined ? currentTargetRightSiblings[0].getFolderIndex() + 1 : this.getLastChildFoderIndex(target) + 1
-      if (nextRightStartIndex === undefined) return this.features
-      updateFolders(currentTargetRightSiblings, target.getParentFolder() ?? '', nextRightStartIndex)
-
-      // shift source siblings one to the left (only needed if the source is removed as sibling)
-      if (!source.isSiblingOf(target)) {
-        updateFolders(currentSourceSiblingtrees, currentSourceParentFolder,)
-      }
-
-      // move source tree to new position
-      updateFolders(currentSourceSubtree, target.getParentFolder() ?? '', newStartIndex)
+      if (this.placeRightOfTarget(source, target, currentSourceSubtree, currentSourceSiblingtrees, currentSourceParentFolder)) return this.features
 
     } else if (position === Position.lastChild) {
       // shift siblings to setup an ascending folder structure without spaces
@@ -438,7 +471,7 @@ export class OWSContext implements IOWSContext {
   getIndeterminateStateOf(target: OWSResource) {
     if (this.properties.active === true) return false
     const descendants = this.getDescandantsOf(target)
-    return descendants.length > 0 && descendants.find(feature => feature.properties.active === true) !== undefined
+    return descendants.length > 0 && descendants.some(feature => feature.properties.active === true)
   }
 
   isLeafNode(target: OWSResource) {
@@ -448,6 +481,22 @@ export class OWSContext implements IOWSContext {
 
   getLeafNodes() {
     return this.features.filter(feature => this.isLeafNode(feature))
+  }
+
+  /** whether the feature continues the sibling run of one of the previous feature's ancestors */
+  private continuesAParentsSiblings(previousFeature: OWSResource, feature: OWSResource): boolean {
+    const parentFolder = previousFeature.getParentFolder()
+    const pathParts = parentFolder?.split('/').filter(part => part !== '');
+
+    // Iteriere über die Teile des Pfads
+    for (let i = pathParts?.length ?? 0; i > 0; i--) {
+      const partialPath = '/' + pathParts?.slice(0, i).join('/')
+      const parentResource = this.findResourceByFolder(partialPath)
+      if (parentResource && feature.isSiblingOf(parentResource)) {
+        return true
+      }
+    }
+    return false
   }
 
   validateFolderStructure(): boolean {
@@ -478,22 +527,7 @@ export class OWSContext implements IOWSContext {
       }
 
       // last but not least, it can only be the next sibling of any parent
-      const parentFolder = previousFeature.getParentFolder()
-      const pathParts = parentFolder?.split('/').filter(part => part !== '');
-
-      let siblingFound = false
-
-      // Iteriere über die Teile des Pfads
-      for (let i = pathParts?.length ?? 0; i > 0; i--) {
-        const partialPath = '/' + pathParts?.slice(0, i).join('/')
-        const parentResource = this.findResourceByFolder(partialPath)
-        if (parentResource && feature.isSiblingOf(parentResource)) {
-          siblingFound = true
-          break
-        }
-      }
-
-      if (!siblingFound) {
+      if (!this.continuesAParentsSiblings(previousFeature, feature)) {
         throw new Error(`feature with index ${index} has no previous sibling.`)
       }
       previousFeature = feature
@@ -526,7 +560,7 @@ export class OWSContext implements IOWSContext {
 
   getSiblingsOf(target: OWSResource, include_self = false, withSubtrees = false) {
     const parentFolder = target.getParentFolder()?.replace('/', '\\/') ?? ''
-    const regex = withSubtrees ? `^${parentFolder}(\\/\\d+)+$` : `^${parentFolder}(\\/\\d+){1}$`
+    const regex = withSubtrees ? String.raw`^${parentFolder}(\/\d+)+$` : String.raw`^${parentFolder}(\/\d+){1}$`
 
     return this.features.filter(node => {
       if (!include_self) {
@@ -582,7 +616,7 @@ export class OWSContext implements IOWSContext {
   removeFeature(target: OWSResource) {
     const targetSubtree = this.getDescandantsOf(target, true)
     const start = this.features.indexOf(targetSubtree[0])
-    const stop = this.features.indexOf(targetSubtree[targetSubtree.length - 1])
+    const stop = this.features.indexOf(targetSubtree.at(-1) as OWSResource)
 
     this.features.splice(start, stop - start + 1)
 

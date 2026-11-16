@@ -107,9 +107,6 @@ class SystemView(generics.RetrieveAPIView):
 
     serializer_class = SystemSerializer
 
-    def check_docker_container(self):
-        pass
-
     def get_object(self):
 
         # System stats

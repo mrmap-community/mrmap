@@ -37,25 +37,24 @@ const InitialFromOwsContextDialog = ({open, setOpen}: InitialFromOwsContextDialo
             event.preventDefault();
             const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
             const formJson = Object.fromEntries(formData.entries());
-            const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
+            const rawUrl = formJson.getCapabilitiesUrl;
+            const getCapabilitiesUrl = typeof rawUrl === "string" ? rawUrl : "";
             initialFromOwsContext(getCapabilitiesUrl)
             setOpen(false)
           },
         } }}
       >
-        <Fragment>
-          <TextField
-            autoFocus
-            required
-            margin="dense"
-            id="getCapabilitiesUrl"
-            name="getCapabilitiesUrl"
-            label="Get Capabilities Url"
-            type="url"
-            fullWidth
-            variant="standard"
-          />
-        </Fragment>
+        <TextField
+          autoFocus
+          required
+          margin="dense"
+          id="getCapabilitiesUrl"
+          name="getCapabilitiesUrl"
+          label="Get Capabilities Url"
+          type="url"
+          fullWidth
+          variant="standard"
+        />
       </ContextBasedDialog>
   );
 }

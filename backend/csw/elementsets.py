@@ -263,7 +263,7 @@ def _prune_children(element, path, keep_paths) -> bool:
     a child on the way to one is pruned in turn, a child on no way to one goes.
     """
     kept = False
-    for child in list(element):
+    for child in element[:]:
         if not isinstance(child.tag, str):
             continue  # a comment or processing instruction of the document
         child_path = path + (etree.QName(child).localname,)

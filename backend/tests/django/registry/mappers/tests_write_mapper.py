@@ -223,7 +223,8 @@ class CreationTest(WriteMapperTest):
     def test_access_constraints_seeds_its_restriction_code(self):
         raw = self.read("gdi-de-04.xml")
         records = self.extract(raw)
-        self.assertIsNone(records[0]["values"]["access_constraints"])
+        # A missing text node keeps the non-null model field's empty default.
+        self.assertEqual(records[0]["values"]["access_constraints"], "")
         records[0]["values"]["access_constraints"] = "Zugang beschränkt"
         out, _ = self.write(raw, records)
 

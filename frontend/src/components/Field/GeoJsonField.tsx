@@ -18,6 +18,7 @@ const GeoJsonField = ({ ...props }: TextFieldProps): ReactNode => {
 
   const value = useFieldValue(props);
   const { className, emptyText, ...rest } = props;
+  const emptyValue = emptyText ? translate(emptyText, { _: emptyText }) : null;
   return (
     <Box sx={{ width: "100%" }}>
       <Typography
@@ -26,10 +27,7 @@ const GeoJsonField = ({ ...props }: TextFieldProps): ReactNode => {
         className={className}
         {...sanitizeFieldRestProps(rest)}
       >
-        {value != null
-          ? JSON.stringify(value)
-          : value ||
-            (emptyText ? translate(emptyText, { _: emptyText }) : null)}
+        {value != null ? JSON.stringify(value) : value || emptyValue}
       </Typography>
       <GeoJsonMap id={`${record?.id}-mapcontainer`}>
         <FeatureGroupEditor geoJson={value} editable={false} />

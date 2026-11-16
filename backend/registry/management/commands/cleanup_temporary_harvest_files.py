@@ -60,19 +60,25 @@ class Command(BaseCommand):
             "command can be interrupted and re-run whenever")
 
     def handle(self, *args, **options):
-        # the tasks module carries the cleanup; importing models at module
-        # level is what its import cycle punishes, so this speaks on their
-        # behalf like resume_harvesting_job does
-        from registry.models.harvest import (HarvestingJob,
-                                             TemporaryMdMetadataFile)
-        from registry.tasks.harvest import cleanup_harvesting_job_temp_files
-
         if not options["dry_run"] and not options["confirm"]:
             self.stderr.write(self.style.ERROR(
                 "this deletes rows and the media files they reference. Run "
                 "with --dry-run to see the scope, or with --confirm to "
                 "delete"))
             raise SystemExit(1)
+
+        jobs = self._select_jobs(options)
+
+        if options["dry_run"]:
+            self._report_dry_run(jobs)
+            return
+
+        self._clean_jobs(jobs, options)
+
+    def _select_jobs(self, options):
+        """The terminal jobs this run is about: the named ones, or all of
+        the age window."""
+        from registry.models.harvest import HarvestingJob
 
         jobs = HarvestingJob.objects.filter(
             phase__in=[HarvestingPhaseEnum.COMPLETED.value,
@@ -87,40 +93,53 @@ class Command(BaseCommand):
                     "(it may run, may not exist, or is already cleaned up "
                     "to zero rows and an empty directory)"))
         else:
-            from django.conf import settings
-            if options["older_than"] is not None:
-                days = options["older_than"]
-            else:
-                # the margin of the scan and the retention window of the pile
-                # are the same promise to the operator, so the scan keeps the
-                # longer of the two and a deployment which set a window is not
-                # undercut by the command it runs to bound that very pile
-                # (#1295)
-                days = max(
-                    getattr(settings,
-                            "HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", 1),
-                    getattr(settings, "HARVEST_TEMP_FILE_RETENTION_DAYS", 0))
-            cutoff = timezone.now() - timedelta(days=max(0, days))
-            jobs = jobs.filter(done_at__lt=cutoff)
+            jobs = jobs.filter(done_at__lt=self._cutoff(options))
 
-        jobs = jobs.order_by("pk")
+        return jobs.order_by("pk")
 
-        if options["dry_run"]:
-            total_rows = 0
-            for job in jobs:
-                rows = TemporaryMdMetadataFile.objects.filter(
-                    job_id=job.pk).count()
-                if not rows:
-                    continue
-                total_rows += rows
-                self.stdout.write(
-                    f"job {job.pk} ({HarvestingPhaseEnum(job.phase).label}): "
-                    f"{rows} stored records would be deleted")
-            self.stdout.write(self.style.MIGRATE_HEADING(
-                f"{jobs.count()} terminal jobs are in scope, "
-                f"{total_rows} stored records would be deleted "
-                "(nothing was)"))
-            return
+    @staticmethod
+    def _cutoff(options):
+        from django.conf import settings
+        if options["older_than"] is not None:
+            days = options["older_than"]
+        else:
+            # the margin of the scan and the retention window of the pile
+            # are the same promise to the operator, so the scan keeps the
+            # longer of the two and a deployment which set a window is not
+            # undercut by the command it runs to bound that very pile
+            # (#1295)
+            days = max(
+                getattr(settings,
+                        "HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS", 1),
+                getattr(settings, "HARVEST_TEMP_FILE_RETENTION_DAYS", 0))
+        return timezone.now() - timedelta(days=max(0, days))
+
+    def _report_dry_run(self, jobs):
+        """What the run would take, job by job, without taking anything."""
+        from registry.models.harvest import TemporaryMdMetadataFile
+
+        total_rows = 0
+        for job in jobs:
+            rows = TemporaryMdMetadataFile.objects.filter(
+                job_id=job.pk).count()
+            if not rows:
+                continue
+            total_rows += rows
+            self.stdout.write(
+                f"job {job.pk} ({HarvestingPhaseEnum(job.phase).label}): "
+                f"{rows} stored records would be deleted")
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            f"{jobs.count()} terminal jobs are in scope, "
+            f"{total_rows} stored records would be deleted "
+            "(nothing was)"))
+
+    def _clean_jobs(self, jobs, options):
+        """Run the cleanup over every job which still has stored rows."""
+        # the tasks module carries the cleanup; importing models at module
+        # level is what its import cycle punishes, so this speaks on their
+        # behalf like resume_harvesting_job does
+        from registry.models.harvest import TemporaryMdMetadataFile
+        from registry.tasks.harvest import cleanup_harvesting_job_temp_files
 
         for job in jobs.iterator():
             if not TemporaryMdMetadataFile.objects.filter(
@@ -141,9 +160,13 @@ class Command(BaseCommand):
                 f"{summary['swept_files']} swept, "
                 f"rows left: {summary['remaining_rows']} "
                 f"({summary['seconds']} s)")
-            if summary["remaining_rows"] or summary["failed"] or \
-                    summary["rejected"] or summary["swept_failed"] or \
-                    summary["sweep_remaining"]:
+            if self._needs_another_run(summary):
                 self.stdout.write(self.style.WARNING(
                     f"job {job.pk} is not clean yet - run the command again, "
                     "the cleanup continues where it stopped"))
+
+    @staticmethod
+    def _needs_another_run(summary):
+        return summary["remaining_rows"] or summary["failed"] or \
+            summary["rejected"] or summary["swept_failed"] or \
+            summary["sweep_remaining"]

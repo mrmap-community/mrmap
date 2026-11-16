@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.enums import SmartIntegerChoices
 
 
-# TODO: use IntegerChoices instead
+# FUTURE: use IntegerChoices instead
 class CategoryOriginEnum(TextChoices):
     """ Defines sources for categories
     """
@@ -20,7 +20,7 @@ class CategoryOriginEnum(TextChoices):
 
 
 class MetadataOriginEnum(SmartIntegerChoices):
-    # TODO: check if this is needed... is it calculable based on relation types (MetadataRelation Model)?
+    # FUTURE: check if this is needed... is it calculable based on relation types (MetadataRelation Model)?
     """ Defines origins from where a resource could be coming from
 
     """

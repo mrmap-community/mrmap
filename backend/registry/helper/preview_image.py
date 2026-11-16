@@ -52,6 +52,27 @@ def render_feature_collection(collection, width=512, height=256):
     positions = [position for _, paths in parts for path in paths for position in path]
     if not positions:
         raise ValueError("No renderable geometry")
+    scale, center_x, center_y = _fit_positions(positions, width, height)
+
+    def pixel(position):
+        x, y = position
+        return ((width - 1) / 2 + (x - center_x) * scale,
+                (height - 1) / 2 - (y - center_y) * scale)
+
+    image = Image.new("RGB", (width, height), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+    for kind, paths in parts:
+        paths = [[pixel(position) for position in path] for path in paths]
+        _draw_part(image, draw, kind, paths)
+    output = BytesIO()
+    image.save(output, "PNG")
+    return output.getvalue()
+
+
+def _fit_positions(positions, width, height):
+    """The scale and the center which fit every position into the image,
+    preserving the aspect ratio - including of a zero-width or zero-height
+    extent."""
     xmin = min(x for x, _ in positions)
     xmax = max(x for x, _ in positions)
     ymin = min(y for _, y in positions)
@@ -63,31 +84,22 @@ def render_feature_collection(collection, width=512, height=256):
     if ymax > ymin:
         scales.append((height - 1 - 2 * padding) / (ymax - ymin))
     scale = min(scales) if scales else 1
-    center_x, center_y = (xmin + xmax) / 2, (ymin + ymax) / 2
+    return scale, (xmin + xmax) / 2, (ymin + ymax) / 2
 
-    def pixel(position):
-        x, y = position
-        return ((width - 1) / 2 + (x - center_x) * scale,
-                (height - 1) / 2 - (y - center_y) * scale)
 
-    image = Image.new("RGB", (width, height), BACKGROUND)
-    draw = ImageDraw.Draw(image)
-    for kind, paths in parts:
-        paths = [[pixel(position) for position in path] for path in paths]
-        if kind == "Point":
-            x, y = paths[0][0]
-            draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=STROKE, outline="white", width=1)
-        elif kind == "LineString":
-            draw.line(paths[0], fill=STROKE, width=2)
-        else:
-            # A mask preserves previously drawn features beneath polygon holes.
-            mask = Image.new("L", image.size)
-            mask_draw = ImageDraw.Draw(mask)
-            for index, ring in enumerate(paths):
-                mask_draw.polygon(ring, fill=255 if index == 0 else 0)
-            image.paste(FILL, mask=mask)
-            for ring in paths:
-                draw.line(ring, fill=STROKE, width=2)
-    output = BytesIO()
-    image.save(output, "PNG")
-    return output.getvalue()
+def _draw_part(image, draw, kind, paths):
+    """One geometry of the sample, in pixel coordinates."""
+    if kind == "Point":
+        x, y = paths[0][0]
+        draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=STROKE, outline="white", width=1)
+    elif kind == "LineString":
+        draw.line(paths[0], fill=STROKE, width=2)
+    else:
+        # A mask preserves previously drawn features beneath polygon holes.
+        mask = Image.new("L", image.size)
+        mask_draw = ImageDraw.Draw(mask)
+        for index, ring in enumerate(paths):
+            mask_draw.polygon(ring, fill=255 if index == 0 else 0)
+        image.paste(FILL, mask=mask)
+        for ring in paths:
+            draw.line(ring, fill=STROKE, width=2)

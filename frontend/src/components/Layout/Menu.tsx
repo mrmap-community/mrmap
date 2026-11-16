@@ -94,7 +94,7 @@ const AuthorizedSubMenu = ({
             dense={dense}
         >
             {granted
-                .sort((first, second) => {
+                .toSorted((first, second) => {
                     const firstMenu = first.options?.menu as MenuOption;
                     const secondMenu = second.options?.menu as MenuOption;
                     return (firstMenu.order ?? 0) - (secondMenu.order ?? 0);
@@ -123,7 +123,9 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
     const groups = menuResources.reduce<Record<string, typeof menuResources>>(
         (result, resource) => {
             const menu = resource.options?.menu as MenuOption;
-            (result[menu.group] ??= []).push(resource);
+            const grouped = result[menu.group] ?? [];
+            grouped.push(resource);
+            result[menu.group] = grouped;
             return result;
         },
         {}

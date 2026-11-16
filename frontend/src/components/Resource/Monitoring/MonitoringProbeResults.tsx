@@ -88,11 +88,9 @@ const toProbe = (record: RaRecord, type: ProbeType): Probe => {
     success: record[`${field}Success`] ?? null,
     message: record[`${field}Message`],
   }));
-  const status = checks.some((check) => check.success === false)
-    ? "failed"
-    : checks.some((check) => check.success === true)
-      ? "passed"
-      : "notRecorded";
+  let status: "failed" | "passed" | "notRecorded" = "notRecorded";
+  if (checks.some((check) => check.success === false)) status = "failed";
+  else if (checks.some((check) => check.success === true)) status = "passed";
   return { id: record.id, type, checks, status, execution: toExecution(record) };
 };
 
@@ -105,6 +103,22 @@ const ProbeCard = ({ probe }: { probe: Probe }) => {
   const { color, Icon } = styles[probe.status];
   const failedChecks = probe.checks.filter((check) => check.success === false);
   const passedChecks = probe.checks.filter((check) => check.success === true);
+
+  let summary: string;
+  if (probe.status === "failed") {
+    summary = failedChecks
+      .map((check) => {
+        const checkLabel = translate(`monitoringRun.${check.label}`);
+        return `${checkLabel}: ${check.message || translate("monitoringRun.noMessage")}`;
+      })
+      .join(" · ");
+  } else {
+    const summaryKey = probe.status === "passed"
+      ? "monitoringRun.checksPassed"
+      : "monitoringRun.notRecordedMessage";
+    summary = translate(summaryKey, { count: passedChecks.length });
+  }
+
   return (
     <Accordion
       expanded={expanded}
@@ -132,19 +146,7 @@ const ProbeCard = ({ probe }: { probe: Probe }) => {
             </Typography>
           </Stack>
           <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-            {probe.status === "failed"
-              ? failedChecks
-                  .map(
-                    (check) =>
-                      `${translate(`monitoringRun.${check.label}`)}: ${check.message || translate("monitoringRun.noMessage")}`,
-                  )
-                  .join(" · ")
-              : translate(
-                  probe.status === "passed"
-                    ? "monitoringRun.checksPassed"
-                    : "monitoringRun.notRecordedMessage",
-                  { count: passedChecks.length },
-                )}
+            {summary}
           </Typography>
         </Stack>
       </AccordionSummary>
@@ -156,12 +158,9 @@ const ProbeCard = ({ probe }: { probe: Probe }) => {
                 Number(b.success === false) - Number(a.success === false),
             )
             .map((check) => {
-              const checkStatus =
-                check.success === false
-                  ? "failed"
-                  : check.success === true
-                    ? "passed"
-                    : "notRecorded";
+              let checkStatus: "failed" | "passed" | "notRecorded" = "notRecorded";
+              if (check.success === false) checkStatus = "failed";
+              else if (check.success === true) checkStatus = "passed";
               const { Icon: CheckIcon, color: checkColor } =
                 styles[checkStatus];
               return (
@@ -219,9 +218,9 @@ const emptyGroup: ProbeResultsGroup = {
  */
 export default function MonitoringProbeResults({
   groups,
-}: {
+}: Readonly<{
   groups: ProbeResultsGroup[];
-}) {
+}>) {
   const translate = useTranslate();
   const [filter, setFilter] = useState<Status | "all">("all");
   const [first = emptyGroup, second = emptyGroup] = groups;

@@ -18,9 +18,11 @@ CATEGORIES_LANG = {
     "locale_2": "fr",
 }
 
+DEFAULT_LICENCE_NAME = "Creative Commons 3.0"
+
 LICENCES = [
     {
-        "name": "Creative Commons 3.0",
+        "name": DEFAULT_LICENCE_NAME,
         "identifier": "cc-by-nc-nd-3.0",
         "symbol_url": "https://i.creativecommons.org/l/by-nc-nd/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung - Keine kommerzielle Nutzung - Keine Bearbeitungen 3.0 Deutschland",
@@ -28,7 +30,7 @@ LICENCES = [
         "is_open_data": False,
     },
     {
-        "name": "Creative Commons 3.0",
+        "name": DEFAULT_LICENCE_NAME,
         "identifier": "cc-nc-3.0",
         "symbol_url": "https://i.creativecommons.org/l/by-nc/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung - Keine kommerzielle Nutzung 3.0 Deutschland",
@@ -36,7 +38,7 @@ LICENCES = [
         "is_open_data": False,
     },
     {
-        "name": "Creative Commons 3.0",
+        "name": DEFAULT_LICENCE_NAME,
         "identifier": "cc-by-3.0",
         "symbol_url": "https://i.creativecommons.org/l/by/3.0/de/88x31.png",
         "description": "Creative Commons: Namensnennung 3.0 Deutschland",

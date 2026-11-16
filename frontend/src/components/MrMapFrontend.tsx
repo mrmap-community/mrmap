@@ -90,11 +90,11 @@ const MrMapFrontend = (): ReactElement => {
         ...(resource.create || createOperation && { hasCreate: true}),
         ...(resource.list || listOperation && {list: ListWithDialogs, hasList: true}),
         ...(resource.edit || editOperation && { hasEdit: true}),
-        // TODO: merge children and related_list_operations paths
+        // FUTURE: merge children and related_list_operations paths
         ...(resource.children || { 
           children: [...related_routes, ...history_routes]
         }) as ReactElement[],
-        ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
+        recordRepresentation: resource.recordRepresentation ? resource.recordRepresentation : defaultRecordRepresentation,
         ...resource,
         ...({options: {
               showOperationName: showOperationName,

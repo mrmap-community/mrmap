@@ -31,10 +31,12 @@ const isRelationValue = (value: unknown): value is { id: string | number; _type?
 export const formatDeltaValue = (value: unknown, translate: ReturnType<typeof useTranslate>): string => {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return translate(`ra.boolean.${value}`, { _: value ? "true" : "false" });
-  if (isGeometryValue(value)) return translate("historyList.geometry", { _: "Geometry (%{type})", type: String(value.type ?? "unknown") });
+  if (isGeometryValue(value)) return translate("historyList.geometry", { _: "Geometry (%{type})", type: typeof value.type === "string" ? value.type : "unknown" });
   if (isRelationValue(value)) return value._type ? `${value._type} · ${value.id}` : String(value.id);
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "—";
 };
 
 const DeltaValue = ({

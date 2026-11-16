@@ -41,12 +41,20 @@ const Chips = ({ items }: { items: RaRecord[] }) => {
 /** A parsed boolean answers yes or no; an absent one stays unknown. */
 const TriState = ({ value, label }: { value: unknown; label?: string }) => {
   const translate = useTranslate();
-  const state = value === true ? "yes" : value === false ? "no" : "unknown";
+  let state: "yes" | "no" | "unknown" = "unknown";
+  if (value === true) state = "yes";
+  else if (value === false) state = "no";
+
+  let color: "success" | "default" | "warning" = "warning";
+  if (state === "yes") color = "success";
+  else if (state === "no") color = "default";
+
+  const stateLabel = translate(`layerInspection.${state}`);
   return (
     <Chip
       size="small"
-      color={state === "yes" ? "success" : state === "no" ? "default" : "warning"}
-      label={label ? `${label}: ${translate(`layerInspection.${state}`)}` : translate(`layerInspection.${state}`)}
+      color={color}
+      label={label ? `${label}: ${stateLabel}` : stateLabel}
     />
   );
 };
@@ -58,6 +66,140 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
     </Typography>
     {children}
   </Stack>
+);
+
+/** the layer's or feature type's coverage as a geometry, when one is stated */
+const coverageOf = (record: RaRecord): Feature["geometry"] | undefined => {
+  const geometry = (record.bboxLatLon ?? record.bbox) as Feature["geometry"] | string | undefined;
+  if (typeof geometry !== "object") return undefined;
+  return getCoverageBounds(geometry) ? geometry : undefined;
+};
+
+/** the reference systems to name: a feature type leads with its default */
+const referenceSystemsOf = (record: RaRecord, isLayer: boolean): RaRecord[] => {
+  const referenceSystems = relatedRecords(record.referenceSystems);
+  const fallback = record.defaultReferenceSystem as RaRecord | null | undefined;
+  if (isLayer || !fallback) return referenceSystems;
+  return [
+    fallback,
+    ...referenceSystems.filter((item) => String(item.id) !== String(fallback.id)),
+  ];
+};
+
+/** the scale limits text of a layer: the stated pair, or that none is known */
+const scaleLimitsLabel = (record: RaRecord, message: (key: string) => string): string => {
+  if (record.scaleMin == null && record.scaleMax == null) return message("unknown");
+  return `${String(record.scaleMin ?? "-")} : ${String(record.scaleMax ?? "-")}`;
+};
+
+const CoverageSection = ({ coverage, isLayer, mapId, message }: { coverage: Feature["geometry"] | undefined; isLayer: boolean; mapId: string; message: (key: string) => string }) => (
+  <Section title={message("coverage")}>
+    {coverage ? (
+      <GeoJsonMap id={mapId}>
+        <FeatureGroupEditor
+          geoJson={{ type: "Feature", properties: {}, geometry: coverage } as never}
+          editable={false}
+        />
+      </GeoJsonMap>
+    ) : (
+      <Alert severity="info">
+        {isLayer ? message("noCoverage") : message("noFeatureTypeCoverage")}
+      </Alert>
+    )}
+  </Section>
+);
+
+const TimeExtentsSection = ({ record, message }: { record: RaRecord; message: (key: string) => string }) => (
+  <Section title={message("time")}>
+    {relatedRecords(record.timeExtents).length ? (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              {["begin", "end", "resolution"].map((source) => (
+                <TableCell key={source}>{message(source)}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {relatedRecords(record.timeExtents).map((extent) => (
+              <TableRow key={String(extent.id)}>
+                {["begin", "end", "resolution"].map((source) => (
+                  <TableCell key={source}>
+                    <IncludedRecordFields
+                      resource="TimeExtent"
+                      record={extent}
+                      sources={[source]}
+                    />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    ) : (
+      <Typography color="text.secondary">{message("noTime")}</Typography>
+    )}
+  </Section>
+);
+
+const RenderingSection = ({ record, message }: { record: RaRecord; message: (key: string) => string }) => (
+  <Section title={message("rendering")}>
+    <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
+      <Chip size="small" label={`${message("queryable")}:`} variant="outlined" />
+      <TriState value={record.isQueryable} />
+      <Chip size="small" label={`${message("opaque")}:`} variant="outlined" />
+      <TriState value={record.isOpaque} />
+      <Chip size="small" label={`${message("cascaded")}:`} variant="outlined" />
+      <TriState value={record.isCascaded} />
+      <Chip
+        size="small"
+        variant="outlined"
+        label={`${message("scaleLimits")}: ${scaleLimitsLabel(record, message)}`}
+      />
+    </Stack>
+    <Chips items={relatedRecords(record.styles)} />
+  </Section>
+);
+
+const FormatsSection = ({ record, describe, message }: { record: RaRecord; describe: string | undefined; message: (key: string) => string }) => (
+  <Section title={message("formats")}>
+    <Chips items={relatedRecords(record.outputFormats)} />
+    {describe ? (
+      <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+        {describe.slice(0, 500)}
+        {describe.length > 500 ? " …" : ""}
+      </Typography>
+    ) : (
+      <Alert severity="info">{message("noDescription")}</Alert>
+    )}
+  </Section>
+);
+
+const MetadataSection = ({ metadataLinks, uncollectedReferences, message }: { metadataLinks: RaRecord[]; uncollectedReferences: boolean | undefined; message: (key: string) => string }) => (
+  <Section title={message("metadata")}>
+    {metadataLinks.length > 0 ? (
+      <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5 }}>
+        {metadataLinks.map((item) => (
+          <Button
+            key={String(item.id)}
+            size="small"
+            component={Link}
+            to={`/DatasetMetadataRecord/${String(item.id)}/show`}
+          >
+            {readableName(item)}
+          </Button>
+        ))}
+      </Stack>
+    ) : (
+      // an empty feature type answers why it is empty: "no metadata"
+      // and "references not collected" are different states (#1262)
+      <Alert severity={uncollectedReferences ? "warning" : "info"}>
+        {message(uncollectedReferences ? "metadataNotCollected" : "noMetadata")}
+      </Alert>
+    )}
+  </Section>
 );
 
 export interface ElementInspectionProps {
@@ -135,15 +277,9 @@ const ElementInspection = ({
     );
   if (isPending || record === undefined) return <Loading />;
 
-  const geometry = (record.bboxLatLon ?? record.bbox) as Feature["geometry"] | string | undefined;
-  const coverage =
-    typeof geometry === "object" && getCoverageBounds(geometry) ? geometry : undefined;
+  const coverage = coverageOf(record);
   const isLayer = resource === "Layer";
-  const referenceSystems = relatedRecords(record.referenceSystems);
-  const defaultReferenceSystem = record.defaultReferenceSystem as RaRecord | null | undefined;
-  const availableReferenceSystems = !isLayer && defaultReferenceSystem
-    ? [defaultReferenceSystem, ...referenceSystems.filter((item) => String(item.id) !== String(defaultReferenceSystem.id))]
-    : referenceSystems;
+  const availableReferenceSystems = referenceSystemsOf(record, isLayer);
   const ruleResource = isLayer
     ? "AllowedWebMapServiceOperation"
     : "AllowedWebFeatureServiceOperation";
@@ -184,114 +320,27 @@ const ElementInspection = ({
           </Typography>
         )}
         <Divider />
-        <Section title={message("coverage")}>
-          {coverage ? (
-            <GeoJsonMap id={`${resource}-${String(id)}-coverage`}>
-              <FeatureGroupEditor
-                geoJson={{ type: "Feature", properties: {}, geometry: coverage } as never}
-                editable={false}
-              />
-            </GeoJsonMap>
-          ) : (
-            <Alert severity="info">
-              {isLayer ? message("noCoverage") : message("noFeatureTypeCoverage")}
-            </Alert>
-          )}
-        </Section>
+        <CoverageSection
+          coverage={coverage}
+          isLayer={isLayer}
+          mapId={`${resource}-${String(id)}-coverage`}
+          message={message}
+        />
         <Section title={message("referenceSystems")}>
           <Chips items={availableReferenceSystems} />
         </Section>
-        {isLayer && (
-          <Section title={message("time")}>
-            {relatedRecords(record.timeExtents).length ? (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      {["begin", "end", "resolution"].map((source) => (
-                        <TableCell key={source}>{message(source)}</TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {relatedRecords(record.timeExtents).map((extent) => (
-                      <TableRow key={String(extent.id)}>
-                        {["begin", "end", "resolution"].map((source) => (
-                          <TableCell key={source}>
-                            <IncludedRecordFields
-                              resource="TimeExtent"
-                              record={extent}
-                              sources={[source]}
-                            />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography color="text.secondary">{message("noTime")}</Typography>
-            )}
-          </Section>
-        )}
+        {isLayer && <TimeExtentsSection record={record} message={message} />}
         {isLayer ? (
-          <Section title={message("rendering")}>
-            <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
-              <Chip size="small" label={`${message("queryable")}:`} variant="outlined" />
-              <TriState value={record.isQueryable} />
-              <Chip size="small" label={`${message("opaque")}:`} variant="outlined" />
-              <TriState value={record.isOpaque} />
-              <Chip size="small" label={`${message("cascaded")}:`} variant="outlined" />
-              <TriState value={record.isCascaded} />
-              <Chip
-                size="small"
-                variant="outlined"
-                label={`${message("scaleLimits")}: ${
-                  record.scaleMin != null || record.scaleMax != null
-                    ? `${String(record.scaleMin ?? "-")} : ${String(record.scaleMax ?? "-")}`
-                    : message("unknown")
-                }`}
-              />
-            </Stack>
-            <Chips items={relatedRecords(record.styles)} />
-          </Section>
+          <RenderingSection record={record} message={message} />
         ) : (
-          <Section title={message("formats")}>
-            <Chips items={relatedRecords(record.outputFormats)} />
-            {describe ? (
-              <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                {describe.slice(0, 500)}
-                {describe.length > 500 ? " …" : ""}
-              </Typography>
-            ) : (
-              <Alert severity="info">{message("noDescription")}</Alert>
-            )}
-          </Section>
+          <FormatsSection record={record} describe={describe} message={message} />
         )}
         {showMetadata && (
-          <Section title={message("metadata")}>
-            {metadataLinks.length > 0 ? (
-              <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5 }}>
-                {metadataLinks.map((item) => (
-                  <Button
-                    key={String(item.id)}
-                    size="small"
-                    component={Link}
-                    to={`/DatasetMetadataRecord/${String(item.id)}/show`}
-                  >
-                    {readableName(item)}
-                  </Button>
-                ))}
-              </Stack>
-            ) : (
-              // an empty feature type answers why it is empty: "no metadata"
-              // and "references not collected" are different states (#1262)
-              <Alert severity={uncollectedReferences ? "warning" : "info"}>
-                {message(uncollectedReferences ? "metadataNotCollected" : "noMetadata")}
-              </Alert>
-            )}
-          </Section>
+          <MetadataSection
+            metadataLinks={metadataLinks}
+            uncollectedReferences={uncollectedReferences}
+            message={message}
+          />
         )}
         <Section title={message("access")}>
           <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", gap: 1 }}>

@@ -57,7 +57,7 @@ const FeatureGroupEditor = ({
         }
       }
     })
-    geoJsonCallback && geoJsonCallback(multiPolygon)
+    geoJsonCallback?.(multiPolygon)
     // whatever the user left on the map is what the card shows: the hint is
     // only for a card without anything drawable, so it follows the drawing
     setShowNoGeometryHint(multiPolygon.coordinates.length === 0)
@@ -105,7 +105,7 @@ const FeatureGroupEditor = ({
     }
   }, [map, geoJson])
 
-  // TODO: on unmount, the geoJson shall be removed from the map.
+  // FUTURE: on unmount, the geoJson shall be removed from the map.
 
   return (
     <Fragment>

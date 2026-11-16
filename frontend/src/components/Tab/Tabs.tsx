@@ -38,7 +38,7 @@ export const Tabs = ({
 
   const tabs = useMemo(() => [...defaultTabs, ...tabList.tabs].map((tabDef, index): ReactNode => (
       <Tab
-        key={index}
+        key={`${String(tabDef.tab.label)}:${String(tabDef.tabPanel.value)}`}
         value={String(index)}
         {...tabDef.tab}
         icon={tabDef.closeable
@@ -51,7 +51,7 @@ export const Tabs = ({
   )), [defaultTabs, tabList.tabs, handleTabClose])
 
   const tabPanels = useMemo(() => [...defaultTabs, ...tabList.tabs].map((tabDef, index): ReactNode => (
-      <TabPanel key={index} {...tabDef.tabPanel} value={String(index)} />
+      <TabPanel key={`${String(tabDef.tab.label)}:${String(tabDef.tabPanel.value)}`} {...tabDef.tabPanel} value={String(index)} />
   )), [defaultTabs, tabList.tabs])
 
   return (

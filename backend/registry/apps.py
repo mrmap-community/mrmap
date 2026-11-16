@@ -213,7 +213,7 @@ def find_orphan_metadata_objects(sender, **kwargs):
     from registry.models.metadata import DatasetMetadataRecord
     orphans = DatasetMetadataRecord.objects.filter(
         resource_relation__isnull=True)
-    # TODO: move this to a manager as check function
+    # FUTURE: move this to a manager as check function
     logger.info(f"metadata orphans: {orphans.count()}")
 
 

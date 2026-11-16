@@ -129,14 +129,14 @@ class AllowedWebMapServiceOperationSerializer(
             _secured_layers = Layer.objects.filter(
                 pk__in=secured_layer_pks).prefetch_related(prefetch_children)
 
-            secured_layers_pk = set(
-                [secured_layer.pk for secured_layer in _secured_layers])
+            secured_layers_pk = {
+                secured_layer.pk for secured_layer in _secured_layers}
             for secured_layer in _secured_layers:
                 if secured_layer.service_id != secured_service.pk:
                     raise ValidationError(
                         {"secured_layers": "Missmatching layer for selected service."})
-                descendant_pks = set(
-                    [descendant.pk for descendant in secured_layer.descendant_pks])
+                descendant_pks = {
+                    descendant.pk for descendant in secured_layer.descendant_pks}
                 if not descendant_pks.issubset(secured_layers_pk):
                     raise ValidationError(
                         {"secured_layers": "Incomplete subtree selection is not allowed."})
@@ -196,5 +196,4 @@ class WebFeatureServiceProxySettingSerializer(
 
     class Meta:
         model = WebFeatureServiceProxySetting
-        fields = '__all__'
         fields = '__all__'

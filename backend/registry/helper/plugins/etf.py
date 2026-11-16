@@ -40,7 +40,7 @@ class EtfClient:
                 error = r.json()['error']
                 error_msg = f'{error_msg} {error}'
             finally:
-                raise Exception(error_msg)
+                raise requests.exceptions.HTTPError(error_msg)
         test_run_id = r.json()['EtfItemCollection']['testRuns']['TestRun']['id']
         test_run_url = f'{self.url}v2/TestRuns/{test_run_id}'
         settings.ROOT_LOGGER.info(
@@ -51,7 +51,7 @@ class EtfClient:
         """ Checks if the given ETF test run is finished. """
         r = requests.get(url=f'{test_run_url}/progress')
         if r.status_code != requests.codes.ok:
-            raise Exception(
+            raise requests.exceptions.HTTPError(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint')
         response_obj = r.json()
@@ -69,7 +69,7 @@ class EtfClient:
         """ Retrieves the test report for the given finished ETF test run. """
         r = requests.get(url=test_run_url)
         if r.status_code != requests.codes.ok:
-            raise Exception(
+            raise requests.exceptions.HTTPError(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint')
         return r.json()
@@ -78,7 +78,7 @@ class EtfClient:
         """ Retrieves the HTML test report for the given finished ETF test run. """
         r = requests.get(url=f'{test_run_url}.html?download=true')
         if r.status_code != requests.codes.ok:
-            raise Exception(
+            raise requests.exceptions.HTTPError(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint')
         return r.text
@@ -112,7 +112,7 @@ class QualityEtf:
                  client: EtfClient):
         self.config = config_ext
         self.resource = run.resource
-        # TODO: check if the baseurl shall be dynamic based on the request
+        # FUTURE: check if the baseurl shall be dynamic based on the request
         self.resource_url = settings.BASE_URL_FOR_ETF + self.resource.get_xml_view_url()
         self.check_run = run
         self.client = client

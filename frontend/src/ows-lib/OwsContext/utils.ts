@@ -54,8 +54,8 @@ export const prepareGetMapUrl = (
     const params = url.searchParams
     updateOrAppendSearchParam(params, 'SERVICE', 'WMS')
     updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
-    updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // TODO: version dependend
-    updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // TODO: should be configureable
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // FUTURE: version dependend
+    updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // FUTURE: should be configureable
     updateOrAppendSearchParam(params, 'LAYERS', layerName)
     updateOrAppendSearchParam(params, 'TRANSPARENT', 'true')
 
@@ -380,7 +380,7 @@ const getWmsParameters = (url: URL) => {
 
 const getWmsLayerStyles = (parameters: NonNullable<ReturnType<typeof getWmsParameters>>) => {
     const layers = parameters.get('LAYERS')?.value.split(',');
-    if (!layers?.length || layers.some(layer => layer === '')) return undefined;
+    if (!layers?.length || layers.includes('')) return undefined;
     const styles = parameters.get('STYLES')?.value;
     if (!styles) return layers.map(() => '');
     const values = styles.split(',');
@@ -462,7 +462,7 @@ export const appendWmsOperationParameters = (target: URL, source: URL, code: str
     }
 };
 
-export const appendQueryParam = (param: string = "LAYERS", url1: URL, url2: URL) => {
+export const appendQueryParam = (url1: URL, url2: URL, param: string = "LAYERS") => {
     const paramLower = param.toLowerCase()
     const paramUpper = param.toUpperCase() 
     

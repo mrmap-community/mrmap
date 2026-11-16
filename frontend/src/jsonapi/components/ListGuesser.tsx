@@ -126,7 +126,8 @@ const ListGuesserContent = ({
   dataGridProps,
   ...props
 }: ListGuesserProps): ReactElement => {
-  const ListComponent = header != null ? ListWithHeader : realtime ? RealtimeList : List
+  const RealtimeOrPlain = realtime ? RealtimeList : List
+  const ListComponent = header != null ? ListWithHeader : RealtimeOrPlain
   const { name, hasShow, options } = useResourceDefinition(props)
   const translate = useTranslate()
   const listOptions = useMemo(()=>(options?.list),[options])
@@ -299,7 +300,7 @@ const ListGuesserContent = ({
           },
         } : {}}
         rowClick={(id, resource, record) => {
-          onRowClick && onRowClick(record)
+          onRowClick?.(record)
           if (selectedRecord !== record) {
             setSelectedRecord(record)
           }

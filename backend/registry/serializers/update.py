@@ -274,6 +274,9 @@ class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
                   "new_featuretype", "created", "is_confirmed")
 
 
+UPDATE_CANDIDATE_LABEL = _("Update Candidate")
+
+
 class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
     class JSONAPIMeta:
         included_resources = ["mappings"]
@@ -289,7 +292,7 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     )
     update_candidate = ResourceRelatedField(
         source="service.webmapservice_update_candidate",
-        label=_("Update Candidate"),
+        label=UPDATE_CANDIDATE_LABEL,
         help_text=_(
             "The web map service this update job is a candidate for updating."),
         model=WebMapService,
@@ -386,7 +389,7 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     )
     update_candidate = ResourceRelatedField(
         source="service.webfeatureservice_update_candidate",
-        label=_("Update Candidate"),
+        label=UPDATE_CANDIDATE_LABEL,
         help_text=_(
             "The web feature service this update job is a candidate for updating."),
         model=WebFeatureService,
@@ -422,7 +425,7 @@ class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializ
     )
     update_candidate = ResourceRelatedField(
         source="service.catalogueservice_update_candidate",
-        label=_("Update Candidate"),
+        label=UPDATE_CANDIDATE_LABEL,
         help_text=_(
             "The catalogue service this update job is a candidate for updating."),
         model=CatalogueService,

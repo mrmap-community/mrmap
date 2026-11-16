@@ -83,6 +83,29 @@ const PrimaryText = ({ record, related, selectedRecord }: PrimaryTextProps): Rea
 }
 
 
+/** the primary line of a row, with the shared context the list knows already */
+const primaryTextOf = (shared: Omit<PrimaryTextProps, 'record'>) => {
+  const primaryText = (record: RaRecord): ReactNode => (
+    <PrimaryText record={record} {...shared} />
+  )
+  return primaryText
+}
+
+/** the timestamp and user line of a row, phrased in the locale of the screen */
+const secondaryTextOf = (locale: string) => {
+  const secondaryText = (record: RaRecord): ReactNode => (
+    <Typography component="span" variant="caption">
+        {[
+          new Date(record.historyDate).toLocaleString(locale === 'en' ? 'en-GB' : locale, {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+          }),
+            record.historyUser?.username,
+          ].filter(Boolean).join(' · ')}
+    </Typography>
+  )
+  return secondaryText
+}
+
 export interface HistoryCompactFeedProps extends Omit<SimpleListProps, 'resource'> {
   /** Resource of the changed objects, used for field labels and the "view all" link. */
   related: string
@@ -121,8 +144,10 @@ const HistoryFeed = ({
   )
 
   const openDetails = (record: RaRecord) => {
+    const typeLabel = translate(`historyList.${record.historyType}`, { _: record.historyType });
+    const moment = new Date(record.historyDate).toLocaleString(locale);
     open(
-      `${translate(`historyList.${record.historyType}`, { _: record.historyType })} · ${new Date(record.historyDate).toLocaleString(locale)}`,
+      `${typeLabel} · ${moment}`,
       <HistoryEventDetails event={record as TimelineRecord} related={related} />,
       <Button onClick={close}>{translate('ra.action.close', { _: 'Close' })}</Button>
     )
@@ -141,17 +166,8 @@ const HistoryFeed = ({
         dense
         rowClick={(id, resource, record) => { openDetails(record); return false }}
         leftIcon={getIcon}
-        primaryText={record => <PrimaryText record={record} related={related} selectedRecord={selectedRecord} />}
-        secondaryText={record => (
-          <Typography component="span" variant="caption">
-            {[
-              new Date(record.historyDate).toLocaleString(locale === 'en' ? 'en-GB' : locale, {
-                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-              }),
-              record.historyUser?.username,
-            ].filter(Boolean).join(' · ')}
-          </Typography>
-        )}
+        primaryText={primaryTextOf({ related, selectedRecord })}
+        secondaryText={secondaryTextOf(locale)}
         data={data}
         isLoading={isLoading}
         total={total}
@@ -171,18 +187,20 @@ const HistoryFeed = ({
             },
             '& .MuiListItem-root + .MuiListItem-root': { borderTop: 1, borderColor: 'divider' },
           },
-          ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+          ...(Array.isArray(sx) ? sx : []),
+          ...(sx && !Array.isArray(sx) ? [sx] : []),
         ]}
       />
-      {error ? (
+      {error && (
         <Alert severity='error' sx={{ m: 1.5 }}>
           {translate('historyList.loadError', { _: 'Unable to load history.' })}
         </Alert>
-      ) : !isLoading && (data ?? []).length === 0 ? (
+      )}
+      {!error && !isLoading && (data ?? []).length === 0 && (
         <Typography variant='body2' color='text.secondary' sx={{ px: 1.5, py: 2 }}>
           {translate('historyList.empty', { _: 'No changes recorded.' })}
         </Typography>
-      ) : null}
+      )}
       <Button component={Link} to={viewAllTo} size='small' startIcon={<HistoryIcon />} sx={{ m: 1.5 }}>
         {translate('historyList.viewAll', { _: 'View all history' })}
       </Button>

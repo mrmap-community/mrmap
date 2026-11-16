@@ -138,7 +138,7 @@ class FES11Parser(FES11ParserBug):
 
     # @handle('BBOX')
     # def geometry_bbox(self, node: Element, lhs, rhs):
-    #     # TODO: ast.BBox() seems incompatible
+    #     # FUTURE: ast.BBox() seems incompatible
     #     pass
 
     @handle("ValueReference")

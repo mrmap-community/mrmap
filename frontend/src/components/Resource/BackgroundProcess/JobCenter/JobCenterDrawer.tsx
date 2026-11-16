@@ -113,6 +113,19 @@ interface GroupedJobListProps {
  * successes and queued work start collapsed, which is also what keeps a
  * history page of dozens of rows light.
  */
+/** whether a job row shows its details when it appears: running work and failures
+ *  are the point of the drawer and tell their story open; queued and decided
+ *  processes start collapsed, which also keeps a history page of rows light */
+const isWorthOpening = (state: JobState): boolean =>
+  state === "running" || state === "retrying" || state === "failed" || state === "aborted";
+
+/** the accent of a job row: failures complain red, completed work nods green */
+const rowTone = (state: JobState, isFailed: boolean): string => {
+  if (isFailed) return "error.main";
+  if (state === "completed") return "success.main";
+  return "transparent";
+};
+
 const JobEntry = (): ReactNode => {
   const record = useRecordContext<BackgroundJobRecord>();
   const translate = useTranslate();
@@ -122,11 +135,7 @@ const JobEntry = (): ReactNode => {
   // running work and failures are open when they appear because their story
   // is the point of the drawer; queued and decided processes start collapsed
   const [expanded, setExpanded] = useState(
-    () =>
-      state === "running" ||
-      state === "retrying" ||
-      state === "failed" ||
-      state === "aborted",
+    () => state !== undefined && isWorthOpening(state),
   );
 
   if (record === undefined || state === undefined) {
@@ -152,17 +161,15 @@ const JobEntry = (): ReactNode => {
         });
   const kindAndPhase = phase === undefined ? kind : `${kind} · ${phase}`;
 
+  const borderTone = rowTone(state, isFailed);
+
   return (
     <Box
       component="li"
       sx={{
         p: 1.5,
         borderLeft: 4,
-        borderColor: isFailed
-          ? "error.main"
-          : state === "completed"
-            ? "success.main"
-            : "transparent",
+        borderColor: borderTone,
         bgcolor: isFailed ? "error.50" : "transparent",
       }}
     >
@@ -494,13 +501,9 @@ const JobCenterDrawer = (): ReactNode => {
   const tabLabel = (key: JobTab | "history"): ReactNode => {
     const label = translate(`backgroundActivity.jobCenter.tabs.${key}`);
     const filter =
-      key === "running"
-        ? JOB_COUNT_FILTERS.running
-        : key === "waiting"
-          ? JOB_COUNT_FILTERS.waiting
-          : key === "failed"
-            ? JOB_COUNT_FILTERS.failed
-            : undefined;
+      key === "running" || key === "waiting" || key === "failed"
+        ? JOB_COUNT_FILTERS[key]
+        : undefined;
     if (filter === undefined) {
       // "all" counts the store's window and "history" the whole past - an
       // aggregate number would either be the store's cap or the sum of every

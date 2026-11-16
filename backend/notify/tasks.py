@@ -164,139 +164,163 @@ class BackgroundProcessBased(Task):
         outcome reports are the references' own.
         """
         # will be provided by get_background_process signal if the pk is provided by kwargs
-        if getattr(self, "background_process_pk", None) is not None:
-            try:
-                query = BackgroundProcess.objects.filter(
-                    pk=self.background_process_pk)
-                kwargs = {"status": ProcessStatusEnum.RUNNING}
-
-                if phase:
-                    kwargs.update({
-                        "phase": phase
-                    })
-                if service:
-                    kwargs.update({
-                        "related_resource_type": ContentType.objects.get_for_model(service),
-                        "related_id": service.pk
-                    })
-                if total_steps is not None:
-                    kwargs.update({
-                        "total_steps": total_steps
-                    })
-                if reference_stored or reference_failed:
-                    # one reference decided by this task; the Coalesce answers
-                    # the NULL of a counter which never moved before - a
-                    # collection counts from nothing, not from nothing plus
-                    # nothing. Like the step increment below (see
-                    # capped_done_steps) this is a report, not exactly-once
-                    # accounting: a reference which is delivered twice is
-                    # counted twice, and the identity which makes it exact
-                    # belongs to #1263.
-                    counter = (
-                        "references_stored" if reference_stored
-                        else "references_failed")
-                    kwargs.update({
-                        counter: Coalesce(F(counter), 0) + 1
-                    })
-                if step_done:
-                    kwargs.update({
-                        # the capped increment shared with the manager's
-                        # report, so a duplicated step report cannot push
-                        # this path beyond 100 % either (#1258, #1261)
-                        "done_steps": capped_done_steps(1)
-                    })
-                if failed:
-                    kwargs.update({"status": ProcessStatusEnum.FAILED, "done_at": now()})
-                elif completed:
-                    kwargs.update({
-                        "total_steps": Coalesce(F("total_steps"), 1),
-                        "done_steps": Coalesce(F("total_steps"), 1),
-                        "done_at": now(),
-                        "phase": "completed",
-                        "status": ProcessStatusEnum.COMPLETED,
-                        # a run which planned a collection closes its summary
-                        # with the references it never heard an answer from
-                        # (#1259): a plan which reported everything answers 0
-                        # here, a plan whose fan-out was interrupted answers
-                        # what is missing. A process which planned no
-                        # collection answers NULL - which is what the column of
-                        # an unplanned process holds anyway - so the completion
-                        # of a harvest or of a registration without collection
-                        # cannot answer a summary it never planned.
-                        "references_skipped": Case(
-                            When(
-                                references_total__isnull=True,
-                                then=Value(None, output_field=IntegerField())),
-                            default=Greatest(
-                                F("references_total")
-                                - Coalesce(F("references_stored"), 0)
-                                - Coalesce(F("references_failed"), 0),
-                                0),
-                            output_field=IntegerField(),
-                        ),
-                    })
-                if references_total is not None:
-                    # the plan of a collection, named by the task which
-                    # publishes its fan-out: the expected number and the three
-                    # outcome counters of a run which decided nothing yet. The
-                    # Coalesces keep what a report already counted - a redelivery
-                    # of the root which publishes the plan a second time must
-                    # not erase the outcomes workers reported (#1259, and the
-                    # guard of #1263). The plan is named last on purpose: an
-                    # explicit plan is the answer of this write, whatever the
-                    # completion above derived from the counters before it.
-                    kwargs.update({
-                        "references_total": references_total,
-                        "references_stored": Coalesce(F("references_stored"), 0),
-                        "references_failed": Coalesce(F("references_failed"), 0),
-                        "references_skipped": Coalesce(F("references_skipped"), 0),
-                    })
-
-                if kwargs:
-                    # A terminal outcome cannot be overwritten by sibling tasks.
-                    active_query = query.filter(
-                        done_at__isnull=True,
-                        status__in=[ProcessStatusEnum.PENDING, ProcessStatusEnum.RUNNING])
-                    bare_running = kwargs == {"status": ProcessStatusEnum.RUNNING}
-                    if kwargs.get("status") == ProcessStatusEnum.RUNNING:
-                        # any report of a task which works ends the window of a
-                        # reported retry: the operation works again (#1207)
-                        kwargs["retry_scheduled_until"] = None
-                    if bare_running:
-                        # get_background_process fires on every task start; a
-                        # process which is already running and has no retry
-                        # window to close answers nothing to write and must not
-                        # broadcast anything either.
-                        active_query = active_query.exclude(
-                            status=ProcessStatusEnum.RUNNING,
-                            retry_scheduled_until__isnull=True)
-                    # every write of this path is a state report, and the
-                    # revision which orders the reports is counted in the same
-                    # UPDATE (#1207)
-                    kwargs["revision"] = F("revision") + 1
-                    updated = active_query.update(**kwargs)
-
-                    if updated:
-                        try:
-                            # process_info provides the progress annotation and
-                            # the related resource type in one go, so the
-                            # post_save receiver doesn't have to reload.
-                            instance = BackgroundProcess.objects.process_info().get(
-                                pk=self.background_process_pk)
-                            post_save.send(
-                                BackgroundProcess,
-                                instance=instance,
-                                created=False
-                            )
-                        except BackgroundProcess.DoesNotExist:
-                            logger.warning(
-                                f"Can't get BackgroundProcess by id {self.background_process_pk}")
-
-            except Exception as e:
-                logger.exception(e, stack_info=True, exc_info=True)
-        else:
+        if getattr(self, "background_process_pk", None) is None:
             logger.warning(
                 f"No background process provided for BackgroundProcessBased task. {self.name}")
+            return
+
+        try:
+            query = BackgroundProcess.objects.filter(
+                pk=self.background_process_pk)
+            kwargs = self._process_report_kwargs(
+                phase, service, total_steps, step_done, completed, failed,
+                references_total, reference_stored, reference_failed)
+            if kwargs:
+                self._write_process_report(query, kwargs)
+        except Exception as e:
+            logger.exception(e, stack_info=True, exc_info=True)
+
+    def _process_report_kwargs(self, phase, service, total_steps, step_done,
+                               completed, failed, references_total,
+                               reference_stored, reference_failed):
+        """The fields this report writes, keyed as the queryset update of
+        ``_write_process_report`` names them. Only what the caller names."""
+        kwargs = {"status": ProcessStatusEnum.RUNNING}
+
+        if phase:
+            kwargs.update({
+                "phase": phase
+            })
+        if service:
+            kwargs.update({
+                "related_resource_type": ContentType.objects.get_for_model(service),
+                "related_id": service.pk
+            })
+        if total_steps is not None:
+            kwargs.update({
+                "total_steps": total_steps
+            })
+        if reference_stored or reference_failed:
+            # one reference decided by this task; the Coalesce answers
+            # the NULL of a counter which never moved before - a
+            # collection counts from nothing, not from nothing plus
+            # nothing. Like the step increment below (see
+            # capped_done_steps) this is a report, not exactly-once
+            # accounting: a reference which is delivered twice is
+            # counted twice, and the identity which makes it exact
+            # belongs to #1263.
+            counter = (
+                "references_stored" if reference_stored
+                else "references_failed")
+            kwargs.update({
+                counter: Coalesce(F(counter), 0) + 1
+            })
+        if step_done:
+            kwargs.update({
+                # the capped increment shared with the manager's
+                # report, so a duplicated step report cannot push
+                # this path beyond 100 % either (#1258, #1261)
+                "done_steps": capped_done_steps(1)
+            })
+        if failed:
+            kwargs.update({"status": ProcessStatusEnum.FAILED, "done_at": now()})
+        elif completed:
+            kwargs.update(self._completion_kwargs())
+        if references_total is not None:
+            # the plan of a collection, named by the task which
+            # publishes its fan-out: the expected number and the three
+            # outcome counters of a run which decided nothing yet. The
+            # Coalesces keep what a report already counted - a redelivery
+            # of the root which publishes the plan a second time must
+            # not erase the outcomes workers reported (#1259, and the
+            # guard of #1263). The plan is named last on purpose: an
+            # explicit plan is the answer of this write, whatever the
+            # completion above derived from the counters before it.
+            kwargs.update({
+                "references_total": references_total,
+                "references_stored": Coalesce(F("references_stored"), 0),
+                "references_failed": Coalesce(F("references_failed"), 0),
+                "references_skipped": Coalesce(F("references_skipped"), 0),
+            })
+        return kwargs
+
+    @staticmethod
+    def _completion_kwargs():
+        """The fields which close a process - including the summary of a
+        planned reference collection.
+
+        A run which planned a collection closes its summary with the
+        references it never heard an answer from (#1259): a plan which
+        reported everything answers 0 here, a plan whose fan-out was
+        interrupted answers what is missing. A process which planned no
+        collection answers NULL - which is what the column of an
+        unplanned process holds anyway - so the completion of a harvest
+        or of a registration without collection cannot answer a summary
+        it never planned.
+        """
+        return {
+            "total_steps": Coalesce(F("total_steps"), 1),
+            "done_steps": Coalesce(F("total_steps"), 1),
+            "done_at": now(),
+            "phase": "completed",
+            "status": ProcessStatusEnum.COMPLETED,
+            "references_skipped": Case(
+                When(
+                    references_total__isnull=True,
+                    then=Value(None, output_field=IntegerField())),
+                default=Greatest(
+                    F("references_total")
+                    - Coalesce(F("references_stored"), 0)
+                    - Coalesce(F("references_failed"), 0),
+                    0),
+                output_field=IntegerField(),
+            ),
+        }
+
+    def _write_process_report(self, query, kwargs):
+        """Apply the report to a process which is still active and
+        broadcast the new state."""
+        # A terminal outcome cannot be overwritten by sibling tasks.
+        active_query = query.filter(
+            done_at__isnull=True,
+            status__in=[ProcessStatusEnum.PENDING, ProcessStatusEnum.RUNNING])
+        bare_running = kwargs == {"status": ProcessStatusEnum.RUNNING}
+        if kwargs.get("status") == ProcessStatusEnum.RUNNING:
+            # any report of a task which works ends the window of a
+            # reported retry: the operation works again (#1207)
+            kwargs["retry_scheduled_until"] = None
+        if bare_running:
+            # get_background_process fires on every task start; a
+            # process which is already running and has no retry
+            # window to close answers nothing to write and must not
+            # broadcast anything either.
+            active_query = active_query.exclude(
+                status=ProcessStatusEnum.RUNNING,
+                retry_scheduled_until__isnull=True)
+        # every write of this path is a state report, and the
+        # revision which orders the reports is counted in the same
+        # UPDATE (#1207)
+        kwargs["revision"] = F("revision") + 1
+        updated = active_query.update(**kwargs)
+
+        if updated:
+            self._broadcast_process_state()
+
+    def _broadcast_process_state(self):
+        try:
+            # process_info provides the progress annotation and
+            # the related resource type in one go, so the
+            # post_save receiver doesn't have to reload.
+            instance = BackgroundProcess.objects.process_info().get(
+                pk=self.background_process_pk)
+            post_save.send(
+                BackgroundProcess,
+                instance=instance,
+                created=False
+            )
+        except BackgroundProcess.DoesNotExist:
+            logger.warning(
+                f"Can't get BackgroundProcess by id {self.background_process_pk}")
 
 
 @shared_task(

@@ -29,7 +29,7 @@ class User(AbstractUser):
         default=False,
         verbose_name=_("I want to participate in surveys"))
     confirmed_dsgvo = models.DateTimeField(
-        # FIXME: auto_now_add results in auto accepting dsgvo... this is not a good practice.
+        # FUTURE: auto_now_add results in auto accepting dsgvo... this is not a good practice.
         auto_now_add=True,
         help_text=_("I understand and accept that my data will be automatically "
                     "processed and securely stored, as it is stated in the "

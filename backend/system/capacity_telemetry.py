@@ -293,7 +293,7 @@ def _enforce_buffer_limit():
     open_entries = sorted(
         (entry for entry in _buffer.values() if not entry.is_terminal),
         key=lambda entry: entry.mono_start)
-    victims = [entry for entry in open_entries[:overflow]]
+    victims = open_entries[:overflow]
     for entry in victims:
         _buffer.pop((entry.task_id, entry.attempt_no), None)
     _stats["dropped"] += len(victims)

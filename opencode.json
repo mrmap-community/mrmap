@@ -64,14 +64,11 @@
       },
       "sonarqube": {
         "type": "remote",
-        "url": "https://mcp.sonarqube.com/mcp",
+        "url": "https://api.sonarcloud.io/mcp",
         "oauth": {
           "scope": "mcp:tools:read"
         },
-        "headers": {
-          "SONARQUBE_READ_ONLY": "true"
-        },
-        "$comment": "Official hosted SonarQube Cloud MCP; per-user OAuth credentials stored by OpenCode outside Git. Read-only quality-gates, issues and metrics. Sign in with: opencode mcp auth sonarqube."
+        "$comment": "Official SonarQube Cloud-hosted MCP (EU/global). Read-only OAuth scope; per-user authentication via `opencode mcp auth sonarqube` stored outside Git. US-region installations must use https://api.sonarqube.us/mcp."
       }
     }
   }

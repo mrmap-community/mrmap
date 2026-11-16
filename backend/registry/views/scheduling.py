@@ -2,10 +2,12 @@
 
 One POST, no persistence anywhere: the view reads the proposal, decides
 permissions over the referenced service and setting, and asks the #1325
-estimator what the proposal would mean. It never persists, starts a job,
-registers or refreshes capabilities, executes probes, creates a
-`MonitoringRun` or `UpdateJob` or `HarvestingJob`, sets a `PeriodicTask` or
-touches the queue - the crontab of a proposal is an *unsaved*
+estimator what the proposal would mean - and, where the verified capacity
+data of #1326 underpins it, the #1328 suggestion engine for entire
+alternative crontabs which keep the proposal's cadence. It never persists,
+starts a job, registers or refreshes capabilities, executes probes, creates
+a `MonitoringRun` or `UpdateJob` or `HarvestingJob`, sets a `PeriodicTask`
+or touches the queue - the crontab of a proposal is an *unsaved*
 `CrontabSchedule` whose Celery `schedule` property answers without a row,
 which is the same path `registry.querys.capacity` takes for drafts. A
 warning never rejects a save: validation errors stay with the save path,
@@ -23,6 +25,7 @@ The permission mirror of the actual CRUD path:
   which keeps the endpoint from probing the runs of another organisation's
   service through a foreign setting.
 """
+from dataclasses import asdict
 from datetime import timedelta
 from uuid import uuid4
 
@@ -37,6 +40,7 @@ from registry.querys.capacity import (OVERLAP_QUALIFIER, SETTING_MODEL_OF,
                                       WORKER_TELEMETRY_GAP,
                                       ScheduleProposal,
                                       periodic_capacity_estimate)
+from registry.querys.schedule_suggestions import cadence_suggestions
 from registry.serializers.scheduling import (
     WARNING_CODE_SCHEDULE_TIGHTER, SchedulePreviewRequestSerializer,
     SchedulePreviewSerializer, split_scheduling)
@@ -49,6 +53,9 @@ from rest_framework.views import APIView
 #: the moment until which a preview answer may be trusted by the screen;
 #: after it the answer is stale and the screen should ask again (#1327)
 PREVIEW_VALIDITY = timedelta(seconds=120)
+
+#: the payload a draft routing row is built with, see `_draft_routing`
+DRAFT_ROUTING_KWARGS = '{"scheduling_preview": true}'
 
 #: the service kinds a schedule can be previewed for
 SERVICE_MODELS = {
@@ -77,6 +84,29 @@ def _attributes(request):
                       if key not in ('type', 'id', 'relationships')
                       and not key.startswith('_')}
     return {to_snake(key): value for key, value in attributes.items()}
+
+
+def _draft_routing(setting_model, service):
+    """A `PeriodicTask`-shaped row answering the queue of a new schedule.
+
+    The queue of a draft is decided by the very `__init__` the save path
+    runs - it is the single place which knows the task and the queue of the
+    family - so the row is built through it. Two attributes are handed in so
+    that this stays a read: the `service` of the answered service object
+    (no lookup behind an unsaved foreign key) and a `kwargs` payload, which
+    keeps the initialisation from composing the task's hand-off document -
+    for the harvesting family that would read the `system` user, a write of
+    its own, and the preview never writes.
+
+    Args:
+        setting_model: the setting model of the answered family
+        service: the service instance the draft belongs to
+
+    Returns:
+        PeriodicTask: an unsaved row whose ``task`` and ``queue`` answer
+            which queue a dispatch of this draft would land on
+    """
+    return setting_model(service=service, kwargs=DRAFT_ROUTING_KWARGS)
 
 
 class SchedulingPreviewView(APIView):
@@ -108,7 +138,9 @@ class SchedulingPreviewView(APIView):
             'Read-only in effect: never persists, queues or dispatches '
             'anything. Answers the coming occurrences, the wait between '
             'them, the measured end-to-end durations of the service\'s '
-            'completed runs and stable warning codes for the proposal.'),
+            'completed runs, stable warning codes for the proposal and - '
+            'where the verified deployment capacity data allows it - '
+            'cadence-preserving alternative crontabs with their evidence.'),
         request=SchedulePreviewRequestSerializer,
         responses={200: SchedulePreviewSerializer})
     def post(self, request, *args, **kwargs):
@@ -177,14 +209,24 @@ class SchedulingPreviewView(APIView):
         estimate = periodic_capacity_estimate(
             model.__name__, service.pk, operation,
             setting=setting, proposal=proposal, at=as_of)
+        # the alternatives of #1328 are decided on the same answered draft;
+        # for a schedule which does not exist yet the queue is answered by a
+        # draft routing row built through the family's own __init__, which
+        # is the single place knowing the task and queue the save path would
+        # dispatch with - see `_draft_routing` for what keeps it a read
+        suggestions = cadence_suggestions(
+            setting, proposal, estimate,
+            setting if setting is not None else _draft_routing(
+                setting_model, service),
+            at=as_of)
 
         return Response(
             SchedulePreviewSerializer(_answer(
-                estimate, draft, setting, as_of)).data,
+                estimate, draft, setting, as_of, suggestions)).data,
             headers={'Cache-Control': 'no-store'})
 
 
-def _answer(estimate, draft, setting, as_of):
+def _answer(estimate, draft, setting, as_of, suggestions=None):
     """The typed estimate as the vocabulary of the preview resource."""
     schedule = estimate.schedule
     elapsed = estimate.elapsed
@@ -234,6 +276,17 @@ def _answer(estimate, draft, setting, as_of):
         'warnings': warnings,
         'capacity': None,
         'capacity_reason': str(WORKER_TELEMETRY_GAP),
+        # the cadence-preserving alternatives of #1328: entire crontabs or
+        # the stated reason why no capacity-based suggestion is reliable
+        'suggestions': [asdict(suggestion)
+                        for suggestion in (suggestions.suggestions
+                                           if suggestions else ())],
+        'suggestions_reason': (suggestions.reason
+                               if suggestions else None),
+        'suggestions_reason_code': (suggestions.reason_code
+                                    if suggestions else None),
+        'suggestions_horizon_days': (suggestions.horizon_days
+                                     if suggestions else None),
         'setting_revision': (getattr(setting, 'date_changed', None)
                              if setting is not None and setting.pk
                              else None),

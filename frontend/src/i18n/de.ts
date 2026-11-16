@@ -45,6 +45,12 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     unknown: "unbekannt",
     warnings: "Warnungen",
     capacity: "Worker-Kapazität",
+    suggestions: "Taktgleiche Alternativen",
+    suggestionApply: "Übernehmen",
+    suggestionFirings: "Ausführungen im geprüften Horizont",
+    suggestionOccupancy: "Erwartete Queue-Auslastung",
+    suggestionSamples: "Gemessene Task-Stichproben (Queue)",
+    noSuggestions: "Keine Alternative vorgeschlagen",
     stale:
       "Das Formular wurde nach dieser Antwort geändert; Vorschau erneut ausführen.",
     error: "Die Vorschau konnte nicht beantwortet werden: %{detail}",

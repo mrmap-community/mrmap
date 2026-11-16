@@ -214,7 +214,24 @@ class SchedulePreviewRequestSerializer(Serializer):
         return attrs
 
 
-class ElapsedEvidenceSerializer(Serializer):
+class CamelNestedSerializer(Serializer):
+    """A nested object answered in the camel case of the resource.
+
+    The json:api renderer names the attributes of the resource in camel
+    case but leaves the value of a nested object untouched; the screen
+    reads these ones by camel case keys, so they are answered in the very
+    spelling the renderer would have used (`format_field_name` is the
+    renderer's own formatter).
+    """
+
+    def to_representation(self, instance):
+        """Answer the nested object in the camel case of the resource."""
+        answered = super().to_representation(instance)
+        return {format_field_name(name): value
+                for name, value in answered.items()}
+
+
+class ElapsedEvidenceSerializer(CamelNestedSerializer):
     """The end-to-end durations the completed comparable runs measured.
 
     Every number answers only while its evidence allows it (#1325): the
@@ -234,18 +251,33 @@ class ElapsedEvidenceSerializer(Serializer):
     lookback_days = IntegerField(read_only=True)
     last_measurement_at = DateTimeField(read_only=True, allow_null=True)
 
-    def to_representation(self, instance):
-        """Answer the nested object in the camel case of the resource.
 
-        The json:api renderer names the attributes of the resource in
-        camel case but leaves the value of a nested object untouched; the
-        screen reads this one by camel case keys, so it is answered in the
-        very spelling the renderer would have used (`format_field_name` is
-        the renderer's own formatter).
-        """
-        answered = super().to_representation(instance)
-        return {format_field_name(name): value
-                for name, value in answered.items()}
+class ScheduleSuggestionSerializer(CamelNestedSerializer):
+    """One entire alternative crontab which keeps the answered cadence.
+
+    The cadence fields are the verified ones (#1328): the firing count was
+    decided for original and alternative over the very same dated horizon
+    by the canonical occurrence walk, and the worker-second numbers come
+    from the measured costs of the deployment snapshot of #1326 - with
+    their sample count, never as a claim of a free slot.
+    """
+
+    #: the five fields "minute hour day-of-month month day-of-week"
+    crontab = CharField(read_only=True)
+    #: the answered schedule's own zone - a suggestion never moves it
+    timezone = CharField(read_only=True)
+    horizon_days = IntegerField(read_only=True)
+    horizon_start = DateTimeField(read_only=True)
+    horizon_end = DateTimeField(read_only=True)
+    #: firings both schedules count inside the horizon - verified equal
+    firing_count = IntegerField(read_only=True)
+    queue = CharField(read_only=True)
+    original_worker_seconds = FloatField(read_only=True)
+    expected_worker_seconds = FloatField(read_only=True)
+    sample_count = IntegerField(read_only=True)
+    cost_coverage = FloatField(read_only=True)
+    snapshot_at = DateTimeField(read_only=True)
+    reason = CharField(read_only=True)
 
 
 class WarningSerializer(Serializer):
@@ -280,6 +312,16 @@ class SchedulePreviewSerializer(Serializer):
     elapsed = ElapsedEvidenceSerializer(read_only=True)
     warning_codes = ListField(child=CharField(), read_only=True)
     warnings = ListField(child=WarningSerializer(), read_only=True)
+    #: entire alternative crontabs which keep the cadence of the proposal
+    #: - answered from the verified capacity data of #1326, empty with its
+    #: reason whenever that data or the cadence check does not underpin it
+    suggestions = ListField(
+        child=ScheduleSuggestionSerializer(), read_only=True)
+    suggestions_reason = CharField(read_only=True, allow_null=True)
+    suggestions_reason_code = CharField(read_only=True, allow_null=True)
+    #: the whole local days the cadence was evaluated over - the documented
+    #: horizon, traveling with suggestions and refusals alike
+    suggestions_horizon_days = IntegerField(read_only=True, allow_null=True)
     #: phase-2 only: null while no reliable capacity telemetry exists
     capacity = ReadOnlyField(allow_null=True)
     capacity_reason = CharField(read_only=True)

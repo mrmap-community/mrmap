@@ -1114,6 +1114,58 @@ msgstr ""
 "es werden keine dauerhaften Worker-Ereignisse pro Aufgabe aufgezeichnet, auf "
 "die sich die Worker-Slot-Belegung eines Laufes zurückführen ließe"
 
+#: registry/enums/capacity.py:104
+msgid ""
+"the answered schedule is disabled, one-off or carries no crontab: there is "
+"no periodic cadence whose alternative could be suggested"
+msgstr ""
+"der beantwortete Zeitplan ist deaktiviert, einmalig oder enthält keinen "
+"Crontab: es gibt keine periodische Kadenz, zu der eine Alternative "
+"vorgeschlagen werden könnte"
+
+#: registry/enums/capacity.py:107
+msgid ""
+"the schedule ends before the evaluated horizon begins: nothing is scheduled "
+"left to re-time"
+msgstr ""
+"der Zeitplan endet, bevor der bewertete Horizont beginnt: es ist nichts "
+"mehr geplant, das sich zeitlich neu einordnen ließe"
+
+#: registry/enums/capacity.py:110
+msgid ""
+"the minute field of the schedule leaves no cadence-preserving minute shift "
+"to evaluate"
+msgstr ""
+"das Minutenfeld des Zeitplans lässt keine Verschiebung der Minute zu, "
+"die die Kadenz erhalten würde"
+
+#: registry/enums/capacity.py:113
+msgid ""
+"no alternative fired the same number of times as the schedule within the "
+"evaluated horizon, so no cadence-preserving alternative could be verified"
+msgstr ""
+"keine Alternative löste innerhalb des bewerteten Horizonts genauso oft "
+"aus wie der Zeitplan, daher konnte keine Alternative, die die Kadenz "
+"erhält, verifiziert werden"
+
+#: registry/enums/capacity.py:117
+msgid ""
+"the deployment capacity snapshot answers no verified cost and worker "
+"topology for the queue of this schedule: no reliable capacity-based "
+"suggestion"
+msgstr ""
+"der Kapazitäts-Snapshot der Installation beantwortet keine verifizierten "
+"Kosten und Worker-Topologie für die Warteschlange dieses Zeitplans: kein "
+"verlässlicher kapazitätsbasierter Vorschlag"
+
+#: registry/enums/capacity.py:121
+msgid ""
+"no cadence-preserving alternative measured a lower expected queue occupancy "
+"within the evaluated horizon"
+msgstr ""
+"keine Alternative, die die Kadenz erhält, hat innerhalb des bewerteten "
+"Horizonts eine niedrigere erwartete Belegung der Warteschlange gemessen"
+
 #: registry/enums/harvesting.py:8
 msgid "new"
 msgstr "neu"
@@ -3232,6 +3284,97 @@ msgstr ""
 "Installation nicht aufgezeichnet, es existiert kein Paar, das man messen "
 "könnte"
 
+#: registry/querys/schedule_suggestions.py:109
+#, python-format
+msgid ""
+"This alternative keeps the %(count)d firings the schedule still promises "
+"within the evaluated %(horizon)d-day horizon and, per the measured costs of "
+"the \"%(queue)s\" queue, expects %(expected)s worker-seconds of occupancy in "
+"their windows against %(original)s for the current minute field (%(samples)s "
+"measured terminal task samples). This is a measured preference over verified "
+"data, not a guarantee: it names no free slot and no first-start time."
+msgstr ""
+"Diese Alternative behält die %(count)d Auslösungen, die der Zeitplan "
+"innerhalb des bewerteten %(horizon)d-Tage-Horizonts noch verspricht, und "
+"erwartet nach den gemessenen Kosten der Warteschlange \"%(queue)s\" "
+"%(expected)s Worker-Sekunden Belegung in deren Fenstern gegenüber "
+"%(original)s für das aktuelle Minutenfeld (%(samples)s gemessene "
+"Stichproben von Aufgaben im Endzustand). Das ist eine gemessene "
+"Präferenz auf verifizierten Daten, keine Garantie: sie nennt keinen "
+"freien Slot und keine erste Startzeit."
+
+#: registry/querys/schedule_suggestions.py:322
+#, python-format
+msgid "the deployment capacity snapshot is unavailable: %s"
+msgstr "der Kapazitäts-Snapshot der Installation ist nicht verfügbar: %s"
+
+#: registry/querys/schedule_suggestions.py:325
+msgid "the worker fleet could not be observed"
+msgstr "der Worker-Bestand konnte nicht beobachtet werden"
+
+#: registry/querys/schedule_suggestions.py:327
+#, python-format
+msgid ""
+"the capacity snapshot answers no entry for the \"%(queue)s\" queue of this "
+"schedule"
+msgstr ""
+"der Kapazitäts-Snapshot beantwortet keinen Eintrag für die Warteschlange "
+"\"%(queue)s\" dieses Zeitplans"
+
+#: registry/querys/schedule_suggestions.py:330
+#, python-format
+msgid "the \"%(queue)s\" queue is in state \"%(status)s\""
+msgstr "die Warteschlange \"%(queue)s\" ist im Zustand \"%(status)s\""
+
+#: registry/querys/schedule_suggestions.py:333
+#, python-format
+msgid ""
+"no comparable rho for the \"%(queue)s\" queue: its periodic cost or its "
+"eligible worker slots are not measured"
+msgstr ""
+"kein vergleichbares rho für die Warteschlange \"%(queue)s\": ihre "
+"periodischen Kosten oder ihre in Frage kommenden Worker-Slots sind nicht "
+"gemessen"
+
+#: registry/querys/schedule_suggestions.py:338
+#, python-format
+msgid "the periodic demand of the \"%(queue)s\" queue is only partially costed"
+msgstr ""
+"der periodische Bedarf der Warteschlange \"%(queue)s\" ist nur "
+"kostenbezogen teilweise erfasst"
+
+#: registry/querys/schedule_suggestions.py:343
+#, python-format
+msgid ""
+"no terminal task samples were measured for the \"%(queue)s\" queue in the "
+"cost window"
+msgstr ""
+"für die Warteschlange \"%(queue)s\" wurden im Kostenfenster keine "
+"Stichproben von Aufgaben im Endzustand gemessen"
+
+#: registry/querys/schedule_suggestions.py:346
+#, python-format
+msgid ""
+"the capacity snapshot answers no seconds histogram for the \"%(queue)s\" "
+"queue"
+msgstr ""
+"der Kapazitäts-Snapshot beantwortet kein Sekunden-Histogramm für die "
+"Warteschlange \"%(queue)s\""
+
+#: registry/querys/schedule_suggestions.py:470
+msgid "the capacity snapshot answers no usable horizon for its histograms"
+msgstr ""
+"der Kapazitäts-Snapshot beantwortet keinen brauchbaren Horizont für "
+"seine Histogramme"
+
+#: registry/querys/schedule_suggestions.py:489
+msgid ""
+"the evaluated horizon lies outside the evidence window of the capacity "
+"snapshot"
+msgstr ""
+"der bewertete Horizont liegt außerhalb des Nachweisfensters des "
+"Kapazitäts-Snapshots"
+
 #: registry/serializers/harvesting.py:33
 msgid "The internal MrMap catalogue cannot be harvested."
 msgstr "Der interne MrMap-Katalog darf nicht geharvestet werden."
@@ -4471,52 +4614,56 @@ msgstr ""
 "Das Schreiben von Metadatensätzen ist in dieser Installation deaktiviert "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
 
-#: registry/views/scheduling.py:106
+#: registry/views/scheduling.py:136
 msgid "Preview a proposed schedule without saving it"
 msgstr ""
 "Einen vorgeschlagenen Zeitplan ohne Speichern in der Vorschau betrachten"
 
-#: registry/views/scheduling.py:108
+#: registry/views/scheduling.py:138
 msgid ""
 "Read-only in effect: never persists, queues or dispatches anything. Answers "
 "the coming occurrences, the wait between them, the measured end-to-end "
-"durations of the service's completed runs and stable warning codes for the "
-"proposal."
+"durations of the service's completed runs, stable warning codes for the "
+"proposal and - where the verified deployment capacity data allows it - "
+"cadence-preserving alternative crontabs with their evidence."
 msgstr ""
 "In der Wirkung schreibgeschützt: speichert nichts, stellt nichts in die "
-"Warteschlange und löst nichts aus. Beantwortet die kommenden Vorkommnisse, "
-"die Wartezeit zwischen ihnen, die gemessenen Durchlaufzeiten der "
-"abgeschlossenen Läufe des Dienstes und stabile Warn-Codes für den Vorschlag."
+"Warteschlange und löst nichts aus. Beantwortet die kommenden "
+"Vorkommnisse, die Wartezeit zwischen ihnen, die gemessenen "
+"Durchlaufzeiten der abgeschlossenen Läufe des Dienstes, stabile "
+"Warn-Codes für den Vorschlag und - wo die verifizierten Kapazitätsdaten "
+"der Installation es erlauben - alternative Crontab-Zeitpläne, die die "
+"Kadenz erhalten, samt ihren Nachweisen."
 
-#: registry/views/scheduling.py:126
+#: registry/views/scheduling.py:158
 msgid "This kind of service has no runs of this periodic operation."
 msgstr "Diese Art von Dienst hat keine Läufe dieser periodischen Operation."
 
-#: registry/views/scheduling.py:132
+#: registry/views/scheduling.py:164
 msgid "No service of this kind answers under this id."
 msgstr "Unter dieser Id antwortet kein Dienst dieser Art."
 
-#: registry/views/scheduling.py:135
+#: registry/views/scheduling.py:167
 msgid ""
 "The view permission on the service is required to preview its schedules."
 msgstr ""
 "Die Ansehen-Berechtigung für den Dienst ist erforderlich, um seine Zeitpläne "
 "in der Vorschau zu betrachten."
 
-#: registry/views/scheduling.py:145
+#: registry/views/scheduling.py:177
 msgid "The answered setting is not the setting of this service and operation."
 msgstr ""
 "Die beantwortete Einstellung ist nicht die Einstellung dieses Dienstes und "
 "dieser Operation."
 
-#: registry/views/scheduling.py:150
+#: registry/views/scheduling.py:182
 msgid ""
 "The change permission on the setting is required to preview an edit of it."
 msgstr ""
 "Die Bearbeiten-Berechtigung für die Einstellung ist erforderlich, um eine "
 "Änderung an ihr in der Vorschau zu betrachten."
 
-#: registry/views/scheduling.py:159
+#: registry/views/scheduling.py:191
 msgid ""
 "The add permission on the setting kind is required to preview a schedule "
 "which does not exist yet."

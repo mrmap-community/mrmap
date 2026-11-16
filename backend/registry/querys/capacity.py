@@ -397,7 +397,7 @@ def _schedule(setting, proposal, current_time):
     enabled = False
     crontab = None
     if proposal is not None:
-        parsed = _parse_proposal(proposal, setting)
+        parsed = parse_proposal(proposal, setting)
         if parsed is None:
             gaps.append(EstimateGapEnum.INVALID_PROPOSAL.value)
             return ScheduleAnswer(gaps=tuple(gaps)), None
@@ -433,7 +433,7 @@ def _schedule(setting, proposal, current_time):
         gaps=tuple(gaps)), effective
 
 
-def _parse_proposal(proposal, setting):
+def parse_proposal(proposal, setting):
     """The unsaved `CrontabSchedule` of a proposal, or None when unparsable.
 
     The crontab string is taken the way the api of a schedule takes it: the
@@ -441,6 +441,10 @@ def _parse_proposal(proposal, setting):
     falls back to the one of the setting's current crontab, then to UTC. A
     proposal without a crontab keeps the fields of the current schedule, so
     it can propose only a new timezone or a changed `enabled`.
+
+    Public so that the cadence suggestions of #1328 decide the answered
+    schedule through the very same parse the estimator answers with - one
+    parse, one proposal, never a second reading of the same draft.
     """
     if proposal.crontab:
         parts = proposal.crontab.strip().split()

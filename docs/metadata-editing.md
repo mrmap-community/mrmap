@@ -53,8 +53,12 @@ Two refusals keep the row and the document from ever drifting apart
   field performs; the refused set is derived from the model, it is not a second
   list to maintain;
 * a payload naming a field the configs **read** from the document but the write
-  mapper can not **write** back (bounding geometry, time extents, the citation
-  identifier) is refused with a 400 naming the member. The set comes from the
+  mapper can not **write** back (the citation
+  identifier) is refused with a 400 naming the member. Bounding geometry and
+  time extents joined the writable set with #1246: their configs answer a
+  ``_reverse_parser`` which serializes the geometry as
+  ``gmd:EX_GeographicBoundingBox``/``gmd:EX_BoundingPolygon`` and each time row
+  as a ``gml:TimePeriod`` fragment. The set comes from the
   configs themselves (`publish.non_roundtrippable_fields`), and accepting such
   a write would commit into the row while the served document silently kept its
   old value.

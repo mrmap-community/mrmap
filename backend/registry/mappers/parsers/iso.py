@@ -1,5 +1,6 @@
 from datetime import UTC, timedelta
 from logging import Logger
+from uuid import uuid4
 
 import isodate
 from dateutil.parser import isoparse
@@ -141,5 +142,63 @@ def parse_timeextent(mapper, time_extent_element):
             is_relative=True
         )
 
+    if not any((begin_position, end_position, duration_str,
+                interval_value, interval_unit)):
+        # an EMPTY placeholder element carries nothing - that is the state
+        # the write mapper of #1246 fills, not a value it failed to read
+        return None
+
     logger.warning(
         f"Unable to parse TimeExtent from values: {begin_position} {end_position} {duration_str} {interval_value} {interval_unit}")
+
+
+def _time_position_text(value):
+    """The gml position text for an aware or naive datetime.
+
+    Naive UTC without an offset: :func:`parse_timeextent` localizes a naive
+    position to UTC, so this text reads back as the very same instant on every
+    deployment - unlike the localtime text of ``datetime_to_string``, whose
+    reader assumes the deployment timezone. An offset here would round-trip
+    too, but the repository's own documents carry none.
+    """
+    if timezone.is_aware(value):
+        value = value.astimezone(UTC)
+    return value.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def serialize_timeextent_fragment(mapper, instance):
+    """The gml:TimePeriod fragment for one TimeExtent row (#1246).
+
+    The inverse of :func:`parse_timeextent`: both positions as naive UTC text,
+    the resolution as an ISO 8601 duration when the row carries one. A row
+    with neither position is a rolling window or a relative extent - shapes
+    the editor of #1246 does not offer to write - and answers None, which
+    makes the write mapper leave whatever the document carries for that row
+    untouched rather than guess a GML shape for it.
+    """
+    begin = getattr(instance, "begin", None)
+    end = getattr(instance, "end", None)
+    if begin is None and end is None:
+        return None
+
+    nsmap = mapper.mapping.get("_namespaces", {})
+    gml = nsmap.get("gml")
+    if not gml:  # pragma: no cover - config carries all
+        return None
+
+    period = etree.Element(f"{{{gml}}}TimePeriod")
+    # gml:id is an NCName and unique per document; the row's pk is neither
+    # guaranteed present nor document-unique, so a fresh id per fragment -
+    # two fragments of one document never share one
+    period.set(f"{{{gml}}}id", f"mrmap-{uuid4().hex}")
+    if begin is not None:
+        position = etree.SubElement(period, f"{{{gml}}}beginPosition")
+        position.text = _time_position_text(begin)
+    if end is not None:
+        position = etree.SubElement(period, f"{{{gml}}}endPosition")
+        position.text = _time_position_text(end)
+    resolution = getattr(instance, "resolution", None)
+    if resolution and isinstance(resolution, timedelta) and resolution > timedelta(0):
+        duration = etree.SubElement(period, f"{{{gml}}}duration")
+        duration.text = isodate.duration_isoformat(resolution)
+    return period

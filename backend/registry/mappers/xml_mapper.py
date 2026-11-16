@@ -4,6 +4,7 @@ from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models as db_models
@@ -18,8 +19,10 @@ from registry.mappers.utils import (build_concrete_xpath, create_mapped_row,
                                     get_fk_field_name_from_reverse_relation,
                                     get_mapped_value, is_many_relation,
                                     load_file, load_function,
-                                    parse_write_path, remove_element_or_attribute,
-                                    remove_mapped_element, resolve_write_qname,
+                                    parse_write_path, place_mapped_fragment,
+                                    remove_element_or_attribute,
+                                    remove_mapped_element,
+                                    resolve_write_qname,
                                     set_mapped_value, set_text_or_attribute,
                                     split_path_steps)
 
@@ -795,6 +798,10 @@ class XmlMapper:
           as serialized text and through the spec's ``_parser`` - so writing
           back freshly extracted values does not change the document, not
           even the representation of a date;
+        * a ``_reverse_parser`` may answer an lxml fragment instead of text;
+          the fragment then takes the place of the element its path names -
+          in place of the first match for a flat field, in place of the row
+          element's child of its tag for a collection row;
         * multi-valued fields pair values with matches by position (the same
           document order mapped_values() read them in); surplus values
           create new rows at the spec's ``_reverse._row``, surplus matches
@@ -856,14 +863,34 @@ class XmlMapper:
             path = inputs[0]
         if value is None or value == "":
             return
+        steps, attr, _is_text = parse_write_path(path)
+        attr_tag = resolve_write_qname(attr, nsmap) if attr else None
         text = load_function(reverse_path)(self, value) if reverse_path \
             else value
         if text is None:
             return
+        if isinstance(text, etree._Element):
+            # the reverse parser answers a fragment - a geometry, a nested
+            # reference. The reader of a flat path reads its FIRST match, so
+            # the fragment takes the place of the first match; a missing
+            # path is created and carries it.
+            if attr:  # pragma: no cover - configs are hand checked
+                self.warnings.append(
+                    f"'{name}' is not writable: a fragment is no attribute")
+                return
+            targets = find_mapped_elements(base_el, steps, nsmap)
+            if targets and parser_path:
+                parsed = self._try_parse(parser_path, targets[0])
+                if parsed is not _PARSE_FAILED \
+                        and self._write_equal(parsed, value):
+                    # the document carries this very value in its own
+                    # representation - keep the representation
+                    return
+            place_mapped_fragment(
+                base_el, text, steps, nsmap, element_order=element_order)
+            return
         text = text if isinstance(text, str) else str(text)
 
-        steps, attr, _is_text = parse_write_path(path)
-        attr_tag = resolve_write_qname(attr, nsmap) if attr else None
         targets = find_mapped_elements(base_el, steps, nsmap)
         if targets:
             element = targets[0]
@@ -968,6 +995,9 @@ class XmlMapper:
             text = load_function(reverse_path)(self, instance)
             if text is None:
                 return
+            if isinstance(text, etree._Element):
+                self._write_fragment_row(spec, instance, text, leaf)
+                return
             current = get_mapped_value(leaf, attr_tag)
             if current == str(text):
                 return
@@ -989,6 +1019,34 @@ class XmlMapper:
             self._write_flat_field(
                 f"{name}.{field_name}", field_spec, field_value, leaf, nsmap,
                 element_order)
+
+    def _write_fragment_row(self, spec, instance, fragment, leaf):
+        """Write a fragment row into the matched element that carries it.
+
+        The row of a collection whose reverse parser answers a fragment -
+        the gml:TimePeriod a time_extents row lives in below the matched
+        gmd:extent: the fragment sits INSIDE the row element, so an existing
+        child of the same tag is replaced in place and a missing one is
+        appended at the end of the element. The spec's own _parser answers
+        equality: when the document reads back as the very row being
+        written, the element - and the gml:id it carries - stays as it is.
+        """
+        parser_path = spec.get("_parser")
+        if parser_path:
+            parsed = self._try_parse(parser_path, leaf)
+            if parsed is not _PARSE_FAILED and isinstance(
+                    parsed, db_models.Model) and self._comparable_instance(
+                        parsed) == self._comparable_instance(instance):
+                return
+        existing = next(
+            (el for el in leaf if el.tag == fragment.tag), None)
+        if existing is not None:
+            fragment.tail = existing.tail
+            leaf.replace(existing, fragment)
+            return
+        leaf.append(fragment)
+        prev = fragment.getprevious()
+        fragment.tail = prev.tail if prev is not None else leaf.text
 
     def _parsed_rows(self, spec, steps, nsmap):
         """The base elements the reader actually turned into rows.
@@ -1059,6 +1117,23 @@ class XmlMapper:
             return load_function(parser_path)(self, current)
         except Exception:
             return _PARSE_FAILED
+
+    @staticmethod
+    def _write_equal(parsed, value):
+        """Whether the document's element already says what is written.
+
+        Plain values compare with ``==``; a geometry additionally ignores
+        the SRID label: the model column stamps it onto the assignment of
+        the parsed value while the document parser answers the geometry
+        unlabelled (the config's EPSG:4326 default is a column fact), so the
+        label alone is no reason to rewrite a fragment.
+        """
+        if isinstance(parsed, GEOSGeometry) \
+                and isinstance(value, GEOSGeometry) \
+                and parsed.srid != value.srid:
+            parsed = parsed.clone()
+            parsed.srid = value.srid
+        return parsed == value
 
     def _row_step_index(self, name, spec, steps, nsmap):
         """Where the row element of a collection sits in the base steps."""

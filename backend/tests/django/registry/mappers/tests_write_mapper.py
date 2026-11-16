@@ -25,8 +25,10 @@ that contract, over the real fixtures:
 """
 
 import difflib
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.test import TestCase
 from lxml import etree
 from registry.enums.iso import LanguageChoices
@@ -354,11 +356,13 @@ class RefusalTest(WriteMapperTest):
         values = records[0]["values"]
         values["code"] = "anderer-code"
         values["code_space"] = "anderer/raum/"
-        values["bounding_geometry"] = None
         out, warnings = self.write(raw, records)
         self.assertEqual(c14n(raw), c14n(out))
         self.assertTrue(any("code" in w for w in warnings), warnings)
-        self.assertTrue(
+        # bounding_geometry and time_extents got their _reverse_parser with
+        # #1246: writing back what the extraction answered is neutral, not a
+        # warning - the extent tests below assert their real behaviour
+        self.assertFalse(
             any("bounding_geometry" in w for w in warnings), warnings)
 
     def test_record_count_mismatch_raises(self):
@@ -375,3 +379,149 @@ class RefusalTest(WriteMapperTest):
         records[0]["spec"] = "service"
         with self.assertRaises(ValueError):
             self.write(raw, records)
+
+
+class ExtentWriteTest(WriteMapperTest):
+    """The extent fragments of #1246: geometry and time rows written back.
+
+    The config's `_reverse_parser` for `bounding_geometry` answers an
+    EX_GeographicBoundingBox or EX_BoundingPolygon fragment and the one for
+    `time_extents` a gml:TimePeriod fragment; the write mapper places them
+    like #1242's rule for the flat paths (replace the first match) and for
+    the collection rows (replace the row element's fragment child, create a
+    row at `_reverse._row`). These tests mutate the extracted values and
+    read the answer back through the same mapper.
+    """
+
+    def mutate(self, name, changes):
+        """read -> extract -> apply `changes` to the record values -> write."""
+        raw = self.read(name)
+        records = self.extract(raw)
+        changes(records[0]["values"])
+        out, warnings = self.write(raw, records)
+        return raw, records, out, warnings, self.extract(out)
+
+    def assert_extent_writable(self, warnings):
+        self.assertFalse(
+            [w for w in warnings
+             if "bounding_geometry" in w or "time_extents" in w], warnings)
+
+    def test_bounding_box_change_writes_a_bounding_box(self):
+        # the ring in the order :func:`_parse_geographic_bbox` reads it back
+        rect = Polygon([(2.0, 48.0), (2.0, 49.0), (3.0, 49.0), (3.0, 48.0),
+                        (2.0, 48.0)])
+
+        def change(values):
+            values["bounding_geometry"] = MultiPolygon([rect])
+
+        _, _, out, warnings, reread = self.mutate("dataset.xml", change)
+        self.assert_extent_writable(warnings)
+        self.assertEqual(reread[0]["values"]["bounding_geometry"],
+                         MultiPolygon([rect], srid=4326))
+        self.assertIn(b"EX_GeographicBoundingBox", out)
+        # the written rectangle reads back as the very geometry: a second
+        # save of the re-read values is byte-stable
+        out2, _ = self.write(out, reread)
+        self.assertEqual(out, out2)
+
+    def test_non_rectangular_geometry_replaces_the_box_with_a_polygon(self):
+        triangle = Polygon([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 0.0)])
+
+        def change(values):
+            values["bounding_geometry"] = MultiPolygon([triangle])
+
+        _, _, out, warnings, reread = self.mutate("dataset.xml", change)
+        self.assert_extent_writable(warnings)
+        self.assertIn(b"EX_BoundingPolygon", out)
+        self.assertNotIn(b"EX_GeographicBoundingBox", out)
+        # GML reads polygons in the clockwise convention, the value came in
+        # counter-clockwise: the answer back is the same geometry, not the
+        # same vertex order - the topological equality is what round trips
+        self.assertTrue(reread[0]["values"]["bounding_geometry"].equals(
+            MultiPolygon([triangle], srid=4326)))
+        out2, _ = self.write(out, reread)
+        self.assertEqual(out, out2)
+
+    def test_writing_back_a_polygon_document_is_semantically_neutral(self):
+        # after one write put the geometry into the EX_BoundingPolygon shape,
+        # re-extracting and writing the result again finds the polygon equal
+        # through the spec's _parser - the document bytes of the second save
+        # do not move any more than those of an unchanged bounding box
+        triangle = Polygon([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 0.0)])
+
+        def change(values):
+            values["bounding_geometry"] = MultiPolygon([triangle])
+
+        _, _, out, _, reread = self.mutate("dataset.xml", change)
+        out2, warnings = self.write(out, reread)
+        self.assert_extent_writable(warnings)
+        self.assertEqual(c14n(out), c14n(out2))
+        self.assertIn(b"EX_BoundingPolygon", out2)
+
+    def test_geometry_created_in_a_seed_document_without_one(self):
+        from registry.mappers.publish import seed_document
+
+        seed = seed_document("dataset")
+        records = self.extract(seed)
+        self.assertIsNone(records[0]["values"]["bounding_geometry"])
+        rect = Polygon([(7.0, 50.0), (7.0, 51.0), (8.0, 51.0), (8.0, 50.0),
+                        (7.0, 50.0)])
+        records[0]["values"]["bounding_geometry"] = MultiPolygon([rect])
+        out, warnings = self.write(seed, records)
+        self.assert_extent_writable(warnings)
+        self.assertIn(b"EX_GeographicBoundingBox", out)
+        self.assertEqual(self.extract(out)[0]["values"]["bounding_geometry"],
+                         MultiPolygon([rect], srid=4326))
+
+    def test_time_row_change_updates_the_positions_and_keeps_the_row(self):
+        def change(values):
+            values["time_extents"][0]["end"] = datetime(
+                2021, 6, 30, 12, 0, 0, tzinfo=UTC)
+
+        _, _, out, warnings, reread = self.mutate("hessen-01.xml", change)
+        self.assert_extent_writable(warnings)
+        row = reread[0]["values"]["time_extents"][0]
+        self.assertEqual(row["end"], datetime(2021, 6, 30, 12, 0, 0,
+                                              tzinfo=UTC))
+        self.assertIn(b"2021-06-30T12:00:00", out)
+        # still exactly one temporal row element in the document
+        self.assertEqual(
+            out.count(b"<gmd:EX_TemporalExtent>"),
+            self.read("hessen-01.xml").count(b"<gmd:EX_TemporalExtent>"))
+        out2, _ = self.write(out, reread)
+        self.assertEqual(out, out2)
+
+    def test_new_time_row_is_created_beside_the_existing_ones(self):
+        begin = datetime(2022, 1, 1, tzinfo=UTC)
+        end = datetime(2022, 12, 31, tzinfo=UTC)
+
+        def change(values):
+            values["time_extents"].append(
+                {"begin": begin, "end": end,
+                 "resolution": timedelta(0), "is_relative": False})
+
+        _, _, out, warnings, reread = self.mutate("hessen-01.xml", change)
+        self.assert_extent_writable(warnings)
+        rows = reread[0]["values"]["time_extents"]
+        self.assertEqual(len(rows), 2)
+        self.assertIn({"begin": begin, "end": end},
+                      [{"begin": r["begin"], "end": r["end"]} for r in rows])
+        out2, _ = self.write(out, reread)
+        self.assertEqual(out, out2)
+
+    def test_writing_a_rolling_row_back_leaves_it_untouched(self):
+        # a row without positions is a rolling window - GML shapes with
+        # indeterminate positions which the reverse parser answers None for:
+        # the write leaves whatever the document carries for that row alone
+        # instead of guessing a shape
+        raw = self.read("dataset.xml")
+        records = self.extract(raw)
+        row = records[0]["values"]["time_extents"][0]
+        row["begin"] = None
+        row["end"] = None
+        row["is_relative"] = True
+        row["resolution"] = timedelta(days=3)
+        out, warnings = self.write(raw, records)
+        self.assert_extent_writable(warnings)
+        self.assertIn(b"indeterminatePosition", out)
+        self.assertEqual(c14n(raw), c14n(out))

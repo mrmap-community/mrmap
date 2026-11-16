@@ -28,7 +28,9 @@ from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
+from rest_framework import mixins
 from rest_framework.permissions import BasePermission
+from rest_framework.viewsets import GenericViewSet
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
@@ -412,7 +414,7 @@ class NestedDatasetMetadataViewSet(
 
 
 class MetadataContactViewSetMixin:
-    queryset = MetadataContact.objects.all()
+    queryset = MetadataContact.objects.with_usage_count()
     serializer_class = MetadataContactSerializer
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -643,7 +645,17 @@ class NestedApplicationMetadataViewSet(
     pass
 
 
-class TimeExtentViewSet(ReadOnlyModelViewSet):
+class TimeExtentViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    GenericViewSet
+):
+    # a time row is a lookup shared by records: changing or removing an
+    # existing row would drift every document which references it, so the
+    # resource answers reading and adding only - the editor creates a row
+    # with POST and the record write puts it into the document (#1246)
+    http_method_names = ["get", "head", "options", "post"]
     # the annotation makes the display string of the serializer sortable, which
     # is the sort the generic pickers send when they render this resource (#1035)
     queryset = TimeExtent.objects.with_string_representation()

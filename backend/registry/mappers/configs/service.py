@@ -46,7 +46,7 @@ XPATH_MAP = {
                     "_inputs": (
                         "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon",
-                    # TODO: "_reverse_parser": "",
+                    "_reverse_parser": "registry.mappers.parsers.value.serialize_bounding_geometry",
                 },
 
                 "equivalent_scale": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer",
@@ -129,11 +129,12 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
-                    # TODO: "__reverse_parser": "",
+                    "_reverse_parser": "registry.mappers.parsers.iso.serialize_timeextent_fragment",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.timeextent_identifier",
                         },
+                        "_row": "./gmd:EX_TemporalExtent",
                     },
                 },
             }

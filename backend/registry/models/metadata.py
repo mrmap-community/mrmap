@@ -17,8 +17,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from extras.managers import (ChoiceManager, DefaultHistoryManager,
-                             UniqueConstraintDefaultValueManager)
+from extras.managers import (ChoiceManager, DefaultHistoryManager)
 from extras.models import (AdditionalTimeFieldsHistoricalModel, ChoiceModel,
                            DeltaSizeHistoricalModel)
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
@@ -34,6 +33,7 @@ from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (ApplicationMetadataRecordManager,
                                         DatasetMetadataRecordManager,
                                         KeywordManager,
+                                        MetadataContactManager,
                                         MetadataRelationManager,
                                         ServiceMetadataRecordManager,
                                         TimeExtentManager)
@@ -424,7 +424,7 @@ class MetadataContact(models.Model):
                                default='',
                                verbose_name=_("Country"))
 
-    objects = UniqueConstraintDefaultValueManager()
+    objects = MetadataContactManager()
 
     class Meta:
         ordering = ["name"]
@@ -1429,7 +1429,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     time_extents = models.ManyToManyField(
         to=TimeExtent,
         blank=True,
-        editable=False,
+        editable=True,
         related_name="%(app_label)s_%(class)s",
         related_query_name="%(app_label)s_%(class)s",
         verbose_name=_("time extent"),

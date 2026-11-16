@@ -861,3 +861,44 @@ def remove_mapped_element(el, stop_at):
     if parent is not None:
         parent.remove(el)
         remove_empty_parents(parent, stop_at)
+
+
+def place_mapped_fragment(base_el, fragment, steps, nsmap,
+                          element_order=None):
+    """Place a serialized fragment at the element its path names.
+
+    The inverse of reading a fragment field (a geometry, a nested reference):
+    the fragment takes the place of the element the steps name below
+    *base_el* - the first match is replaced in place, keeping the surrounding
+    indentation, and a missing path is created up to its container, which
+    then carries the fragment as the child the schema order names. A fragment
+    that does not satisfy its last step raises: the next read would not find
+    what this write wrote.
+    """
+    if not steps or steps[-1].name == ".":
+        raise ValueError("a fragment path must name an element")
+    last = steps[-1]
+    if last.predicate:
+        if not _predicate_holds(fragment, last.predicate, nsmap):
+            raise ValueError(
+                f"fragment {fragment.tag} does not satisfy step {last.raw}")
+    elif _step_tag(last, nsmap) != fragment.tag:
+        raise ValueError(
+            f"fragment {fragment.tag} is not the element {last.raw}")
+    matches = find_mapped_elements(base_el, steps, nsmap)
+    if matches:
+        element = matches[0]
+        parent = element.getparent()
+        if parent is None:  # pragma: no cover - paths never address the root
+            raise ValueError("can not replace the document root")
+        fragment.tail = element.tail
+        parent.replace(element, fragment)
+        return fragment
+    container = ensure_mapped_element(
+        base_el, steps[:-1], nsmap, element_order=element_order)
+    container.append(fragment)
+    if element_order:
+        _place_ordered(container, fragment, element_order)
+    prev = fragment.getprevious()
+    fragment.tail = prev.tail if prev is not None else container.text
+    return fragment

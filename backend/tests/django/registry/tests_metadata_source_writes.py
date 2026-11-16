@@ -28,6 +28,7 @@ WRITABLE representation: the document text. Pinned top-down:
   403, closed gate or 403.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -183,10 +184,16 @@ class RawSourceWriteTests(SourceApiMixin, TestCase):
         self.assertEqual(len(root.xpath(
             "//*[local-name()='MD_Metadata']")), 1)
         # the header is the ROW's: the row's identifier and the stamp THIS
-        # editor save bumped (#1241 AC 2 applies to a raw write as to any)
-        self.assertEqual(
-            values["date_stamp"],
-            timezone.localtime(record.date_stamp).replace(microsecond=0))
+        # editor save bumped (#1241 AC 2 applies to a raw write as to any).
+        # the served stamp is second-precision, and the serializer rounds
+        # the row's microseconds over a second boundary where the row
+        # truncates - so compare with a one second tolerance, which still
+        # rejects the foreign document date and any other stamp
+        self.assertLessEqual(
+            abs(values["date_stamp"]
+                - timezone.localtime(record.date_stamp)
+                .replace(microsecond=0)),
+            timedelta(seconds=1))
         self.assertTrue(record.is_customized)
 
     def test_content_the_form_does_not_map_serves_as_submitted(self):

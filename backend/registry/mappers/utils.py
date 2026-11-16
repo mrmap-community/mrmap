@@ -14,6 +14,11 @@ from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
 from psycopg.types.range import Range
 
+#: the trailing step a mapped path carries to ask for the element's text
+#: instead of its structure, as both the read helpers and the write parser
+#: below meet it
+TEXT_STEP = "text()"
+
 
 def load_function(path: str):
     """Importiert eine Funktion aus einem string 'module.func'"""
@@ -382,7 +387,7 @@ def ensure_path(root, xpath, nsmap=None):
     is_text = False
 
     # Check if last part is text()
-    if parts[-1] == "text()":
+    if parts[-1] == TEXT_STEP:
         is_text = True
         parts = parts[:-1]
 
@@ -633,8 +638,8 @@ def parse_write_path(xpath):
     is_text = False
     if path.startswith("@"):
         return [], path[1:], False
-    if path.endswith("/text()") or path == "text()":
-        path = path[: -len("text()")].rstrip("/")
+    if path.endswith("/" + TEXT_STEP) or path == TEXT_STEP:
+        path = path[: -len(TEXT_STEP)].rstrip("/")
         is_text = True
         if not path:
             return [], None, True

@@ -14,6 +14,9 @@ by #1392 (harvesting, import, registration), #1393 (monitoring, update) and
 #1394 (housekeeping, alerts, security, conformity, notify, system), and the
 checklist #1395 asserts with query-count tests.
 
+The tests #1395 wrote for that checklist, what each family's guards pin and
+which baselines are deliberately red, are on :ref:`celery-task-sql-regression`.
+
 Scope rules honored here (from #1388): the audit is **static** — source
 inspection and call-graph tracing only. No runtime telemetry, no production
 worker sampling, no live profiling and no dashboards were added; the existing
@@ -1120,6 +1123,8 @@ Scoping for the follow-up issues
 
 Coverage checklist for #1395
 ############################
+
+The guards and their coverage matrix: :ref:`celery-task-sql-regression`.
 
 Assertions the family tests should carry (test-time
 ``CaptureQueriesContext``; fixture shapes 0/1/10/100+ where volume matters;

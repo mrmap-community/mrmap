@@ -27,7 +27,7 @@ export const parseTargetKey = (
   targetPath?: string | null,
 ): { resource: string; id: string } | null => {
   if (!targetPath) return null;
-  const match = targetPath.match(/\/([^/]+)\/([^/]+)\/show(?:[/?#]|$)/);
+  const match = /\/([^/]+)\/([^/]+)\/show(?:[/?#]|$)/.exec(targetPath);
   if (!match) return null;
   return { resource: match[1], id: match[2] };
 };

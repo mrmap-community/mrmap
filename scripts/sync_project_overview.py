@@ -80,6 +80,9 @@ def synchronize(apply=False):
     for issue in sorted(issues, key=lambda x: x["number"]):
         url = issue["url"]
         item = by_url.get(url)
+        # Import current backlog only; keep existing closed items for history.
+        if item is None and issue["state"].upper() != "OPEN":
+            continue
         phase = issue_phase(issue, idx)
         labels = {x["name"] for x in issue.get("labels", [])}
         agent = ("Paused" if "agent: paused" in labels else

@@ -150,11 +150,11 @@ class ScheduleProposal:
     """
 
     enabled: bool = True
-    crontab: str = None
-    timezone: str = None
-    one_off: bool = None
-    start_time: datetime = None
-    expires: datetime = None
+    crontab: str | None = None
+    timezone: str | None = None
+    one_off: bool | None = None
+    start_time: datetime | None = None
+    expires: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -162,9 +162,9 @@ class ScheduleAnswer:
     """The schedule side of an estimate, decided with canonical Celery semantics."""
 
     enabled: bool = False
-    crontab: str = None
-    next_run_expected_at: datetime = None
-    run_interval_seconds: float = None
+    crontab: str | None = None
+    next_run_expected_at: datetime | None = None
+    run_interval_seconds: float | None = None
     #: the coming occurrences of the schedule, ascending, decided by the
     #: same canonical stepping as `next_run_expected_at` (#1327)
     next_occurrences: tuple = ()
@@ -182,15 +182,15 @@ class ElapsedEstimate:
     """
 
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
-    median_seconds: float = None
-    p95_seconds: float = None
-    average_seconds: float = None
+    median_seconds: float | None = None
+    p95_seconds: float | None = None
+    average_seconds: float | None = None
     sample_count: int = 0
     p95_minimum_samples: int = P95_MIN_SAMPLES
     failed_count: int = 0
     incomplete_count: int = 0
     lookback_days: int = LOOKBACK_DAYS
-    last_measurement_at: datetime = None
+    last_measurement_at: datetime | None = None
     gaps: tuple = ()
 
 
@@ -198,7 +198,7 @@ class ElapsedEstimate:
 class QueueWaitEstimate:
     """Enqueue to task start. Null unless an authoritative pair exists."""
 
-    seconds: float = None
+    seconds: float | None = None
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
     gap: str = EstimateGapEnum.QUEUE_PAIR_MISSING.value
     reason: str = QUEUE_PAIR_GAP
@@ -212,7 +212,7 @@ class WorkerSlotEstimate:
     elapsed time of a run is never answered here.
     """
 
-    seconds: float = None
+    seconds: float | None = None
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
     gap: str = EstimateGapEnum.WORKER_TELEMETRY_MISSING.value
     reason: str = WORKER_TELEMETRY_GAP
@@ -226,9 +226,9 @@ class OverlapRisk:
     median - so the qualifier is never read as a guarantee.
     """
 
-    potential_overlap: bool = None
-    basis: str = None
-    interval_seconds: float = None
+    potential_overlap: bool | None = None
+    basis: str | None = None
+    interval_seconds: float | None = None
     qualifier: str = OVERLAP_QUALIFIER
     gaps: tuple = ()
 
@@ -242,10 +242,10 @@ class PeriodicCapacityEstimate:
     never filters the observations.
     """
 
-    operation: str = None
-    service_kind: str = None
-    service_id: str = None
-    setting_id: int = None
+    operation: str | None = None
+    service_kind: str | None = None
+    service_id: str | None = None
+    setting_id: int | None = None
     scope: tuple = ()
     schedule: ScheduleAnswer = field(default_factory=ScheduleAnswer)
     elapsed: ElapsedEstimate = field(default_factory=ElapsedEstimate)
@@ -347,8 +347,8 @@ class _RunHistory:
 
     durations: tuple = ()   # measurable durations of completed runs inside the window
     unmeasurable: int = 0   # completed runs whose timestamps measure no duration
-    average: timedelta = None   # #693-compatible average over all completed runs
-    last_done: datetime = None  # newest terminal completion, any age
+    average: timedelta | None = None  # #693-compatible average over all completed runs
+    last_done: datetime | None = None  # newest terminal completion, any age
     completed_total: int = 0    # completed comparable runs, any age
     failed: int = 0             # runs which ended failing, any age
     incomplete: int = 0         # runs which did not reach a terminal state

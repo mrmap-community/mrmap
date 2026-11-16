@@ -196,6 +196,24 @@ class SuggestionAnswer:
     horizon_days: int | None = None
 
 
+@dataclass(frozen=True)
+class _Evidence:
+    """What the snapshot answers for one queue, as the engine reads it.
+
+    The seconds histogram with the dated window it was measured over, and
+    the two coverage answers the ranking states with its suggestion.
+    """
+
+    queue: str
+    histogram: tuple
+    start: datetime
+    end: datetime
+    bucket_seconds: int
+    samples: int
+    coverage: float | None
+    snapshot_at: datetime
+
+
 def _refuse(code, horizon_days=None, detail=None):
     """The refusal of a suggestion set: the gap label, never a free minute."""
     label = str(SuggestionGapEnum(code).label)
@@ -380,8 +398,7 @@ def cadence_suggestions(setting, proposal, estimate, routing, at=None,
     if _BLOCKING_GAPS.intersection(estimate.schedule.gaps):
         return _refuse(SuggestionGapEnum.NOT_PERIODIC.value)
     try:
-        return _suggestions(setting, proposal, estimate, routing, at,
-                            snapshot)
+        return _suggestions(setting, proposal, routing, at, snapshot)
     except Exception as error:
         # the preview must keep answering its #1327 contract whatever the
         # suggestion engine does: fail closed into the stated nothing
@@ -389,8 +406,14 @@ def cadence_suggestions(setting, proposal, estimate, routing, at=None,
         return _refuse(SuggestionGapEnum.CAPACITY_UNVERIFIED.value)
 
 
-def _suggestions(setting, proposal, estimate, routing, at, snapshot):
-    """The engine body, after the blocking-gap decision."""
+def _suggestions(setting, proposal, routing, at, snapshot):
+    """The engine body, after the blocking-gap decision.
+
+    Three stages, each answering its own refusal: the cadence of the
+    answered schedule verified over one dated horizon, the minute fields
+    proven to fire the very instants the answered schedule fires, the
+    alternatives ranked by the measured costs of the snapshot.
+    """
     crontab, enabled = _answered_crontab(setting, proposal)
     if crontab is None or not enabled:
         return _refuse(SuggestionGapEnum.NOT_PERIODIC.value)
@@ -400,6 +423,32 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
         # change what the administrator asked for, not only when it happens
         return _refuse(SuggestionGapEnum.NOT_PERIODIC.value)
 
+    cadence = _verified_cadence(crontab, draft, at)
+    if isinstance(cadence, SuggestionAnswer):
+        return cadence
+    horizon_days, lower, upper, original, budget = cadence
+
+    equivalent = _equivalent_alternatives(
+        crontab, original, lower, upper, budget, horizon_days)
+    if isinstance(equivalent, SuggestionAnswer):
+        return equivalent
+
+    evidence = _capacity_evidence(snapshot, routing, horizon_days, at)
+    if isinstance(evidence, SuggestionAnswer):
+        return evidence
+    return _ranked_suggestions(equivalent, original, evidence, lower, upper,
+                               horizon_days, crontab.timezone)
+
+
+def _verified_cadence(crontab, draft, at):
+    """The dated horizon of the answered schedule and the instants it fires.
+
+    Answers ``(horizon_days, lower, upper, original, budget)``, or the
+    refusal which states why the cadence stays unverified. A rare pattern
+    is re-evaluated over the documented longer horizon before it counts
+    unverifiable, because counting whole days is what makes the comparison
+    of two minute fields fair at the window edges.
+    """
     tz = crontab.timezone
     first_day = at.astimezone(tz).date() + timedelta(days=1)
     horizon_days = _horizon_days()
@@ -426,7 +475,17 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
         # no occurrence to compare by - equivalence stays unproven
         return _refuse(SuggestionGapEnum.CADENCE_UNVERIFIABLE.value,
                        horizon_days)
+    return horizon_days, lower, upper, original, budget
 
+
+def _equivalent_alternatives(crontab, original, lower, upper, budget,
+                             horizon_days):
+    """The minute fields which fire exactly the instants of the answered one.
+
+    Answers the ``(offset, spelling, candidate, instants)`` rows of the
+    candidates whose walk counted the same number of occurrences over the
+    same window, or the refusal which states that none was proven.
+    """
     candidates = _candidates(crontab, sorted(crontab.schedule.minute))
     if not candidates:
         return _refuse(SuggestionGapEnum.CADENCE_NO_SPACE.value, horizon_days)
@@ -440,7 +499,18 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
     if not equivalent:
         return _refuse(SuggestionGapEnum.CADENCE_UNVERIFIABLE.value,
                        horizon_days)
+    return equivalent
 
+
+def _capacity_evidence(snapshot, routing, horizon_days, at):
+    """The evidence the snapshot answers for the queue of this schedule.
+
+    The snapshot is read through the bounded reader of #1326 when the caller
+    did not hand one in, and an unreadable or shapeless answer is kept as the
+    unavailable verdict it is - the engine refuses on it below. Answers the
+    `_Evidence` of the queue or the refusal which states what the snapshot
+    did not answer.
+    """
     if snapshot is None:
         try:
             snapshot = get_capacity_snapshot()
@@ -458,42 +528,57 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
         return _refuse(SuggestionGapEnum.CAPACITY_UNVERIFIED.value,
                        horizon_days, str(detail))
 
-    histogram = entry['histogram_seconds']
     horizon_meta = snapshot.get('horizon') or {}
     evidence_start = _as_moment(horizon_meta.get('start'))
     evidence_end = _as_moment(horizon_meta.get('end'))
     bucket_seconds = horizon_meta.get('bucket_seconds')
-    buckets = len(histogram)
     if evidence_start is None or evidence_end is None or not bucket_seconds:
         return _refuse(SuggestionGapEnum.CAPACITY_UNVERIFIED.value,
                        horizon_days, str(
                            _('the capacity snapshot answers no usable '
                              'horizon for its histograms')))
+    return _Evidence(
+        queue=queue,
+        histogram=entry['histogram_seconds'],
+        start=evidence_start,
+        end=evidence_end,
+        bucket_seconds=bucket_seconds,
+        samples=((entry.get('observed') or {}).get('coverage') or {}).get(
+            'terminal_samples') or 0,
+        coverage=entry.get('periodic_demand_coverage'),
+        snapshot_at=_as_moment(snapshot.get('snapshot_at')) or at)
 
-    def expected_seconds(moments):
-        """The histogram seconds the firings of one schedule expect.
 
-        Firings past the snapshot's evidence window stay out for both
-        schedules alike - the comparison never charges one side a bucket
-        the snapshot did not observe.
-        """
-        return sum(
-            histogram[capacity_demand.bucket_of(
-                moment, evidence_start, bucket_seconds, buckets)]
-            for moment in moments if moment <= evidence_end)
+def _expected_seconds(evidence, moments):
+    """The histogram seconds the firings of one schedule expect.
 
-    original_seconds = expected_seconds(original)
-    if not any(moment <= evidence_end for moment in original):
+    Firings past the snapshot's evidence window stay out for both schedules
+    alike - the comparison never charges one side a bucket the snapshot did
+    not observe.
+    """
+    buckets = len(evidence.histogram)
+    return sum(
+        evidence.histogram[capacity_demand.bucket_of(
+            moment, evidence.start, evidence.bucket_seconds, buckets)]
+        for moment in moments if moment <= evidence.end)
+
+
+def _ranked_suggestions(equivalent, original, evidence, lower, upper,
+                        horizon_days, timezone):
+    """The alternatives the measured costs rank ahead of the answered one.
+
+    Only a measured improvement is a suggestion; a horizon the snapshot
+    never observed is the stated refusal, never an assumed equal cost.
+    """
+    original_seconds = _expected_seconds(evidence, original)
+    if not any(moment <= evidence.end for moment in original):
         return _refuse(SuggestionGapEnum.CAPACITY_UNVERIFIED.value,
                        horizon_days, str(_(
                            'the evaluated horizon lies outside the evidence '
                            'window of the capacity snapshot')))
-    samples = ((entry.get('observed') or {}).get('coverage') or {}).get(
-        'terminal_samples') or 0
-
     scored = []
     for offset, spelling, _candidate, instants in equivalent:
-        seconds = expected_seconds(instants)
+        seconds = _expected_seconds(evidence, instants)
         if seconds < original_seconds:
             scored.append((original_seconds - seconds, offset, spelling,
                            seconds))
@@ -501,10 +586,18 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
         return _refuse(SuggestionGapEnum.NO_MEASURED_IMPROVEMENT.value,
                        horizon_days)
     scored.sort(key=lambda row: (-row[0], row[1]))
-    coverage = entry.get('periodic_demand_coverage')
-    snapshot_at = _as_moment(snapshot.get('snapshot_at')) or at
-    timezone_name = getattr(tz, 'key', str(tz))
-    suggestions = tuple(
+    return SuggestionAnswer(
+        suggestions=_suggestion_rows(scored, original, original_seconds,
+                                     evidence, lower, upper, horizon_days,
+                                     timezone),
+        horizon_days=horizon_days)
+
+
+def _suggestion_rows(scored, original, original_seconds, evidence, lower,
+                     upper, horizon_days, timezone):
+    """The ranked rows as the suggestion vocabulary of the preview."""
+    timezone_name = getattr(timezone, 'key', str(timezone))
+    return tuple(
         CadenceSuggestion(
             crontab=spelling,
             timezone=timezone_name,
@@ -512,21 +605,19 @@ def _suggestions(setting, proposal, estimate, routing, at, snapshot):
             horizon_start=lower + timedelta(microseconds=1),
             horizon_end=upper + timedelta(microseconds=1),
             firing_count=len(original),
-            queue=queue,
+            queue=evidence.queue,
             original_worker_seconds=round(original_seconds, 3),
             expected_worker_seconds=round(seconds, 3),
-            sample_count=samples,
-            cost_coverage=coverage,
-            snapshot_at=snapshot_at,
+            sample_count=evidence.samples,
+            cost_coverage=evidence.coverage,
+            snapshot_at=evidence.snapshot_at,
             reason=str(SUGGESTION_REASON % {
                 'count': len(original), 'horizon': horizon_days,
-                'queue': queue, 'expected': round(seconds, 1),
+                'queue': evidence.queue, 'expected': round(seconds, 1),
                 'original': round(original_seconds, 1),
-                'samples': samples}))
+                'samples': evidence.samples}))
         for _improvement, _offset, spelling, seconds
         in scored[:_max_suggestions()])
-    return SuggestionAnswer(suggestions=suggestions,
-                            horizon_days=horizon_days)
 
 
 def _queue_of(routing):

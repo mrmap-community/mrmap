@@ -104,35 +104,89 @@ something on has one:
 - `backend/accounts/models/guardian.py` — `Organization` and `Group`, which the permission
   bootstrap below grants on.
 
-Models nothing grants on today answer from the generic tables until the role work needs a
-table of their own; issue #735 declares the whole set, gives each model its through-tables
-and adds a system check for it.
+That set is declared as data since #735, and a system check reads it back:
+
+- `GUARDIAN_PERF_MODELS` in `backend/accounts/settings.py` — the models which answer from
+  tables of their own, i.e. exactly the eight named above. An entry whose pair of
+  through-models was never written is `accounts.E004`; a pair written beside the list is
+  `accounts.W001`.
+- `ROLE_MANAGED_MODELS` in the same file — the models which are *resources*: they store their
+  owning organization (the `owner` column of #733), and the bootstrap below grants a new
+  instance to the roles of that organization. Today: `registry.WebMapService` and
+  `registry.WebFeatureService`. `registry.CatalogueService` has its owner and its tables and
+  is deliberately not listed, because no definition of the role catalogue holds
+  `change_catalogueservice` — so today no role would be granted a new harvested record. It
+  joins the list together with the definition which manages it.
+
+Models nothing grants on answer from the generic tables until the role work needs a table of
+their own.
+
+### What the two settings promise
+
+A list is only honest while something reads it back, and the single `SECURED_MODELS` list is
+the lesson: a model could join it while nobody noticed that its through-models were missing,
+because guardian answers a model without its own tables *successfully* — only slowly, and
+with query counts which the assertions of `tests/django/registry/tests_query_performance.py`
+no longer describe. Nothing failed, so nothing was fixed. `backend/accounts/checks.py` is the
+guard, and it runs with every run of Django's check framework: at the startup of the test
+runner, of `migrate` and of `runserver`.
+
+| message | what it reports |
+| --- | --- |
+| `accounts.E001` | an entry of `ROLE_MANAGED_MODELS` names no model |
+| `accounts.E002` | a role-managed model has no dedicated through-models, or `GUARDIAN_PERF_MODELS` does not carry it |
+| `accounts.E003` | a role-managed model has no `owner` foreign key to `accounts.Organization`, so its grants would go to nobody |
+| `accounts.E004` | an entry of `GUARDIAN_PERF_MODELS` names no model, or names one without the pair the list claims |
+| `accounts.E005` | a group carries the name of a role group while no `Role` row manages it: the group still grants everything it was granted, and nothing explains it |
+| `accounts.W001` | a pair of through-models exists which `GUARDIAN_PERF_MODELS` does not declare |
+
+`E005` is the only message which reads the database; it stays silent for a command which
+allows no connection, because a `migrate` on a fresh deployment has no groups to explain. The
+others answer from the model declarations, so they answer before a deployment has tables.
+`manage.py check -t accounts` runs these checks and nothing else, and
+`SILENCED_SYSTEM_CHECKS` is the escape hatch for a message an operator has inspected.
+
+What declaring one more role-managed model costs:
+
+- nothing in the role model. No new role-group naming scheme and no data migration for the
+  organizations which already exist: the roles of an organization come from the catalogue of
+  #731, not from the list of models. That is the retirement of the per-model groups of the old
+  bootstrap (#727), and `tests/django/accounts/test_permission_bootstrap.py` keeps it.
+- the equipment of the model, where it is not equipped yet: the `owner` foreign key with its
+  migration, the pair of through-models with its migration, and a role definition holding
+  `change_<model>` — without that the bootstrap finds no role to grant to. `accounts.E002`
+  and `accounts.E003` are what refuse a model declared ahead of its equipment, which is the
+  one thing that keeps the list from rotting the way `SECURED_MODELS` did.
 
 ### What creation grants today
 
 The bootstrap is `backend/accounts/signals.py`. It is the only code which grants anything on
-behalf of a user, and it answers *who administers what* by group-name convention rather than
-by a model.
+behalf of a user, and since #732 it answers *who administers what* by role rather than by a
+group name built from the organization.
 
-When an `Organization` is created:
+When an `Organization` is created, `handle_organization_creation` creates one `Role` per role
+definition of `ORGANIZATION` scope (#731, #732) — a managed group each, named
+`"<Organization name>: <slug>"` for reading only — and writes onto two of them the object
+grants which the old bootstrap wrote onto `<Org> Administrators` and `<Org> Members`:
 
-- a group `<Organization name> Administrators` gets `view_organization` and
-  `change_organization` on that organization;
-- a group `<Organization name> Members` gets `view_organization` and
-  `can_publish_for_organization` on it;
-- for each secured model, a group `<Organization name> <model name> Admins` is created, and
-  the organization's administrators get `view_group` and `change_group` on it.
+- the role of the default definition (`viewer` today) gets `view_organization` and
+  `can_publish_for_organization` on the organization;
+- the role of `organization_admin` gets `view_organization` and `change_organization` on it.
 
-"Secured model" is the setting `SECURED_MODELS` in `backend/accounts/settings.py`, which
-today lists `registry.WebMapService` and `registry.WebFeatureService` — nothing else.
+The group count of an organization therefore follows the catalogue and not the list of
+models. The per-model `<Org> <model> Admins` groups of the old bootstrap are gone, and #732
+retired the ones an instance already had as inactive roles, which is the work list #741
+deletes.
 
-When a secured model instance is created, `handle_secured_model_creation` looks up the
-owning organization, adds the global `add_<model>` permission to that organization's admins
-group (which is what the collection-level check above needs) and assigns
-`view_`, `change_` and `delete_` on the instance to it. **The owner is not known today**: no
-resource model stores one, so `owning_organization` returns `None`, the receiver logs
-"no owner is known for it" and grants nothing. Ownership is the subject of epic #727; the
-receiver is written so that it can stay as it is once something learns the owner.
+When an instance of a role-managed model is created — a model of `ROLE_MANAGED_MODELS`, today
+`registry.WebMapService` and `registry.WebFeatureService` — `handle_role_managed_model_creation`
+looks up its owning organization (the `owner` column #733 stores), asks
+`RoleQuerySet.managing` which roles of that organization hold `change_<model>` in their
+definition, and assigns `view_`, `change_` and `delete_` on the instance to their groups. It
+hands no *global* permission to a group: the right to register belongs to the role definition,
+which is decision Q5 of #727. A resource which knows no owner, and an organization without a
+managing role, are granted to nobody and say so once in the log — a `post_save` receiver must
+not raise, or it would break the registration it is there to protect.
 
 A receiver which grants anything takes `raw` in its signature and returns when a fixture is
 being loaded — a `loaddata` emits `post_save` too, and creating the groups a second time
@@ -332,10 +386,11 @@ Every name above, with the file it comes from.
 | `ObjectPermissionCheckerViewSetMixin` | `backend/extras/viewsets.py` |
 | `ObjectPermissionCheckerSerializer` (`is_accessible`) | `backend/extras/serializers.py` |
 | `CanChangeRelatedResource`, `CanRetryRegistrationReference` | `backend/notify/permissions.py` |
-| one `UserObjectPermissionBase` / `GroupObjectPermissionBase` subclass per secured model, e.g. `WebMapServiceUserObjectPermission`, `MapContextLayerGroupObjectPermission` | `backend/registry/models/guardian.py` |
+| one `UserObjectPermissionBase` / `GroupObjectPermissionBase` subclass per model with tables of its own, e.g. `WebMapServiceUserObjectPermission`, `MapContextLayerGroupObjectPermission` | `backend/registry/models/guardian.py` |
 | `OrganizationUserObjectPermission`, `OrganizationGroupObjectPermission`, `GroupUserObjectPermission`, `GroupGroupObjectPermission` | `backend/accounts/models/guardian.py` |
-| `SECURED_MODELS` | `backend/accounts/settings.py` |
-| permission bootstrap (`handle_organization_creation`, `handle_secured_model_creation`) | `backend/accounts/signals.py` |
+| `ROLE_MANAGED_MODELS`, `GUARDIAN_PERF_MODELS` | `backend/accounts/settings.py` |
+| the system check of the two settings (`check_role_managed_models`, `check_role_groups_are_managed`, `accounts.E001`–`accounts.E005`, `accounts.W001`) | `backend/accounts/checks.py` |
+| permission bootstrap (`handle_organization_creation`, `handle_role_managed_model_creation`) | `backend/accounts/signals.py` |
 | `Organization.can_publish_for`, `add_publisher`, `PublishRequest`, `can_publish_for_organization` | `backend/accounts/models/groups.py` |
 | `get_objects_for_user` scoping of alerts | `backend/registry/querys/alerts.py` |
 | `get_objects_for_user` scoping of background activity | `backend/notify/managers.py` |

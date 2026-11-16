@@ -43,7 +43,7 @@ from accounts.models.guardian import (GroupGroupObjectPermission,
 from accounts.models.groups import Organization
 from accounts.models.roles import Role
 from accounts.signals import (handle_organization_creation,
-                              handle_secured_model_creation)
+                              handle_role_managed_model_creation)
 from registry.models.guardian import (
     WebFeatureServiceGroupObjectPermission,
     WebMapServiceGroupObjectPermission)
@@ -171,7 +171,7 @@ class ReceiverTakesRawTestCase(TestCase):
         # the reading has to include what is there, else this test would also
         # pass for an app which simply connected nothing at all
         self.assertIn("accounts.signals.handle_organization_creation", connected)
-        self.assertIn("accounts.signals.handle_secured_model_creation",
+        self.assertIn("accounts.signals.handle_role_managed_model_creation",
                       connected)
 
         without_guard = sorted(
@@ -235,7 +235,7 @@ class ReceiverCalledWithRawTestCase(TestCase):
         loaded.owner = organization
 
         with self.assertNoLogs(LOGGER, level="WARNING"):
-            handle_secured_model_creation(
+            handle_role_managed_model_creation(
                 sender=WebMapService, instance=loaded, created=True, raw=True)
 
         self.assertFalse(
@@ -348,7 +348,7 @@ class LoadedServiceStaysQuietTestCase(TestCase):
     def test_a_loaded_service_leaves_the_receiver_quiet(self):
         """The guard, not the missing owner, is what keeps it quiet
 
-        ``handle_secured_model_creation`` warns once for every service it cannot
+        ``handle_role_managed_model_creation`` warns once for every service it cannot
         grant, and it is reached for a loaded service unless ``raw`` returned
         first. The class fixtures hold no service: the only save inside the
         block is the one of the fixture rows.

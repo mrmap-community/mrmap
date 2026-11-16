@@ -1,10 +1,11 @@
 """Pins what creating a secured registry object grants, and how it is looked up.
 
 ``test_permission_bootstrap.py`` pins the WebMapService side of
-``handle_secured_model_creation``: a service created through the ORM with an
+``handle_role_managed_model_creation``: a service created through the ORM with an
 owner it only has in memory is granted view, change and delete to the roles of
 the owner whose definition manages the model. This module completes the picture
-for the other side of ``SECURED_MODELS`` and for the paths around the grant:
+for the other model of ``ROLE_MANAGED_MODELS`` and for the paths around the
+grant:
 
 * the same bootstrap answers for a WebFeatureService, so the grant really is
   parameterized by the model: the catalogue answers which role manages it, and
@@ -164,7 +165,7 @@ class WfsGrantTestCase(ServiceGrantTestCaseMixin, TestCase):
     def test_a_renamed_organization_is_still_a_grant_target(self):
         """The lookup behind the grant is the key, not the name
 
-        After a rename ``handle_secured_model_creation`` still finds the roles
+        After a rename ``handle_role_managed_model_creation`` still finds the roles
         of the organization through ``Role.objects.for_org``: the services
         created before the rename keep their grants and the ones after get
         them - the name the role groups carry simply goes stale, which is

@@ -38,7 +38,7 @@ from guardian.shortcuts import assign_perm
 from accounts.models.groups import Organization
 from accounts.models.roles import (ORGANIZATION_ADMIN_ROLE, Role,
                                    RoleDefinition, RoleScope)
-from accounts.utils import get_secured_models
+from accounts.utils import get_role_managed_models
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -61,11 +61,12 @@ def handle_organization_creation(instance, created, raw=False, **kwargs):
 
     Two things the old bootstrap did which this one does not:
 
-    * it created one group per entry of ``SECURED_MODELS`` next to the two
-      above, so the group count of an organization grew with the list of
-      models. A role is per definition now, so adding a role-managed model
-        needs no group and no data migration for the organizations which
-        already exist (#727).
+    * it created one group per entry of the retired ``SECURED_MODELS`` list
+      next to the two above, so the group count of an organization grew with
+      the list of models. A role is per definition now, so adding a
+      role-managed model needs no group and no data migration for the
+      organizations which already exist (#727, the list is
+      ``accounts.settings.ROLE_MANAGED_MODELS`` since #735).
     * it granted the administrators group ``view_group`` and ``change_group`` on
       those model groups, because administering them *was* administering the
       membership of a name-coupled group. Administering a role is administering
@@ -149,7 +150,7 @@ def owning_organization(instance):
     return None
 
 
-def handle_secured_model_creation(instance, created, raw=False, **kwargs):
+def handle_role_managed_model_creation(instance, created, raw=False, **kwargs):
     """
     Grant the roles of the owning organization which manage this model.
 
@@ -209,7 +210,10 @@ def handle_secured_model_creation(instance, created, raw=False, **kwargs):
                             obj=instance)
 
 
-for model in get_secured_models():
-    post_save.connect(receiver=handle_secured_model_creation,
+# one connection per role-managed model, read from the setting: the list is
+# the whole statement of which creation grants anything, and
+# ``accounts.checks`` is what keeps its entries equipped (#735)
+for model in get_role_managed_models():
+    post_save.connect(receiver=handle_role_managed_model_creation,
                       sender=model,
-                      dispatch_uid=f"handle_secured_model_creation_for_{model}")
+                      dispatch_uid=f"handle_role_managed_model_creation_for_{model}")

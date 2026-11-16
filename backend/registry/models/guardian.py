@@ -32,7 +32,10 @@ integer primary key - are in ``accounts/models/guardian.py``. What is left are t
 models whose permissions nothing writes today, like the ``User`` of
 ``accounts.models.users.User.assign_object_perms``: named by a uuid, their rows in
 the shared table are readable for every lookup, so they answer generically until
-the role work needs a table. The guard which watches the whole set is #735.
+the role work needs a table. Since #735 the set of models which does have tables is
+declared in ``accounts.settings.GUARDIAN_PERF_MODELS``, and the guard which watches
+the declaration against these classes is the system check of
+``accounts/checks.py``.
 """
 from django.db import models
 from registry.models.mapcontext import MapContext, MapContextLayer

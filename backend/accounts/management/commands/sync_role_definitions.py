@@ -25,6 +25,21 @@ from django.core.management.base import BaseCommand
 
 from accounts.models.roles import RoleDefinition, RoleScope
 
+#: what "reads the registry" means: the four read permissions the reading
+#: roles all carry, so the roles differ in what they may change, not in what
+#: they may read - stated once, as the codenames are the vocabulary of the
+#: catalogue
+REGISTRY_READ = (
+    "registry.view_webmapservice",
+    "registry.view_webfeatureservice",
+    "registry.view_catalogueservice",
+    "registry.view_mapcontext",
+)
+
+#: the read permission on the organization row, which the three roles that
+#: name an organization in their screen share
+ORGANIZATION_READ = "accounts.view_organization"
+
 #: the builtin catalogue. ``permissions`` are ``app_label.codename`` strings;
 #: every one of them must exist as a ``Permission`` row, which #731 verifies
 #: by test. The catalogue deliberately holds plain data - an operator's
@@ -40,10 +55,7 @@ BUILTIN_ROLES = [
         "is_default": True,
         "is_assignable": True,
         "permissions": [
-            "registry.view_webmapservice",
-            "registry.view_webfeatureservice",
-            "registry.view_catalogueservice",
-            "registry.view_mapcontext",
+            *REGISTRY_READ,
         ],
     },
     {
@@ -56,10 +68,7 @@ BUILTIN_ROLES = [
         "is_default": False,
         "is_assignable": True,
         "permissions": [
-            "registry.view_webmapservice",
-            "registry.view_webfeatureservice",
-            "registry.view_catalogueservice",
-            "registry.view_mapcontext",
+            *REGISTRY_READ,
             "registry.add_webmapservice",
             "registry.change_webmapservice",
             "registry.add_webfeatureservice",
@@ -76,10 +85,7 @@ BUILTIN_ROLES = [
         "is_default": False,
         "is_assignable": True,
         "permissions": [
-            "registry.view_webmapservice",
-            "registry.view_webfeatureservice",
-            "registry.view_catalogueservice",
-            "registry.view_mapcontext",
+            *REGISTRY_READ,
             "registry.publish_resource",
             "registry.share_resource",
         ],
@@ -94,11 +100,8 @@ BUILTIN_ROLES = [
         "is_default": False,
         "is_assignable": True,
         "permissions": [
-            "registry.view_webmapservice",
-            "registry.view_webfeatureservice",
-            "registry.view_catalogueservice",
-            "registry.view_mapcontext",
-            "accounts.view_organization",
+            *REGISTRY_READ,
+            ORGANIZATION_READ,
             "accounts.change_organization",
             "accounts.can_publish_for_organization",
             "registry.manage_membership",
@@ -137,7 +140,7 @@ BUILTIN_ROLES = [
             "accounts.view_user",
             "accounts.add_user",
             "accounts.change_user",
-            "accounts.view_organization",
+            ORGANIZATION_READ,
             "accounts.add_organization",
             "accounts.change_organization",
             "accounts.view_roledefinition",
@@ -157,12 +160,9 @@ BUILTIN_ROLES = [
         "is_assignable": True,
         "permissions": [
             "accounts.view_user",
-            "accounts.view_organization",
+            ORGANIZATION_READ,
             "accounts.view_roledefinition",
-            "registry.view_webmapservice",
-            "registry.view_webfeatureservice",
-            "registry.view_catalogueservice",
-            "registry.view_mapcontext",
+            *REGISTRY_READ,
         ],
     },
     {

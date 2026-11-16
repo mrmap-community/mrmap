@@ -85,7 +85,7 @@ import SectionsRail, {
 // the related instances the editor's inputs and the reused read-only cards
 // render — the same set `RecordShow` asks for, plus the profile whose
 // sections and rules drive the editor itself (#1243's include decision)
-const RECORD_INCLUDES = [
+const RECORD_INCLUDES = new Set([
   "profile",
   "metadataContact",
   "datasetContact",
@@ -99,7 +99,7 @@ const RECORD_INCLUDES = [
   "harvestedThrough",
   "createdBy",
   "lastModifiedBy",
-];
+]);
 
 // the read-only areas of the rail: they reuse the RecordShow cards and their
 // translation keys instead of a second overview
@@ -746,7 +746,7 @@ const MetadataEditor = ({ type }: MetadataEditorProps): ReactElement => {
     };
     if (sparseFieldsPerResource) {
       for (const name of include) {
-        if (RECORD_INCLUDES.includes(name) || name === "profile") continue;
+        if (RECORD_INCLUDES.has(name) || name === "profile") continue;
         jsonApiParams[`fields[${name}]`] = "id,string_representation";
       }
     }

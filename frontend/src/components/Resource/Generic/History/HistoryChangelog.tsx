@@ -1,6 +1,6 @@
 import type { TimelineRecord } from './HistoryTimeline';
 
-import { Fragment, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ChipField,
   ChipFieldProps,
@@ -91,13 +91,13 @@ const HistoryChangelog = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
   
   if (!hasHistoricalEndpoint){
-    return <Fragment></Fragment>
+    return null
   }
 
   return (
     <List
       resource={`Historical${name}`}
-      actions={<Fragment></Fragment>}
+      actions={false}
       filters={<HistoryFilters />}
       perPage={5}
       key={`Historical${name}`}

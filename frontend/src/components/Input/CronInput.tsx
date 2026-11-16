@@ -150,23 +150,21 @@ const CronInput = ({
         }
         actionsAlign="flex-end"
       >
-        <>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid>{renderSelect(translate("cronInput.minute"), 0, minuteOptions)}</Grid>
-            <Grid>{renderSelect(translate("cronInput.hour"), 1, hourOptions)}</Grid>
-            <Grid>{renderSelect(translate("cronInput.dayOfMonth"), 2, dayOptions)}</Grid>
-            <Grid>{renderSelect(translate("cronInput.month"), 3, monthOptions)}</Grid>
-            <Grid>{renderSelect(translate("cronInput.weekday"), 4, weekdayOptions)}</Grid>
-            <Grid>
-              <TextField
-                label={translate("cronInput.preview")}
-                value={preview}
-                onChange={(e) => setPreview(e.target.value)}
-                fullWidth
-              />
-            </Grid>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid>{renderSelect(translate("cronInput.minute"), 0, minuteOptions)}</Grid>
+          <Grid>{renderSelect(translate("cronInput.hour"), 1, hourOptions)}</Grid>
+          <Grid>{renderSelect(translate("cronInput.dayOfMonth"), 2, dayOptions)}</Grid>
+          <Grid>{renderSelect(translate("cronInput.month"), 3, monthOptions)}</Grid>
+          <Grid>{renderSelect(translate("cronInput.weekday"), 4, weekdayOptions)}</Grid>
+          <Grid>
+            <TextField
+              label={translate("cronInput.preview")}
+              value={preview}
+              onChange={(e) => setPreview(e.target.value)}
+              fullWidth
+            />
           </Grid>
-        </>
+        </Grid>
       </ContextBasedDialog>
     </>
   );

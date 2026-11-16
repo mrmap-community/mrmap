@@ -26,6 +26,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils.timezone import now
+from MrMap.celery import app
 from notify.enums import (IncidentSeverityEnum, IncidentSourceEnum,
                           IncidentStatusEnum, ProcessStatusEnum)
 from notify.incident_watchdog import watch_operational_work
@@ -45,6 +46,20 @@ INCIDENT_TABLE = OperationalIncident._meta.db_table
 
 class WatchdogFireMixin(WatchdogTestMixin):
     """Seam: stalled processes like #1038 left behind, fired against an empty broker."""
+
+    def setUp(self):
+        super().setUp()
+        # #1232: `Control.inspect` is a `cached_property`, so an entry an
+        # earlier test of the same process materialized on the shared
+        # control instance - any unpatched call, e.g. the broker-
+        # unreachable path of the monitoring process tests - shadows the
+        # class-level patch these fires install, and the fire then pays a
+        # real broadcast no worker answers and publishes nothing. Drop any
+        # residue before the fire and any residue it leaves, like the
+        # staleness tests do; patching the instance instead would let the
+        # mock restore the materialized entry.
+        self.addCleanup(app.control.__dict__.pop, "inspect", None)
+        app.control.__dict__.pop("inspect", None)
 
     def _stalled_processes(self, count):
         """``count`` services with an open process whose retry window expired.

@@ -64,6 +64,11 @@ export const MetadataExplorer = ({
   );
 };
 
+/** the indicators a metadata row shows below itself */
+const metadataRowDetails = (record: RaRecord) => (
+  <MetadataIndicators record={record} />
+);
+
 const ListMetadataRecords = ({
   namespace,
   MapComponent,
@@ -92,7 +97,7 @@ const ListMetadataRecords = ({
           namespace={namespace}
           MapComponent={MapComponent}
           showDetails={showDetails}
-          rowDetails={(record) => <MetadataIndicators record={record} />}
+          rowDetails={metadataRowDetails}
         />
       </>
     }

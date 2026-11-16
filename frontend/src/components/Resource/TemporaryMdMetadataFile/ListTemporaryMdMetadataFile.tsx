@@ -4,7 +4,7 @@ import { DateField, TextField } from "react-admin";
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { type RelatedResource } from "../../../providers/dataProvider";
 import TruncatedTextField from "../../Field/TruncatedTextField";
-import ListActions from "../../Lists/CustomListActions";
+import PlainListActions from "../../Lists/PlainListActions";
 
 export interface ListTemporaryMdMetadataFileProps {
   /** the run whose refused files are listed, which is the parent of the nested route */
@@ -45,9 +45,7 @@ const ListTemporaryMdMetadataFile = ({
     storeKey={storeKey}
     refetchInterval={refetchInterval}
     rowActions={<></>}
-    ActionsComponent={(props) => (
-      <ListActions {...props} isConfigureable={false} isExportable={false} />
-    )}
+ActionsComponent={PlainListActions}
     columns={[
       <DateField
         key="requestId"

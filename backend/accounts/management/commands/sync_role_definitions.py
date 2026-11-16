@@ -25,6 +25,11 @@ from django.core.management.base import BaseCommand
 
 from accounts.models.roles import RoleDefinition, RoleScope
 
+#: the read permission on catalogue services, named once for its own sake:
+#: the reading roles share it through REGISTRY_READ below, and the harvester
+#: and the service account cannot start their work without it
+CATALOGUE_READ = "registry.view_catalogueservice"
+
 #: what "reads the registry" means: the four read permissions the reading
 #: roles all carry, so the roles differ in what they may change, not in what
 #: they may read - stated once, as the codenames are the vocabulary of the
@@ -32,7 +37,7 @@ from accounts.models.roles import RoleDefinition, RoleScope
 REGISTRY_READ = (
     "registry.view_webmapservice",
     "registry.view_webfeatureservice",
-    "registry.view_catalogueservice",
+    CATALOGUE_READ,
     "registry.view_mapcontext",
 )
 
@@ -117,7 +122,7 @@ BUILTIN_ROLES = [
         "is_default": False,
         "is_assignable": True,
         "permissions": [
-            "registry.view_catalogueservice",
+            CATALOGUE_READ,
             "registry.view_webmapservice",
             "registry.view_webfeatureservice",
             "registry.view_harvestingjob",
@@ -175,7 +180,7 @@ BUILTIN_ROLES = [
         "is_default": False,
         "is_assignable": True,
         "permissions": [
-            "registry.view_catalogueservice",
+            CATALOGUE_READ,
             "registry.view_harvestingjob",
             "registry.add_harvestingjob",
             "registry.change_harvestingjob",

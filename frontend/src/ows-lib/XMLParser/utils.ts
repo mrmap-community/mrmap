@@ -14,7 +14,9 @@ export const getDocument = (xml: string): Document => {
  * XML lookup helpers shared by all capabilities parsers. They match by localName,
  * so the parsers are independent of the namespace prefix spellings of a document.
  */
-export const getChild = (parent: Element | Document | undefined, localName: string): Element | undefined => {
+type XmlParent = Element | Document | undefined
+
+export const getChild = (parent: XmlParent, localName: string): Element | undefined => {
   if (!parent) return undefined
   return Array.from(parent.childNodes).find((node): node is Element => {
     return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName

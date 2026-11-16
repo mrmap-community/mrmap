@@ -49,6 +49,16 @@ def is_value_spec(entry):
 MANY_VALUE_FIELDS = (JSONField, ArrayField)
 
 
+def row_items(value):
+    """what the row writers iterate: the given list, the empty answer for
+    the values that state nothing, the single value wrapped as one row"""
+    if isinstance(value, list):
+        return value
+    if value in (None, {}, ""):
+        return []
+    return [value]
+
+
 class XmlMapper:
     db_instance = None
 
@@ -904,8 +914,7 @@ class XmlMapper:
                                    element_order)
             return
 
-        items = value if isinstance(value, list) else \
-            ([] if value in (None, {}, "") else [value])
+        items = row_items(value)
         if not items:
             # an empty list is "nothing was given", never "delete everything"
             return

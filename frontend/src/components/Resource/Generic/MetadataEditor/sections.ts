@@ -85,6 +85,29 @@ export interface BuildSectionsInput {
   otherLabel: string;
 }
 
+/** one editor field: the profile's demand for a source, answered with the
+ * schema's definition, ISO element and cardinality for this operation */
+const editorField = (
+  source: string,
+  requirement: Requirement,
+  definition: FieldDefinition,
+  isoPaths: Record<string, string>,
+  repeatableSources: string[],
+): EditorField => {
+  const isoPath = isoPaths[source];
+  return {
+    source,
+    requirement,
+    definition,
+    isoPath,
+    elementPath: elementPathOf(isoPath),
+    cardinality: cardinalityFor(
+      requirement,
+      repeatableSources.includes(source),
+    ),
+  };
+};
+
 export const buildEditorSections = ({
   sections,
   definitions,
@@ -104,28 +127,36 @@ export const buildEditorSections = ({
     return definition;
   };
 
+  /** the sources a section claimed for itself: the advanced extras of the
+   * same operation must not offer them a second time */
   const claimed = new Set<string>();
-  const built: EditorSection[] = [];
-  for (const section of sections) {
-    if (!Array.isArray(section?.fields)) continue;
+
+  /** the writable fields one profile section names, claiming its sources */
+  const fieldsOfSection = (section: ProfileSection): EditorField[] => {
     const fields: EditorField[] = [];
+    if (!Array.isArray(section?.fields)) return fields;
     for (const entry of section.fields) {
       if (typeof entry?.field !== "string" || !entry.field) continue;
       if (mode === "simple" && entry.requirement === "optional") continue;
       const definition = writable(entry.field);
       if (!definition) continue;
       claimed.add(entry.field);
-      const repeatable = repeatableSources.includes(entry.field);
-      const isoPath = isoPaths[entry.field];
-      fields.push({
-        source: entry.field,
-        requirement: entry.requirement,
-        definition,
-        isoPath,
-        elementPath: elementPathOf(isoPath),
-        cardinality: cardinalityFor(entry.requirement, repeatable),
-      });
+      fields.push(
+        editorField(
+          entry.field,
+          entry.requirement,
+          definition,
+          isoPaths,
+          repeatableSources,
+        ),
+      );
     }
+    return fields;
+  };
+
+  const built: EditorSection[] = [];
+  for (const section of sections) {
+    const fields = fieldsOfSection(section);
     // a section whose fields the schema does not expose (or the mode hides)
     // would render an empty card: it is no section of this record
     if (fields.length === 0) continue;
@@ -147,19 +178,15 @@ export const buildEditorSections = ({
           definition.props.source !== "id" &&
           !claimed.has(definition.props.source),
       )
-      .map((definition) => {
-        const source = definition.props.source;
-        const repeatable = repeatableSources.includes(source);
-        const isoPath = isoPaths[source];
-        return {
-          source,
-          requirement: "optional" as Requirement,
+      .map((definition) =>
+        editorField(
+          definition.props.source,
+          "optional",
           definition,
-          isoPath,
-          elementPath: elementPathOf(isoPath),
-          cardinality: cardinalityFor("optional", repeatable),
-        };
-      });
+          isoPaths,
+          repeatableSources,
+        ),
+      );
     if (extras.length > 0) {
       built.push({
         id: OTHER_SECTION_ID,

@@ -31,6 +31,7 @@ from rest_framework.relations import (Hyperlink, HyperlinkedIdentityField)
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (ModelSerializer,
                                                  ValidationError)
+from rest_framework_json_api.utils import undo_format_field_name
 
 logger = settings.ROOT_LOGGER
 
@@ -279,9 +280,34 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
     def get_fields(self):
         fields = super().get_fields()
         if getattr(self.context.get("view"), "action", None) == "list":
-            fields.pop("can_edit", None)
             fields.pop("can_delete", None)
         return fields
+
+    def _sparse_fieldset(self):
+        """The field names the request asks for with ``fields[<Model>]``.
+
+        Empty when the request names none. Same mechanism as
+        ``ExplorerAttributesSerializer.explorer_fields`` of the services: a
+        permission answer asserted per row is only paid for by the screen
+        that reads it. (#1249: the batch edit needs ``canEdit`` of every
+        record it was handed, to send only what the user may edit.)
+        """
+        request = self.context.get("request")
+        if request is None:
+            return []
+        return [
+            undo_format_field_name(name.strip())
+            for name in request.GET.get(
+                f"fields[{self.Meta.model.__name__}]", "").split(",")
+            if name.strip()
+        ]
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        if (getattr(self.context.get("view"), "action", None) == "list"
+                and "can_edit" not in self._sparse_fieldset()):
+            result.pop("can_edit", None)
+        return result
 
     def _can_modify(self, obj, action):
         user = self.context["request"].user
@@ -296,6 +322,11 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
         return checker.has_perm(permission, obj)
 
     def get_can_edit(self, obj) -> bool:
+        if (getattr(self.context.get("view"), "action", None) == "list"
+                and "can_edit" not in self._sparse_fieldset()):
+            # the value is popped from the list answer anyway (see
+            # to_representation): assert it only for the list that asked
+            return False
         return self._can_modify(obj, "change")
 
     def get_can_delete(self, obj) -> bool:
@@ -1010,8 +1041,9 @@ class ApplicationMetadataRecordSerializer(
     provides the application in place of the one which provides the dataset.
 
     A list variant is not declared: like the dataset and the service record this single
-    serializer answers both actions and ``RecordPermissionsSerializerMixin`` drops the
-    permission fields of the list, where they would be asserted per row.
+    serializer answers both actions and ``RecordPermissionsSerializerMixin`` answers
+    ``can_edit`` on the list only to a request that names it in the sparse fieldset
+    (#1249), where it would otherwise be asserted per row.
     """
 
     url = HyperlinkedIdentityField(view_name="registry:applicationmetadata-detail")

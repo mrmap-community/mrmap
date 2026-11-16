@@ -362,6 +362,18 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
+        # the global capabilities the role catalogue of #731 refers to. They
+        # are capabilities over registry resources as a whole: this model is
+        # their carrier because the service aggregate has no concrete parent
+        # (``OgcService`` is abstract), so no model spans all services. What a
+        # caller asks is always ``registry.<codename>``, which Django resolves
+        # by app_label and codename - the content type of the row only groups
+        # it in the admin.
+        permissions = [
+            ('publish_resource', 'Can publish a registry resource'),
+            ('share_resource', 'Can share a registry resource'),
+            ('manage_access_rules', 'Can manage access rules'),
+            ('manage_membership', 'Can manage organization memberships')]
         indexes = [
         ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 

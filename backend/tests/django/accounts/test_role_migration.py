@@ -1,6 +1,6 @@
 """The upgrade of an instance which existed before #732.
 
-``accounts/migrations/0007_roles_for_the_groups_of_an_existing_instance.py``
+``accounts/migrations/0008_roles_for_the_groups_of_an_existing_instance.py``
 turns the groups a deployment already has into roles. The premises it rests
 on are the premises of decision Q5 of #727, and this module pins each of them:
 
@@ -42,7 +42,7 @@ from accounts.models.guardian import OrganizationGroupObjectPermission
 #: the migration under test; the leading digits make it unimportable with
 #: ``import``, exactly like the neighbour module above does it
 ROLE_MIGRATION = importlib.import_module(
-    "accounts.migrations.0007_roles_for_the_groups_of_an_existing_instance")
+    "accounts.migrations.0008_roles_for_the_groups_of_an_existing_instance")
 
 #: the organization of the deployed fixture and the groups its bootstrap
 #: created for it - spelled as literals because they are the legacy shape,

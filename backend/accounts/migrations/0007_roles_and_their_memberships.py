@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0005_the_builtin_role_catalogue_is_seeded'),
+        ('accounts', '0006_merge_20261116_1221'),
         ('auth', '0012_alter_user_first_name_max_length'),
     ]
 

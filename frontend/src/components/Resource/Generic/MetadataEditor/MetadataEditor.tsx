@@ -81,6 +81,7 @@ import SectionsRail, {
   type RailCounts,
   type RailItem,
 } from "./SectionsRail";
+import { METADATA_EDITOR_WIDGETS } from "./widgets";
 
 // the related instances the editor's inputs and the reused read-only cards
 // render — the same set `RecordShow` asks for, plus the profile whose
@@ -472,6 +473,9 @@ const EditorContent = ({
   const representation = useGetRecordRepresentation(type);
   const definitions = useFieldsForOperation({
     operationId: `partial_update_${type}`,
+    // the purpose-built keyword, contact and extent widgets (#1246) replace
+    // the schema-derived inputs of those fields; everything else stays
+    overwrites: METADATA_EDITOR_WIDGETS,
   });
   const { schema } = useResourceSchema(`partial_update_${type}`);
   const historicalOperation = useOperation(`list_Historical${type}`);

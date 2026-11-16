@@ -911,24 +911,8 @@ class XmlMapper:
         if text is None:
             return
         if isinstance(text, etree._Element):
-            # the reverse parser answers a fragment - a geometry, a nested
-            # reference. The reader of a flat path reads its FIRST match, so
-            # the fragment takes the place of the first match; a missing
-            # path is created and carries it.
-            if attr:  # pragma: no cover - configs are hand checked
-                self.warnings.append(
-                    f"'{name}' is not writable: a fragment is no attribute")
-                return
-            targets = find_mapped_elements(base_el, steps, nsmap)
-            if targets and parser_path:
-                parsed = self._try_parse(parser_path, targets[0])
-                if parsed is not _PARSE_FAILED \
-                        and self._write_equal(parsed, value):
-                    # the document carries this very value in its own
-                    # representation - keep the representation
-                    return
-            place_mapped_fragment(
-                base_el, text, steps, nsmap, element_order=element_order)
+            self._write_flat_fragment(name, parser_path, value, text, attr,
+                                      base_el, steps, nsmap, element_order)
             return
         text = text if isinstance(text, str) else str(text)
 
@@ -942,6 +926,29 @@ class XmlMapper:
             return
         element = ensure_mapped_element(base_el, steps, nsmap, element_order)
         set_mapped_value(element, attr_tag, text)
+
+    def _write_flat_fragment(self, name, parser_path, value, fragment, attr,
+                             base_el, steps, nsmap, element_order):
+        """Write the fragment a flat field's reverse parser answered.
+
+        A geometry or a nested reference comes back as an element rather
+        than as text. The reader of a flat path reads its FIRST match, so
+        the fragment takes the place of the first match and a missing path
+        is created to carry it; the document which already holds this very
+        value in its own representation keeps that representation.
+        """
+        if attr:  # pragma: no cover - configs are hand checked
+            self.warnings.append(
+                f"'{name}' is not writable: a fragment is no attribute")
+            return
+        targets = find_mapped_elements(base_el, steps, nsmap)
+        if targets and parser_path:
+            parsed = self._try_parse(parser_path, targets[0])
+            if (parsed is not _PARSE_FAILED
+                    and self._write_equal(parsed, value)):
+                return
+        place_mapped_fragment(
+            base_el, fragment, steps, nsmap, element_order=element_order)
 
     def _flat_field_shape(self, name, field_spec):
         """How a flat field is written: its one value path, the parser which
@@ -984,15 +991,8 @@ class XmlMapper:
         attr_tag = resolve_write_qname(attr, nsmap) if attr else None
 
         if not is_many_relation(record_model, name):
-            # the reader loops all base matches and answers the instance
-            # parsed from the LAST one; the write goes to the same element
-            matches = find_mapped_elements(self.current_element, steps, nsmap)
-            if value:
-                self._write_row_values(
-                    name, spec, value,
-                    matches[-1] if matches else ensure_mapped_element(
-                        self.current_element, steps, nsmap, element_order),
-                    attr_tag, nsmap, element_order)
+            self._write_single_related_row(
+                name, spec, value, steps, attr_tag, nsmap, element_order)
             return
 
         items = row_items(value)
@@ -1016,6 +1016,23 @@ class XmlMapper:
             remove_mapped_element(
                 self._climb_row(surplus, steps, row_idx),
                 self.current_element)
+
+    def _write_single_related_row(self, name, spec, value, steps, attr_tag,
+                                  nsmap, element_order):
+        """Write the one row a related field with a single value carries.
+
+        The reader of such a spec loops all base matches and answers the
+        instance parsed from the LAST one, so the write goes to that same
+        element; a spec without a value writes nothing of its own.
+        """
+        if not value:
+            return
+        matches = find_mapped_elements(self.current_element, steps, nsmap)
+        leaf = (matches[-1] if matches
+                else ensure_mapped_element(self.current_element, steps, nsmap,
+                                           element_order))
+        self._write_row_values(name, spec, value, leaf, attr_tag, nsmap,
+                               element_order)
 
     def _row_at_position(self, matches, position, steps, row_idx, suffix,
                          nsmap, element_order, last_row):

@@ -1,0 +1,52 @@
+name: MrMap Development Overview sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview changes without writing
+        type: boolean
+        default: true
+  schedule:
+    - cron: '17 5 * * *'
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled]
+  pull_request:
+    types: [opened, reopened, synchronize, converted_to_draft, ready_for_review, closed, edited]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: project-3-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'mrmap-community/mrmap'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+      - name: Verify Projects token
+        env:
+          PROJECTS_TOKEN: ${{ secrets.MRMAP_PROJECTS_TOKEN }}
+        run: |
+          if [ -z "$PROJECTS_TOKEN" ]; then
+            echo "::error::Set MRMAP_PROJECTS_TOKEN with read/write organization Projects permission."
+            exit 1
+          fi
+      - name: Sync issue overview
+        env:
+          GH_TOKEN: ${{ secrets.MRMAP_PROJECTS_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = 'true' ]; then
+            python3 scripts/sync_project_overview.py
+          else
+            python3 scripts/sync_project_overview.py --apply
+          fi

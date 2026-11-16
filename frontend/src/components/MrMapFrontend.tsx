@@ -93,7 +93,7 @@ const MrMapFrontend = (): ReactElement => {
         ...(resource.children || { 
           children: [...related_routes, ...history_routes]
         }) as ReactElement[],
-        ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
+        recordRepresentation: resource.recordRepresentation ? resource.recordRepresentation : defaultRecordRepresentation,
         ...resource,
         ...({options: {
               showOperationName: showOperationName,

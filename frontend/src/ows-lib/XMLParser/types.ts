@@ -80,7 +80,7 @@ export interface WmsLayer {
 export interface InheritableProperties {
     referenceSystems: string[]          // 1+; add
     styles: Style[]                     // 0+; add
-    bbox?: WmsLayer["bbox"]             // 1+; replace
+    bbox?: NonNullable<WmsLayer["bbox"]> // 1+; replace
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[] // 0+; replace
     advertisedDimension?: AdvertisedDimension[] // 0+; replace by name
     minScaleDenominator?: number        // 0/1; replace

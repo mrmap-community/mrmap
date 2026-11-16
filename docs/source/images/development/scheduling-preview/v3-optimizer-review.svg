@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+  <title>V3-Optimierungsvorschlag pruefen (Konzept, nicht implementiert)</title>
+  <rect width="1600" height="1040" fill="#f4f5f7"/>
+  <rect x="0" y="0" width="1600" height="64" fill="#1f2937"/>
+  <text x="32" y="40" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="bold">MrMap</text>
+  <g font-family="sans-serif" font-size="14" fill="#cbd5e1">
+    <text x="640" y="40">Übersicht</text>
+    <text x="760" y="40">Dienste</text>
+    <text x="860" y="40">Monitoring</text>
+    <text x="1010" y="40" fill="#ffffff" font-weight="bold">Zeitpläne</text>
+    <text x="1130" y="40">Organisation</text>
+    <text x="1300" y="40">System</text>
+  </g>
+  <rect x="995" y="52" width="80" height="3" fill="#2563eb"/>
+  <text x="32" y="96" fill="#64748b" font-family="sans-serif" font-size="13">Zeitpläne &#8250; Optimierung &#8250; Vorschlag prüfen</text>
+  <rect x="32" y="116" width="1536" height="64" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="155" fill="#0f172a" font-family="sans-serif" font-size="22" font-weight="bold">Zeitpläne optimieren – Vorschlag prüfen</text>
+  <rect x="1180" y="132" width="300" height="32" rx="16" fill="#fef3c7" stroke="#b45309"/>
+  <text x="1330" y="153" fill="#92400e" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">PHASE 3 · IDEE · NICHT IMPLEMENTIERT</text>
+  <rect x="32" y="200" width="900" height="236" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="228" fill="#0f172a" font-family="sans-serif" font-size="15" font-weight="bold">Auswahl: 3 von 4.982 Zeitplänen</text>
+  <text x="56" y="250" fill="#64748b" font-family="sans-serif" font-size="12">Sie sehen nur Zeitpläne, die Sie bearbeiten dürfen. Änderungen werden erst wirksam, wenn Sie unten bestätigen.</text>
+  <g font-family="monospace" font-size="13">
+    <rect x="56" y="260" width="14" height="14" rx="3" fill="#2563eb"/><text x="84" y="272" fill="#0f172a" font-family="sans-serif">WMS – Produktiv-Monitoring</text>
+    <text x="84" y="292" fill="#475569">0 2,8,14,20 * * *   →   51 2,8,14,20 * * *</text>
+    <text x="84" y="310" fill="#94a3b8" font-family="sans-serif" font-size="11">Queue monitoring · Kadenz: 4× täglich · bewiesen gleich</text>
+    <rect x="56" y="320" width="14" height="14" rx="3" fill="#2563eb"/><text x="84" y="332" fill="#0f172a" font-family="sans-serif">WFS – Update nachts</text>
+    <text x="84" y="352" fill="#475569">0 3 * * *   →   21 3 * * *</text>
+    <text x="84" y="370" fill="#94a3b8" font-family="sans-serif" font-size="11">Queue update · Kadenz: 1× täglich · bewiesen gleich</text>
+    <rect x="56" y="380" width="14" height="14" rx="3" fill="#2563eb"/><text x="84" y="392" fill="#0f172a" font-family="sans-serif">CSW – Ernte (Wartungsfenster)</text>
+    <text x="84" y="412" fill="#475569">0 22 * * *   →   15 23 * * *</text>
+    <text x="84" y="430" fill="#94a3b8" font-family="sans-serif" font-size="11">Queue default · Kadenz: 1× täglich · bleibt im Fenster 20:00–06:00</text>
+  </g>
+  <rect x="960" y="200" width="608" height="236" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="984" y="228" fill="#0f172a" font-family="sans-serif" font-size="15" font-weight="bold">Ausgewählte Änderungsmasse</text>
+  <text x="984" y="254" fill="#64748b" font-family="sans-serif" font-size="12">Budget dieser Anwendung: 5.000 von 5.000 Änderungen</text>
+  <rect x="984" y="264" width="560" height="10" rx="5" fill="#e2e8f0"/>
+  <rect x="984" y="264" width="544" height="10" rx="5" fill="#2563eb"/>
+  <text x="984" y="306" fill="#92400e" font-family="sans-serif" font-size="13">⚠ 5 Familien · 482 Zeitpläne unverändert: kein Platz im Fenster</text>
+  <text x="984" y="330" fill="#92400e" font-family="sans-serif" font-size="13">⚠ 482 gesperrte Zeitpläne wurden nicht angefasst</text>
+  <text x="984" y="368" fill="#64748b" font-family="sans-serif" font-size="12">Nichts davon ist gespeichert. “Verwerfen” schließt den Vorschlag folgenlos.</text>
+  <rect x="32" y="462" width="1536" height="388" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="492" fill="#0f172a" font-family="sans-serif" font-size="16" font-weight="bold">Simulation – Vorher/Nachher</text>
+  <text x="390" y="492" fill="#94a3b8" font-family="sans-serif" font-size="12">(Modell-Annahmen, Horizont 7 Tage)</text>
+  <g font-family="sans-serif" font-size="12" fill="#64748b">
+    <text x="56" y="520" font-weight="bold">Warteschlangen-Auslastung · So 08:00–09:59 (vorher)</text>
+    <text x="820" y="520" font-weight="bold">Warteschlangen-Auslastung · So 08:00–09:59 (nachher)</text>
+  </g>
+  <g>
+    <rect x="56" y="534" width="720" height="120" fill="#f8fafc" stroke="#e2e8f0"/>
+    <rect x="80" y="550" width="56" height="88" fill="#ef4444"/><rect x="140" y="550" width="56" height="88" fill="#ef4444"/><rect x="200" y="550" width="56" height="88" fill="#ef4444"/><rect x="260" y="550" width="56" height="88" fill="#ef4444"/><rect x="320" y="560" width="56" height="78" fill="#f59e0b"/><rect x="380" y="588" width="56" height="50" fill="#22c55e"/><rect x="440" y="598" width="56" height="40" fill="#22c55e"/><rect x="500" y="604" width="56" height="34" fill="#22c55e"/><rect x="560" y="604" width="56" height="34" fill="#22c55e"/><rect x="620" y="608" width="56" height="30" fill="#22c55e"/><rect x="680" y="610" width="56" height="28" fill="#22c55e"/>
+    <text x="100" y="672" fill="#b91c1c" font-family="sans-serif" font-size="11">Stau</text>
+    <rect x="820" y="534" width="720" height="120" fill="#f8fafc" stroke="#e2e8f0"/>
+    <rect x="844" y="588" width="56" height="50" fill="#22c55e"/><rect x="904" y="594" width="56" height="44" fill="#22c55e"/><rect x="964" y="600" width="56" height="38" fill="#22c55e"/><rect x="1024" y="600" width="56" height="38" fill="#22c55e"/><rect x="1084" y="606" width="56" height="32" fill="#22c55e"/><rect x="1144" y="608" width="56" height="30" fill="#22c55e"/><rect x="1204" y="610" width="56" height="28" fill="#22c55e"/><rect x="1264" y="610" width="56" height="28" fill="#22c55e"/><rect x="1324" y="612" width="56" height="26" fill="#22c55e"/><rect x="1384" y="612" width="56" height="26" fill="#22c55e"/><rect x="1444" y="612" width="56" height="26" fill="#22c55e"/>
+  </g>
+  <g font-family="sans-serif">
+    <rect x="56" y="700" width="360" height="110" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="76" y="728" font-size="12" fill="#64748b">p95 Queue-Wartezeit</text>
+    <text x="76" y="760" font-size="22" fill="#0f172a" font-weight="bold">4 h 54 m  →  2 h 58 m</text>
+    <text x="76" y="788" font-size="12" fill="#16a34a" font-weight="bold">−39 % ( Simulation )</text>
+    <rect x="446" y="700" width="360" height="110" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="466" y="728" font-size="12" fill="#64748b">Kadenz-Verletzungen (7 Tage)</text>
+    <text x="466" y="760" font-size="22" fill="#0f172a" font-weight="bold">50.681  →  38.330</text>
+    <text x="466" y="788" font-size="12" fill="#16a34a">−24 % ( Simulation )</text>
+    <rect x="836" y="700" width="360" height="110" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="856" y="728" font-size="12" fill="#64748b">Nebeneffekt für andere Organisationen</text>
+    <text x="856" y="760" font-size="16" fill="#0f172a">deren p95: 295 m → 274 m</text>
+    <text x="856" y="788" font-size="12" fill="#64748b">auch ohne deren Zustimmung (Simulation)</text>
+  </g>
+  <rect x="32" y="876" width="1536" height="80" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="56" y="908" fill="#1e40af" font-family="sans-serif" font-size="14" font-weight="bold">Kadenz-Nachweis: alle 4.982 Änderungen laufen in denselben Zeitabständen – nur zu anderen Minuten.</text>
+  <text x="56" y="932" fill="#1e40af" font-family="sans-serif" font-size="13">Kein Zeitplan wird häufiger oder seltener ausgeführt. 5 Familien ohne passenden Platz bleiben unverändert.</text>
+  <g font-family="sans-serif" font-size="14">
+    <rect x="32" y="980" width="150" height="40" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="107" y="1005" fill="#334155" text-anchor="middle">VERWERFEN</text>
+    <rect x="192" y="980" width="170" height="40" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="277" y="1005" fill="#334155" text-anchor="middle">MEHR ZEITPLAN</text>
+    <rect x="1290" y="980" width="170" height="40" rx="6" fill="#ffffff" stroke="#2563eb"/>
+    <text x="1375" y="1005" fill="#2563eb" text-anchor="middle" font-weight="bold">ZUR BESTÄTIGUNG</text>
+    <text x="480" y="1005" fill="#94a3b8" font-size="12">Mockup · Beispieldaten · keine Funktion aktiv</text>
+  </g>
+</svg>

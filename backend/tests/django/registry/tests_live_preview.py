@@ -282,7 +282,7 @@ class LivePreviewTests(TestCase):
         user = get_user_model().objects.create_user(username='gml-area')
         group = Group.objects.create(name='gml-area')
         user.groups.add(group)
-        assign_perm('view_webfeatureservice', user, self.wfs)
+        assign_perm('registry.view_webfeatureservice', user, self.wfs)
         allowed = AllowedWebFeatureServiceOperation.objects.create(
             secured_service=self.wfs, allowed_area=MultiPolygon(Polygon.from_bbox((13, 52, 14, 53)),
                                                                 srid=4326))
@@ -335,7 +335,7 @@ class LivePreviewTests(TestCase):
         user = get_user_model().objects.create_user(username='restricted')
         group = Group.objects.create(name='preview-area')
         user.groups.add(group)
-        assign_perm('view_webfeatureservice', user, self.wfs)
+        assign_perm('registry.view_webfeatureservice', user, self.wfs)
         element = self.wfs.featuretypes.get(identifier='ms:Countries')
         area = MultiPolygon(Polygon.from_bbox((0, 0, 4, 8)), srid=4326)
         allowed = AllowedWebFeatureServiceOperation.objects.create(secured_service=self.wfs, allowed_area=area)
@@ -386,7 +386,7 @@ class LivePreviewTests(TestCase):
         user = get_user_model().objects.create_user(username='map-preview')
         group = Group.objects.create(name='map-preview-area')
         user.groups.add(group)
-        assign_perm('view_webmapservice', user, self.wms)
+        assign_perm('registry.view_webmapservice', user, self.wms)
         allowed = AllowedWebMapServiceOperation.objects.create(
             secured_service=self.wms, allowed_area=MultiPolygon(Polygon.from_bbox((0, 0, 2, 8)), srid=4326))
         allowed.operations.add(20, 21)

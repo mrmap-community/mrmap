@@ -12,6 +12,7 @@ import { Chip, Stack, Typography } from "@mui/material";
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
 import RelativeDateField from "../../Field/RelativeDateField";
+import ScheduleWarningsField from "../../Field/ScheduleWarningsField";
 import EmptyList from "../../Lists/Empty";
 import readCron from "./cronReading";
 import ScheduleAttentionCounts from "./ScheduleAttentionCounts";
@@ -33,6 +34,8 @@ export const SCHEDULE_LIST_FIELDS = [
   "last_run_at",
   "next_run_at",
   "total_run_count",
+  // the schedule warnings belong beside the schedule they warn about (#1332)
+  "schedule_warnings",
 ];
 
 /** the weekday of a crontab number, by the name the locale gives it */
@@ -139,6 +142,13 @@ const ListPeriodicHarvestingJob = (): ReactNode => {
           sortable={false}
           label="resources.PeriodicHarvestingJob.fields.scheduling"
           render={() => <SchedulingCell />}
+        />,
+        <FunctionField
+          key="scheduleWarnings"
+          source="scheduleWarnings"
+          sortable={false}
+          label="scheduleWarnings.columnLabel"
+          render={() => <ScheduleWarningsField />}
         />,
         <FunctionField
           key="lastRunAt"

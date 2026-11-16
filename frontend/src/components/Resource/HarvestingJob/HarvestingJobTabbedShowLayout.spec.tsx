@@ -6,6 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HarvestingJobTabbedShowLayout from "./HarvestingJobTabbedShowLayout";
 
+// the contextual incident slot reads the resource and provider of a live
+// AdminContext; it is covered by its own specs and kept out of this host spec
+vi.mock("../OperationalIncident/Context/ContextualIncidents", () => ({
+  default: () => null,
+}));
+
 const state = vi.hoisted(() => ({
   record: { id: 1 } as RaRecord | undefined,
   isPending: false,

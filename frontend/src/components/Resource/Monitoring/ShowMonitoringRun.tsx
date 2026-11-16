@@ -9,6 +9,7 @@ import {
 import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
+import ContextualIncidents from "../OperationalIncident/Context/ContextualIncidents";
 import { getDuration } from "../WebMapService/Show/Overview/MonitoringRuns/formatMonitoringRun";
 import MonitoringProbeResults, {
   type ProbeResultsGroup,
@@ -88,6 +89,9 @@ const MonitoringRunDetails = ({
       <Alert severity={severity}>
         {translate(`monitoringRun.${status}Message`)}
       </Alert>
+      {/* the incidents about this run, beside the run's own status which stays
+          authoritative; the probe results below are untouched (#1322) */}
+      <ContextualIncidents />
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           {translate("monitoringRun.details")}

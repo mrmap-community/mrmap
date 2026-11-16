@@ -1,11 +1,14 @@
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import extend_schema_serializer
+from drf_spectacular.utils import (extend_schema_field,
+                                   extend_schema_serializer)
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from notify.enums import LogTypeEnum, OperationStateEnum
-from notify.models import BackgroundProcess, BackgroundProcessLog
+from notify.models import (BackgroundProcess, BackgroundProcessLog,
+                           OperationalIncident)
 from rest_framework.fields import (CharField, DateTimeField, FloatField,
-                                   IntegerField, SerializerMethodField)
+                                   IntegerField, JSONField,
+                                   SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
@@ -193,3 +196,148 @@ class BackgroundProcessSerializer(
             ).order_by("-date", "-id").values_list(
                 "description", flat=True).first() or None
         return obj.error_summary or None
+
+
+@extend_schema_serializer(
+    # the schema names this resource by its json:api type; without it the
+    # component of an answer declared with the class rather than an instance
+    # of this serializer is named after its metaclass (#1177)
+    component_name="OperationalIncident")
+class OperationalIncidentSerializer(
+        StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='notify:operationalincident-detail',
+    )
+    code = CharField(
+        read_only=True,
+        label=_("code"),
+        help_text=_(
+            "the structured incident code, stable per meaning; later "
+            "integrations refer to codes, never to worded messages"))
+    source = CharField(
+        read_only=True,
+        label=_("source"),
+        help_text=_(
+            "which domain of the deployment raised the incident: "
+            "harvesting, update, monitoring or the deployment itself"))
+    severity = CharField(
+        read_only=True,
+        label=_("severity"),
+        help_text=_(
+            "how much attention the incident asks for: a warning while "
+            "the reported operation still moves, an error where it stands"))
+    status = CharField(
+        read_only=True,
+        label=_("status"),
+        help_text=_(
+            "the lifecycle of the incident: active while the problem "
+            "stands, resolved once recovery resolved it"))
+    scope = SerializerMethodField(
+        label=_("scope"),
+        help_text=_(
+            "whether the incident names an affected resource ('resource') "
+            "or reports about the deployment itself ('system')"))
+    affected_resource = SerializerMethodField(
+        label=_("affected resource"),
+        help_text=_(
+            "the resource this incident stands for, addressed by its type "
+            "and id; empty for a system incident"))
+    summary = CharField(
+        read_only=True,
+        label=_("summary"),
+        help_text=_(
+            "the safe, human readable summary of the incident; it never "
+            "carries a credential, a raw response or a stack trace"))
+    details = JSONField(
+        read_only=True,
+        label=_("details"),
+        help_text=_(
+            "redacted, bounded structured metadata of the incident; the "
+            "full evidence stays in the log of the reported process"))
+    first_occurred_at = DateTimeField(
+        read_only=True,
+        label=_("first occurrence"),
+        help_text=_(
+            "the moment the incident was reported for the first time"))
+    last_occurred_at = DateTimeField(
+        read_only=True,
+        label=_("last occurrence"),
+        help_text=_(
+            "the moment the incident was reported for the last time; every "
+            "recurrence moves it"))
+    occurrence_count = IntegerField(
+        read_only=True,
+        label=_("occurrence count"),
+        help_text=_(
+            "how often the problem behind the incident was reported while "
+            "it was active; a retry is an occurrence, not a new incident"))
+    retry_count = IntegerField(
+        read_only=True,
+        label=_("retry count"),
+        help_text=_(
+            "how many retries the reported operation told with its last "
+            "report, or none where it knows none"))
+    retry_scheduled_until = DateTimeField(
+        read_only=True,
+        allow_null=True,
+        label=_("retry scheduled until"),
+        help_text=_(
+            "until when the next attempt of the reported operation is due; "
+            "while this window is open the incident reports a retry, not a "
+            "failure"))
+    resolved_at = DateTimeField(
+        read_only=True,
+        allow_null=True,
+        label=_("resolved at"),
+        help_text=_(
+            "the moment recovery resolved the incident, empty while it is "
+            "active"))
+
+    class Meta:
+        model = OperationalIncident
+        # `dedup_key` is the internal identity which the reporters of #1320
+        # deduplicate by; clients refer to an incident by its id. The typed
+        # foreign keys themselves are not attributes of the api: the
+        # affected resource is answered as one type-and-id attribute, like
+        # the related resource of a background process, and the filters of
+        # the endpoint answer the questions a screen asks about them.
+        fields = [
+            "id", "url", "string_representation", "code", "source",
+            "severity", "status", "scope", "affected_resource", "summary",
+            "details", "first_occurred_at", "last_occurred_at",
+            "occurrence_count", "retry_count", "retry_scheduled_until",
+            "resolved_at", "date_created",
+        ]
+
+    # the derived scope answers exactly the two questions of the notification
+    # center; documented as such so the schema does not default to a string
+    @extend_schema_field(
+        {"type": "string", "enum": ["resource", "system"]})
+    def get_scope(self, obj):
+        return obj.scope
+
+    # the affected resource is answered as one type-and-id object, the same
+    # shape the related resource of a background process documents; empty for
+    # a system incident
+    @extend_schema_field({
+        "type": "object",
+        "nullable": True,
+        "properties": {
+            "type": {"type": "string"},
+            "id": {"type": "string"},
+        },
+        "required": ["type", "id"],
+    })
+    def get_affected_resource(self, obj):
+        # the typed relation is answered from the foreign key ids the
+        # instance already carries - no relation is followed, so the page
+        # of the notification center stays one query
+        for field in obj.RESOURCE_FIELDS:
+            pk = getattr(obj, f"{field}_id")
+            if pk is not None:
+                model = obj._meta.get_field(field).related_model
+                return {"type": model.__name__, "id": str(pk)}
+        return None

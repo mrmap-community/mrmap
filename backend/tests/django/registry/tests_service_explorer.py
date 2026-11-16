@@ -77,7 +77,7 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
         self.assertIsNone(self.coverage(CatalogueService.objects.filter(pk=empty.pk)))
         fields = {'fields[CatalogueService]': 'id,title,extent,element_count,can_edit'}
         assign_perm('registry.change_catalogueservice', self.user)
-        assign_perm('change_catalogueservice', self.user, catalogue)
+        assign_perm('registry.change_catalogueservice', self.user, catalogue)
         for cache in ('_perm_cache', '_user_perm_cache', '_group_perm_cache'):
             self.user.__dict__.pop(cache, None)
         status, body, _ = self.request('/api/registry/csw', user='user', **fields)

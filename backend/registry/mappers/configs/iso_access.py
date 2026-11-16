@@ -80,3 +80,90 @@ COUPLED_RESOURCES = {
         "scoped_name": "./srv:scopedName/*[self::gco:LocalName or self::gco:CharacterString]",
     },
 }
+
+# the child sequence of the ISO 19139 complex types the mapped paths write
+# into, keyed by the localname of the parent and answering the localnames of
+# its children in schema order.
+#
+# The write path of the mapper (issue #1242) inserts a newly created element
+# before the first existing child this table knows to come later; children the
+# table does not name keep their place, so a record carrying national
+# extensions (INSPIRE hierarchyLevel, metadataStandardName, ...) is not
+# reordered by a write. Where the ISO 19139 sequence and the order the German
+# INSPIRE catalogues consistently ship (the GDI-DE and GDI-BW fixtures)
+# disagree - the identification blocks put pointOfContact, keywords and
+# constraints before language, characterSet and topicCategory - the table
+# follows the order the records of this deployment's actual audiences use.
+ISO_19139_ELEMENT_ORDER = {
+    "MD_Metadata": [
+        "fileIdentifier", "parentIdentifier", "language", "characterSet",
+        "dateStamp", "contact", "distributionInfo", "dataQualityInfo",
+        "metadataQualityInfo", "contentInfo", "scope",
+        "spatialRepresentationInfo", "referenceSystemInfo",
+        "metadataExtensionInfo", "identificationInfo", "removal",
+        "metadataMaintenance",
+    ],
+    "MD_DataIdentification": [
+        # the MD_Identification sequence, with the identification content
+        # group in the order the sampled INSPIRE records use
+        "citation", "abstract", "purpose", "status",
+        "spatialRepresentationType", "spatialResolution", "pointOfContact",
+        "resourceMaintenance", "graphicOverview", "descriptiveKeywords",
+        "resourceConstraints", "language", "characterSet", "topicCategory",
+        "extent", "supplementalInformation",
+    ],
+    "SV_ServiceIdentification": [
+        "citation", "abstract", "purpose", "status",
+        "spatialRepresentationType", "spatialResolution", "pointOfContact",
+        "resourceMaintenance", "graphicOverview", "descriptiveKeywords",
+        "resourceConstraints", "language", "characterSet", "topicCategory",
+        "extent", "supplementalInformation", "serviceType",
+        "serviceTypeVersion", "dcp", "usesLanguage", "couplingType",
+        "containsOperations", "operatesOn", "coupledResource",
+        "extendedCapabilities", "serviceContact",
+    ],
+    "CI_Citation": [
+        "title", "alternateTitle", "date", "citedResponsibleParty", "edition",
+        "editionDate", "identifier", "presentationForm",
+        "otherCitationDetails", "collectiveTitle", "series",
+    ],
+    "CI_ResponsibleParty": [
+        "individualName", "organisationName", "positionName", "contactInfo",
+        "role",
+    ],
+    "CI_Contact": [
+        "phone", "address", "onlineResource", "hoursOfService",
+        "contactInstructions",
+    ],
+    "CI_Telephone": ["voice", "facsimile"],
+    "CI_Address": [
+        "deliveryPoint", "city", "administrativeArea", "postalCode",
+        "country", "electronicMailAddress",
+    ],
+    "MD_Keywords": ["keyword", "type", "thesaurusName"],
+    "MD_LegalConstraints": [
+        "frequency", "scope", "accessConstraints", "useConstraints",
+        "otherConstraints", "useLimitation",
+    ],
+    "MD_Resolution": ["scale", "equivalentScale", "distance"],
+    "MD_RepresentativeFraction": ["denominator"],
+    "MD_MaintenanceInformation": [
+        "maintenanceAndUpdateFrequency", "dateOfNextReview", "updateScope",
+        "updateScopeDescription", "maintenanceNote",
+    ],
+    "EX_Extent": [
+        "description", "geographicElement", "temporalElement",
+        "verticalElement", "temporaryElement",
+    ],
+    "EX_GeographicBoundingBox": [
+        "westBoundLongitude", "eastBoundLongitude", "southBoundLatitude",
+        "northBoundLatitude",
+    ],
+    "EX_BoundingPolygon": ["polygon"],
+    "EX_TemporalExtent": ["extent"],
+    "RS_Identifier": ["code", "codeSpace", "version", "authority"],
+    "MD_ReferenceSystem": ["referenceSystemIdentifier"],
+    "MD_Identifier": ["code"],
+    "MD_Distribution": ["distributionFormat", "distributor", "transferOptions"],
+    "MD_DigitalTransferOptions": ["onLine"],
+}

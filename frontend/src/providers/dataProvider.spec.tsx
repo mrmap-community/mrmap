@@ -64,6 +64,21 @@ describe('JSON:API validation errors', () => {
     });
   });
 
+  // the record editor's findings rail needs the untouched error members:
+  // the rule id, severity and ISO family survive beside the mapped messages
+  it('hands the raw json:api error members through on the body', async () => {
+    const findingError = {
+      detail: 'CI-0160: extent missing', status: '400', code: 'invalid',
+      source: { pointer: '/data/attributes/extent' },
+      rule: 'CI-0160', severity: 'warning', meta: { family: 'extents' },
+    };
+    const provider = makeProvider([findingError]);
+    await expect(provider.update('DatasetMetadataRecord', { id: 1, data: {}, previousData: { id: 1 } }))
+      .rejects.toMatchObject({
+        body: { jsonApiErrors: [findingError] },
+      });
+  });
+
   it('retains multiple global error messages', async () => {
     const provider = makeProvider([
       { detail: globalMessage, source: { pointer: '/data' } },

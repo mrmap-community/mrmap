@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from accounts.models.groups import Organization
+from accounts.serializers.groups import OrganizationSerializer
 from accounts.serializers.users import UserSerializer
+from accounts.utils import organizations_of
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from extras.serializers import (HistoryInformationSerializer,
@@ -39,6 +41,7 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            StyleSerializer,
                                            TimeExtentSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
+from rest_framework.exceptions import ValidationError
 from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
                                    SerializerMethodField, URLField)
 from rest_framework.reverse import reverse
@@ -47,6 +50,13 @@ from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
+
+
+#: the read-only answer of the stored owner of #733, one text for the three
+#: service serializers that expose it
+OWNER_HELP_TEXT = _(
+    "the organization which owns this service; empty on services "
+    "registered before ownership was stored")
 
 
 class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
@@ -537,6 +547,14 @@ class WebMapServiceListSerializer(
         help_text=_("the url to the preview image of the service."),
         read_only=True,
     )
+    # the stored owner of #733, answered read-only: the relation is decided
+    # at creation by the create serializer's validation and is not writable
+    # through the update of a service
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -549,6 +567,7 @@ class WebMapServiceListSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
     class Meta:
@@ -594,10 +613,100 @@ class WebMapServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
 
+class OrganizationOwnerCreateSerializerMixin:
+    """The `owner` relation of a create, validated against the creating user.
+
+    Before #733 this relation was answered and thrown away: the create
+    serializers declared it, the task which persists the resource never saw
+    it, and a client could name any organization as the owner of a service
+    while the service stayed ownerless. The accepted shape of #727 (Q3=A)
+    stores the owner as a typed foreign key, so this mixin decides - at
+    creation time and server-side - which organization the stored owner is:
+
+    * a client which names an owner may name only an organization the
+      creating user is a member of; a superuser may name any organization,
+      as the superuser holds every permission of every organization,
+    * a client which names no owner gets the creating user's only
+      organization - and a user with no membership or with more than one
+      gets a validation error instead of a guess, because defaulting to the
+      first membership or to an unrelated organization is exactly what
+      Q3=A forbids.
+
+    The decided owner travels to the task through the viewset's
+    `get_task_kwargs` and is written by the task, which is where the
+    resource row comes into the world.
+
+    A serializer using this mixin must declare its own `owner` field from
+    `OWNERSHIP_FIELD_KWARGS`: DRF collects declared fields from the
+    serializer's own body and from serializer bases, not from plain
+    mixins - without its own declaration the name falls through to the
+    model field, which is `editable=False` and therefore generates
+    read-only.
+    """
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        organizations = organizations_of(user)
+
+        owner = attrs.get("owner")
+        if owner is not None:
+            if user is not None and user.is_superuser:
+                return attrs
+            if not organizations.filter(pk=owner.pk).exists():
+                raise ValidationError({
+                    "owner": _(
+                        "The creating user is not a member of the selected "
+                        "organization. A resource can only be registered "
+                        "for an organization the creating user is a member "
+                        "of.")})
+            return attrs
+
+        # no owner named: only an unambiguous single membership may decide
+        if user is not None and user.is_superuser:
+            raise ValidationError({
+                "owner": _(
+                    "The owner relation is required: the creating user's "
+                    "memberships do not answer one owning organization.")})
+        memberships = list(organizations[:2])
+        if len(memberships) == 1:
+            attrs["owner"] = memberships[0]
+            return attrs
+        if not memberships:
+            raise ValidationError({
+                "owner": _(
+                    "The creating user is not member of any organization. "
+                    "The owner relation must name the organization which "
+                    "shall own the registered service.")})
+        raise ValidationError({
+            "owner": _(
+                "The creating user is member of more than one organization. "
+                "The owner relation must name the organization which shall "
+                "own the registered service.")})
+
+
+#: the client-facing words of the create relation, one answer for the three
+#: resource kinds so that schema and dialog name the concept identically
+#: (#1267) - unpacked into each create serializer's own `owner` declaration
+OWNERSHIP_FIELD_KWARGS = {
+    "queryset": Organization.objects,
+    "required": False,
+    "label": _("owner"),
+    "help_text": _(
+        "The organization which owns the registered service and grants all "
+        "rights on it. Required when the creating user belongs to more than "
+        "one organization; the creating user must be a member of an "
+        "organization named here."),
+}
+
+
 class WebMapServiceCreateSerializer(
+    OrganizationOwnerCreateSerializerMixin,
     SystemInfoSerializerMixin,
         ModelSerializer):
 
@@ -610,10 +719,9 @@ class WebMapServiceCreateSerializer(
         required=False,
         label=_("authentication credentials"),
         help_text=_("Optional authentication credentials to request the remote service."))
-    owner = ResourceRelatedField(
-        queryset=Organization.objects,
-        label=_("owner"),
-        help_text=_("The selected organization grants all rights on the registered service."))
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
     # default True is kept on purpose (#1264): turning it off would change
     # registration behaviour for every existing client
     collect_metadata_records = BooleanField(
@@ -811,6 +919,12 @@ class WebFeatureServiceSerializer(
         many=True,
         read_only=True,
     )
+    # the stored owner of #733; decided at creation, not writable here
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     web_feature_service_monitoring_settings = ResourceRelatedField(
         source="web_feature_service_monitorings",
@@ -829,6 +943,7 @@ class WebFeatureServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebFeatureServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
     class Meta:
@@ -837,13 +952,17 @@ class WebFeatureServiceSerializer(
 
 
 class WebFeatureServiceCreateSerializer(
-    SystemInfoSerializerMixin,
+        OrganizationOwnerCreateSerializerMixin,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
     )
-    owner = ResourceRelatedField(queryset=Organization.objects)
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body -
+    # with the WMS' words, one word per concept (#1267)
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
 
     # the same option the WMS create offers: one word per concept means the
     # very same msgids here, so both languages name it identically (#1267);
@@ -876,13 +995,16 @@ class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSer
 
 
 class CatalogueServiceCreateSerializer(
+        OrganizationOwnerCreateSerializerMixin,
         SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
     )
-    owner = ResourceRelatedField(queryset=Organization.objects)
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
 
     class Meta:
         model = CatalogueService
@@ -986,6 +1108,12 @@ class CatalogueServiceSerializer(
         many=True,
         read_only=True,
     )
+    # the stored owner of #733; decided at creation, not writable here
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         "harvesting_jobs": 'registry.serializers.harvesting.HarvestingJobSerializer',
@@ -995,6 +1123,7 @@ class CatalogueServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": CatalogueServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
     class Meta:

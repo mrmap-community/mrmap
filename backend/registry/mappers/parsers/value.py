@@ -213,11 +213,23 @@ def _parse_geographic_bbox(mapper, element):
         ))
 
 
-def _parse_bounding_polygon(_mapper, element):
+def _parse_bounding_polygon(mapper, element):
     geometries = []
-    for gmd_polygon in element.iterfind("./gmd:polygon"):
-        srs_name = gmd_polygon.findtext("./@srsName")
-        geometry = GEOSGeometry.from_gml(etree.tostring(gmd_polygon))
+    # the prefix map the rest of the parser uses: without it the `gmd:`
+    # prefix of the path is unknown to lxml and the whole branch raises
+    # (surfaced when #1246 first wrote a polygon the reader had to read back)
+    nsmap = mapper.mapping.get("_namespaces")
+    for gmd_polygon in element.iterfind("./gmd:polygon", namespaces=nsmap):
+        srs_name = gmd_polygon.get("srsName")
+        # from_gml reads a GML geometry, not the gmd:polygon wrapper around
+        # it: the reader is the FIRST gml child, which is a Polygon as the
+        # write mapper of #1246 serializes it and a MultiSurface as the
+        # fixtures of the wild carry it - OGR answers both as a polygon
+        geometry_el = next(
+            (c for c in gmd_polygon if isinstance(c.tag, str)), None)
+        if geometry_el is None:
+            continue
+        geometry = GEOSGeometry.from_gml(etree.tostring(geometry_el))
 
         if srs_name:
             _, srid = get_epsg_srid(srs_name)
@@ -248,3 +260,125 @@ def iso_bbox_to_multipolygon(mapper, elements=[]):
 
     if polygons:
         return MultiPolygon(polygons)
+
+
+# reverse parsers (#1242): the write mapper turns a mapped value back into the
+# external representation the _parser of the same spec reads
+
+
+def _coordinate_text(coord):
+    """The xsd:decimal/GML-posList text for one coordinate.
+
+    ``repr`` of a float is the shortest text that reads back as the very same
+    binary value, which is what keeps the write mapper's skip-if-equal compare
+    stable: serialize, parse, compare answers equal for an unchanged geometry,
+    so a fresh read-write-read round trip leaves the document byte-identical.
+    The rare exponent form is not an xsd:decimal, so it falls back to a fixed
+    representation that still round-trips.
+    """
+    value = float(coord)
+    text = repr(value)
+    if "e" in text or "E" in text:
+        text = format(value, ".17f")
+    return text
+
+
+def _is_bbox_rectangle(polygon):
+    """Whether one polygon is exactly an axis-aligned rectangle without holes.
+
+    The four vertices of the exterior ring must alternate between sharing x
+    and sharing y - the shape :func:`_parse_geographic_bbox` reads back as the
+    very same rectangle. Interior rings disqualify: an EX_GeographicBoundingBox
+    can not carry a hole.
+    """
+    if polygon is None or polygon.num_interior_rings > 0:
+        return False
+    coords = list(polygon.exterior_ring or [])
+    if len(coords) != 5 or coords[0] != coords[-1]:
+        return False
+    for (x1, y1), (x2, y2) in zip(coords, coords[1:]):
+        if x1 != x2 and y1 != y2:
+            return False
+    return True
+
+
+def serialize_bounding_geometry(mapper, value):
+    """The gmd:EX_GeographicBoundingBox / gmd:EX_BoundingPolygon fragment.
+
+    The inverse of :func:`iso_bbox_to_multipolygon` (#1246): a rectangle
+    without holes is written as the bounding box - the shape catalogues and
+    the INSPIRE view expect - everything else as one gmd:polygon/gml:Polygon
+    per polygon, lon-lat ordered like the reader assumes (the parser defaults
+    an unqualified GML geometry to EPSG:4326). The answer is an element
+    fragment, which the write mapper (#1242) places in the document; it
+    carries no namespace prefix of its own, lxml binds the document's when it
+    serializes. Interior rings are not written: the mapped value of this
+    field is the bounding geometry, not a doughnut.
+    """
+    if value is None:
+        return None
+    multipolygon = (
+        MultiPolygon([value]) if isinstance(value, Polygon) else value)
+    polygons = list(multipolygon or [])
+    if not polygons:
+        return None
+
+    nsmap = mapper.mapping.get("_namespaces", {})
+    gmd = nsmap.get("gmd")
+    gco = nsmap.get("gco")
+    gml = nsmap.get("gml")
+    if not (gmd and gco and gml):  # pragma: no cover - config carries all
+        return None
+
+    if len(polygons) == 1 and _is_bbox_rectangle(polygons[0]):
+        min_x, min_y, max_x, max_y = polygons[0].extent
+        element = etree.Element(f"{{{gmd}}}EX_GeographicBoundingBox")
+        for name, coord in (
+                ("westBoundLongitude", min_x),
+                ("eastBoundLongitude", max_x),
+                ("southBoundLatitude", min_y),
+                ("northBoundLatitude", max_y)):
+            bound = etree.SubElement(element, f"{{{gmd}}}{name}")
+            decimal = etree.SubElement(bound, f"{{{gco}}}Decimal")
+            decimal.text = _coordinate_text(coord)
+        return element
+
+    element = etree.Element(f"{{{gmd}}}EX_BoundingPolygon")
+    for polygon in polygons:
+        wrapper = etree.SubElement(element, f"{{{gmd}}}polygon")
+        geometry = etree.SubElement(wrapper, f"{{{gml}}}Polygon")
+        geometry.set("srsDimension", "2")
+        exterior = etree.SubElement(geometry, f"{{{gml}}}exterior")
+        ring = etree.SubElement(exterior, f"{{{gml}}}LinearRing")
+        coords = list(polygon.exterior_ring or [])
+        if coords and coords[0] != coords[-1]:
+            coords.append(coords[0])
+        positions = " ".join(
+            f"{_coordinate_text(x)} {_coordinate_text(y)}"
+            for x, y in coords)
+        pos_list = etree.SubElement(ring, f"{{{gml}}}posList")
+        pos_list.text = positions
+    return element
+
+
+def int_to_charset(_mapper, value):
+    return MetadataCharsetChoices(value).label
+
+
+def int_to_update_frequency(_mapper, value):
+    return UpdateFrequencyChoices(value).label
+
+
+def datetime_to_string(mapper, value):
+    """The gco:DateTime text for an aware datetime.
+
+    Rendered in the deployment's current timezone without an offset, the
+    shape string_to_datetime() reads back as the same instant - which is what
+    lets the write mapper notice an unchanged date_stamp and leave the node
+    alone instead of rewriting the representation on every save.
+    """
+    if value is None:
+        return None
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime("%Y-%m-%dT%H:%M:%S")

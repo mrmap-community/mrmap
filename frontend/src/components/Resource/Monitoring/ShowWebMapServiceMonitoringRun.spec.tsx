@@ -7,6 +7,12 @@ import ShowWebMapServiceMonitoringRun from "./ShowWebMapServiceMonitoringRun";
 
 import "@testing-library/jest-dom/vitest";
 
+// the contextual incident slot reads a live resource and provider; it has its
+// own specs and is kept out of this host spec (#1322)
+vi.mock("../OperationalIncident/Context/ContextualIncidents", () => ({
+  default: () => null,
+}));
+
 vi.mock("./MonitoringProbeResults", () => ({
   default: ({ groups }: { groups: { ids: string[] }[] }) => (
     <div>

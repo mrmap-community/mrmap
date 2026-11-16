@@ -508,6 +508,81 @@ CELERY_TASK_QUEUES = (
 )
 
 ################################################################
+# Celery capacity telemetry (#1330)
+################################################################
+# The bounded attempt samples the capacity snapshots of #1326 read: every
+# worker records per attempt how long it really occupied a slot and, when the
+# message carried the publish stamp, how long it had waited in the broker.
+# The collector never blocks the task it observes: it buffers in the worker
+# process, writes in batches of at most FLUSH_THRESHOLD attempts, and goes
+# quiet for a cooldown when the database does not answer. The limits below
+# bound the buffer, the table and the retention; what they cost in honesty is
+# stated openly - dropped or abandoned attempts are missing samples, never
+# invented ones (docs/source/development/celery-capacity-telemetry.rst).
+# "off" turns the whole collection and the publish stamping off; on is the
+# default because the measurement is what #1326 needs to become truthful.
+CAPACITY_TELEMETRY_ENABLED = os.environ.get(
+    "MRMAP_CAPACITY_TELEMETRY", "").strip().lower() not in (
+    "off", "0", "false")
+# tests which drive the celery signals by hand set this to record outside of
+# real worker processes; a deployment must leave it False
+CAPACITY_TELEMETRY_COLLECT_ANY_PROCESS = False
+# attempts a worker process keeps before its buffer starts dropping open
+# observations under overload (drops are counted and logged, #1330)
+CAPACITY_TELEMETRY_BUFFER_LIMIT = 1000
+# buffered attempts that trigger a batched write, and the maximum age of a
+# buffered attempt before the next signal flushes - one INSERT per batch
+CAPACITY_TELEMETRY_FLUSH_THRESHOLD = 100
+CAPACITY_TELEMETRY_FLUSH_SECONDS = 30
+# how long a failed flush silences the collector instead of retrying per task
+CAPACITY_TELEMETRY_RETRY_COOLDOWN_SECONDS = 60
+# the sweep of system.tasks keeps the table bounded by these two bounds; the
+# grace must stay above the longest task this deployment runs on purpose,
+# because an attempt without an end within the grace is declared abandoned
+CAPACITY_TELEMETRY_RETENTION_DAYS = 14
+CAPACITY_TELEMETRY_MAX_ATTEMPTS = 200_000
+CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
+# the broker round trip of the topology inspect and how long its answer is
+# shared, so a snapshot request never pays for a broadcast
+CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
+CAPACITY_TOPOLOGY_TIMEOUT_SECONDS = 1.0
+# the capacity snapshot of #1326 is a materialized answer, not a per-request
+# scan: it is built at most once per interval and served from the cache until
+# its TTL expires or the schedules it counted have demonstrably changed
+# (schedule fingerprint below). The walk budgets are the worst case of one
+# build; a deployment that outruns them gets a labeled lower bound, never a
+# silently truncated number.
+CAPACITY_SNAPSHOT_TTL_SECONDS = 900
+CAPACITY_SNAPSHOT_HORIZON_DAYS = 7
+CAPACITY_SNAPSHOT_MAX_HORIZON_DAYS = 31
+# the shared verdict of "a build is running" and the shortest distance two
+# builds may have, so a busy fleet of readers cannot stack refreshes
+CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS = 300
+CAPACITY_SNAPSHOT_MIN_REBUILD_SECONDS = 60
+# how often the schedule fingerprint may be re-read: one bounded aggregate
+# statement per this interval, shared by every reader of the endpoint
+CAPACITY_FINGERPRINT_CACHE_SECONDS = 30
+# the horizon histogram: bucket width and the resulting bucket cap
+# (horizon 7 d at 3600 s = 168 buckets; the cap bounds 31 d horizons)
+CAPACITY_SNAPSHOT_BUCKET_SECONDS = 3600
+CAPACITY_SNAPSHOT_MAX_BUCKETS = 744
+# walk budgets of one build; over them the walk stops and the affected
+# schedules are reported as truncated, keeping the build cost bounded
+CAPACITY_SNAPSHOT_MAX_SCHEDULES = 100_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES = 2_000_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES_PER_SETTING = 20_000
+# the window the per-occurrence costs are measured from, and how few terminal
+# samples a name may answer a mean cost from; fewer answer no cost, which
+# keeps the demand a labeled lower bound instead of a guess
+CAPACITY_COST_LOOKBACK_DAYS = 7
+CAPACITY_COST_MIN_SAMPLES = 3
+# the groups one grouped cost query may return before it reports truncation
+CAPACITY_COST_GROUP_LIMIT = 5_000
+# a purely advisory line a deployment may draw under rho to ask for attention
+# - a tunable threshold, not a statement that capacity above it is safe
+CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
+
+################################################################
 # django channels settings
 ################################################################
 CHANNEL_LAYERS = {
@@ -769,6 +844,16 @@ MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
 BACKGROUND_PROCESS_RETENTION_DAYS = int(
     os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
 
+# how many days a resolved operational incident stays inspectable; the sweep
+# which notify/tasks.py names deletes the incidents which were resolved
+# before this many days (#1319). The incidents which still stand are never
+# touched - an active incident is the open problem itself - and the
+# authoritative history of the reported operation is the job history of
+# #1208 with its own retention. 0 keeps every resolved incident until an
+# operator removes it
+OPERATIONAL_INCIDENT_RETENTION_DAYS = int(
+    os.getenv("MRMAP_OPERATIONAL_INCIDENT_RETENTION_DAYS", "90"))
+
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
 # record (#859): a harvest of 70,000 records publishes ~280 broker messages, task
@@ -837,19 +922,17 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
-# The activation gate of the metadata editor's record writes (#1241).
-# The create/update endpoints of the metadata records answer the default
-# json:api CRUD contract, but until the XML write-back (#1242), the profile
-# validation rules (#1243) and the atomic publishing/harvest overwrite gate
-# (#1244) are integrated, a committed model field would leave the ISO
-# document served by the CSW stale or invalid behind it. The readiness
-# clarification of #1241 (2026-11-12) therefore makes POST/PUT/PATCH on the
-# record resources answer 403 while this gate is off; DELETE stays at its
-# today behaviour. Only the final gate of #1244 - round-trip and rejection
-# tests green - may flip this default to True for public editing; an operator
-# who enables it before that accepts inconsistent CSW documents deliberately.
+# The activation gate of the metadata editor's record writes (#1241, opened
+# by #1244). The create/update endpoints of the metadata records answer the
+# default json:api CRUD contract; a committed write regenerates the ISO
+# document served by the CSW through the publish seam of
+# registry.mappers.publish, inside the same transaction as the fields
+# (atomic publishing, decision 1 of the #1238 review). The round-trip and
+# rejection tests of #1244's readiness clarification are what allowed this
+# default to flip to True; an operator who sets it to False deliberately
+# answers the record writes with 403 and keeps the editor read-only.
 MRMAP_METADATA_EDITOR_WRITES_ENABLED = os.environ.get(
-    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "False") == "True"
+    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "True") == "True"
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True

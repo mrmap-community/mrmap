@@ -54,13 +54,15 @@ class User(AbstractUser):
         return (self.username,)
 
     def assign_object_perms(self):
-        assign_perm(perm='view_user',
+        # the app_label names the app of this model: the ``User`` lives in
+        # ``accounts``, so its permission rows do too (#729)
+        assign_perm(perm='accounts.view_user',
                     user_or_group=self,
                     obj=self)
-        assign_perm(perm='change_user',
+        assign_perm(perm='accounts.change_user',
                     user_or_group=self,
                     obj=self)
-        assign_perm(perm='delete_user',
+        assign_perm(perm='accounts.delete_user',
                     user_or_group=self,
                     obj=self)
 

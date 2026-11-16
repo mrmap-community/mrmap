@@ -145,7 +145,7 @@ class WfsPreviewImageTests(TestCase):
         user = get_user_model().objects.create_user(username="spatial-thumbnail-data")
         group = Group.objects.create(name="spatial-thumbnail-readers")
         user.groups.add(group)
-        assign_perm("view_webfeatureservice", user, self.wfs)
+        assign_perm("registry.view_webfeatureservice", user, self.wfs)
         allowed = AllowedWebFeatureServiceOperation.objects.create(
             secured_service=self.wfs, allowed_area=MultiPolygon(Polygon.from_bbox((0, 0, 4, 8)), srid=4326))
         allowed.operations.add(30)
@@ -178,7 +178,7 @@ class WfsPreviewImageTests(TestCase):
         user = get_user_model().objects.create_user(username="rivers-thumbnail")
         group = Group.objects.create(name="rivers-thumbnail-readers")
         user.groups.add(group)
-        assign_perm("view_webfeatureservice", user, self.wfs)
+        assign_perm("registry.view_webfeatureservice", user, self.wfs)
         allowed = AllowedWebFeatureServiceOperation.objects.create(secured_service=self.wfs)
         allowed.operations.add(30)
         allowed.secured_feature_types.add(self.wfs.featuretypes.get(identifier="ms:Rivers"))
@@ -231,7 +231,7 @@ class WfsPreviewImageTests(TestCase):
         user = get_user_model().objects.create_user(username="restricted-thumbnail")
         group = Group.objects.create(name="thumbnail-area")
         user.groups.add(group)
-        assign_perm("view_webfeatureservice", user, self.wfs)
+        assign_perm("registry.view_webfeatureservice", user, self.wfs)
         element = self.wfs.featuretypes.get(identifier="ms:Countries")
         allowed = AllowedWebFeatureServiceOperation.objects.create(
             secured_service=self.wfs, allowed_area=MultiPolygon(Polygon.from_bbox((0, 0, 4, 8)), srid=4326))

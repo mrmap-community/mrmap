@@ -84,8 +84,8 @@ def start_run(run, probes, task):
 def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import WebMapServiceMonitoringRun
 
-    run = WebMapServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = WebMapServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_getcapabilitiesprobes.all()) + \
         list(run.setting.registry_getmapprobes.all())
 
@@ -106,8 +106,8 @@ def create_wms_monitoring_run(self, name, *args, **kwargs):
 def run_wfs_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import WebFeatureServiceMonitoringRun
 
-    run = WebFeatureServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = WebFeatureServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_webfeatureservicegetcapabilitiesprobes.all()) + \
         list(run.setting.registry_webfeatureservicegetfeatureprobes.all())
 
@@ -128,8 +128,8 @@ def create_wfs_monitoring_run(self, name, *args, **kwargs):
 def run_csw_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import CatalogueServiceMonitoringRun
 
-    run = CatalogueServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = CatalogueServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_catalogueservicegetcapabilitiesprobes.all()) + \
         list(run.setting.registry_catalogueservicegetrecordsprobes.all())
 

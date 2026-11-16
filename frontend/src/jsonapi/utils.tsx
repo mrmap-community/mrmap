@@ -25,6 +25,9 @@ export interface FieldSchema {
   schema: OpenAPIV3.SchemaObject
   isRequired: boolean
   isReadOnly: boolean
+  /** The ISO 19139 element path the backend stamps on writable mapped fields
+   *  (#1240); present only on the fields the write mapper can actually write. */
+  isoPath?: string
   kind: 'attribute' | 'relationship' |'array-relationship'
 }
 
@@ -246,6 +249,15 @@ export const encapsulateFields = (schema: OpenAPIV3.NonArraySchemaObject) => {
 
 };
 
+/** The OpenAPI extension (#1240) carrying the ISO 19139 element path of a
+ *  writable mapped field, stamped by the backend's postprocessing hook. */
+export const ISO_PATH_EXTENSION = 'x-iso-path'
+
+export const getIsoPath = (property: OpenAPIV3.SchemaObject | undefined): string | undefined => {
+  const value = property?.[ISO_PATH_EXTENSION as keyof OpenAPIV3.SchemaObject]
+  return typeof value === 'string' ? value : undefined
+}
+
 export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObject): FieldSchema | undefined => {
   const jsonApiPrimaryDataProperties = schema?.properties as Record<string, OpenAPIV3.NonArraySchemaObject>
   const jsonApiResourceAttributes = jsonApiPrimaryDataProperties?.attributes?.properties 
@@ -279,6 +291,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
         schema: s, 
         isRequired: isRequired,
         isReadOnly: s?.readOnly ?? false,
+        isoPath: getIsoPath(s),
         kind: 'attribute'
       }
     }
@@ -297,6 +310,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           schema: _relationSchema,
           isRequired: isRequired,
           isReadOnly: relationSchema.readOnly ?? false,
+          isoPath: getIsoPath(relationSchema),
           kind: 'array-relationship'
         }
       } else {
@@ -309,6 +323,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           schema: relationSchema as OpenAPIV3.NonArraySchemaObject,
           isRequired: isRequired, 
           isReadOnly: relationSchema.readOnly ?? false,
+          isoPath: getIsoPath(relationSchema),
           kind: 'relationship'
         }
       }

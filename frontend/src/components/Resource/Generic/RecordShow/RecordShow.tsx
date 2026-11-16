@@ -6,6 +6,7 @@ import {
 } from "react-admin";
 
 import useOperation from "../../../../jsonapi/hooks/useOperation";
+import XmlSourceDocument from "../MetadataEditor/XmlSourceDocument";
 import ServiceShowTabs from "../ServiceShowTabs";
 import RecordContacts from "./RecordContacts";
 import RecordDocuments from "./RecordDocuments";
@@ -82,6 +83,15 @@ const RecordShow = ({ documents = false }: { documents?: boolean }) => {
             <RecordDocuments />
           </TabbedShowLayout.Tab>
         )}
+        {/* the source screen belongs to every record kind: every record is
+            served as an ISO document and every write path is the record's
+            own `xmlBackupFile` attribute (#1247) */}
+        <TabbedShowLayout.Tab
+          path="source"
+          label={translate("recordShow.xmlSource")}
+        >
+          <XmlSourceDocument />
+        </TabbedShowLayout.Tab>
         <TabbedShowLayout.Tab
           path="relations"
           label={translate("recordShow.relations")}

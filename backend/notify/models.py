@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import timedelta
 from logging import Logger
@@ -6,16 +7,23 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import F, Func, Q, Value
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from MrMap.celery import app
-from notify.enums import LogTypeEnum, ProcessNameEnum, ProcessStatusEnum
-from notify.managers import BackgroundProcessManager
+from notify.enums import (IncidentSeverityEnum, IncidentSourceEnum,
+                          IncidentStatusEnum, LogTypeEnum, ProcessNameEnum,
+                          ProcessStatusEnum)
+from notify.managers import (BackgroundProcessManager,
+                             OperationalIncidentManager)
 
 logger: Logger = settings.ROOT_LOGGER
+
+
+CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
 
 
 class AppendTaskIds(Func):
@@ -60,7 +68,7 @@ class BackgroundProcess(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
@@ -414,7 +422,7 @@ class BackgroundProcessLog(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the task result was created in UTC')
     )
     extented_description = models.FileField(
@@ -525,3 +533,494 @@ def purge_expired_background_processes(retention_days=None) -> dict:
 
     return {"retention_days": days, "purged": purged, "logs": logs,
             "files": files}
+
+
+#: the longest summary an incident row carries; the same bound the summary
+#: of a background process keeps (#1208), so no incident answer grows with a
+#: remote error document
+INCIDENT_SUMMARY_MAX_LENGTH = 512
+
+#: the serialized size of an incident's structured details - a bounded
+#: payload, never a log tail or a response body (#1319)
+INCIDENT_DETAILS_MAX_BYTES = 2048
+
+#: how many keys the bounded payload keeps at most; the rest is reported as
+#: truncated rather than silently dropped
+INCIDENT_DETAILS_MAX_KEYS = 32
+
+#: the longest string value inside the bounded payload
+INCIDENT_DETAILS_VALUE_MAX_LENGTH = 256
+
+#: the longest list inside the bounded payload and its item count
+INCIDENT_DETAILS_MAX_LIST_ITEMS = 10
+
+#: key names whose value never reaches an incident row: an incident summary
+#: and its details are answered to every user who may view the affected
+#: resource, so nothing which could carry a credential or an auth header is
+#: ever stored (#1319)
+SENSITIVE_DETAIL_KEY_PARTS = (
+    "token", "password", "passwd", "secret", "authorization", "apikey",
+    "api_key", "api-key", "bearer", "signature", "credential", "cookie",
+)
+
+#: what a redacted value answers instead of the credential it replaces
+REDACTED_PLACEHOLDER = "[redacted]"
+
+
+def incident_details_bytes(details):
+    """The stored size of an incident's bounded payload.
+
+    One answer for the writer which bounds the payload and the clean which
+    refuses an over-grown one, so both read the same bytes.
+    """
+    return len(json.dumps(details, sort_keys=True, default=str).encode("utf-8"))
+
+
+def _is_sensitive_detail_key(key):
+    lowered = key.lower()
+    return any(part in lowered for part in SENSITIVE_DETAIL_KEY_PARTS)
+
+
+def _bounded_detail_value(value, depth=0):
+    """The value an incident row may store: bounded, never the original."""
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return value[:INCIDENT_DETAILS_VALUE_MAX_LENGTH]
+    if isinstance(value, (list, tuple)):
+        items = [_bounded_detail_value(item, depth + 1)
+                 for item in value[:INCIDENT_DETAILS_MAX_LIST_ITEMS]]
+        if len(value) > len(items):
+            items.append(f"(+{len(value) - len(items)} more)")
+        return items
+    if isinstance(value, dict) and depth < 1:
+        return {
+            str(key)[:64]: (
+                REDACTED_PLACEHOLDER if _is_sensitive_detail_key(str(key))
+                else _bounded_detail_value(item, depth + 1))
+            for key, item in value.items()
+        }
+    # a nested mapping below the depth, and everything exotic: its readable
+    # shape, bounded - an incident names the kind of evidence, it is no
+    # document store
+    return str(value)[:INCIDENT_DETAILS_VALUE_MAX_LENGTH]
+
+
+def sanitize_incident_details(details):
+    """The redacted, bounded mapping which an incident row stores (#1319).
+
+    The producers of incidents report what they saw while they saw it - the
+    response of a remote catalogue, the error of a task. None of it may be
+    stored as it came: a key which names a credential answers the
+    redaction placeholder, strings and lists are bounded, and when the
+    serialized payload still outgrows its budget the least keys of the
+    sorted set are dropped and the payload says so itself. The structured
+    evidence of the run itself stays where it is authoritative - the
+    process log of #1208 and the probe artifacts of #682.
+    """
+    if details is None:
+        return {}
+    if not isinstance(details, dict):
+        raise ValidationError(_(
+            "The details of an incident must be a mapping of structured "
+            "metadata."))
+    bounded = {}
+    for key, value in details.items():
+        name = str(key)[:64]
+        bounded[name] = (
+            REDACTED_PLACEHOLDER if _is_sensitive_detail_key(name)
+            else _bounded_detail_value(value))
+
+    kept = {}
+    dropped = 0
+    considered = 0
+    for name in sorted(bounded):
+        if len(kept) >= INCIDENT_DETAILS_MAX_KEYS:
+            dropped = len(bounded) - considered
+            break
+        # the budget is tested with the truncation marker already on, so the
+        # stored payload never outgrows it - not even by the marker itself
+        candidate = dict(kept)
+        candidate[name] = bounded[name]
+        candidate["truncated"] = True
+        if incident_details_bytes(candidate) > INCIDENT_DETAILS_MAX_BYTES:
+            dropped = len(bounded) - considered
+            break
+        del candidate["truncated"]
+        kept = candidate
+        considered += 1
+    if dropped:
+        kept["truncated"] = True
+    return kept
+
+
+def _at_most_one_resource_check(fields):
+    """The Q which no two of the given fields may be filled at once.
+
+    An incident names its affected resource with exactly one typed foreign
+    key (#1319) - the epic refuses a generic content-type relation, so the
+    database has to guard the combinations directly. Pairwise null clauses
+    are what a CheckConstraint answers as a conditional expression.
+    """
+    fields = list(fields)
+    check = Q()
+    for index, first in enumerate(fields):
+        for second in fields[index + 1:]:
+            check &= (Q(**{f"{first}__isnull": True})
+                      | Q(**{f"{second}__isnull": True}))
+    return check
+
+
+#: the typed resources an incident may name, each mapped to the path which
+#: leads from it to the service whose view permission decides the visibility
+#: of the incident ("" answers the resource which is a service itself). This
+#: table is the single source for the dedup key, the database check, the
+#: visibility rule and the service filter - a new kind of affected resource
+#: enters here and everywhere follows.
+INCIDENT_RESOURCE_FIELDS = {
+    "web_map_service": "",
+    "web_feature_service": "",
+    "catalogue_service": "",
+    "harvesting_job": "service",
+    "web_map_service_update_job": "service",
+    "web_feature_service_update_job": "service",
+    "catalogue_service_update_job": "service",
+    "web_map_service_monitoring_run": "setting__service",
+    "web_feature_service_monitoring_run": "setting__service",
+    "catalogue_service_monitoring_run": "setting__service",
+}
+
+
+class OperationalIncident(models.Model):
+    """One operational incident, deduplicated across its recurrences (#1319).
+
+    An incident is the persisted answer to "what is broken for whom, since
+    when, how often" - the stable row which a notification center of #1321
+    lists and which publishers of #1320 raise once and resolve once. It is
+    never the status of a job: the ``BackgroundProcess``, the harvesting
+    job, the update job, the monitoring run and the service alerts stay
+    authoritative for what a run did; this row only keeps the incident
+    state which those per-execution records cannot answer on their own: a
+    stable identity across retries, the deduplicated lifecycle and the
+    permission-filtered visibility. The per-execution history remains where
+    it always was - the process rows and their logs (#1208), the probe
+    artifacts (#682).
+
+    Identity and lifecycle
+        ``dedup_key`` is the stable key of the problem behind the row. While
+        one row with the key is ACTIVE, a recurrence raises its
+        ``occurrence_count`` and ``last_occurred_at`` instead of creating
+        another row - ten retries of one incident are one incident, not ten
+        notifications. ``resolve`` moves the single lifecycle transition
+        ACTIVE -> RESOLVED; a resolution is terminal, and a problem which
+        returns afterwards is a new incident sharing the key with its
+        history. A partial unique index enforces at most one active row per
+        key in the database, independent of any individual Celery retry.
+
+    Affected resource
+        Every resource the epic names as an affected kind - the services,
+        the harvesting job, the concrete update jobs and the concrete
+        monitoring runs - is one typed, nullable foreign key. At most one of
+        them is ever filled, which a database check enforces. An incident
+        with no resource is a system incident: it names the deployment
+        itself and belongs to the administrators alone. ``GenericForeignKey``
+        and ``ContentType`` are deliberately absent: an incident row can
+        only ever name a real object, and deletion follows it.
+
+    Deletion and retention
+        The resource FKs cascade: a service, a job or a run which is gone
+        takes the incidents which name it - an incident about a deleted
+        resource asks for an action nobody can take anymore. The decided
+        ones of the retention window are taken back by
+        ``purge_expired_operational_incidents``; active incidents are never
+        purged.
+
+    Authorization
+        There is exactly one rule, implemented once by
+        ``OperationalIncidentManager.visible_for_user``: a superuser sees
+        everything, an authenticated user sees the resource incidents whose
+        affected service he may view, and nobody but a superuser ever sees
+        a system incident. Anonymous clients read nothing at all. List,
+        detail, every filter and every count run over the filtered
+        queryset, so a total never tells about an incident which the caller
+        may not see.
+    """
+
+    #: the typed resources an incident may name, each mapped to the path
+    #: which leads from it to the service whose view permission decides the
+    #: visibility of the incident; see INCIDENT_RESOURCE_FIELDS
+    RESOURCE_FIELDS = INCIDENT_RESOURCE_FIELDS
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name=_('id'),
+        help_text=_(
+            'the stable identifier of the incident, referable by later '
+            'integrations independently of its dedup key'))
+    dedup_key = models.CharField(
+        max_length=255,
+        editable=False,
+        verbose_name=_('dedup key'),
+        help_text=_(
+            'the stable key of the problem behind this incident; while an '
+            'incident with the key is active, a recurrence of the same '
+            'problem raises its count instead of creating another row'))
+    code = models.CharField(
+        max_length=64,
+        verbose_name=_('code'),
+        help_text=_(
+            'the structured incident code, stable per meaning; publishers '
+            'of the same problem report the same code and never a new one'))
+    source = models.CharField(
+        max_length=32,
+        choices=IncidentSourceEnum.choices,
+        verbose_name=_('source'),
+        help_text=_(
+            'which domain of the deployment raised the incident: '
+            'harvesting, update, monitoring or the deployment itself'))
+    severity = models.CharField(
+        max_length=16,
+        choices=IncidentSeverityEnum.choices,
+        verbose_name=_('severity'),
+        help_text=_(
+            'how much attention the incident asks for; a retry is a '
+            'warning, its exhaustion an error of the same code'))
+    status = models.CharField(
+        max_length=16,
+        choices=IncidentStatusEnum.choices,
+        default=IncidentStatusEnum.ACTIVE.value,
+        editable=False,
+        verbose_name=_('status'),
+        help_text=_(
+            'the lifecycle of the incident: active while the problem '
+            'stands, resolved once recovery resolved it; a resolution is '
+            'terminal'))
+    first_occurred_at = models.DateTimeField(
+        editable=False,
+        verbose_name=_('first occurrence'),
+        help_text=_(
+            'the moment the incident was reported for the first time'))
+    last_occurred_at = models.DateTimeField(
+        editable=False,
+        verbose_name=_('last occurrence'),
+        help_text=_(
+            'the moment the incident was reported for the last time; every '
+            'recurrence moves it'))
+    occurrence_count = models.PositiveIntegerField(
+        default=1,
+        editable=False,
+        verbose_name=_('occurrence count'),
+        help_text=_(
+            'how often the problem behind the dedup key was reported while '
+            'the incident was active'))
+    summary = models.CharField(
+        max_length=INCIDENT_SUMMARY_MAX_LENGTH,
+        verbose_name=_('summary'),
+        help_text=_(
+            'the safe, human readable summary of the incident; it never '
+            'carries a credential, a raw response or a stack trace'))
+    details = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_('details'),
+        help_text=_(
+            'redacted, bounded structured metadata of the incident; the '
+            'full evidence stays in the log of the reported process'))
+    retry_count = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_('retry count'),
+        help_text=_(
+            'how many retries the reporting operation told with its last '
+            'report, or none where it knows none'))
+    retry_scheduled_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_('retry scheduled until'),
+        help_text=_(
+            'until when the next attempt of the reported operation is due; '
+            'while this window is open the incident reports a retry, not a '
+            'failure'))
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_('resolved at'),
+        help_text=_(
+            'the moment recovery resolved the incident, empty while it is '
+            'active'))
+    date_created = models.DateTimeField(
+        default=now,
+        editable=False,
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
+        help_text=_('Datetime field when the incident was created in UTC'))
+
+    # the typed relations to the resources an incident may name - one table
+    # per concrete kind, because the epic refuses a generic relation and
+    # the update jobs and monitoring runs have no shared concrete parent.
+    web_map_service = models.ForeignKey(
+        to="registry.WebMapService",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    web_feature_service = models.ForeignKey(
+        to="registry.WebFeatureService",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    catalogue_service = models.ForeignKey(
+        to="registry.CatalogueService",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    harvesting_job = models.ForeignKey(
+        to="registry.HarvestingJob",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    web_map_service_update_job = models.ForeignKey(
+        to="registry.WebMapServiceUpdateJob",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    web_feature_service_update_job = models.ForeignKey(
+        to="registry.WebFeatureServiceUpdateJob",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    catalogue_service_update_job = models.ForeignKey(
+        to="registry.CatalogueServiceUpdateJob",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    web_map_service_monitoring_run = models.ForeignKey(
+        to="registry.WebMapServiceMonitoringRun",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    web_feature_service_monitoring_run = models.ForeignKey(
+        to="registry.WebFeatureServiceMonitoringRun",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+    catalogue_service_monitoring_run = models.ForeignKey(
+        to="registry.CatalogueServiceMonitoringRun",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='operational_incidents',
+        related_query_name='operational_incident')
+
+    objects = OperationalIncidentManager()
+
+    class Meta:
+        verbose_name = _('Operational Incident')
+        verbose_name_plural = _('Operational Incidents')
+        ordering = ["-last_occurred_at", "id"]
+        indexes = [
+            # the list of the notification center pages the active incidents
+            # by their last report; the history asks the resolved ones by
+            # their moment
+            models.Index(
+                fields=["status", "last_occurred_at"],
+                name="opinc_status_last_idx"),
+            models.Index(
+                fields=["dedup_key"],
+                name="opinc_dedup_idx"),
+            # one active incident per problem, enforced by the database:
+            # the history of a resolved key may keep its rows, but a
+            # recurrence never finds an open slot twice. The partial unique
+            # index is a UniqueConstraint over the active rows - ``Index``
+            # carries no uniqueness
+            models.UniqueConstraint(
+                fields=["dedup_key"],
+                condition=Q(status=IncidentStatusEnum.ACTIVE.value),
+                name="opinc_active_dedup_uniq"),
+            models.Index(
+                fields=["resolved_at"],
+                name="opinc_resolved_at_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=_at_most_one_resource_check(
+                    INCIDENT_RESOURCE_FIELDS),
+                name="%(app_label)s_%(class)s_at_most_one_resource"),
+            models.CheckConstraint(
+                condition=(
+                    Q(status=IncidentStatusEnum.ACTIVE.value,
+                      resolved_at__isnull=True)
+                    | Q(status=IncidentStatusEnum.RESOLVED.value,
+                        resolved_at__isnull=False)),
+                name="%(app_label)s_%(class)s_resolved_moment_matches_status"),
+        ]
+
+    def __str__(self):
+        return f"{self.code} {self.dedup_key}"
+
+    @property
+    def scope(self):
+        """Whether the incident names a resource or the deployment itself.
+
+        The answer is derived from the typed relations, so it can never
+        disagree with them: an incident without an affected resource is a
+        system incident.
+        """
+        for field in self.RESOURCE_FIELDS:
+            if getattr(self, f"{field}_id") is not None:
+                return "resource"
+        return "system"
+
+    def clean(self):
+        super().clean()
+        if self.details and (
+                incident_details_bytes(self.details)
+                > INCIDENT_DETAILS_MAX_BYTES):
+            raise ValidationError(_(
+                "The details of an incident exceed their bounded size and "
+                "have to be sanitized before they are stored."))
+
+
+def purge_expired_operational_incidents(retention_days=None) -> dict:
+    """Takes back the resolved incidents whose retention has passed (#1319).
+
+    An incident is the stable handle of a problem which stands; a resolved
+    one has told what it had to tell, and the authoritative history of the
+    reported operation stays in the job history of #1208. Only resolved
+    incidents go, decided by ``resolved_at``; an active incident is never
+    purged out from under its caller. A retention of 0 keeps every resolved
+    incident until an operator removes it.
+
+    Returns what was done, which is what the log line of the beat task says.
+    """
+    days = (settings.OPERATIONAL_INCIDENT_RETENTION_DAYS
+            if retention_days is None else retention_days)
+    if days <= 0:
+        return {"retention_days": days, "purged": 0}
+
+    cutoff = now() - timedelta(days=days)
+    expired = OperationalIncident.objects.filter(
+        status=IncidentStatusEnum.RESOLVED.value,
+        resolved_at__lt=cutoff)
+    purged = expired.delete()[1].get("notify.OperationalIncident", 0)
+    return {"retention_days": days, "purged": purged}

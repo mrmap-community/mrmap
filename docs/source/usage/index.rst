@@ -31,10 +31,12 @@ Both record types have the same detail page:
 
 Tabs can be linked directly, for example ``DatasetMetadataRecord/<id>/show/relations``.
 The header offers edit and delete actions when the backend grants those object permissions.
-The "Written more than once" chip reflects ``is_customized``, which only an edit of the record sets:
-a harvesting run leaves that flag alone, so a record which was merely re-harvested is not flagged.
-The label of the chip still names the older meaning. The source action opens the recorded origin
-URL, when available.
+The "Saved by the editor" chip reflects ``is_customized``, which editor writes set: creating a
+record from the profile as well as editing one. A harvesting run leaves that flag alone, so a
+record which was merely re-harvested is not flagged. The marker is visible for now, not a
+shield: until a per-field conflict decision is made, a harvest which later delivers the same
+identifier with a newer date stamp can still update the record's fields. The source action opens
+the recorded origin URL, when available.
 
 Collect Metadata
 ################
@@ -77,6 +79,16 @@ That watcher runs every five minutes. An import which is still running when that
 .. image:: ../images/sequence_diagram_file_import.svg
   :width: 100%
   :alt: Celery tasks livecycle
+
+4. created from a profile
+~~~~~~~~~~~~~~~~~~~~~~~~~
+A curator can also write a metadata record by hand. Open the explorer of the record type and
+press *New*: the form asks for the mandatory fields of the chosen authoring profile, and the
+"what you get" panel names the ISO sections which then start with content and the ones which
+are filled later. The record's identifier is generated, or set by hand when one is given - the
+backend checks it against the existing records and refuses an identifier which already exists.
+The record is created empty of template content on purpose: starting from an existing record
+or a template is the next step of this workflow and not part of this version.
 
 Protected services in the map viewer
 ====================================

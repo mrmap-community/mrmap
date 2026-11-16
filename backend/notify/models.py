@@ -23,6 +23,9 @@ from notify.managers import (BackgroundProcessManager,
 logger: Logger = settings.ROOT_LOGGER
 
 
+CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
+
+
 class AppendTaskIds(Func):
     """The ids a process already owns, extended by new ones, in one write.
 
@@ -65,7 +68,7 @@ class BackgroundProcess(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
@@ -419,7 +422,7 @@ class BackgroundProcessLog(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the task result was created in UTC')
     )
     extented_description = models.FileField(
@@ -852,7 +855,7 @@ class OperationalIncident(models.Model):
     date_created = models.DateTimeField(
         default=now,
         editable=False,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the incident was created in UTC'))
 
     # the typed relations to the resources an incident may name - one table

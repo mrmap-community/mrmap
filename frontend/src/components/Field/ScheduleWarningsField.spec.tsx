@@ -91,7 +91,7 @@ describe("ScheduleWarningsField", () => {
 
     expect(screen.getByText("interval=PT26H")).toBeInTheDocument();
     expect(screen.getByText("observed=PT27H")).toBeInTheDocument();
-    expect(screen.getAllByText("samples").length).toBe(2);
+    expect(screen.getAllByText("samples")).toHaveLength(2);
     expect(screen.getByText("too_few_samples")).toBeInTheDocument();
     // the moments of the rows are read relatively, not by their absolute value
     expect(screen.getAllByText(/ago/).length).toBeGreaterThan(0);

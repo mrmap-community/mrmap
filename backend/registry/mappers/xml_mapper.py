@@ -1066,8 +1066,7 @@ class XmlMapper:
         """
         fields = spec.get("fields")
         if not fields:
-            self._write_serialized_row(name, spec, item, leaf, attr_tag,
-                                       nsmap)
+            self._write_serialized_row(name, spec, item, leaf, attr_tag)
             return
 
         for field_name, field_spec in fields.items():
@@ -1079,7 +1078,7 @@ class XmlMapper:
                 f"{name}.{field_name}", field_spec, field_value, leaf, nsmap,
                 element_order)
 
-    def _write_serialized_row(self, name, spec, item, leaf, attr_tag, nsmap):
+    def _write_serialized_row(self, name, spec, item, leaf, attr_tag):
         """Write a row the spec answers as one serialized value.
 
         The row is an instance first and text second: an empty row never

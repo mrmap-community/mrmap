@@ -851,13 +851,12 @@ def remove_mapped_element(el, stop_at):
     """
     tail = el.tail
     parent = el.getparent()
-    if tail:
-        if parent is not None:
-            prev = el.getprevious()
-            if prev is not None:
-                prev.tail = (prev.tail or "") + tail
-            else:
-                parent.text = (parent.text or "") + tail
+    if tail and parent is not None:
+        prev = el.getprevious()
+        if prev is not None:
+            prev.tail = (prev.tail or "") + tail
+        else:
+            parent.text = (parent.text or "") + tail
     if parent is not None:
         parent.remove(el)
         remove_empty_parents(parent, stop_at)

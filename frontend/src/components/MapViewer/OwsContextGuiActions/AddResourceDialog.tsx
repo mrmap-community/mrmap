@@ -41,10 +41,11 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             event.preventDefault();
             const formData = new FormData(event.currentTarget as unknown as HTMLFormElement);
             const formJson = Object.fromEntries(formData.entries());
-            const getCapabilitiesUrl = String(formJson.getCapabilitiesUrl ?? "");
-            const protocol = String(formJson.protocol ?? "");
-            const username = formJson.username;
-            const password = formJson.password;
+            const formText = (field: unknown): string => (typeof field === "string" ? field : "");
+            const getCapabilitiesUrl = formText(formJson.getCapabilitiesUrl);
+            const protocol = formText(formJson.protocol);
+            const username = formText(formJson.username);
+            const password = formText(formJson.password);
 
             let headers: Headers | undefined = undefined;
 

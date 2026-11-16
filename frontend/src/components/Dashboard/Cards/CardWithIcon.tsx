@@ -12,7 +12,6 @@ interface Props {
     title?: string;
     subtitle?: ReactNode;
     children?: ReactNode;
-    resource?: string;
 }
 
 const CardWithIcon = ({ 

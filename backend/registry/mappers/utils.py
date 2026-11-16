@@ -702,7 +702,7 @@ def _seed_predicate(child, step, nsmap):
     if _SELF_RE.match(predicate):
         # the union picked its first alternative at creation
         return
-    for condition in re.split(r"(?>\s+)and(?>\s+)", predicate):
+    for condition in re.split(r"(?<=\s)and(?=\s)", predicate):
         condition = condition.strip()
         eq = _ATTR_EQ_RE.match(condition)
         if eq:

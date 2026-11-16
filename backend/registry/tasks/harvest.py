@@ -1833,9 +1833,8 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
 
     try:
         with transaction.atomic():
-            temporary_md_metadata_file = TemporaryMdMetadataFile.objects.select_for_update(of=("self",)).select_related(
-                'job', 'job__service', 'job__service__auth',
-            ).filter(pk=md_metadata_file_id).first()
+            temporary_md_metadata_file = TemporaryMdMetadataFile.objects.for_harvest_import().select_for_update(of=("self",)).filter(
+                pk=md_metadata_file_id).first()
             # Successful imports delete the row. Errors remain for inspection.
             if temporary_md_metadata_file is None or temporary_md_metadata_file.has_import_error:
                 return

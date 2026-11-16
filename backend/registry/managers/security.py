@@ -341,7 +341,7 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
             from registry.models.service import (FeatureType,
                                                  FeatureTypeProperty)
 
-            # FIXME: filter for requesting user
+            # FUTURE: filter for requesting user
             security_info = FeatureType.objects.filter(
                 service__pk=OuterRef("pk"),
                 identifier__in=request.requested_entities,

@@ -78,7 +78,7 @@ def handle_organization_creation(instance, created, raw=False, **kwargs):
 
         # create groups for any configured secured model
         for secured_model in get_secured_models():
-            # FIXME: name max_length is 150 chars. Maybe this could be not enough
+            # FUTURE: name max_length is 150 chars. Maybe this could be not enough
             secured_model_admins = Group.objects.create(
                 name=f"{organization.name} {secured_model._meta.model_name} Admins")
 

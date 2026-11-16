@@ -59,7 +59,7 @@ const ResourceListCard = (
             {children}
             {
                 hasCreate ?
-                <Fragment><Divider /><CreateButton/></Fragment>: <Fragment></Fragment>
+                <Fragment><Divider /><CreateButton/></Fragment>: null
             }
             
             <ChangeLogList/>

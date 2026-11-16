@@ -1,5 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
-import { Fragment } from 'react';
+import { Fragment, ReactNode, useEffect, useState } from 'react';
 import { useTranslate } from 'react-admin';
 
 import { Editor } from '@monaco-editor/react';
@@ -48,7 +47,7 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
     // Keep session secrets when an unchanged redacted credential is edited locally.
     // Imported documents still go through the provider without restoring any secrets.
     if (parsed && typeof parsed === 'object' && 'authenticationHeaders' in parsed) {
-      const document = parsed as { authenticationHeaders?: typeof owsContext.authenticationHeaders };
+      const document = parsed as { authenticationHeaders?: NonNullable<typeof owsContext.authenticationHeaders> };
       if (Array.isArray(document.authenticationHeaders)) document.authenticationHeaders = document.authenticationHeaders.map(auth => {
         if (!auth || typeof auth !== 'object') return auth;
         const current = owsContext.authenticationHeaders?.find(entry => entry.id === auth.id && entry.name === auth.name && entry.origin === auth.origin);

@@ -40,7 +40,7 @@ class HistoricalFiltersTest(TestCase):
              "version": 111},
             {"title": "Changed title", "fees": "Description",
              "is_active": True},
-            {"fees": None, "service_contact_id": 123},
+            {"fees": "", "service_contact_id": 123},
             {"service_contact_id": None},
         ]
         for index, changeset in enumerate(changes):

@@ -2,6 +2,10 @@ from registry.mappers.configs.iso_access import (DISTRIBUTOR_ONLINE_LINKS,
                                                  ONLINE_LINKS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
+XPATH_CI_CONTACT = "./gmd:contact/gmd:CI_ResponsibleParty"
+
+XPATH_POINT_OF_CONTACT = "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty"
+
 XPATH_MAP = {
     ("ISO", "application"): {
         "_namespaces": {
@@ -26,12 +30,10 @@ XPATH_MAP = {
                     # the charset, so this config matches it without that dead predicate
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
-                    # TODO: "_reverse_parser": "",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/*/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
-                    # TODO: "_reverse_parser": "",
                 },
                 "title": "./gmd:identificationInfo/*/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/*/gmd:abstract/gco:CharacterString",
@@ -39,14 +41,12 @@ XPATH_MAP = {
                 "date_stamp": {
                     "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
                     "_parser": "registry.mappers.parsers.value.string_to_datetime",
-                    # TODO: "_reverse_parser": "",
                 },
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
                     "_inputs": (
                         "./gmd:identificationInfo/*/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon"
-                    # TODO: "_reverse_parser": "",
                 },
                 "code": {
                     "_inputs": (
@@ -78,14 +78,14 @@ XPATH_MAP = {
                 },
                 "application_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_POINT_OF_CONTACT,
                     # application records of many catalogues name the responsible party
                     # only in gmd:contact
-                    "_fallback_xpaths": ("./gmd:contact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_CI_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_POINT_OF_CONTACT,
                         },
                     },
                     "fields": {
@@ -97,14 +97,14 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_CI_CONTACT,
                     # records without a metadata contact often still name the
                     # party which provides the application
-                    "_fallback_xpaths": ("./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_POINT_OF_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_CI_CONTACT,
                         },
                     },
                     "fields": {
@@ -162,7 +162,6 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/*/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
-                    # TODO: "__reverse_parser": "",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.timeextent_identifier",

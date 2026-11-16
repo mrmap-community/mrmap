@@ -97,17 +97,6 @@ DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES = [
 BACKGROUND_PROCESS_PREFETCHES = [
     Prefetch("background_process",
              queryset=BackgroundProcess.objects.prefetch_related(
-                 # Prefetch(
-                 #    "threads",
-                 #    queryset=TaskResult.objects.only(
-                 #        "id"
-                 #    )
-                 # ),
-                 # Prefetch(
-                 #    "logs",
-                 #    queryset=BackgroundProcessLog.objects.only(
-                 #        "id", "background_process_id")
-                 # ),
              )
              ),
 ]

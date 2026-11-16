@@ -248,7 +248,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
                 "deleted_layers": totals.get("deleted_layers") or 0,
             }
 
-    def list(self, request, *args, **kwargs):
+    def list(self, _request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -260,7 +260,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, _request, *args, **kwargs):
         instance = self.get_object()
         self._prefill_layer_change_aggregates([instance])
         serializer = self.get_serializer(instance)

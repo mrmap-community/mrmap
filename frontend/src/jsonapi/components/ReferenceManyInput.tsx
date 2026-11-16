@@ -1,8 +1,8 @@
-import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual';
 import {
   HttpError,
   type CreateParams,
@@ -74,7 +74,7 @@ export const RemoveButton = () => {
       onClick={() => onClick()}  
       disabled={isPending}
     >
-      {isPending ? <Loading/>: <Fragment></Fragment>}
+      {isPending ? <Loading/>: null}
     </RemoveItemButton>
   )
 }
@@ -120,7 +120,7 @@ export const ReferenceManyInput = (
   const includedObjects = useMemo<RaRecord[]>(() => {
       if (currentRecordValues === undefined) return []
       return currentRecordValues.map((value: RaRecord) => {
-          // FIXME: check if all needed field values are contained
+          // FUTURE: check if all needed field values are contained
           if (typeof value === 'object' && value.id && value.stringRepresentation) {
             return value; // already has completed data
           }
@@ -295,7 +295,7 @@ export const ReferenceManyInput = (
   useRegisterMutationMiddleware(memoizedMiddleWare);
 
   if (
-    (fieldDefinitions.length > 0 && !fieldDefinitions.find(def => def.props.source === target))
+    (fieldDefinitions.length > 0 && !fieldDefinitions.some(def => def.props.source === target))
   ) {
     throw new Error(
         `Wrong configured ReferenceManyInput: ${target} is not a field of ${reference}`
@@ -307,7 +307,7 @@ export const ReferenceManyInput = (
           return;
       }
 
-      if (!_.isEqual(values, valuesRef.current)) {
+      if (!isEqual(values, valuesRef.current)) {
           clearErrors(source);
           parentForm.clearErrors();
           valuesRef.current = values;

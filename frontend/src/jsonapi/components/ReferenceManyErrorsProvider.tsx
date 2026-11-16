@@ -3,6 +3,7 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
+  useMemo,
   useRef,
 } from 'react';
 import { RaRecord } from 'react-admin';
@@ -44,14 +45,13 @@ export const ReferenceManyErrorsProvider = ({
         errorsRef.current = [];
     }, []);
 
+    const value = useMemo(
+        () => ({ addErrors, getErrors, clearErrors }),
+        [addErrors, getErrors, clearErrors],
+    );
+
     return (
-        <ReferenceManyErrorsContext.Provider
-            value={{
-                addErrors,
-                getErrors,
-                clearErrors,
-            }}
-        >
+        <ReferenceManyErrorsContext.Provider value={value}>
             {children}
         </ReferenceManyErrorsContext.Provider>
     );

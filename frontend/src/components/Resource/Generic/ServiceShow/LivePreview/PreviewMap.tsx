@@ -151,7 +151,9 @@ const FeatureLayer = ({ collection }: { collection: FeatureCollection }) => {
               {key}:{" "}
               {typeof value === "object"
                 ? JSON.stringify(value)
-                : String(value ?? "")}
+                : typeof value === "string"
+                  ? value
+                  : String(value ?? "")}
             </Typography>
           ))}
         </Box>

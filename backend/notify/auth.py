@@ -39,7 +39,7 @@ class TokenAuthMiddleware:
 
 
 # Handy shortcut for applying all three layers at once
-def AuthMiddlewareStack(inner):
+def token_auth_middleware_stack(inner):
     return TokenAuthMiddleware(DefaultAuthMiddlewareStack(inner))
 
 

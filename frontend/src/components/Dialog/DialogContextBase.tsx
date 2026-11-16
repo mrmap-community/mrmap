@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from "react";
 
@@ -48,8 +49,13 @@ export const DialogBase = ({ children }: PropsWithChildren): ReactNode => {
     setIsOpen(false);
   }, []);
 
+  const value = useMemo(
+    () => ({ isOpen, title, content, actions, open, close }),
+    [isOpen, title, content, actions, open, close],
+  );
+
   return (
-    <context.Provider value={{ isOpen, title, content, actions, open, close }}>
+    <context.Provider value={value}>
       {children}
     </context.Provider>
   );

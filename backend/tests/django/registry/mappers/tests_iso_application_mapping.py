@@ -83,7 +83,7 @@ EXPECTED = {
         "metadata_contact": "ITZBund - Informationstechnikzentrum Bund, Poststelle",
         "extent": (6.098034, 47.23942, 15.578555, 55.054344),
         "time_extents": [],
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": None,
         "equivalent_scale": None,
         "code": "", "code_space": "",
@@ -103,7 +103,7 @@ EXPECTED = {
         "metadata_contact": "ITZBund - Informationstechnikzentrum Bund, Poststelle",
         "extent": (6.098, 47.239, 15.579, 55.054),
         "time_extents": [],
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": UpdateFrequencyChoices.DAILY,
         "equivalent_scale": None,
         "code": "", "code_space": "",
@@ -138,7 +138,7 @@ EXPECTED = {
         "metadata_contact": "Stadt Schwäbisch Hall",
         "extent": (9.54, 49.02, 9.92, 49.18),
         "time_extents": [],
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": None,
         "equivalent_scale": None,
         # the MD_Identifier of the citation, kept verbatim and split like the
@@ -165,7 +165,7 @@ EXPECTED = {
         "metadata_contact": "Kataster und Vermessung",
         "extent": (8.396, 52.043, 8.932, 52.28),
         "time_extents": [],
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": None,
         "equivalent_scale": None,
         "code": "", "code_space": "",
@@ -194,7 +194,7 @@ EXPECTED = {
         # both sides, like it does for a dataset record with an empty endPosition
         "time_extents": [(datetime(1990, 6, 30, 22, 0, tzinfo=UTC),
                           datetime(1990, 6, 30, 22, 0, tzinfo=UTC))],
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": None,
         "equivalent_scale": None,
         "code": "", "code_space": "",
@@ -215,7 +215,7 @@ EXPECTED = {
         "time_extents": [],
         # seven EMPTY gmd:resourceConstraints and no legal-constraints block
         # with an otherConstraints text: nothing to map, nothing explodes
-        "access_constraints": None,
+        "access_constraints": "",
         "update_frequency_code": None,
         "equivalent_scale": None,
         "code": "", "code_space": "",

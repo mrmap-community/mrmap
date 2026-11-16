@@ -189,7 +189,9 @@ const compareFolderSegment = (segmentA: string, segmentB: string): number => {
     const numberA = Number(segmentA)
     const numberB = Number(segmentB)
     if (Number.isFinite(numberA) && Number.isFinite(numberB)) return numberA - numberB
-    return segmentA < segmentB ? -1 : segmentA > segmentB ? 1 : 0
+    if (segmentA < segmentB) return -1
+    if (segmentA > segmentB) return 1
+    return 0
 }
 
 /**

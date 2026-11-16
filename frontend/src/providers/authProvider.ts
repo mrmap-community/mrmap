@@ -147,7 +147,7 @@ const tokenAuthProvider = (
         snapshotCache = token?.token
           ? { token: token.token, permissions: Promise.resolve(permissions) }
           : undefined
-        return Promise.resolve(true)
+        return true
       }
       if (response.headers.get('content-type') !== 'application/json') {
         throw new Error(response.statusText)
@@ -167,31 +167,29 @@ const tokenAuthProvider = (
       // needs in order to redirect to the login page.
       setAuthToken(undefined)
       resetSnapshotCache()
-      return Promise.resolve();
     },
     checkAuth: async () => {
       const storedToken = getAuthToken()
       if (!storedToken) {
-        return Promise.reject(new Error('not authenticated'))
+        throw new Error('not authenticated')
       }
       const expired = new Date(storedToken.expiry) < new Date()
       if (expired ){
         resetSnapshotCache()
-        return Promise.reject(new Error(('your session has expired')))
+        throw new Error(('your session has expired'))
       }
-      return Promise.resolve()
     },
     checkError: async error => {
       const status = error.status
       if (status === 401) {
         setAuthToken(undefined)
         resetSnapshotCache()
-        return Promise.reject(new Error('unauthorized'))
+        throw new Error('unauthorized')
       }
     },
     /* The permission checks of #836 live in canAccess below, which answers
       from the closure snapshot - no query, no per-render fetch. getPermissions
-      stays unimplemented on purpose, and the old loop TODO is resolved to
+      stays unimplemented on purpose, and the old loop's open question is resolved to
       this documented constraint: in react-admin 5.15 the CoreAdminRoutes
       mounts LogoutOnMount on the catch-all "*" route, and useLogout only
       avoids the trap because it defers navigate plus queryClient.clear by one
@@ -220,7 +218,7 @@ const tokenAuthProvider = (
     getIdentity: async () => {
       const storedToken = getAuthToken()
       const { id, fullName, avatar } = storedToken ?? {id: 0, fullName: 'anonymous'};
-      return Promise.resolve({ id, fullName, avatar });
+      return { id, fullName, avatar };
     },
     
   }

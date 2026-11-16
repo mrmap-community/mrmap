@@ -48,7 +48,7 @@ export interface ResourceLinkage {
 
 export interface JsonApiPrimaryData {
   type: string
-  id: string | number // TODO: only on patch needed (update)
+  id: string | number // FUTURE: only on patch needed (update)
   links?: JsonApiLinks
   attributes: Record<string, unknown>
   relationships?: Record<string, ResourceLinkage>

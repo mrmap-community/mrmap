@@ -35,7 +35,8 @@ export const scaleDenominatorForMap = (map: Map): number | undefined => {
     const bounds = map.getBounds()
     const size = map.getSize()
     const longitudeSpan = Math.abs(bounds.getEast() - bounds.getWest())
-    if (!(longitudeSpan > 0) || !(size.x > 0)) {
+    const spansUsable = longitudeSpan > 0 && size.x > 0;
+    if (!spansUsable) {
         return undefined
     }
     return metersPerPixel(longitudeSpan, size.x) / OGC_PIXEL_SIZE_IN_METERS

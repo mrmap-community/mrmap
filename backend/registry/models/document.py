@@ -126,9 +126,9 @@ class MetadataDocumentModelMixin(DocumentModelMixin):
 
         :raises NotImplementedError: if the concrete model does not implement the method.
         """
-        # todo: restore_dict = self.xml().get_field_dict()
+        # FUTURE: restore_dict = self.xml().get_field_dict()
         raise NotImplementedError
 
     def xml_secured(self, request: HttpRequest):
-        # TODO: implement camouflage for metadata xml
+        # FUTURE: implement camouflage for metadata xml
         return self.xml_backup_string

@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import {
   Loading,
   type RaRecord,
@@ -11,6 +12,13 @@ import { Alert, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
 
 import SimpleCard from "../../../../../MUI/SimpleCard";
 import useCompleteList from "../../../../Generic/ServiceShow/useCompleteList";
+
+/** the chip answer for how the service's rules stand */
+const rulesStateKey = (ruleCount: number, spatialCount: number): string => {
+  if (ruleCount === 0) return "notConfigured";
+  if (spatialCount === 0) return "noSpatialRestrictions";
+  return "configured";
+};
 
 const SpatialSecuritySummary = () => {
   const service = useRecordContext();
@@ -28,6 +36,70 @@ const SpatialSecuritySummary = () => {
   const pending =
     rules.isPending || rules.hasNextPage || rules.isFetchingNextPage;
   const unrestrictedRules = rules.records.length - spatialRules.length;
+  let contentState: ReactNode;
+  if (rules.error) {
+    contentState = (
+      <Alert
+        severity="error"
+        action={
+          <Button onClick={() => void rules.refetch()}>
+            {translate("ra.action.retry")}
+          </Button>
+        }
+      >
+        {message("loadError")}
+      </Alert>
+    );
+  } else if (pending) {
+    contentState = <Loading />;
+  } else {
+    contentState = (
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+          {[
+            [spatialRules.length, "spatialRuleCount", "spatialRuleHint"],
+            [countRelated("securedLayers"), "layerCount", "layerHint"],
+            [countRelated("allowedGroups"), "groupCount", "groupHint"],
+          ].map(([count, label, hint]) => (
+            <Tooltip key={label} title={message(String(hint))}>
+              <Stack
+                direction="row"
+                spacing={1}
+                tabIndex={0}
+                sx={{ flex: 1, alignItems: "baseline", width: "fit-content" }}
+              >
+                <Typography variant="h5">{count}</Typography>
+                <Typography color="text.secondary">
+                  {message(String(label))}
+                </Typography>
+              </Stack>
+            </Tooltip>
+          ))}
+        </Stack>
+        {spatialRules.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            {message(
+              rules.records.length === 0 ? "noRules" : "noSpatialRules",
+            )}
+          </Typography>
+        )}
+        {spatialRules.some((rule) => rule.allowedGroups.length === 0) && (
+          <Typography variant="body2">{message("allGroups")}</Typography>
+        )}
+        {unrestrictedRules > 0 && (
+          <Alert severity="warning">
+            {translate("spatialSecurity.unrestrictedRules", {
+              count: unrestrictedRules,
+            })}
+          </Alert>
+        )}
+        <Typography variant="body2" color="text.secondary">
+          {message("summaryNote")}
+        </Typography>
+      </Stack>
+    );
+  }
+
   return (
     <SimpleCard
       title={
@@ -44,13 +116,7 @@ const SpatialSecuritySummary = () => {
               size="small"
               color="info"
               variant="outlined"
-              label={message(
-                rules.records.length === 0
-                  ? "notConfigured"
-                  : spatialRules.length === 0
-                    ? "noSpatialRestrictions"
-                    : "configured",
-              )}
+              label={message(rulesStateKey(rules.records.length, spatialRules.length))}
             />
           )}
         </Stack>
@@ -73,64 +139,7 @@ const SpatialSecuritySummary = () => {
       divider={false}
       cardProps={{ sx: { width: "100%", border: 1, borderColor: "info.main" } }}
     >
-      {rules.error ? (
-        <Alert
-          severity="error"
-          action={
-            <Button onClick={() => void rules.refetch()}>
-              {translate("ra.action.retry")}
-            </Button>
-          }
-        >
-          {message("loadError")}
-        </Alert>
-      ) : pending ? (
-        <Loading />
-      ) : (
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            {[
-              [spatialRules.length, "spatialRuleCount", "spatialRuleHint"],
-              [countRelated("securedLayers"), "layerCount", "layerHint"],
-              [countRelated("allowedGroups"), "groupCount", "groupHint"],
-            ].map(([count, label, hint]) => (
-              <Tooltip key={label} title={message(String(hint))}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  tabIndex={0}
-                  sx={{ flex: 1, alignItems: "baseline", width: "fit-content" }}
-                >
-                  <Typography variant="h5">{count}</Typography>
-                  <Typography color="text.secondary">
-                    {message(String(label))}
-                  </Typography>
-                </Stack>
-              </Tooltip>
-            ))}
-          </Stack>
-          {spatialRules.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              {message(
-                rules.records.length === 0 ? "noRules" : "noSpatialRules",
-              )}
-            </Typography>
-          )}
-          {spatialRules.some((rule) => rule.allowedGroups.length === 0) && (
-            <Typography variant="body2">{message("allGroups")}</Typography>
-          )}
-          {unrestrictedRules > 0 && (
-            <Alert severity="warning">
-              {translate("spatialSecurity.unrestrictedRules", {
-                count: unrestrictedRules,
-              })}
-            </Alert>
-          )}
-          <Typography variant="body2" color="text.secondary">
-            {message("summaryNote")}
-          </Typography>
-        </Stack>
-      )}
+      {contentState}
     </SimpleCard>
   );
 };

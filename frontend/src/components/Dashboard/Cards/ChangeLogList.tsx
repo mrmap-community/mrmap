@@ -25,7 +25,7 @@ const ChangeLogList = (
   const [expanded, setExpanded] = useState(false);
   
   if (!hasHistoricalEndpoint){
-    return <Fragment></Fragment>
+    return null
   }
   return (
       <Fragment>

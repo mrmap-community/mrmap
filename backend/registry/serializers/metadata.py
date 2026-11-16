@@ -191,13 +191,16 @@ class MetadataProfileRelatedField(ResourceRelatedField):
         return {"related": Hyperlink(url, "related")}
 
 
+CSW_SERIALIZER_PATH = "registry.serializers.service.CatalogueServiceSerializer"
+
+
 class MetadataRelationSerializer(ModelSerializer):
     included_serializers = {
         "layer": "registry.serializers.service.LayerSerializer",
         "feature_type": "registry.serializers.service.FeatureTypeSerializer",
         "wms": "registry.serializers.service.WebMapServiceSerializer",
         "wfs": "registry.serializers.service.WebFeatureServiceSerializer",
-        "csw": "registry.serializers.service.CatalogueServiceSerializer",
+        "csw": CSW_SERIALIZER_PATH,
     }
 
     class Meta:
@@ -445,7 +448,7 @@ class DatasetMetadataRecordSerializer(
     included_serializers = {
         "self_pointing_layers": "registry.serializers.service.LayerSerializer",
         "self_pointing_feature_types": "registry.serializers.service.FeatureTypeSerializer",
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "dataset_contact": MetadataContactSerializer,
         "categories": IsoCategorySerializer,
         "metadata_contact": MetadataContactSerializer,
@@ -490,20 +493,17 @@ class ServiceMetadataRecordSerializer(
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        # related_link_view_name='registry:servicemetadata-metadatacontact-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
     )
     licence = ResourceRelatedField(
         queryset=Licence.objects,
         required=False,
-        # related_link_view_name='registry:servicemetadata-licence-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord'
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         required=False,
-        # related_link_view_name='registry:servicemetadata-keywords-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata'
     )
     reference_systems = ResourceRelatedField(
@@ -515,10 +515,10 @@ class ServiceMetadataRecordSerializer(
     )
 
     included_serializers = {
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "self_pointing_wms": "registry.serializers.service.WebMapServiceSerializer",
         "self_pointing_wfs": "registry.serializers.service.WebFeatureServiceSerializer",
-        "self_pointing_csw": "registry.serializers.service.CatalogueServiceSerializer",
+        "self_pointing_csw": CSW_SERIALIZER_PATH,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,
         "licence": LicenceSerializer,
@@ -597,7 +597,7 @@ class ApplicationMetadataRecordSerializer(
     )
 
     included_serializers = {
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "metadata_contact": MetadataContactSerializer,
         "application_contact": MetadataContactSerializer,
         "categories": IsoCategorySerializer,

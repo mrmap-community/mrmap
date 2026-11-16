@@ -94,6 +94,9 @@ class MonitoringSettingMixin:
                 })
 
 
+MONITORED_SERVICE_HELP_TEXT = _("this is the service which shall be monitored")
+
+
 class WebMapServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
     MONITORING_TASK = "registry.tasks.monitoring.create_wms_monitoring_run"
 
@@ -103,7 +106,7 @@ class WebMapServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="web_map_service_monitorings",
         related_query_name="web_map_service_monitoring",
         verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class WebFeatureServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
@@ -115,7 +118,7 @@ class WebFeatureServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="web_feature_service_monitorings",
         related_query_name="web_feature_service_monitoring",
         verbose_name=_("web feature service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class CatalogueServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
@@ -127,7 +130,7 @@ class CatalogueServiceMonitoringSetting(MonitoringSettingMixin, PeriodicTask):
         related_name="catalogue_service_monitorings",
         related_query_name="catalogue_service_monitoring",
         verbose_name=_("catalogue service"),
-        help_text=_("this is the service which shall be monitored"))
+        help_text=MONITORED_SERVICE_HELP_TEXT)
 
 
 class MonitoringRun(models.Model):
@@ -534,12 +537,17 @@ class ExceptionResponseCheckResult(models.Model):
         abstract = True
 
 
+RELATED_SETTING = "%(app_label)s_%(class)s"
+
+RELATED_SETTING_PLURAL = "%(app_label)s_%(class)ss"
+
+
 class WebMapServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebMapServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -574,8 +582,8 @@ class WebFeatureServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=WebFeatureServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -607,8 +615,8 @@ class CatalogueServiceProbeResult(ProbeResult):
     run = models.ForeignKey(
         to=CatalogueServiceMonitoringRun,
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s",
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_("Run"),
     )
 
@@ -777,6 +785,9 @@ class Probe(models.Model):
         return result
 
 
+CHECK_RESPONSE_CONTAINS_VERBOSE_NAME = _("Check response does contain")
+
+
 class CapabilitiesProbe(Probe):
     """Probe which requests and validates the capabilities of a service."""
 
@@ -786,7 +797,7 @@ class CapabilitiesProbe(Probe):
         max_length=256,
         default="Title>,Abstract>",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: Title>,Abstract>")
     )
 
@@ -807,14 +818,17 @@ class CapabilitiesProbe(Probe):
             self.check_does_not_contain(response=response)
 
 
+RELATED_SETTING_HELP_TEXT = _('The related setting object')
+
+
 class WebMapServiceProbe(Probe):
     setting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -877,8 +891,8 @@ class GetMapProbe(WebMapServiceProbe):
         return client.get_map_request(
             layers=[layer.identifier for layer in self.layers.all()],
             crs=str(self.reference_system),
-            # TODO: use configured styles instead
-            styles=",".join(["" for layer in layers]),
+            # FUTURE: use configured styles instead
+            styles=",".join([""] * len(layers)),
             height=self.height,
             width=self.width,
             format=str(self.format) if self.format else "image/png",
@@ -895,10 +909,10 @@ class WebFeatureServiceProbe(Probe):
     setting = models.ForeignKey(
         to=WebFeatureServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -934,7 +948,7 @@ class WebFeatureServiceGetFeatureProbe(WebFeatureServiceProbe):
         max_length=256,
         default="FeatureCollection",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: FeatureCollection")
     )
 
@@ -964,10 +978,10 @@ class CatalogueServiceProbe(Probe):
     setting = models.ForeignKey(
         to=CatalogueServiceMonitoringSetting,
         on_delete=models.CASCADE,
-        related_name='%(app_label)s_%(class)ss',
-        related_query_name='%(app_label)s_%(class)s',
+        related_name=RELATED_SETTING_PLURAL,
+        related_query_name=RELATED_SETTING,
         verbose_name=_('Setting'),
-        help_text=_('The related setting object')
+        help_text=RELATED_SETTING_HELP_TEXT
     )
 
     class Meta:
@@ -1015,7 +1029,7 @@ class CatalogueServiceGetRecordsProbe(CatalogueServiceProbe):
         max_length=256,
         default="GetRecordsResponse",
         blank=True,
-        verbose_name=_("Check response does contain"),
+        verbose_name=CHECK_RESPONSE_CONTAINS_VERBOSE_NAME,
         help_text=_("comma seperated search strings like: GetRecordsResponse")
     )
 
@@ -1080,7 +1094,7 @@ def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
         for result in named.filter(date_created__lt=cutoff):
             try:
                 result.response_body.delete(save=False)
-            except (FileNotFoundError, OSError):
+            except OSError:
                 pass  # the storage does not hold it - which is what to clear
             result.response_body = None
             result.save(update_fields=["response_body"])

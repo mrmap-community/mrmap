@@ -2,6 +2,7 @@ import copy
 import io
 import logging
 import platform
+from functools import partial
 from pathlib import Path
 from queue import Queue
 from threading import Thread
@@ -21,6 +22,89 @@ from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import Http423, OgcServiceProxyView
+
+
+def _world_to_pixel(coord, minx, miny, width, height, dx, dy):
+    """
+    Convert a GEOS coordinate into image coordinates.
+
+    coord may be:
+        (x, y)
+        (x, y, z)
+    """
+    x, y = coord[:2]
+
+    px = (x - minx) / dx * width
+    py = height - (
+        (y - miny) / dy * height
+    )
+
+    return px, py
+
+
+def _ring_to_pixels(ring, to_pixel):
+    return [
+        to_pixel(coord)
+        for coord in ring.coords
+    ]
+
+
+def _draw_polygon(draw, polygon, to_pixel):
+    """
+    Draw one polygon.
+
+    Exterior:
+        allowed -> black
+
+    Interior rings / holes:
+        restricted -> white
+    """
+
+    # polygon[0] is the exterior ring
+    exterior = _ring_to_pixels(polygon[0], to_pixel)
+
+    if len(exterior) >= 3:
+        draw.polygon(
+            exterior,
+            fill=0,
+        )
+
+    # polygon[1:] are interior rings / holes
+    for interior_ring in polygon[1:]:
+        hole = _ring_to_pixels(interior_ring, to_pixel)
+
+        if len(hole) >= 3:
+            draw.polygon(
+                hole,
+                fill=255,
+            )
+
+
+def _draw_geometry(draw, geometry, to_pixel):
+    """
+    Recursively draw all polygonal components.
+
+    intersection() may return:
+        Polygon
+        MultiPolygon
+        GeometryCollection
+
+    Points and lines are ignored because they have no area
+    in the resulting mask.
+    """
+
+    if geometry is None or geometry.empty:
+        return
+
+    if geometry.geom_type == "Polygon":
+        _draw_polygon(draw, geometry, to_pixel)
+
+    elif geometry.geom_type in (
+        "MultiPolygon",
+        "GeometryCollection",
+    ):
+        for child in geometry:
+            _draw_geometry(draw, child, to_pixel)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -76,106 +160,23 @@ class WebMapServiceProxy(OgcServiceProxyView):
             return mask.convert("RGB")
 
         try:
-            geom = self.geom
+            geom = self._clipped_mask_geometry(request_bbox)
 
             if geom is None or geom.empty:
                 return mask.convert("RGB")
 
-            # Transform allowed geometry into the CRS of the request bbox.
-            if geom.srid != request_bbox.srid:
-                geom = geom.transform(
-                    request_bbox.srid,
-                    clone=True,
-                )
-
-            # Clip the allowed geometry to the requested extent.
-            geom = geom.intersection(request_bbox)
-
-            if geom.empty:
-                return mask.convert("RGB")
-
             draw = ImageDraw.Draw(mask)
+            to_pixel = partial(
+                _world_to_pixel,
+                minx=minx,
+                miny=miny,
+                width=width,
+                height=height,
+                dx=maxx - minx,
+                dy=maxy - miny,
+            )
 
-            def world_to_pixel(coord):
-                """
-                Convert a GEOS coordinate into image coordinates.
-
-                coord may be:
-                    (x, y)
-                    (x, y, z)
-                """
-                x, y = coord[:2]
-
-                px = (x - minx) / (maxx - minx) * width
-                py = height - (
-                    (y - miny) / (maxy - miny) * height
-                )
-
-                return px, py
-
-            def ring_to_pixels(ring):
-                return [
-                    world_to_pixel(coord)
-                    for coord in ring.coords
-                ]
-
-            def draw_polygon(polygon):
-                """
-                Draw one polygon.
-
-                Exterior:
-                    allowed -> black
-
-                Interior rings / holes:
-                    restricted -> white
-                """
-
-                # polygon[0] is the exterior ring
-                exterior = ring_to_pixels(polygon[0])
-
-                if len(exterior) >= 3:
-                    draw.polygon(
-                        exterior,
-                        fill=0,
-                    )
-
-                # polygon[1:] are interior rings / holes
-                for interior_ring in polygon[1:]:
-                    hole = ring_to_pixels(interior_ring)
-
-                    if len(hole) >= 3:
-                        draw.polygon(
-                            hole,
-                            fill=255,
-                        )
-
-            def draw_geometry(geometry):
-                """
-                Recursively draw all polygonal components.
-
-                intersection() may return:
-                    Polygon
-                    MultiPolygon
-                    GeometryCollection
-
-                Points and lines are ignored because they have no area
-                in the resulting mask.
-                """
-
-                if geometry is None or geometry.empty:
-                    return
-
-                if geometry.geom_type == "Polygon":
-                    draw_polygon(geometry)
-
-                elif geometry.geom_type in (
-                    "MultiPolygon",
-                    "GeometryCollection",
-                ):
-                    for child in geometry:
-                        draw_geometry(child)
-
-            draw_geometry(geom)
+            _draw_geometry(draw, geom, to_pixel)
 
         except Exception:
             logging.exception(
@@ -190,6 +191,24 @@ class WebMapServiceProxy(OgcServiceProxyView):
             )
 
         return mask.convert("RGB")
+
+    def _clipped_mask_geometry(self, request_bbox):
+        """The allowed geometry, transformed into the CRS of the request
+        bbox and clipped to the requested extent."""
+        geom = self.geom
+
+        if geom is None or geom.empty:
+            return None
+
+        # Transform allowed geometry into the CRS of the request bbox.
+        if geom.srid != request_bbox.srid:
+            geom = geom.transform(
+                request_bbox.srid,
+                clone=True,
+            )
+
+        # Clip the allowed geometry to the requested extent.
+        return geom.intersection(request_bbox)
 
     def _get_default_ttf(self, font_size: int) -> ImageFont.FreeTypeFont:
         system = platform.system()
@@ -284,7 +303,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         # (contains info about which layers are restricted or if there was an error during mask creation)
         if self.access_denied_img is not None:
             old_format = img.format
-            # FIXME: for alpha_composite both images needs to be RGBA!
+            # FUTURE: for alpha_composite both images needs to be RGBA!
             # img = Image.alpha_composite(img, self.access_denied_img)
             img = Image.composite(img, img, self.access_denied_img)
             img.format = old_format
@@ -355,7 +374,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
             secured_image = self._create_masked_image(
                 remote_response.content, mask)
         except OSError as e:
-            logging.error(e, exc_info=True)
+            logging.exception(e)
             return self.return_http_response(
                 response={
                     "status_code": 500,
@@ -455,7 +474,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
                 )
                 geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
-                # FIXME: depends on xml wms version not on the registered service version
+                # FUTURE: depends on xml wms version not on the registered service version
                 axis_order_correction = (
                     True if self.service.major_service_version >= 2 else False
                 )

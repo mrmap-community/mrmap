@@ -17,7 +17,7 @@ logger: Logger = settings.ROOT_LOGGER
 
 
 class PersistenceHandler:
-    def __init__(self, mapper, defaults={}, change_reason=None):
+    def __init__(self, mapper, defaults=None, change_reason=None):
         """
         mapper: XmlMapper-Instanz
         defaults: field values the caller adds to a parsed instance, keyed per
@@ -27,7 +27,7 @@ class PersistenceHandler:
             metadata record; None leaves the reason of that row empty
         """
         self.mapper = mapper
-        self.defaults = defaults
+        self.defaults = defaults if defaults is not None else {}
         self.change_reason = change_reason
         self.final_instances_map = {}
 
@@ -113,7 +113,7 @@ class PersistenceHandler:
         model_cls = instances[0].__class__
         db_instances = []
         for inst in instances:
-            obj, created = model_cls.objects.get_or_create(
+            obj, _ = model_cls.objects.get_or_create(
                 **{f: getattr(inst, f) for f in key_fields},
                 defaults={f.name: getattr(
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
@@ -169,7 +169,7 @@ class PersistenceHandler:
             original_obj = original_objects.get(key)
             if original_obj is not None:
                 for attr, value in original_obj.__dict__.items():
-                    if (attr.endswith("_parsed") or attr.endswith('_custom_state')) and not hasattr(final_obj, attr):
+                    if attr.endswith(("_parsed", "_custom_state")) and not hasattr(final_obj, attr):
                         setattr(final_obj, attr, value)
 
     # ------------------------
@@ -221,20 +221,29 @@ class PersistenceHandler:
     # ------------------------
     # Sort models by FK dependencies
     # ------------------------
-    def _sort_models_by_dependencies(self):
-        models_to_sort = set(self.instances_by_model.keys())
-
+    @staticmethod
+    def _collect_fk_dependencies(models_to_sort):
+        """The foreign keys between the models of this document, both ways."""
         model_deps = {m: set() for m in models_to_sort}
         reverse_deps = {m: set() for m in models_to_sort}
 
         for model_cls in models_to_sort:
             for f in model_cls._meta.concrete_fields:
-                if isinstance(f, models.ForeignKey):
-                    remote_model = f.remote_field.model
-                    # Self-FK ignorieren
-                    if remote_model in models_to_sort and remote_model != model_cls:
-                        model_deps[model_cls].add(remote_model)
-                        reverse_deps[remote_model].add(model_cls)
+                if not isinstance(f, models.ForeignKey):
+                    continue
+                remote_model = f.remote_field.model
+                # Self-FK ignorieren
+                if remote_model in models_to_sort and remote_model != model_cls:
+                    model_deps[model_cls].add(remote_model)
+                    reverse_deps[remote_model].add(model_cls)
+
+        return model_deps, reverse_deps
+
+    def _sort_models_by_dependencies(self):
+        models_to_sort = set(self.instances_by_model.keys())
+
+        model_deps, reverse_deps = self._collect_fk_dependencies(
+            models_to_sort)
 
         sorted_models = []
         no_deps = [m for m, deps in model_deps.items() if not deps]
@@ -272,64 +281,98 @@ class PersistenceHandler:
         the record without a profile rather than violate the foreign key of a
         row which is gone.
         """
+        for model_cls, instances in instances_by_model.items():
+            self._apply_configured_defaults(model_cls, instances)
+
+        self._apply_generic_profile(instances_by_model)
+
+    def _apply_configured_defaults(self, model_cls, instances):
+        """Fill the empty fields the caller keyed defaults for under model_cls."""
+        defaults = self.defaults_of(model_cls)
+        if not defaults:
+            return
+        for inst in instances:
+            for field_name, value in defaults.items():
+                if not getattr(inst, field_name):
+                    setattr(inst, field_name, value)
+
+    def _apply_generic_profile(self, instances_by_model):
+        """Give every record which maps one the seeded generic ISO 19139 profile.
+
+        The row is looked up once and only when a model actually carries a
+        profile column. The lookup answers None on a database which does not
+        have the row -- and a `TransactionTestCase` truncates every table
+        between tests, so importing on one must store the record without a
+        profile rather than violate the foreign key of a row which is gone.
+        """
         generic_profile = _UNSET = object()
         for model_cls, instances in instances_by_model.items():
-            defaults = self.defaults_of(model_cls)
-            if defaults:
-                for inst in instances:
-                    for field_name, value in defaults.items():
-                        current_value = getattr(inst, field_name)
-                        if not current_value:
-                            setattr(inst, field_name, value)
-
-            if any(f.name == 'profile' for f in model_cls._meta.concrete_fields):
-                if generic_profile is _UNSET:
-                    # late import: registry.models.metadata imports the mapper
-                    # factory, so importing its models at this module's head
-                    # would close the cycle
-                    from registry.models.metadata import MetadataProfile
-                    generic_profile = MetadataProfile.generic()
-                if generic_profile is not None:
-                    for inst in instances:
-                        if inst.profile_id is None:
-                            inst.profile_id = generic_profile.pk
+            if not any(
+                    f.name == 'profile'
+                    for f in model_cls._meta.concrete_fields):
+                continue
+            if generic_profile is _UNSET:
+                # late import: registry.models.metadata imports the mapper
+                # factory, so importing its models at this module's head
+                # would close the cycle
+                from registry.models.metadata import MetadataProfile
+                generic_profile = MetadataProfile.generic()
+            if generic_profile is None:
+                continue
+            for inst in instances:
+                if inst.profile_id is None:
+                    inst.profile_id = generic_profile.pk
 
     # ------------------------
     # Redirect FK and M2M _parsed fields
     # ------------------------
+    def _final_ref_for(self, ref_obj, ref_type=None):
+        """The persisted instance a parsed reference points at, by its unique key.
+
+        Answers None when the type carries no usable unique field or when the
+        fields which key the reference were not set on it.
+        """
+        if ref_type is None:
+            ref_type = type(ref_obj)
+        ref_map = self.final_instances_map.get(ref_type, {})
+
+        # Unique-Felder bestimmen, id ignorieren
+        unique_sets = [s for s in get_unique_fields(
+            ref_type) if s != ('id',)]
+        key_fields = unique_sets[0] if unique_sets else None
+        if not key_fields:
+            return None
+        try:
+            ref_key = make_instance_key(ref_obj, key_fields)
+        except AttributeError:
+            return None  # Feld nicht gesetzt
+        return ref_map.get(ref_key)
+
     def _apply_foreign_keys(self, instances_by_model):
         """
-        Setzt alle ForeignKey- und ManyToMany-Felder auf die final gespeicherten Objekte,
-        die zuvor als _parsed referenziert wurden oder als mutable Objekte vorliegen.
-        Ignoriert 'id' als eindeutiges Feld, wenn das Objekt noch nicht gespeichert ist.
+        Setzt alle ForeignKey-Felder auf die final gespeicherten Objekte,
+        die zuvor als _parsed referenziert wurden oder als mutable Objekte
+        vorliegen. Ignoriert 'id' als eindeutiges Feld, wenn das Objekt noch
+        nicht gespeichert ist.
         """
         for model_cls, instances in instances_by_model.items():
             for inst in instances:
-                # -----------------------
-                # ForeignKeys
-                # -----------------------
-                for f in model_cls._meta.concrete_fields:
-                    if isinstance(f, models.ForeignKey):
-                        fk_obj = getattr(inst, f.name, None)
-                        if fk_obj is None:
-                            continue
+                self._apply_instance_foreign_keys(model_cls, inst)
 
-                        fk_type = f.remote_field.model
-                        ref_map = self.final_instances_map.get(fk_type, {})
-
-                        # Unique-Felder bestimmen, id ignorieren
-                        unique_sets = [s for s in get_unique_fields(
-                            fk_type) if s != ('id',)]
-                        key_fields = unique_sets[0] if unique_sets else None
-                        if key_fields:
-                            try:
-                                ref_key = make_instance_key(
-                                    fk_obj, key_fields)
-                            except AttributeError:
-                                continue  # Feld nicht gesetzt
-                            final_obj = ref_map.get(ref_key)
-                            if final_obj:
-                                setattr(inst, f.name, final_obj)
+    def _apply_instance_foreign_keys(self, model_cls, inst):
+        # -----------------------
+        # ForeignKeys
+        # -----------------------
+        for f in model_cls._meta.concrete_fields:
+            if not isinstance(f, models.ForeignKey):
+                continue
+            fk_obj = getattr(inst, f.name, None)
+            if fk_obj is None:
+                continue
+            final_obj = self._final_ref_for(
+                fk_obj, ref_type=f.remote_field.model)
+            if final_obj:
+                setattr(inst, f.name, final_obj)
 
     def _apply_parsed_m2m(self):
         # -----------------------
@@ -349,31 +392,24 @@ class PersistenceHandler:
                     # Fallback: if not found by key, skip M2M for this instance
                     continue
 
-                for field in model_cls._meta.local_many_to_many:
-                    parsed_instances_attr = f"_{field.name}_parsed"
-                    parsed = getattr(inst, parsed_instances_attr) if hasattr(
-                        inst, parsed_instances_attr) else None
-                    if parsed is None:
-                        continue
+                self._apply_instance_parsed_m2m(model_cls, inst, final_inst)
 
-                    final_list = []
-                    for ref in parsed:
-                        ref_map = self.final_instances_map.get(type(ref), {})
-                        unique_sets = [s for s in get_unique_fields(
-                            type(ref)) if s != ('id',)]
-                        key_fields_ref = unique_sets[0] if unique_sets else None
-                        if key_fields_ref:
-                            try:
-                                ref_key = make_instance_key(
-                                    ref, key_fields_ref)
-                            except AttributeError:
-                                continue
-                            final_obj = ref_map.get(ref_key)
-                            if final_obj:
-                                final_list.append(final_obj)
+    def _apply_instance_parsed_m2m(self, model_cls, inst, final_inst):
+        for field in model_cls._meta.local_many_to_many:
+            parsed_instances_attr = f"_{field.name}_parsed"
+            parsed = getattr(inst, parsed_instances_attr) if hasattr(
+                inst, parsed_instances_attr) else None
+            if parsed is None:
+                continue
 
-                    # Use the final_inst (which is persisted in DB) to set M2M relationships
-                    getattr(final_inst, field.name).set(final_list)
+            final_list = []
+            for ref in parsed:
+                final_obj = self._final_ref_for(ref)
+                if final_obj:
+                    final_list.append(final_obj)
+
+            # Use the final_inst (which is persisted in DB) to set M2M relationships
+            getattr(final_inst, field.name).set(final_list)
 
     def _save_xml_backup_file(self, instance: models.Model):
         if not isinstance(instance, DocumentModelMixin):
@@ -414,32 +450,37 @@ class PersistenceHandler:
             self._inject_defaults(
                 {model_cls: instances})
 
-            create_mode = getattr(model_cls, "_create_mode", "save")
-            kwargs = {}
-            if "." in create_mode:
-                create_func = self._load_function(create_mode)
-                kwargs = {"handler": self}
-                final_key_map = create_func(instances, **kwargs)
-                self.final_instances_map[model_cls] = final_key_map
-            elif create_mode == "get_or_create":
-                final_key_map = self._persist_get_or_create(instances)
-                self.final_instances_map[model_cls] = final_key_map
-            elif create_mode == "bulk":
-                objs = model_cls.objects.bulk_create(instances)
-                final_key_map = self.build_final_key_map(objs)
-                self.final_instances_map[model_cls] = final_key_map
-            elif create_mode == "bulk_with_history":
-                objs = bulk_create_with_history(instances, model_cls)
-                final_key_map = self.build_final_key_map(objs)
-                self.final_instances_map[model_cls] = final_key_map
-            else:  # default save every instance
-                for inst in instances:
-                    inst.save()
-                    if isinstance(inst, DocumentModelMixin):
-                        self._save_xml_backup_file(inst)
-                final_key_map = self.build_final_key_map(instances)
-                self.final_instances_map[model_cls] = final_key_map
+            self._persist_model(model_cls, instances)
 
         # 4️⃣ Jetzt alle M2M-Felder aus _parsed setzen
         self._apply_parsed_m2m()
         return self.final_instances_map
+
+    def _persist_model(self, model_cls, instances):
+        """Stores one model's instances in the mode its mapping declares.
+
+        A dotted `_create_mode` names a callable which answers the key map,
+        the bulk spellings share the map built from the stored rows and
+        anything else saves every instance one by one.
+        """
+        create_mode = getattr(model_cls, "_create_mode", "save")
+        if "." in create_mode:
+            create_func = self._load_function(create_mode)
+            self.final_instances_map[model_cls] = create_func(
+                instances, handler=self)
+            return
+        if create_mode == "get_or_create":
+            self.final_instances_map[model_cls] = self._persist_get_or_create(
+                instances)
+            return
+        if create_mode == "bulk":
+            objs = model_cls.objects.bulk_create(instances)
+        elif create_mode == "bulk_with_history":
+            objs = bulk_create_with_history(instances, model_cls)
+        else:  # default save every instance
+            for inst in instances:
+                inst.save()
+                if isinstance(inst, DocumentModelMixin):
+                    self._save_xml_backup_file(inst)
+            objs = instances
+        self.final_instances_map[model_cls] = self.build_final_key_map(objs)

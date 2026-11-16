@@ -58,6 +58,9 @@ EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
                           " or local-name()='ServiceExceptionReport']")
 
 
+CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
+
+
 class ProcessingData(models.Model):
     phase = models.CharField(
         max_length=512,
@@ -76,7 +79,7 @@ class ProcessingData(models.Model):
         # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
         # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
         # "not recorded" instead of inventing a moment.
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
@@ -134,7 +137,7 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                    "processing duration"),
                                                help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
     history_date = models.DateTimeField(auto_now_add=True,
-                                        verbose_name=_('Created DateTime'),
+                                        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
                                         help_text=_(
                                             'Datetime field when the relation was created'),
                                         )
@@ -239,6 +242,9 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                     collecting_state=CollectingStatenEnum.DUPLICATED.value)
             )
         ]
+
+
+APPLICATION_JSON = "application/json"
 
 
 class HarvestingJob(ProcessingData):
@@ -607,7 +613,7 @@ class HarvestingJob(ProcessingData):
             description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
-    # TODO: implement three phases:
+    # FUTURE: implement three phases
     # 1. fetch total_records
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
@@ -730,7 +736,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": created_by.pk
             } if created_by else None
@@ -745,7 +751,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": get_user_model().objects.get(
                     username=settings.MRMAP_USER).pk
@@ -1022,47 +1028,83 @@ class HarvestingJob(ProcessingData):
                 xml_constraint=client.get_constraint(
                     record_types=self.get_record_types())
             )
-            if check_existing:
-                stored = self.get_stored_page_count(request)
-                if stored:
-                    received += stored
-                    position += stored
-                    remaining -= stored
-                    if step_size == size:
-                        break
-                    continue
-            response: Response = client.send_request(
-                request=request,
-                timeout=self.get_request_timeout(step_size))
-            refused = self._check_xml_response(response)
-            stored = 0 if refused else self._store_page(
-                response, request, start_position=position)
+            stored, refused, planned_page = self._fetch_range_step(
+                client, request, position, check_existing, step_size, size)
             if stored is None:
                 return None
             if stored:
-                received += stored
-                position += stored
-                remaining -= stored
-                if step_size == size:
+                received, position, remaining = self._advance_range(
+                    stored, received, position, remaining)
+                if planned_page:
                     # the catalogue answered the planned size; the page is done with its answer,
                     # a possible shortage is the trace of #690
                     break
                 continue
-            if received and self.total_records is not None and position > self.total_records:
-                # this range reaches beyond the records the catalogue counted for this run; what
-                # is missing is answered by log_missing_records, not by more requests
+            step_size = self._halved_step_size(
+                received, position, step_size, size, refused)
+            if step_size is None:
                 break
-            if step_size <= MIN_STEP_SIZE:
-                break
-            halved = max(step_size // 2, MIN_STEP_SIZE)
-            self.log(
-                level=LogLevelEnum.WARNING.value,
-                description=(
-                    f"GetRecords with maxRecords={step_size} at startPosition {position} "
-                    f"{'was refused' if refused else 'came back without records'}, "
-                    f"the missing part is asked with {halved}"))
-            step_size = halved
         return received
+
+    def _fetch_range_step(self, client, request, position, check_existing,
+                          step_size, size):
+        """One iteration of the range: the records another run already
+        stored for this request when the range re-asks existing ones, the
+        catalogue's answer otherwise.
+
+        Answers the number of stored records - None when the job is not
+        open for downloading anymore, 0 when the request was refused or
+        came back without records - together with whether it was refused,
+        and whether this answer ends the page at the planned size.
+        """
+        if check_existing:
+            stored = self.get_stored_page_count(request)
+            if stored:
+                return stored, False, step_size == size
+        stored, refused = self._fetch_range_response(
+            client, request, position, step_size)
+        return stored, refused, bool(stored) and step_size == size
+
+    @staticmethod
+    def _advance_range(stored, received, position, remaining):
+        """The counters after one page of the range took its records in."""
+        return received + stored, position + stored, remaining - stored
+
+    def _fetch_range_response(self, client, request, position, step_size):
+        """Ask the catalogue for one step of the range and store the answer.
+
+        Answers the number of stored records - 0 when the request was
+        refused or came back without records - together with whether it
+        was refused, and None stored count when the job is not open for
+        downloading anymore.
+        """
+        response: Response = client.send_request(
+            request=request,
+            timeout=self.get_request_timeout(step_size))
+        if self._check_xml_response(response):
+            return 0, True
+        stored = self._store_page(response, request, start_position=position)
+        return stored, False
+
+    def _halved_step_size(self, received, position, step_size, size, refused):
+        """What a page without any record means for the size of the next
+        request: this range is done at the end of the catalogue or at the
+        floor size, or the missing part is asked with a halved size.
+        """
+        if received and self.total_records is not None and position > self.total_records:
+            # this range reaches beyond the records the catalogue counted for this run; what
+            # is missing is answered by log_missing_records, not by more requests
+            return None
+        if step_size <= MIN_STEP_SIZE:
+            return None
+        halved = max(step_size // 2, MIN_STEP_SIZE)
+        self.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"GetRecords with maxRecords={step_size} at startPosition {position} "
+                f"{'was refused' if refused else 'came back without records'}, "
+                f"the missing part is asked with {halved}"))
+        return halved
 
     def _store_page(self, response, request, start_position):
         """Store the records of one answered GetRecords response.
@@ -1573,16 +1615,15 @@ class TemporaryMdMetadataFile(models.Model):
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding or self.re_schedule
         retried = self.re_schedule
-        if self.re_schedule:
-            if self.background_process_id is None:
-                # the harvesting semantics of ``re_schedule``: the last
-                # verdict is wiped so the next delivery reports fresh. A
-                # registration retry (#1265) deliberately keeps its verdict
-                # fields: the failed reference must stay inspectable - what
-                # kind and what text decided it - until the new attempt
-                # overwrites them or consumes the row with success.
-                self.has_import_error = False
-                self.import_error = ""
+        if self.re_schedule and self.background_process_id is None:
+            # the harvesting semantics of ``re_schedule``: the last
+            # verdict is wiped so the next delivery reports fresh. A
+            # registration retry (#1265) deliberately keeps its verdict
+            # fields: the failed reference must stay inspectable - what
+            # kind and what text decided it - until the new attempt
+            # overwrites them or consumes the row with success.
+            self.has_import_error = False
+            self.import_error = ""
         self.re_schedule = False
 
         ret = super().save(*args, **kwargs)
@@ -1724,131 +1765,21 @@ class TemporaryMdMetadataFile(models.Model):
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
-                        # #919: the keyword quality indicator is evaluated on the
-                        # keywords which this document just mapped - no second
-                        # XML parse - so its answer rides the one write which the
-                        # record costs anyway (#858). The keyword rows themselves
-                        # stay exactly as the catalogue published them.
-                        mapped_keywords = [
-                            keyword.keyword
-                            for keyword in getattr(instance, "_keywords_parsed", None) or []
-                        ]
-                        instance.refresh_quality_indicators(mapped_keywords)
-                        # the provenance of the record, computed once per
-                        # record file: the three buckets below name the same
-                        # url, so asking the client three times only paid
-                        # three document reads and parses per imported
-                        # record (#1044). The client reads the catalogue's
-                        # stored capabilities document only - a document
-                        # which is gone from the storage raises
-                        # CapabilitiesBackupMissing for the run instead of
-                        # the import working around a broken service per
-                        # record.
-                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
-                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
-                        origin_url = self.job.service.client.get_record_by_id_request(
-                            id=instance.file_identifier).url if self.job.service_id \
-                            else "http://localhost"
-                        handler = PersistenceHandler(
-                            mapper=mappers[0],
-                            change_reason=self.change_reason,
-                            defaults={
-                                "dataset": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                },
-                                "service": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                },
-                                "application": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                }
-                            }
-                        )
-                        created_instances = handler.persist_all()
-                        key = make_instance_key(instance)
-
-                        created_instance = created_instances.get(
-                            instance.__class__, {}).get(key, None)
-                        # after persit handler has created the instances on db side, the objects are no longer identical
-
-                        if created_instance:
-                            created, update = created_instance._custom_state
-                            # #919: the answer of the rule belongs to the stored
-                            # record even when the row was not written at all -
-                            # a record which a run re-harvests unchanged is
-                            # evaluated too, which is what flags the records
-                            # that entered the registry before the rule
-                            # existed and clears the flag once the catalogue
-                            # has fixed its keyword. Only a difference is
-                            # written.
-                            quality_changed = created_instance.refresh_quality_indicators(
-                                mapped_keywords)
-                            if quality_changed:
-                                created_instance._change_reason = "quality"
-                                created_instance.save(mark_customized=False)
-                            if self.job:
-                                end_db_processing = now()
-                                relation = self.update_relations(
-                                    not created,
-                                    update,
-                                    created_instance,
-                                    end_db_processing - start_db_processing
-                                )
-                                if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
-                                    # do not delete this entries for analyze purposes
-                                    import_error = {
-                                        "reason": "duplicated",
-                                        "db_metadata.pk": created_instance.pk,
-                                        "db_metadata.file_identifier": created_instance.file_identifier,
-                                        "db_metadata.code_space": created_instance.code_space,
-                                        "db_metadata.code": created_instance.code,
-                                    }
-                                    self.has_import_error = True
-                                    self.import_error = str(import_error)
-                                    self.save()
-                                    # the whole method answers a list of (record, updated,
-                                    # existed) - the duplicated entry is one such row, so the
-                                    # import task which iterates the result does not crash and
-                                    # the DUPLICATED relation of #827 stays committed. The rows
-                                    # the earlier instances of this file collected stay in the
-                                    # answer too: they were imported by this very call and the
-                                    # task has to be told about them (#1039).
-                                    return result + [
-                                        (created_instance, update, not created)]
-                            result.append(
-                                (created_instance, update, not created))
-                            if self.job:
-                                for warning in mappers[0].warnings:
-                                    self.job.log(
-                                        level=LogLevelEnum.WARNING.value,
-                                        description=warning[:512],
-                                        extented_description=(
-                                            f"Metadata record: {instance.file_identifier}\n"
-                                            f"Source file: {self.md_metadata_file.name}\n"
-                                            f"{warning}\n"
-                                            "The remaining metadata was imported."
-                                        ),
-                                    )
-                                if created_instance.insufficient_quality and (
-                                        created or update or quality_changed):
-                                    self.job.log(
-                                        level=LogLevelEnum.WARNING.value,
-                                        description=(
-                                            "Keyword quality: "
-                                            f"{created_instance.insufficient_quality}")[:512],
-                                        extented_description=(
-                                            f"Metadata record: {instance.file_identifier}\n"
-                                            f"Source file: {self.md_metadata_file.name}\n"
-                                            f"{created_instance.insufficient_quality}\n"
-                                            "The record was imported; the keyword list rule "
-                                            "flags it as of insufficient quality."
-                                        ),
-                                    )
-                            self.delete()
+                        outcome, rows = self._import_mapped_instance(
+                            mappers[0], instance, start_db_processing)
+                        result.extend(rows)
+                        # the whole method answers a list of (record, updated,
+                        # existed) - the duplicated entry is one such row, so
+                        # the import task which iterates the result does not
+                        # crash and the DUPLICATED relation of #827 stays
+                        # committed. The rows the earlier instances of this
+                        # file collected stay in the answer too: they were
+                        # imported by this very call and the task has to be
+                        # told about them (#1039).
+                        if outcome == 'duplicated':
+                            return result
                     return result
+
             except OperationalError:
                 raise
             except Exception as e:
@@ -1860,13 +1791,163 @@ class TemporaryMdMetadataFile(models.Model):
                 self.save()
                 raise e
 
+    def _import_mapped_instance(self, mapper, instance, start_db_processing):
+        """Persist one mapped instance and tell what the import answered.
+
+        Answers ('ok', rows) with the row this instance adds to the
+        result, or ('duplicated', rows) when the relation of #827
+        diagnosed a duplicate: that outcome ends the file's import.
+        """
+        # #919: the keyword quality indicator is evaluated on the
+        # keywords which this document just mapped - no second
+        # XML parse - so its answer rides the one write which the
+        # record costs anyway (#858). The keyword rows themselves
+        # stay exactly as the catalogue published them.
+        mapped_keywords = [
+            keyword.keyword
+            for keyword in getattr(instance, "_keywords_parsed", None) or []
+        ]
+        instance.refresh_quality_indicators(mapped_keywords)
+        origin, origin_url = self._record_provenance(instance)
+        provenance = {"origin": origin, "origin_url": origin_url}
+        handler = PersistenceHandler(
+            mapper=mapper,
+            change_reason=self.change_reason,
+            defaults={
+                bucket: dict(provenance)
+                for bucket in ("dataset", "service", "application")
+            }
+        )
+        created_instances = handler.persist_all()
+        key = make_instance_key(instance)
+
+        created_instance = created_instances.get(
+            instance.__class__, {}).get(key, None)
+        # after persit handler has created the instances on db side, the objects are no longer identical
+
+        if not created_instance:
+            return 'ok', []
+        return self._account_created_instance(
+            mapper, instance, created_instance, mapped_keywords,
+            start_db_processing)
+
+    def _record_provenance(self, instance):
+        """The provenance of the record, computed once per record file: the
+        three buckets of the handler name the same url, so asking the client
+        three times only paid three document reads and parses per imported
+        record (#1044). The client reads the catalogue's stored capabilities
+        document only - a document which is gone from the storage raises
+        CapabilitiesBackupMissing for the run instead of the import working
+        around a broken service per record.
+        """
+        if self.job.service_id:
+            return (
+                MetadataOriginEnum.CATALOGUE.value,
+                self.job.service.client.get_record_by_id_request(
+                    id=instance.file_identifier).url,
+            )
+        return (MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                "http://localhost")
+
+    def _account_created_instance(self, mapper, instance, created_instance,
+                                  mapped_keywords, start_db_processing):
+        """Write what the import of one persisted record decided: the
+        quality answer of #919, the relation of the run, the warnings of
+        the mapping and the row this file's result gains.
+        """
+        created, update = created_instance._custom_state
+        # #919: the answer of the rule belongs to the stored
+        # record even when the row was not written at all -
+        # a record which a run re-harvests unchanged is
+        # evaluated too, which is what flags the records
+        # that entered the registry before the rule
+        # existed and clears the flag once the catalogue
+        # has fixed its keyword. Only a difference is
+        # written.
+        quality_changed = created_instance.refresh_quality_indicators(
+            mapped_keywords)
+        if quality_changed:
+            created_instance._change_reason = "quality"
+            created_instance.save(mark_customized=False)
+        if self.job:
+            end_db_processing = now()
+            relation = self.update_relations(
+                not created,
+                update,
+                created_instance,
+                end_db_processing - start_db_processing
+            )
+            if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                return 'duplicated', self._mark_duplicated(
+                    created_instance, created, update)
+        if self.job:
+            self._log_mapping_warnings(mapper, instance)
+            self._log_quality_warning(
+                created_instance, instance, created, update,
+                quality_changed)
+        self.delete()
+        return 'ok', [(created_instance, update, not created)]
+
+    def _mark_duplicated(self, created_instance, created, update):
+        """Diagnose the duplicated record on the file and answer its row;
+        the diagnosis is kept for analyze purposes."""
+        # do not delete this entries for analyze purposes
+        import_error = {
+            "reason": "duplicated",
+            "db_metadata.pk": created_instance.pk,
+            "db_metadata.file_identifier": created_instance.file_identifier,
+            "db_metadata.code_space": created_instance.code_space,
+            "db_metadata.code": created_instance.code,
+        }
+        self.has_import_error = True
+        self.import_error = str(import_error)
+        self.save()
+        return [(created_instance, update, not created)]
+
+    def _log_mapping_warnings(self, mapper, instance):
+        for warning in mapper.warnings:
+            self.job.log(
+                level=LogLevelEnum.WARNING.value,
+                description=warning[:512],
+                extented_description=(
+                    f"Metadata record: {instance.file_identifier}\n"
+                    f"Source file: {self.md_metadata_file.name}\n"
+                    f"{warning}\n"
+                    "The remaining metadata was imported."
+                ),
+            )
+
+    def _log_quality_warning(self, created_instance, instance, created,
+                             update, quality_changed):
+        if not (created_instance.insufficient_quality
+                and (created or update or quality_changed)):
+            return
+        self.job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                "Keyword quality: "
+                f"{created_instance.insufficient_quality}")[:512],
+            extented_description=(
+                f"Metadata record: {instance.file_identifier}\n"
+                f"Source file: {self.md_metadata_file.name}\n"
+                f"{created_instance.insufficient_quality}\n"
+                "The record was imported; the keyword list rule "
+                "flags it as of insufficient quality."
+            ),
+        )
+
     def update_relations(self, exists, update, db_metadata, duration):
-        # TODO: is this relation still needed?
+        # FUTURE: is this relation still needed?
         # Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
-        collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
+        if exists and update:
+            collecting_state = CollectingStatenEnum.UPDATED.value
+        elif exists:
+            collecting_state = CollectingStatenEnum.EXISTING.value
+        else:
+            collecting_state = CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
             db_metadata,
             collecting_state,
@@ -1885,12 +1966,12 @@ def registration_work_file_names(process_pks):
     """
     if not process_pks:
         return []
-    return [
-        name for name in TemporaryMdMetadataFile.objects.filter(
+    return list(
+        TemporaryMdMetadataFile.objects.filter(
             background_process_id__in=list(process_pks))
         .exclude(md_metadata_file="")
         .exclude(md_metadata_file=None)
-        .values_list("md_metadata_file", flat=True)]
+        .values_list("md_metadata_file", flat=True))
 
 
 def extented_description_file_path(instance, filename):
@@ -1917,7 +1998,7 @@ class HarvestingLog(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the task result was created in UTC')
     )
     level = models.PositiveSmallIntegerField(
@@ -1963,7 +2044,7 @@ class PeriodicHarvestingJob(PeriodicTask):
         help_text=_("this is the service which shall be harvested"))
 
     def __init__(self, *args, **kwargs) -> None:
-        # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
+        # FUTURE: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
         super().__init__(*args, **kwargs)
         if not self.pk:
             if not self.task:
@@ -1977,7 +2058,7 @@ class PeriodicHarvestingJob(PeriodicTask):
                 http_request = {
                     "path": "/periodic-harvesting-job",
                     "method": "GET",
-                    "content_type": "application/json",
+                    "content_type": APPLICATION_JSON,
                     "data": {},
                     "user_pk": str(system_user.pk)
                 }

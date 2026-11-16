@@ -124,14 +124,14 @@ export interface MapViewerBaseProps extends PropsWithChildren {
 export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): ReactNode => {
   const { owsContext, documentRevision, setContextBbox } = useOwsContextBase()
 
-  const [map, setMapState] = useState<Map>()
+  const [map, setMap] = useState<Map>()
   const [position, setPosition] = useState(() => map?.getCenter())
   const [bounds, setBounds] = useState(() => map?.getBounds())
   const [mapRequests, setMapRequests] = useState<Record<string, MapRequest>>({})
   const [selectedCrs, setSelectedCrs] = useState<CRS>({stringRepresentation: 'EPSG:4326', isXyOrder: false, wkt: 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]'})
 
-  const setMap: SetMapRef = useCallback((instance) => {
-    setMapState(instance ?? undefined)
+  const setMapRef: SetMapRef = useCallback((instance) => {
+    setMap(instance ?? undefined)
   }, [])
 
   const [scaleDenominator, setScaleDenominator] = useState<number>()
@@ -186,13 +186,14 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     const hasLoading = requests.some(([, request]) => request.status === 'loading')
     const hasError = errors.length > 0
     
-    const status: MapLoadingStatus = hasLoading
-      ? 'loading'
-      : hasError
-        ? 'error'
-        : requests.length > 0 && loaded === requests.length
-          ? 'ready'
-          : 'idle'
+    let status: MapLoadingStatus = 'idle';
+    if (hasLoading) {
+      status = 'loading';
+    } else if (hasError) {
+      status = 'error';
+    } else if (requests.length > 0 && loaded === requests.length) {
+      status = 'ready';
+    }
 
     const failedFeatures = requests.filter(([, request]) => request.error !== undefined).flatMap(([, request]) => request.error?.features || [])
 
@@ -269,11 +270,11 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
   // the transparency a user gives a layer belongs to the viewer session and not to the document:
   // an exported context keeps the layers as they were imported, while the viewer blends them the
   // way the user asked for (#750)
-  const [layerOpacity, setLayerOpacityState] = useState<Record<string, number>>({})
+  const [layerOpacity, setLayerOpacity] = useState<Record<string, number>>({})
 
-  const setLayerOpacity = useCallback((folder: string, opacity: number) => {
+  const updateLayerOpacity = useCallback((folder: string, opacity: number) => {
     const bounded = Math.min(1, Math.max(0, opacity))
-    setLayerOpacityState(previous =>
+    setLayerOpacity(previous =>
       previous[folder] === bounded ? previous : { ...previous, [folder]: bounded })
   }, [])
 
@@ -399,7 +400,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
   const value = useMemo<MapViewerBaseType>(() => {
     return {
       map,
-      setMap,
+      setMap: setMapRef,
       selectedCrs,
       setSelectedCrs,
       featureCollection,
@@ -412,7 +413,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
       removeMapLoading,
       layerOpacity,
       opacityOf,
-      setLayerOpacity,
+      setLayerOpacity: updateLayerOpacity,
       displayedTimes,
       setDisplayedTime,
       timelines,
@@ -422,7 +423,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     }
   }, [
     map,
-    setMap,
+    setMapRef,
     selectedCrs,
     setSelectedCrs,
     featureCollection,
@@ -435,7 +436,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     removeMapLoading,
     layerOpacity,
     opacityOf,
-    setLayerOpacity,
+    updateLayerOpacity,
     displayedTimes,
     setDisplayedTime,
     timelines,

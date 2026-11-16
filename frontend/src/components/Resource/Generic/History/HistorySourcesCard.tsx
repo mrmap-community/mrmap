@@ -1,6 +1,6 @@
 import type { HistorySource } from "./historySources";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   Loading,
   type RaRecord,
@@ -55,6 +55,20 @@ const HistorySourcesCard = ({ record, sources }: HistorySourcesCardProps) => {
   const loading = selectedSources.some(source => !feeds[source.resource] || feeds[source.resource].loading);
   const error = selectedSources.some(source => feeds[source.resource]?.error);
 
+  let body: ReactNode;
+  if (loading) {
+    body = <Loading />;
+  } else if (error) {
+    body = <Alert severity="error">Unable to load history.</Alert>;
+  } else {
+    body = (
+      <HistoryTimeline
+        key={`${recordContext?.id}:${changeType}`}
+        events={filteredChanges}
+      />
+    );
+  }
+
   return (
     <SimpleCard
       divider={false}
@@ -102,16 +116,7 @@ const HistorySourcesCard = ({ record, sources }: HistorySourcesCardProps) => {
       }}
     >
       {recordContext?.id != null && sources.map(source => <HistorySourceQuery key={source.resource} source={source} onChange={onChange} />)}
-      {loading ? (
-        <Loading />
-      ) : error ? (
-        <Alert severity="error">Unable to load history.</Alert>
-      ) : (
-        <HistoryTimeline
-          key={`${recordContext?.id}:${changeType}`}
-          events={filteredChanges}
-        />
-      )}
+      {body}
     </SimpleCard>
   );
 };

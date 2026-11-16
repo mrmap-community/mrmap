@@ -511,36 +511,55 @@ def schedule_alert_rows():
         list: the alert row of every enabled schedule which is overdue or
             tighter than the run it schedules, of every kind of service
     """
-    from extras.scheduling import (next_run_expected_at, run_overdue,
-                                   schedule_is_tighter_than)
+    rows = []
+    for model in SERVICE_KIND_OF:
+        rows.extend(_schedule_alert_rows_of_kind(model))
+    return rows
+
+
+def _schedule_alert_rows_of_kind(model):
+    """The alert rows of the enabled schedules of one kind of service."""
     from registry.models import monitoring, update
     from registry.models.harvest import PeriodicHarvestingJob
     from registry.querys.harvest_history import harvest_durations
 
+    resource = model.__name__
+    settings = [
+        (getattr(monitoring, resource + 'MonitoringSetting'), 'monitoring_overdue'),
+        (getattr(update, resource + 'UpdateSetting'), 'update_overdue'),
+    ]
+    durations = {}
+    if model is CatalogueService:
+        settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
+        durations = harvest_durations(PeriodicHarvestingJob.objects.filter(
+            enabled=True).values_list('service_id', flat=True))
+
     rows = []
-    for model in SERVICE_KIND_OF:
-        resource = model.__name__
-        settings = [
-            (getattr(monitoring, resource + 'MonitoringSetting'), 'monitoring_overdue'),
-            (getattr(update, resource + 'UpdateSetting'), 'update_overdue'),
-        ]
-        durations = {}
-        if model is CatalogueService:
-            settings.append((PeriodicHarvestingJob, 'harvest_overdue'))
-            durations = harvest_durations(PeriodicHarvestingJob.objects.filter(
-                enabled=True).values_list('service_id', flat=True))
-        for setting_model, category in settings:
-            for setting in setting_model.objects.filter(
-                    enabled=True).select_related('crontab', 'service'):
-                if run_overdue(setting):
-                    rows.append(service_alert(
-                        setting.service, category, 'warning',
-                        next_run_expected_at(setting), setting_model.__name__,
-                        source=setting.pk))
-                if setting_model is PeriodicHarvestingJob:
-                    estimate = durations.get(setting.service_id) or {}
-                    if schedule_is_tighter_than(setting, estimate.get('average')):
-                        rows.append(harvest_schedule_alert(setting, estimate))
+    for setting_model, category in settings:
+        rows.extend(_schedule_alert_rows_of_setting(
+            setting_model, category, durations))
+    return rows
+
+
+def _schedule_alert_rows_of_setting(setting_model, category, durations):
+    """The overdue rows of one setting kind - and for harvesting, the
+    schedules which are tighter than the run they schedule (#693)."""
+    from extras.scheduling import (next_run_expected_at, run_overdue,
+                                   schedule_is_tighter_than)
+    from registry.models.harvest import PeriodicHarvestingJob
+
+    rows = []
+    for setting in setting_model.objects.filter(
+            enabled=True).select_related('crontab', 'service'):
+        if run_overdue(setting):
+            rows.append(service_alert(
+                setting.service, category, 'warning',
+                next_run_expected_at(setting), setting_model.__name__,
+                source=setting.pk))
+        if setting_model is PeriodicHarvestingJob:
+            estimate = durations.get(setting.service_id) or {}
+            if schedule_is_tighter_than(setting, estimate.get('average')):
+                rows.append(harvest_schedule_alert(setting, estimate))
     return rows
 
 

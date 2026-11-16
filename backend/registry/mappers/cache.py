@@ -127,7 +127,7 @@ class GlobalXmlCache:
 
             item = cls._data.get(UUID(uuid_str))
             if item:
-                key_list, expire = item
+                key_list, _ = item
                 if key in key_list:
                     key_list.remove(key)
 

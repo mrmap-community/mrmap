@@ -23,9 +23,9 @@ const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
   const [selectedColumnsIdxs] = useStore<string[]>(`${preferenceKey}.columns`, []);
 
   return useMemo(() => {
-    const supported = (sparseFields[name] ?? []).map(element => snakeCase(element));
+    const supported = new Set((sparseFields[name] ?? []).map(element => snakeCase(element)));
     const selected = availableColumns.filter(column =>
-      column.source !== undefined && supported.includes(snakeCase(column.source)) &&
+      column.source !== undefined && supported.has(snakeCase(column.source)) &&
       (selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index) : !omit.includes(column.source)),
     ).map(column => snakeCase(column.source));
     const query: JsonApiQueryParams = {};

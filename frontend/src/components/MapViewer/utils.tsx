@@ -66,8 +66,8 @@ export const isDescendantOf = (nodeA: RaRecord, nodeB: RaRecord): boolean => {
   return (nodeA.mpttLft > nodeB.mpttLft && nodeA.mpttRgt < nodeB.mpttRgt)
 }
 
-export const isAncestorOf = (nodeA: RaRecord, nodeB: RaRecord): boolean => {
-  return isDescendantOf(nodeB, nodeA)
+export const isAncestorOf = (candidateAncestor: RaRecord, candidateDescendant: RaRecord): boolean => {
+  return isDescendantOf(candidateDescendant, candidateAncestor)
 }
 
 /**

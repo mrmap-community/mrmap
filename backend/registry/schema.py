@@ -78,13 +78,18 @@ def inject_iso_paths(result, **kwargs):
             if not component:
                 continue
             for properties in _properties_of(component):
-                for property_name, property_schema in properties.items():
-                    if not isinstance(property_schema, dict) or property_schema.get("readOnly"):
-                        continue
-                    path = paths_by_name[record_type].get(property_name)
-                    if path is not None:
-                        property_schema[ISO_PATH_EXTENSION] = path
+                _stamp_iso_paths(properties, paths_by_name[record_type])
     return result
+
+
+def _stamp_iso_paths(properties, paths):
+    """Stamp the mapped ISO path onto every writable property of one form."""
+    for property_name, property_schema in properties.items():
+        if not isinstance(property_schema, dict) or property_schema.get("readOnly"):
+            continue
+        path = paths.get(property_name)
+        if path is not None:
+            property_schema[ISO_PATH_EXTENSION] = path
 
 
 def _served_form(record_type):

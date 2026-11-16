@@ -51,10 +51,6 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
 
 class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("web map service"),
         help_text=_(
@@ -74,6 +70,11 @@ class ServiceElementHistoryInformationSerializer(HistoryInformationSerializer):
         # registration date is an estimate; do not manufacture historical rows.
         created_at = super().get_created_at(instance)
         return created_at if created_at is not None else getattr(instance, 'service_created_at', None)
+
+
+IS_SECURED_LABEL = _("is secured")
+
+IS_SPATIAL_SECURED_LABEL = _("is spatial secured")
 
 
 class LayerSerializer(
@@ -161,13 +162,6 @@ class LayerSerializer(
         label=_("maximum scale"),
         read_only=True,
         help_text=_("the maximum scale value."))
-    styles = SerializerMethodResourceRelatedField(
-        label=_("styles"),
-        help_text=_("related styles of this layer."),
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name="registry:layer-styles-list",
-        related_link_url_kwarg="parent_lookup_layer",
-    )
     reference_systems = SerializerMethodResourceRelatedField(
         label=_("reference systems"),
         help_text=_("available reference systems of this layer."),
@@ -189,9 +183,9 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
-    is_secured = BooleanField(label=_("is secured"), read_only=True)
+    is_secured = BooleanField(label=IS_SECURED_LABEL, read_only=True)
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true is the layer is spatial secured by a allowed operation object."),
         read_only=True
@@ -219,9 +213,9 @@ class LayerSerializer(
         model = Layer
         fields = "__all__"
 
-    def _convert_dict_to_object(self, objs, Model, defaults={}):
+    def _convert_dict_to_object(self, objs, model_cls, defaults={}):
         if objs and isinstance(objs, list) and isinstance(objs[0], dict):
-            return [Model(**defaults, **obj) for obj in objs]
+            return [model_cls(**defaults, **obj) for obj in objs]
         return objs
 
     def get_reference_systems(self, instance):
@@ -429,6 +423,15 @@ class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
                      self.get_perm_checker().has_perm(permission, obj)))
 
 
+MONITORING_SETTINGS_HELP_TEXT = _("This are the configured monitoring settings.")
+
+MONITORING_SETTINGS_LABEL = _("monitoring settings")
+
+OPERATION_URLS_HELP_TEXT = _("this are the urls to use for the ogc operations.")
+
+OPERATION_URLS_LABEL = _("operation urls")
+
+
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
     ExplorerAttributesSerializer,
@@ -472,8 +475,8 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebMapServiceOperationUrl,
         many=True,
         read_only=True,
@@ -497,13 +500,13 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -516,8 +519,8 @@ class WebMapServiceListSerializer(
     )
     web_map_service_monitoring_settings = ResourceRelatedField(
         source="web_map_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebMapServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -557,7 +560,7 @@ class WebMapServiceListSerializer(
         return instance.get_secured_capabilities_url(request=request)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         # The preview image is asked by the details of a service and by the details
         # panel beside the list of the services, so both serializers answer it. It is
         # read from the stored capabilities only: a preview never needs more than the
@@ -601,7 +604,6 @@ class WebMapServiceCreateSerializer(
     get_capabilities_url = URLField(
         label=_("get capabilities url"),
         help_text=_("a valid get capabilities url."),
-        # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
         validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebMapServiceAuthentication.objects,
@@ -635,14 +637,9 @@ class WebMapServiceCreateSerializer(
 
 class WebFeatureServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = SerializerMethodField()
-
     class Meta:
         model = WebFeatureServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class FeatureTypeSerializer(
@@ -732,13 +729,13 @@ class FeatureTypeSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -779,7 +776,7 @@ class WebFeatureServiceSerializer(
         label=_("preview image"), read_only=True)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         return reverse("registry:wfs-preview-image", kwargs={"pk": instance.pk},
                        request=self.context.get("request"))
 
@@ -808,8 +805,8 @@ class WebFeatureServiceSerializer(
     )
 
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebFeatureServiceOperationUrl,
         many=True,
         read_only=True,
@@ -817,8 +814,8 @@ class WebFeatureServiceSerializer(
 
     web_feature_service_monitoring_settings = ResourceRelatedField(
         source="web_feature_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebFeatureServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -873,14 +870,9 @@ class WebFeatureServiceCreateSerializer(
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = SerializerMethodField()
-
     class Meta:
         model = CatalogueServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class CatalogueServiceCreateSerializer(
@@ -943,14 +935,13 @@ class CatalogueServiceSerializer(
             "attention"),
         model=HarvestingJob,
         read_only=True)
-    # TODO: deprecated;
+    # FUTURE: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord
     harvesting_jobs = ResourceRelatedField(
         model=HarvestingJob,
         many=True,
         read_only=True,
-        # related_link_view_name="registry:csw-datasetmetadata-list",
         # related_link_url_kwarg="parent_lookup_harvested_through",
     )
     running_harvesting_job = SerializerMethodResourceRelatedField(
@@ -974,8 +965,8 @@ class CatalogueServiceSerializer(
         related_link_url_kwarg="parent_lookup_catalogueservice_metadata",
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=CatalogueServiceOperationUrl,
         many=True,
         read_only=True,
@@ -989,8 +980,8 @@ class CatalogueServiceSerializer(
     )
     catalogue_service_monitoring_settings = ResourceRelatedField(
         source="catalogue_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=CatalogueServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -1021,10 +1012,6 @@ class CatalogueServiceSerializer(
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("catalogue service"),
         help_text=_(
@@ -1035,5 +1022,4 @@ class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSer
 
     class Meta:
         model = CatalogueServiceOperationUrl
-        fields = "__all__"
         fields = "__all__"

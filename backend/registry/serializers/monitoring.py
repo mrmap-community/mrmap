@@ -56,6 +56,11 @@ class GetCapabilitiesProbeSerializer(
         )
 
 
+MONITORING_SETTING_LABEL = _("monitoring setting")
+
+RUN_SETTING_HELP_TEXT = _("the setting which to used for this run.")
+
+
 class GetMapProbeSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -69,13 +74,13 @@ class GetMapProbeSerializer(
     )
     layers = ResourceRelatedField(
         label=_("layers"),
-        help_text=_("the setting which to used for this run."),
+        help_text=RUN_SETTING_HELP_TEXT,
         many=True,
         queryset=Layer.objects,
     )
     reference_system = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         many=True,
         queryset=ReferenceSystem.objects,
     )
@@ -107,6 +112,11 @@ class MonitoringSettingSerializerMixin:
         return run_overdue(obj)
 
 
+SCHEDULE_INTERVAL_HELP_TEXT = _("the schedule interval for this setting (e.g. '*/5 * * * *').")
+
+SCHEDULE_INTERVAL_LABEL = _("schedule interval")
+
+
 class WebMapServiceMonitoringSettingSerializer(
     MonitoringSettingSerializerMixin,
     StringRepresentationSerializer,
@@ -123,9 +133,8 @@ class WebMapServiceMonitoringSettingSerializer(
     )
     schedule_interval = CrontabStringField(
         source='crontab',
-        label=_("schedule interval"),
-        help_text=_(
-            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
+        label=SCHEDULE_INTERVAL_LABEL,
+        help_text=SCHEDULE_INTERVAL_HELP_TEXT,
     )
     get_capabilitites_probes = ResourceRelatedField(
         many=True,
@@ -151,6 +160,13 @@ class WebMapServiceMonitoringSettingSerializer(
                   "last_run_at", "next_run_expected_at", "run_overdue")
 
 
+GET_CAPABILITIES_RESULTS_HELP_TEXT = _("results for get capabilities requests")
+
+GET_CAPABILITIES_RESULTS_LABEL = _("Get Capabilities Probe Results")
+
+PROBE_FAILED_HELP_TEXT = _("false if any probe has failed")
+
+
 class WebMapServiceMonitoringRunSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
@@ -161,20 +177,20 @@ class WebMapServiceMonitoringRunSerializer(
     )
     success = BooleanField(
         label=_("Success"),
-        help_text=_("false if any probe has failed"),
+        help_text=PROBE_FAILED_HELP_TEXT,
         read_only=True
     )
     setting = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         queryset=WebMapServiceMonitoringSetting.objects,
     )
     get_capabilitites_probe_results = ResourceRelatedField(
         source="registry_getcapabilitiesproberesults",
         many=True,
         queryset=GetCapabilitiesProbeResult.objects,
-        label=_("Get Capabilities Probe Results"),
-        help_text=_("results for get capabilities requests"),
+        label=GET_CAPABILITIES_RESULTS_LABEL,
+        help_text=GET_CAPABILITIES_RESULTS_HELP_TEXT,
     )
     get_map_probe_results = ResourceRelatedField(
         source="registry_getmapproberesults",
@@ -270,8 +286,8 @@ class GetCapabilitiesProbeResultSerializer(
     )
 
     run = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         queryset=WebMapServiceMonitoringRun.objects,
     )
 
@@ -299,8 +315,8 @@ class GetMapProbeResultSerializer(
         view_name='registry:webmapservicemonitoring-getmap-probe-result-detail',
     )
     run = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         queryset=WebMapServiceMonitoringRun.objects,
     )
 
@@ -332,9 +348,8 @@ class WebFeatureServiceMonitoringSettingSerializer(
     )
     schedule_interval = CrontabStringField(
         source='crontab',
-        label=_("schedule interval"),
-        help_text=_(
-            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
+        label=SCHEDULE_INTERVAL_LABEL,
+        help_text=SCHEDULE_INTERVAL_HELP_TEXT,
     )
     get_capabilities_probes = ResourceRelatedField(
         many=True,
@@ -370,20 +385,20 @@ class WebFeatureServiceMonitoringRunSerializer(
     )
     success = BooleanField(
         label=_("Success"),
-        help_text=_("false if any probe has failed"),
+        help_text=PROBE_FAILED_HELP_TEXT,
         read_only=True
     )
     setting = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         queryset=WebFeatureServiceMonitoringSetting.objects,
     )
     get_capabilities_probe_results = ResourceRelatedField(
         source="registry_webfeatureservicegetcapabilitiesproberesults",
         many=True,
         queryset=WebFeatureServiceGetCapabilitiesProbeResult.objects,
-        label=_("Get Capabilities Probe Results"),
-        help_text=_("results for get capabilities requests"),
+        label=GET_CAPABILITIES_RESULTS_LABEL,
+        help_text=GET_CAPABILITIES_RESULTS_HELP_TEXT,
     )
     get_feature_probe_results = ResourceRelatedField(
         source="registry_webfeatureservicegetfeatureproberesults",
@@ -471,6 +486,11 @@ class WebFeatureServiceGetFeatureProbeSerializer(
         )
 
 
+MONITORING_RUN_HELP_TEXT = _("the run which executed the probe.")
+
+MONITORING_RUN_LABEL = _("monitoring run")
+
+
 class WebFeatureServiceGetCapabilitiesProbeResultSerializer(
     ProbeResponseSerializerMixin,
     StringRepresentationSerializer,
@@ -481,8 +501,8 @@ class WebFeatureServiceGetCapabilitiesProbeResultSerializer(
         view_name='registry:webfeatureservicemonitoring-getcapabilities-probe-result-detail',
     )
     run = ResourceRelatedField(
-        label=_("monitoring run"),
-        help_text=_("the run which executed the probe."),
+        label=MONITORING_RUN_LABEL,
+        help_text=MONITORING_RUN_HELP_TEXT,
         queryset=WebFeatureServiceMonitoringRun.objects,
     )
 
@@ -510,8 +530,8 @@ class WebFeatureServiceGetFeatureProbeResultSerializer(
         view_name='registry:webfeatureservicemonitoring-getfeature-probe-result-detail',
     )
     run = ResourceRelatedField(
-        label=_("monitoring run"),
-        help_text=_("the run which executed the probe."),
+        label=MONITORING_RUN_LABEL,
+        help_text=MONITORING_RUN_HELP_TEXT,
         queryset=WebFeatureServiceMonitoringRun.objects,
     )
 
@@ -545,9 +565,8 @@ class CatalogueServiceMonitoringSettingSerializer(
     )
     schedule_interval = CrontabStringField(
         source='crontab',
-        label=_("schedule interval"),
-        help_text=_(
-            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
+        label=SCHEDULE_INTERVAL_LABEL,
+        help_text=SCHEDULE_INTERVAL_HELP_TEXT,
     )
     get_capabilities_probes = ResourceRelatedField(
         many=True,
@@ -583,20 +602,20 @@ class CatalogueServiceMonitoringRunSerializer(
     )
     success = BooleanField(
         label=_("Success"),
-        help_text=_("false if any probe has failed"),
+        help_text=PROBE_FAILED_HELP_TEXT,
         read_only=True
     )
     setting = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
+        label=MONITORING_SETTING_LABEL,
+        help_text=RUN_SETTING_HELP_TEXT,
         queryset=CatalogueServiceMonitoringSetting.objects,
     )
     get_capabilities_probe_results = ResourceRelatedField(
         source="registry_catalogueservicegetcapabilitiesproberesults",
         many=True,
         queryset=CatalogueServiceGetCapabilitiesProbeResult.objects,
-        label=_("Get Capabilities Probe Results"),
-        help_text=_("results for get capabilities requests"),
+        label=GET_CAPABILITIES_RESULTS_LABEL,
+        help_text=GET_CAPABILITIES_RESULTS_HELP_TEXT,
     )
     get_records_probe_results = ResourceRelatedField(
         source="registry_catalogueservicegetrecordsproberesults",
@@ -681,8 +700,8 @@ class CatalogueServiceGetCapabilitiesProbeResultSerializer(
         view_name='registry:catalogueservicemonitoring-getcapabilities-probe-result-detail',
     )
     run = ResourceRelatedField(
-        label=_("monitoring run"),
-        help_text=_("the run which executed the probe."),
+        label=MONITORING_RUN_LABEL,
+        help_text=MONITORING_RUN_HELP_TEXT,
         queryset=CatalogueServiceMonitoringRun.objects,
     )
 
@@ -710,8 +729,8 @@ class CatalogueServiceGetRecordsProbeResultSerializer(
         view_name='registry:catalogueservicemonitoring-getrecords-probe-result-detail',
     )
     run = ResourceRelatedField(
-        label=_("monitoring run"),
-        help_text=_("the run which executed the probe."),
+        label=MONITORING_RUN_LABEL,
+        help_text=MONITORING_RUN_HELP_TEXT,
         queryset=CatalogueServiceMonitoringRun.objects,
     )
 

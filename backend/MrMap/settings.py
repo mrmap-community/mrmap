@@ -57,7 +57,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ################################################################
 # Logger settings
 ################################################################
-ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
+
+ROOT_LOGGER_NAME = "MrMap.root"
+
+ROOT_LOGGER: logging.Logger = logging.getLogger(ROOT_LOGGER_NAME)
 
 
 MEDIA_URL = "/media/"
@@ -162,9 +165,12 @@ TEMPLATES = [
 # -------------------------------
 # Debug Toolbar nur aktiv, wenn DEBUG und nicht beim Testen
 # -------------------------------
+
+DEBUG_TOOLBAR_MIDDLEWARE = "debug_toolbar.middleware.DebugToolbarMiddleware"
+
 if DEBUG and not TESTING:
     INSTALLED_APPS.append("debug_toolbar")
-    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+    MIDDLEWARE.append(DEBUG_TOOLBAR_MIDDLEWARE)
 
     DEBUG_TOOLBAR_CONFIG = {
         # Alle Panels standardmäßig deaktivieren
@@ -194,8 +200,8 @@ else:
     # Wenn DEBUG=0 oder Tests laufen, Toolbar komplett deaktivieren
     if "debug_toolbar" in INSTALLED_APPS:
         INSTALLED_APPS.remove("debug_toolbar")
-    if "debug_toolbar.middleware.DebugToolbarMiddleware" in MIDDLEWARE:
-        MIDDLEWARE.remove("debug_toolbar.middleware.DebugToolbarMiddleware")
+    if DEBUG_TOOLBAR_MIDDLEWARE in MIDDLEWARE:
+        MIDDLEWARE.remove(DEBUG_TOOLBAR_MIDDLEWARE)
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -270,7 +276,7 @@ ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in list(ALLOWED_HOSTS)])
+        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS])
 ).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
@@ -522,7 +528,7 @@ CHANNEL_LAYERS = {
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
 MIN_PASSWORD_LENGTH = 9
-MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
+MIN_USERNAME_LENGTH = 5  # FUTURE: For production use another, more appropriate length!
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -676,7 +682,7 @@ LOGGING = {
         },
     },
     "loggers": {
-        "MrMap.root": {
+        ROOT_LOGGER_NAME: {
             "handlers": ["console"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
@@ -712,7 +718,7 @@ try:
             "address": (SYSLOG_HOST, SYSLOG_PORT),
         },
     })
-    LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
+    LOGGING["loggers"][ROOT_LOGGER_NAME]["handlers"].append("syslog")
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
     print("syslog logging handler configured.")
@@ -912,10 +918,6 @@ REST_FRAMEWORK = {
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }
 
-# REST_KNOX = {
-#     'TOKEN_TTL': timedelta(hours=1),
-#     'AUTO_REFRESH': True,
-# }
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',

@@ -25,7 +25,7 @@ class StringRepresentationSerializer(ModelSerializer):
         return str(obj)
 
 
-# TODO: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field
+# FUTURE: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field
 class ObjectPermissionCheckerSerializer(ModelSerializer):
     is_accessible = SerializerMethodField(read_only=True)
 
@@ -101,7 +101,6 @@ class HistoryInformationSerializer(ModelSerializer):
     created_by = SerializerMethodResourceRelatedField(
         model=get_user_model(),
         required=False,
-        # related_link_view_name='accounts:user-detail',
         # related_link_url_kwarg='pk',
     )
     last_modified_by = SerializerMethodResourceRelatedField(
@@ -173,7 +172,7 @@ class CheckConstraintSerializerMixin:
 
 
 class SystemInfoSerializerMixin:
-    def get_root_meta(self, resource, many):
+    def get_root_meta(self, _resource, _many):
 
         return {
             "system_time": timezone.localtime(timezone.now())

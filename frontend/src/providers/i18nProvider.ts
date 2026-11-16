@@ -20,14 +20,14 @@ const i18nProvider: I18nProvider = {
     let translation = lodashGet(messages, key, key) as string;
 
     // If the key is missing and a fallback message is provided in options ("_"), use it
-    if (translation === key && options && options._) {
+    if (translation === key && options?._) {
       translation = options._;
     }
 
     // Handle simple pluralization using the "||||" separator used by react-admin
     // We support two forms: singular |||| plural
     let message = translation;
-    if (typeof message === 'string' && message.indexOf('||||') !== -1) {
+    if (typeof message === 'string' && message.includes('||||')) {
       const parts = message.split('||||').map((s) => s.trim());
       const count = options?.smart_count ?? options?.count ?? options?.smartCount;
       const usePlural = typeof count === 'number' ? count !== 1 : false;

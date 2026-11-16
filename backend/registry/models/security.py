@@ -40,7 +40,7 @@ class ServiceAuthentication(models.Model):
         verbose_name=_("password"),
         help_text=_("the password used for the authentication."),
     )
-    # TODO: use IntegerChoices instead
+    # FUTURE: use IntegerChoices instead
     auth_type = models.CharField(
         max_length=100,
         choices=AuthTypeEnum.choices,
@@ -143,13 +143,14 @@ class ServiceAuthentication(models.Model):
         return auth
 
 
+SERVICE_AUTH_HELP_TEXT = _("the optional authentication type and credentials to request the service.")
+
+
 class WebMapServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=WebMapService,
         verbose_name=_("web map service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,
@@ -162,9 +163,7 @@ class WebFeatureServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=WebFeatureService,
         verbose_name=_("web feature service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,
@@ -177,9 +176,7 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=CatalogueService,
         verbose_name=_("web feature service"),
-        help_text=_(
-            "the optional authentication type and credentials to request the service."
-        ),
+        help_text=SERVICE_AUTH_HELP_TEXT,
         related_query_name="auth",
         related_name="auth",
         on_delete=models.CASCADE,
@@ -299,7 +296,7 @@ class AllowedWebMapServiceOperation(AllowedOperation):
 
     class Meta(AllowedOperation.Meta):
         ordering = ['-secured_service']
-    # TODO: only complete subtrees shall be part of the m2m secured_layers field
+    # FUTURE: only complete subtrees shall be part of the m2m secured_layers field
     # constraints = {
     #     models.CheckConstraint(
     #         name="%(app_label)s_%(class)s_log_response_without_camouflage",
@@ -635,7 +632,7 @@ class WebMapServiceAnalyzedResponseLog(AnalyzedResponseLog):
         except OSError:
             return
 
-        # TODO: implement GetFeatureInfo analyzing
+        # FUTURE: implement GetFeatureInfo analyzing
 
 
 class WebFeatureServiceAnalyzedResponseLog(AnalyzedResponseLog):
@@ -647,8 +644,8 @@ class WebFeatureServiceAnalyzedResponseLog(AnalyzedResponseLog):
     )
 
     def analyze_response(self):
-        # TODO: implement csv analyzing
-        # TODO: implement kml analyzing
-        # TODO: implement geojson analyzing
-        # TODO: implement xml/gml analyzing
+        # FUTURE: implement csv analyzing
+        # FUTURE: implement kml analyzing
+        # FUTURE: implement geojson analyzing
+        # FUTURE: implement xml/gml analyzing
         pass

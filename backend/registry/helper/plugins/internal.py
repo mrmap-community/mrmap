@@ -55,7 +55,7 @@ class QualityInternal:
                 results["success"] = False
             results["rule_sets"].append(mandatory_result)
 
-            # TODO Adapt for MrMap's current Task model or remove
+            # FUTURE: Adapt for MrMap's current Task model or remove
             # if runs_as_async_task():
             #     self.update_progress()
 

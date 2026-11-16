@@ -21,44 +21,41 @@ class Contact(models.Model):
     person_name = models.CharField(
         max_length=200,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("Contact person"),
     )
     email = models.EmailField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("E-Mail")
+        max_length=100, default="", blank=True, verbose_name=_("E-Mail")
     )
     phone = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Phone")
+        max_length=100, default="", blank=True, verbose_name=_("Phone")
     )
     facsimile = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Facsimile")
+        max_length=100, default="", blank=True, verbose_name=_("Facsimile")
     )
     city = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("City")
+        max_length=100, default="", blank=True, verbose_name=_("City")
     )
     postal_code = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Postal code")
+        max_length=100, default="", blank=True, verbose_name=_("Postal code")
     )
     address_type = models.CharField(
         max_length=100,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("Address type"),
     )
     address = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Address")
+        max_length=100, default="", blank=True, verbose_name=_("Address")
     )
     state_or_province = models.CharField(
         max_length=100,
         default="",
-        null=True,
         blank=True,
         verbose_name=_("State or province"),
     )
     country = models.CharField(
-        max_length=100, default="", null=True, blank=True, verbose_name=_("Country")
+        max_length=100, default="", blank=True, verbose_name=_("Country")
     )
 
     def __str__(self):
@@ -80,6 +77,9 @@ class Contact(models.Model):
         )
 
 
+CAN_PUBLISH_FOR_ORGANIZATION = "accounts.can_publish_for_organization"
+
+
 class Organization(Group, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
@@ -88,7 +88,6 @@ class Organization(Group, Contact):
 
     description = models.TextField(
         default="",
-        null=True,
         blank=True,
         verbose_name=_("description"),
         help_text=_("Describe what this organization representing"),
@@ -116,32 +115,31 @@ class Organization(Group, Contact):
             all publishers for this organization (QuerySet)
         """
         return get_objects_for_group(group=self,
-                                     perms='accounts.can_publish_for_organization',
+                                     perms=CAN_PUBLISH_FOR_ORGANIZATION,
                                      klass=Organization,
                                      accept_global_perms=False).exclude(pk=self.pk)
 
     @property
     def publishers(self) -> QuerySet:
-        # TODO:
         return Organization.objects.none()
 
     def add_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            assign_perm(perm='accounts.can_publish_for_organization',
+            assign_perm(perm=CAN_PUBLISH_FOR_ORGANIZATION,
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
 
     def remove_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            remove_perm(perm='accounts.can_publish_for_organization',
+            remove_perm(perm=CAN_PUBLISH_FOR_ORGANIZATION,
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
 
 
 class BaseInternalRequest(models.Model):
-    message = models.TextField(null=True, blank=True)
+    message = models.TextField(blank=True)
     activation_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:

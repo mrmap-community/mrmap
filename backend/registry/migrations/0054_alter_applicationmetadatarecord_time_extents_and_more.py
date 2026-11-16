@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0052_the_generic_profile_names_its_rules'),
+        ('registry', '0053_resources_know_their_owning_organization'),
     ]
 
     operations = [

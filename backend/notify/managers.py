@@ -593,43 +593,81 @@ class OperationalIncidentManager(models.Manager):
                 dedup_key=key,
                 status=IncidentStatusEnum.ACTIVE.value).first()
             if active is not None:
-                values = {
-                    "severity": severity,
-                    "summary": summary,
-                    "details": details,
-                    "last_occurred_at": at,
-                    "occurrence_count": F("occurrence_count") + 1,
-                }
-                if retry_count is not None:
-                    values["retry_count"] = max(int(retry_count), 0)
-                if retry_scheduled_until is not None:
-                    values["retry_scheduled_until"] = retry_scheduled_until
-                moved = self.get_queryset().filter(
-                    pk=active.pk,
-                    status=IncidentStatusEnum.ACTIVE.value).update(**values)
-                if moved:
-                    return self.get_queryset().get(pk=active.pk), False
+                tallied = self._tally_occurrence(active, self._recurrence_values(
+                    severity, summary, details, at, retry_count,
+                    retry_scheduled_until))
+                if tallied is not None:
+                    return tallied
                 # resolved by a concurrent resolver between read and write:
                 # this report is the recurrence of a resolved problem and
                 # has to create its new incident, which the next round does
                 continue
-            try:
-                with transaction.atomic():
-                    incident = self.model(
-                        code=code, source=source, severity=severity,
-                        summary=summary, details=details, dedup_key=key,
-                        first_occurred_at=at, last_occurred_at=at,
-                        retry_count=max(int(retry_count or 0), 0),
-                        retry_scheduled_until=retry_scheduled_until,
-                        **resource)
-                    incident.save()
+            incident = self._new_incident(
+                code, source, severity, summary, details, key, at,
+                retry_count, retry_scheduled_until, resource)
+            if incident is not None:
                 return incident, True
-            except IntegrityError:
-                # a concurrent report created the active incident of this
-                # key; the next round deduplicates onto its row
-                continue
+            # a concurrent report created the active incident of this
+            # key; the next round deduplicates onto its row
         raise RuntimeError(
             f"The report of the incident '{code}' lost every race.")
+
+    def _recurrence_values(self, severity, summary, details, at,
+                           retry_count, retry_scheduled_until):
+        """The columns a recurrence of the standing incident moves up.
+
+        The latest evidence replaces the older one and the counter steps;
+        what the report does not know about - no retry stated - stays the
+        way the standing row has it.
+        """
+        values = {
+            "severity": severity,
+            "summary": summary,
+            "details": details,
+            "last_occurred_at": at,
+            "occurrence_count": F("occurrence_count") + 1,
+        }
+        if retry_count is not None:
+            values["retry_count"] = max(int(retry_count), 0)
+        if retry_scheduled_until is not None:
+            values["retry_scheduled_until"] = retry_scheduled_until
+        return values
+
+    def _tally_occurrence(self, active, values):
+        """Move the standing incident up, answering None when it is gone.
+
+        The update is conditional on the row still being active, so a
+        resolver that got here first wins and this report falls through to
+        the round which creates the new incident of the recurrence.
+        """
+        moved = self.get_queryset().filter(
+            pk=active.pk,
+            status=IncidentStatusEnum.ACTIVE.value).update(**values)
+        if not moved:
+            return None
+        return self.get_queryset().get(pk=active.pk), False
+
+    def _new_incident(self, code, source, severity, summary, details, key,
+                      at, retry_count, retry_scheduled_until, resource):
+        """Create the incident of a problem with no active row.
+
+        Answers None when the insert lost the race for the active row of
+        this key - the unique partial index is the arbiter, the caller
+        deduplicates onto the winner's row in the next round.
+        """
+        try:
+            with transaction.atomic():
+                incident = self.model(
+                    code=code, source=source, severity=severity,
+                    summary=summary, details=details, dedup_key=key,
+                    first_occurred_at=at, last_occurred_at=at,
+                    retry_count=max(int(retry_count or 0), 0),
+                    retry_scheduled_until=retry_scheduled_until,
+                    **resource)
+                incident.save()
+            return incident
+        except IntegrityError:
+            return None
 
     def resolve(self, dedup_key, at=None):
         """Resolve the active incidents of one dedup key (#1319).

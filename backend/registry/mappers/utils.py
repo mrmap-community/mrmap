@@ -658,6 +658,19 @@ def _predicate_holds(el, predicate, nsmap):
             f"Unsupported predicate '[{predicate}]' for writing: {err}")
 
 
+def _children_named(el, tag, predicate, nsmap):
+    """The children one element offers to a step: real elements, of the tag
+    the step names, and only those the predicate holds for."""
+    for child in el:
+        if not isinstance(child.tag, str):
+            continue
+        if tag is not None and child.tag != tag:
+            continue
+        if predicate and not _predicate_holds(child, predicate, nsmap):
+            continue
+        yield child
+
+
 def find_mapped_elements(base_el, steps, nsmap):
     """The elements the child steps name below base_el, in document order."""
     current = [base_el]
@@ -665,17 +678,9 @@ def find_mapped_elements(base_el, steps, nsmap):
         if step.name == ".":
             continue
         tag = _step_qname_or_none(step, nsmap)
-        nxt = []
-        for el in current:
-            for child in el:
-                if not isinstance(child.tag, str):
-                    continue
-                if tag is not None and child.tag != tag:
-                    continue
-                if step.predicate and not _predicate_holds(
-                        child, step.predicate, nsmap):
-                    continue
-                nxt.append(child)
+        nxt = [child for el in current
+               for child in _children_named(
+                   el, tag, step.predicate, nsmap)]
         if not nxt:
             return []
         current = nxt
@@ -697,7 +702,7 @@ def _seed_predicate(child, step, nsmap):
     if _SELF_RE.match(predicate):
         # the union picked its first alternative at creation
         return
-    for condition in re.split(r"\s+and\s+", predicate):
+    for condition in re.split(r"(?<=\s)and(?=\s)", predicate):
         condition = condition.strip()
         eq = _ATTR_EQ_RE.match(condition)
         if eq:
@@ -757,7 +762,7 @@ def _seed_chain_condition(child, condition, step, nsmap):
         el.text = value
 
 
-def _new_child(parent, raw_name, tag, element_order=None):
+def _new_child(parent, _raw_name, tag, element_order=None):
     """Create *tag* below *parent* at the position the schema order names."""
     el = etree.SubElement(parent, tag)
     if element_order:
@@ -886,13 +891,12 @@ def remove_mapped_element(el, stop_at):
     """
     tail = el.tail
     parent = el.getparent()
-    if tail:
-        if parent is not None:
-            prev = el.getprevious()
-            if prev is not None:
-                prev.tail = (prev.tail or "") + tail
-            else:
-                parent.text = (parent.text or "") + tail
+    if tail and parent is not None:
+        prev = el.getprevious()
+        if prev is not None:
+            prev.tail = (prev.tail or "") + tail
+        else:
+            parent.text = (parent.text or "") + tail
     if parent is not None:
         parent.remove(el)
         remove_empty_parents(parent, stop_at)

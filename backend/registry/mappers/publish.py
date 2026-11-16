@@ -386,6 +386,68 @@ def _choice_rows(model, rows, key: str):
     return rows_of
 
 
+#: the m2m collections answered by the lookup tables, with the key an
+#: extracted entry names its value by
+_CHOICE_COLLECTIONS = {
+    "keywords": (Keyword, "keyword"),
+    "languages": (Language, "value"),
+    "categories": (IsoCategory, "value"),
+}
+
+
+def _reference_system_rows(entries):
+    """The rows the extracted reference systems name, prefix and code.
+
+    An entry which names neither is not a reference system and is skipped;
+    the pair the document names is the identity of the row, so a repeated
+    extraction of the same document takes the row back.
+    """
+    rows = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        row, _ = ReferenceSystem.objects.get_or_create(
+            prefix=entry.get("prefix") or "",
+            code=entry.get("code") or "")
+        rows.append(row)
+    return rows
+
+
+def _reextract_scalars(record, values):
+    """The scalar columns the document names, shapes the column can hold."""
+    for name in SOURCE_SCALAR_FIELDS:
+        value = values.get(name)
+        if value is None or isinstance(value, (list, dict)):
+            continue
+        setattr(record, name, value)
+
+
+def _reextract_contacts(record, values):
+    """The contact columns, from the row which already says the same."""
+    for name in _SOURCE_CONTACT_FIELDS:
+        if name not in values:
+            continue
+        contact = _contact_row_for(getattr(record, name, None),
+                                   values[name])
+        if contact is not None:
+            setattr(record, name, contact)
+
+
+def _reextract_collections(record, values):
+    """The m2m collections the document names, lookup rows resolved."""
+    for name in ("keywords", "languages", "categories", "reference_systems"):
+        rows_of = values.get(name)
+        if not isinstance(rows_of, list) or not hasattr(record, name):
+            # not a collection this record kind carries (the service record
+            # names no categories) or the document names none
+            continue
+        if name == "reference_systems":
+            record.reference_systems.set(_reference_system_rows(rows_of))
+            continue
+        model, key = _CHOICE_COLLECTIONS[name]
+        getattr(record, name).set(_choice_rows(model, rows_of, key))
+
+
 def _reextract_into_row(record, values: dict):
     """Write what the submitted document names into the record's row (#1247).
 
@@ -400,40 +462,9 @@ def _reextract_into_row(record, values: dict):
     not hold (the epic #669 structures the configs read but no record column
     carries) is skipped for the same reason the form write refuses it.
     """
-    for name in SOURCE_SCALAR_FIELDS:
-        value = values.get(name)
-        if value is None or isinstance(value, (list, dict)):
-            continue
-        setattr(record, name, value)
-    for name in _SOURCE_CONTACT_FIELDS:
-        if name not in values:
-            continue
-        contact = _contact_row_for(getattr(record, name, None),
-                                   values[name])
-        if contact is not None:
-            setattr(record, name, contact)
-    for name in ("keywords", "languages", "categories", "reference_systems"):
-        rows_of = values.get(name)
-        if not isinstance(rows_of, list) or not hasattr(record, name):
-            # not a collection this record kind carries (the service record
-            # names no categories) or the document names none
-            continue
-        if name == "keywords":
-            record.keywords.set(_choice_rows(Keyword, rows_of, "keyword"))
-        elif name == "languages":
-            record.languages.set(_choice_rows(Language, rows_of, "value"))
-        elif name == "categories":
-            record.categories.set(_choice_rows(IsoCategory, rows_of, "value"))
-        else:
-            rows = []
-            for entry in rows_of:
-                if not isinstance(entry, dict):
-                    continue
-                row, _ = ReferenceSystem.objects.get_or_create(
-                    prefix=entry.get("prefix") or "",
-                    code=entry.get("code") or "")
-                rows.append(row)
-            record.reference_systems.set(rows)
+    _reextract_scalars(record, values)
+    _reextract_contacts(record, values)
+    _reextract_collections(record, values)
 
 
 def _assert_located_date_stamp(document: bytes, record):

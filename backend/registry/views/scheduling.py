@@ -158,52 +158,9 @@ class SchedulingPreviewView(APIView):
                 'This kind of service has no runs of this periodic '
                 'operation.')})
 
-        service = model.objects.filter(pk=draft['service_id']).first()
-        if service is None:
-            raise NotFound(_(
-                'No service of this kind answers under this id.'))
-        if not user.has_perm(f'view_{model._meta.model_name}', service):
-            raise PermissionDenied(_(
-                'The view permission on the service is required to '
-                'preview its schedules.'))
-
-        setting = None
-        if draft.get('setting_id') is not None:
-            setting = setting_model.objects.select_related(
-                'crontab').filter(
-                    pk=draft['setting_id'], service_id=service.pk).first()
-            if setting is None:
-                raise ValidationError({'setting_id': _(
-                    'The answered setting is not the setting of this '
-                    'service and operation.')})
-            if not user.has_perm(
-                    f'change_{setting_model._meta.model_name}', setting):
-                raise PermissionDenied(_(
-                    'The change permission on the setting is required to '
-                    'preview an edit of it.'))
-        else:
-            # the full codename, as DRF's own permission classes ask the
-            # global add permission on the save path of this serializer's
-            # families
-            if not user.has_perm('registry.add_'
-                                 f'{setting_model._meta.model_name}'):
-                raise PermissionDenied(_(
-                    'The add permission on the setting kind is required '
-                    'to preview a schedule which does not exist yet.'))
-
-        fields, _embedded = split_scheduling(draft.get('scheduling') or '')
-        enabled = (draft['enabled'] if 'enabled' in attributes
-                   or setting is None else bool(setting.enabled))
-        # only attributes the request actually carries propose a change;
-        # the answered setting's values survive an omitted attribute
-        proposal = ScheduleProposal(
-            enabled=enabled,
-            crontab=' '.join(fields) if fields else None,
-            timezone=draft.get('timezone') or None,
-            one_off=draft['one_off'] if 'one_off' in attributes else None,
-            start_time=draft['start_time']
-            if 'start_time' in attributes else None,
-            expires=draft['expires'] if 'expires' in attributes else None)
+        service = self._service_of(draft['service_id'], model, user)
+        setting = self._setting_of(draft, setting_model, service, user)
+        proposal = self._proposal_of(draft, attributes, setting)
 
         as_of = now()
         estimate = periodic_capacity_estimate(
@@ -224,6 +181,64 @@ class SchedulingPreviewView(APIView):
             SchedulePreviewSerializer(_answer(
                 estimate, draft, setting, as_of, suggestions)).data,
             headers={'Cache-Control': 'no-store'})
+
+    def _service_of(self, service_id, model, user):
+        """The service of the preview, with its view permission decided."""
+        service = model.objects.filter(pk=service_id).first()
+        if service is None:
+            raise NotFound(_(
+                'No service of this kind answers under this id.'))
+        if not user.has_perm(f'view_{model._meta.model_name}', service):
+            raise PermissionDenied(_(
+                'The view permission on the service is required to '
+                'preview its schedules.'))
+        return service
+
+    def _setting_of(self, draft, setting_model, service, user):
+        """The setting an edit previews, or None when the proposal does not
+        exist yet - each answer with the permission the save path of the
+        same family would ask."""
+        if draft.get('setting_id') is None:
+            # the full codename, as DRF's own permission classes ask the
+            # global add permission on the save path of this serializer's
+            # families
+            if not user.has_perm('registry.add_'
+                                 f'{setting_model._meta.model_name}'):
+                raise PermissionDenied(_(
+                    'The add permission on the setting kind is required '
+                    'to preview a schedule which does not exist yet.'))
+            return None
+        setting = setting_model.objects.select_related(
+            'crontab').filter(
+                pk=draft['setting_id'], service_id=service.pk).first()
+        if setting is None:
+            raise ValidationError({'setting_id': _(
+                'The answered setting is not the setting of this '
+                'service and operation.')})
+        if not user.has_perm(
+                f'change_{setting_model._meta.model_name}', setting):
+            raise PermissionDenied(_(
+                'The change permission on the setting is required to '
+                'preview an edit of it.'))
+        return setting
+
+    def _proposal_of(self, draft, attributes, setting):
+        """The proposal the request states.
+
+        Only attributes the request actually carries propose a change; the
+        answered setting's values survive an omitted attribute.
+        """
+        fields, _embedded = split_scheduling(draft.get('scheduling') or '')
+        enabled = (draft['enabled'] if 'enabled' in attributes
+                   or setting is None else bool(setting.enabled))
+        return ScheduleProposal(
+            enabled=enabled,
+            crontab=' '.join(fields) if fields else None,
+            timezone=draft.get('timezone') or None,
+            one_off=draft['one_off'] if 'one_off' in attributes else None,
+            start_time=draft['start_time']
+            if 'start_time' in attributes else None,
+            expires=draft['expires'] if 'expires' in attributes else None)
 
 
 def _answer(estimate, draft, setting, as_of, suggestions=None):

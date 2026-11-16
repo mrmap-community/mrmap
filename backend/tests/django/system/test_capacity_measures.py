@@ -21,7 +21,7 @@ from system.models import (AttemptQuality, CeleryTaskAttempt)
 
 def seed(task_id=None, attempt_no=0, queue="default", task_name="some.task",
          outcome="success", active=2.0, wait=None, started_ago_seconds=0,
-         quality=None, periodic_name=None, worker="celery@a"):
+         quality=None, periodic_name="", worker="celery@a"):
     """One attempt row as the collector would have written it."""
     started = timezone.now() - timedelta(seconds=started_ago_seconds)
     published = (started - timedelta(seconds=wait)

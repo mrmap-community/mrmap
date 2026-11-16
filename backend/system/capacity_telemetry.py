@@ -93,9 +93,9 @@ class _Attempt:
         self.task_name = task_name
         self.queue = queue
         self.worker = worker
-        self.root_id = root_id
-        self.parent_id = parent_id
-        self.periodic_name = periodic_name
+        self.root_id = root_id or ""
+        self.parent_id = parent_id or ""
+        self.periodic_name = periodic_name or ""
         self.published_at = published_at
         self.started_at = started_at
         self.finished_at = None
@@ -293,7 +293,7 @@ def _enforce_buffer_limit():
     open_entries = sorted(
         (entry for entry in _buffer.values() if not entry.is_terminal),
         key=lambda entry: entry.mono_start)
-    victims = [entry for entry in open_entries[:overflow]]
+    victims = open_entries[:overflow]
     for entry in victims:
         _buffer.pop((entry.task_id, entry.attempt_no), None)
     _stats["dropped"] += len(victims)
@@ -327,7 +327,7 @@ def _flush_if_due(force=False):
     flush_attempts()
 
 
-def flush_attempts(force=True):
+def flush_attempts():
     """Writes the buffered attempts with one insert and trims what is settled.
 
     One ``INSERT ... ON CONFLICT DO NOTHING`` for the whole batch: open
@@ -533,7 +533,7 @@ def mark_attempt_revoked(sender=None, request=None, **kwargs):
         if not task_id:
             return
         task_id = str(task_id)[:64]
-        for (entry_task_id, _attempt_no), entry in list(_buffer.items()):
+        for (entry_task_id, _attempt_no), entry in _buffer.items():
             if entry_task_id == task_id and not entry.is_terminal:
                 _mark_terminal(entry, AttemptOutcome.REVOKED.value)
     except Exception as error:
@@ -552,6 +552,6 @@ def flush_on_process_shutdown(**kwargs):
     if not collection_enabled():
         return
     try:
-        flush_attempts(force=True)
+        flush_attempts()
     except Exception as error:
         logger.debug("capacity telemetry: shutdown flush failed: %s", error)

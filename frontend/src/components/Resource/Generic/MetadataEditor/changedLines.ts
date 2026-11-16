@@ -13,10 +13,8 @@
 
 const MAX_TABLE_CELLS = 4_000_000;
 
-export const changedLinesOf = (base: string, current: string): number[] => {
-  if (base === current) return [];
-  const baseLines = base.split("\n");
-  const currentLines = current.split("\n");
+/** the lines both texts agree on, counted from the front */
+const commonHead = (baseLines: string[], currentLines: string[]): number => {
   let head = 0;
   while (
     head < baseLines.length &&
@@ -25,6 +23,16 @@ export const changedLinesOf = (base: string, current: string): number[] => {
   ) {
     head += 1;
   }
+  return head;
+};
+
+/** the ends both texts agree on, counted from the back and never walking into
+ * the common head: the exclusive ends of the differing middle */
+const commonTail = (
+  baseLines: string[],
+  currentLines: string[],
+  head: number,
+): [number, number] => {
   let baseEnd = baseLines.length;
   let currentEnd = currentLines.length;
   while (
@@ -35,16 +43,12 @@ export const changedLinesOf = (base: string, current: string): number[] => {
     baseEnd -= 1;
     currentEnd -= 1;
   }
-  const middle = baseLines.slice(head, baseEnd);
-  const edited = currentLines.slice(head, currentEnd);
-  const changed = new Set<number>();
-  if (middle.length * edited.length > MAX_TABLE_CELLS) {
-    for (let index = head; index < currentEnd; index += 1) {
-      changed.add(index + 1);
-    }
-    return [...changed].sort((one, other) => one - other);
-  }
-  // suffix table: lengths[i * widths + j] = LCS length of middle[i..], edited[j..]
+  return [baseEnd, currentEnd];
+};
+
+/** the suffix table of the LCS: lengths[i * widths + j] is the LCS length of
+ * middle[i..] with edited[j..]; `widths` is the stride of one row */
+const suffixLengths = (middle: string[], edited: string[]) => {
   const widths = edited.length + 1;
   const lengths = new Uint32Array((middle.length + 1) * widths);
   for (let i = middle.length - 1; i >= 0; i -= 1) {
@@ -55,22 +59,53 @@ export const changedLinesOf = (base: string, current: string): number[] => {
           : Math.max(lengths[(i + 1) * widths + j], lengths[i * widths + j + 1]);
     }
   }
+  return { lengths, widths };
+};
+
+/** the 1-based line numbers of the current text from `from` to `until`, which
+ * is what the too-large-middle answer reports: nothing was aligned there */
+const linesFrom = (from: number, until: number): number[] => {
+  const every: number[] = [];
+  for (let index = from; index < until; index += 1) every.push(index + 1);
+  return every;
+};
+
+/** the marked lines as the ascending list the screen numbers its rows with */
+const ordered = (changed: Set<number>): number[] =>
+  [...changed].sort((one, other) => one - other);
+
+export const changedLinesOf = (base: string, current: string): number[] => {
+  if (base === current) return [];
+  const baseLines = base.split("\n");
+  const currentLines = current.split("\n");
+  const head = commonHead(baseLines, currentLines);
+  const [baseEnd, currentEnd] = commonTail(baseLines, currentLines, head);
+  const middle = baseLines.slice(head, baseEnd);
+  const edited = currentLines.slice(head, currentEnd);
+  if (middle.length * edited.length > MAX_TABLE_CELLS) {
+    // no table without a memory bomb: the whole middle stands unexplained
+    return linesFrom(head, currentEnd);
+  }
+  const { lengths, widths } = suffixLengths(middle, edited);
+  const changed = new Set<number>();
   let i = 0;
   let j = 0;
   while (i < middle.length && j < edited.length) {
     if (middle[i] === edited[j]) {
       i += 1;
       j += 1;
-    } else if (lengths[(i + 1) * widths + j] >= lengths[i * widths + j + 1]) {
-      i += 1; // a base line dropped from the document — nothing to mark
-    } else {
-      changed.add(head + j + 1); // a current line the base cannot explain
-      j += 1;
+      continue;
     }
+    if (lengths[(i + 1) * widths + j] >= lengths[i * widths + j + 1]) {
+      i += 1; // a base line dropped from the document — nothing to mark
+      continue;
+    }
+    changed.add(head + j + 1); // a current line the base cannot explain
+    j += 1;
   }
   while (j < edited.length) {
     changed.add(head + j + 1);
     j += 1;
   }
-  return [...changed].sort((one, other) => one - other);
+  return ordered(changed);
 };

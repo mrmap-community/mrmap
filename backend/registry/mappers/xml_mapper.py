@@ -52,6 +52,16 @@ def is_value_spec(entry):
 MANY_VALUE_FIELDS = (JSONField, ArrayField)
 
 
+def row_items(value):
+    """what the row writers iterate: the given list, the empty answer for
+    the values that state nothing, the single value wrapped as one row"""
+    if isinstance(value, list):
+        return value
+    if value in (None, {}, ""):
+        return []
+    return [value]
+
+
 class XmlMapper:
     db_instance = None
 
@@ -888,23 +898,10 @@ class XmlMapper:
         The first match is written - the same match mapped_values() answered
         for a single valued field (#990); more matches stay untouched.
         """
-        if isinstance(field_spec, str):
-            path, parser_path, reverse_path = field_spec, None, None
-        else:
-            inputs = field_spec.get("_inputs")
-            parser_path = field_spec.get("_parser")
-            reverse_path = field_spec.get("_reverse_parser")
-            if not reverse_path:
-                self.warnings.append(
-                    f"'{name}' is not writable: the config names no "
-                    f"_reverse_parser for it")
-                return
-            if not inputs or len(inputs) != 1:
-                self.warnings.append(
-                    f"'{name}' is not writable: its _inputs are not one "
-                    f"value path")
-                return
-            path = inputs[0]
+        shape = self._flat_field_shape(name, field_spec)
+        if shape is None:
+            return
+        path, parser_path, reverse_path = shape
         if value is None or value == "":
             return
         steps, attr, _is_text = parse_write_path(path)
@@ -914,24 +911,8 @@ class XmlMapper:
         if text is None:
             return
         if isinstance(text, etree._Element):
-            # the reverse parser answers a fragment - a geometry, a nested
-            # reference. The reader of a flat path reads its FIRST match, so
-            # the fragment takes the place of the first match; a missing
-            # path is created and carries it.
-            if attr:  # pragma: no cover - configs are hand checked
-                self.warnings.append(
-                    f"'{name}' is not writable: a fragment is no attribute")
-                return
-            targets = find_mapped_elements(base_el, steps, nsmap)
-            if targets and parser_path:
-                parsed = self._try_parse(parser_path, targets[0])
-                if parsed is not _PARSE_FAILED \
-                        and self._write_equal(parsed, value):
-                    # the document carries this very value in its own
-                    # representation - keep the representation
-                    return
-            place_mapped_fragment(
-                base_el, text, steps, nsmap, element_order=element_order)
+            self._write_flat_fragment(name, parser_path, value, text, attr,
+                                      base_el, steps, nsmap, element_order)
             return
         text = text if isinstance(text, str) else str(text)
 
@@ -939,18 +920,64 @@ class XmlMapper:
         if targets:
             element = targets[0]
             current = get_mapped_value(element, attr_tag)
-            if current == text:
-                return
-            if parser_path and current is not None:
-                parsed = self._try_parse(parser_path, current)
-                if parsed is not _PARSE_FAILED and parsed == value:
-                    # the document carries this very value in its own
-                    # representation - keep the representation
-                    return
-            set_mapped_value(element, attr_tag, text)
+            if current != text and not self._keeps_own_representation(
+                    parser_path, current, value):
+                set_mapped_value(element, attr_tag, text)
             return
         element = ensure_mapped_element(base_el, steps, nsmap, element_order)
         set_mapped_value(element, attr_tag, text)
+
+    def _write_flat_fragment(self, name, parser_path, value, fragment, attr,
+                             base_el, steps, nsmap, element_order):
+        """Write the fragment a flat field's reverse parser answered.
+
+        A geometry or a nested reference comes back as an element rather
+        than as text. The reader of a flat path reads its FIRST match, so
+        the fragment takes the place of the first match and a missing path
+        is created to carry it; the document which already holds this very
+        value in its own representation keeps that representation.
+        """
+        if attr:  # pragma: no cover - configs are hand checked
+            self.warnings.append(
+                f"'{name}' is not writable: a fragment is no attribute")
+            return
+        targets = find_mapped_elements(base_el, steps, nsmap)
+        if targets and parser_path:
+            parsed = self._try_parse(parser_path, targets[0])
+            if (parsed is not _PARSE_FAILED
+                    and self._write_equal(parsed, value)):
+                return
+        place_mapped_fragment(
+            base_el, fragment, steps, nsmap, element_order=element_order)
+
+    def _flat_field_shape(self, name, field_spec):
+        """How a flat field is written: its one value path, the parser which
+        reads it, the reverse parser which writes it - None, with the reason
+        named in the warnings, when the config makes it unwritable."""
+        if isinstance(field_spec, str):
+            return field_spec, None, None
+        inputs = field_spec.get("_inputs")
+        parser_path = field_spec.get("_parser")
+        reverse_path = field_spec.get("_reverse_parser")
+        if not reverse_path:
+            self.warnings.append(
+                f"'{name}' is not writable: the config names no "
+                f"_reverse_parser for it")
+            return None
+        if not inputs or len(inputs) != 1:
+            self.warnings.append(
+                f"'{name}' is not writable: its _inputs are not one "
+                f"value path")
+            return None
+        return inputs[0], parser_path, reverse_path
+
+    def _keeps_own_representation(self, parser_path, current, value):
+        """Whether the document already carries this very value, in its own
+        representation - which is the one worth keeping."""
+        if not parser_path or current is None:
+            return False
+        parsed = self._try_parse(parser_path, current)
+        return parsed is not _PARSE_FAILED and parsed == value
 
     def _write_related_field(self, record_model, name, spec, value, nsmap,
                              element_order):
@@ -964,19 +991,11 @@ class XmlMapper:
         attr_tag = resolve_write_qname(attr, nsmap) if attr else None
 
         if not is_many_relation(record_model, name):
-            if not value:
-                return
-            matches = find_mapped_elements(self.current_element, steps, nsmap)
-            # the reader loops all base matches and answers the instance
-            # parsed from the LAST one; the write goes to the same element
-            leaf = matches[-1] if matches else ensure_mapped_element(
-                self.current_element, steps, nsmap, element_order)
-            self._write_row_values(name, spec, value, leaf, attr_tag, nsmap,
-                                   element_order)
+            self._write_single_related_row(
+                name, spec, value, steps, attr_tag, nsmap, element_order)
             return
 
-        items = value if isinstance(value, list) else \
-            ([] if value in (None, {}, "") else [value])
+        items = row_items(value)
         if not items:
             # an empty list is "nothing was given", never "delete everything"
             return
@@ -988,27 +1007,53 @@ class XmlMapper:
         last_row = (self._climb_row(matches[-1], steps, row_idx)
                     if matches else None)
         for position, item in enumerate(items):
-            if position < len(matches):
-                leaf = matches[position]
-            else:
-                if last_row is None:
-                    container = ensure_mapped_element(
-                        self.current_element, steps[:row_idx], nsmap,
-                        element_order)
-                    leaf = create_mapped_row(
-                        container, suffix, nsmap, element_order)
-                else:
-                    # the rows of one collection can live in several blocks;
-                    # the new row follows the last row, not the first block
-                    leaf = create_mapped_row(
-                        None, suffix, nsmap, element_order, after=last_row)
-                last_row = self._climb_row(leaf, suffix, 0)
+            leaf, last_row = self._row_at_position(
+                matches, position, steps, row_idx, suffix, nsmap,
+                element_order, last_row)
             self._write_row_values(name, spec, item, leaf, attr_tag, nsmap,
                                    element_order)
         for surplus in matches[len(items):]:
             remove_mapped_element(
                 self._climb_row(surplus, steps, row_idx),
                 self.current_element)
+
+    def _write_single_related_row(self, name, spec, value, steps, attr_tag,
+                                  nsmap, element_order):
+        """Write the one row a related field with a single value carries.
+
+        The reader of such a spec loops all base matches and answers the
+        instance parsed from the LAST one, so the write goes to that same
+        element; a spec without a value writes nothing of its own.
+        """
+        if not value:
+            return
+        matches = find_mapped_elements(self.current_element, steps, nsmap)
+        leaf = (matches[-1] if matches
+                else ensure_mapped_element(self.current_element, steps, nsmap,
+                                           element_order))
+        self._write_row_values(name, spec, value, leaf, attr_tag, nsmap,
+                               element_order)
+
+    def _row_at_position(self, matches, position, steps, row_idx, suffix,
+                         nsmap, element_order, last_row):
+        """The row element of one value of the collection, and the last row
+        of the document after this write.
+
+        The document's own row when it carries this one; else a fresh row -
+        beneath the container the base path names when the collection has no
+        row at all, after the last row otherwise, because the rows of one
+        collection can live in several blocks.
+        """
+        if position < len(matches):
+            return matches[position], last_row
+        if last_row is None:
+            container = ensure_mapped_element(
+                self.current_element, steps[:row_idx], nsmap, element_order)
+            leaf = create_mapped_row(container, suffix, nsmap, element_order)
+        else:
+            leaf = create_mapped_row(
+                None, suffix, nsmap, element_order, after=last_row)
+        return leaf, self._climb_row(leaf, suffix, 0)
 
     def _write_row_values(self, name, spec, item, leaf, attr_tag, nsmap,
                           element_order):
@@ -1021,38 +1066,7 @@ class XmlMapper:
         """
         fields = spec.get("fields")
         if not fields:
-            reverse_path = spec.get("_reverse_parser")
-            if not reverse_path:
-                self.warnings.append(
-                    f"'{name}' is not writable: the spec names no "
-                    f"_reverse_parser for its rows")
-                return
-            instance = self._row_instance(spec, item)
-            if instance is None:
-                return
-            if self._is_empty_row(instance):
-                # mapped_values() answers an unsaved ChoiceModel row whose
-                # only field is its primary key as an empty dict - the value
-                # of such a row never reached the editor, so there is nothing
-                # this write could write; leave the document alone
-                return
-            text = load_function(reverse_path)(self, instance)
-            if text is None:
-                return
-            if isinstance(text, etree._Element):
-                self._write_fragment_row(spec, instance, text, leaf)
-                return
-            current = get_mapped_value(leaf, attr_tag)
-            if current == str(text):
-                return
-            parser_path = spec.get("_parser")
-            if parser_path and current is not None:
-                parsed = self._try_parse(parser_path, current)
-                if parsed is not _PARSE_FAILED and isinstance(
-                        parsed, db_models.Model) and self._comparable_instance(
-                            parsed) == self._comparable_instance(instance):
-                    return
-            set_mapped_value(leaf, attr_tag, str(text))
+            self._write_serialized_row(name, spec, item, leaf, attr_tag)
             return
 
         for field_name, field_spec in fields.items():
@@ -1063,6 +1077,46 @@ class XmlMapper:
             self._write_flat_field(
                 f"{name}.{field_name}", field_spec, field_value, leaf, nsmap,
                 element_order)
+
+    def _write_serialized_row(self, name, spec, item, leaf, attr_tag):
+        """Write a row the spec answers as one serialized value.
+
+        The row is an instance first and text second: an empty row never
+        reached the editor - mapped_values() answers an unsaved ChoiceModel
+        row whose only field is its primary key as an empty dict - so there
+        is nothing this write could write, and a document which already
+        carries the same value in its own representation stays as it is.
+        """
+        reverse_path = spec.get("_reverse_parser")
+        if not reverse_path:
+            self.warnings.append(
+                f"'{name}' is not writable: the spec names no "
+                f"_reverse_parser for its rows")
+            return
+        instance = self._row_instance(spec, item)
+        if instance is None or self._is_empty_row(instance):
+            return
+        text = load_function(reverse_path)(self, instance)
+        if text is None:
+            return
+        if isinstance(text, etree._Element):
+            # the row is an element fragment (the gml:TimePeriod of a
+            # time_extents row), placed inside the row element itself
+            self._write_fragment_row(spec, instance, text, leaf)
+            return
+        text = str(text)
+        current = get_mapped_value(leaf, attr_tag)
+        if current == text:
+            return
+        parser_path = spec.get("_parser")
+        if parser_path and current is not None:
+            parsed = self._try_parse(parser_path, current)
+            if (parsed is not _PARSE_FAILED
+                    and isinstance(parsed, db_models.Model)
+                    and self._comparable_instance(parsed)
+                    == self._comparable_instance(instance)):
+                return
+        set_mapped_value(leaf, attr_tag, text)
 
     def _write_fragment_row(self, spec, instance, fragment, leaf):
         """Write a fragment row into the matched element that carries it.
@@ -1130,7 +1184,8 @@ class XmlMapper:
         try:
             return model_cls(
                 **{k: v for k, v in item.items() if k in names})
-        except Exception as err:  # noqa: BLE001 - reported, not raised
+        # an unbuildable row is reported as a warning, never raised
+        except Exception as err:  # noqa: BLE001
             self.warnings.append(
                 f"can not build {spec.get('_model')} from {item!r}: {err}")
             return None

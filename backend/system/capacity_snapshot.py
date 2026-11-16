@@ -498,6 +498,42 @@ def _queue_entry(name, declared, zero_consumers, topology_ok, consumers,
     }
 
 
+def _apply_eligibility(entry, name, consumers, slots_of, queues_of, demand,
+                       topology_ok, horizon_seconds):
+    """The capacity a queue may verifiably count as its own: complete,
+    exclusive or neither - the rho answer reads exactly these numbers."""
+    slots, complete, exclusive = _eligible_capacity(
+        name, consumers, slots_of, queues_of, demand, topology_ok)
+    entry["eligible_workers_complete"] = complete
+    entry["exclusive_workers"] = exclusive
+    entry["eligible_slots"] = slots if complete else None
+    entry["eligible_slot_seconds"] = (
+        slots * horizon_seconds
+        if complete and slots is not None else None)
+    entry["other_workload_worker_seconds"] = None
+    entry["rho"] = None
+
+
+def _apply_health(entry, name, zero_consumers, topology_ok, gaps):
+    """How this queue is living: starved, unobservable or answered - the
+    verdict which decides whether rho is readable at all."""
+    if name in zero_consumers:
+        gaps.add(GAP_ZERO_CONSUMER_QUEUE)
+        entry["status"] = "degraded"
+        entry["note"] = (
+            "no live worker consumes this queue: the starvation shape "
+            "of #970/#1040 - messages are accepted and never executed, "
+            "so neither wait nor capacity is answerable")
+    elif not topology_ok:
+        entry["status"] = "unknown"
+        entry["note"] = (
+            "the fleet could not be observed; consumers, capacity and "
+            "rho are unknown, not zero")
+    else:
+        entry["status"] = "ok"
+        entry["rho"] = _queue_rho(entry)
+
+
 def _queue_answers(declared, demand, topology, depths, messages, observed,
                    pools, horizon_seconds, gaps):
     """The per-queue section: depth, consumers, demand, evidence, rho.
@@ -528,31 +564,9 @@ def _queue_answers(declared, demand, topology, depths, messages, observed,
         entry = _queue_entry(name, declared, zero_consumers, topology_ok,
                              consumers, depth_entry, depths, demand_entry,
                              observed)
-        slots, complete, exclusive = _eligible_capacity(
-            name, consumers, slots_of, queues_of, demand, topology_ok)
-        entry["eligible_workers_complete"] = complete
-        entry["exclusive_workers"] = exclusive
-        entry["eligible_slots"] = slots if complete else None
-        entry["eligible_slot_seconds"] = (
-            slots * horizon_seconds
-            if complete and slots is not None else None)
-        entry["other_workload_worker_seconds"] = None
-        entry["rho"] = None
-        if name in zero_consumers:
-            gaps.add(GAP_ZERO_CONSUMER_QUEUE)
-            entry["status"] = "degraded"
-            entry["note"] = (
-                "no live worker consumes this queue: the starvation shape "
-                "of #970/#1040 - messages are accepted and never executed, "
-                "so neither wait nor capacity is answerable")
-        elif not topology_ok:
-            entry["status"] = "unknown"
-            entry["note"] = (
-                "the fleet could not be observed; consumers, capacity and "
-                "rho are unknown, not zero")
-        else:
-            entry["status"] = "ok"
-            entry["rho"] = _queue_rho(entry)
+        _apply_eligibility(entry, name, consumers, slots_of, queues_of,
+                           demand, topology_ok, horizon_seconds)
+        _apply_health(entry, name, zero_consumers, topology_ok, gaps)
         entry["drain_estimate"] = None
         entry["drain_reason"] = _drain_reason(entry, messages)
         answers[name] = entry

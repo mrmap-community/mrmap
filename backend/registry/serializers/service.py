@@ -52,6 +52,13 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
 
+#: the read-only answer of the stored owner of #733, one text for the three
+#: service serializers that expose it
+OWNER_HELP_TEXT = _(
+    "the organization which owns this service; empty on services "
+    "registered before ownership was stored")
+
+
 class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     service = ResourceRelatedField(
@@ -547,9 +554,7 @@ class WebMapServiceListSerializer(
         model=Organization,
         read_only=True,
         label=_("owner"),
-        help_text=_(
-            "the organization which owns this service; empty on services "
-            "registered before ownership was stored"))
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -688,15 +693,16 @@ class OrganizationOwnerCreateSerializerMixin:
 #: the client-facing words of the create relation, one answer for the three
 #: resource kinds so that schema and dialog name the concept identically
 #: (#1267) - unpacked into each create serializer's own `owner` declaration
-OWNERSHIP_FIELD_KWARGS = dict(
-    queryset=Organization.objects,
-    required=False,
-    label=_("owner"),
-    help_text=_(
+OWNERSHIP_FIELD_KWARGS = {
+    "queryset": Organization.objects,
+    "required": False,
+    "label": _("owner"),
+    "help_text": _(
         "The organization which owns the registered service and grants all "
         "rights on it. Required when the creating user belongs to more than "
         "one organization; the creating user must be a member of an "
-        "organization named here."))
+        "organization named here."),
+}
 
 
 class WebMapServiceCreateSerializer(
@@ -918,9 +924,7 @@ class WebFeatureServiceSerializer(
         model=Organization,
         read_only=True,
         label=_("owner"),
-        help_text=_(
-            "the organization which owns this service; empty on services "
-            "registered before ownership was stored"))
+        help_text=OWNER_HELP_TEXT)
 
     web_feature_service_monitoring_settings = ResourceRelatedField(
         source="web_feature_service_monitorings",
@@ -1109,9 +1113,7 @@ class CatalogueServiceSerializer(
         model=Organization,
         read_only=True,
         label=_("owner"),
-        help_text=_(
-            "the organization which owns this service; empty on services "
-            "registered before ownership was stored"))
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         "harvesting_jobs": 'registry.serializers.harvesting.HarvestingJobSerializer',

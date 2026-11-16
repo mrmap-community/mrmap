@@ -177,7 +177,7 @@ def findings_to_errors(findings, status="400"):
     counts = {}
     for finding in findings:
         family = counts.setdefault(
-            finding.family, {severity: 0 for severity in SEVERITIES})
+            finding.family, dict.fromkeys(SEVERITIES, 0))
         family[finding.severity] += 1
     counted = {
         family: {severity: str(n) for severity, n in severities.items()}

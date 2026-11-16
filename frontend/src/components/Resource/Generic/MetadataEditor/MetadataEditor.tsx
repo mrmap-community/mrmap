@@ -86,7 +86,7 @@ import { METADATA_EDITOR_WIDGETS } from "./widgets";
 // the related instances the editor's inputs and the reused read-only cards
 // render — the same set `RecordShow` asks for, plus the profile whose
 // sections and rules drive the editor itself (#1243's include decision)
-const RECORD_INCLUDES = [
+const RECORD_INCLUDES = new Set([
   "profile",
   "metadataContact",
   "datasetContact",
@@ -100,7 +100,7 @@ const RECORD_INCLUDES = [
   "harvestedThrough",
   "createdBy",
   "lastModifiedBy",
-];
+]);
 
 // the read-only areas of the rail: they reuse the RecordShow cards and their
 // translation keys instead of a second overview
@@ -180,6 +180,13 @@ const EditorFieldRow = ({
 // the row component readable without importing the whole namespace
 type EditorFieldLike = EditorSection["groups"][number]["fields"][number];
 
+/** the identity of one rendered group: its ISO element plus the first field
+ * it renders. Both stay what they were while the group renders the same
+ * fields, unlike the position of the group, which moves the moment a card in
+ * front of it is added or dropped */
+const groupKey = (group: EditorSection["groups"][number]): string =>
+  `${group.elementPath ?? "flat"}:${group.fields[0]?.source ?? ""}`;
+
 interface SectionPaneProps {
   section: EditorSection;
   mode: EditorMode;
@@ -201,10 +208,10 @@ const SectionPane = ({
       <Typography variant="h5" component="h2">
         {section.label}
       </Typography>
-      {fields.map((group, index) =>
+      {fields.map((group) =>
         mode === "advanced" && group.elementPath ? (
           <SimpleCard
-            key={`${group.elementPath}:${index}`}
+            key={groupKey(group)}
             title={
               <Stack
                 direction="row"
@@ -238,7 +245,7 @@ const SectionPane = ({
             ))}
           </SimpleCard>
         ) : (
-          <Stack key={`group:${index}`} spacing={2}>
+          <Stack key={groupKey(group)} spacing={2}>
             {group.fields.map((field) => (
               <EditorFieldRow
                 key={field.source}
@@ -456,6 +463,83 @@ const EditorPanes = ({
   );
 };
 
+/** the ISO paths and the array-ness of one operation component, read from
+ * the two property families which carry the `x-iso-path` extensions */
+const schemaPathsOf = (
+  properties: Record<string, SchemaProperty | undefined> | undefined,
+): { isoPaths: Record<string, string>; repeatableSources: string[] } => {
+  const attributes = properties?.attributes?.properties ?? {};
+  const relationships = properties?.relationships?.properties ?? {};
+  const paths: Record<string, string> = {};
+  const repeatable: string[] = [];
+  for (const [name, property] of Object.entries(attributes)) {
+    if (typeof property?.["x-iso-path"] === "string")
+      paths[name] = property["x-iso-path"];
+    if (property?.type === "array") repeatable.push(name);
+  }
+  for (const [name, property] of Object.entries(relationships)) {
+    if (typeof property?.["x-iso-path"] === "string")
+      paths[name] = property["x-iso-path"];
+    if (property?.properties?.data?.type === "array") repeatable.push(name);
+  }
+  return { isoPaths: paths, repeatableSources: repeatable };
+};
+
+/** without a seeded profile the editor still edits: every writable schema
+ * field forms one flat section and the server keeps the rules */
+const sectionsWithoutProfile = (
+  definitions: FieldDefinition[],
+  label: string,
+): ProfileSection[] => [
+  {
+    id: "fields",
+    label,
+    fields: definitions
+      .filter((definition) => !definition.props.disabled)
+      .map((definition) => ({
+        field: definition.props.source,
+        requirement: "recommended" as const,
+      })),
+  },
+];
+
+/** the read-only areas of the rail: the RecordShow cards reused instead of a
+ * second overview; the history of a record is an area only where the
+ * deployment answers the historical resource (#1244) */
+const readOnlyRailItems = (
+  translate: (key: string) => string,
+  hasHistory: boolean,
+): RailItem[] => [
+  { id: READONLY_CONTACTS, label: translate("recordShow.contacts") },
+  { id: READONLY_RELATIONS, label: translate("recordShow.relations") },
+  { id: READONLY_HARVESTS, label: translate("recordShow.harvests") },
+  ...(hasHistory
+    ? [{ id: READONLY_HISTORY, label: translate("recordShow.history") }]
+    : []),
+];
+
+/** the pane of a read-only area: the reused card of that identity, and
+ * nothing for an identifier of the editable sections themselves */
+const readOnlyPaneOf = (
+  which: string | undefined,
+  translate: (key: string) => string,
+): ReactElement | undefined => {
+  if (which === READONLY_CONTACTS) return <RecordContacts />;
+  if (which === READONLY_RELATIONS) {
+    return (
+      <Stack spacing={1} sx={{ minWidth: 0 }}>
+        <Typography variant="body2" color="text.secondary">
+          {translate("metadataEditor.relationsReadonly")}
+        </Typography>
+        <RecordRelations />
+      </Stack>
+    );
+  }
+  if (which === READONLY_HARVESTS) return <RecordHistory harvests />;
+  if (which === READONLY_HISTORY) return <RecordHistory />;
+  return undefined;
+};
+
 const EditorContent = ({
   type,
   mode,
@@ -482,26 +566,15 @@ const EditorContent = ({
 
   // the ISO paths and the array-ness come from the same operation component
   // whose properties carry `x-iso-path` (#1240's postprocessing hook)
-  const { isoPaths, repeatableSources } = useMemo(() => {
-    const properties = schema?.properties as
-      | Record<string, SchemaProperty | undefined>
-      | undefined;
-    const attributes = properties?.attributes?.properties ?? {};
-    const relationships = properties?.relationships?.properties ?? {};
-    const paths: Record<string, string> = {};
-    const repeatable: string[] = [];
-    for (const [name, property] of Object.entries(attributes)) {
-      if (typeof property?.["x-iso-path"] === "string")
-        paths[name] = property["x-iso-path"];
-      if (property?.type === "array") repeatable.push(name);
-    }
-    for (const [name, property] of Object.entries(relationships)) {
-      if (typeof property?.["x-iso-path"] === "string")
-        paths[name] = property["x-iso-path"];
-      if (property?.properties?.data?.type === "array") repeatable.push(name);
-    }
-    return { isoPaths: paths, repeatableSources: repeatable };
-  }, [schema]);
+  const { isoPaths, repeatableSources } = useMemo(
+    () =>
+      schemaPathsOf(
+        schema?.properties as
+          | Record<string, SchemaProperty | undefined>
+          | undefined,
+      ),
+    [schema],
+  );
 
   const profile = (record?.profile ?? undefined) as ProfileData | undefined;
   const profileSections = Array.isArray(profile?.sections)
@@ -515,18 +588,10 @@ const EditorContent = ({
         sections:
           profileSections.length > 0
             ? profileSections
-            : [
-                {
-                  id: "fields",
-                  label: translate("metadataEditor.fieldsSection"),
-                  fields: definitions
-                    .filter((definition) => !definition.props.disabled)
-                    .map((definition) => ({
-                      field: definition.props.source,
-                      requirement: "recommended" as const,
-                    })),
-                },
-              ],
+            : sectionsWithoutProfile(
+                definitions,
+                translate("metadataEditor.fieldsSection"),
+              ),
         definitions,
         isoPaths,
         repeatableSources,
@@ -538,14 +603,10 @@ const EditorContent = ({
 
   if (!record) return null;
 
-  const readOnlyItems: RailItem[] = [
-    { id: READONLY_CONTACTS, label: translate("recordShow.contacts") },
-    { id: READONLY_RELATIONS, label: translate("recordShow.relations") },
-    { id: READONLY_HARVESTS, label: translate("recordShow.harvests") },
-    ...(historicalOperation
-      ? [{ id: READONLY_HISTORY, label: translate("recordShow.history") }]
-      : []),
-  ];
+  const readOnlyItems = readOnlyRailItems(
+    translate,
+    Boolean(historicalOperation),
+  );
 
   const available = [
     ...sections.map((section) => section.id),
@@ -554,21 +615,7 @@ const EditorContent = ({
   const effectiveActive =
     active && available.includes(active) ? active : available[0];
 
-  const readOnlyPane =
-    effectiveActive === READONLY_CONTACTS ? (
-      <RecordContacts />
-    ) : effectiveActive === READONLY_RELATIONS ? (
-      <Stack spacing={1} sx={{ minWidth: 0 }}>
-        <Typography variant="body2" color="text.secondary">
-          {translate("metadataEditor.relationsReadonly")}
-        </Typography>
-        <RecordRelations />
-      </Stack>
-    ) : effectiveActive === READONLY_HARVESTS ? (
-      <RecordHistory harvests />
-    ) : effectiveActive === READONLY_HISTORY ? (
-      <RecordHistory />
-    ) : undefined;
+  const readOnlyPane = readOnlyPaneOf(effectiveActive, translate);
 
   const sourceCard = (
     <SimpleCard title={translate("metadataEditor.sourceCard")}>
@@ -750,7 +797,7 @@ const MetadataEditor = ({ type }: MetadataEditorProps): ReactElement => {
     };
     if (sparseFieldsPerResource) {
       for (const name of include) {
-        if (RECORD_INCLUDES.includes(name) || name === "profile") continue;
+        if (RECORD_INCLUDES.has(name) || name === "profile") continue;
         jsonApiParams[`fields[${name}]`] = "id,string_representation";
       }
     }

@@ -47,7 +47,9 @@ export interface SchedulePreviewAnswer {
   };
   warningCodes: string[];
   warnings: { code: string; message: string }[];
-  capacity: unknown | null;
+  /** the capacity section of the estimate, in whatever shape the backend
+   * answers it; null is the answer that no capacity was computable */
+  capacity: unknown;
   capacityReason: string;
   /** the cadence-preserving alternatives of #1328; empty whenever the
    * engine refused, and a refusal carries its reason below */
@@ -240,10 +242,10 @@ const SchedulePreviewPanel = ({
       );
       setAnswer(data);
       setAskedDraft(draftKey);
-    } catch (caught) {
+    } catch (error_) {
       setAnswer(null);
       setAskedDraft(null);
-      setError(errorDetail(caught));
+      setError(errorDetail(error_));
     } finally {
       setLoading(false);
     }
@@ -255,7 +257,8 @@ const SchedulePreviewPanel = ({
    * kept, a suggestion never moves the zone. */
   const apply = (suggestion: ScheduleSuggestion) => {
     const source = CRONTAB_SOURCE[operation];
-    const suffix = String(values[source] ?? "")
+    const carried = (values[source] as string | undefined) ?? "";
+    const suffix = carried
       .trim()
       .split(/\s+/)
       .slice(5)

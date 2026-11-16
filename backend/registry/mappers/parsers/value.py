@@ -361,11 +361,11 @@ def serialize_bounding_geometry(mapper, value):
     return element
 
 
-def int_to_charset(mapper, value):
+def int_to_charset(_mapper, value):
     return MetadataCharsetChoices(value).label
 
 
-def int_to_update_frequency(mapper, value):
+def int_to_update_frequency(_mapper, value):
     return UpdateFrequencyChoices(value).label
 
 

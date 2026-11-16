@@ -150,11 +150,11 @@ class ScheduleProposal:
     """
 
     enabled: bool = True
-    crontab: str = None
-    timezone: str = None
-    one_off: bool = None
-    start_time: datetime = None
-    expires: datetime = None
+    crontab: str | None = None
+    timezone: str | None = None
+    one_off: bool | None = None
+    start_time: datetime | None = None
+    expires: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -162,9 +162,9 @@ class ScheduleAnswer:
     """The schedule side of an estimate, decided with canonical Celery semantics."""
 
     enabled: bool = False
-    crontab: str = None
-    next_run_expected_at: datetime = None
-    run_interval_seconds: float = None
+    crontab: str | None = None
+    next_run_expected_at: datetime | None = None
+    run_interval_seconds: float | None = None
     #: the coming occurrences of the schedule, ascending, decided by the
     #: same canonical stepping as `next_run_expected_at` (#1327)
     next_occurrences: tuple = ()
@@ -182,15 +182,15 @@ class ElapsedEstimate:
     """
 
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
-    median_seconds: float = None
-    p95_seconds: float = None
-    average_seconds: float = None
+    median_seconds: float | None = None
+    p95_seconds: float | None = None
+    average_seconds: float | None = None
     sample_count: int = 0
     p95_minimum_samples: int = P95_MIN_SAMPLES
     failed_count: int = 0
     incomplete_count: int = 0
     lookback_days: int = LOOKBACK_DAYS
-    last_measurement_at: datetime = None
+    last_measurement_at: datetime | None = None
     gaps: tuple = ()
 
 
@@ -198,7 +198,7 @@ class ElapsedEstimate:
 class QueueWaitEstimate:
     """Enqueue to task start. Null unless an authoritative pair exists."""
 
-    seconds: float = None
+    seconds: float | None = None
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
     gap: str = EstimateGapEnum.QUEUE_PAIR_MISSING.value
     reason: str = QUEUE_PAIR_GAP
@@ -212,7 +212,7 @@ class WorkerSlotEstimate:
     elapsed time of a run is never answered here.
     """
 
-    seconds: float = None
+    seconds: float | None = None
     evidence: str = EvidenceQualityEnum.UNKNOWN.value
     gap: str = EstimateGapEnum.WORKER_TELEMETRY_MISSING.value
     reason: str = WORKER_TELEMETRY_GAP
@@ -226,9 +226,9 @@ class OverlapRisk:
     median - so the qualifier is never read as a guarantee.
     """
 
-    potential_overlap: bool = None
-    basis: str = None
-    interval_seconds: float = None
+    potential_overlap: bool | None = None
+    basis: str | None = None
+    interval_seconds: float | None = None
     qualifier: str = OVERLAP_QUALIFIER
     gaps: tuple = ()
 
@@ -242,10 +242,10 @@ class PeriodicCapacityEstimate:
     never filters the observations.
     """
 
-    operation: str = None
-    service_kind: str = None
-    service_id: str = None
-    setting_id: int = None
+    operation: str | None = None
+    service_kind: str | None = None
+    service_id: str | None = None
+    setting_id: int | None = None
     scope: tuple = ()
     schedule: ScheduleAnswer = field(default_factory=ScheduleAnswer)
     elapsed: ElapsedEstimate = field(default_factory=ElapsedEstimate)
@@ -347,8 +347,8 @@ class _RunHistory:
 
     durations: tuple = ()   # measurable durations of completed runs inside the window
     unmeasurable: int = 0   # completed runs whose timestamps measure no duration
-    average: timedelta = None   # #693-compatible average over all completed runs
-    last_done: datetime = None  # newest terminal completion, any age
+    average: timedelta | None = None  # #693-compatible average over all completed runs
+    last_done: datetime | None = None  # newest terminal completion, any age
     completed_total: int = 0    # completed comparable runs, any age
     failed: int = 0             # runs which ended failing, any age
     incomplete: int = 0         # runs which did not reach a terminal state
@@ -525,7 +525,7 @@ def _monitoring_history(kind, setting, service_id, window_start):
         incomplete=base.filter(not_reached).count())
 
 
-def _update_history(kind, setting, service_id, window_start):
+def _update_history(kind, _setting, service_id, window_start):
     """What the update jobs of the service answer.
 
     The verified pair of an update is `date_created` to `done_at`; a job
@@ -557,7 +557,7 @@ def _update_history(kind, setting, service_id, window_start):
             status=UpdateJobStatusEnum.ERROR.value).count())
 
 
-def _harvest_history(kind, setting, service_id, window_start):
+def _harvest_history(kind, _setting, service_id, window_start):
     """What the harvesting runs of the catalogue answer.
 
     Completed runs are measured exactly the way #693 measures them - the
@@ -672,6 +672,40 @@ def _overlap(effective, schedule, elapsed):
         interval_seconds=schedule.run_interval_seconds)
 
 
+def _service_exists(kind, service_id):
+    """Whether a service of this kind answers under this identifier.
+
+    An answer which is not an identifier at all is not a service either, so
+    the database's complaint about it is the same unknown service as a
+    missing row - the estimate degrades, it never raises.
+    """
+    try:
+        return kind.service.objects.filter(pk=service_id).exists()
+    except (ValidationError, ValueError, TypeError):
+        return False
+
+
+def _setting_belongs(setting, model, operation, service_id):
+    """Whether the answered setting is the setting of this very pair."""
+    expected = SETTING_MODEL_OF.get((model, operation))
+    return (type(setting) is expected
+            and str(getattr(setting, 'service_id', None)) == str(service_id))
+
+
+def _history_of(kind, model, operation, setting, service_id, window_start):
+    """The run history of the operation of this service, or None when the
+    service kind does not run this operation at all."""
+    if operation is RunOperationEnum.HARVEST:
+        if kind.harvesting_job is None:
+            return None
+        return _harvest_history(kind, setting, service_id, window_start)
+    if model not in RUN_MODEL_OF[operation]:
+        return None
+    if operation is RunOperationEnum.MONITORING:
+        return _monitoring_history(kind, setting, service_id, window_start)
+    return _update_history(kind, setting, service_id, window_start)
+
+
 def periodic_capacity_estimate(service_kind, service_id, operation,
                                setting=None, proposal=None, scope=(),
                                at=None):
@@ -714,34 +748,19 @@ def periodic_capacity_estimate(service_kind, service_id, operation,
         return _degraded(operation, service_kind, service_id, setting, scope,
                          EstimateGapEnum.UNKNOWN_SERVICE.value)
 
-    try:
-        service_exists = kind.service.objects.filter(pk=service_id).exists()
-    except (ValidationError, ValueError, TypeError):
-        service_exists = False
-    if not service_exists:
+    if not _service_exists(kind, service_id):
         return _degraded(operation, service_kind, service_id, setting,
                          scope, EstimateGapEnum.UNKNOWN_SERVICE.value)
 
-    if setting is not None:
-        expected = SETTING_MODEL_OF.get((model, operation))
-        belongs = (type(setting) is expected
-                   and str(getattr(setting, 'service_id', None))
-                   == str(service_id))
-        if not belongs:
-            return _degraded(operation, model.__name__, service_id, setting,
-                             scope, EstimateGapEnum.INVALID_SETTING.value)
+    if setting is not None and not _setting_belongs(
+            setting, model, operation, service_id):
+        return _degraded(operation, model.__name__, service_id, setting,
+                         scope, EstimateGapEnum.INVALID_SETTING.value)
 
     schedule, effective = _schedule(setting, proposal, current_time)
-    if operation is RunOperationEnum.HARVEST:
-        if kind.harvesting_job is None:
-            return _degraded(operation, model.__name__, service_id, setting,
-                             scope,
-                             EstimateGapEnum.UNSUPPORTED_OPERATION.value)
-        history = _harvest_history(kind, setting, service_id, window_start)
-    elif model in RUN_MODEL_OF[operation]:
-        history = (_monitoring_history if operation is RunOperationEnum.MONITORING
-                   else _update_history)(kind, setting, service_id, window_start)
-    else:
+    history = _history_of(kind, model, operation, setting, service_id,
+                          window_start)
+    if history is None:
         return _degraded(operation, model.__name__, service_id, setting,
                          scope, EstimateGapEnum.UNSUPPORTED_OPERATION.value)
 

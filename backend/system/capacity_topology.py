@@ -75,6 +75,45 @@ def _worker_slots(stats_entry):
     return None
 
 
+def _observed_workers(stats, active):
+    """One entry per live worker: the slots its ``stats`` answer states and
+    the queues its ``active_queues`` answer names - None queues whenever
+    that second answer stayed out."""
+    workers = {}
+    for node, entry in stats.items():
+        if not isinstance(entry, dict):
+            entry = {}
+        queues = None
+        if active:
+            replies = active.get(node)
+            if replies is not None:
+                queues = sorted({
+                    queue.get("name") for queue in replies
+                    if isinstance(queue, dict) and queue.get("name")})
+        workers[str(node)] = {
+            "slots": _worker_slots(entry),
+            "queues": queues,
+        }
+    return workers
+
+
+def _routing_of(workers, declared):
+    """Which queue which worker consumes: every declared queue gets a
+    (possibly empty) consumer list, workers without routing answer are
+    reported apart - the fleet of #1326 must not spread them anywhere."""
+    consumed_by = {name: [] for name in declared}
+    unknown_routing = []
+    for node, entry in sorted(workers.items()):
+        if entry["queues"] is None:
+            unknown_routing.append(node)
+            continue
+        for queue in entry["queues"]:
+            consumed_by.setdefault(queue, []).append(node)
+    zero_consumer = [name for name, nodes in consumed_by.items()
+                     if not nodes]
+    return consumed_by, zero_consumer, unknown_routing
+
+
 def observe_topology(force=False):
     """The live worker/queue topology, fail-closed, briefly cached.
 
@@ -128,33 +167,11 @@ def observe_topology(force=False):
         cache.set(TOPOLOGY_CACHE_KEY, verdict, ttl)
         return verdict
 
-    workers = {}
-    for node, entry in stats.items():
-        if not isinstance(entry, dict):
-            entry = {}
-        queues = None
-        if active:
-            replies = active.get(node)
-            if replies is not None:
-                queues = sorted({
-                    queue.get("name") for queue in replies
-                    if isinstance(queue, dict) and queue.get("name")})
-        workers[str(node)] = {
-            "slots": _worker_slots(entry),
-            "queues": queues,
-        }
+    workers = _observed_workers(stats, active)
 
     declared = [queue.name for queue in app.conf.task_queues]
-    consumed_by = {name: [] for name in declared}
-    unknown_routing = []
-    for node, entry in sorted(workers.items()):
-        if entry["queues"] is None:
-            unknown_routing.append(node)
-            continue
-        for queue in entry["queues"]:
-            consumed_by.setdefault(queue, []).append(node)
-    zero_consumer = [name for name, nodes in consumed_by.items()
-                     if not nodes]
+    consumed_by, zero_consumer, unknown_routing = _routing_of(
+        workers, declared)
 
     verdict = {
         "available": True,

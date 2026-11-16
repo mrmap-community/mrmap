@@ -11,7 +11,7 @@ import { Box, Chip, Typography } from "@mui/material";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import TruncatedTextField from "../../Field/TruncatedTextField";
-import ListActions from "../../Lists/CustomListActions";
+import PlainListActions from "../../Lists/PlainListActions";
 import {
   hasReferencePlan,
   jobStateOf,
@@ -25,7 +25,7 @@ const LEASED_STATE = 1;
 const FAILED_STATE = 2;
 
 /** the states a process is closed in: a retry is never asked of them */
-const CLOSED_PROCESS_STATES = ["failed", "aborted"];
+const CLOSED_PROCESS_STATES = new Set(["failed", "aborted"]);
 
 /**
  * The references a registration did not store, below its process.
@@ -55,7 +55,7 @@ const ProcessMetadataReferences = (): ReactElement | null => {
     return null;
   }
 
-  const retryable = !CLOSED_PROCESS_STATES.includes(
+  const retryable = !CLOSED_PROCESS_STATES.has(
     jobStateOf(process as BackgroundJobRecord),
   );
   return (
@@ -70,9 +70,7 @@ const ProcessMetadataReferences = (): ReactElement | null => {
         storeKey={false}
         refetchInterval={process.doneAt ? false : 5000}
         rowActions={<></>}
-        ActionsComponent={(props) => (
-          <ListActions {...props} isConfigureable={false} isExportable={false} />
-        )}
+ActionsComponent={PlainListActions}
         columns={[
           <DateField
             key="requestId"

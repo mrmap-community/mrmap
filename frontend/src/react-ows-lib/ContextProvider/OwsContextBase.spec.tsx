@@ -157,10 +157,10 @@ it('persists supplied capabilities authentication for subsequent same-origin WFS
   fireEvent.click(screen.getByRole('button', { name: 'append' }));
   await waitFor(() => expect(current.loadingStatus).toBe('ready'));
   const features = current!.owsContext.features;
-  expect(features.length).toBe(2);
+  expect(features).toHaveLength(2);
   expect(features[1].getWfsOffering()?.qualifiedName).toBe('plain_type');
   const operations = features.flatMap(feature => feature.getWfsOffering()?.operations ?? []);
-  expect(operations.filter(operation => operation.code === 'GetFeature' && operation.method === 'GET').length).toBe(1);
+  expect(operations.filter(operation => operation.code === 'GetFeature' && operation.method === 'GET')).toHaveLength(1);
   expect(operations.every(operation => operation['x-authentication-id'] === current!.owsContext.authenticationHeaders![0].id)).toBe(true);
   const request = fetch.mock.calls[0][0] as unknown as Request;
   expect(request.headers.get('Authorization')).toBe('Basic secret');
@@ -180,7 +180,7 @@ it('appends the protocol the capabilities document announces when the import lea
   fireEvent.click(screen.getByRole('button', { name: 'append' }));
   await waitFor(() => expect(current.loadingStatus).toBe('ready'));
   const features = current!.owsContext.features;
-  expect(features.length).toBe(2);
+  expect(features).toHaveLength(2);
   expect(features[1].getWfsOffering()?.qualifiedName).toBe('plain_type');
   vi.unstubAllGlobals();
 });

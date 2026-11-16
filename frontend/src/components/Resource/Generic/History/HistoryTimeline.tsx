@@ -32,6 +32,14 @@ export interface TimelineRecord extends HistoryRecord {
 }
 
 const eventKey = (event: TimelineRecord) => `${event._type}:${event.id}`;
+
+/** the readable kind of the origin an event came from, services being the rest */
+const TYPE_LABELS: Record<string, string> = {
+  Layer: "Layer",
+  FeatureType: "Feature type",
+  HarvestedMetadataRelation: "Harvested record",
+};
+const typeLabel = (type: string) => TYPE_LABELS[type] ?? "Service";
 const eventStyles = {
   created: { color: "success", label: "Created", Icon: CheckIcon },
   updated: { color: "info", label: "Updated", Icon: UpdateIcon },
@@ -187,7 +195,7 @@ const HistoryTimeline = ({ events }: { events: TimelineRecord[] }) => {
                     variant="body2"
                     sx={{ fontWeight: active ? 600 : 400 }}
                   >
-                    {event._type === "Layer" ? "Layer" : event._type === "FeatureType" ? "Feature type" : event._type === "HarvestedMetadataRelation" ? "Harvested record" : "Service"} · {label}
+                    {typeLabel(event._type)} · {label}
                   </Typography>
                   <Typography
                     variant="caption"

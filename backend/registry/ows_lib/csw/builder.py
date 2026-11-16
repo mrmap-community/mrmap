@@ -317,11 +317,8 @@ class CSWBuilder(XSDSkeletonBuilder):
             env, NAMESPACE_LOOKUP["gml_3_1_1"], "upperCorner", text=f"{maxx} {maxy}")
 
     def _build_sort(self, sort_el, sort_by):
-        """
-        sort_by = [
-            ("dc:title", "ASC"),
-            ("dc:date", "DESC"),
-        ]
+        """Build the SortCode element from a list of (property, direction)
+        tuples, where direction is e.g. "ASC" or "DESC".
         """
         for prop, order in sort_by:
             sp = self.add_foreign_child(

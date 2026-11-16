@@ -32,9 +32,18 @@ MULTI_VALUE_FILTERS = ('category',)
 #: sort fields the hand-written ordering in filter_queryset accepts; the
 #: schema documents exactly these terms, so enum and whitelist cannot drift
 SORT_FIELDS = ('id', 'severity', 'occurred_at')
-SORT_TERMS = tuple(
-    term for field in SORT_FIELDS
-    for term in (format_field_name(field), f'-{format_field_name(field)}'))
+
+
+def _sort_terms():
+    """every ascending and descending term of SORT_FIELDS"""
+    terms = []
+    for field in SORT_FIELDS:
+        name = format_field_name(field)
+        terms.extend((name, f'-{name}'))
+    return tuple(terms)
+
+
+SORT_TERMS = _sort_terms()
 
 
 def ordering(fields):

@@ -58,6 +58,34 @@ const SelectedElementViewerCard = (): ReactNode => {
     { enabled: service !== undefined && serviceId !== undefined },
   );
 
+  let content: ReactNode;
+  if (element === undefined) {
+    content = (
+      <Typography variant="body2" color="text.secondary">
+        {translate("layerInspection.select")}
+      </Typography>
+    );
+  } else if (service !== undefined && serviceId !== undefined) {
+    let requestState: ReactNode = null;
+    if (isPending) {
+      requestState = <LinearProgress sx={{ mt: 1 }} />;
+    } else if (error !== undefined) {
+      requestState = (
+        <Typography variant="body2" color="text.error" sx={{ mt: 1 }}>
+          {translate("ra.notification.http_error")}
+        </Typography>
+      );
+    }
+    content = (
+      <>
+        <Typography variant="body2" color="text.secondary">
+          {translate("serviceShow.mapViewerOfElement")}
+        </Typography>
+        {requestState}
+      </>
+    );
+  }
+
   return (
     <SimpleCard
       title={translate("ra.action.mapviewer")}
@@ -72,24 +100,7 @@ const SelectedElementViewerCard = (): ReactNode => {
         )
       }
     >
-      {element === undefined ? (
-        <Typography variant="body2" color="text.secondary">
-          {translate("layerInspection.select")}
-        </Typography>
-      ) : service === undefined || serviceId === undefined ? null : (
-        <>
-          <Typography variant="body2" color="text.secondary">
-            {translate("serviceShow.mapViewerOfElement")}
-          </Typography>
-          {isPending ? (
-            <LinearProgress sx={{ mt: 1 }} />
-          ) : error !== undefined ? (
-            <Typography variant="body2" color="text.error" sx={{ mt: 1 }}>
-              {translate("ra.notification.http_error")}
-            </Typography>
-          ) : null}
-        </>
-      )}
+      {content}
     </SimpleCard>
   );
 };

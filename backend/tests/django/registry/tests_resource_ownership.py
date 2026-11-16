@@ -268,6 +268,10 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
     @patch("registry.tasks.service.Session.send",
            side_effect=serve_capabilities)
     def test_the_service_row_arrives_with_its_owner(self, mock_send):
+        # a TransactionTestCase sees the rows of other transaction tests of
+        # this worker - the task's own row is the one which arrives NOW, so
+        # the question is which ids the call added, not what the table holds
+        before = set(WebMapService.objects.values_list("pk", flat=True))
         build_ogc_service.delay(
             get_capabilities_url=CAPABILITIES_URL,
             collect_metadata_records=False,
@@ -276,8 +280,9 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
             background_process_pk=self.background_process.pk,
             owner_pk=self.organization.pk)
 
-        service = WebMapService.objects.get()
-        self.assertEqual(service.owner, self.organization)
+        created = WebMapService.objects.exclude(pk__in=before)
+        self.assertEqual(created.count(), 1)
+        self.assertEqual(created.get().owner, self.organization)
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
@@ -290,6 +295,7 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
         It stays ownerless - readable, decided by object grants only, and
         not silently attributed to some organization of the creating user.
         """
+        before = set(WebMapService.objects.values_list("pk", flat=True))
         build_ogc_service.delay(
             get_capabilities_url=CAPABILITIES_URL,
             collect_metadata_records=False,
@@ -297,8 +303,9 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
             http_request=self.http_request,
             background_process_pk=self.background_process.pk)
 
-        service = WebMapService.objects.get()
-        self.assertIsNone(service.owner)
+        created = WebMapService.objects.exclude(pk__in=before)
+        self.assertEqual(created.count(), 1)
+        self.assertIsNone(created.get().owner)
 
 
 class UpdateCandidateOwnerTests(OrganizationMembershipMixin, TestCase):

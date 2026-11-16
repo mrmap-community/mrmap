@@ -56,47 +56,59 @@ def _construct_polygon_from_bbox_query_param_for_wfs(get_dict):
         minor_version = int(minor_version)
 
         if major_version == 1 and minor_version < 1:
-            # 6.2.8.2.3: the bbox of the 1.0.0 binding is in the crs the SRS
-            # parameter names and in mathematical order, whatever that crs
-            # defines as its own
-            srs = get_dict.get("srs") or get_dict.get("SRS")
-            if not srs:
-                raise MissingCrsParam
-            _, srid = get_epsg_srid(srs)
-            xy_order = True
-            min_x, min_y, max_x, max_y = (float(value)
-                                          for value in bbox.split(",")[:4])
+            srid, corners = _bbox_wfs_100(get_dict, bbox)
         else:
-            bbox_values = bbox.split(",")
-            if len(bbox_values) > 5:
-                raise NotImplementedError(
-                    "multiple dimension crs is not implemented.")
-            if len(bbox_values) == 5:
-                # the corners are "listed in the order of the optional crsuri"
-                _, srid = get_epsg_srid(bbox_values[4])
-            else:
-                # without a crsuri the corners are WGS84: WFS 1.1, 14.3.3 spells
-                # it out ("decimal degrees and WGS84") and WFS 2.0 (Table 11,
-                # note c) wants the DefaultCRS of the service -- which the
-                # DefaultCRS of the harvested feature type is, but which this
-                # analysis of query parameters does not know. 4326 is the default
-                # the mapper of a document without an srsName stamps as well
-                # (see registry/mappers/parsers/value.py)
-                srid = 4326
-            epsg_sr = Registry().get(srid=srid)
-            xy_order = epsg_sr.is_xy_order
-            min_x, min_y, max_x, max_y = (float(value)
-                                          for value in bbox_values[:4])
+            srid, corners = _bbox_wfs_later(bbox)
 
-        if xy_order:
-            return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
-                           srid=srid)
-        else:
-            return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
-                           srid=srid)
+        return _polygon_from_bbox(corners, srid)
     except Exception:
         pass
     return GEOSGeometry('POLYGON EMPTY')
+
+
+def _bbox_wfs_100(get_dict, bbox):
+    """6.2.8.2.3: the bbox of the 1.0.0 binding is in the crs the SRS
+    parameter names and in mathematical order, whatever that crs defines
+    as its own."""
+    srs = get_dict.get("srs") or get_dict.get("SRS")
+    if not srs:
+        raise MissingCrsParam
+    _, srid = get_epsg_srid(srs)
+    corners = tuple(float(value) for value in bbox.split(",")[:4])
+    return srid, corners
+
+
+def _bbox_wfs_later(bbox):
+    """The bbox of WFS >1.0.0, 14.3.3: crs from the optional trailing uri."""
+    bbox_values = bbox.split(",")
+    if len(bbox_values) > 5:
+        raise NotImplementedError(
+            "multiple dimension crs is not implemented.")
+    if len(bbox_values) == 5:
+        # the corners are "listed in the order of the optional crsuri"
+        _, srid = get_epsg_srid(bbox_values[4])
+    else:
+        # without a crsuri the corners are WGS84: WFS 1.1, 14.3.3 spells
+        # it out ("decimal degrees and WGS84") and WFS 2.0 (Table 11,
+        # note c) wants the DefaultCRS of the service -- which the
+        # DefaultCRS of the harvested feature type is, but which this
+        # analysis of query parameters does not know. 4326 is the default
+        # the mapper of a document without an srsName stamps as well
+        # (see registry/mappers/parsers/value.py)
+        srid = 4326
+    corners = tuple(float(value) for value in bbox_values[:4])
+    return srid, corners
+
+
+def _polygon_from_bbox(corners, srid):
+    """The bbox corners as a polygon, in the axis order the crs defines."""
+    min_x, min_y, max_x, max_y = corners
+    epsg_sr = Registry().get(srid=srid)
+    if epsg_sr.is_xy_order:
+        return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
+                       srid=srid)
+    return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
+                   srid=srid)
 
 
 def _construct_polygon_from_bbox_query_param_for_wms(get_dict):

@@ -11,7 +11,7 @@ import useOperation from "../../../../jsonapi/hooks/useOperation";
 import SimpleCard from "../../../MUI/SimpleCard";
 import ServiceRelatedTab from "../../Generic/ServiceShow/ServiceRelatedTab";
 
-function RecordList({ resource }: { resource: string }) {
+function RecordList({ resource }: Readonly<{ resource: string }>) {
   const translate = useTranslate();
   const operation = useOperation(
     `list_related_${resource}_of_CatalogueService`,

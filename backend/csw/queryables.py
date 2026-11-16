@@ -58,7 +58,6 @@ FIELD_MAP = {
     "description": "abstract",
     # a keyword of a record, seen through the relation which carries them
     "subject": "keywords__keyword",
-    # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
     "coverage": "bounding_geometry",
     "ows:BoundingBox": "bounding_geometry",
     "date": "date_stamp",

@@ -167,41 +167,50 @@ class OGCRequest(Request):
     def filter_constraint(self, field_mapping=None, mapping_choices=None) -> Q:
         if self.is_csw and self.is_get_records_request:
             if self.is_get:
-                constraint = self.ogc_query_params.get("Constraint", "")
-                constraint_language = self.ogc_query_params.get(
-                    "CONSTRAINTLANGUAGE", "")
-                if constraint and not constraint_language:
-                    return MissingConstraintLanguageParameterException(ogc_request=self)
-
-                elif constraint and constraint_language:
-                    if constraint_language == "CQL_TEXT":
-                        try:
-                            ast = parse_ecql(constraint)
-                            return to_filter(ast, field_mapping, mapping_choices)
-                        except LarkError as e:
-                            return InvalidParameterValueException(
-                                ogc_request=self,
-                                locator="Constraint",
-                                message=e)
-                    elif constraint_language == "FILTER":
-                        try:
-                            ast = parse_fes(constraint)
-                            return to_filter(ast, field_mapping, mapping_choices)
-                        except (XMLSyntaxError, NodeParsingError, ValueError) as e:
-                            return InvalidParameterValueException(
-                                ogc_request=self,
-                                locator="Constraint",
-                                message=e
-                            )
-                    else:
-                        return InvalidParameterValueException(
-                            ogc_request=self,
-                            locator="CONSTRAINTLANGUAGE",
-                            message="Provided CONSTRAINTLANGUAGE is not supported.")
+                return self._get_constraint_filter(
+                    field_mapping, mapping_choices)
             elif self.is_post:
                 return self.get_django_filter(field_mapping, mapping_choices)
 
         return Q()
+
+    def _get_constraint_filter(self, field_mapping, mapping_choices):
+        """The filter of the GET binding's Constraint, parsed by the
+        language the request names."""
+        constraint = self.ogc_query_params.get("Constraint", "")
+        constraint_language = self.ogc_query_params.get(
+            "CONSTRAINTLANGUAGE", "")
+        if not constraint:
+            return Q()
+        if not constraint_language:
+            return MissingConstraintLanguageParameterException(ogc_request=self)
+
+        if constraint_language == "CQL_TEXT":
+            return self._parse_constraint_language(
+                parse_ecql, constraint, field_mapping, mapping_choices,
+                LarkError)
+        elif constraint_language == "FILTER":
+            return self._parse_constraint_language(
+                parse_fes, constraint, field_mapping, mapping_choices,
+                (XMLSyntaxError, NodeParsingError, ValueError))
+        else:
+            return InvalidParameterValueException(
+                ogc_request=self,
+                locator="CONSTRAINTLANGUAGE",
+                message="Provided CONSTRAINTLANGUAGE is not supported.")
+
+    def _parse_constraint_language(self, parser, constraint, field_mapping,
+                                   mapping_choices, error_types):
+        """Turn one constraint spelling into its filter, refusing the
+        parameter when the parser does not accept it."""
+        try:
+            ast = parser(constraint)
+            return to_filter(ast, field_mapping, mapping_choices)
+        except error_types as e:
+            return InvalidParameterValueException(
+                ogc_request=self,
+                locator="Constraint",
+                message=e)
 
     @property
     def csw_constraints(self) -> list:
@@ -541,7 +550,7 @@ class OGCRequest(Request):
 
         xml = unescape(self.ogc_query_params.get("FILTER", ""))
         try:
-            filter = etree.fromstring(xml.encode("utf-8")) if xml else None
+            filter_element = etree.fromstring(xml.encode("utf-8")) if xml else None
         except XMLSyntaxError as e:
             raise InvalidFilterParam(str(e))
 
@@ -553,7 +562,7 @@ class OGCRequest(Request):
 
         self._xml_request = builder.build_get_feature(
             type_names=self.requested_entities,
-            filter_xml=filter,
+            filter_xml=filter_element,
             srs_name=self.ogc_query_params.get("SRSNAME", None),
             output_format=self.ogc_query_params.get("OUTPUTFORMAT", None),
             # an empty COUNT or startIndex is no number to page with and is left
@@ -592,24 +601,31 @@ class OGCRequest(Request):
         :rtype: etree._Element
         """
         if self._xml_request is None:
-            # TODO: implement the xml request generation for other requests too.
-            if self.is_get_feature_request:  # NOSONAR: See todo above
-                if self.is_post:
-                    self._xml_request = etree.fromstring(self.data)
-                elif self.is_get:
-                    # FIXME: depending on version, different xml mapper are needed...
-                    self._xml_request = self.build_get_feature_from_get()
+            # FUTURE: implement the xml request generation for other requests too.
+            if self.is_get_feature_request:  # NOSONAR see FUTURE note above
+                self._xml_request = self._get_feature_request_document()
             elif self.is_get_records_request:
-                if self.is_post:
-                    self._xml_request = etree.fromstring(self.data)
-                elif self.is_get:
-                    self.build_get_records_from_get()
+                self._adopt_posted_document_or(
+                    self.build_get_records_from_get)
             elif self.is_get_record_by_id_request:
-                if self.is_post:
-                    self._xml_request = etree.fromstring(self.data)
-                elif self.is_get:
-                    self.build_get_record_by_id_from_get()
+                self._adopt_posted_document_or(
+                    self.build_get_record_by_id_from_get)
         return self._xml_request
+
+    def _get_feature_request_document(self):
+        if self.is_post:
+            return etree.fromstring(self.data)
+        elif self.is_get:
+            # FUTURE: depending on version, different xml mapper are needed...
+            return self.build_get_feature_from_get()
+
+    def _adopt_posted_document_or(self, build_from_get):
+        """Take the posted document as this request's xml, or let the GET
+        builder install whatever it built from the query parameters."""
+        if self.is_post:
+            self._xml_request = etree.fromstring(self.data)
+        elif self.is_get:
+            build_from_get()
 
     @property
     def content(self) -> bytes:
@@ -688,66 +704,81 @@ class OGCRequest(Request):
         # Builder is the single authority for filters
         builder = WFSBuilder(service_version=self.service_version)
 
-        requested_bbox = None
-        if self.is_get and self.ogc_query_params.get("BBOX"):
-            requested_bbox = self.bbox
-            if requested_bbox.empty:
-                # the client asked an extent which cannot be read; answering the
-                # request without it would answer features it never asked for
-                return InvalidParameterValueException(
-                    ogc_request=self, locator="BBOX")
-            # a geometry which a filter of the 1.1 and 2.0 binding carries is
-            # written in the axis order its EPSG definition names, which is what
-            # the proxy did for the allowed area before handing it in
-            # (registry/proxy/wfs_proxy.py); without it the corners of the extent
-            # would be read the other way round (#1155)
-            if self.service_version != "1.0.0":
-                requested_bbox = adjust_axis_order(requested_bbox)
+        requested_bbox, error = self._bbox_restriction_or_error()
+        if error is not None:
+            return error
 
         for query in builder.iter(self._xml_request, local_name="Query"):
-            type_name = query.get(
-                "typeNames") or query.get("typeName")
-            if not type_name:
-                continue
+            self._restrict_query(builder, query, lookup, requested_bbox)
 
-            info = lookup.get(type_name)
-            if not info:
-                continue
+    def _bbox_restriction_or_error(self):
+        """The extent the GET request itself names - with the refusal when
+        it cannot be read.
 
-            geom_prop = info["geometry_property_name"]
+        A geometry which a filter of the 1.1 and 2.0 binding carries is
+        written in the axis order its EPSG definition names, which is what
+        the proxy did for the allowed area before handing it in
+        (registry/proxy/wfs_proxy.py); without it the corners of the extent
+        would be read the other way round (#1155).
+        """
+        if not (self.is_get and self.ogc_query_params.get("BBOX")):
+            return None, None
+        requested_bbox = self.bbox
+        if requested_bbox.empty:
+            # the client asked an extent which cannot be read; answering the
+            # request without it would answer features it never asked for
+            return None, InvalidParameterValueException(
+                ogc_request=self, locator="BBOX")
+        if self.service_version != "1.0.0":
+            requested_bbox = adjust_axis_order(requested_bbox)
+        return requested_bbox, None
 
-            # 🔐 build spatial filters using WFSBuilder (schema-safe)
-            restrictions = []
+    def _restrict_query(self, builder, query, lookup, requested_bbox):
+        """AND the allowed area and the requested extent onto one query of
+        the document."""
+        type_name = query.get(
+            "typeNames") or query.get("typeName")
+        if not type_name:
+            return
 
-            polygon: Polygon = info["allowed_area_union"]
-            if polygon and not polygon.empty:
-                restrictions.append(builder.build_spatial_filter(
-                    geometry=polygon.ogr,
-                    value_reference=geom_prop,
-                    operator="Within",
-                ))
+        info = lookup.get(type_name)
+        if not info:
+            return
 
-            if requested_bbox is not None:
-                restrictions.append(builder.build_spatial_filter(
-                    geometry=requested_bbox.ogr,
-                    value_reference=geom_prop,
-                    operator="Intersects",
-                ))
+        geom_prop = info["geometry_property_name"]
 
-            if not restrictions:
-                continue
+        # 🔐 build spatial filters using WFSBuilder (schema-safe)
+        restrictions = []
 
-            # find existing <fes:Filter> if present
-            existing_filter = next(
-                builder.iter(query, local_name="Filter"), None
-            )
+        polygon: Polygon = info["allowed_area_union"]
+        if polygon and not polygon.empty:
+            restrictions.append(builder.build_spatial_filter(
+                geometry=polygon.ogr,
+                value_reference=geom_prop,
+                operator="Within",
+            ))
 
-            for restriction in restrictions:
-                if existing_filter is None:
-                    # no filter of the request to AND into: this restriction is
-                    # the filter of the query and the one the next is ANDed to
-                    existing_filter = restriction
-                    query.append(restriction)
-                else:
-                    # AND existing filter with spatial restriction
-                    builder.and_filter(existing_filter, restriction)
+        if requested_bbox is not None:
+            restrictions.append(builder.build_spatial_filter(
+                geometry=requested_bbox.ogr,
+                value_reference=geom_prop,
+                operator="Intersects",
+            ))
+
+        if not restrictions:
+            return
+
+        # find existing <fes:Filter> if present
+        existing_filter = next(
+            builder.iter(query, local_name="Filter"), None
+        )
+
+        for restriction in restrictions:
+            if existing_filter is None:
+                # no filter of the request to AND into: this restriction is
+                # the filter of the query and the one the next is ANDed to
+                existing_filter = restriction
+                query.append(restriction)
+            else:
+                # AND existing filter with spatial restriction
+                builder.and_filter(existing_filter, restriction)

@@ -13,6 +13,9 @@ from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ReferenceSystem, Style, TimeExtent)
 
 
+LEFT_JOIN = "LEFT JOIN"
+
+
 class LayerQuerySet(QuerySet):
     sparse_fields = {}
 
@@ -291,7 +294,7 @@ class LayerQuerySet(QuerySet):
                 select=heritage_cte.join(
                     qs,
                     id=heritage_cte.col.id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 
@@ -303,7 +306,7 @@ class LayerQuerySet(QuerySet):
                 select=aggregated_cte.join(
                     qs,
                     id=aggregated_cte.col.id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 
@@ -315,7 +318,7 @@ class LayerQuerySet(QuerySet):
                 select=security_cte.join(
                     qs,
                     id=security_cte.col.layer_id,
-                    _join_type="LEFT JOIN"
+                    _join_type=LEFT_JOIN
                 )
             )
 
@@ -347,7 +350,7 @@ class LayerPrefetch(Prefetch):
             prefetch_related.append(
                 Prefetch(
                     "keywords",
-                    # TODO: check if layers.keywords are included... then we need an other queryset
+                    # FUTURE: check if layers.keywords are included... then we need an other queryset
                     queryset=Keyword.objects.only("id")
                 )
             )
@@ -356,7 +359,7 @@ class LayerPrefetch(Prefetch):
             prefetch_related.append(
                 Prefetch(
                     "registry_datasetmetadatarecord_metadata_records",
-                    # TODO: check if layers.datasetMetadata are included... then we need an other queryset
+                    # FUTURE: check if layers.datasetMetadata are included... then we need an other queryset
                     queryset=DatasetMetadataRecord.objects.only("id")
                 )
             )

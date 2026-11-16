@@ -9,7 +9,7 @@ from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
 
 
-def timeextent_to_value(mapper, el, instance):
+def timeextent_to_value(_mapper, _el, instance):
     return instance.xml_value()
 
 
@@ -60,7 +60,7 @@ def parse_timeextent(mapper, el):
     return instances
 
 
-def _parse_duration(mapper, duration_str):
+def _parse_duration(_mapper, duration_str):
     """
     ISO-8601 Duration Parser.
     Unterstützt Tage, Monate, Jahre, Stunden, Minuten, Sekunden.
@@ -163,7 +163,6 @@ def reverse_parse_operation_urls(
         f".//{"wms:" if "wms" in nsmap else ""}OnlineResource", namespaces=nsmap)
     if online_resource is None or len(online_resource) == 0:
         # Typically OnlineResource is under wms:HTTP (Get/Post)
-        xpath = f"{{{nsmap["wms"]}}}OnlineResource" if nsmap and "wms" in nsmap else "OnlineResource"
         online_resource = etree.SubElement(
             xml_element, f"{{{nsmap["wms"]}}}OnlineResource")
     else:
@@ -172,8 +171,8 @@ def reverse_parse_operation_urls(
     online_resource.set(f"{{{nsmap["xlink"]}}}href", instance.url)
 
     # 2️⃣ Remove all existing <Format> elements
-    # TODO: Format is placed under wms:HTTP
-    # TODO: remove existing formats from xml
+    # FUTURE: Format is placed under wms:HTTP
+    # FUTURE: remove existing formats from xml
     for fmt_el in xml_element.findall(f".//{"wms:" if "wms" in nsmap else ""}Format", namespaces=nsmap):
         parent = fmt_el.getparent()
         if parent is not None:

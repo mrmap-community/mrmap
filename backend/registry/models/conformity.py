@@ -22,7 +22,7 @@ class ConformityCheckConfiguration(models.Model):
     """
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
-    # TODO: use IntegerChoices instead
+    # FUTURE: use IntegerChoices instead
     conformity_type = models.TextField(
         choices=ConformityTypeEnum.choices)
 
@@ -116,7 +116,7 @@ class ConformityCheckRun(models.Model):
     config = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
-    report = models.TextField(blank=True, null=True)
+    report = models.TextField(blank=True)
     report_type = models.TextField(
         choices=ReportType.choices)
 

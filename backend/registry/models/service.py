@@ -220,7 +220,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             # is the most efficient way to do it.
             if isinstance(self, WebMapService):
                 self.layers.update(is_active=self.is_active)
-            elif isinstance(self, WebFeatureService):
+            else:
+                # old only ever holds a WMS or WFS row, so this is
+                # the WFS case whenever the branch runs
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
@@ -265,7 +267,12 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         return cap_url
 
     def get_secured_capabilities_url(self, request) -> str:
-        url_name = "wms-operation" if self.service_type == "WMS" else "wfs-operation" if self.service_type == "WFS" else "csw-operation"
+        if self.service_type == "WMS":
+            url_name = "wms-operation"
+        elif self.service_type == "WFS":
+            url_name = "wfs-operation"
+        else:
+            url_name = "csw-operation"
 
         proxy_url = self.get_secured_url(
             request=request,
@@ -434,8 +441,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
             for style in layer.styles.all():
                 style.legend_url.legend_url = f"{new_url}{style.legend_url.legend_url.split('?', 1)[-1]}"
 
-        # TODO: only support xml Exception format --> remove all others
-        # TODO: camouflage metadata urls also
+        # FUTURE: only support xml Exception format --> remove all others
+        # FUTURE: camouflage metadata urls also
 
         capabilities_xml = self.get_updated_capabilitites()
 
@@ -448,7 +455,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     def get_updated_capabilitites(self) -> etree.ElementTree:
         """
-        FIXME: check if self is well prefetched.
+        Open question: check if self is well prefetched.
         If not call self.objects.prefetch_whole_service(
             ...    with_sibling_index=True,
             ...    prefetch_spec={
@@ -558,21 +565,18 @@ class OperationUrl(models.Model):
     )
     operation: str = models.PositiveSmallIntegerField(
         choices=OGCOperationEnum.choices,
-        # editable=False,
         verbose_name=_("operation"),
         help_text=_("the operation you can perform with this url."),
     )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     url: str = models.URLField(
         max_length=4096,
-        # editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
     )
     mime_types = models.ManyToManyField(
         to="MimeType",  # use string to avoid from circular import error
         blank=True,
-        # editable=False,
         related_name="%(class)s_operation_urls",
         related_query_name="%(class)s_operation_url",
         verbose_name=_("internet mime type"),
@@ -587,25 +591,14 @@ class OperationUrl(models.Model):
     def __str__(self):
         return f"{OGCOperationEnum(self.operation).label} | {self.url} ({HttpMethodEnum(self.method).label})"
 
-    # def get_url(self, request):
-    #     url_parsed = urlparse(self.url)
-    #     new_query = {}
-    #     for key, value in parse_qs(url_parsed.query).items():
-    #         new_query.update({key.upper(): value})
-    #     url_parsed._replace(query=new_query)
-    #     return url_parsed.geturl()
-    #     # TODO: check if service is secured and if so return the secured url
-    #     parsed_request_url = urlparse(request.get_full_path())
-    #     parsed_url = urlparse(self.url)
-    #     parsed_url._replace(netloc=parsed_request_url.netloc)
-    #     return parsed_url.geturl()
+
+CONSTRAINT_UNIQUE_OPERATION_SERVICE = "%(app_label)s_%(class)s_unique_together_method_id_operation_service"
 
 
 class WebMapServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
-        # editable=False,
         related_name="operation_urls",
         related_query_name="operation_url",
         verbose_name=_("related web map service"),
@@ -616,7 +609,7 @@ class WebMapServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
 
@@ -637,7 +630,7 @@ class WebFeatureServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
 
@@ -657,9 +650,12 @@ class CatalogueServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+                name=CONSTRAINT_UNIQUE_OPERATION_SERVICE,
             )
         ]
+
+
+RELATED_CLASS_SUFFIX = "%(class)s"
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
@@ -690,8 +686,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     )
     reference_systems = models.ManyToManyField(
         to="ReferenceSystem",  # to avoid circular import error
-        related_name="%(class)s",
-        related_query_name="%(class)s",
+        related_name=RELATED_CLASS_SUFFIX,
+        related_query_name=RELATED_CLASS_SUFFIX,
         blank=True,
         editable=False,
         verbose_name=_("reference systems"),
@@ -701,8 +697,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         to="TimeExtent",
         blank=True,
         editable=False,
-        related_name="%(class)s",
-        related_query_name="%(class)s",
+        related_name=RELATED_CLASS_SUFFIX,
+        related_query_name=RELATED_CLASS_SUFFIX,
         verbose_name=_("time extent"),
         help_text=_("all time extents which are available for this layer."),
     )
@@ -878,7 +874,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                 name="unique_identifer_per_wms",
             )
         ] + Node.Meta.constraints + AbstractMetadata.Meta.constraints
-        # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
+        # FUTURE: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
@@ -923,7 +919,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                     operation=OGCOperationEnum.GET_MAP.value,
                     method=HttpMethodEnum.GET.value
                 )["url"]
-                # TODO: check if this format is supported by the layer...
+                # FUTURE: check if this format is supported by the layer...
             image_format: str = format
 
         if bbox:
@@ -943,10 +939,10 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         #     scale_bbox = distance / \
         #         math.sqrt(pow(width, 2) + pow(height, 2)) / 0.00028
         #     if scale_bbox > self.get_scale_max:
-        #         # TODO: scale the bbox
+        #         # FUTURE: scale the bbox
         #         pass
 
-        # TODO: handle different versions here... version 1.0.0 has other query parameters
+        # FUTURE: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
             "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetMap",
@@ -982,7 +978,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
                     method=HttpMethodEnum.GET.value
                 )["url"]
-                # TODO: check if this format is supported by the layer...
+                # FUTURE: check if this format is supported by the layer...
                 _info_format: str = "text/plain"
         except WebMapServiceOperationUrl.DoesNotExist:
             raise OperationNotSupported(
@@ -1079,10 +1075,10 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         null=True,
         verbose_name=_("describe feature type"),
         help_text=_(
-            "the fetched content of the download describe feature" " type document."
+            "the fetched content of the download describe feature type document."
         ),
     )
-    # TODO: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
+    # FUTURE: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
     default_reference_system = models.ForeignKey(
         to="ReferenceSystem",  # to avoid circular import error
         on_delete=models.PROTECT,

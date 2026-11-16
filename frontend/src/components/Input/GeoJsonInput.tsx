@@ -9,7 +9,18 @@ import { Box } from "@mui/material";
 import GeoJsonMap from "../MapContainer/GeoJsonMap";
 import FeatureGroupEditor from "./FeatureGroupEditor";
 
-const GeoJsonInput = ({ source, ...props }: TextInputProps): ReactNode => {
+export interface GeoJsonInputProps extends TextInputProps {
+  /** which drawing tools the map editor offers; both by default */
+  drawRectangle?: boolean;
+  drawPolygon?: boolean;
+}
+
+const GeoJsonInput = ({
+  source,
+  drawRectangle = true,
+  drawPolygon = true,
+  ...props
+}: GeoJsonInputProps): ReactNode => {
   const {
     id,
     field: { value },
@@ -40,6 +51,8 @@ const GeoJsonInput = ({ source, ...props }: TextInputProps): ReactNode => {
           geoJson={value}
           geoJsonCallback={geoJsonCallback}
           editable={!props.disabled}
+          drawRectangle={drawRectangle}
+          drawPolygon={drawPolygon}
         />
       </GeoJsonMap>
     </Box>

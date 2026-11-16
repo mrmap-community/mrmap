@@ -103,6 +103,7 @@ const getServiceExceptionMessage = (body: string): string | undefined => {
 const propertyValue = (value: unknown): ReactNode => {
   if (value === null) return "null";
   if (value === undefined) return "—";
+  if (typeof value === "string") return value;
   if (typeof value === "object")
     return (
       <Box

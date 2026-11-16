@@ -23,21 +23,27 @@ interface PlainDocument { features?: PlainFeature[] }
  * embedded in operation URLs stripped, and without the runtime folder lookup - so a reopened
  * document rebuilds its tree from the stated folders instead of a derived copy.
  */
+/** takes the credentials out of one operation's href; an href the browser cannot
+ *  parse stays as the document states it */
+const stripCredentials = (operation: PlainOperation): void => {
+  if (typeof operation.href !== 'string') return;
+  try {
+    const url = new URL(operation.href);
+    if (url.username === '' && url.password === '') return;
+    url.username = '';
+    url.password = '';
+    operation.href = url.href;
+  } catch {
+    // an href the browser cannot parse stays as the document states it
+  }
+};
+
 export const serializeForTransfer = (context: OWSContext): string => {
   const document = JSON.parse(serializeOwsContext(context)) as PlainDocument;
   for (const feature of document.features ?? []) {
     for (const offering of (feature.properties?.offerings ?? []) as PlainOffering[]) {
       for (const operation of offering.operations ?? []) {
-        if (typeof operation.href !== 'string') continue;
-        try {
-          const url = new URL(operation.href);
-          if (url.username === '' && url.password === '') continue;
-          url.username = '';
-          url.password = '';
-          operation.href = url.href;
-        } catch {
-          // an href the browser cannot parse stays as the document states it
-        }
+        stripCredentials(operation);
       }
     }
   }
@@ -67,7 +73,8 @@ const fromBase64Url = (encoded: string) => {
 
 export const encodeShareFragment = (json: string) => `${SHARE_FRAGMENT_PARAMETER}=${toBase64Url(json)}`;
 
-export const decodeShareFragment = (fragment: string): unknown | undefined => {
+/** the parsed share payload, or undefined when the fragment carries none */
+export const decodeShareFragment = (fragment: string): unknown => {
   const parameter = fragment.startsWith('#') ? fragment.slice(1) : fragment;
   if (!parameter.startsWith(`${SHARE_FRAGMENT_PARAMETER}=`)) return undefined;
   try {

@@ -1,5 +1,11 @@
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
+PARSER_BOOLEAN_TO_INT = "registry.mappers.parsers.value.boolean_to_int"
+
+PARSER_STR_TO_BOOL = "registry.mappers.parsers.value.str_to_bool"
+
+XPATH_SERVICE_CONTACT = "./wms:Service/wms:ContactInformation"
+
 XPATH_MAP = {
     ("WMS", "1.3.0"): {
         "_namespaces": {
@@ -42,11 +48,11 @@ XPATH_MAP = {
                 },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./wms:Service/wms:ContactInformation",
+                    "_base_xpath": XPATH_SERVICE_CONTACT,
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./wms:Service/wms:ContactInformation",
+                            "xpath": XPATH_SERVICE_CONTACT,
                         },
                     },
                     "fields": {
@@ -64,11 +70,11 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./wms:Service/wms:ContactInformation",
+                    "_base_xpath": XPATH_SERVICE_CONTACT,
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./wms:Service/wms:ContactInformation",
+                            "xpath": XPATH_SERVICE_CONTACT,
                         },
                     },
                     "fields": {
@@ -130,20 +136,20 @@ XPATH_MAP = {
                         "is_queryable": {
                             "_inputs": ("./@queryable",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.value.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
+                            "_parser": PARSER_STR_TO_BOOL,
+                            "_reverse_parser": PARSER_BOOLEAN_TO_INT
                         },
                         "is_opaque": {
                             "_inputs": ("./@opaque",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.value.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
+                            "_parser": PARSER_STR_TO_BOOL,
+                            "_reverse_parser": PARSER_BOOLEAN_TO_INT
                         },
                         "is_cascaded": {
                             "_inputs": ("./@cascaded",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.value.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
+                            "_parser": PARSER_STR_TO_BOOL,
+                            "_reverse_parser": PARSER_BOOLEAN_TO_INT
                         },
                         "bbox_lat_lon": {
                             "_inputs": (

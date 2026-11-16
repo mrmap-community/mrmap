@@ -802,7 +802,7 @@ class ProbeResponseContentView(APIView):
             # as gone as no name at all (#1150)
             artifact.size
             body = artifact.open("rb")
-        except (FileNotFoundError, OSError, ValueError):
+        except (OSError, ValueError):
             raise Http404("The stored response is not in the storage.")
 
         content_type = result.response_content_type

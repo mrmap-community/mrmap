@@ -70,6 +70,10 @@ OVERLAYABLE_FIELDS = frozenset({
     "access_constraints", "equivalent_scale", "ground_res",
     "metadata_contact", "dataset_contact", "application_contact",
     "keywords", "languages", "categories", "reference_systems",
+    # the extent fields of #1246: both answer a serializable fragment
+    # through their config's _reverse_parser, so the write mapper can
+    # carry the row's values into the document
+    "bounding_geometry", "time_extents",
 })
 
 #: the fields a rule may still name although no payload can patch them:
@@ -241,6 +245,23 @@ def _convert_value(name, value):
         # _reverse_parser
         return [{"code": system.code, "prefix": system.prefix}
                 for system in value]
+    if name == "bounding_geometry":
+        # the row answers the model geometry and the validated payload has
+        # been parsed into one; the spec's _reverse_parser turns it into the
+        # bounding box or polygon fragment the path names (#1246)
+        from django.contrib.gis.geos import GEOSGeometry
+        return value if isinstance(value, GEOSGeometry) else _UNCHANGED
+    if name == "time_extents":
+        # rows arrive as instances (the row, the validated relationship);
+        # answer the dict shape the extraction answered, which is what
+        # _write_row_values pairs by position (#1246)
+        from registry.models.metadata import TimeExtent
+        rows = value if isinstance(value, (list, tuple)) else [value]
+        return [
+            {"begin": row.begin, "end": row.end,
+             "resolution": row.resolution, "is_relative": row.is_relative}
+            for row in rows if isinstance(row, TimeExtent)
+        ]
     return _UNCHANGED
 
 

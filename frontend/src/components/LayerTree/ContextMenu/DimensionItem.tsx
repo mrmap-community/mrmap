@@ -8,11 +8,49 @@ import { Box, Button, IconButton, Slider, Stack, TextField, Typography } from '@
 import moment from 'moment';
 
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
-import { getTimeDimensionAxis, getWmsDimensionSelection, isAllowedDimensionValue, parseAdvertisedValues, setWmsDimension } from '../../../ows-lib/OwsContext/dimensions';
+import { getTimeDimensionAxis, getWmsDimensionSelection, isAllowedDimensionValue, parseAdvertisedValues, setWmsDimension, type TimeDimensionAxis } from '../../../ows-lib/OwsContext/dimensions';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import { useMapViewerBase } from '../../MapViewer/MapViewerBase';
 import { useContextMenuBase } from './ContextMenuBase';
 import ContextMenuItem from './ContextMenuItem';
+
+/** one advertised time told to the viewer, or the raw value when it isn't one */
+const formatTime = (value: string, short = false) => {
+  if (!moment.utc(value, moment.ISO_8601, true).isValid()) return value;
+  return moment.utc(value).format(short ? 'DD MMM YYYY HH:mm' : 'DD MMM YYYY · HH:mm [UTC]');
+};
+
+/** the state a playback tick judges by, read from refs so that no stale render
+ *  can advance a frame */
+type PlaybackFrame = {
+  selection: string
+  displayedTime?: string
+  failed: boolean
+  loop: boolean
+  from: number
+  axis?: TimeDimensionAxis
+  apply: (value: string) => void
+}
+
+/** one tick of the playback interval: steps to the next advertised time, loops
+ *  or stops at the end of the range, and holds while the frame it applied last
+ *  is still waiting to be drawn by the map (#705) */
+const playbackTick = (
+  live: PlaybackFrame,
+  axis: TimeDimensionAxis,
+  applied: { current: string | undefined },
+  stop: () => void
+) => {
+  const current = applied.current ?? live.selection;
+  if (live.displayedTime !== undefined && current !== live.displayedTime && !live.failed) return;
+  const position = axis.indexOf(current);
+  const next = (position >= 0 ? position : live.from) + 1;
+  if (next < axis.count) { applied.current = axis.valueAt(next); live.apply(axis.valueAt(next)); }
+  else if (live.loop) { applied.current = axis.valueAt(0); live.apply(axis.valueAt(0)); }
+  // end of the advertised range: playback stops there, and pressing play again starts it
+  // from the first observation
+  else stop();
+};
 
 export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = false, horizontal = false }: {
   dimension: OfferingDimension; selection: string; apply: (value: string) => void; folder?: string; compact?: boolean; horizontal?: boolean;
@@ -25,10 +63,13 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   useEffect(() => { setDraft(undefined); setInvalid(false); }, [selection]);
   const selectedIndex = axis?.indexOf(selection) ?? -1;
   const defaultIndex = axis?.indexOf(dimension.default ?? '') ?? -1;
-  const index = draft ?? (selectedIndex >= 0 ? selectedIndex : defaultIndex >= 0 ? defaultIndex : (axis?.count ?? 1) - 1);
+  let fallbackIndex = (axis?.count ?? 1) - 1;
+  if (defaultIndex >= 0) fallbackIndex = defaultIndex;
+  if (selectedIndex >= 0) fallbackIndex = selectedIndex;
+  const index = draft ?? fallbackIndex;
   const preview = draft === undefined ? selection : axis?.valueAt(index) ?? selection;
-  const format = (value: string, short = false) => moment.utc(value, moment.ISO_8601, true).isValid() ? moment.utc(value).format(short ? 'DD MMM YYYY HH:mm' : 'DD MMM YYYY · HH:mm [UTC]') : value;
-  const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${dimension.units ? ` (${dimension.units})` : ''} · UTC`;
+  const unitsSuffix = dimension.units ? ` (${dimension.units})` : '';
+  const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${unitsSuffix} · UTC`;
   const commit = (position: number) => { if (axis) { setDraft(undefined); apply(axis.valueAt(position)); } };
 
   // playback advances through the advertised times of this very axis; a selected frame which the
@@ -54,20 +95,10 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   useEffect(() => { appliedRef.current = undefined; }, [selection]);
   useEffect(() => {
     if (!playing || !axis || axis.count < 2) return;
-    const timer = setInterval(() => {
-      const live = liveRef.current;
-      const current = appliedRef.current ?? live.selection;
-      if (live.displayedTime !== undefined && current !== live.displayedTime && !live.failed) return;
-      const position = axis.indexOf(current);
-      const next = (position >= 0 ? position : live.from) + 1;
-      if (next < axis.count) { appliedRef.current = axis.valueAt(next); live.apply(axis.valueAt(next)); }
-      else if (live.loop) { appliedRef.current = axis.valueAt(0); live.apply(axis.valueAt(0)); }
-      else {
-        // end of the advertised range: playback stops there, and pressing play again starts it
-        // from the first observation
-        setAnimation(undefined);
-      }
-    }, 1000 / fps);
+    const timer = setInterval(
+      () => playbackTick(liveRef.current, axis, appliedRef, () => setAnimation(undefined)),
+      1000 / fps
+    );
     return () => clearInterval(timer);
   }, [playing, fps, axis, setAnimation]);
   // the animation belongs to the mounted control: closing the panel or removing the layer ends
@@ -84,18 +115,18 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   };
   return <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: horizontal ? 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))' : 'minmax(0, 1fr)', gap: horizontal ? 2 : 1, alignItems: 'start' }}>
     <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-    <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{format(preview) || translate('viewerDimensions.serverDefault')}</Typography>
+    <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{formatTime(preview) || translate('viewerDimensions.serverDefault')}</Typography>
     {axis && <>
       <Slider aria-label={label} min={0} max={Math.max(1, axis.count - 1)} step={1} shiftStep={10}
         disabled={axis.count < 2} value={index} valueLabelDisplay="auto"
         getAriaValueText={position => axis.valueAt(Math.min(position, axis.count - 1))}
-        valueLabelFormat={position => format(axis.valueAt(Math.min(position, axis.count - 1)))}
+        valueLabelFormat={position => formatTime(axis.valueAt(Math.min(position, axis.count - 1)))}
         onChange={(_, value) => setDraft(value as number)}
         onChangeCommitted={(_, value) => commit(value as number)}
         sx={{ width: 'calc(100% - 24px)', mx: '12px', '& .MuiSlider-valueLabel': { fontSize: 11 } }} />
       <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, fontSize: 10 }}>{format(axis.valueAt(0), true)}</Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, textAlign: 'right', fontSize: 10 }}>{format(axis.valueAt(axis.count - 1), true)}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, fontSize: 10 }}>{formatTime(axis.valueAt(0), true)}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0, textAlign: 'right', fontSize: 10 }}>{formatTime(axis.valueAt(axis.count - 1), true)}</Typography>
       </Stack>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <IconButton size="small" sx={{ minWidth: 28 }} aria-label={translate(playing ? 'viewerDimensions.pause' : 'viewerDimensions.play')} onClick={togglePlay} disabled={axis.count < 2}>{playing ? '❚❚' : '▶'}</IconButton>
@@ -108,7 +139,7 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
         </TextField>
         <Typography variant="caption" sx={{ alignSelf: 'center' }}>{translate('viewerDimensions.position', { current: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(index + 1), total: new Intl.NumberFormat(undefined, { notation: axis.count > 10000 ? 'compact' : 'standard' }).format(axis.count) })}</Typography>
       </Stack>
-      {pending && <Typography variant="caption" color="text.secondary">{translate('viewerDimensions.displaying', { time: displayedTime === '' ? translate('viewerDimensions.serverDefault') : format(displayedTime!, true) })}</Typography>}
+      {pending && <Typography variant="caption" color="text.secondary">{translate('viewerDimensions.displaying', { time: displayedTime === '' ? translate('viewerDimensions.serverDefault') : formatTime(displayedTime!, true) })}</Typography>}
     </>}
     </Stack>
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
@@ -121,7 +152,10 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
         const parsed = moment.utc(event.target.value, moment.ISO_8601, true);
         const normalized = parsed.isValid() ? parsed.toISOString() : event.target.value;
         const position = axis?.indexOf(normalized) ?? -1;
-        const value = event.target.value === '' ? '' : position >= 0 && axis ? axis.valueAt(position) : normalized;
+        let value: string;
+        if (event.target.value === '') value = '';
+        else if (position >= 0 && axis) value = axis.valueAt(position);
+        else value = normalized;
         const allowed = isAllowedDimensionValue(dimension, value);
         setInvalid(!allowed);
         if (allowed) { setDraft(undefined); apply(value); }
@@ -168,12 +202,14 @@ export const WmsDimensionControls = ({ folder, inline = false, timeOnly = false,
     {dimensions.map(dimension => {
       const advertised = parseAdvertisedValues(dimension.values)
       const selection = getWmsDimensionSelection(offering!, dimension)
-      const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${dimension.units ? ` (${dimension.units})` : ''}`
+      const unitsSuffix = dimension.units ? ` (${dimension.units})` : ''
+      const label = `${translate('viewerDimensions.dimension', { name: dimension.name })}${unitsSuffix}`
       if (advertised.kind === 'time-range' || getTimeDimensionAxis(dimension)) {
         return <WmsTimeControl key={dimension.name} dimension={dimension} selection={selection} apply={value => apply(dimension.name, value)} folder={folder} compact={compact} horizontal={horizontal} />
       }
       if (advertised.kind === 'range') {
-        const hint = `${advertised.start} … ${advertised.stop}${advertised.step !== undefined ? ` · ${advertised.step}` : ''}`
+        const stepSuffix = advertised.step !== undefined ? ` · ${advertised.step}` : ''
+        const hint = `${advertised.start} … ${advertised.stop}${stepSuffix}`
         return <TextField
           key={`${dimension.name}:${selection}`}
           type="number"

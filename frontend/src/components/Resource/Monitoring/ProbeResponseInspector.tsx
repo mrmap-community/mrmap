@@ -67,21 +67,15 @@ const readDuration = (value?: string | null) => {
   if (!value) return null;
   const [hours = "0", minutes = "0", rest = "0"] = value.split(":");
   const total = Number(hours) * 3600 + Number(minutes) * 60 + Number(rest);
-  return Number.isFinite(total)
-    ? total < 1
-      ? `${Math.round(total * 1000)} ms`
-      : `${total.toFixed(1)} s`
-    : value;
+  if (!Number.isFinite(total)) return value;
+  return total < 1 ? `${Math.round(total * 1000)} ms` : `${total.toFixed(1)} s`;
 };
 
 const ArtifactAlert = ({ status }: { status?: number }) => {
   const translate = useTranslate();
-  const key =
-    status === 410
-      ? "monitoringRun.response.expired"
-      : status === 404
-        ? "monitoringRun.response.missing"
-        : "monitoringRun.response.unavailable";
+  let key = "monitoringRun.response.unavailable";
+  if (status === 410) key = "monitoringRun.response.expired";
+  else if (status === 404) key = "monitoringRun.response.missing";
   return (
     <Alert severity="warning" icon={<CloudOffOutlineIcon fontSize="inherit" />}>
       {translate(key)}

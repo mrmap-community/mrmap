@@ -46,7 +46,7 @@ const TabIcon = ({ tab }: { tab: ServiceTab }) => {
   );
 };
 
-export default function ServiceShow({ tabs }: { tabs: ServiceTab[] }) {
+export default function ServiceShow({ tabs }: Readonly<{ tabs: ServiceTab[] }>) {
   const resource = useResourceContext();
   const { api } = useHttpClientContext();
   const { includeAbleResources } = useResourceSchema(`retrieve_${resource}`);

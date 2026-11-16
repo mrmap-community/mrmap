@@ -139,7 +139,9 @@ const ogcExceptionMessage = (root: Element): string => {
   const text = exception
     ? getText(exception, 'exceptionText') ?? getText(exception, 'ExceptionText') ?? exception.textContent?.trim()
     : undefined
-  return `OGC exception${code ? ` ${code}` : ''}${text ? `: ${text}` : ''}`
+  const codePart = code ? ` ${code}` : ''
+  const textPart = text ? `: ${text}` : ''
+  return `OGC exception${codePart}${textPart}`
 }
 
 const emptyOperation = (): WfsOperation => ({ get: '', post: undefined, mimeTypes: [], parameters: {}, constraints: {} })

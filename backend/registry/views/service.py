@@ -420,6 +420,9 @@ class ServiceElementHistoryInformationViewSetMixin(HistoryInformationViewSetMixi
         ))
 
 
+OPERATION_URLS = "service.operation_urls"
+
+
 class LayerViewSetMixin(
     PreloadNotIncludesMixin,
     ServiceElementHistoryInformationViewSetMixin,
@@ -430,14 +433,14 @@ class LayerViewSetMixin(
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     select_for_includes = {
         "service": ["service", "service__service_contact", "service__metadata_contact"],
-        "service.operation_urls": ["service", "service__service_contact",
-                                   "service__metadata_contact"]
+        OPERATION_URLS: ["service", "service__service_contact",
+                         "service__metadata_contact"]
     }
     prefetch_for_includes = {
         # the service of a layer is serialized, all relations of that service are
         # only answered as related resources
         "service": [*WMS_SERVICE_RELATIONS, WMS_OPERATION_URLS_AS_RELATION],
-        "service.operation_urls": [
+        OPERATION_URLS: [
             # only the operation urls are serialized, their mime types and the other
             # relations of the service are answered as related resources
             Prefetch(
@@ -455,7 +458,7 @@ class LayerViewSetMixin(
     }
     prefetch_for_not_includes = {
         "mptt_parent": [
-            # TODO optimize queryset with defer
+            # FUTURE: optimize queryset with defer
             Prefetch(
                 "mptt_parent",
                 queryset=Layer.objects.select_related(
@@ -793,14 +796,14 @@ class FeatureTypeViewSetMixin(
 
     select_for_includes = {
         "service": ["service", "service__service_contact", "service__metadata_contact"],
-        "service.operation_urls": ["service", "service__service_contact",
-                                   "service__metadata_contact"]
+        OPERATION_URLS: ["service", "service__service_contact",
+                         "service__metadata_contact"]
     }
     prefetch_for_includes = {
         # the service of a feature type is serialized, all relations of that service
         # are only answered as related resources
         "service": [*WFS_SERVICE_RELATIONS, WFS_OPERATION_URLS_AS_RELATION],
-        "service.operation_urls": [
+        OPERATION_URLS: [
             # only the operation urls are serialized, their mime types and the other
             # relations of the service are answered as related resources
             Prefetch(

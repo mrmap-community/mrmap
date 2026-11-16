@@ -1,7 +1,8 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import {
   Button,
   Loading,
+  type RaRecord,
   SimpleList,
   useListContext,
   useRecordContext,
@@ -24,8 +25,32 @@ const HarvestingSchedulesCardBase = ({ children }: PropsWithChildren) => {
   const message = (key: string) => translate(`harvestingSchedules.${key}`);
   const enabled = data?.some((schedule) => schedule.enabled);
   const hasSchedules = (data?.length ?? 0) > 0;
-  const color = hasSchedules ? (enabled ? "success" : "warning") : undefined;
+  let color: "success" | "warning" | undefined;
+  if (hasSchedules) color = enabled ? "success" : "warning";
   const path = `/CatalogueService/${service?.id}/show/PeriodicHarvestingJob`;
+
+  let body: ReactNode;
+  if (isPending) {
+    body = <Loading />;
+  } else if (error) {
+    body = <Alert severity="error">{message("loadError")}</Alert>;
+  } else if (hasSchedules) {
+    body = children;
+  } else {
+    body = (
+      <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
+        <Typography>{message("empty")}</Typography>
+        {service && (
+          <Button
+            component={Link}
+            to={`${path}/create`}
+            label="harvestingSchedules.create"
+          />
+        )}
+      </Stack>
+    );
+  }
+
   if (service?.isHarvestable === false) return null;
   return (
     <SimpleCard
@@ -71,24 +96,7 @@ const HarvestingSchedulesCardBase = ({ children }: PropsWithChildren) => {
         )
       }
     >
-      {isPending ? (
-        <Loading />
-      ) : error ? (
-        <Alert severity="error">{message("loadError")}</Alert>
-      ) : hasSchedules ? (
-        children
-      ) : (
-        <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-          <Typography>{message("empty")}</Typography>
-          {service && (
-            <Button
-              component={Link}
-              to={`${path}/create`}
-              label="harvestingSchedules.create"
-            />
-          )}
-        </Stack>
-      )}
+      {body}
       {hasSchedules && !enabled && !error && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           {message("disabledMessage")}
@@ -97,6 +105,11 @@ const HarvestingSchedulesCardBase = ({ children }: PropsWithChildren) => {
     </SimpleCard>
   );
 };
+
+/** the bullet a schedule row carries: its enabled state */
+const scheduleIcon = (record: RaRecord) => (
+  <FiberManualRecordIcon color={record.enabled ? "success" : "disabled"} />
+);
 
 const HarvestingSchedulesList = () => {
   const translate = useTranslate();
@@ -109,11 +122,7 @@ const HarvestingSchedulesList = () => {
         "& .MuiListItem-root": { py: 0.5 },
         "& .MuiListItemText-root": { my: 0 },
       }}
-      leftIcon={(record) => (
-        <FiberManualRecordIcon
-          color={record.enabled ? "success" : "disabled"}
-        />
-      )}
+      leftIcon={scheduleIcon}
       primaryText={(record) => record.scheduling}
       secondaryText={(record) =>
         record.enabled

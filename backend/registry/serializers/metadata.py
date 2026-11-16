@@ -2,6 +2,7 @@ import re
 
 from accounts.serializers.users import UserSerializer
 from django.conf import settings
+from django.contrib.gis.geos import MultiPolygon
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
@@ -28,6 +29,7 @@ from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadata
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.fields import CharField, SerializerMethodField
 from rest_framework.relations import (Hyperlink, HyperlinkedIdentityField)
+from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (ModelSerializer,
                                                  ValidationError)
@@ -181,16 +183,57 @@ class MetadataContactSerializer(
         ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:metadatacontact-detail")
+    usage_count = SerializerMethodField()
 
     class Meta:
         model = MetadataContact
         fields = "__all__"
+
+    def get_usage_count(self, instance):
+        """How many rows already carry this contact (#1246).
+
+        The chooser shows the number next to every candidate so reuse beats
+        creating a copy of an address that exists a dozen times. The view
+        annotates the whole queryset in one statement (see
+        :meth:`registry.querys.metadata.MetadataContactQuerySet.with_usage_count`);
+        an instance which arrives without the annotation - the response of
+        its own POST, a contact embedded into a record - is counted by the
+        same query narrowed to its one row.
+        """
+        count = getattr(instance, "_usage_count", None)
+        if count is not None:
+            return count
+        return (MetadataContact.objects
+                .filter(pk=instance.pk).with_usage_count()
+                .values_list("_usage_count", flat=True).first() or 0)
 
 
 class TimeExtentSerializer(StringRepresentationSerializer, ModelSerializer):
     class Meta:
         model = TimeExtent
         fields = "__all__"
+
+    def validate(self, attrs):
+        """The period a write names must be a period the database will hold.
+
+        The model keeps its kind as a CHECK constraint - single value,
+        interval or rolling window - so a payload running begin past its end
+        would answer a raw DataError; this names the member that broke. The
+        check mirrors the constraint over the values the write carries; the
+        editor of #1246 only creates begin/end rows, a rolling window stays
+        harvest vocabulary.
+        """
+        attrs = super().validate(attrs)
+        begin = attrs.get("begin")
+        end = attrs.get("end")
+        if begin is not None and end is not None and begin > end:
+            raise ValidationError({"end": _(
+                "the end of a period must not be before its begin")})
+        if attrs.get("is_relative") and (
+                begin is not None or end is not None):
+            raise ValidationError({"is_relative": _(
+                "a relative extent names no begin nor end")})
+        return attrs
 
 
 class LanguageSerializer(StringRepresentationSerializer, ModelSerializer):
@@ -246,13 +289,16 @@ class MetadataProfileRelatedField(ResourceRelatedField):
         return {"related": Hyperlink(url, "related")}
 
 
+CSW_SERIALIZER_PATH = "registry.serializers.service.CatalogueServiceSerializer"
+
+
 class MetadataRelationSerializer(ModelSerializer):
     included_serializers = {
         "layer": "registry.serializers.service.LayerSerializer",
         "feature_type": "registry.serializers.service.FeatureTypeSerializer",
         "wms": "registry.serializers.service.WebMapServiceSerializer",
         "wfs": "registry.serializers.service.WebFeatureServiceSerializer",
-        "csw": "registry.serializers.service.CatalogueServiceSerializer",
+        "csw": CSW_SERIALIZER_PATH,
     }
 
     class Meta:
@@ -655,10 +701,10 @@ class RecordWriteSerializerMixin:
         The readiness clarification of #1244 (2026-11-12): no enabled public
         write path may leave model fields, ``xml_backup_file`` and the CSW
         output out of sync. The fields the configs READ from the record's
-        document but the write mapper of #1242 can not WRITE (bounding
-        geometry, time extents, the citation identifier) would commit into the
-        row while the served document silently kept its old value — the one
-        sync gap a successful save could no longer heal. Refusing them is the
+        document but the write mapper of #1242 can not WRITE (the citation
+        identifier) would commit into the row while the served document
+        silently kept its old value — the one sync gap a successful save could
+        no longer heal. Refusing them is the
         same fail-closed posture as a rule set this version can not evaluate,
         and the set is derived from the configs (see
         :func:`registry.mappers.publish.non_roundtrippable_fields`), not kept
@@ -865,6 +911,23 @@ class RecordWriteSerializerMixin:
         ))
 
 
+class BoundingGeometryField(GeometryField):
+    """The geometry member of the editor's extent widget (#1246).
+
+    The read side answers the column as GeoJSON; the write side must hand
+    the proxy the collection type the column is — the autogenerated field
+    would set the parsed POLYGON straight onto the MULTIPOLYGON column and
+    die in the proxy's ``TypeError``. A single geometry from the map widget
+    is promoted, anything already a collection passes through.
+    """
+
+    def to_internal_value(self, data):
+        geometry = super().to_internal_value(data)
+        if geometry is not None and not isinstance(geometry, MultiPolygon):
+            return MultiPolygon([geometry])
+        return geometry
+
+
 class DatasetMetadataRecordSerializer(
         RecordWriteSerializerMixin,
         RecordPermissionsSerializerMixin,
@@ -873,6 +936,10 @@ class DatasetMetadataRecordSerializer(
         ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:datasetmetadata-detail")
+    # the editor's extent widget sends the bbox or polygon as GeoJSON; the
+    # autogenerated field would set a raw POLYGON onto the MULTIPOLYGON
+    # proxy column (#1246).
+    bounding_geometry = BoundingGeometryField(required=False, allow_null=True)
 
     profile = MetadataProfileRelatedField(
         queryset=MetadataProfile.objects,
@@ -939,7 +1006,7 @@ class DatasetMetadataRecordSerializer(
     included_serializers = {
         "self_pointing_layers": "registry.serializers.service.LayerSerializer",
         "self_pointing_feature_types": "registry.serializers.service.FeatureTypeSerializer",
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "dataset_contact": MetadataContactSerializer,
         "categories": IsoCategorySerializer,
         "metadata_contact": MetadataContactSerializer,
@@ -984,20 +1051,17 @@ class ServiceMetadataRecordSerializer(
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        # related_link_view_name='registry:servicemetadata-metadatacontact-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
     )
     licence = ResourceRelatedField(
         queryset=Licence.objects,
         required=False,
-        # related_link_view_name='registry:servicemetadata-licence-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord'
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         required=False,
-        # related_link_view_name='registry:servicemetadata-keywords-list',
         related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata'
     )
     reference_systems = ResourceRelatedField(
@@ -1009,10 +1073,10 @@ class ServiceMetadataRecordSerializer(
     )
 
     included_serializers = {
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "self_pointing_wms": "registry.serializers.service.WebMapServiceSerializer",
         "self_pointing_wfs": "registry.serializers.service.WebFeatureServiceSerializer",
-        "self_pointing_csw": "registry.serializers.service.CatalogueServiceSerializer",
+        "self_pointing_csw": CSW_SERIALIZER_PATH,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,
         "licence": LicenceSerializer,
@@ -1092,7 +1156,7 @@ class ApplicationMetadataRecordSerializer(
     )
 
     included_serializers = {
-        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
+        "harvested_through": CSW_SERIALIZER_PATH,
         "metadata_contact": MetadataContactSerializer,
         "application_contact": MetadataContactSerializer,
         "categories": IsoCategorySerializer,

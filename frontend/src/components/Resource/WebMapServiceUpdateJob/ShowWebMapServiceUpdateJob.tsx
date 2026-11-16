@@ -44,16 +44,12 @@ const label = (record?: RaRecord) =>
   record?.stringRepresentation ??
   record?.id ??
   "—";
-const changeType = (mapping: RaRecord, config: ServiceUpdateConfig) =>
-  !mapping[config.oldElement]
-    ? "added"
-    : !mapping[config.newElement]
-      ? "removed"
-      : mapping.delta?.length
-        ? "modified"
-        : config.hasTree
-          ? "unchanged"
-          : "mapped";
+const changeType = (mapping: RaRecord, config: ServiceUpdateConfig): string => {
+  if (!mapping[config.oldElement]) return "added";
+  if (!mapping[config.newElement]) return "removed";
+  if (mapping.delta?.length) return "modified";
+  return config.hasTree ? "unchanged" : "mapped";
+};
 const panelSx = {
   p: 2.5,
   border: 1,
@@ -125,6 +121,21 @@ const LayerComparison = ({
   );
 };
 
+/** whether a mapping belongs to the section the review is filtered to */
+const mappingMatchesFilter = (
+  mapping: RaRecord,
+  config: ServiceUpdateConfig,
+  filter: string,
+): boolean => {
+  if (filter === "all") return true;
+  if (filter === "pending") return !mapping.isConfirmed;
+  return changeType(mapping, config) === filter;
+};
+
+/** whether a layer encloses the other in the tree: its interval contains it */
+const containsLayer = (layer: RaRecord, other: RaRecord): boolean =>
+  layer.mpttLft < other.mpttLft && layer.mpttRgt > other.mpttRgt;
+
 const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   const job = useRecordContext();
   const { refetch } = useShowContext();
@@ -188,10 +199,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   };
   const visibleMappings = mappings.filter(
     (mapping) =>
-      (filter === "all" ||
-        (filter === "pending"
-          ? !mapping.isConfirmed
-          : changeType(mapping, config) === filter)) &&
+      mappingMatchesFilter(mapping, config, filter) &&
       String(label(getLayer(mapping, "new") ?? getLayer(mapping, "old")))
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -216,14 +224,9 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
     .filter(
       (layer) =>
         layer.mpttLft === 1 ||
-        (selectedNode &&
-          layer.mpttLft < selectedNode.mpttLft &&
-          layer.mpttRgt > selectedNode.mpttRgt) ||
-        (treeSearch &&
-          matchingLayers.some(
-            (match) =>
-              layer.mpttLft < match.mpttLft && layer.mpttRgt > match.mpttRgt,
-          )),
+        (selectedNode !== undefined && containsLayer(layer, selectedNode)) ||
+        (treeSearch !== "" &&
+          matchingLayers.some((match) => containsLayer(layer, match))),
     )
     .map((layer) => String(layer.id));
   const getLayerProps = useCallback(
@@ -234,9 +237,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
       const visible =
         !treeSearch ||
         matchingLayers.some(
-          (match) =>
-            match.id === layer.id ||
-            (layer.mpttLft < match.mpttLft && layer.mpttRgt > match.mpttRgt),
+          (match) => match.id === layer.id || containsLayer(layer, match),
         );
       return {
         itemId: String(layer.id),
@@ -338,9 +339,8 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
         </Stack>
       </Paper>
       {error && <Alert severity="error">{message("loadError")}</Alert>}
-      {loading && !error ? (
-        <Loading />
-      ) : !error ? (
+      {loading && !error && <Loading />}
+      {!loading && !error && (
         <Box
           sx={{
             display: "grid",
@@ -553,7 +553,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
             )}
           </Paper>
         </Box>
-      ) : null}
+      )}
     </Stack>
   );
 };

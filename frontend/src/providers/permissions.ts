@@ -4,7 +4,7 @@
  * react-admin asks `canAccess` on every component mount - menu entries, list
  * routes, create buttons - and react-query caches the answer per
  * (resource, action), so a network call inside the provider would run once
- * per resource per session at least, and the old `getPermissions` TODO shows
+ * per resource per session at least, and the old `getPermissions` open item shows
  * how badly permission fetches interact with the login/logout render cycle.
  * The authProvider therefore fetches one permission snapshot next to
  * `getIdentity` and answers every check from it. This module is that answer:

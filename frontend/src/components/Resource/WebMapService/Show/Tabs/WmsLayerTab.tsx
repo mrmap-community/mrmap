@@ -11,6 +11,21 @@ import WmsViewerButtons from '../../Button/ListActions';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
 
+/** the buttons read their service from the record context, so the record they
+ *  open is named here rather than taken from whatever screen renders this tab */
+const layerViewerActions = (service?: RaRecord) => {
+  const viewerActions = (layer?: RaRecord) => (
+      <RecordContextProvider value={service}>
+        <WmsViewerButtons key={String(layer?.id)} element={layer} size='small' />
+      </RecordContextProvider>
+  );
+  return viewerActions;
+};
+
+const layerHistory = (layer?: RaRecord) => (
+  <ElementHistory resource='Layer' record={layer}/>
+);
+
 export const WmsLayers = () => {
 
   const record = useRecordContext();
@@ -61,18 +76,8 @@ export const WmsLayers = () => {
           id={selectedLayer ?? undefined}
           serviceResource='WebMapService'
           serviceId={record?.id}
-          viewerActions={(layer) => (
-              // the buttons read their service from the record context, so the record they open is
-              // named here rather than taken from whatever screen renders this tab
-              <RecordContextProvider value={record}>
-                  <WmsViewerButtons
-                      key={String(layer?.id)}
-                      element={layer}
-                      size='small'
-                  />
-              </RecordContextProvider>
-          )}
-          history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
+          viewerActions={layerViewerActions(record)}
+          history={layerHistory}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>

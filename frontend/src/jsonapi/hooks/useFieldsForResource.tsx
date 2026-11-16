@@ -5,8 +5,8 @@ import { FieldsForOperationProps, useFieldsForOperation } from './useFieldsForOp
 
 
 export interface FieldsForResourceProps extends Omit<FieldsForOperationProps, 'operationId'>{
-  record?: RaRecord | undefined
-  resource?: string | undefined
+  record?: RaRecord
+  resource?: string
 }
 
 

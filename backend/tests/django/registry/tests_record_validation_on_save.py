@@ -97,11 +97,12 @@ class RuleShapeTests(SimpleTestCase):
         self.assertFalse(assessable_rule({**A_RULE, "severity": "info"}))
 
     def test_a_field_the_overlay_cannot_place_is_not_assessable(self):
-        # bounding_geometry has no reversible form in the write mapper
-        # (#1242 names it as skipped) - a rule pointing there can never be
-        # assessed over the resulting document
-        self.assertFalse(assessable_rule({**A_RULE,
-                                          "field": "bounding_geometry"}))
+        # profile is relation bookkeeping, never a field of the mapped
+        # document - the overlay skips it, so a rule pointing there can
+        # never be assessed over the resulting document. (bounding_geometry
+        # served as this example until #1246 gave it its reversible form -
+        # it is assessable now)
+        self.assertFalse(assessable_rule({**A_RULE, "field": "profile"}))
 
     def test_a_document_only_field_is_assessable(self):
         # the payload can not write date_stamp; the document carries it
@@ -190,10 +191,13 @@ class OverlayTests(SimpleTestCase):
         self.assertEqual(values["languages"], [{"value": 2}])
 
     def test_a_field_the_overlay_cannot_convert_keeps_its_extracted_row(self):
+        # a name outside OVERLAYABLE_FIELDS - profile is relation
+        # bookkeeping, not a field of the mapped document - keeps its row;
+        # bounding_geometry converts since #1246 and can not serve here
         sentinel = object()
-        values = {"bounding_geometry": sentinel}
-        overlay_write_values(values, {"bounding_geometry": "a geometry"})
-        self.assertIs(values["bounding_geometry"], sentinel)
+        values = {"profile": sentinel}
+        overlay_write_values(values, {"profile": "a profile"})
+        self.assertIs(values["profile"], sentinel)
 
     def test_the_write_mapper_reads_the_overlayed_values(self):
         # end to end at this level: extract, overlay a title, write - the

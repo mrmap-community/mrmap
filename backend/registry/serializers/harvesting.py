@@ -414,7 +414,7 @@ class HarvestingJobSerializer(
 
     phase_label = CharField(source="get_phase_display", read_only=True)
     phase = IntegerField(required=False)
-    # TODO: use IntegerChoices instead
+    # FUTURE: use IntegerChoices instead
     log_level = ChoiceField(default=LogLevelEnum.INFO,
                             choices=LogLevelEnum.choices)
 

@@ -49,7 +49,7 @@ def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
             "keywords": UpdateModeEnum.OVERWRITE,
             "reference_systems": UpdateModeEnum.OVERWRITE,
             "time_extents": UpdateModeEnum.OVERWRITE,
-            # TODO: datasetmetadata overwrite
+            # FUTURE: datasetmetadata overwrite
         },
     }
 
@@ -85,6 +85,9 @@ def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     }
 
 
+UPDATED_SERVICE_HELP_TEXT = _("this is the service which shall be updated")
+
+
 class WebMapServiceUpdateSetting(PeriodicTask):
     @property
     def next_run_expected_at(self):
@@ -96,7 +99,7 @@ class WebMapServiceUpdateSetting(PeriodicTask):
         related_name="web_map_service_update_settings",
         related_query_name="web_map_service_update_setting",
         verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -139,7 +142,7 @@ class WebFeatureServiceUpdateSetting(PeriodicTask):
         related_name="web_feature_service_update_settings",
         related_query_name="web_feature_service_update_setting",
         verbose_name=_("web feature service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -182,7 +185,7 @@ class CatalogueServiceUpdateSetting(PeriodicTask):
         related_name="catalogue_service_update_settings",
         related_query_name="catalogue_service_update_setting",
         verbose_name=_("catalogue service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -478,28 +481,42 @@ class ServiceUpdateJob(models.Model):
             rel.get_accessor_name() for rel in instance_a._meta.related_objects
         }
         if field_name in m2m_fields or field_name in reverse_fields:
-            target = getattr(instance_a, field_name)
-            source = getattr(instance_b, field_name)
-            old_ids = set(target.all().values_list("pk", flat=True))
-            new_objects = list(source.all())
-            new_ids = {obj.pk for obj in new_objects}
-            if mode == UpdateModeEnum.OVERWRITE:
-                if old_ids == new_ids:
-                    return False
-                if field_name in reverse_fields:
-                    # Preserve the original ownership-transfer semantics. Materialize
-                    # the source first, before deleting the old owned objects.
-                    target.exclude(pk__in=new_ids).delete()
-                target.set(new_objects)
-                return True
-            if mode == UpdateModeEnum.MERGE and field_name in m2m_fields:
-                additions = [
-                    obj for obj in new_objects if obj.pk not in old_ids]
-                if additions:
-                    target.add(*additions)
-                    return True
-            return False
+            return self._update_relation_field(
+                field_name, instance_a, instance_b, mode,
+                field_name in reverse_fields)
 
+        return self._update_scalar_field(
+            field_name, instance_a, instance_b, mode)
+
+    def _update_relation_field(self, field_name, instance_a, instance_b,
+                               mode, is_reverse):
+        """Overwrite or merge a m2m or reverse relation field."""
+        target = getattr(instance_a, field_name)
+        source = getattr(instance_b, field_name)
+        old_ids = set(target.all().values_list("pk", flat=True))
+        new_objects = list(source.all())
+        new_ids = {obj.pk for obj in new_objects}
+
+        if mode == UpdateModeEnum.OVERWRITE:
+            if old_ids == new_ids:
+                return False
+            if is_reverse:
+                # Preserve the original ownership-transfer semantics. Materialize
+                # the source first, before deleting the old owned objects.
+                target.exclude(pk__in=new_ids).delete()
+            target.set(new_objects)
+            return True
+
+        if mode == UpdateModeEnum.MERGE:
+            additions = [
+                obj for obj in new_objects if obj.pk not in old_ids]
+            if additions:
+                target.add(*additions)
+                return True
+        return False
+
+    def _update_scalar_field(self, field_name, instance_a, instance_b, mode):
+        """Copy a concrete field's value when the mode says overwrite."""
         if mode != UpdateModeEnum.OVERWRITE:
             return False
         field = instance_a._meta.get_field(field_name)
@@ -604,6 +621,9 @@ def update_job_for_process(background_process_pk):
         if job is not None:
             return job
     return None
+
+
+RESUME_REVIEW_REQUIRED_MSG = _("Can only resume a job with status REVIEW_REQUIRED")
 
 
 class WebMapServiceUpdateJob(ServiceUpdateJob):
@@ -740,6 +760,37 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
+    @staticmethod
+    def _layer_target(mapping, targets):
+        """The layer of the published service this mapping writes onto."""
+        return targets[mapping.new_layer_id]
+
+    @staticmethod
+    def _layer_parent(new_layer, targets):
+        """The already resolved parent of a candidate layer, if it has one."""
+        if not new_layer.mptt_parent_id:
+            return None
+        return targets[new_layer.mptt_parent_id]
+
+    def _bulk_adopt_layers(self, adopted_layers):
+        """Move newly adopted layers in bulk, keeping their own tree coords.
+
+        Update directly to retain the candidate's supplied tree coordinates;
+        Node.save() may otherwise recalculate them during adoption.
+        """
+        if not adopted_layers:
+            return
+        for layer in adopted_layers:
+            layer._change_reason = self.default_change_reason
+        Layer.objects.bulk_update(
+            adopted_layers, ["service", "mptt_parent", "mptt_tree"],
+            batch_size=500,
+        )
+        Layer.change_log.bulk_history_create(
+            adopted_layers, default_change_reason=self.default_change_reason,
+            batch_size=500,
+        )
+
     @atomic
     def update_layers(self):
         if not self.are_all_layers_updateable():
@@ -761,9 +812,8 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         adopted_layers = []
         tree = self.service.root_layer.mptt_tree
         for mapping in mappings:
-            new_layer = mapping.new_layer
-            target = targets[mapping.new_layer_id]
-            parent = targets[new_layer.mptt_parent_id] if new_layer.mptt_parent_id else None
+            target = self._layer_target(mapping, targets)
+            parent = self._layer_parent(mapping.new_layer, targets)
             if mapping.old_layer_id is None:
                 target.service = self.service
                 target.mptt_parent = parent
@@ -775,24 +825,14 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             changed = target.mptt_parent_id != (parent.pk if parent else None)
             target.mptt_parent = parent
             for field_name in fields:
-                changed |= self.update_field(field_name, target, new_layer)
+                changed |= self.update_field(
+                    field_name, target, mapping.new_layer)
             if changed:
                 updateable_layers.append(target)
 
         self.bulk_update_changed(
             updateable_layers, Layer, fields, ("mptt_parent",))
-        # Update directly to retain the candidate's supplied tree coordinates;
-        # Node.save() may otherwise recalculate them during adoption.
-        if adopted_layers:
-            for layer in adopted_layers:
-                layer._change_reason = self.default_change_reason
-            Layer.objects.bulk_update(
-                adopted_layers, ["service", "mptt_parent", "mptt_tree"], batch_size=500,
-            )
-            Layer.change_log.bulk_history_create(
-                adopted_layers, default_change_reason=self.default_change_reason,
-                batch_size=500,
-            )
+        self._bulk_adopt_layers(adopted_layers)
         self.delete_with_reason(Layer.objects.filter(
             id__in=deleteable_layers), Layer)
         # Monitoring settings are user configuration of the service, not of the
@@ -849,7 +889,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_layers_updateable():
             raise ValueError(
                 _(
@@ -1058,7 +1098,7 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_featuretypes_updateable():
             raise ValueError(
                 _(
@@ -1157,7 +1197,7 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         on_commit(lambda: run_csw_update.apply_async(
             kwargs={"update_job_id": self.pk}))
 

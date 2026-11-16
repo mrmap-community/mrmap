@@ -501,7 +501,7 @@ class LanguageChoices(SmartIntegerChoices):
     RON = 378, "ron"  # Romanian ; Moldavian; Moldovan
     RUM = 379, "rum"  # Romanian ; Moldavian; Moldovan
     RUN = 380, "run"  # Rundi
-    RUP = 381, "rup"  # Aromanian ; Arumanian; Macedo-Romanian [ b ]
+    RUP = 381, "rup"  # Aromanian; Arumanian; Macedo-Romanian
     RUS = 382, "rus"  # Russian
     SAD = 383, "sad"  # Sandawe
     SAG = 384, "sag"  # Sango
@@ -573,7 +573,7 @@ class LanguageChoices(SmartIntegerChoices):
     TIR = 450, "tir"  # Tigrinya
     TIV = 451, "tiv"  # Tiv
     TKL = 452, "tkl"  # Tokelau
-    TLH = 453, "tlh"  # Klingon ; tlhIngan-Hol
+    TLH = 453, "tlh"  # Klingon; tlhIngan-Hol
     TLI = 454, "tli"  # Tlingit
     TMH = 455, "tmh"  # Tamashek
     TOG = 456, "tog"  # Tonga (Nyasa)

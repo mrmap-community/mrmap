@@ -1,5 +1,6 @@
 import {
   BasenameContextProvider,
+  type RaRecord,
   ShowButton,
   SimpleList,
   useTranslate,
@@ -8,6 +9,24 @@ import {
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 
 import { formatMonitoringRun, getDuration } from "./formatMonitoringRun";
+
+/** the bullet a run row carries: its outcome */
+const runIcon = (record: RaRecord) => (
+  <FiberManualRecordIcon color={record.success ? "success" : "error"} />
+);
+
+/** the way to a run's own page, without the surrounding screen's basename */
+const runShowAction = (record: RaRecord) => (
+  <BasenameContextProvider basename="">
+    <ShowButton
+      record={record}
+      resource="WebMapServiceMonitoringRun"
+      label="ra.action.show"
+      variant="contained"
+      icon={false}
+    />
+  </BasenameContextProvider>
+);
 
 const MonitoringRunsList = () => {
   const translate = useTranslate();
@@ -19,20 +38,8 @@ const MonitoringRunsList = () => {
         "& .MuiListItem-root": { py: 0.5 },
         "& .MuiListItemText-root": { my: 0 },
       }}
-      leftIcon={(record) => (
-        <FiberManualRecordIcon color={record.success ? "success" : "error"} />
-      )}
-      rightIcon={(record) => (
-        <BasenameContextProvider basename="">
-          <ShowButton
-            record={record}
-            resource="WebMapServiceMonitoringRun"
-            label="ra.action.show"
-            variant="contained"
-            icon={false}
-          />
-        </BasenameContextProvider>
-      )}
+      leftIcon={runIcon}
+      rightIcon={runShowAction}
       primaryText={(record) =>
         formatMonitoringRun(record.dateDone ?? record.dateCreated)
       }

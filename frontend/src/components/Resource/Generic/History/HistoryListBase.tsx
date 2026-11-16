@@ -1,4 +1,4 @@
-import { Fragment, PropsWithChildren, ReactNode, useMemo } from 'react';
+import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { ListContextProvider, ResourceContextProvider, useGetList, useList, useResourceDefinition } from 'react-admin';
 
 import { useHttpClientContext } from '../../../../context/HttpClientContext';
@@ -38,7 +38,7 @@ const HistoryListBase = (
   {
     /** what to answer when the resource answers no statistics at all, which is
      *  another answer than statistics which answer no change */
-    fallback = <Fragment></Fragment>,
+    fallback = null,
     ...props
   }: HistoryBaseProps
 ) => {

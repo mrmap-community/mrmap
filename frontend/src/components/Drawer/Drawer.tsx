@@ -111,9 +111,9 @@ const Drawer = ({
   }, [openInstance])
 
   const label = translate(`drawer.${state.isOpen ? 'close' : 'open'}${anchor === 'right' ? 'Right' : 'Bottom'}`)
-  const toggleIcon = anchor === 'right'
-    ? (state.isOpen ? <ChevronRight /> : <ChevronLeft />)
-    : (state.isOpen ? <ExpandMore /> : <ExpandLess />)
+  const rightIcon = state.isOpen ? <ChevronRight /> : <ChevronLeft />
+  const bottomIcon = state.isOpen ? <ExpandMore /> : <ExpandLess />
+  const toggleIcon = anchor === 'right' ? rightIcon : bottomIcon
 
   return (
     <Fragment>

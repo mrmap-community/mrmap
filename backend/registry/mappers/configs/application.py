@@ -3,6 +3,10 @@ from registry.mappers.configs.iso_access import (DISTRIBUTOR_ONLINE_LINKS,
                                                  ONLINE_LINKS)
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
+XPATH_CI_CONTACT = "./gmd:contact/gmd:CI_ResponsibleParty"
+
+XPATH_POINT_OF_CONTACT = "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty"
+
 XPATH_MAP = {
     ("ISO", "application"): {
         "_namespaces": {
@@ -47,8 +51,8 @@ XPATH_MAP = {
                 "bounding_geometry": {
                     "_inputs": (
                         "./gmd:identificationInfo/*/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
-                    "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon"
-                    # TODO: "_reverse_parser": "",
+                    "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon",
+                    "_reverse_parser": "registry.mappers.parsers.value.serialize_bounding_geometry",
                 },
                 "code": {
                     "_inputs": (
@@ -83,14 +87,14 @@ XPATH_MAP = {
                 },
                 "application_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_POINT_OF_CONTACT,
                     # application records of many catalogues name the responsible party
                     # only in gmd:contact
-                    "_fallback_xpaths": ("./gmd:contact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_CI_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_POINT_OF_CONTACT,
                         },
                     },
                     "fields": {
@@ -102,14 +106,14 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                    "_base_xpath": XPATH_CI_CONTACT,
                     # records without a metadata contact often still name the
                     # party which provides the application
-                    "_fallback_xpaths": ("./gmd:identificationInfo/*/gmd:pointOfContact/gmd:CI_ResponsibleParty",),
+                    "_fallback_xpaths": (XPATH_POINT_OF_CONTACT,),
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                            "xpath": XPATH_CI_CONTACT,
                         },
                     },
                     "fields": {
@@ -173,11 +177,12 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/*/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
-                    # TODO: "__reverse_parser": "",
+                    "_reverse_parser": "registry.mappers.parsers.iso.serialize_timeextent_fragment",
                     "_reverse": {
                         "_identifier": {
                             "compiler": "registry.mappers.identifiers.timeextent_identifier",
                         },
+                        "_row": "./gmd:EX_TemporalExtent",
                     },
                 },
             }

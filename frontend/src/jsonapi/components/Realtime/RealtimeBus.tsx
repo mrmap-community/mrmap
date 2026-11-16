@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuthState, useDataProvider } from "react-admin";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 
@@ -42,9 +42,7 @@ const RealtimeBus = () => {
     setRealtimeIsReady(readyState)
   },[readyState])
 
-  return (
-    <Fragment></Fragment>
-  )
+  return null
 };
 
 export default RealtimeBus;

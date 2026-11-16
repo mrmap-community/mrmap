@@ -199,70 +199,89 @@ class XSDSkeletonBuilder:
     def _apply_particles_and_attrs(self, xml_el, node, children_map=None):
 
         # --- sequence elements ---
-        for seq in node.findall(f"{XS}sequence"):
-            for child in seq.findall(f"{XS}element"):
-
-                raw_name = child.get("ref") or child.get("name")
-                if not raw_name:
-                    continue
-
-                ns, local = self._resolve_qname(raw_name, child)
-
-                child_data = None
-                if children_map:
-                    child_data = children_map.get(local)
-
-                mino = int(child.get("minOccurs", "1"))
-                if mino == 0 and not child_data:
-                    continue
-
-                occurrences = (
-                    len(child_data)
-                    if isinstance(child_data, list)
-                    else 1
-                )
-
-                for i in range(occurrences):
-
-                    data = (
-                        child_data[i]
-                        if isinstance(child_data, list)
-                        else child_data
-                    ) or {}
-
-                    attributes = data.get("_attributes", {})
-                    text = data.get("_text")
-
-                    nested_children = {
-                        k: v for k, v in data.items()
-                        if k not in ("_attributes", "_text")
-                    }
-
-                    sub_el = etree.SubElement(
-                        xml_el,
-                        etree.QName(ns, local)
-                    )
-
-                    if text is not None:
-                        sub_el.text = str(text)
-
-                    for k, v in attributes.items():
-                        if v is not None:
-                            sub_el.set(k, str(v))
-
-                    type_attr = child.get("type")
-                    if type_attr:
-                        tns, tlocal = self._resolve_qname(type_attr, child)
-                        ct = self.types.get((tns, tlocal))
-                        if ct is not None:
-                            self._apply_complex_type(
-                                sub_el,
-                                ct,
-                                attributes=None,
-                                children_attributes=nested_children,
-                            )
+        self._apply_sequence_particles(xml_el, node, children_map)
 
         # --- attributes defined directly ---
+        self._apply_declared_attributes(xml_el, node)
+
+        # --- attributeGroups ---
+        self._apply_attribute_group_particles(xml_el, node)
+
+    def _apply_sequence_particles(self, xml_el, node, children_map):
+        for seq in node.findall(f"{XS}sequence"):
+            for child in seq.findall(f"{XS}element"):
+                self._apply_sequence_element(xml_el, child, children_map)
+
+    def _apply_sequence_element(self, xml_el, child, children_map):
+        """Render one element of a sequence as often as its data carries -
+        optional elements without data are left out."""
+        raw_name = child.get("ref") or child.get("name")
+        if not raw_name:
+            return
+
+        ns, local = self._resolve_qname(raw_name, child)
+
+        child_data = None
+        if children_map:
+            child_data = children_map.get(local)
+
+        mino = int(child.get("minOccurs", "1"))
+        if mino == 0 and not child_data:
+            return
+
+        occurrences = (
+            len(child_data)
+            if isinstance(child_data, list)
+            else 1
+        )
+
+        for i in range(occurrences):
+
+            data = (
+                child_data[i]
+                if isinstance(child_data, list)
+                else child_data
+            ) or {}
+
+            self._render_sequence_element(xml_el, child, ns, local, data)
+
+    def _render_sequence_element(self, xml_el, child, ns, local, data):
+        """One <element> below the document: its text, its attributes and
+        whatever its type declaration nests."""
+        attributes = data.get("_attributes", {})
+        text = data.get("_text")
+
+        nested_children = {
+            k: v for k, v in data.items()
+            if k not in ("_attributes", "_text")
+        }
+
+        sub_el = etree.SubElement(
+            xml_el,
+            etree.QName(ns, local)
+        )
+
+        if text is not None:
+            sub_el.text = str(text)
+
+        for k, v in attributes.items():
+            if v is not None:
+                sub_el.set(k, str(v))
+
+        type_attr = child.get("type")
+        if type_attr:
+            tns, tlocal = self._resolve_qname(type_attr, child)
+            ct = self.types.get((tns, tlocal))
+            if ct is not None:
+                self._apply_complex_type(
+                    sub_el,
+                    ct,
+                    attributes=None,
+                    children_attributes=nested_children,
+                )
+
+    @staticmethod
+    def _apply_declared_attributes(xml_el, node):
         for attr in node.findall(f"{XS}attribute"):
             name = attr.get("name")
             if not name or name in xml_el.attrib:
@@ -276,7 +295,7 @@ class XSDSkeletonBuilder:
             elif default is not None:
                 xml_el.set(name, default)
 
-        # --- attributeGroups ---
+    def _apply_attribute_group_particles(self, xml_el, node):
         for ag in node.findall(f"{XS}attributeGroup"):
             ref = ag.get("ref")
             if not ref:

@@ -144,12 +144,6 @@ class BackgroundProcessSerializer(
         help_text=_(
             "how many references the collection planned but never reported "
             "an outcome for"))
-    # logs = ResourceRelatedField(
-    #    queryset=BackgroundProcessLog.objects,
-    #    many=True,
-    #    related_link_view_name='notify:backgroundprocess-logs-list',
-    #    related_link_url_kwarg='parent_lookup_background_process'
-    # )
 
     class Meta:
         model = BackgroundProcess

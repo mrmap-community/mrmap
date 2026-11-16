@@ -23,7 +23,7 @@ export interface ConfigureRelatedResourceProps {
 /** Configure a service's related settings, querying the relationship so record switches stay fresh. */
 export default function ConfigureRelatedResource({
   relatedResource,
-}: ConfigureRelatedResourceProps) {
+}: Readonly<ConfigureRelatedResourceProps>) {
   const { resource, record, refetch: refetchService } = useShowContext();
   const translate = useTranslate();
   const notify = useNotify();

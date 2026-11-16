@@ -157,7 +157,7 @@ export const applyRecords = (
   const transitions: JobTransitions = { failed: [], completed: [] };
 
   records.forEach((record) => {
-    if (record === undefined || record.id === undefined || record.id === null) {
+    if (record?.id === undefined || record?.id === null) {
       return;
     }
     const id = jobId(record);

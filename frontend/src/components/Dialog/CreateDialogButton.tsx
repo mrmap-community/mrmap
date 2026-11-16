@@ -35,13 +35,11 @@ const DefaultTitle = () => {
 const DefaultActions = () => {
   const onSuccess = useDialogMutationSuccess("created");
   return (
-    <Fragment>
-      <SaveButton
-        mutationOptions={{ onSuccess: onSuccess }}
-        type="button"
-        alwaysEnable
-      />
-    </Fragment>
+    <SaveButton
+      mutationOptions={{ onSuccess: onSuccess }}
+      type="button"
+      alwaysEnable
+    />
   );
 };
 

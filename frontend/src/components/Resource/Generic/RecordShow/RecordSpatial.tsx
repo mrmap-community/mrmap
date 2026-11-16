@@ -23,11 +23,12 @@ const RecordSpatial = () => {
   const record = useRecordContext();
   const translate = useTranslate();
   const bounds = getCoverageBounds(record?.boundingGeometry);
-  const geometry: GeoJSON | undefined = bounds
-    ? typeof record?.boundingGeometry === "string"
+  let geometry: GeoJSON | undefined;
+  if (bounds) {
+    geometry = typeof record?.boundingGeometry === "string"
       ? JSON.parse(record.boundingGeometry)
-      : record?.boundingGeometry
-    : undefined;
+      : record?.boundingGeometry;
+  }
   if (!record) return null;
   return (
     <Grid container spacing={2}>

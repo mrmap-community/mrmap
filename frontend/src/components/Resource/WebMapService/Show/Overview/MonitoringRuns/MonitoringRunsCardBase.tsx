@@ -13,10 +13,13 @@ const MonitoringRunsCardBase = ({ children }: PropsWithChildren) => {
     translate(`resources.${resource}.${key}`);
   const lastRun = data?.[0];
 
+  let color: "success" | "error" | undefined;
+  if (lastRun) color = lastRun.success ? "success" : "error";
+
   return (
     <RunHistoryCard
       serviceFilter="service__id"
-      color={lastRun ? (lastRun.success ? "success" : "error") : undefined}
+      color={color}
       getHeader={() => ({
         title: message("lastMonitoringRuns"),
         subheader:

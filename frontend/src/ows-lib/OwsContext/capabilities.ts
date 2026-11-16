@@ -1,5 +1,5 @@
 import { OWSResource } from './core';
-import { Operation } from './types';
+import { Offering, Operation } from './types';
 import { isWfsOfferingCode, isWmsOfferingCode } from './validation';
 
 /**
@@ -24,7 +24,15 @@ export type UnsupportedReason =
  */
 const GEOJSON_FORMATS = new Set(['application/json', 'application/geo+json', 'json', 'geojson'])
 
-export const isGeoJsonFormat = (format: string): boolean =>
+export /** The formats an operation advertises: its own offered list, failing that its single type. */
+const advertisedFormats = (outputFormats: unknown, operationType: unknown): string[] => {
+  if (Array.isArray(outputFormats)) {
+    return outputFormats.filter((format): format is string => typeof format === 'string')
+  }
+  return typeof operationType === 'string' ? [operationType] : []
+}
+
+const isGeoJsonFormat = (format: string): boolean =>
   GEOJSON_FORMATS.has(format.trim().toLowerCase())
 
 /** A CRS token naming WGS 84, exactly as the backend preview recognizes it. */
@@ -67,34 +75,26 @@ export const getRenderableGetFeatureOperation = (
     operation.href.length > 0)
   if (operation === undefined) return undefined
 
-  const advertised = Array.isArray(offering.outputFormats)
-    ? offering.outputFormats.filter((format): format is string => typeof format === 'string')
-    : typeof operation.type === 'string' ? [operation.type] : []
+  const advertised = advertisedFormats(offering.outputFormats, operation.type)
   const format = advertised.find(isGeoJsonFormat)
   if (format === undefined) return undefined
 
-  const crsTokens = [
-    ...(typeof offering.defaultCrs === 'string' ? [offering.defaultCrs] : []),
-    ...(Array.isArray(offering.otherCrs)
-      ? offering.otherCrs.filter((crs): crs is string => typeof crs === 'string') : [])
-  ]
+  const crsTokens = crsTokensOf(offering)
   if (!crsTokens.some(isWgs84CrsToken)) return undefined
 
   return { operation, format }
 }
 
-/**
- * The names of everything in the resource the viewer cannot use. A renderable resource answers
- * nothing: its supported GetMap is the resolved alternative to everything else it carries.
- */
-export const getUnsupportedReasons = (resource: OWSResource): UnsupportedReason[] => {
-  if (isRenderableResource(resource)) return []
+/** the crs tokens an offering advertises: its default followed by the others it states */
+const crsTokensOf = (offering: Offering): string[] => [
+  ...(typeof offering.defaultCrs === 'string' ? [offering.defaultCrs] : []),
+  ...(Array.isArray(offering.otherCrs)
+    ? offering.otherCrs.filter((crs): crs is string => typeof crs === 'string') : [])
+]
 
+/** why the offerings the viewer doesn't know of cannot be taken along */
+const unsupportedOfferingReasons = (offerings: Offering[]): UnsupportedReason[] => {
   const reasons: UnsupportedReason[] = []
-  const offerings = resource.properties.offerings ?? []
-  const wmsOffering = offerings.find(offering => isWmsOfferingCode(offering.code))
-  const wfsOffering = offerings.find(offering => isWfsOfferingCode(offering.code))
-
   offerings
     .filter(offering => !isWmsOfferingCode(offering.code) && !isWfsOfferingCode(offering.code))
     .forEach(offering => {
@@ -104,48 +104,64 @@ export const getUnsupportedReasons = (resource: OWSResource): UnsupportedReason[
       ;(offering.contents ?? []).forEach(content =>
         reasons.push({ kind: 'content', type: content.type }))
     })
+  return reasons
+}
 
-  if (wmsOffering !== undefined) {
-    wmsOffering.operations
-      ?.filter(operation =>
-        operation.code === 'GetMap' && String(operation.method ?? '').toLowerCase() !== 'get')
-      .forEach(operation =>
-        reasons.push({ kind: 'method', code: operation.code, method: String(operation.method ?? '') }))
-    ;(wmsOffering.contents ?? []).forEach(content =>
-      reasons.push({ kind: 'content', type: content.type }))
-  }
+/** why a WMS offering cannot render, followed by what its inline contents carry */
+const wmsOfferingReasons = (wmsOffering: Offering): UnsupportedReason[] => {
+  const reasons: UnsupportedReason[] = []
+  wmsOffering.operations
+    ?.filter(operation =>
+      operation.code === 'GetMap' && String(operation.method ?? '').toLowerCase() !== 'get')
+    .forEach(operation =>
+      reasons.push({ kind: 'method', code: operation.code, method: String(operation.method ?? '') }))
+  ;(wmsOffering.contents ?? []).forEach(content =>
+    reasons.push({ kind: 'content', type: content.type }))
+  return reasons
+}
 
-  if (wfsOffering !== undefined) {
-    const getFeatureOperations = wfsOffering.operations
-      ?.filter(operation => operation.code === 'GetFeature') ?? []
-    const getFeature = getFeatureOperations.find(operation =>
-      String(operation.method ?? '').toLowerCase() === 'get' &&
-      typeof operation.href === 'string' && operation.href.length > 0)
-    // the first GetFeature decides, exactly like the first offering: what it lacks is named
-    if (getFeatureOperations.length > 0 && getFeature === undefined) {
-      reasons.push({
-        kind: 'method',
-        code: 'GetFeature',
-        method: String(getFeatureOperations[0].method ?? '')
-      })
-    } else if (getFeature !== undefined) {
-      const advertised = Array.isArray(wfsOffering.outputFormats)
-        ? wfsOffering.outputFormats.filter((format): format is string => typeof format === 'string')
-        : typeof getFeature.type === 'string' ? [getFeature.type] : []
-      const crsTokens = [
-        ...(typeof wfsOffering.defaultCrs === 'string' ? [wfsOffering.defaultCrs] : []),
-        ...(Array.isArray(wfsOffering.otherCrs)
-          ? wfsOffering.otherCrs.filter((crs): crs is string => typeof crs === 'string') : [])
-      ]
-      if (!advertised.some(isGeoJsonFormat)) {
-        reasons.push({ kind: 'format', code: 'GetFeature' })
-      } else if (!crsTokens.some(isWgs84CrsToken)) {
-        reasons.push({ kind: 'crs', code: 'GetFeature' })
-      }
+/** why a WFS offering's GetFeature falls short, followed by its inline contents */
+const wfsOfferingReasons = (wfsOffering: Offering): UnsupportedReason[] => {
+  const reasons: UnsupportedReason[] = []
+  const getFeatureOperations = wfsOffering.operations
+    ?.filter(operation => operation.code === 'GetFeature') ?? []
+  const getFeature = getFeatureOperations.find(operation =>
+    String(operation.method ?? '').toLowerCase() === 'get' &&
+    typeof operation.href === 'string' && operation.href.length > 0)
+  // the first GetFeature decides, exactly like the first offering: what it lacks is named
+  if (getFeatureOperations.length > 0 && getFeature === undefined) {
+    reasons.push({
+      kind: 'method',
+      code: 'GetFeature',
+      method: String(getFeatureOperations[0].method ?? '')
+    })
+  } else if (getFeature !== undefined) {
+    const advertised = advertisedFormats(wfsOffering.outputFormats, getFeature.type)
+    if (!advertised.some(isGeoJsonFormat)) {
+      reasons.push({ kind: 'format', code: 'GetFeature' })
+    } else if (!crsTokensOf(wfsOffering).some(isWgs84CrsToken)) {
+      reasons.push({ kind: 'crs', code: 'GetFeature' })
     }
-    ;(wfsOffering.contents ?? []).forEach(content =>
-      reasons.push({ kind: 'content', type: content.type }))
   }
+  ;(wfsOffering.contents ?? []).forEach(content =>
+    reasons.push({ kind: 'content', type: content.type }))
+  return reasons
+}
+
+/**
+ * The names of everything in the resource the viewer cannot use. A renderable resource answers
+ * nothing: its supported GetMap is the resolved alternative to everything else it carries.
+ */
+export const getUnsupportedReasons = (resource: OWSResource): UnsupportedReason[] => {
+  if (isRenderableResource(resource)) return []
+
+  const offerings = resource.properties.offerings ?? []
+  const wmsOffering = offerings.find(offering => isWmsOfferingCode(offering.code))
+  const wfsOffering = offerings.find(offering => isWfsOfferingCode(offering.code))
+
+  const reasons = unsupportedOfferingReasons(offerings)
+  if (wmsOffering !== undefined) reasons.push(...wmsOfferingReasons(wmsOffering))
+  if (wfsOffering !== undefined) reasons.push(...wfsOfferingReasons(wfsOffering))
 
   // an offering which asks to be taken along without offering a usable render operation at all
   if (reasons.length === 0 && offerings.length > 0) {

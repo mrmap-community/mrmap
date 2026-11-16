@@ -49,8 +49,8 @@ class HistoricalViewSetMixin:
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("history_user").defer(*defer)
-        elif include and "historyUser" in include:
-            # TODO: select_for_includes setup does not work for history records...
+        else:
+            # FUTURE: select_for_includes setup does not work for history records...
             qs = qs.select_related("history_user")
 
         # At the end of the existing get_queryset(), before returning qs:
@@ -138,6 +138,9 @@ class OGCServiceHistoricalViewSetMixin(
                                                                     "service_contact").defer(*defer_metadata_contact, *defer_service_contact)
 
 
+HISTORY_OPERATION_URLS = "history_relation.operation_urls"
+
+
 class WebMapServiceHistoricalViewSet(
     OGCServiceHistoricalViewSetMixin,
     ModelViewSet
@@ -167,7 +170,7 @@ class WebMapServiceHistoricalViewSet(
                     "id", "secured_service__id")
             )
         ],
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.only(
@@ -263,7 +266,7 @@ class WebFeatureServiceHistoricalViewSet(
                     "id", "secured_service__id")
             )
         ],
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.only(
@@ -312,7 +315,7 @@ class CatalogueServiceHistoricalViewSet(
     }
     prefetch_for_not_includes = {
 
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.only(

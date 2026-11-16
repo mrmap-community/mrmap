@@ -38,21 +38,19 @@ interface LayerHistoryRecord extends HistoryRecord {
   abstract?: string;
 }
 
-const valueText = (value: unknown) =>
-  value == null
-    ? "—"
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : String(value);
+const valueText = (value: unknown) => {
+  if (value == null) return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
 
-const historyChangeType = (record: LayerHistoryRecord) =>
-  record.historyType === "deleted"
-    ? "removed"
-    : record.historyType === "created" || record.delta == null
-      ? "added"
-      : record.delta.length
-        ? "modified"
-        : "unchanged";
+const historyChangeType = (record: LayerHistoryRecord): string => {
+  if (record.historyType === "deleted") return "removed";
+  if (record.historyType === "created" || record.delta == null) return "added";
+  if (record.delta.length) return "modified";
+  return "unchanged";
+};
 
 const ChangeDetails = ({ config }: { config: ServiceUpdateConfig }) => {
   const record = useRecordContext<LayerHistoryRecord>();

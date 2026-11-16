@@ -6,6 +6,8 @@ import {
   encapsulateJsonApiDocumentData,
   encapsulateJsonApiPrimaryData,
   getFieldForFormat,
+  getFieldSchema,
+  getIsoPath,
 } from "./utils";
 vi.mock("../components/Dialog/CreateSuggestionDialog", () => ({
   default: () => null,
@@ -94,5 +96,53 @@ describe("formatted field validation", () => {
     expect(validate(format === "email" ? "a@b.co" : "https://a.co").some(Boolean)).toBe(true);
     expect(validate("invalid-value").some(Boolean)).toBe(true);
     expect(validate(format === "email" ? "person@example.com" : "https://example.com").every(value => value === undefined)).toBe(true);
+  });
+});
+
+describe("mapped element metadata (#1249)", () => {
+  const schema = {
+    properties: {
+      attributes: {
+        properties: {
+          abstract: { type: "string", "x-iso-path": "identification.abstract" },
+          title: { type: "string" },
+        },
+      },
+      relationships: {
+        properties: {
+          metadataContact: {
+            "x-iso-path": "contact.pointOfContact",
+            properties: {
+              data: { type: "object", properties: { type: { enum: ["Contact"] } } },
+            },
+          },
+          owner: {
+            properties: {
+              data: { type: "object", properties: { type: { enum: ["User"] } } },
+            },
+          },
+        },
+      },
+    },
+  } as never;
+
+  it("surfaces the x-iso-path extension on attributes and relationships", () => {
+    expect(getFieldSchema("abstract", schema)?.isoPath).toBe(
+      "identification.abstract",
+    );
+    expect(getFieldSchema("metadataContact", schema)?.isoPath).toBe(
+      "contact.pointOfContact",
+    );
+    expect(getFieldSchema("metadataContact", schema)?.reference).toBe("Contact");
+  });
+
+  it("leaves fields without the extension unmapped", () => {
+    expect(getFieldSchema("title", schema)?.isoPath).toBeUndefined();
+    expect(getFieldSchema("owner", schema)?.isoPath).toBeUndefined();
+  });
+
+  it("only accepts a textual extension value", () => {
+    expect(getIsoPath({ "x-iso-path": 42 } as never)).toBeUndefined();
+    expect(getIsoPath(undefined)).toBeUndefined();
   });
 });

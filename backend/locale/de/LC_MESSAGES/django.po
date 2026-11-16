@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-16 11:19+0000\n"
+"POT-Creation-Date: 2026-11-16 14:29+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,8 +70,9 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:92 accounts/models/roles.py:62 notify/models.py:97
-#: registry/models/mapcontext.py:324 registry/models/security.py:249
+#: accounts/models/groups.py:92 accounts/models/roles.py:124
+#: notify/models.py:97 registry/models/mapcontext.py:324
+#: registry/models/security.py:249
 msgid "description"
 msgstr "Beschreibung"
 
@@ -79,7 +80,7 @@ msgstr "Beschreibung"
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
-#: accounts/models/groups.py:101 accounts/models/roles.py:17
+#: accounts/models/groups.py:101 accounts/models/roles.py:79
 msgid "Organization"
 msgstr "Organisation"
 
@@ -111,15 +112,15 @@ msgstr "Ausstehende Anfragen"
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
-#: accounts/models/roles.py:16
+#: accounts/models/roles.py:78
 msgid "Platform"
 msgstr "Plattform"
 
-#: accounts/models/roles.py:49
+#: accounts/models/roles.py:111
 msgid "slug"
 msgstr "Kurzname"
 
-#: accounts/models/roles.py:51
+#: accounts/models/roles.py:113
 msgid ""
 "the machine name of the role, such as 'resource_editor'; code and later "
 "issues refer to a role by this name"
@@ -127,24 +128,24 @@ msgstr ""
 "der maschinenlesbare Name der Rolle, zum Beispiel 'resource_editor'; Code "
 "und spätere Ausgaben beziehen die Rolle über diesen Namen"
 
-#: accounts/models/roles.py:56 registry/models/metadata.py:850
+#: accounts/models/roles.py:118 registry/models/metadata.py:850
 msgid "label"
 msgstr "Anzeigename"
 
-#: accounts/models/roles.py:57
+#: accounts/models/roles.py:119
 msgid "the display name of the role"
 msgstr "der Anzeigename der Rolle"
 
-#: accounts/models/roles.py:64
+#: accounts/models/roles.py:126
 msgid "what the role is for, for the operator reading the role list"
 msgstr ""
 "wofür die Rolle da ist, für die Betreiber, welche die Rollenliste lesen"
 
-#: accounts/models/roles.py:70 notify/serializers.py:239
+#: accounts/models/roles.py:132 notify/serializers.py:239
 msgid "scope"
 msgstr "Geltungsbereich"
 
-#: accounts/models/roles.py:72
+#: accounts/models/roles.py:134
 msgid ""
 "PLATFORM for roles which reach over all organizations, ORGANIZATION for the "
 "roles a member of one organization gets"
@@ -152,11 +153,11 @@ msgstr ""
 "PLATFORM für Rollen, die über alle Organisationen hinweg gelten, "
 "ORGANIZATION für die Rollen, die ein Mitglied einer Organisation erhält"
 
-#: accounts/models/roles.py:78
+#: accounts/models/roles.py:140
 msgid "is builtin"
 msgstr "Eingebaut"
 
-#: accounts/models/roles.py:80
+#: accounts/models/roles.py:142
 msgid ""
 "shipped with MrMap: the row is seeded by migration, kept by manage.py "
 "sync_role_definitions and cannot be deleted"
@@ -164,11 +165,11 @@ msgstr ""
 "wird mit MrMap ausgeliefert: die Zeile wird durch eine Migration angelegt, "
 "von manage.py sync_role_definitions gepflegt und kann nicht gelöscht werden"
 
-#: accounts/models/roles.py:85
+#: accounts/models/roles.py:147
 msgid "is default"
 msgstr "Voreingestellt"
 
-#: accounts/models/roles.py:87
+#: accounts/models/roles.py:149
 msgid ""
 "membership grants this role automatically, once #732 applies roles to "
 "memberships"
@@ -176,11 +177,11 @@ msgstr ""
 "die Mitgliedschaft gewährt diese Rolle automatisch, sobald #732 Rollen auf "
 "Mitgliedschaften anwendet"
 
-#: accounts/models/roles.py:92
+#: accounts/models/roles.py:154
 msgid "is assignable"
 msgstr "Zuweisbar"
 
-#: accounts/models/roles.py:94
+#: accounts/models/roles.py:156
 msgid ""
 "the role is offered in the member picker; platform_admin is not, because "
 "holding it is not an ordinary membership"
@@ -188,11 +189,11 @@ msgstr ""
 "die Rolle wird in der Mitglieder-Auswahl angeboten; platform_admin nicht, "
 "denn sie zu halten ist keine gewöhnliche Mitgliedschaft"
 
-#: accounts/models/roles.py:101
+#: accounts/models/roles.py:163
 msgid "permissions"
 msgstr "Berechtigungen"
 
-#: accounts/models/roles.py:103
+#: accounts/models/roles.py:165
 msgid ""
 "the global permissions which make up the role; object grants stay the work "
 "of django-guardian"
@@ -200,13 +201,138 @@ msgstr ""
 "die globalen Berechtigungen, aus denen die Rolle besteht; Objekt-Gewährungen "
 "bleiben Sache von django-guardian"
 
-#: accounts/models/roles.py:109
+#: accounts/models/roles.py:171 accounts/models/roles.py:234
 msgid "role definition"
 msgstr "Rollendefinition"
 
-#: accounts/models/roles.py:110
+#: accounts/models/roles.py:172
 msgid "role definitions"
 msgstr "Rollendefinitionen"
+
+#: accounts/models/roles.py:236
+msgid "what this role means, from the catalogue of #731"
+msgstr "was diese Rolle bedeutet, aus dem Katalog von #731"
+
+#: accounts/models/roles.py:244
+msgid "organization"
+msgstr "Organisation"
+
+#: accounts/models/roles.py:246
+msgid ""
+"the organization this role belongs to; empty only for a role of PLATFORM "
+"scope, which reaches over all organizations"
+msgstr ""
+"die Organisation, zu der diese Rolle gehört; nur für eine Rolle mit"
+"Geltungsbereich PLATFORM leer, die alle Organisationen übergreift"
+
+#: accounts/models/roles.py:253
+msgid "group"
+msgstr "Gruppe"
+
+#: accounts/models/roles.py:255
+msgid ""
+"the group whose members hold this role; django-guardian and Django resolve "
+"its permissions, so nothing else enforces a role"
+msgstr ""
+"die Gruppe, deren Mitglieder diese Rolle innehaben; django-guardian und"
+"Django setzen ihre Berechtigungen durch, nichts anderes erzwingt eine"
+"Rolle"
+
+#: accounts/models/roles.py:260
+msgid "is active"
+msgstr "Aktiv"
+
+#: accounts/models/roles.py:262
+msgid ""
+"false for a legacy group which is retired by #741; a retired role grants "
+"through its group until it is gone, but takes no new membership"
+msgstr ""
+"false für eine Alt-Gruppe, die von #741 außer Dienst gestellt wird; eine"
+"pensionierte Rolle gewährt über ihre Gruppe weiter, bis diese entfernt"
+"ist, nimmt aber keine neue Mitgliedschaft auf"
+
+#: accounts/models/roles.py:272
+msgid "created by"
+msgstr "Erstellt von"
+
+#: accounts/models/roles.py:274
+msgid ""
+"who created this role; empty when a migration or the bootstrap of a new "
+"organization created it"
+msgstr ""
+"wer diese Rolle erstellt hat; leer, wenn eine Migration oder der"
+"Bootstrap einer neuen Organisation sie erstellt hat"
+
+#: accounts/models/roles.py:280
+msgid "created at"
+msgstr "Erstellt am"
+
+#: accounts/models/roles.py:287 accounts/models/roles.py:388
+msgid "role"
+msgstr "Rolle"
+
+#: accounts/models/roles.py:288
+msgid "roles"
+msgstr "Rollen"
+
+#: accounts/models/roles.py:325
+msgid ""
+"A role of PLATFORM scope belongs to no organization; it reaches over all of "
+"them."
+msgstr ""
+"Eine Rolle mit Geltungsbereich PLATFORM gehört zu keiner Organisation;"
+"sie übergreift alle Organisationen."
+
+#: accounts/models/roles.py:330
+msgid "A role of ORGANIZATION scope needs the organization it belongs to."
+msgstr ""
+"Eine Rolle mit Geltungsbereich ORGANIZATION braucht die Organisation, zu"
+"der sie gehört."
+
+#: accounts/models/roles.py:394
+msgid "user"
+msgstr "Nutzer"
+
+#: accounts/models/roles.py:402
+msgid "granted by"
+msgstr "Erteilt von"
+
+#: accounts/models/roles.py:404
+msgid ""
+"who added the user to the role; empty for a membership a migration or a "
+"bootstrap took over, where no decision is known"
+msgstr ""
+"wer den Nutzer zur Rolle hinzugefügt hat; leer für eine Mitgliedschaft,"
+"die eine Migration oder ein Bootstrap übernommen hat, wo keine"
+"Entscheidung bekannt ist"
+
+#: accounts/models/roles.py:410
+msgid "granted at"
+msgstr "Erteilt am"
+
+#: accounts/models/roles.py:416
+msgid "valid until"
+msgstr "Gültig bis"
+
+#: accounts/models/roles.py:418
+msgid ""
+"when the membership stops being valid; revoked by the periodic task of #741"
+msgstr ""
+"wann die Mitgliedschaft ihre Gültigkeit verliert; widerrufen durch die"
+"periodische Aufgabe von #741"
+
+#: accounts/models/roles.py:426
+msgid "role membership"
+msgstr "Rollenmitgliedschaft"
+
+#: accounts/models/roles.py:427
+msgid "role memberships"
+msgstr "Rollenmitgliedschaften"
+
+#: accounts/models/roles.py:448
+#, python-format
+msgid "The role %(role)s is retired and cannot be granted to anybody."
+msgstr "Die Rolle %(role)s ist pensioniert und kann niemandem erteilt werden."
 
 #: accounts/models/users.py:27
 msgid "I want to sign up for the newsletter"

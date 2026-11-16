@@ -2,18 +2,19 @@
 
 ``test_permission_bootstrap.py`` pins the WebMapService side of
 ``handle_secured_model_creation``: a service created through the ORM with an
-owner it only has in memory is granted view, change and delete to
-``<owner> <model_name> Admins``. This module completes the picture for the
-other side of ``SECURED_MODELS`` and for the paths around the grant:
+owner it only has in memory is granted view, change and delete to the roles of
+the owner whose definition manages the model. This module completes the picture
+for the other side of ``SECURED_MODELS`` and for the paths around the grant:
 
 * the same bootstrap answers for a WebFeatureService, so the grant really is
-  parameterized by the model and the role name reads
-  ``<owner> webfeatureservice Admins`` (#732 grants by role instead);
+  parameterized by the model: the catalogue answers which role manages it, and
+  the resource editor of the owner is the same role for both models (#732
+  grants by role instead of by a name built from the model);
 * a creation grants no user and no anonymous user anything: the bootstrap only
-  knows the administering group, an explicit public/anonymous grant arrives
-  with #739;
-* the grant target is looked up by the interpolated group name, so renaming an
-  organization detaches the grant path of everything created afterwards;
+  knows the managing roles, an explicit public/anonymous grant arrives with
+  #739;
+* the grant target is looked up by key - renaming an organization changes the
+  name its role groups carry and detaches nothing;
 * ``loaddata`` does emit ``post_save`` (#864) - the spy here shows the receiver
   seeing ``created=True, raw=True`` for every loaded service - and the guard of
   the receiver is what keeps a loaded service ungranted;
@@ -23,7 +24,6 @@ other side of ``SECURED_MODELS`` and for the paths around the grant:
   ``notify/managers.py`` performs answers from it.
 """
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.db.models.signals import post_save
 from django.test import TestCase
@@ -33,6 +33,7 @@ from guardian.shortcuts import assign_perm, get_objects_for_user
 from guardian.utils import get_anonymous_user
 
 from accounts.models.groups import Organization
+from accounts.models.roles import Role
 from registry.models.guardian import (WebFeatureServiceGroupObjectPermission,
                                       WebFeatureServiceUserObjectPermission,
                                       WebMapServiceGroupObjectPermission,
@@ -45,6 +46,9 @@ TEMPLATE_WMS = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
 TEMPLATE_WFS = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
 ORGANIZATION_NAME = "Grant Org"
+
+#: the definition whose permission set manages both secured models
+EDITOR_SLUG = "resource_editor"
 
 
 def group_grant_matrix(service):
@@ -80,32 +84,39 @@ class WfsGrantTestCase(ServiceGrantTestCaseMixin, TestCase):
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
                 "test_wfs.json"]
 
-    def test_a_created_wfs_is_granted_to_the_webfeatureservice_admins_group(
+    def test_a_created_wfs_is_granted_to_the_role_which_manages_the_model(
             self):
-        """Three object grants for the role group, added add-permission global
+        """Three object grants for the role group, and no global permission
 
         Ownership can only be set in memory - no resource model stores an
         owner (#728 stopped the bootstrap from crashing on that assumption);
-        #733 stores it and #734 grants by role instead of by name.
+        #733 stores it. The target is read from the catalogue: the same
+        ``resource_editor`` role manages both secured models, where the old
+        bootstrap needed one name-built group per model. What #732 dropped is
+        the *global* ``add_webfeatureservice`` the receiver used to bolt onto
+        the target group - decision Q5 of #727 retires hidden global grants;
+        the right to register lives in the role definition and reaches the
+        group where the facade of #734 applies definitions.
         """
-        Organization.objects.create(name=ORGANIZATION_NAME)
+        organization = Organization.objects.create(name=ORGANIZATION_NAME)
         service = self.build(WebFeatureService, TEMPLATE_WFS, "Owned WFS")
-        service.owner = Organization.objects.get(name=ORGANIZATION_NAME)
+        service.owner = organization
         service.save()
 
+        editor = Role.objects.for_org(organization).with_definition(
+            EDITOR_SLUG).get()
         rows = WebFeatureServiceGroupObjectPermission.objects.filter(
             content_object=service)
         self.assertEqual(
             {(row.group.name, row.permission.codename) for row in rows},
-            {(f"{ORGANIZATION_NAME} webfeatureservice Admins", codename)
+            {(editor.group.name, codename)
              for codename in ("view_webfeatureservice",
                               "change_webfeatureservice",
                               "delete_webfeatureservice")})
-        admins = Group.objects.get(
-            name=f"{ORGANIZATION_NAME} webfeatureservice Admins")
-        self.assertTrue(admins.permissions.filter(
-            codename="add_webfeatureservice",
-            content_type__app_label="registry").exists())
+        self.assertEqual(
+            editor.group.permissions.filter(
+                codename="add_webfeatureservice",
+                content_type__app_label="registry").count(), 0)
 
     def test_no_grant_lands_in_the_shared_table(self):
         """A service grant is never the text uuid the shared table would store
@@ -150,13 +161,14 @@ class WfsGrantTestCase(ServiceGrantTestCaseMixin, TestCase):
         self.assertFalse(checker.has_perm(
             'registry.view_webfeatureservice', service))
 
-    def test_a_renamed_organization_stops_being_a_grant_target(self):
-        """The lookup behind the grant is the interpolated name, not a key
+    def test_a_renamed_organization_is_still_a_grant_target(self):
+        """The lookup behind the grant is the key, not the name
 
-        After a rename ``handle_secured_model_creation`` filters
-        ``Group.objects`` by a name that was never created, says so in the log
-        and grants nothing - the services created before the rename keep their
-        grants, the ones after get none. #732 removes the name lookup.
+        After a rename ``handle_secured_model_creation`` still finds the roles
+        of the organization through ``Role.objects.for_org``: the services
+        created before the rename keep their grants and the ones after get
+        them - the name the role groups carry simply goes stale, which is
+        allowed precisely because nothing reads it (#732).
         """
         organization = Organization.objects.create(name=ORGANIZATION_NAME)
         organization.name = "Renamed Grant Org"
@@ -164,15 +176,16 @@ class WfsGrantTestCase(ServiceGrantTestCaseMixin, TestCase):
 
         service = self.build(WebFeatureService, TEMPLATE_WFS, "Orphaned WFS")
         service.owner = organization
-        with self.assertLogs("MrMap.root", level="WARNING") as logged:
+        with self.assertNoLogs("MrMap.root", level="WARNING"):
             service.save()
 
-        message = "".join(logged.output)
-        self.assertIn("has no group", message)
-        self.assertIn(f"{organization.name} webfeatureservice Admins", message)
+        editor = Role.objects.for_org(organization).with_definition(
+            EDITOR_SLUG).get()
         self.assertEqual(
-            WebFeatureServiceGroupObjectPermission.objects.filter(
-                content_object=service).count(), 0)
+            set(WebFeatureServiceGroupObjectPermission.objects.filter(
+                content_object=service).values_list(
+                    "group__name", flat=True)),
+            {editor.group.name})
 
 
 class LoadedServiceTestCase(TestCase):
@@ -255,15 +268,15 @@ class ServiceLookupPathTestCase(ServiceGrantTestCaseMixin, TestCase):
     fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
 
     def setUp(self):
-        Organization.objects.create(name=ORGANIZATION_NAME)
-        self.admins = Group.objects.get(
-            name=f"{ORGANIZATION_NAME} webmapservice Admins")
+        organization = Organization.objects.create(name=ORGANIZATION_NAME)
+        self.manager = Role.objects.for_org(organization).with_definition(
+            EDITOR_SLUG).get()
         self.service = self.build(
             WebMapService, TEMPLATE_WMS, "Looked Up")
-        self.service.owner = Organization.objects.get(name=ORGANIZATION_NAME)
+        self.service.owner = organization
         self.service.save()
         self.member = get_user_model().objects.get(username="User2")
-        self.member.groups.add(self.admins)
+        self.member.groups.add(self.manager.group)
         self.outsider = get_user_model().objects.get(username="User1")
 
     def test_a_group_member_finds_the_service_by_object_permission(self):

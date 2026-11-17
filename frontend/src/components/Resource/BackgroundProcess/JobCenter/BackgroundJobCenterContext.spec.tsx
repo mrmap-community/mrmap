@@ -40,8 +40,11 @@ const state = vi.hoisted(() => ({
   translate: (key: string) => key,
 }));
 
-vi.mock("react-admin", () => ({
-  useDataProvider: () => ({
+// the dataProvider object is created once and returned with one identity:
+// react-admin's hook hands out the stable context value, and the counting
+// specs below only measure what the provider under test asks for
+vi.mock("react-admin", () => {
+  const provider = {
     subscribe: (topic: string, handler: Handler) => {
       state.subscribeCalls.push(topic);
       const handlers = state.subscriptions.get(topic) ?? new Set();
@@ -52,12 +55,17 @@ vi.mock("react-admin", () => ({
       state.unsubscribeCalls.push(topic);
       state.subscriptions.get(topic)?.delete(handler);
     },
-  }),
-  useGetList: (_resource: string, params: { filter: { status: string } }) =>
-    params.filter.status === "pending,running" ? state.active : state.terminal,
-  useNotify: () => state.notify,
-  useTranslate: () => state.translate,
-}));
+  };
+  return {
+    useDataProvider: () => provider,
+    useGetList: (_resource: string, params: { filter: { status: string } }) =>
+      params.filter.status === "pending,running"
+        ? state.active
+        : state.terminal,
+    useNotify: () => state.notify,
+    useTranslate: () => state.translate,
+  };
+});
 
 vi.mock("../../../../context/HttpClientContext", () => ({
   useHttpClientContext: () => ({ realtimeIsReady: state.ready }),

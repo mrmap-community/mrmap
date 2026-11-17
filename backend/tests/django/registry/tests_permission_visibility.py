@@ -50,7 +50,8 @@ FILTER_WMS = ["registry.WebMapService"]
 class VisibilityDataMixin:
     """Three services answering the three states, beside the fixture's own."""
 
-    fixtures = ["test_keywords.json", "test_wms.json", "test_wfs.json"]
+    fixtures = ["test_users.json", "test_keywords.json", "test_wms.json",
+                "test_wfs.json"]
 
     def setUp(self):
         super().setUp()
@@ -229,10 +230,13 @@ class FilteredListTests(VisibilityDataMixin, TestCase):
             username="visibility-root", password="x")
         self.client.force_authenticate(root)
 
+        # the whole table, not the four rows this mixin wrote: the fixture
+        # brings a service of its own (WMS2) which the page must answer too,
+        # or "every row" would only be true of the test's own rows
         self.assertEqual(
             self.list_ids(),
-            {str(self.public.pk), str(self.internal.pk),
-             str(self.restricted.pk), str(self.fixture_service.pk)})
+            {str(pk) for pk in
+             WebMapService.objects.values_list("pk", flat=True)})
 
     @override_settings(PERMISSION_FILTERED_LIST_MODELS=FILTER_WMS)
     def test_the_filter_is_the_pages_own_statement_not_a_python_narrowing(self):

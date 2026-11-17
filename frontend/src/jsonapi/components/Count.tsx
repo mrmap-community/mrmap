@@ -71,7 +71,7 @@ export const Count = ({
       
       }
       return meta
-    },[relatedResource, relatedResourceId])
+    },[relatedResource, relatedResourceId, resource])
 
     const oneSecondHasPassed = useTimeout(timeout);
     const createPath = useCreatePath();

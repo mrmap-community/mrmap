@@ -64,9 +64,10 @@ vi.mock("./PreviewMap", () => ({
     onIdentify?: (x: number, y: number) => void;
   }) => {
     state.mapProps = props;
+    const { onViewport } = props;
     useEffect(() => {
-      props.onViewport({ bbox: "0,0,4,8", width: 600, height: 400 });
-    }, [props.onViewport]);
+      onViewport({ bbox: "0,0,4,8", width: 600, height: 400 });
+    }, [onViewport]);
     return (
       <div data-testid="preview-map">
         {props.image && "live imagery"}

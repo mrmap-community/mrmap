@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import pluginReactConfig from "eslint-plugin-react/configs/recommended.js";
+import reactHooks from "eslint-plugin-react-hooks";
 import { fixupConfigRules } from "@eslint/compat";
 import perfectionist from 'eslint-plugin-perfectionist'
 
@@ -62,6 +63,15 @@ export default [
         },
       ],
     }
+  },
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      // The audit (#1466) found five render-storm bugs that are exactly this
+      // rule's class; CI could not see them while the plugin was absent.
+      "react-hooks/exhaustive-deps": "error",
+    },
   },
   { files: ["**/*.ts", "**/*.tsx"], rules: { "react/prop-types": "off" } },
 ];

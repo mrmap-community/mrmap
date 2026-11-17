@@ -40,15 +40,16 @@ const useCompleteList = (
     },
     { enabled },
   );
+  const { hasNextPage, isFetching, error, fetchNextPage } = query;
   useEffect(() => {
-    if (enabled && query.hasNextPage && !query.isFetching && !query.error)
-      void query.fetchNextPage();
+    if (enabled && hasNextPage && !isFetching && !error)
+      void fetchNextPage();
   }, [
     enabled,
-    query.hasNextPage,
-    query.isFetching,
-    query.error,
-    query.fetchNextPage,
+    hasNextPage,
+    isFetching,
+    error,
+    fetchNextPage,
   ]);
   return {
     ...query,

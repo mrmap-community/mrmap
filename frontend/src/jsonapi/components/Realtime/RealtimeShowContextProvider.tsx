@@ -35,7 +35,7 @@ const RealtimeShowContextProvider = ({
   const updateFromRealtimeBus = useCallback((message: CrudEvent) => {
     setRealtimeRecord(message?.payload?.records?.[0])
     setTimestamp(Date.now())
-  }, [record])
+  }, [])
 
   useEffect(() => {
     // subscribe on mount
@@ -52,7 +52,7 @@ const RealtimeShowContextProvider = ({
       // clear interval on unmount
       clearInterval(interval)
     }
-  }, [resource, timestamp, record])
+  }, [resource, timestamp, record, dataProvider, isFetching, isStale, isStaleCheckInterval, refetch, updateFromRealtimeBus])
 
   useEffect(()=>{
     setRealtimeRecord(record)

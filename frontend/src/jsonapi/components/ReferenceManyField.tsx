@@ -33,7 +33,7 @@ const JsonApiReferenceManyField = <
       return {field:'', order: 'ASC'}
     },[listSortValues, nestedListSortValues])
 
-    const preferenceKey = useMemo(()=>(`${nestedListOperation?.operationId || listOperation?.operationId}.manyfield.${source}`),[listOperation,nestedListOperation])
+    const preferenceKey = useMemo(()=>(`${nestedListOperation?.operationId || listOperation?.operationId}.manyfield.${source}`),[listOperation,nestedListOperation,source])
     const onError = useOnError(preferenceKey)
 
     const sparseFieldsParam = useMemo(()=>{

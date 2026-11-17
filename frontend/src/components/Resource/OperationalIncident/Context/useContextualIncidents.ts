@@ -137,20 +137,22 @@ const useContextualIncidents = ({
   // the optional push: the bus only says something moved, the windows are
   // rebuilt by the api - the recovery the Incident Center and the job center
   // practice, with the poll as the floor when nothing pushes
+  // the refetch callbacks are stable per query, so the bus is re-subscribed
+  // only when the identity of the screen or its query changes - not on every
+  // poll - the recovery the Incident Center (#1321) practices
+  const { refetch: refetchActiveWindow } = activeWindow;
+  const { refetch: refetchResolvedWindow } = resolvedWindow;
   useEffect(() => {
     if (!enabled) return;
     const refresh = () => {
-      void activeWindow.refetch();
-      void resolvedWindow.refetch();
+      void refetchActiveWindow();
+      void refetchResolvedWindow();
     };
     void dataProvider.subscribe(INCIDENT_REALTIME_TOPIC, refresh);
     return () => {
       void dataProvider.unsubscribe(INCIDENT_REALTIME_TOPIC, refresh);
     };
-    // the refetch callbacks are stable per query, so the bus is re-subscribed
-    // only when the identity of the screen or its query changes - not on every
-    // poll - the recovery the Incident Center (#1321) practices
-  }, [dataProvider, enabled, activeWindow.refetch, resolvedWindow.refetch]);
+  }, [dataProvider, enabled, refetchActiveWindow, refetchResolvedWindow]);
 
   const active = useMemo(
     () =>

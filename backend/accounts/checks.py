@@ -34,6 +34,10 @@ Two more messages keep the lists themselves honest: an entry naming no model
 performance list) and a declared through-pair the performance list does not
 carry (``accounts.W001``). The list is the declaration of the set, so a pair of
 tables written beside it is a list which no longer answers what is there.
+A deployment which enables the permission-filtered list of #739 for a model
+the bootstrap does not manage is answered by ``accounts.E006``: without the
+owner axis of a role-managed resource the SQL filter would drop exactly the
+organization-internal rows it exists to keep visible.
 
 The checks run with every run of the check framework: at the startup of the test
 runner, of ``migrate`` and of ``runserver``. The declaration checks need no
@@ -532,4 +536,70 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
                  "deployment which has inspected every one of its groups.",
             obj=group,
             id="accounts.E005"))
+    return issues
+
+
+#: the deployment setting whose rollout #739 puts under a guard, named here as
+#: ``MrMap/settings.py`` declares it
+FILTERED_LIST_SETTING = "PERMISSION_FILTERED_LIST_MODELS"
+
+
+@register(CHECK_TAG, Tags.models)
+def check_permission_filtered_list_models(app_configs=None, **kwargs):
+    """Every model enabled for permission-filtered lists is role-managed.
+
+    ``PERMISSION_FILTERED_LIST_MODELS`` is a deployment list, so this is the
+    only guard on an entry an operator typed: ``objects_for_user`` scopes the
+    rows of an owner-carrying model by the organization-role axis of #734, and
+    a model outside ``ROLE_MANAGED_MODELS`` has neither the owner column nor
+    the creation grants behind it. Filtering such a list would hide the
+    organization-internal rows the rollout is meant to expose - silently and
+    in SQL, which is the failure the #735 checks were written against.
+
+    Args:
+        app_configs: the apps to inspect, unused: the answer is in the two
+            settings and the app registry, not in a connection or a model of
+            one particular app - an entry which names no model is reported by
+            every scoped run, because a typo belongs to the setting
+        **kwargs: the keyword arguments of the check framework, unused
+
+    Returns:
+        list: ``accounts.E006`` for every enabled model which is not
+        role-managed, and ``accounts.E006`` for an entry which names no model
+        at all - which model the bootstrap manages is another check's answer,
+        so only the rollout list is reported from here
+    """
+    from django.conf import settings as django_settings
+
+    enabled = getattr(
+        django_settings, FILTERED_LIST_SETTING, None) or []
+    if not enabled:
+        return []
+
+    # the models the bootstrap manages, resolved with this module's own
+    # reader: an entry which names no model is E001's message, not a second
+    # one from here
+    managed = {model_of(name) for name in app_settings.ROLE_MANAGED_MODELS}
+    managed_labels = {model._meta.label for model in managed
+                      if model is not None}
+
+    filtered, unresolved = resolved_entries(
+        enabled, FILTERED_LIST_SETTING,
+        "Name the model exactly as the bootstrap of the role system knows "
+        "it, or take the entry out of the rollout.",
+        "accounts.E006")
+    issues = list(unresolved)
+    for model, name in filtered.items():
+        if model._meta.label not in managed_labels:
+            issues.append(Error(
+                f"The {FILTERED_LIST_SETTING} entry {name!r} is not a "
+                f"role-managed model.",
+                hint="Permission-filtered lists scope rows by the "
+                     "organization-role axis of the #734 facade, which only "
+                     "answers for a resource the bootstrap of #732/#733 "
+                     "grants to its owning organization: add the model to "
+                     "ROLE_MANAGED_MODELS (with the equipment "
+                     "accounts.checks asks for), or drop the entry. "
+                     "#739's rollout is per model on purpose.",
+                id="accounts.E006"))
     return issues

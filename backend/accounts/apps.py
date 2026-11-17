@@ -20,6 +20,7 @@ class AccountsConfig(AppConfig):
         # ready is the documented moment an app may do that
         import accounts.checks  # noqa
         post_migrate.connect(create_default_user_and_org, sender=self)
+        post_migrate.connect(ensure_anonymous_viewer_hook, sender=self)
 
 
 def create_default_user_and_org(sender, **kwargs):
@@ -47,3 +48,19 @@ def create_default_user_and_org(sender, **kwargs):
     if settings.MRMAP_PRODUCTION:
         if not Organization.objects.filter(name="Testorganization").exists():
             Organization.objects.create(name="Testorganization")
+
+
+def ensure_anonymous_viewer_hook(sender, **kwargs):
+    """Guards the rows which make anonymous view grants possible (#739).
+
+    A ``post_migrate`` receiver, so - like ``create_default_user_and_org`` -
+    it never sees the ``raw`` signal of a ``loaddata`` and takes no part in
+    the rule of ``accounts/signals.py``. It creates what migration 0009
+    cannot make durable: guardian's anonymous user row (guardian 3.x only
+    reads it) and its membership in the role group the migration seeded. The
+    work is idempotent and small; a database which was migrated normally
+    spends three selects on it.
+    """
+    from accounts.utils import ensure_anonymous_viewer
+
+    ensure_anonymous_viewer()

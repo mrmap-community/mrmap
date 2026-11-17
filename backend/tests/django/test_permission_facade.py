@@ -547,6 +547,13 @@ class QueryBudgetTests(FacadeTestCaseMixin, TestCase):
     def test_list_axis_does_not_grow_with_rows(self):
         user = self.new_user("budget-list")
         self.editor_a.add_member(user)
+        # one unmeasured pass: a TransactionTestCase flushing earlier in
+        # the same process has cleared Django's content-type cache, and the
+        # reload guardian's permission resolution pays once per process
+        # would otherwise land in the measured first window and read as a
+        # query the rows cost (backend/tests/AGENTS.md: full-suite runs
+        # differ from targeted ones in exactly this process state)
+        self.listed(user)
         with CaptureQueriesContext(connection) as before:
             self.listed(user)
         for counter in range(4):

@@ -58,7 +58,9 @@ describe("RunHarvestingButton", () => {
     expect(state.notify).toHaveBeenCalledWith("harvestingSchedules.queued", {
       type: "success",
     });
-    expect(state.refresh).toHaveBeenCalledOnce();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
   it("reports rejected requests without claiming harvesting started", () => {
     render(<RunHarvestingButton serviceId="csw-1" />);

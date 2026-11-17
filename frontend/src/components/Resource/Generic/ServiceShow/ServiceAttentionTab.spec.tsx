@@ -37,7 +37,6 @@ vi.mock("react-admin", () => ({
     </a>
   ),
   useRecordContext: vi.fn(),
-  useRefresh: () => () => undefined,
   useResourceContext: vi.fn(),
   useResourceDefinitions: vi.fn(),
   useTranslate: () => (key: string) => key.split(".").pop() ?? key,

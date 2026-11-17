@@ -6,7 +6,6 @@ import {
   useGetIdentity,
   useGetList,
   useNotify,
-  useRefresh,
   useResourceDefinition,
   useTranslate,
 } from "react-admin";
@@ -35,7 +34,6 @@ const RunServiceUpdateButton = ({
   );
   const [create, { isPending }] = useCreate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const translate = useTranslate();
   const existingJob = jobs.data?.[0];
 
@@ -65,11 +63,9 @@ const RunServiceUpdateButton = ({
               {
                 onSuccess: () => {
                   notify("manualUpdate.queued", { type: "success" });
-                  refresh();
                 },
                 onError: () => {
                   notify("manualUpdate.failed", { type: "error" });
-                  refresh();
                 },
               },
             )

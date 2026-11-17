@@ -27,7 +27,8 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
         int: primary key of the created probe result
     """
 
-    probe = apps.get_model(probe_model).objects.get(pk=probe_pk)
+    probe = apps.get_model(probe_model).objects.for_probe_execution().get(
+        pk=probe_pk)
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     try:
         result = probe.run_checks(run=run).pk
@@ -45,7 +46,9 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
 def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kwargs):
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     run.date_done = timezone.now()
-    run.save()
+    # only date_done changes here; a narrower update_fields keeps the terminal
+    # save from rewriting the whole row (#1393)
+    run.save(update_fields=["date_done"])
     run.report_process(ProcessStatusEnum.COMPLETED)
     invalidate_service_alerts()
     return run.pk

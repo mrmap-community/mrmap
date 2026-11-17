@@ -20,7 +20,8 @@ from extras.scheduling import next_run_expected_at
 from lxml import etree
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from PIL import Image, UnidentifiedImageError
-from registry.managers.monitoring import MonitoringRunManager
+from registry.managers.monitoring import (MonitoringRunManager,
+                                          ProbeManager)
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -668,6 +669,8 @@ class Probe(models.Model):
     #: model which stores the result of this kind of probe
     result_model = None
 
+    objects = ProbeManager()
+
     class Meta:
         abstract = True
 
@@ -750,8 +753,11 @@ class Probe(models.Model):
         result = self.result_model.objects.create(
             run=run,
         )
+        # the response checks below write onto the result through this
+        # attribute; nothing is saved here: the result already names its run,
+        # and the probe row is shared configuration which must not be written
+        # once per check (#1393)
         self.result = result
-        self.save()
         try:
             client = self.setting.service.client
             request = self.build_request(client)
@@ -883,13 +889,18 @@ class GetMapProbe(WebMapServiceProbe):
             self.check_does_not_contain(response=response)
 
     def build_request(self, client) -> Request:
-        layers: list[Layer] = self.layers.with_inherited_attributes_cte()
+        # the scoped CTE read happens once and its rows are reused for the
+        # inherited bbox, the identifiers and the styles count (#1393): the
+        # rows are exactly the layers this probe checks and nothing else in
+        # this request reads the relation again
+        layers: list[Layer] = list(
+            self.layers.with_inherited_attributes_cte())
         bbox: Polygon = layers[0].bbox_lat_lon_inherited
         if client.service_version == "1.3.0":
             bbox = adjust_axis_order(bbox)
 
         return client.get_map_request(
-            layers=[layer.identifier for layer in self.layers.all()],
+            layers=[layer.identifier for layer in layers],
             crs=str(self.reference_system),
             # FUTURE: use configured styles instead
             styles=",".join([""] * len(layers)),

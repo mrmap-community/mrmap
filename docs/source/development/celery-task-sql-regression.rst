@@ -50,6 +50,7 @@ From the repository root, on the prebuilt dependency image (see
       django-tests python manage.py test \
       tests.django.registry.tasks.tests_sql_guard_contract \
       tests.django.registry.tasks.tests_task_sql_monitoring \
+      tests.django.registry.tasks.tests_task_sql_update \
       tests.django.registry.tasks.tests_task_sql_harvesting \
       tests.django.registry.tests_task_sql_alert_refresh \
       tests.django.system.test_task_sql_guards \
@@ -57,7 +58,7 @@ From the repository root, on the prebuilt dependency image (see
       tests.django.test_task_sql_singleton_fire \
       --noinput --keepdb
 
-The five family modules plus the contract and the singleton seam run as one
+The six family modules plus the contract and the singleton seam run as one
 suite in seconds once the stack is up (``--keepdb`` reuses the created test
 database; drop the flag after changing models or migrations). Each module is
 runnable on its own with the same command and one label.
@@ -143,23 +144,28 @@ assertion was not tightened with it - that is the intent.
      - #1392
    * - monitoring (``run_probe_check``, artifact purge)
      - ``registry/tasks/tests_task_sql_monitoring.py``
-     - probe fetch is the bare by-pk SELECT today (**red**: the lazy
-       ``setting.service`` chain, #1393 carries the FK chain in the fetch);
-       the layers relation is read three times per GetMap probe - two scoped
-       CTE reads plus the plain identifiers read (**red**, #1393 reads
-       once); one result INSERT, one capped progress UPDATE, at most one
-       probe-row write (green); artifact purge: SELECTs constant per result
+     - the by-pk probe fetch carries the ``setting__service__auth`` chain in
+       its single SELECT via ``Probe.for_probe_execution()`` and ``layers``
+       is read exactly once per GetMap probe (green since #1393 - both were
+       the documented red baselines, tightened in the PR that moved the
+       plan); one result INSERT, one capped progress UPDATE, no probe-row
+       write (green); artifact purge: SELECTs constant per result
        model while UPDATEs stand one per expired row (**red**, #1394
        batches) - and rows keep every column but ``response_body`` (green)
-     - #1393, #1394
+     - #1393 (done), #1394
    * - update jobs
-     - not pinned here - see the note below
-     - the checklist item "at least two distinct ``update_config`` fixtures"
-         needs the ``for_update_diff()`` plan first: asserting the current
-         broad read as a baseline would pin the very shape #1393 replaces,
-         and the PR that introduces the scoped plan is where the
-         config-dependent guard belongs
-     - #1392/#1393
+     - ``registry/tasks/tests_task_sql_update.py``
+     - the ``old_service``/``new_service`` plan is config-driven: a narrow
+       config costs the service row plus the layer rows - two reads - and a
+       wide config costs exactly its two configured service relation reads
+       more; no element relation ever rides the service plan (green,
+       #1393); the apply phase of a WMS update over 1/10/100 confirmed
+       layer pairs, and of a WFS update over mapped feature-type pairs,
+       costs the same statements - each configured element relation is one
+       IN read per side, unconfigured relations are not read, and no
+       fingerprint repeats per pair at 100 rows (green, #1393; two distinct
+       ``update_config`` fixtures per service kind drive the shape)
+     - #1393
    * - alert refresh
      - ``registry/tests_task_sql_alert_refresh.py``
      - one annotation SELECT per kind, never per service (green - the
@@ -298,9 +304,6 @@ guessing:
 Not covered here, and why
 ##########################
 
-- The **update jobs** family: its checklist item is two configs with
-  different scopes, which only becomes assertable once ``for_update_diff()``
-  exists; the PR introducing it carries the guard (see the matrix row).
 - **conformity** and **security-log-analysis**: the audit withheld a verdict
   on the first and called the second already optimal; a guard would either
   test a possibly dead code path or re-assert a conclusion that has nothing

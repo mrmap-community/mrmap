@@ -23,7 +23,39 @@ none per role - the serializer answers it on every page.
 from django.apps import apps
 from django.db.models import (Case, CharField, Exists, OuterRef, Value, When)
 from django.db.models.functions import Cast
-from guardian.utils import get_group_obj_perms_model
+
+#: ``{model: through-model or None}`` - the app registry does not change after
+#: startup, so the walk of ``dedicated_obj_perm_models`` is worth one per model
+_group_perms_cache = {}
+
+
+def group_perms_model(model):
+    """The class of ``model``'s group grants, or None for the generic table.
+
+    guardian's ``get_group_obj_perms_model`` answers the same question, but it
+    decides by comparing *content types*, which reads ``django_content_type``.
+    An annotation is built by code which may not read a database at all: the
+    schema and permission paths of ``tests_nested_service_schema.py`` build one
+    without allowing a query, and #739's first CI run died there. So this asks
+    the declaration the checks of #735 audit instead - the same source E002
+    compares against the code, which is what makes the two answers unable to
+    drift apart.
+
+    Args:
+        model: the model whose group grants are asked
+
+    Returns:
+        model class or None: the dedicated ``…GroupObjectPermission`` of
+            ``model``, or ``None`` when its grants live in guardian's generic
+            table - which includes the half a pair E002 reports, because a
+            missing group side means exactly that table holds the grants
+    """
+    if model not in _group_perms_cache:
+        from accounts.checks import SIDES, dedicated_obj_perm_models
+
+        pair = dedicated_obj_perm_models().get(model)
+        _group_perms_cache[model] = pair[SIDES[1]] if pair else None
+    return _group_perms_cache[model]
 
 
 def _granted_to_view_expr(model, group_condition):
@@ -38,15 +70,19 @@ def _granted_to_view_expr(model, group_condition):
     Returns:
         Exists: the expression for the outer row
     """
-    GroupObjPerm = get_group_obj_perms_model(model)
+    from guardian.models import GroupObjectPermission
+
+    GroupObjPerm = group_perms_model(model)
+    generic = GroupObjPerm is None
+    if generic:
+        # no dedicated table: the grants of every model share guardian's
+        # generic pair, which names the object by content type and text
+        GroupObjPerm = GroupObjectPermission
     grants = GroupObjPerm.objects.filter(
         permission__codename=f"view_{model._meta.model_name}",
         permission__content_type__app_label=model._meta.app_label,
         **group_condition)
-    if GroupObjPerm.objects.is_generic():
-        # the shared table names the object by content type and the *text* of
-        # its primary key; a dedicated table (every role-managed model, #735)
-        # takes the direct foreign key instead
+    if generic:
         grants = grants.filter(
             content_type__app_label=model._meta.app_label,
             content_type__model=model._meta.model_name,

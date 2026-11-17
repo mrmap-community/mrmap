@@ -31,7 +31,7 @@ def run_conformity_check(run_id: int, **kwargs):
     never answered rows anymore - the run row itself is the record of the
     check and answers the terminal ``passed``/``report`` state.
     """
-    run = ConformityCheckRun.objects.select_related('config').get(id=run_id)
+    run = ConformityCheckRun.objects.for_check_execution().get(id=run_id)
     config = run.config
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         task = run_conformity_check_internal.s(run_id, **kwargs)
@@ -86,7 +86,7 @@ def run_conformity_check_internal(run_id: int, **kwargs):
     from it at construction (#1394); the retention of the terminal failure
     write is as in the ETF worker.
     """
-    run = ConformityCheckRun.objects.select_related('config').get(id=run_id)
+    run = ConformityCheckRun.objects.for_check_execution().get(id=run_id)
     try:
         checker = QualityInternal(run)
         run = checker.run()

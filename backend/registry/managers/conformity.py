@@ -14,6 +14,16 @@ class ConformityCheckConfigurationManager(models.Manager):
 class ConformityCheckRunManager(models.Manager):
     """ Custom manager to extend ConformityCheckRun methods """
 
+    def for_check_execution(self):
+        """ The read plan of the conformity check tasks.
+
+        The dispatch task and the internal task read the config of the run
+        right after the row, so the join rides on the plan; a plan of a task
+        belongs on the manager of the owning model, not inline in the task
+        (docs: queryset-manager-conventions, #1394).
+        """
+        return super().get_queryset().select_related('config')
+
     def has_running_check(self, metadata: DatasetMetadataRecord):
         """ Checks if the given metadata object has a non-finished
         ConformityCheckRun.

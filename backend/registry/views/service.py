@@ -13,6 +13,7 @@ from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
                              NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
+                             PermissionVisibilityMixin,
                              PreloadNotIncludesMixin, SerializerClassesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
@@ -237,6 +238,7 @@ class PreviewImageRenderer(JSONRenderer):
     share=extend_schema(operation_id="share_WebMapService"),
     revoke_share=extend_schema(operation_id="revoke_share_WebMapService"))
 class WebMapServiceViewSet(
+    PermissionVisibilityMixin,
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
@@ -578,6 +580,7 @@ class NestedWebMapServiceOperationUrlViewSet(
     share=extend_schema(operation_id="share_WebFeatureService"),
     revoke_share=extend_schema(operation_id="revoke_share_WebFeatureService"))
 class WebFeatureServiceViewSet(
+    PermissionVisibilityMixin,
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,

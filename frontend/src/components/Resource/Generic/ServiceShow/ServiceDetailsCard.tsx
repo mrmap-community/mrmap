@@ -9,7 +9,7 @@ import {
   useTranslate
 } from "react-admin";
 
-import { Stack, Typography } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
@@ -22,6 +22,33 @@ import ServiceOutcomes from "./ServiceOutcomes";
 import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
+
+/**
+ * The three answers of the `visibility` attribute of a service, with the color
+ * the chip shows each in: the widest access first, the narrowest last.
+ *
+ * The words are the backend's, derived from the guardian grants of the service
+ * (#739) and never stored beside it, so what the chip says is what the api
+ * decided - and a record which does not answer the attribute, a catalogue for
+ * instance, says nothing about visibility at all.
+ */
+const VISIBILITY_CHIP_COLORS = {
+  public: "success",
+  "organization-internal": "info",
+  restricted: "warning",
+} as const;
+
+type ServiceVisibility = keyof typeof VISIBILITY_CHIP_COLORS;
+
+const visibilityOf = (
+  record: Record<string, unknown> | undefined,
+): ServiceVisibility | undefined => {
+  const visibility = record?.visibility;
+  return typeof visibility === "string" &&
+    Object.hasOwn(VISIBILITY_CHIP_COLORS, visibility)
+    ? (visibility as ServiceVisibility)
+    : undefined;
+};
 
 export function capabilitiesUrl(
   record: Record<string, unknown> | undefined,
@@ -70,6 +97,7 @@ const ServiceDetailsCard = ({
     (choice) => choice.id === record?.version,
   )?.name;
   const url = capabilitiesUrl(record, protocol, version);
+  const visibility = visibilityOf(record);
   return (
     <SimpleCard
       title={translate("serviceShow.details")}
@@ -142,6 +170,18 @@ const ServiceDetailsCard = ({
           {url && (
             <Labeled label="serviceShow.capabilities">
               <UrlField source="url" record={{ id: record?.id, url }} />
+            </Labeled>
+          )}
+          {visibility && (
+            /* the label of the row and the chip of its answer: the answer is the
+               attribute of the service, the hint tells what the word means */
+            <Labeled label={translate("serviceShow.visibility")}>
+              <Chip
+                size="small"
+                color={VISIBILITY_CHIP_COLORS[visibility]}
+                label={translate(`serviceShow.visibilityValues.${visibility}`)}
+                title={translate(`serviceShow.visibilityHints.${visibility}`)}
+              />
             </Labeled>
           )}
           {attention && (

@@ -136,6 +136,39 @@ const mappingMatchesFilter = (
 const containsLayer = (layer: RaRecord, other: RaRecord): boolean =>
   layer.mpttLft < other.mpttLft && layer.mpttRgt > other.mpttRgt;
 
+/** the mapping the selection names — by the id of its new candidate, else of its
+ *  old layer — or the first visible mapping when nothing is selected */
+const selectedMappingOf = (
+  selectedLayer: string | undefined,
+  mappings: RaRecord[],
+  visibleMappings: RaRecord[],
+  config: ServiceUpdateConfig,
+): RaRecord | undefined => {
+  if (!selectedLayer) return visibleMappings[0];
+  return mappings.find(
+    (mapping) =>
+      String(mapping[config.newElement]?.id ?? mapping[config.oldElement]?.id) === selectedLayer,
+  );
+};
+
+/** the tree nodes that stand open: the root, the selected node's ancestors and
+ *  the ancestors of every search match */
+const expandedAncestorIds = (
+  newLayers: RaRecord[],
+  selectedNode: RaRecord | undefined,
+  matchingLayers: RaRecord[],
+  treeSearch: string,
+): string[] =>
+  newLayers
+    .filter(
+      (layer) =>
+        layer.mpttLft === 1 ||
+        (selectedNode !== undefined && containsLayer(layer, selectedNode)) ||
+        (treeSearch !== "" &&
+          matchingLayers.some((match) => containsLayer(layer, match))),
+    )
+    .map((layer) => String(layer.id));
+
 const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   const job = useRecordContext();
   const { refetch } = useShowContext();
@@ -204,14 +237,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
-  const selectedMapping = selectedLayer
-    ? mappings.find(
-        (mapping) =>
-          String(
-            mapping[config.newElement]?.id ?? mapping[config.oldElement]?.id,
-          ) === selectedLayer,
-      )
-    : visibleMappings[0];
+  const selectedMapping = selectedMappingOf(selectedLayer, mappings, visibleMappings, config);
   const selectedNode = selectedLayer
     ? newById.get(selectedLayer)
     : selectedMapping && getLayer(selectedMapping, "new");
@@ -220,15 +246,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
       String(layer.id) === String(selectedNode?.id) ||
       String(label(layer)).toLowerCase().includes(treeSearch.toLowerCase()),
   );
-  const expandedAncestors = newLayers
-    .filter(
-      (layer) =>
-        layer.mpttLft === 1 ||
-        (selectedNode !== undefined && containsLayer(layer, selectedNode)) ||
-        (treeSearch !== "" &&
-          matchingLayers.some((match) => containsLayer(layer, match))),
-    )
-    .map((layer) => String(layer.id));
+  const expandedAncestors = expandedAncestorIds(newLayers, selectedNode, matchingLayers, treeSearch);
   const getLayerProps = useCallback(
     (layer: RaRecord) => {
       const mapping = mappings.find(

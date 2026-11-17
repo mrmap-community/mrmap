@@ -7,7 +7,7 @@ import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import { Box, Button, IconButton, Slider, Stack, TextField, Typography } from '@mui/material';
 import moment from 'moment';
 
-import { OWSContext } from '../../../ows-lib/OwsContext/core';
+import { OWSContext, type OWSResource } from '../../../ows-lib/OwsContext/core';
 import { getTimeDimensionAxis, getWmsDimensionSelection, isAllowedDimensionValue, parseAdvertisedValues, setWmsDimension, type TimeDimensionAxis } from '../../../ows-lib/OwsContext/dimensions';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import { useMapViewerBase } from '../../MapViewer/MapViewerBase';
@@ -52,6 +52,18 @@ const playbackTick = (
   else stop();
 };
 
+/** the position shown without a draft: the selected time, else the advertised
+ *  default, else the last advertised observation */
+const shownPosition = (count: number, selectedIndex: number, defaultIndex: number): number => {
+  if (selectedIndex >= 0) return selectedIndex;
+  if (defaultIndex >= 0) return defaultIndex;
+  return count - 1;
+};
+
+/** whether the map refused a draw carrying this layer */
+const isFeatureFailed = (folder: string | undefined, failedFeatures?: OWSResource[]): boolean =>
+  folder !== undefined && (failedFeatures ?? []).some(feature => feature.properties.folder === folder);
+
 export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = false, horizontal = false }: {
   dimension: OfferingDimension; selection: string; apply: (value: string) => void; folder?: string; compact?: boolean; horizontal?: boolean;
 }) => {
@@ -63,9 +75,7 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   useEffect(() => { setDraft(undefined); setInvalid(false); }, [selection]);
   const selectedIndex = axis?.indexOf(selection) ?? -1;
   const defaultIndex = axis?.indexOf(dimension.default ?? '') ?? -1;
-  let fallbackIndex = (axis?.count ?? 1) - 1;
-  if (defaultIndex >= 0) fallbackIndex = defaultIndex;
-  if (selectedIndex >= 0) fallbackIndex = selectedIndex;
+  const fallbackIndex = axis === undefined ? 0 : shownPosition(axis.count, selectedIndex, defaultIndex);
   const index = draft ?? fallbackIndex;
   const preview = draft === undefined ? selection : axis?.valueAt(index) ?? selection;
   const unitsSuffix = dimension.units ? ` (${dimension.units})` : '';
@@ -81,7 +91,7 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   const fps = animation?.fps ?? 2;
   const loop = animation?.loop ?? false;
   const displayedTime = folder !== undefined ? displayedTimes[folder] : undefined;
-  const failed = folder !== undefined && (mapLoading?.failedFeatures ?? []).some(feature => feature.properties.folder === folder);
+  const failed = isFeatureFailed(folder, mapLoading?.failedFeatures);
   const pending = displayedTime !== undefined && selection !== displayedTime && !failed;
   // where playback continues from: the selected position, or the advertised default, or -1 so
   // that playback from the server default begins with the first advertised observation

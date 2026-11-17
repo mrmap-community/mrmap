@@ -1,10 +1,13 @@
 import type { JsonApiDocument, JsonApiPrimaryData } from "./types/jsonapi";
 
+import { ArrayField, TextField, TextInput } from "react-admin";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
   encapsulateJsonApiDocumentData,
   encapsulateJsonApiPrimaryData,
+  getArrayInput,
   getFieldForFormat,
   getFieldSchema,
   getIsoPath,
@@ -96,6 +99,43 @@ describe("formatted field validation", () => {
     expect(validate(format === "email" ? "a@b.co" : "https://a.co").some(Boolean)).toBe(true);
     expect(validate("invalid-value").some(Boolean)).toBe(true);
     expect(validate(format === "email" ? "person@example.com" : "https://example.com").every(value => value === undefined)).toBe(true);
+  });
+});
+
+/**
+ * The array branches of the schema mapping chose display and input the other
+ * way round than every other branch of the layer: a read-only field sat inside
+ * a form and a raw input in a show screen (#1463).
+ */
+describe("array field mapping (#1463)", () => {
+  const stringArray = { type: "array", items: { type: "string" } };
+  const objectArray = { type: "array", items: { type: "object" } };
+
+  it("asks for an input, not a read-out, for an array of strings in a form", () => {
+    expect(
+      getArrayInput("keywords", stringArray as never, false, false, true).component,
+    ).toBe(TextInput);
+  });
+
+  it.each([
+    { forInput: true, component: TextInput },
+    { forInput: false, component: TextField },
+  ])("maps the nested objects of an array the way the other branches do (forInput=$forInput)", ({ forInput, component }) => {
+    // the branch names its missing support on the console; the spec is about
+    // the component it chooses, not about that note
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+
+    const field = getArrayInput("extent", objectArray as never, false, false, forInput);
+
+    expect(field.component).toBe(component);
+    debug.mockRestore();
+  });
+
+  it("keeps the chip list which displays an array of simple values", () => {
+    const field = getArrayInput("keywords", stringArray as never, false, false, false);
+
+    expect(field.component).toBe(ArrayField);
+    expect(field.props.children).toBeDefined();
   });
 });
 

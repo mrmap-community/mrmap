@@ -1,5 +1,4 @@
-import type { PropsWithChildren } from "react";
-import { type ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { useListContext, useRecordContext, useTranslate } from "react-admin";
 
 import { Chip, Divider, Stack } from "@mui/material";

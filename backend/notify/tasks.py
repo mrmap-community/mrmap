@@ -132,8 +132,10 @@ class BackgroundProcessBased(Task):
             description, log_type)
 
     def update_state(self, task_id=None, state=None, meta=None, **kwargs):
+        # Deliberately without operations: celery's own state writes to the
+        # result backend are skipped, clients learn the progress from the
+        # background process which update_background_process maintains.
         pass
-        # return super().update_state(task_id, state, meta, **kwargs)
 
     def update_background_process(
         self,

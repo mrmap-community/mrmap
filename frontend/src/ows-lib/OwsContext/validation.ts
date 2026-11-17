@@ -113,7 +113,7 @@ const ABSOLUTE_URI_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/
 
 const RFC_3339_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
-const RFC_3339_TIME_SUFFIX_PATTERN = /^([Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})?)?$/
+const RFC_3339_TIME_SUFFIX_PATTERN = /^[Tt ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})?$/
 
 const LANGUAGE_TAG_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/
 
@@ -123,10 +123,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isFilledString = (value: unknown): value is string =>
     typeof value === 'string' && value.trim().length > 0
 
-const isRfc3339 = (value: string) =>
-    RFC_3339_DATE_PATTERN.test(value.slice(0, 10)) &&
-    RFC_3339_TIME_SUFFIX_PATTERN.test(value.slice(10)) &&
-    !Number.isNaN(Date.parse(value))
+const isRfc3339 = (value: string) => {
+    const rest = value.slice(10)
+    return RFC_3339_DATE_PATTERN.test(value.slice(0, 10)) &&
+        (rest.length === 0 || RFC_3339_TIME_SUFFIX_PATTERN.test(rest)) &&
+        !Number.isNaN(Date.parse(value))
+}
 
 const isAbsoluteUrl = (value: string) => {
     try {

@@ -1080,6 +1080,39 @@ PROBE_RESULT_MODELS_BY_NAME = {
 PROBE_ARTIFACT_CLEANUP_PAGE_SIZE = 500
 
 
+def _purge_result_model(result_model, cutoff) -> int:
+    """Clears one result model's expired bodies, in bounded pages.
+
+    Returns:
+        int: how many rows of this model were cleared
+    """
+    storage = result_model._meta.get_field('response_body').storage
+    named = result_model.objects.for_cleanup_batch().filter(
+        date_created__lt=cutoff).order_by('pk')
+    purged = 0
+    while True:
+        # what a page clears drops out of the plan's filter, so the
+        # sweep walks forward by clearing - no separate cursor
+        page = list(named[:PROBE_ARTIFACT_CLEANUP_PAGE_SIZE])
+        if not page:
+            break
+        for name in {name for _pk, name in page}:
+            try:
+                storage.delete(name)
+            except OSError:
+                pass  # the storage does not hold it - which is what to clear
+        result_model.objects.filter(
+            pk__in=[pk for pk, _name in page]).update(
+            response_body=None)
+        purged += len(page)
+        if len(page) < PROBE_ARTIFACT_CLEANUP_PAGE_SIZE:
+            # a short page is the last one - reading after it would ask
+            # the table one more SELECT to learn what the LIMIT already
+            # answered
+            break
+    return purged
+
+
 def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
     """Takes back the stored probe responses whose retention has passed.
 
@@ -1106,27 +1139,5 @@ def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
     cutoff = now() - timedelta(days=days)
     purged = 0
     for result_model in PROBE_RESULT_MODELS:
-        storage = result_model._meta.get_field('response_body').storage
-        named = result_model.objects.for_cleanup_batch().filter(
-            date_created__lt=cutoff).order_by('pk')
-        while True:
-            # what a page clears drops out of the plan's filter, so the
-            # sweep walks forward by clearing - no separate cursor
-            page = list(named[:PROBE_ARTIFACT_CLEANUP_PAGE_SIZE])
-            if not page:
-                break
-            for name in {name for _pk, name in page}:
-                try:
-                    storage.delete(name)
-                except OSError:
-                    pass  # the storage does not hold it - which is what to clear
-            result_model.objects.filter(
-                pk__in=[pk for pk, _name in page]).update(
-                response_body=None)
-            purged += len(page)
-            if len(page) < PROBE_ARTIFACT_CLEANUP_PAGE_SIZE:
-                # a short page is the last one - reading after it would ask
-                # the table one more SELECT to learn what the LIMIT already
-                # answered
-                break
+        purged += _purge_result_model(result_model, cutoff)
     return {"retention_days": days, "purged": purged}

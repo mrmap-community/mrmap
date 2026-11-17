@@ -1,7 +1,6 @@
 import {
   useNotify,
   useRecordContext,
-  useRefresh,
   useTranslate,
   useUpdate,
 } from "react-admin";
@@ -24,7 +23,6 @@ const AbortBackgroundProcessButton = () => {
   const record = useRecordContext();
   const translate = useTranslate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const [update, { isPending }] = useUpdate();
 
   if (!record || !ACTIVE_STATUSES.includes(record.status)) {
@@ -45,7 +43,6 @@ const AbortBackgroundProcessButton = () => {
               mutationMode: "pessimistic",
               onSuccess: () => {
                 notify("backgroundActivity.abortAsked", { type: "info" });
-                refresh();
               },
               onError: () =>
                 notify("backgroundActivity.abortFailed", { type: "error" }),

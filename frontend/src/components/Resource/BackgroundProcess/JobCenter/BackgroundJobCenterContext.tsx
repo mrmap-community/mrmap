@@ -255,33 +255,81 @@ export const BackgroundJobCenterProvider = ({
   // active processes it tracks (bounded: thousands of active processes must
   // not mean thousands of subscription frames; the counts of the app bar are
   // answered by the api regardless)
-  const idTopics = useMemo(() => {
-    const active = Object.values(state.jobs)
-      .filter(isActive)
-      .sort((a, b) =>
-        String(b.dateCreated ?? "").localeCompare(
-          String(a.dateCreated ?? ""),
-        ),
-      )
-      .slice(0, MAX_ID_TOPICS)
-      .map(jobId);
-    return active;
-  }, [state.jobs]);
+  // the watched ids as one joined key: a progress event rewrites the content
+  // of a job but not the set of active ones, and the string stays equal -
+  // the subscription effect must not re-run for it (one progress message
+  // used to resubscribe every watched topic, one websocket frame each:
+  // #1462)
+  const watchKey = useMemo(
+    () =>
+      Object.values(state.jobs)
+        .filter(isActive)
+        .sort((a, b) =>
+          String(b.dateCreated ?? "").localeCompare(
+            String(a.dateCreated ?? ""),
+          ),
+        )
+        .slice(0, MAX_ID_TOPICS)
+        .map(jobId)
+        .join(","),
+    [state.jobs],
+  );
+
+  // `ingest` is mirrored in a ref (the pattern documented above `commit`):
+  // the handler of the per-id topics keeps one identity for the lifetime of
+  // the provider, because the dataProvider pairs an unsubscribe with the
+  // callback it was subscribed with and the delta below only works while
+  // that identity holds
+  const ingestRef = useRef(ingest);
+  useEffect(() => {
+    ingestRef.current = ingest;
+  }, [ingest]);
+
+  const handleIdUpdate = useCallback((event: CrudEvent): void => {
+    if (event.type === "updated") {
+      ingestRef.current(
+        (event.payload.records ?? []) as BackgroundJobRecord[],
+        true,
+      );
+    }
+  }, []);
+
+  // the topics whose subscription is currently mirrored to the server; the
+  // ref survives the effect runs, so a changed watch set sends only its
+  // delta and the topics which stay watched keep their subscription
+  const watchedTopics = useRef(new Set<string>());
 
   useEffect(() => {
-    const handleUpdate = (event: CrudEvent): void => {
-      if (event.type === "updated") {
-        ingest((event.payload.records ?? []) as BackgroundJobRecord[], true);
+    const wanted = new Set(
+      watchKey === ""
+        ? []
+        : watchKey
+            .split(",")
+            .map((id) => `resource/BackgroundProcess/${id}`),
+    );
+    wanted.forEach((topic) => {
+      if (!watchedTopics.current.has(topic)) {
+        void dataProvider.subscribe(topic, handleIdUpdate);
       }
-    };
-    const topics = idTopics.map((id) => `resource/BackgroundProcess/${id}`);
-    topics.forEach((topic) => void dataProvider.subscribe(topic, handleUpdate));
-    return () => {
-      topics.forEach((topic) =>
-        void dataProvider.unsubscribe(topic, handleUpdate),
+    });
+    watchedTopics.current.forEach((topic) => {
+      if (!wanted.has(topic)) {
+        void dataProvider.unsubscribe(topic, handleIdUpdate);
+      }
+    });
+    watchedTopics.current = wanted;
+  }, [dataProvider, watchKey, handleIdUpdate]);
+
+  // on unmount every topic still watched goes away with the provider
+  useEffect(
+    () => () => {
+      watchedTopics.current.forEach((topic) =>
+        void dataProvider.unsubscribe(topic, handleIdUpdate),
       );
-    };
-  }, [dataProvider, idTopics, ingest]);
+      watchedTopics.current = new Set();
+    },
+    [dataProvider, handleIdUpdate],
+  );
 
   // a burst of created events cannot grow the store unboundedly - and a
   // created event for a process which already moved on is answered by the

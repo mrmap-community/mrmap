@@ -7,12 +7,12 @@ import {
   useCreate,
   useNotify,
   useRecordContext,
-  useRefresh,
   useTranslate,
 } from "react-admin";
 
 import PersonIcon from "@mui/icons-material/PersonAddAlt";
 import { LinearProgress } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 
 import ContextBasedDialog from "../../Dialog/Dialog";
 import DialogHeader from "../../Dialog/DialogHeader";
@@ -33,7 +33,7 @@ export const AssignRoleButton = () => {
   const { roles, canAdminister } = useOrganizationScope();
   const [create] = useCreate();
   const notify = useNotify();
-  const refresh = useRefresh();
+  const queryClient = useQueryClient();
   const formId = useId();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,7 +76,9 @@ export const AssignRoleButton = () => {
         type: "success",
         messageArgs: { role: assigned?.slug ?? roleId },
       });
-      refresh();
+      // the chip row of the member reads the roles the members list answers
+      // per row; only that collection has to be re-read, not everything
+      queryClient.invalidateQueries({ queryKey: ["User", "getList"] });
       setOpen(false);
     } catch {
       notify("administration.members.assignFailed", { type: "error" });

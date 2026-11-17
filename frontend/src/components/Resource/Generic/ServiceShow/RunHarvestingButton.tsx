@@ -6,7 +6,6 @@ import {
   useGetIdentity,
   useNotify,
   useRecordContext,
-  useRefresh,
   useResourceDefinition,
 } from "react-admin";
 
@@ -24,7 +23,6 @@ const RunHarvestingButton = ({
   const { data: identity } = useGetIdentity();
   const [create, { isPending }] = useCreate();
   const notify = useNotify();
-  const refresh = useRefresh();
   if (!hasCreate || !identity?.id || serviceId == null || record?.isHarvestable === false) return null;
   return (
     <Button
@@ -40,11 +38,9 @@ const RunHarvestingButton = ({
           {
             onSuccess: () => {
               notify("harvestingSchedules.queued", { type: "success" });
-              refresh();
             },
             onError: () => {
               notify("harvestingSchedules.failed", { type: "error" });
-              refresh();
             },
           },
         );

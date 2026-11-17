@@ -134,7 +134,7 @@ describe('the add itself', () => {
     );
   });
 
-  it('names the added user, refreshes the list and closes', async () => {
+  it('names the added user and closes without a global refresh', async () => {
     render(<AddMemberDialogButton />);
     openDialog();
     fireEvent.click(screen.getByText('choose-user'));
@@ -144,7 +144,9 @@ describe('the add itself', () => {
       'administration.members.added',
       { type: 'success', messageArgs: { user: 'ada' } },
     ));
-    expect(state.refresh).toHaveBeenCalled();
+        // the create of the User resource invalidates the members list itself
+    // - a global refresh is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByTestId('member-form')).not.toBeInTheDocument());
   });
 

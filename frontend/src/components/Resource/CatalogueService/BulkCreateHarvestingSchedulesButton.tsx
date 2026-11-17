@@ -9,7 +9,6 @@ import {
   useGetMany,
   useListContext,
   useNotify,
-  useRefresh,
   useResourceDefinition,
   useTranslate,
   useUnselect,
@@ -39,7 +38,6 @@ const BulkCreateHarvestingSchedulesButton = () => {
   const [create] = useCreate();
   const unselect = useUnselect("CatalogueService");
   const notify = useNotify();
-  const refresh = useRefresh();
   const translate = useTranslate();
   const formId = useId();
   const [open, setOpen] = useState(false);
@@ -79,7 +77,6 @@ const BulkCreateHarvestingSchedulesButton = () => {
     const failed = outcomes.filter((outcome) => !outcome.created).map((outcome) => outcome.id);
     setSaving(false);
     unselect([...succeeded, ...excludedIds]);
-    refresh();
     notify("harvestingSchedules.bulkResult", {
       type: failed.length ? "warning" : "success",
       messageArgs: { created: succeeded.length, failed: failed.length },

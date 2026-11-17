@@ -14,6 +14,8 @@ const state = vi.hoisted(() => ({
   data: [] as RaRecord[],
   isPending: false,
   error: null as Error | null,
+  /** the readiness of the realtime bus, ReadyState.CONNECTING is 0 */
+  ready: 0,
 }));
 /** The record the mocked `DateField` of the list below renders, kept by the mocked provider. */
 const runContext = vi.hoisted(() => ({
@@ -47,6 +49,9 @@ vi.mock("react-admin", () => ({
   NumberField: () => null,
   Loading: () => <span>Loading</span>,
 }));
+vi.mock("../../../../context/HttpClientContext", () => ({
+  useHttpClientContext: () => ({ realtimeIsReady: state.ready }),
+}));
 vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
   default: vi.fn(() => null),
 }));
@@ -58,6 +63,7 @@ beforeEach(() => {
   state.data = [];
   state.isPending = false;
   state.error = null;
+  state.ready = 0;
   runContext.record = undefined;
 });
 describe("harvesting activity", () => {
@@ -68,7 +74,14 @@ describe("harvesting activity", () => {
     // working has no `doneAt` - the id is the field which answers the three most
     // recent runs, the watched one included, until #1079 fills the date
     expect(props?.sort).toEqual({ field: "id", order: "DESC" });
+    // the bus carries every change of a run - the five second interval is the
+    // fallback while it is not connected, and the card subscribes to the live
+    // topic like the run list beside it
+    expect(props?.realtime).toBe(true);
     expect(props?.refetchInterval).toBe(5000);
+    state.ready = 1; // ReadyState.OPEN
+    render(<HarvestingActivityCard />);
+    expect(vi.mocked(ListGuesser).mock.calls.at(-1)?.[0].refetchInterval).toBe(false);
     const fieldset = String(
       (
         props?.queryOptions?.meta as {

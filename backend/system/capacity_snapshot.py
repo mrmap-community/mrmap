@@ -67,8 +67,11 @@ MESSAGES_CACHE_KEY = "mrmap-capacity-messages"
 
 #: the keys the redis transport parks a message under once a worker has
 #: taken it out of its queue but not acked it (the driver keys of kombu, as
-#: ``registry.tasks.harvest`` already reads them, #972)
-UNACKED_LIST_KEY = "unacked"
+#: ``registry.tasks.harvest`` already reads them, #972). They are **not**
+#: lists: ``unacked`` is a hash (uuid to message body) and ``unacked_index``
+#: its zset index - #1423 counted the hash with ``LLEN`` and every read of a
+#: busy broker died with WRONGTYPE
+UNACKED_HASH_KEY = "unacked"
 UNACKED_INDEX_KEY = "unacked_index"
 
 #: the vocabulary of ``gaps`` entries a reader may match on; plain strings
@@ -227,6 +230,33 @@ def observe_message_backlog(force=False):
     return verdict
 
 
+def _delivery_backlog(client):
+    """The unacked backlog, counted with the verbs the keys actually want.
+
+    ``unacked`` is a **hash** and ``unacked_index`` the matching **zset** of
+    the redis transport, so the counts are ``HLEN`` and ``ZCARD`` - an
+    ``LLEN`` against the hash raises WRONGTYPE the moment any message is
+    unacked, which is exactly the live-broker case of #1423. Each key is
+    read on its own: a key the broker cannot answer for stays ``null`` with
+    its reason while the other key keeps its answer - and the queue depths,
+    read by the caller outside this helper, are never lost to a surprise on
+    one of these two keys.
+    """
+    backlog = {"unacked": None, "unacked_index": None, "reason": None}
+    for name, key, verb in (
+            ("unacked", UNACKED_HASH_KEY, "hlen"),
+            ("unacked_index", UNACKED_INDEX_KEY, "zcard")):
+        try:
+            backlog[name] = int(getattr(client, verb)(key))
+        except Exception as error:
+            backlog[name] = None
+            backlog["reason"] = f"the backlog key {key} could not be " \
+                                f"read: {error}"
+            logger.debug("capacity backlog: read of %s failed: %s",
+                         key, error)
+    return backlog
+
+
 def observe_queue_depths(declared):
     """The integer message count of every declared queue, from the broker.
 
@@ -253,10 +283,10 @@ def observe_queue_depths(declared):
                     depths[name]["depth"] = int(client.llen(name))
                 except Exception as error:
                     depths[name]["reason"] = f"unreadable: {error}"
-            backlog = {
-                "unacked": int(client.llen(UNACKED_LIST_KEY)),
-                "unacked_index": int(client.zcard(UNACKED_INDEX_KEY)),
-            }
+            # the backlog has its own read, and the keys their own verbs:
+            # #1423 died right here, one wrong Redis verb away from
+            # disabling the whole section over a correct depths read
+            backlog = _delivery_backlog(client)
     except Exception as error:  # broker down: the whole section is unknown
         logger.debug("capacity depths: broker read failed: %s", error)
         return {

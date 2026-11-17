@@ -90,7 +90,8 @@ def depths(lengths):
         "observed_at": timezone.now(),
         "queues": {name: {"depth": depth, "reason": None}
                    for name, depth in lengths.items()},
-        "delivery_backlog": {"unacked": 0, "unacked_index": 0},
+        "delivery_backlog": {"unacked": 0, "unacked_index": 0,
+                             "reason": None},
     }
 
 
@@ -522,7 +523,8 @@ class BrokerObservationTests(TestCase):
     def test_depths_are_read_as_counts_with_the_delivery_backlog(self):
         redis = Mock()
         redis.llen.side_effect = lambda key: {
-            "monitoring": 5, "update": 0, "unacked": 2}[key]
+            "monitoring": 5, "update": 0}[key]
+        redis.hlen.side_effect = lambda key: {"unacked": 2}[key]
         redis.zcard.return_value = 2
         with patch.object(capacity_snapshot, "app", self.fake_app(client=redis)):
             answer = capacity_snapshot.observe_queue_depths(
@@ -532,6 +534,59 @@ class BrokerObservationTests(TestCase):
         self.assertEqual(answer["queues"]["update"]["depth"], 0)
         self.assertEqual(answer["delivery_backlog"]["unacked"], 2)
         self.assertEqual(answer["delivery_backlog"]["unacked_index"], 2)
+        # the queues are lists, the backlog keys are not: LLEN is issued
+        # for the declared queues only, never for "unacked" (#1423)
+        self.assertEqual(
+            sorted(call.args[0] for call in redis.llen.call_args_list),
+            ["monitoring", "update"])
+        redis.hlen.assert_called_once_with("unacked")
+        redis.zcard.assert_called_once_with("unacked_index")
+
+    def test_the_unacked_hash_does_not_sink_the_section(self):
+        """The #1423 regression: on a broker with a message in flight the
+        unacked key is a hash, so the old ``LLEN`` answered WRONGTYPE and
+        the whole queue section degraded. A transport that misanswers one
+        backlog key may still not take the depths down with it."""
+        redis = Mock()
+
+        def llen(key):
+            if key == "unacked":
+                raise RuntimeError(
+                    "WRONGTYPE Operation against a key holding the wrong "
+                    "kind of value")
+            return 0
+        redis.llen.side_effect = llen
+        redis.hlen.return_value = 3
+        redis.zcard.return_value = 3
+        with patch.object(capacity_snapshot, "app", self.fake_app(client=redis)):
+            answer = capacity_snapshot.observe_queue_depths(["monitoring"])
+        self.assertTrue(answer["available"])
+        self.assertEqual(answer["queues"]["monitoring"]["depth"], 0)
+        self.assertIsNone(answer["queues"]["monitoring"]["reason"])
+        self.assertEqual(answer["delivery_backlog"]["unacked"], 3)
+        self.assertEqual(answer["delivery_backlog"]["unacked_index"], 3)
+
+    def test_an_unreadable_backlog_key_degrades_only_the_backlog(self):
+        """A backlog key the broker cannot answer for is ``null`` with its
+        reason; the depths above it and the other backlog key keep their
+        answers (#1423: one wrong verb disabled every queue answer)."""
+        redis = Mock()
+        redis.llen.return_value = 7
+
+        def hlen(key):
+            raise RuntimeError(
+                "WRONGTYPE Operation against a key holding the wrong "
+                "kind of value")
+        redis.hlen.side_effect = hlen
+        redis.zcard.return_value = 4
+        with patch.object(capacity_snapshot, "app", self.fake_app(client=redis)):
+            answer = capacity_snapshot.observe_queue_depths(["monitoring"])
+        self.assertTrue(answer["available"])
+        self.assertEqual(answer["queues"]["monitoring"]["depth"], 7)
+        backlog = answer["delivery_backlog"]
+        self.assertIsNone(backlog["unacked"])
+        self.assertIn("WRONGTYPE", backlog["reason"])
+        self.assertEqual(backlog["unacked_index"], 4)
 
     def test_an_unreadable_queue_stays_null_with_its_reason(self):
         redis = Mock()

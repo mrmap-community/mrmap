@@ -7,15 +7,19 @@ families. The checklist items this module carries:
 
 *   the annotation SELECT count stays constant in the number of services
     (per kind) - the database-side design #1030 asked for;
-*   the per-service ``storage.exists()`` probe of ``missing_capabilities_rows``
-    is captured as the linear RED baseline #1394 replaces with per-prefix
-    listings (storage probes are not SQL, so they are counted where they
-    are paid, not through the query capture);
+*   the storage probes of ``missing_capabilities_rows`` are bounded by the
+    named prefixes, not by the services (#1394 replaced the per-service
+    ``storage.exists()`` with a per-prefix listing; storage probes are not
+    SQL, so they are counted where they are paid, not through the query
+    capture - the red baseline #1395 pinned here is now its green guard);
 *   an open alert keeps its identity across refreshes (#1030).
 """
+import os
+import tempfile
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.conf import settings
+from django.test import TestCase, override_settings
 from registry.models.alerts import ServiceAlert
 from registry.models.metadata import MetadataContact
 from registry.models.service import WebMapService
@@ -57,14 +61,15 @@ class AlertRefreshScalingTest(ServiceAlertsMixin, SqlGuardMixin, TestCase):
             label='the alert refresh')
         self.assertEqual(len(set(measured.values())), 1)
 
-    def test_the_capabilities_backup_probe_is_linear_red_baseline(self):
-        """One ``storage.exists()`` per service naming a document, per fire.
+    def test_the_capabilities_backup_probes_are_bounded_by_prefixes(self):
+        """One listing per named prefix, never one probe per service (#1394).
 
-        This is THE dominant cost of the refresh per the audit, and the one
-        scoped storage-vs-SQL change #1394 should take: list the per-kind
-        prefixes once instead of probing per service. Until then the guard
-        pins the current shape: probes == services naming a document, and
-        grows one per service added.
+        This is the assertion #1395 landed as the red baseline of the linear
+        shape: the refresh asks the storage for the prefix the names live
+        below, so the ``exists()`` probes of a fire stay constant while the
+        services below that prefix grow - and the green half still answers
+        the right services: only a named file the storage does not hold
+        leaves an alert row behind.
         """
         def count_probes():
             with patch('django.core.files.storage.default_storage.exists',
@@ -74,20 +79,57 @@ class AlertRefreshScalingTest(ServiceAlertsMixin, SqlGuardMixin, TestCase):
 
         base = count_probes()
         self._extra_services(3)
-        # name a backup file on each new service without touching storage
+        # name a backup document on each new service below the prefix the
+        # services of a deployment use; none of them is written to storage,
+        # so every one of them is a candidate for an alert
         named = list(WebMapService.objects.filter(
             title__startswith='refresh growth'))
         self.assertEqual(len(named), 3)
         for service in named:
-            service.xml_backup_file = 'missing_capabilities_backup.xml'
             WebMapService.objects.filter(pk=service.pk).update(
-                xml_backup_file=service.xml_backup_file.name)
+                xml_backup_file=f'xml_documents/{service.pk}/backup.xml')
         after = count_probes()
         self.assertEqual(
-            after - base, 3,
-            msg='red baseline (#1394): the refresh probes the storage once '
-                'per service naming a document; the prefix-listing fix '
-                'flattens this - tighten the assertion then')
+            after, base,
+            msg=f'three services naming a document below an already listed '
+                f'prefix must not add a single probe (before {base}, '
+                f'after {after}): the refresh lists the prefix once')
+
+    def test_only_a_named_document_the_storage_misses_is_alerted(self):
+        """The listing answers the same rows the per-service probe answered.
+
+        The fixtures themselves name a CSW backup document the fresh media
+        root does not hold, so the exact row set is not the point here -
+        the point is that the listing and the old probe answer the same
+        question per name: the held document answers no row, the missing
+        one does.
+        """
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self._extra_services(2)
+            held, missing = list(WebMapService.objects.filter(
+                title__startswith='refresh growth'))[:2]
+            for service in (held, missing):
+                WebMapService.objects.filter(pk=service.pk).update(
+                    xml_backup_file=f'xml_documents/{service.pk}/backup.xml')
+            # the storage holds the document of exactly one of them
+            directory = os.path.join(
+                settings.MEDIA_ROOT, 'xml_documents', str(held.pk))
+            os.makedirs(directory)
+            with open(os.path.join(directory, 'backup.xml'), 'wb') as handle:
+                handle.write(b'<wms:ServiceException/>')
+            self.refresh_alerts()
+
+        alerted = set(ServiceAlert.objects.filter(
+            category='capabilities_backup_missing').values_list(
+                'service', flat=True))
+        self.assertIn(
+            str(missing.pk), alerted,
+            'the row exists for the service whose named document the '
+            'storage does not hold')
+        self.assertNotIn(
+            str(held.pk), alerted,
+            'the service whose named document the storage holds keeps no '
+            'row - the prefix listing saw the file')
 
     def test_an_open_alert_keeps_its_identity_across_refreshes(self):
         """The full replace rewrites the rows but not the identities (#1030).

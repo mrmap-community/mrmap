@@ -14,6 +14,9 @@
 #
 # Safe to re-run. Run from the repository root of the checkout you want to
 # wire up. Removes nothing except its own previous forwarder container.
+# Before the numbered steps it checks the host prerequisites the committed
+# config cannot carry: node >= 18, an authenticated gh CLI and the SonarQube
+# token file.
 #
 # Options (environment):
 #   MRMAP_MCP_NO_DB=1   skip steps 2-4 (e.g. host without the dev stack)
@@ -38,6 +41,28 @@ if command -v node >/dev/null 2>&1; then
   [ "$major" -ge 18 ] || ERR "node >= 18 required for npx MCP servers (found $(node --version))"
 else
   NOTE "no node on PATH - playwright/postgres MCP servers will not start on this host"
+fi
+
+# ------------------------------------------------------------ sonar token
+# The committed opencode.json authenticates the hosted SonarQube MCP server with a
+# SonarQube Cloud USER token read from this per-host file (OAuth is not available
+# for OpenCode: Sonar only admits CIMD clients from its own allowlist). The script
+# checks and tightens the file, it never writes token material.
+SONAR_TOKEN_FILE="$HOME/.config/opencode/sonar-token"
+if [ ! -s "$SONAR_TOKEN_FILE" ]; then
+  NOTE "no $SONAR_TOKEN_FILE - hosted sonarqube MCP server cannot connect. Create a SonarQube Cloud USER token (user icon -> My Account -> Security -> Generate New Token), then: umask 077 && printf '%s' '<token>' > $SONAR_TOKEN_FILE"
+else
+  [ "$(tail -c1 "$SONAR_TOKEN_FILE")" ] \
+    || ERR "$SONAR_TOKEN_FILE ends with a newline - the Authorization header would carry it. Rewrite it without: umask 077 && printf '%s' '<token>' > $SONAR_TOKEN_FILE"
+  chmod 600 "$SONAR_TOKEN_FILE"
+  NOTE "sonar token file present ($SONAR_TOKEN_FILE) - hosted sonarqube MCP server will connect"
+fi
+
+# ----------------------------------------------------------------- gh check
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  NOTE "gh CLI authenticated - github MCP server (Docker) will work on this host"
+else
+  NOTE "gh CLI missing or unauthenticated - github MCP server will not start (fix: install gh, then 'gh auth login')"
 fi
 
 # ---------------------------------------------------------------- 1. orm-lens

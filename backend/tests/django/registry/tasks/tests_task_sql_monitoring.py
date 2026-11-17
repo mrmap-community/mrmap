@@ -160,9 +160,11 @@ class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
     """``delete_expired_probe_response_artifacts`` over 0/1/10/100+ rows.
 
     Six result models share the sweep; the checklist asks the SELECT side to
-    stay constant while the sweep's rows grow and pins the per-row UPDATE as
-    the red baseline #1394 batches away. "Rows keep every column except
-    ``response_body``" is the correctness half.
+    stay constant while the sweep's rows grow - and since #1394 so does the
+    WRITE side: the sweep reads through ``for_cleanup_batch()`` in bounded
+    pages and clears a page with one UPDATE, so the statement count is
+    bounded by the models and their pages, never by the rows. "Rows keep
+    every column except ``response_body``" is the correctness half.
     """
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_wms.json',
@@ -210,12 +212,13 @@ class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
         return built
 
     def test_the_sweep_scales_with_pages_of_rows_not_reads(self):
-        """SELECTs constant, UPDATEs exactly one per row - the #1394 baseline.
+        """SELECTs constant, UPDATEs one per PAGE - the shape of #1394.
 
-        The ``per_row=1`` allowance states the CURRENT linear write shape
-        honestly: #1394 replaces the loop with paged reads and a batched
-        UPDATE, and when it lands, this allowance drops to 0 and the same
-        guard turns into the proof of the fix.
+        The ``extra`` allowance states the bounded write side honestly: a
+        fire pays at most one batched UPDATE per result model (the rows of
+        these fixtures fit in one page per model), never one per row. The
+        UPDATE count of the sweep is asserted as a number in
+        ``test_the_clear_rides_pages_not_rows``.
         """
         def seed(size):
             self._expired_rows(size)
@@ -225,11 +228,39 @@ class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
                 sizes=(0, 1, 10, 100),
                 seed=seed,
                 run=purge_expired_probe_response_artifacts,
-                per_row=1,
+                per_row=0,
+                extra=len(PROBE_RESULT_MODELS),
                 label='the artifact purge')
 
         # the reads are six: one per result model, never per row
         self.assertEqual(measured[0], len(PROBE_RESULT_MODELS))
+
+    def test_the_clear_rides_pages_not_rows(self):
+        """The green half of the #1394 batching: one UPDATE per model.
+
+        30 expired rows spread over the six result models: the clear is at
+        most six batched UPDATE statements - the per-row ``save`` loop it
+        replaced stood one UPDATE per row, which the fingerprint guard below
+        would report as a repetition.
+        """
+        rows = self._expired_rows(30)
+        with override_settings(**self.PURGE_SETTINGS):
+            summary, context = self.capture(
+                purge_expired_probe_response_artifacts)
+        self.assertEqual(summary['purged'], 30)
+        updates = statements_of(context, verb='update')
+        self.assertLessEqual(
+            len(updates), len(PROBE_RESULT_MODELS),
+            msg='every expired row of a page is cleared by the page\'s '
+                'one UPDATE, never by a statement of its own')
+        self.assertNoNPlusOne(
+            purge_expired_probe_response_artifacts,
+            label='the second fire over the cleared rows')
+        for row in rows:
+            self.assertIsNone(
+                type(row).objects.values_list(
+                    'response_body', flat=True).get(pk=row.pk),
+                'the second fire found nothing left to clear')
 
     def test_expired_bodies_leave_and_rows_keep_their_answers(self):
         """Correctness half: only ``response_body`` goes.

@@ -138,6 +138,11 @@ class CeleryTaskAttempt(models.Model):
                          name="attempt_started_idx"),
             models.Index(fields=("queue", "started_at"),
                          name="attempt_queue_started_idx"),
+            # the retention delete and the hard cap of the housekeeping
+            # sweep are windowed and ordered by ``recorded_at``; without
+            # this index both sweeps seq-scan the capped table (#1394)
+            models.Index(fields=("recorded_at",),
+                         name="attempt_recorded_idx"),
         ]
 
     def __str__(self):

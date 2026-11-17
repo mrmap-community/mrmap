@@ -49,6 +49,15 @@
         ],
         "$comment": "Needs Node >= 18 and a Playwright chromium (~/.cache/ms-playwright, refresh via: npx -y playwright install chromium)."
       },
+      "github": {
+        "type": "local",
+        "command": [
+          "bash",
+          "-lc",
+          "GITHUB_PERSONAL_ACCESS_TOKEN=\"$(gh auth token)\" exec docker run -i --rm --init --memory=256m -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server:v2.2.0 stdio"
+        ],
+        "$comment": "Official GitHub MCP server (github/github-mcp-server), GHCR image tag pinned; stdio in a short-lived Docker container. Needs Docker + an authenticated gh CLI; the token is resolved from the gh keyring at startup and never stored in any config file. Write tools are active; add --read-only after 'stdio' to make it read-only."
+      },
       "postgres": {
         "type": "local",
         "command": [
@@ -65,10 +74,12 @@
       "sonarqube": {
         "type": "remote",
         "url": "https://api.sonarcloud.io/mcp",
-        "oauth": {
-          "scope": "mcp:tools:read"
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer {file:~/.config/opencode/sonar-token}",
+          "SONARQUBE_READ_ONLY": "true"
         },
-        "$comment": "Official SonarQube Cloud-hosted MCP (EU/global). Read-only OAuth scope; per-user authentication via `opencode mcp auth sonarqube` stored outside Git. US-region installations must use https://api.sonarqube.us/mcp."
+        "$comment": "Official SonarQube Cloud-hosted MCP (EU/global) with a SonarQube Cloud USER token. OAuth is not an option for this client: Sonar accepts it only for CIMD clients on its allowlist (Claude Code, Cursor, VS Code, ...), OpenCode is not listed. The token stays outside Git in ~/.config/opencode/sonar-token (mode 600, single line, no trailing newline); scripts/mcp-setup.sh checks it and names how to create it. SONARQUBE_READ_ONLY refuses write tools server-side, whatever the token may do. US-region installations must override the url to https://api.sonarqube.us/mcp."
       }
     }
   }

@@ -2,6 +2,7 @@ import {
   ResourceProps
 } from 'react-admin';
 
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import ContactsIcon from '@mui/icons-material/Contacts';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
@@ -46,11 +47,13 @@ import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonito
 import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob, { SCHEDULE_LIST_FIELDS } from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListOrganizationRoles from './RoleDefinition/ListOrganizationRoles';
 import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
 import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
+import ListOrganizationMembers from './User/ListOrganizationMembers';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -259,7 +262,41 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon, options: { menu: { group: "WFS", order: 40 } }},
   {name: "WebFeatureServiceOperation",},
 
-  {name: "User", icon: CustomerIcon, options: { menu: { group: "Accounts", order: 10 } }},
+  // the administration area of #737: the members of one organization are the
+  // `list` of the User resource (the screen scopes it through the related
+  // collection of the selected organization), its roles are annotated rows of
+  // the RoleDefinition catalogue. Both entries live in the "Admin" group and
+  // are gated by #836's canAccess over the resources named in
+  // providers/permissions.ts - deep links answer with the standard forbidden
+  // state. Role and RoleMembership carry no menu entry: they are the
+  // resources the screens act through (assign, revoke), not screens.
+  {
+    name: "User",
+    icon: CustomerIcon,
+    list: ListOrganizationMembers,
+    options: {
+      menu: { group: "Admin", order: 5 },
+      label: "administration.members.title",
+      list: {
+        defaultSelectedColumns: ["stringRepresentation", "username", "roles", "actions"],
+      },
+    },
+  },
+  {
+    name: "RoleDefinition",
+    icon: AdminPanelSettingsIcon,
+    list: ListOrganizationRoles,
+    options: {
+      menu: { group: "Admin", order: 8 },
+      label: "administration.roles.title",
+      list: {
+        sort: { field: "slug", order: "ASC" },
+        defaultSelectedColumns: ["slug", "label", "description", "scope", "permissions", "actions"],
+      },
+    },
+  },
+  {name: "Role",},
+  {name: "RoleMembership",},
   {name: "Organization", icon: CorporateFareIcon, options: { menu: { group: "Accounts", order: 20 } }},
   {name: "Group", icon: CorporateFareIcon },
 

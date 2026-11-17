@@ -1,6 +1,42 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  // die Organisationsverwaltung aus #737: Mitglieder und Rollen einer
+  // ausgewählten Organisation, gateiert über den Berechtigungs-Snapshot aus #836
+  administration: {
+    organization: {
+      label: "Organisation",
+      placeholder: "Organisation auswählen",
+      noneForUser: "Sie administrieren keine Organisation.",
+    },
+    members: {
+      title: "Mitglieder",
+      roles: "Rollen",
+      noRoles: "Keine Rolle in dieser Organisation",
+      add: "Mitglied hinzufügen",
+      addTitle: "Ein Mitglied zur Organisation hinzufügen",
+      user: "Benutzer",
+      added: "%{user} wurde zur Organisation hinzugefügt",
+      addFailed: "Das Mitglied konnte nicht hinzugefügt werden.",
+      assign: "Rolle zuweisen",
+      assignTitle: "Eine Rolle für %{user} zuweisen",
+      role: "Rolle",
+      assigned: "Die Rolle %{role} wurde zugewiesen.",
+      assignFailed: "Die Rolle konnte nicht zugewiesen werden.",
+      revoke: "Rolle %{role} entziehen",
+      revoked: "Die Rolle %{role} wurde entzogen.",
+      revokeFailed: "Die Rolle konnte nicht entzogen werden.",
+      selfRevoked:
+        "Sie haben Ihre eigene Administratorrolle entzogen; die Verwaltungsseiten stehen Ihnen nicht mehr zur Verfügung.",
+    },
+    roles: {
+      title: "Rollen",
+      members: "Mitglieder in Organisation",
+      permissions: "Berechtigungen",
+      permissionCount:
+        "%{smart_count} Berechtigung |||| %{smart_count} Berechtigungen",
+    },
+  },
   cronInput: {
     openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
     minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",

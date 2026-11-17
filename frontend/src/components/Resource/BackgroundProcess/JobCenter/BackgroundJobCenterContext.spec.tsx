@@ -29,6 +29,10 @@ const state = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   subscriptions: new Map<string, Set<Handler>>(),
+  // the topics the provider asked the dataProvider to (un)subscribe: the
+  // counting specs below assert the frames a progression costs (#1462)
+  subscribeCalls: [] as string[],
+  unsubscribeCalls: [] as string[],
   notify: vi.fn(),
   // stable identities: the provider folds `translate` into `ingest` and the
   // hydrate effects depend on `ingest` - a fresh function per render would
@@ -39,11 +43,13 @@ const state = vi.hoisted(() => ({
 vi.mock("react-admin", () => ({
   useDataProvider: () => ({
     subscribe: (topic: string, handler: Handler) => {
+      state.subscribeCalls.push(topic);
       const handlers = state.subscriptions.get(topic) ?? new Set();
       handlers.add(handler);
       state.subscriptions.set(topic, handlers);
     },
     unsubscribe: (topic: string, handler: Handler) => {
+      state.unsubscribeCalls.push(topic);
       state.subscriptions.get(topic)?.delete(handler);
     },
   }),
@@ -103,6 +109,8 @@ beforeEach(() => {
     refetch: vi.fn(),
   };
   state.subscriptions = new Map();
+  state.subscribeCalls = [];
+  state.unsubscribeCalls = [];
   state.notify = vi.fn();
 });
 
@@ -139,6 +147,67 @@ describe("BackgroundJobCenterProvider", () => {
     expect(
       state.subscriptions.has("resource/BackgroundProcess/2"),
     ).toBe(true);
+  });
+
+  it("sends no subscription frame for progress events of the same active set", () => {
+    state.active.data = [job({ id: 1 }), job({ id: 2 })];
+    render(
+      <BackgroundJobCenterProvider>
+        <Probe />
+      </BackgroundJobCenterProvider>,
+    );
+    // the watched set is in place; from here on the counting starts clean
+    expect([...state.subscribeCalls].sort()).toEqual([
+      "resource/BackgroundProcess",
+      "resource/BackgroundProcess/1",
+      "resource/BackgroundProcess/2",
+    ]);
+    state.subscribeCalls = [];
+    state.unsubscribeCalls = [];
+    // two ingestions of the same active set: progress only, no membership
+    // change - the frame count for this must be zero (#1462)
+    emit("resource/BackgroundProcess/1", {
+      type: "updated",
+      payload: { records: [job({ id: 1, progress: 30 })] },
+    });
+    emit("resource/BackgroundProcess/2", {
+      type: "updated",
+      payload: { records: [job({ id: 2, progress: 40 })] },
+    });
+    expect(state.subscribeCalls).toEqual([]);
+    expect(state.unsubscribeCalls).toEqual([]);
+    // and the store still took the progress
+    expect(rendered()).toBe("1,2");
+  });
+
+  it("answers a changed active set with its delta only", () => {
+    state.active.data = [job({ id: 1 }), job({ id: 2 })];
+    render(
+      <BackgroundJobCenterProvider>
+        <Probe />
+      </BackgroundJobCenterProvider>,
+    );
+    state.subscribeCalls = [];
+    state.unsubscribeCalls = [];
+    // job 1 completes: only its own topic goes away, job 2 keeps its
+    // subscription untouched
+    emit("resource/BackgroundProcess/1", {
+      type: "updated",
+      payload: {
+        records: [job({ id: 1, status: "completed", state: "completed" })],
+      },
+    });
+    expect(state.unsubscribeCalls).toEqual(["resource/BackgroundProcess/1"]);
+    expect(state.subscribeCalls).toEqual([]);
+    // a newly created active process arrives on its own topic - and the
+    // already watched ones are not resubscribed for it
+    emit("resource/BackgroundProcess", {
+      type: "created",
+      payload: { records: [job({ id: 3 })] },
+    });
+    expect(state.subscribeCalls).toEqual(["resource/BackgroundProcess/3"]);
+    expect(state.unsubscribeCalls).toEqual(["resource/BackgroundProcess/1"]);
+    expect(rendered()).toBe("1,2,3");
   });
 
   it("announces a failure once, however often its message arrives", () => {

@@ -145,10 +145,26 @@ class ShareRequestSerializer(serializers.Serializer):
     actions = serializers.ListField(
         child=serializers.CharField(), allow_empty=False)
 
-    def validate(self, attrs):
+    def validate_actions(self, actions):
+        """Refuse actions this service kind cannot carry.
+
+        The vocabulary is the model's (``shareable_actions``), the refusal
+        names both sides of the gap.
+        """
         from registry.models.shares import shareable_actions
 
-        service = self.context["service"]
+        shareable = shareable_actions(self.context["service"])
+        unknown = [action for action in actions if action not in shareable]
+        if unknown:
+            raise serializers.ValidationError(_(
+                "Actions this service cannot share: %(actions)s. "
+                "Shareable: %(shareable)s.") % {
+                    "actions": ", ".join(unknown),
+                    "shareable": ", ".join(shareable)})
+        return actions
+
+    def validate(self, attrs):
+        # the target shape first: exactly one of the two spellings, whole
         has_user = "user" in attrs
         has_org = "organization" in attrs or "role" in attrs
         if has_user and has_org:
@@ -166,37 +182,36 @@ class ShareRequestSerializer(serializers.Serializer):
                 "role": _(
                     "Sharing with an organization shares with one of its "
                     "roles; name the role definition slug.")})
-        if "user" in attrs and not User.objects.filter(
-                pk=attrs["user"]).exists():
+        if has_user:
+            self.resolve_user(attrs)
+        else:
+            self.resolve_role_group(attrs)
+        return attrs
+
+    def resolve_user(self, attrs):
+        """Pin the named user down, or refuse the id."""
+        user = User.objects.filter(pk=attrs["user"]).first()
+        if user is None:
             raise serializers.ValidationError({
                 "user": _("No user with this id.")})
-        if "organization" in attrs:
-            from accounts.models.groups import Organization
+        attrs["user_instance"] = user
 
-            if not Organization.objects.filter(
-                    pk=attrs["organization"]).exists():
-                raise serializers.ValidationError({
-                    "organization": _("No organization with this id.")})
-            role = Role.objects.for_org(
-                attrs["organization"]).with_definition(attrs["role"]).first()
-            if role is None:
-                raise serializers.ValidationError({
-                    "role": _(
-                        "The organization has no active role of this "
-                        "definition.")})
-            attrs["role_group"] = role.group
-        elif "user" in attrs:
-            attrs["user_instance"] = User.objects.get(pk=attrs["user"])
-        unknown = [action for action in attrs["actions"]
-                   if action not in shareable_actions(service)]
-        if unknown:
+    def resolve_role_group(self, attrs):
+        """Pin the organization's live role group down, or refuse it."""
+        from accounts.models.groups import Organization
+
+        if not Organization.objects.filter(
+                pk=attrs["organization"]).exists():
             raise serializers.ValidationError({
-                "actions": _(
-                    "Actions this service cannot share: %(actions)s. "
-                    "Shareable: %(shareable)s.") % {
-                        "actions": ", ".join(unknown),
-                        "shareable": ", ".join(shareable_actions(service))}})
-        return attrs
+                "organization": _("No organization with this id.")})
+        role = Role.objects.for_org(
+            attrs["organization"]).with_definition(attrs["role"]).first()
+        if role is None:
+            raise serializers.ValidationError({
+                "role": _(
+                    "The organization has no active role of this "
+                    "definition.")})
+        attrs["role_group"] = role.group
 
     def resolve_target(self):
         """The ``Group`` (role group) or ``User`` the payload names."""

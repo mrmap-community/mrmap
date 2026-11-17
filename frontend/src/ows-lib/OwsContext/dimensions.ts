@@ -61,6 +61,32 @@ export const parseAdvertisedValues = (values: string): AdvertisedValues => {
     return { kind: 'list', values: values.split(',').map(value => value.trim()).filter(Boolean) };
 };
 
+/** whether the instant is one of the observations a stepped time range advertises:
+ *  the index of the step is unknown, so it is probed by growing a bound
+ *  exponentially and searching it binary */
+const isAdvertisedInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' }>, instant: moment.Moment): boolean => {
+    const at = (index: number) => timeRangeInstant(range, index);
+    const target = instant.valueOf();
+    let low = 0, high = 1;
+    while (at(high) < target && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
+    while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const candidate = at(middle);
+        if (candidate === target) return true;
+        if (candidate < target) low = middle + 1;
+        else high = middle - 1;
+    }
+    return false;
+};
+
+/** whether the number is one of the observations a numeric range advertises */
+const isAdvertisedNumber = (range: Extract<AdvertisedValues, { kind: 'range' }>, numeric: number): boolean => {
+    if (numeric < Math.min(range.start, range.stop) || numeric > Math.max(range.start, range.stop)) return false;
+    if (range.step === undefined) return true;
+    const position = (numeric - range.start) / range.step;
+    return Math.abs(position - Math.round(position)) < 1e-9;
+};
+
 /** The empty value stands for the server default and is always allowed. */
 export const isAllowedDimensionValue = (dimension: OfferingDimension, value: string): boolean => {
     if (value === '') return true;
@@ -74,25 +100,11 @@ export const isAllowedDimensionValue = (dimension: OfferingDimension, value: str
         const stop = moment.utc(advertised.stop);
         if (!instant.isValid() || instant.isBefore(start) || instant.isAfter(stop)) return false;
         if (!advertised.step) return true;
-        const at = (index: number) => timeRangeInstant(advertised, index);
-        let low = 0, high = 1;
-        while (at(high) < instant.valueOf() && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
-        while (low <= high) {
-            const middle = Math.floor((low + high) / 2);
-            const candidate = at(middle);
-            if (candidate === instant.valueOf()) return true;
-            if (candidate < instant.valueOf()) low = middle + 1;
-            else high = middle - 1;
-        }
-        return false;
+        return isAdvertisedInstant(advertised, instant);
     }
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return false;
-    if (numeric < Math.min(advertised.start, advertised.stop)
-        || numeric > Math.max(advertised.start, advertised.stop)) return false;
-    if (advertised.step === undefined) return true;
-    const position = (numeric - advertised.start) / advertised.step;
-    return Math.abs(position - Math.round(position)) < 1e-9;
+    return isAdvertisedNumber(advertised, numeric);
 };
 
 /** Whether a request parameter name carries the WMS time dimension, in any written case and with or without the DIM_ prefix. */

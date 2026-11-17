@@ -471,7 +471,7 @@ export class OWSContext implements IOWSContext {
   getIndeterminateStateOf(target: OWSResource) {
     if (this.properties.active === true) return false
     const descendants = this.getDescandantsOf(target)
-    return descendants.length > 0 && descendants.some(feature => feature.properties.active === true)
+    return descendants.some(feature => feature.properties.active === true)
   }
 
   isLeafNode(target: OWSResource) {
@@ -559,7 +559,7 @@ export class OWSContext implements IOWSContext {
   }
 
   getSiblingsOf(target: OWSResource, include_self = false, withSubtrees = false) {
-    const parentFolder = target.getParentFolder()?.replace('/', '\\/') ?? ''
+    const parentFolder = target.getParentFolder()?.replace('/', String.raw`\/`) ?? ''
     const regex = withSubtrees ? String.raw`^${parentFolder}(\/\d+)+$` : String.raw`^${parentFolder}(\/\d+){1}$`
 
     return this.features.filter(node => {

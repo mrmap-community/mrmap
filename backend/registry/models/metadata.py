@@ -1131,17 +1131,6 @@ class LayerMetadata(AbstractMetadata):
     class Meta:
         abstract = True
 
-    # def save(self, *args, **kwargs):
-    #    adding = self._state.adding
-    #    super().save()
-    #    if adding:
-    #        xml = MdMetadata.from_field_dict(self.__dict__)
-    #        xml_string = xml.serializeDocument()
-    #        # open: documents are created on the fly by registry.models.DocumentModelMixin
-    #        Document.objects.create(layer_metadata=self,
-    #                               xml=xml_string,
-    #                              xml_backup=xml_string)
-
 
 class FeatureTypeMetadata(AbstractMetadata):
 

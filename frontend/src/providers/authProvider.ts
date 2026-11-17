@@ -345,10 +345,10 @@ const tokenAuthProvider = (
       setAuthToken(undefined)
       resetSnapshotCache()
     },
-    checkAuth: async () => {
+    checkAuth: () => {
       const storedToken = getAuthToken()
       if (!storedToken) {
-        throw new Error('not authenticated')
+        return Promise.reject(new Error('not authenticated'))
       }
       const expired = new Date(storedToken.expiry) < new Date()
       if (expired ){
@@ -357,20 +357,21 @@ const tokenAuthProvider = (
         // reason. useCheckAuth turns this message (a translation key) into the
         // notification and lands the user on /login.
         endSession('auth.sessionExpired')
-        throw new Error('auth.sessionExpired')
+        return Promise.reject(new Error('auth.sessionExpired'))
       }
+      return Promise.resolve()
     },
-    checkError: async error => {
+    checkError: error => {
       const status = error?.status
       if (status !== 401 && status !== 403) {
-        return
+        return Promise.resolve()
       }
       const storedToken = getAuthToken()
       if (!storedToken) {
         // no session to keep and none to lose: leave react-admin's own
         // handling of an anonymous caller on a guarded route in place
         resetSnapshotCache()
-        throw new Error('not authenticated')
+        return Promise.reject(new Error('not authenticated'))
       }
       const code = authErrorCode(error)
       const locallyExpired = new Date(storedToken.expiry) < new Date()
@@ -387,7 +388,7 @@ const tokenAuthProvider = (
       if (credentialDead) {
         const reason = locallyExpired ? 'auth.sessionExpired' : 'auth.sessionRevoked'
         endSession(reason)
-        throw new Error(reason)
+        return Promise.reject(new Error(reason))
       }
       // A live session whose action was refused: keep the credential, notify,
       // and force a revalidation - the next canAccess must not answer from
@@ -397,7 +398,9 @@ const tokenAuthProvider = (
       permissionLostListeners.forEach(listener => listener())
       // `logoutUser: false` tells react-admin's logoutIfAccessDenied to
       // notify this translation key without touching the session.
-      throw Object.assign(new Error('auth.forbidden'), { logoutUser: false })
+      return Promise.reject(
+        Object.assign(new Error('auth.forbidden'), { logoutUser: false }),
+      )
     },
     /* The permission checks of #836 live in canAccess below, which answers
       from the closure snapshot - no query, no per-render fetch. getPermissions
@@ -427,10 +430,10 @@ const tokenAuthProvider = (
       const snapshot = await permissionSnapshot(storedToken.token)
       return canAccessFromSnapshot({ action, resource, record, authenticated: true, snapshot })
     },
-    getIdentity: async () => {
+    getIdentity: () => {
       const storedToken = getAuthToken()
       const { id, fullName, avatar } = storedToken ?? {id: 0, fullName: 'anonymous'};
-      return { id, fullName, avatar };
+      return Promise.resolve({ id, fullName, avatar });
     },
     
   }

@@ -23,15 +23,15 @@ export const getChild = (parent: XmlParent, localName: string): Element | undefi
   })
 }
 
-export const getChildren = (parent: Element | Document | undefined, localName: string): Element[] => {
+export const getChildren = (parent: XmlParent, localName: string): Element[] => {
   if (!parent) return []
   return Array.from(parent.childNodes).filter((node): node is Element => {
     return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName
   })
 }
 
-export const getDescendantByPath = (parent: Element | Document | undefined, path: string[]): Element | undefined => {
-  let node: Element | Document | undefined = parent
+export const getDescendantByPath = (parent: XmlParent, path: string[]): Element | undefined => {
+  let node: XmlParent = parent
   for (const name of path) {
     if (!node) return undefined
     node = getChild(node, name)
@@ -39,7 +39,7 @@ export const getDescendantByPath = (parent: Element | Document | undefined, path
   return node instanceof Element ? node : undefined
 }
 
-export const getText = (parent: Element | Document | undefined, ...path: string[]): string | undefined => {
+export const getText = (parent: XmlParent, ...path: string[]): string | undefined => {
   const node = getDescendantByPath(parent, path)
   return node?.textContent?.trim() || undefined
 }

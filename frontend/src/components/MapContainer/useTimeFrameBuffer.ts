@@ -26,6 +26,16 @@ const AHEAD_PLAYING = 12;
  *  of a shared image follow its time. A time the axis does not carry has no advertised
  *  neighbour and the server default has no position at all, so nothing is invented for
  *  either (#705) */
+/** the fetch window around a selection: while an animation walks the layer its runway grows
+ *  ahead and nothing behind is worth fetching, while paused the plain window stays (#823) */
+const frameWindow = (advancing: TimelineAnimation | undefined) => ({
+  ahead: advancing === undefined
+    ? AHEAD
+    : Math.min(AHEAD_PLAYING, Math.max(AHEAD, Math.ceil(advancing.fps * RUNWAY_SECONDS))),
+  behind: advancing ? 0 : BEHIND,
+  loop: advancing?.loop ?? false,
+});
+
 const upcomingFrames = ({
   href,
   features,
@@ -59,14 +69,7 @@ const upcomingFrames = ({
     // while it plays the window grows to a runway of seconds worth of frames, so that the steps of
     // the animation are drawn from the buffer rather than each waiting for its own request (#823)
     const advancing = animation?.folder === folder ? animation : undefined;
-    const ahead = advancing === undefined
-      ? AHEAD
-      : Math.min(AHEAD_PLAYING, Math.max(AHEAD, Math.ceil(advancing.fps * RUNWAY_SECONDS)));
-    return getUpcomingTimeAxisPositions(stepped.axis, position, {
-      ahead,
-      behind: advancing ? 0 : BEHIND,
-      loop: advancing?.loop ?? false,
-    }).map(next => {
+    return getUpcomingTimeAxisPositions(stepped.axis, position, frameWindow(advancing)).map(next => {
       const frame = new URL(href);
       // the time is replaced in its position, so the frame carries the very url the overlay will
       // draw it under — a buffered frame only answers a selection when both are one identical key

@@ -17,6 +17,7 @@ import { CRS, Map as LeafletMap } from "leaflet";
 
 import AutoResizeMapContainer from "../../../../MapContainer/ResizeAbleMapContainer";
 import { extentBounds, validExtent } from "../../../../MapViewer/utils";
+import { propertyText } from "./propertyText";
 
 export interface Viewport {
   bbox: string;
@@ -148,12 +149,7 @@ const FeatureLayer = ({ collection }: { collection: FeatureCollection }) => {
           </Button>
           {Object.entries(properties).map(([key, value]) => (
             <Typography key={key} component="div" variant="body2">
-              {key}:{" "}
-              {typeof value === "object"
-                ? JSON.stringify(value)
-                : typeof value === "string"
-                  ? value
-                  : String(value ?? "")}
+              {key}: {propertyText(value)}
             </Typography>
           ))}
         </Box>

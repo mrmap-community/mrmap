@@ -164,6 +164,86 @@ CAPABILITY_ACTIONS = {
 }
 
 
+class Visibility(models.TextChoices):
+    """The three answers of "who may see this resource" (#739).
+
+    The vocabulary is derived, never stored: it reads the guardian grants
+    which already decide the detail endpoint, so the list, the detail route
+    and the API hint cannot disagree about one and the same resource - the
+    split #727 called the bug.
+
+    ``PUBLIC``
+        The anonymous viewer role group holds ``view_<model>`` over the
+        resource (decision Q2 of #727: an explicit grant, and only the
+        publish path of the API - gated on ``registry.publish_resource`` -
+        ever writes it).
+
+    ``ORGANIZATION_INTERNAL``
+        A role group of the owning organization holds the view grant - the
+        shape the creation bootstrap of #732/#733 writes, and therefore the
+        state every newly registered resource starts in.
+
+    ``RESTRICTED``
+        Neither: shared only with individually named groups or users (the
+        sharing of #740) or with nobody. Unpublished is the default; a
+        resource which lost its organization lost its internal scope too.
+    """
+
+    PUBLIC = "public", "Public"
+    ORGANIZATION_INTERNAL = "organization-internal", "Organization-internal"
+    RESTRICTED = "restricted", "Restricted"
+
+
+def list_is_permission_filtered(model) -> bool:
+    """Whether the deployment enabled permission-filtered lists for ``model``.
+
+    ``PERMISSION_FILTERED_LIST_MODELS`` (``MrMap/settings.py``, #739) is the
+    per-model rollout switch; the system check of ``accounts/checks.py``
+    refuses entries which are not role-managed, so here the answer is the
+    plain lookup.
+    """
+    from django.conf import settings
+
+    enabled = getattr(settings, "PERMISSION_FILTERED_LIST_MODELS", None)
+    return bool(enabled) and model._meta.label in set(enabled)
+
+
+def set_public(obj, is_public: bool) -> None:
+    """Give or take the anonymous view grant of one resource (#739).
+
+    The grant lands on the anonymous viewer role group - the only statement
+    of "the public may view this" the platform knows - and guardian's
+    dedicated object-permission table of the model (#735) stores it, the same
+    table the visibility annotation of
+    ``registry.expressions.visibility`` reads and the detail endpoint's
+    checker consults. Making a resource non-public takes the grant back;
+    every other grant is left exactly as it was: revoking the last one is
+    #740's sharing surface, not an unpublish.
+
+    Args:
+        obj: the resource being published or withdrawn
+        is_public (bool): whether anonymous visitors may view it
+
+    Raises:
+        RuntimeError: the database has no anonymous viewer role group - an
+            un-migrated deployment rather than a caller mistake
+    """
+    from guardian.shortcuts import assign_perm, remove_perm
+
+    from accounts.utils import anonymous_viewer_group
+
+    group = anonymous_viewer_group()
+    if group is None:
+        raise RuntimeError(
+            "The anonymous viewer role group of #739 does not exist; run "
+            "the migrations before publishing anything.")
+    perm = f"{obj._meta.app_label}.view_{obj._meta.model_name}"
+    if is_public:
+        assign_perm(perm, group, obj)
+    else:
+        remove_perm(perm, group, obj)
+
+
 def _split_perm(perm, obj=None):
     """``(app_label, codename)`` of ``"app.codename"`` or ``"codename"``.
 
@@ -378,6 +458,100 @@ def authorized_role_membership_grant(user, perm, obj, checker=None) -> bool:
     return result
 
 
+def authorized_public_object_grant(user, perm, obj, checker=None) -> bool:
+    """The public axis: the anonymous viewer's grant holds for everyone.
+
+    A ``view_<model>`` grant onto the anonymous viewer role group is the
+    platform's one statement of "anyone may view this" (#739). A logged-in
+    caller who may not see it would see *less* than the anonymous one on the
+    very same row - the split between list and detail that #727 called the
+    bug, rebuilt on a new axis. So the grant of that group answers for every
+    user, and for view permissions only: publishing never says anything
+    about change or delete.
+
+    Costs one ``EXISTS`` over the dedicated guardian table of the model when
+    the cheaper axes answered no - and nothing at all while the database
+    holds no anonymous grant, which is every database until somebody
+    publishes (#739's rollout by construction).
+    """
+    if user is None or obj is None:
+        return False
+    app_label, codename = _split_perm(perm, obj)
+    if not codename.startswith("view_"):
+        return False
+    perm_str = f"{app_label}.{codename}"
+    memo = _memo_of(checker) if checker is not None else None
+    if memo is not None:
+        key = ("public", perm_str, obj.pk)
+        if key in memo:
+            return memo[key]
+
+    from guardian.utils import get_group_obj_perms_model
+
+    from accounts.utils import anonymous_viewer_group
+
+    group = anonymous_viewer_group()
+    result = False
+    if group is not None:
+        through_model = get_group_obj_perms_model(obj)
+        grants = through_model.objects.filter(
+            group=group,
+            permission__codename=codename,
+            permission__content_type__app_label=app_label)
+        if through_model.objects.is_generic():
+            grants = grants.filter(
+                content_type__app_label=app_label,
+                content_type__model=obj._meta.model_name,
+                object_pk=str(obj.pk))
+        else:
+            grants = grants.filter(content_object_id=obj.pk)
+        result = grants.exists()
+    if memo is not None:
+        memo[key] = result
+    return result
+
+
+def public_object_ids(model, perm):
+    """The row ids of ``model`` which the anonymous grant makes public.
+
+    The list counterpart of ``authorized_public_object_grant`` - the same
+    statement, to be OR-ed into a queryset. ``None`` answers silently: a
+    request over several permissions, a codename which is no view permission,
+    or a database without the group of #739.
+
+    On a dedicated guardian table - every role-managed model, which is all the
+    rollout switch allows - the answer stays a subquery, so a page narrows in
+    one statement and no deployment ever hands back a list of ids as long as
+    its public catalogue. The generic table stores the primary key as text, so
+    there the ids are read out and adapted per value.
+    """
+    if isinstance(perm, (list, tuple)):
+        return None
+    app_label, codename = _split_perm(perm) if "." in perm \
+        else (model._meta.app_label, perm)
+    if not codename.startswith(f"view_{model._meta.model_name}"):
+        return None
+
+    from guardian.utils import get_group_obj_perms_model
+
+    from accounts.utils import anonymous_viewer_group
+
+    group = anonymous_viewer_group()
+    if group is None:
+        return None
+    through_model = get_group_obj_perms_model(model)
+    grants = through_model.objects.filter(
+        group=group,
+        permission__codename=codename,
+        permission__content_type__app_label=app_label)
+    if through_model.objects.is_generic():
+        return list(grants.filter(
+            content_type__app_label=app_label,
+            content_type__model=model._meta.model_name).values_list(
+                "object_pk", flat=True))
+    return grants.values_list("content_object_id", flat=True)
+
+
 def allowed(user, perm, obj, checker=None) -> bool:
     """The one answer of "may this user hold ``perm`` over ``obj``".
 
@@ -416,6 +590,10 @@ def allowed(user, perm, obj, checker=None) -> bool:
     # disjunction, the order decides cost, never the answer.
     if authorized_explicit_scoped_object_grant(
             user, perm, obj, checker=checker):
+        return True
+    if authorized_public_object_grant(user, perm, obj, checker=checker):
+        # public is public for the logged-in too (#739): the anonymous
+        # group's view grant answers for every user, never for less
         return True
     if authorized_platform_scoped_perm(user, perm, checker=checker):
         return True
@@ -601,6 +779,49 @@ def _as_queryset(klass):
     return klass.objects.all()
 
 
+def _organization_scope_lookup(model):
+    """How the rows of ``model`` are named by their organization, or ``None``.
+
+    The list counterpart of the scoping ``authorized_role_membership_grant``
+    applies per object: an organization is its own organization, exactly as
+    ``object_organization`` answers it on the detail endpoint; every other
+    model which stores an ``owner`` is scoped by it; a model which stores
+    neither is decided by object grants alone, and the caller which gets
+    ``None`` must not widen it by an axis of its own.
+    """
+    from accounts.models.groups import Organization
+
+    if issubclass(model, Organization):
+        return "pk__in"
+    if not any(field.name == "owner" and not field.auto_created
+               for field in model._meta.get_fields()):
+        return None
+    return "owner_id__in"
+
+
+def _organization_scope_ids(user, perms, any_perm):
+    """The organizations whose valid organization-scope roles grant ``perms``.
+
+    ``any_perm`` decides how several permissions are combined - their union or
+    their intersection - exactly as the queryset the caller builds accepts
+    them. ``None`` is the answer when there is nothing to combine, so the
+    caller adds no axis at all.
+    """
+    from accounts.models.roles import RoleScope
+
+    org_ids = None
+    for perm in perms:
+        ids = set(_valid_membership_organization_ids(
+            user, perm, RoleScope.ORGANIZATION))
+        if org_ids is None:
+            org_ids = ids
+        elif any_perm:
+            org_ids |= ids
+        else:
+            org_ids &= ids
+    return org_ids
+
+
 def objects_for_user(user, perm, klass, any_perm=False):
     """The list axis: the rows of ``klass`` which ``allowed()`` will pass.
 
@@ -648,36 +869,23 @@ def objects_for_user(user, perm, klass, any_perm=False):
     # the organization-role axis, so a service which predates the creation
     # bootstrap is listed exactly as far as its editor may open it - one
     # query over the handful of memberships, not one per row
-    from accounts.models.roles import RoleScope
-
     queryset = _as_queryset(klass)
     model = queryset.model
-    from accounts.models.groups import Organization
-
-    if issubclass(model, Organization):
-        # an organization is its own organization, exactly as
-        # ``object_organization`` answers it on the detail endpoint: the
-        # role of an organization shows the organization itself
-        scope_lookup = "pk__in"
-    elif next((f for f in model._meta.get_fields()
-               if f.name == "owner" and not f.auto_created), None) is None:
+    scope_lookup = _organization_scope_lookup(model)
+    if scope_lookup is None:
         # the model stores no organization; its rows stay decided by object
         # grants, as authorized_role_membership_grant answers nothing there
         return granted
-    else:
-        scope_lookup = "owner_id__in"
-    org_ids = None
-    for p in perms:
-        ids = set(_valid_membership_organization_ids(
-            user, p, RoleScope.ORGANIZATION))
-        if org_ids is None:
-            org_ids = ids
-        elif any_perm:
-            org_ids |= ids
-        else:
-            org_ids &= ids
+    org_ids = _organization_scope_ids(user, perms, any_perm)
     if org_ids:
         granted = granted | queryset.filter(**{scope_lookup: list(org_ids)})
+    # the public axis of #739: what the anonymous viewer group may view,
+    # every authenticated caller may view too - list and detail answer the
+    # same (authorized_public_object_grant is the other half)
+    public_ids = public_object_ids(model, perms[0] if len(perms) == 1
+                                   else perms)
+    if public_ids is not None:
+        granted = granted | queryset.filter(pk__in=public_ids)
     return granted
 
 

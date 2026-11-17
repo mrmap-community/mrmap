@@ -97,7 +97,7 @@ const MrMapFrontend = (): ReactElement => {
         }) as ReactElement[],
         recordRepresentation: resource.recordRepresentation ? resource.recordRepresentation : defaultRecordRepresentation,
         ...resource,
-        ...({options: {
+        options: {
               showOperationName: showOperationName,
               createOperationName: createOperationName,
               editOperationName: editOperationName,
@@ -105,7 +105,7 @@ const MrMapFrontend = (): ReactElement => {
               hasDelete: !!deleteOperation,
               label: resource.name,
               ...resource.options, 
-            }}),
+            },
       }
     })
   }, [api])

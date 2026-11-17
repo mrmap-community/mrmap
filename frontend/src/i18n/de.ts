@@ -1,6 +1,14 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  // die Sitzungszustände aus #834: warum die Login-Seite erschien und was eine
+  // abgelehnte Aktion für eine gültige Sitzung bedeutet
+  auth: {
+    sessionExpired: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    sessionRevoked:
+      "Ihre Anmeldung wurde vom Server widerrufen. Bitte melden Sie sich erneut an.",
+    forbidden: "Sie haben für diese Aktion keine Rechte mehr.",
+  },
   // die Organisationsverwaltung aus #737: Mitglieder und Rollen einer
   // ausgewählten Organisation, gateiert über den Berechtigungs-Snapshot aus #836
   administration: {

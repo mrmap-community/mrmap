@@ -12,6 +12,7 @@ import os
 import re
 import socket
 import sys
+from datetime import timedelta
 from glob import glob
 from warnings import warn
 
@@ -961,6 +962,24 @@ def default_renderer_classes(production: bool):
         renderers.insert(0, "extras.utils.BrowsableAPIRendererWithoutForms")
     return renderers
 
+
+# Browser session lifetime (#834, decision Q8=B). Until browser authentication
+# migrates to Django SessionAuthentication + CSRF (#835), the browser keeps its
+# credential as the knox token that ``api/auth/login`` issues. Its validity is a
+# deployment decision, configured here explicitly instead of silently inherited
+# from the knox package default: one working day, enforced server-side on every
+# request against the ``AuthToken.expires`` row - not a client-side notion.
+# ``AUTO_REFRESH`` stays off: a rolling extension would make the lifetime
+# unpredictable, the client caches the expiry the login answered and the token
+# model has no refresh concept; expiry then lands the user on the login page
+# with the reason (frontend contract of #834, policy in
+# ``docs/source/administration/authentication.md``). When #835 replaces this
+# mechanism, this block retires with it; the machine/API token policy documented
+# there stays a separate, explicit decision.
+REST_KNOX = {
+    "TOKEN_TTL": timedelta(hours=10),
+    "AUTO_REFRESH": False,
+}
 
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,

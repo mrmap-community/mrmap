@@ -8,14 +8,19 @@ import ShowCatalogueService from "./ShowCatalogueService";
 /** The props one related-tab screen of the tabs is rendered with. */
 interface RelatedTabProps {
   resource?: string
+  realtime?: boolean
+  refetchInterval?: number | false
   defaultSelectedColumns?: string[]
   updateFieldDefinitions?: { props: { source: string } & Record<string, unknown> }[]
 }
 
-const state = vi.hoisted(() => ({ isHarvestable: true }));
+const state = vi.hoisted(() => ({ isHarvestable: true, ready: 0 }));
 /** The props the harvesting and schedule screens of the tabs are rendered with. */
 const relatedTabs = vi.hoisted(() => ({
   props: [] as RelatedTabProps[],
+}));
+vi.mock("../../../../context/HttpClientContext", () => ({
+  useHttpClientContext: () => ({ realtimeIsReady: state.ready }),
 }));
 vi.mock("react-admin", async importOriginal => ({
   ...await importOriginal<typeof import("react-admin")>(),
@@ -36,6 +41,7 @@ vi.mock("../../Generic/ServiceShow/ServiceRelatedTab", () => ({
 
 beforeEach(() => {
   relatedTabs.props = [];
+  state.ready = 0;
 });
 
 describe("catalogue harvesting tabs", () => {
@@ -67,5 +73,19 @@ describe("catalogue harvesting tabs", () => {
       ?.find(definition => definition.props.source === "dateCreated");
     expect(dateCreated?.props.label).toBe("harvestingActivity.started");
     expect(dateCreated?.props.emptyText).toBe("—");
+  });
+
+  it("polls the runs only while the realtime bus is down", () => {
+    state.isHarvestable = true;
+    render(<ShowCatalogueService />);
+    const runs = relatedTabs.props.find(props => props.resource === "HarvestingJob");
+    expect(runs?.realtime).toBe(true);
+    // the bus carries every change of a run - the interval is the fallback
+    expect(runs?.refetchInterval).toBe(20000);
+    state.ready = 1; // ReadyState.OPEN
+    relatedTabs.props = [];
+    render(<ShowCatalogueService />);
+    const openRuns = relatedTabs.props.find(props => props.resource === "HarvestingJob");
+    expect(openRuns?.refetchInterval).toBe(false);
   });
 });

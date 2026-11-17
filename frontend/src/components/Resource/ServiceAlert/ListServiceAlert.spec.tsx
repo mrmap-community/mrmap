@@ -2,11 +2,19 @@ import type { ReactNode } from "react";
 import type { RaRecord } from "react-admin";
 
 import { render, type RenderResult } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import ListServiceAlert from "./ListServiceAlert";
 
+const state = vi.hoisted(() => ({
+  /** the readiness of the realtime bus, ReadyState.CONNECTING is 0 */
+  ready: 0,
+}));
+
+vi.mock("../../../context/HttpClientContext", () => ({
+  useHttpClientContext: () => ({ realtimeIsReady: state.ready }),
+}));
 vi.mock("../../../jsonapi/components/ListGuesser", () => ({
   default: vi.fn(() => null),
 }));
@@ -31,12 +39,22 @@ const alertRow = (record: RaRecord): RenderResult => {
   return render(<>{renderCategory(record)}</>);
 };
 
+beforeEach(() => {
+  state.ready = 0;
+});
+
 describe("ListServiceAlert", () => {
   it("uses schema filters, realtime and polling, and links to the resolving workflow", () => {
     render(<ListServiceAlert />);
     const props = vi.mocked(ListGuesser).mock.calls[0][0];
     expect(props.realtime).toBe(true);
+    // the bus carries the alert topic - the list only polls while it is down
     expect(props.refetchInterval).toBe(20000);
+    state.ready = 1; // ReadyState.OPEN
+    render(<ListServiceAlert />);
+    expect(
+      vi.mocked(ListGuesser).mock.calls.at(-1)?.[0].refetchInterval,
+    ).toBe(false);
     expect(props.sort).toEqual({ field: "severity,-occurredAt", order: "ASC" });
     const rowClick = props.dataGridProps?.rowClick;
     expect(typeof rowClick).toBe("function");

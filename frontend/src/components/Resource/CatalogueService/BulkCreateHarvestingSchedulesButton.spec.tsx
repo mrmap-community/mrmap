@@ -98,7 +98,9 @@ describe("bulk harvesting schedules", () => {
     expect(state.notify).toHaveBeenCalledWith("harvestingSchedules.bulkResult", {
       type: "success", messageArgs: { created: 2, failed: 0 },
     });
-    expect(state.refresh).toHaveBeenCalledOnce();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
 
   it("keeps failures selected and retries them without duplicating successful schedules", async () => {

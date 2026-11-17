@@ -15,6 +15,7 @@ import { Badge, Stack } from "@mui/material";
 import { useHttpClientContext } from "../../../../context/HttpClientContext";
 import useResourceSchema from "../../../../jsonapi/hooks/useResourceSchema";
 import { createElementIfDefined } from "../../../../utils";
+import { ATTENTION_REFETCH_INTERVAL } from "./ServiceAttentionTab";
 import ServiceShowTabs from "./ServiceShowTabs";
 
 export interface ServiceTab {
@@ -65,7 +66,14 @@ export default function ServiceShow({ tabs }: Readonly<{ tabs: ServiceTab[] }>) 
   return (
     <Show
       actions={false}
-      queryOptions={{ meta: { jsonApiParams: include ? { include } : {} } }}
+      // the attention states of a service are attributes of its own record and
+      // nothing is pushed about them - the record is re-read from time to
+      // time, while the tab is visible (TanStack pauses in hidden tabs)
+      queryOptions={{
+        meta: { jsonApiParams: include ? { include } : {} },
+        refetchInterval: ATTENTION_REFETCH_INTERVAL,
+        refetchIntervalInBackground: false,
+      }}
     >
       <TabbedShowLayout tabs={<ServiceShowTabs />}>
         {visibleTabs.map((tab) => (

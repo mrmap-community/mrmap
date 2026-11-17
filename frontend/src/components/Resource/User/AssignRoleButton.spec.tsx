@@ -23,10 +23,15 @@ const state = vi.hoisted(() => ({
   create: vi.fn(),
   notify: vi.fn(),
   refresh: vi.fn(),
+  invalidate: vi.fn(),
 }));
 
 vi.mock('../Generic/Administration/OrganizationScopeContext', () => ({
   useOrganizationScope: () => state.scope,
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: state.invalidate }),
 }));
 
 vi.mock('react-admin', () => ({
@@ -100,6 +105,7 @@ beforeEach(() => {
   state.create = vi.fn().mockResolvedValue({ data: { id: 'm1' } });
   state.notify = vi.fn();
   state.refresh = vi.fn();
+  state.invalidate = vi.fn();
 });
 
 const openDialog = () => {
@@ -160,7 +166,7 @@ describe('the assign itself', () => {
     ));
   });
 
-  it('names the assigned role, refreshes and closes', async () => {
+  it('names the assigned role, re-reads the members list and closes', async () => {
     render(<AssignRoleButton />);
     openDialog();
     fireEvent.click(screen.getByText('pick-harvester'));
@@ -170,7 +176,10 @@ describe('the assign itself', () => {
       'administration.members.assigned',
       { type: 'success', messageArgs: { role: 'harvester' } },
     ));
-    expect(state.refresh).toHaveBeenCalled();
+    // the chips read the roles the members list answers per row, so that
+    // collection alone is re-read - no global refresh (#1464)
+    expect(state.invalidate).toHaveBeenCalledWith({ queryKey: ['User', 'getList'] });
+    expect(state.refresh).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByTestId('assign-form')).not.toBeInTheDocument());
   });
 
@@ -185,6 +194,7 @@ describe('the assign itself', () => {
       'administration.members.assignFailed',
       { type: 'error' },
     ));
+    expect(state.invalidate).not.toHaveBeenCalled();
     expect(state.refresh).not.toHaveBeenCalled();
     expect(screen.getByTestId('assign-form')).toBeInTheDocument();
   });

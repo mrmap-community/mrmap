@@ -6,7 +6,6 @@ import {
   useNotify,
   useRecordContext,
   useRedirect,
-  useRefresh,
   useUpdate,
 } from "react-admin";
 
@@ -17,7 +16,6 @@ const AbortButton = () => {
   const record = useRecordContext();
   const [update, { isPending }] = useUpdate();
   const notify = useNotify();
-  const refresh = useRefresh();
   return (
     <Button
       variant="outlined"
@@ -30,7 +28,6 @@ const AbortButton = () => {
           "HarvestingJob",
           { id: record?.id, data: { phase: 4711 }, previousData: record },
           {
-            onSuccess: () => refresh(),
             onError: () => notify("harvestRun.stopFailed", { type: "error" }),
           },
         )

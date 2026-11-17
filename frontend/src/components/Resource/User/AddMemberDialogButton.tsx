@@ -5,7 +5,6 @@ import {
   SimpleForm,
   useCreate,
   useNotify,
-  useRefresh,
   useTranslate,
 } from "react-admin";
 
@@ -30,7 +29,6 @@ export const AddMemberDialogButton = () => {
   const { organizationId, canAdminister } = useOrganizationScope();
   const [create] = useCreate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const formId = useId();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,7 +74,6 @@ export const AddMemberDialogButton = () => {
         type: "success",
         messageArgs: { user: userLabel },
       });
-      refresh();
       setOpen(false);
     } catch {
       // the backend answers who may add members and who is already one; its

@@ -14,13 +14,14 @@ import {
 } from "react-admin";
 import { Route, Routes, useNavigate } from "react-router-dom";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import { useReferenceManyErrors } from "../../../../jsonapi/components/ReferenceManyErrorsProvider";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
 import Records from "../../CatalogueService/Show/Records";
+import { ATTENTION_REFETCH_INTERVAL } from "./ServiceAttentionTab";
 import { capabilitiesUrl } from "./ServiceDetailsCard";
 import ServiceMetadataTab from "./ServiceMetadataTab";
 import ServiceRelatedTab from "./ServiceRelatedTab";
@@ -528,5 +529,56 @@ describe("capabilities links", () => {
         "CSW",
       ),
     ).toBeUndefined();
+  });
+});
+
+// The attention states of a service are attributes of its own record and
+// nothing is pushed about them - the shared show screen re-reads the record
+// on the attention interval and pauses in hidden tabs (#1464).
+describe("the attention interval of the shown service", () => {
+  const serviceReads = () =>
+    getOne.mock.calls.filter(([resource]) => resource === "CatalogueService")
+      .length;
+  const advanceTime = async (milliseconds: number) => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(milliseconds);
+    });
+  };
+  let visibility: MockInstance<[], DocumentVisibilityState> | undefined;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    visibility?.mockRestore();
+    visibility = undefined;
+  });
+
+  it("re-reads the service on the attention interval while the tab is visible", async () => {
+    vi.useFakeTimers();
+    visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    setup("/CatalogueService/csw-9/show", [
+      { path: "", label: "Overview", content: <RecordTitle /> },
+    ]);
+    await advanceTime(0);
+    expect(serviceReads()).toBe(1);
+    await advanceTime(ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(2);
+    await advanceTime(ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(3);
+  });
+
+  it("pauses the attention reads while the tab is hidden", async () => {
+    vi.useFakeTimers();
+    visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    setup("/CatalogueService/csw-9/show", [
+      { path: "", label: "Overview", content: <RecordTitle /> },
+    ]);
+    await advanceTime(0);
+    expect(serviceReads()).toBe(1);
+    await advanceTime(3 * ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(1);
   });
 });

@@ -51,7 +51,7 @@ beforeEach(() => {
   };
 });
 describe("harvesting run actions", () => {
-  it("only offers stop for an active run and refreshes after stopping", () => {
+  it("only offers stop for an active run and stops without a global refresh", () => {
     render(<HarvestingJobActions />);
     fireEvent.click(screen.getByRole("button", { name: "harvestRun.stop" }));
     expect(screen.queryByText("harvestRun.restart")).not.toBeInTheDocument();
@@ -61,7 +61,9 @@ describe("harvesting run actions", () => {
       expect.anything(),
     );
     state.update.mock.calls[0][2].onSuccess();
-    expect(state.refresh).toHaveBeenCalledOnce();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
   it("restarts a terminated run with its existing configuration", () => {
     state.run.doneAt = "2026-10-08T10:00:00Z";

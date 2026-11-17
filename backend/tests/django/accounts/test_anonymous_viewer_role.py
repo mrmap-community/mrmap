@@ -28,6 +28,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 
+from accounts.apps import ensure_anonymous_viewer_hook
 from accounts.management.commands.sync_role_definitions import BUILTIN_ROLES
 from accounts.models.groups import Organization
 from accounts.models.roles import (ANONYMOUS_VIEWER_ROLE, PLATFORM_GROUP_PREFIX,
@@ -164,11 +165,38 @@ class EnsureAnonymousViewerTestCase(TestCase):
 
         self.assertEqual(recreated, group)
 
+    def test_the_hook_answers_nothing_on_a_flushed_database(self):
+        """The empty catalogue a ``flush`` leaves behind is not a failure.
+
+        ``flush`` emits ``post_migrate`` over the tables it has just truncated,
+        and a truncate asks no delete: the protected rows of the catalogue are
+        gone with everything else. A hook which raised there took the teardown
+        of every flushing test down with it - the trap #1141 tells for the
+        default organization.
+        """
+        # a real flush truncates the tables and asks no delete, so the roles
+        # are gone together with their definitions; ``Role.role_definition``
+        # is PROTECT, which forbids that order in code, so the roles go first
+        # to reach the state a flush leaves behind
+        Role.objects.all().delete()
+        RoleDefinition.objects.all().delete()
+
+        ensure_anonymous_viewer_hook(sender=None)
+
+        self.assertFalse(
+            Role.objects.with_definition(ANONYMOUS_VIEWER_ROLE).exists(),
+            "without the catalogue there is nothing to build the role from")
+        self.assertIsNone(anonymous_viewer_group(),
+                          "and nothing is public, which is the safe answer")
+
 
 class PublicIsAnExplicitGrantTestCase(TestCase):
     """What a service starts as, and what makes it public - and un-publics."""
 
-    fixtures = ["test_keywords.json", "test_wms.json"]
+    #: the history rows of test_wms.json name their user by natural key and
+    #: loaddata resolves that while it loads, so the users must be loaded
+    #: first or the class dies in setUpClass
+    fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
 
     def setUp(self):
         template = WebMapService.objects.get(pk=TEMPLATE_WMS)

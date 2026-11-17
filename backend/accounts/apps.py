@@ -60,7 +60,21 @@ def ensure_anonymous_viewer_hook(sender, **kwargs):
     reads it) and its membership in the role group the migration seeded. The
     work is idempotent and small; a database which was migrated normally
     spends three selects on it.
+
+    It answers nothing when the catalogue holds no definition to build on.
+    The ``flush`` of a ``TransactionTestCase`` emits ``post_migrate`` over the
+    tables it has just truncated, so the rows 0009 seeded are gone with the
+    rest and the next ``migrate`` or ``sync_role_definitions`` writes them
+    again: a hook which raised here would take the teardown of every flushing
+    test down with it, which is the trap #1141 tells for the default
+    organization. ``ensure_anonymous_viewer`` keeps its strict answer for the
+    callers which ask for the group deliberately.
     """
+    from accounts.models.roles import ANONYMOUS_VIEWER_ROLE, RoleDefinition
     from accounts.utils import ensure_anonymous_viewer
+
+    if not RoleDefinition.objects.filter(
+            slug=ANONYMOUS_VIEWER_ROLE).exists():
+        return
 
     ensure_anonymous_viewer()

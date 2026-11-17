@@ -544,7 +544,7 @@ describe("the attention interval of the shown service", () => {
       await vi.advanceTimersByTimeAsync(milliseconds);
     });
   };
-  let visibility: MockInstance<[], DocumentVisibilityState> | undefined;
+  let visibility: MockInstance | undefined;
 
   afterEach(() => {
     vi.useRealTimers();

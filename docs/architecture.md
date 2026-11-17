@@ -22,7 +22,7 @@ DatasetMetadataRecord and ServiceMetadataRecord use the same explorer components
 and support viewport searches over their bounding geometry. Service metadata
 imports read geographic extents from ISO service identification elements.
 
-Service list clients request `extent`, `element_count` and `can_edit` through
+Service list clients request `extent`, `element_count` and `allowed_actions` through
 JSON:API sparse fieldsets. Extents and counts are derived in the page query, with
 no geometry columns or migrations added. Clients that omit these fields retain
 their existing response shape and do not run the coverage aggregate.

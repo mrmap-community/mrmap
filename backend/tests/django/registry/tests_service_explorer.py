@@ -21,11 +21,12 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
 
     def test_extent_is_opt_in_and_query_budget_is_fixed(self):
         for model, path in [(WebMapService, '/api/registry/wms'), (WebFeatureService, '/api/registry/wfs')]:
-            fields = {'fields[' + model.__name__ + ']': 'id,title,extent,element_count,can_edit'}
+            fields = {'fields[' + model.__name__ + ']': 'id,title,extent,element_count,allowed_actions'}
             status, body, queries = self.request(path, user='user', **fields)
             self.assertEqual(status, 200)
             self.assertIn('extent', body['data'][0]['attributes'])
             self.assertIn('elementCount', body['data'][0]['attributes'])
+            self.assertIn('allowedActions', body['data'][0]['attributes'])
             self.assertQueriesIndependentOfRows(path, **fields)
             _, plain, plain_queries = self.request(path, user='user')
             self.assertNotIn('extent', plain['data'][0]['attributes'])
@@ -75,7 +76,7 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
             self.assertEqual(list(qs.values_list('pk', flat=True)), [catalogue.pk])
         empty = CatalogueService.objects.create(title='Empty', version=202, metadata_contact_id='1234', service_contact_id='1234')
         self.assertIsNone(self.coverage(CatalogueService.objects.filter(pk=empty.pk)))
-        fields = {'fields[CatalogueService]': 'id,title,extent,element_count,can_edit'}
+        fields = {'fields[CatalogueService]': 'id,title,extent,element_count,allowed_actions'}
         assign_perm('registry.change_catalogueservice', self.user)
         assign_perm('registry.change_catalogueservice', self.user, catalogue)
         # no cache pop here on purpose: #734 invalidates Django's cached
@@ -86,11 +87,14 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
         self.assertEqual(status, 200)
         attributes = next(row['attributes'] for row in body['data'] if row['id'] == str(catalogue.pk))
         self.assertEqual(attributes['elementCount'], 2)
-        self.assertTrue(attributes['canEdit'])
+        # the global grant above answers nothing (Q5=B of #727); the object
+        # grant is what puts "change" into the hint (#738)
+        self.assertIn('change', attributes['allowedActions'])
         self.assertQueriesIndependentOfRows('/api/registry/csw', **fields)
         _, plain, queries = self.request('/api/registry/csw', user='user')
         self.assertNotIn('extent', plain['data'][0]['attributes'])
-        self.assertNotIn('isAccessible', plain['data'][0]['attributes'])
+        # the hint stays opt-in on a list: no fieldset, no answer (#738)
+        self.assertNotIn('allowedActions', plain['data'][0]['attributes'])
         self.assertFalse(any('ST_Union' in query['sql'] for query in queries))
         records[0].harvested_through.clear()
         self.assertTrue(self.coverage(CatalogueService.objects.filter(pk=catalogue.pk)).equals(other))
@@ -135,10 +139,22 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
             self.assertEqual(pks({'has_licence': 'true'}), {fine.pk})
 
     def test_permissions_are_opt_in(self):
-        status, body, _ = self.request('/api/registry/wms', **{'fields[WebMapService]': 'id,can_edit'})
+        status, body, _ = self.request(
+            '/api/registry/wms',
+            **{'fields[WebMapService]': 'id,allowed_actions'})
         self.assertEqual(status, 200)
         self.assertTrue(body['data'])
-        self.assertTrue(all(row['attributes']['canEdit'] is False for row in body['data']))
+        # an anonymous caller holds no grant, so every row answers the empty
+        # list - the successor of the False the retired can_edit hinted, now
+        # distinguishable from "not asked" because the field is only there
+        # when it was asked (#738)
+        self.assertTrue(all(row['attributes']['allowedActions'] == []
+                            for row in body['data']))
+        _status, unasked, _ = self.request(
+            '/api/registry/wms', **{'fields[WebMapService]': 'id'})
+        self.assertTrue(
+            all('allowedActions' not in row.get('attributes', {})
+                for row in unasked['data']))
 
     def test_openapi_exposes_opt_in_fields_and_geometry_filters(self):
         from django.urls import path

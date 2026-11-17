@@ -42,7 +42,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from accounts.models.groups import Organization
 from accounts.models.roles import Role, RoleDefinition, RoleScope
 from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly,
-                                allowed, allowed_model_scope,
+                                allowed, allowed_actions, allowed_model_scope,
                                 objects_for_user)
 from registry.models import WebMapService
 from registry.models.guardian import WebMapServiceGroupObjectPermission
@@ -135,6 +135,24 @@ class FacadeTestCaseMixin:
             role_definition=self.platform_account_definition,
             organization=None, group=group)
 
+    def publisher_role(self):
+        """The ORGANIZATION role of the builtin ``resource_publisher``.
+
+        Same dance as ``platform_account_role``: the bootstrap may already
+        have created the role of the definition, and a second active role of
+        one definition in one organization must not be added.
+        """
+        role = Role.objects.for_org(
+            self.organization_a).with_definition("resource_publisher").first()
+        if role is not None:
+            return role
+        group, _ = Group.objects.get_or_create(
+            name="Facade Org A: resource_publisher")
+        return Role.objects.create(
+            role_definition=RoleDefinition.objects.get(
+                slug="resource_publisher"),
+            organization=self.organization_a, group=group)
+
     # -- the entry points, asked through their real consumers --------------
 
     def request_as(self, user, method="patch", query=None):
@@ -155,15 +173,19 @@ class FacadeTestCaseMixin:
             self.request_as(user, method=method), _ViewStub(
                 WebMapService.objects), obj)
 
-    def hint_allows(self, user, obj):
-        """The explorer's ``can_edit`` hint over the facade."""
+    def hint_actions(self, user, obj):
+        """The explorer's ``allowedActions`` hint over the facade (#738)."""
         request = self.request_as(user, method="get", query={
-            "fields[WebMapService]": "id,title,can_edit"})
+            "fields[WebMapService]": "id,title,allowed_actions"})
         checker = ObjectPermissionChecker(user)
         checker.prefetch_perms(list(self.services))
         serializer = _ExplorerProbe(context={
             "request": request, "perm_checker": checker})
-        return serializer.get_can_edit(obj)
+        return serializer.get_allowed_actions(obj)
+
+    def hint_allows(self, user, obj):
+        """The explorer's ``change`` answer over the facade."""
+        return "change" in self.hint_actions(user, obj)
 
     def listed(self, user, perm=CHANGE):
         """The list axis as a set of pks."""
@@ -173,11 +195,11 @@ class FacadeTestCaseMixin:
 
 
 class _ExplorerProbe(ExplorerAttributesSerializer):
-    """Concrete shell around the explorer serializer's ``get_can_edit``."""
+    """Concrete shell around the explorer serializer's ``get_allowed_actions``."""
 
     class Meta:
         model = WebMapService
-        fields = ("is_accessible",)
+        fields = ("allowed_actions",)
 
 
 class FacadeAxesTests(FacadeTestCaseMixin, TestCase):
@@ -284,6 +306,27 @@ class FacadeAxesTests(FacadeTestCaseMixin, TestCase):
         assign_perm(CHANGE, get_anonymous_user(), self.loose)
         self.assertTrue(allowed(AnonymousUser(), CHANGE, self.loose))
         self.assertFalse(allowed(AnonymousUser(), CHANGE, self.owned))
+
+    def test_the_hint_answers_the_full_action_batch_in_order(self):
+        """#738: one answer for all actions, capabilities included.
+
+        ``resource_publisher`` holds view plus the app-level publish and
+        share on ORGANIZATION scope; a user holding it reads exactly those
+        three actions on a service of its organization - the CRUD actions
+        spelled per model, the capabilities spelled ``registry.<codename>``,
+        in the fixed order - and only its explicit ``change`` grant answers
+        on the service which belongs to no organization, because the
+        organization axis reaches nothing there.
+        """
+        role = self.publisher_role()
+        user = self.new_user("facade-publisher")
+        role.add_member(user)
+        assign_perm(CHANGE, user, self.loose)
+
+        self.assertEqual(self.hint_actions(user, self.owned),
+                         ["view", "publish", "share"])
+        self.assertEqual(self.hint_actions(user, self.loose), ["change"])
+        self.assertEqual(self.hint_actions(user, self.foreign), [])
 
     def test_model_scope_gate_of_a_create(self):
         """The create gate keeps the legacy ``add`` AND gains the role axes."""
@@ -422,6 +465,36 @@ class EntryPointsAgreeTests(FacadeTestCaseMixin, TestCase):
         # isolation: this service carries no object grant for this user's group
         self.assert_all_entry_points(user, [self.owned, service])
 
+    def test_a_role_only_grant_answers_change_in_hint_and_write(self):
+        """The #738 acceptance: the hint and the PATCH agree on a role grant.
+
+        The service predates the membership and the role's group holds no
+        object grant - only the ORGANIZATION definition axis can answer
+        ``change``. The retired ``can_edit`` read "cannot edit" on exactly
+        this state while the endpoint let the user through; the hint must
+        answer ``change`` now and the same user must really pass the gate of
+        the PATCH.
+        """
+        definition = RoleDefinition.objects.create(
+            slug="facade_hint_editor", label="Facade hint editor",
+            scope=RoleScope.ORGANIZATION)
+        definition.permissions.set([Permission.objects.get(
+            content_type__app_label="registry",
+            codename="change_webmapservice")])
+        role = Role.objects.create(
+            role_definition=definition,
+            organization=self.organization_a,
+            group=Group.objects.create(name="Facade Hint Editor Group"))
+        user = self.new_user("agree-hint-write")
+        role.add_member(user)
+
+        self.assertIn("change", self.hint_actions(user, self.owned))
+        self.assertTrue(
+            self.gate_allows(user, self.owned),
+            "the answer of the hint is the answer of the PATCH endpoint")
+        self.assertNotIn("change", self.hint_actions(user, self.foreign))
+        self.assertFalse(self.gate_allows(user, self.foreign))
+
     def test_platform_role_passes_every_row_everywhere(self):
         user = self.new_user("agree-platform")
         self.platform_account_role().add_member(user)
@@ -543,6 +616,23 @@ class QueryBudgetTests(FacadeTestCaseMixin, TestCase):
         self.assertEqual(
             len(context), 0,
             "a repeated decision over the same request re-reads nothing")
+
+    def test_the_action_batch_answers_per_request_not_per_row(self):
+        """The six actions of #738 must not become six queries per row."""
+        user = self.new_user("budget-actions")
+        self.editor_a.add_member(user)
+        checker = ObjectPermissionChecker(user)
+        checker.prefetch_perms(list(self.services))
+        # one unmeasured object: the foreign service holds no grant, so this
+        # call reads both role axes for the whole batch once
+        allowed_actions(user, self.foreign, checker=checker)
+        with CaptureQueriesContext(connection) as context:
+            for service in self.services:
+                allowed_actions(user, service, checker=checker)
+        self.assertEqual(
+            len(context), 0,
+            "the batched role axes and the prefetched object axis re-read "
+            "nothing for the rows that follow")
 
     def test_list_axis_does_not_grow_with_rows(self):
         user = self.new_user("budget-list")

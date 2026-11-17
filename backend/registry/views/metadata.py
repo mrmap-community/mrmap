@@ -227,8 +227,9 @@ class MetadataRecordWritesEnabled(BasePermission):
     bypasses it.
 
     Reads answer as always and DELETE stays exactly at today's
-    ``canDelete`` behaviour — a deletion removes the record together with the
-    document served for it, so it leaves no stale document behind.
+    ``delete`` answer of the permission facade — a deletion removes the
+    record together with the document served for it, so it leaves no stale
+    document behind.
     """
 
     message = _(

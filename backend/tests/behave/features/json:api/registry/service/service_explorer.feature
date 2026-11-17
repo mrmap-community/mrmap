@@ -4,7 +4,7 @@ Feature: Spatial service discovery
 
     Scenario Outline: Request service coverage and filter by viewport
         Given I use the endpoint http://localhost:8000/api/registry/<endpoint>
-        Given I set a queryparam "fields[<resource>]" with value "id,title,extent,element_count,can_edit"
+        Given I set a queryparam "fields[<resource>]" with value "id,title,extent,element_count,allowed_actions"
         Given I set a queryparam "filter[bboxLatLon.intersects]" with value "POLYGON((-180 -90,180 -90,180 90,-180 90,-180 -90))"
         When I send the request with GET method
         Then I expect the response status is 200

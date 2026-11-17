@@ -86,12 +86,14 @@ const RecordHeader = () => {
         sources={["createdAt", "createdBy", "lastModifiedAt", "lastModifiedBy"]}
       />
       <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
-        {hasEdit && record.canEdit && (
+        {hasEdit && record.allowedActions?.includes("change") && (
           <Button component={Link} to={`/metadata/${resource}/${record.id}/edit`}>
             {translate("ra.action.edit")}
           </Button>
         )}
-        {options?.hasDelete && record.canDelete && <DeleteButton />}
+        {options?.hasDelete && record.allowedActions?.includes("delete") && (
+          <DeleteButton />
+        )}
         <Button onClick={() => void copy(String(record.id))}>
           {translate("recordShow.copyId")}
         </Button>

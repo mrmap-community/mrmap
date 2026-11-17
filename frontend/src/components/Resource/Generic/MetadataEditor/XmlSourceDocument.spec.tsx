@@ -75,7 +75,11 @@ describe("the xml source screen of a record", () => {
   });
 
   it("says honestly when no document is stored", () => {
-    renderScreen({ id: 1, xmlBackupFile: null, canEdit: true });
+    renderScreen({
+      id: 1,
+      xmlBackupFile: null,
+      allowedActions: ["view", "change"],
+    });
     expect(screen.getByRole("alert").textContent).toContain("noStoredXml");
     expect(screen.queryByTestId("editor")).not.toBeInTheDocument();
   });
@@ -85,7 +89,7 @@ describe("the xml source screen of a record", () => {
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: true,
+      allowedActions: ["view", "change"],
     });
     const editor = await screen.findByTestId("editor");
     await waitFor(() => expect(editor).toHaveValue(stored));
@@ -100,7 +104,7 @@ describe("the xml source screen of a record", () => {
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: true,
+      allowedActions: ["view", "change"],
     });
     expect(await screen.findByText("sourceLoadFailed")).toBeInTheDocument();
     expect(screen.queryByTestId("editor")).not.toBeInTheDocument();
@@ -111,7 +115,7 @@ describe("the xml source screen of a record", () => {
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: true,
+      allowedActions: ["view", "change"],
     });
     const editor = await screen.findByTestId("editor");
     await waitFor(() => expect(editor).toHaveValue(stored));
@@ -142,7 +146,7 @@ describe("the xml source screen of a record", () => {
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: true,
+      allowedActions: ["view", "change"],
     });
     const editor = await screen.findByTestId("editor");
     await waitFor(() => expect(editor).toHaveValue(stored));
@@ -157,7 +161,7 @@ describe("the xml source screen of a record", () => {
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: true,
+      allowedActions: ["view", "change"],
     });
     const editor = await screen.findByTestId("editor");
     await waitFor(() => expect(editor).toHaveValue(stored));
@@ -184,12 +188,12 @@ describe("the xml source screen of a record", () => {
     expect(editor).toHaveValue("<xml><oops");
   });
 
-  it("gates editing on the record's canEdit", async () => {
+  it("gates editing on the record's allowedActions hint", async () => {
     serveDocument();
     renderScreen({
       id: 1,
       xmlBackupFile: "/media/xml_backup/doc.xml",
-      canEdit: false,
+      allowedActions: [],
     });
     await screen.findByTestId("editor");
     expect(screen.getByRole("button", { name: "sourceSave" })).toBeDisabled();

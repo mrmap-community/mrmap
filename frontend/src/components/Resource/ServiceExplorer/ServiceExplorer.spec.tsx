@@ -10,7 +10,7 @@ const context = vi.hoisted(() => ({
       id: "one",
       title: "Public service",
       isActive: true,
-      canEdit: false,
+      allowedActions: [],
       hits: 42,
       version: "1.3.0",
       elementCount: 5,
@@ -37,8 +37,19 @@ vi.mock("react-admin", () => ({
   EditButton: () => <button>Edit</button>,
 }));
 vi.mock("../../../jsonapi/components/ListGuesser", () => ({
-  default: ({ resource }: { resource: string }) => (
-    <div data-testid="queried-resource">{resource}</div>
+  default: ({
+    resource,
+    queryOptions,
+  }: {
+    resource: string;
+    queryOptions?: { meta?: { jsonApiParams?: Record<string, string> } };
+  }) => (
+    <div
+      data-testid="queried-resource"
+      data-fields={queryOptions?.meta?.jsonApiParams?.[`fields[${resource}]`]}
+    >
+      {resource}
+    </div>
   ),
 }));
 vi.mock("../../Lists/CustomListActions", () => ({ default: () => null }));
@@ -60,6 +71,12 @@ describe("service explorer", () => {
     expect(screen.getByTestId("queried-resource")).toHaveTextContent(
       "WebMapService",
     );
+    // the row's edit and show buttons ask the auth provider, which reads
+    // the permission hint of #738 - so the screen has to request the field
+    expect(screen.getByTestId("queried-resource")).toHaveAttribute(
+      "data-fields",
+      expect.stringContaining("allowed_actions"),
+    );
     fireEvent.click(screen.getByRole("tab", { name: "WFS" }));
     expect(screen.getByTestId("queried-resource")).toHaveTextContent(
       "WebFeatureService",
@@ -69,7 +86,7 @@ describe("service explorer", () => {
       "CatalogueService",
     );
   });
-  it("shows services without extent, signals and viewer without offering edit", () => {
+  it("shows services without extent, signals and viewer buttons", () => {
     render(<ServiceResults resource="WebMapService" />);
     expect(screen.getByText("Public service")).toBeInTheDocument();
     expect(
@@ -78,17 +95,17 @@ describe("service explorer", () => {
     expect(screen.getByText("serviceExplorer.active")).toBeInTheDocument();
     expect(screen.getByText("1.3.0")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Viewer" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit" }),
-    ).not.toBeInTheDocument();
+    // whether the row may be edited is no longer the screen's question: the
+    // real EditButton asks the auth provider, which judges the row by its
+    // allowedActions hint - pinned in providers/permissions.spec.ts (#738).
+    // The mocked button stands in for that gated button either way.
+    expect(screen.getByRole("button", { name: "Show" })).toBeInTheDocument();
   });
-  it("retains edit and harvest actions for an editable catalogue", () => {
-    context.data[0].canEdit = true;
+  it("retains edit and harvest actions for a catalogue", () => {
     render(<ServiceResults resource="CatalogueService" />);
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Harvest" })).toBeInTheDocument();
     expect(screen.getByText("serviceExplorer.catalogueScope")).toBeInTheDocument();
-    context.data[0].canEdit = false;
   });
   it("filters the whole collection by viewport, retaining text filters", () => {
     render(<ServiceResults resource="WebMapService" />);

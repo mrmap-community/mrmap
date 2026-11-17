@@ -129,8 +129,8 @@ class ElementInspectionMetadataRelationTests(QueryMeasurementMixin, TestCase):
         self.assertEqual(record["id"], str(self.record.pk))
         # the record travels through the same permission evaluation as the
         # record endpoints: without any object grant of its own it is not
-        # editable by the requesting user
-        self.assertFalse(record["attributes"]["canEdit"])
+        # editable by the requesting user (#738's one hint answers this)
+        self.assertNotIn("change", record["attributes"]["allowedActions"])
 
     def test_featuretype_metadata_relation_list_resolves(self):
         self.link_record()

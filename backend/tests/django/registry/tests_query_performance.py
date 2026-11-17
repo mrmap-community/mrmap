@@ -272,26 +272,54 @@ class IncludedServiceQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertNoSlowObjectPermissions('/api/registry/layers')
         self.assertNoSlowObjectPermissions('/api/registry/wms')
 
-    def test_included_service_is_accessible(self):
-        """An included resource still answers whether the user may see it.
+    def test_included_service_answers_allowed_actions(self):
+        """An included resource still answers which actions the user may take.
 
-        The json:api renderer creates the serializers of included resources with
-        the context of the renderer, which knows the view but not the permission
-        checker that the view added to the serializer context.
-        ``extras.serializers.ObjectPermissionCheckerSerializer`` falls back to a
-        checker that is shared for the whole request. It is still slower than the
-        prefetched checker of the view, because it determines the permissions of
-        every included object once, but it does not repeat the check for every
-        row that refers to the same service.
+        The json:api renderer creates the serializers of included resources
+        with the context of the renderer, which knows the view but not the
+        permission checker that the view added to the serializer context.
+        ``extras.serializers.ObjectPermissionCheckerSerializer`` falls back to
+        a checker that is shared for the whole request. It is still slower
+        than the prefetched checker of the view, because it determines the
+        permissions of every included object once, but it does not repeat the
+        check for every row that refers to the same service. The hint of
+        #738 is opt-in on a list, so the request names it - and the batched
+        role axes stay one query per request however many services answer it.
         """
         status, body, _queries = self.request(
-            '/api/registry/layers', **{'include': 'service'})
+            '/api/registry/layers', **{
+                'include': 'service',
+                'fields[WebMapService]': 'id,title,allowed_actions'})
         self.assertEqual(status, 200)
         included = [resource for resource in body.get('included', [])
                     if resource['type'] == 'WebMapService']
         self.assertTrue(included, msg=f'no included service in {body}')
         for resource in included:
-            self.assertIn('isAccessible', resource['attributes'])
+            self.assertIn('allowedActions', resource['attributes'])
+
+    def test_the_action_hint_stays_one_query_per_request(self):
+        """Naming ``allowedActions`` may not turn the include into row work.
+
+        The six actions of #738 ride on the batched role axes: one query per
+        request (the fixture's services have no owner, so no organization
+        query), plus the one object-permission load the shared checker pays
+        per DISTINCT included service - never per row that refers to it. The
+        allowance is the fixture's two services and the one role query with
+        room for the organization axis; growth beyond it means the batch
+        broke apart into per-permission or per-row queries.
+        """
+        _status, _body, without = self.request(
+            '/api/registry/layers', **{'include': 'service'})
+        _status, _body, with_hint = self.request(
+            '/api/registry/layers',
+            **{'include': 'service', 'fields[WebMapService]':
+               'id,title,allowed_actions'})
+        self.assertLessEqual(
+            len(with_hint) - len(without), 4,
+            msg=(f'the action hint added {len(with_hint) - len(without)} '
+                 'queries; allowed are the two services of the fixture and '
+                 'the role axes once. '
+                 f'Queries per table: {table_counter(with_hint)}'))
 
     def test_included_service_still_answers_its_relations(self):
         """Narrowing a relation to its ids must not remove it from the answer.

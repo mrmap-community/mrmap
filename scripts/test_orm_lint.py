@@ -514,14 +514,31 @@ def main():
         issues = sonar["issues"]
         first = issues[0]
         loc = first["primaryLocation"]
+        rules_ok = (
+            {r["id"] for r in sonar["rules"]} == set(orm_lint.RULES)
+            and all(
+                r["engineId"] == orm_lint.ENGINE_ID
+                and r["cleanCodeAttribute"] in {
+                    "FORMATTED", "CONVENTIONAL", "IDENTIFIABLE",
+                    "CLEAR", "LOGICAL", "COMPLETE", "EFFICIENT",
+                    "FOCUSED", "DISTINCT", "MODULAR", "TESTED",
+                    "LAWFUL", "TRUSTWORTHY", "RESPECTFUL"}
+                and len(r["impacts"]) == 1
+                and r["impacts"][0]["softwareQuality"] == "MAINTAINABILITY"
+                and r["impacts"][0]["severity"] in {
+                    "BLOCKER", "HIGH", "MEDIUM", "LOW", "INFO"}
+                and r["name"] and r["description"]
+                for r in sonar["rules"])
+        )
         schema_ok = (all(k in first for k in ("engineId", "ruleId", "severity",
                                               "type", "primaryLocation"))
                      and loc["filePath"].startswith("backend/")
                      and "textRange" in loc
-                     and {r["id"] for r in sonar["rules"]} == set(orm_lint.RULES))
-        check("sonar generic format: schema, project-relative path, rule metadata",
+                     and rules_ok)
+        check("sonar generic format: validator-complete rules (engineId+"
+              "impacts per the CI lesson of this PR) and issue schema",
               schema_ok,
-              str(sorted({r["id"] for r in sonar["rules"]})))
+              str(sorted({r["id"] for r in sonar.get("rules", [])})))
         check("sonar: every rule id known, severity mapping sane",
               all(i["ruleId"] in orm_lint.RULES and
                   i["severity"] == orm_lint.RULES[i["ruleId"]]["sonarSeverity"]

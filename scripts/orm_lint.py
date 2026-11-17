@@ -92,6 +92,11 @@ RULES = {
         "name": "manager-first query plan built inline in a Celery task",
         "type": "CODE_SMELL",
         "sonarSeverity": "MAJOR",
+        # Clean Code Taxonomy fields of the Sonar generic issue format:
+        # the scanner's validator requires engineId and impacts on every
+        # rules entry (CI of PR #1496) - see to_sonar.
+        "cleanCodeAttribute": "CONVENTIONAL",
+        "impactSeverity": "HIGH",
         "textSeverity": "warning",
         "blocking": True,
         "description": (
@@ -105,6 +110,8 @@ RULES = {
         "name": "database access inside a loop in task code",
         "type": "CODE_SMELL",
         "sonarSeverity": "MINOR",
+        "cleanCodeAttribute": "EFFICIENT",
+        "impactSeverity": "MEDIUM",
         "textSeverity": "notice",
         "blocking": False,
         "description": (
@@ -118,6 +125,8 @@ RULES = {
         "name": "possible lazy relation access in task iteration",
         "type": "CODE_SMELL",
         "sonarSeverity": "INFO",
+        "cleanCodeAttribute": "EFFICIENT",
+        "impactSeverity": "LOW",
         "textSeverity": "notice",
         "blocking": False,
         "description": (
@@ -134,6 +143,8 @@ RULES = {
         "name": "orm-lint suppression without a specific rule ID and justification",
         "type": "CODE_SMELL",
         "sonarSeverity": "MINOR",
+        "cleanCodeAttribute": "CONVENTIONAL",
+        "impactSeverity": "MEDIUM",
         "textSeverity": "warning",
         "blocking": True,
         "description": (
@@ -875,6 +886,17 @@ def load_baseline(root):
 
 
 def to_sonar(findings, root):
+    """Sonar generic issue format.
+
+    The rules entries carry the full Clean Code Taxonomy metadata the
+    current scanner validates (PR #1496 run 44076859494: a rules array
+    without `engineId`/`impacts` aborted the whole import with
+    `CleanCodeTaxonomyFormatValidator: missing mandatory field 'engineId'`).
+    Every rule declares exactly one MAINTAINABILITY impact - these are
+    architecture/hint rules, never a claim about SECURITY or RELIABILITY,
+    and the deprecated severity/type ride along for consumers of the old
+    schema.
+    """
     issues = []
     for f in findings:
         rule = RULES[f.rule_id]
@@ -902,8 +924,19 @@ def to_sonar(findings, root):
     return {
         "issues": issues,
         "rules": [
-            {"id": rid, "name": r["name"], "severity": r["sonarSeverity"],
-             "type": r["type"], "description": r["description"]}
+            {
+                "id": rid,
+                "name": r["name"],
+                "description": r["description"],
+                "engineId": ENGINE_ID,
+                "cleanCodeAttribute": r["cleanCodeAttribute"],
+                "type": r["type"],
+                "severity": r["sonarSeverity"],
+                "impacts": [{
+                    "softwareQuality": "MAINTAINABILITY",
+                    "severity": r["impactSeverity"],
+                }],
+            }
             for rid, r in sorted(RULES.items())
         ],
     }

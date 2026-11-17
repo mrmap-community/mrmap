@@ -247,8 +247,13 @@ workflow artifacts and annotates new findings on the diff. The conditional
 ``-Dsonar.externalIssuesReportPaths=reports/orm-lint/orm-issues.json`` to the
 existing scan — external findings are managed by the tool, not by the Quality
 Profile, so no Sonar rule is duplicated by anything here, and the existing
-coverage/quality-gate flow is untouched. When Sonar secrets are absent (fork
-PRs), the standalone job still ran and its artifacts still answer.
+coverage/quality-gate flow is untouched. The generic report declares its
+rules with the full Clean Code Taxonomy metadata (``engineId``,
+``cleanCodeAttribute``, one ``MAINTAINABILITY`` impact each) that the
+scanner's external-issue validator demands — a partial ``rules`` entry
+aborts the whole import, which this PR's own CI run learned the hard way.
+When Sonar secrets are absent (fork PRs), the standalone job still ran and
+its artifacts still answer.
 
 Escalation
 ##########

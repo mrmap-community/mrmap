@@ -66,7 +66,10 @@ class CatalogueServiceCompressionTest(SimpleTestCase):
         self.request.headers = {'X-Test': 'preserved'}
         original_session_headers = dict(self.client.session.headers)
         response = self.client.send_request(self.request, timeout=2)
-        self.assertEqual(HarvestingJob().get_total_records(response), 6952)
+        # the harvest reads the count out of the one document its answer-check parsed (#1412)
+        harvesting_job = HarvestingJob()
+        self.assertEqual(harvesting_job.get_total_records(
+            harvesting_job._parse_answer(response.content)), 6952)
         self.assertEqual(len(self.encodings), 2)
         self.assertIn('gzip', self.encodings[0])
         self.assertEqual(self.encodings[1], 'identity')

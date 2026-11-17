@@ -1,7 +1,10 @@
 import hashlib
 import json
 import sys
+from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum, auto
+from typing import Optional
 from uuid import uuid4
 
 from celery import chord, current_task
@@ -56,6 +59,34 @@ from simple_history.models import HistoricalRecords
 # answer, and a substring of the document cannot know it (#815).
 EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
                           " or local-name()='ServiceExceptionReport']")
+
+
+class AnswerOutcome(Enum):
+    """what reading a catalogue's answer yielded: the requested document, the exception
+    report of a refusing service, or nothing to work with - malformed XML or a status
+    which is not ok. A server error class is no outcome to carry: it raises into the
+    task's retry before an answer is ever classified (#689)."""
+    DOCUMENT = auto()
+    EXCEPTION_REPORT = auto()
+    UNUSABLE = auto()
+
+
+@dataclass(frozen=True)
+class CheckedResponse:
+    """the answer of a catalogue, read once by ``HarvestingJob._check_answer``.
+
+    A successful answer carries the tree its caller works on, so one answer is never
+    parsed a second time for storage or for a count read out of it (#1412). The tree
+    lives exactly as long as the call which read the answer: it is never kept across
+    tasks and never serialized through Celery, which keeps a large document bounded."""
+    response: Response
+    outcome: AnswerOutcome
+    document: Optional[etree._Element] = None
+
+    @property
+    def ok(self) -> bool:
+        """whether the answer is the document the request asked for"""
+        return self.outcome is AnswerOutcome.DOCUMENT
 
 
 CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
@@ -772,12 +803,14 @@ class HarvestingJob(ProcessingData):
             record_types.append("application")
         return record_types
 
-    def get_total_records(self, response):
+    def get_total_records(self, document):
+        """how many records the catalogue counted for its answer; the tree is the one
+        document the check of that answer parsed, its bytes are read no second time
+        (#1412)"""
         ns = {
             "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
         }
-        tree = etree.fromstring(response.content)
-        search_results = tree.find(
+        search_results = document.find(
             ".//csw:SearchResults",
             namespaces=ns
         )
@@ -797,13 +830,14 @@ class HarvestingJob(ProcessingData):
                 xml_constraint=client.get_constraint(record_types=self.get_record_types())),
             timeout=60)
 
-        if self._check_xml_response(first_response):
+        checked = self._check_answer(first_response)
+        if not checked.ok:
             self._log_response_error(response=first_response)
             self.total_records = 0
             self.save()
             return self.total_records
 
-        self.total_records = self.get_total_records(first_response)
+        self.total_records = self.get_total_records(checked.document)
         if not self.total_records:
             # try again, cause some csw server implementations are broken and don't support our default TypeName query param
             second_response: Response = client.send_request(
@@ -814,13 +848,14 @@ class HarvestingJob(ProcessingData):
 
             # the fallback is the response to judge: the first response was fine, it only named no
             # records at all (#689)
-            if self._check_xml_response(second_response):
+            checked = self._check_answer(second_response)
+            if not checked.ok:
                 self._log_response_error(response=second_response)
                 self.total_records = 0
                 self.save()
                 return self.total_records
 
-            self.total_records = self.get_total_records(second_response)
+            self.total_records = self.get_total_records(checked.document)
 
             if not self.total_records:
                 # terminate celery workflow by returning total records = 0
@@ -943,18 +978,39 @@ class HarvestingJob(ProcessingData):
         except Exception:
             return None
 
-    def _check_xml_response(self, response):
-        """whether the answer is no document to work with: no XML at all, or an exception report of
-        whichever namespace prefix the service chose instead of the requested document (#815)"""
+    def _check_answer(self, response) -> CheckedResponse:
+        """read a catalogue's answer once and classify it (#1412).
+
+        The hardened parser of ``_parse_answer`` is the only read of the bytes: a
+        successful answer hands its tree to the caller, so the page storage and the
+        count read work on this document instead of parsing the same bytes again. A
+        refusal is the exception report of whichever namespace prefix the service
+        chose (#815); malformed XML or a status which is not ok is nothing to work
+        with. An answer which cannot be worked on leaves the Response Error of #689
+        in the run's log, and only the server error class raises for a retry. The
+        tree lives no longer than the call which stored its page."""
         document = None if not response.ok else self._parse_answer(response.content)
-        if document is not None and not document.xpath(EXCEPTION_REPORT_XPATH):
-            return False
+        if document is not None:
+            if not document.xpath(EXCEPTION_REPORT_XPATH):
+                return CheckedResponse(
+                    response=response,
+                    outcome=AnswerOutcome.DOCUMENT,
+                    document=document)
+            outcome = AnswerOutcome.EXCEPTION_REPORT
+        else:
+            outcome = AnswerOutcome.UNUSABLE
         self._log_response_error(response=response)
         # only the server error class is worth another request; a chained comparison like
         # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
         if 500 <= response.status_code < 600:
             raise InternalServerError
-        return True
+        return CheckedResponse(response=response, outcome=outcome)
+
+    def _check_xml_response(self, response):
+        """whether the answer is no document to work with: no XML at all, or an exception report of
+        whichever namespace prefix the service chose instead of the requested document (#815). The
+        bool facade of ``_check_answer`` for callers which need no tree."""
+        return not self._check_answer(response).ok
 
     def get_stored_page_count(self, request) -> int:
         """how many records this job already stores for exactly this request; the requested url
@@ -1086,9 +1142,10 @@ class HarvestingJob(ProcessingData):
         response: Response = client.send_request(
             request=request,
             timeout=self.get_request_timeout(step_size))
-        if self._check_xml_response(response):
+        checked = self._check_answer(response)
+        if not checked.ok:
             return 0, True
-        stored = self._store_page(response, request, start_position=position)
+        stored = self._store_page(checked, request, start_position=position)
         return stored, False
 
     def _halved_step_size(self, received, position, step_size, size, refused):
@@ -1111,14 +1168,17 @@ class HarvestingJob(ProcessingData):
                 f"the missing part is asked with {halved}"))
         return halved
 
-    def _store_page(self, response, request, start_position):
+    def _store_page(self, checked, request, start_position):
         """Store the records of one answered GetRecords response.
+
+        The records are cut out of the tree the check of the answer parsed - the page
+        body is not read a second time (#1412), and the tree stays inside this call.
 
         Answers None when the job is not open for downloading anymore, and the number of stored
         records otherwise - which is the count another worker stored when it won the race for
         exactly this request under the job lock (#688).
         """
-        tree = etree.fromstring(response.content)
+        tree = checked.document
 
         # Namespaces definieren
         ns = {
@@ -1144,7 +1204,7 @@ class HarvestingJob(ProcessingData):
                     job=self,
                     request_id=datestamp,
                     requested_url=request.url,
-                    download_duration=response.elapsed / records_count
+                    download_duration=checked.response.elapsed / records_count
                 )
 
                 # save the file without saving the instance in db... this will be done with bulk_create

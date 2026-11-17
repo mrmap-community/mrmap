@@ -6,6 +6,7 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TransactionTestCase
 from django.test.utils import override_settings
+from lxml import etree
 from MrMap.settings import BASE_DIR
 from registry.enums.harvesting import (LogKindEnum, LogLevelEnum)
 from registry.exceptions.harvesting import InternalServerError
@@ -52,6 +53,19 @@ def logging_response(request, content, status_code):
     response = MockResponse(content=content, status_code=status_code)
     response.request = request
     return response
+
+
+def counting_parses(counter):
+    """a wrapper for the parse seam of ``lxml.etree`` which counts only the parses of
+    GetRecords answers and returns the real tree - so the assertion counts this flow,
+    not every parse in the process (audit #1408: one parse per answer, #1412)"""
+    real = etree.fromstring
+
+    def counted(content, *args, **kwargs):
+        if isinstance(content, bytes) and b"GetRecordsResponse" in content:
+            counter.append(content)
+        return real(content, *args, **kwargs)
+    return counted
 
 
 TOTAL_RECORDS = 30
@@ -306,7 +320,26 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
         response = logging_response(
             SimpleNamespace(url="https://example.org/csw?REQUEST=GetRecords"),
             NO_SEARCH_RESULTS, status.HTTP_200_OK)
-        self.assertEqual(HarvestingJob().get_total_records(response), 0)
+        harvesting_job = HarvestingJob()
+        checked = harvesting_job._check_answer(response)
+        self.assertEqual(harvesting_job.get_total_records(checked.document), 0)
+
+    def test_total_records_is_read_from_the_one_parsed_answer(self):
+        """the count of an answer is read out of the document its check parsed: one GetRecords
+        answer costs one parse, not one for the check and a second for the count (audit R3 of
+        #1408 counted both, #1412)"""
+        counter = []
+        response = logging_response(
+            SimpleNamespace(url="https://example.org/csw?REQUEST=GetRecords"),
+            get_records_document(1, 3), status.HTTP_200_OK)
+        harvesting_job = HarvestingJob()
+        with patch("registry.models.harvest.etree.fromstring", new=counting_parses(counter)):
+            checked = harvesting_job._check_answer(response)
+            total = harvesting_job.get_total_records(checked.document)
+        self.assertTrue(checked.ok)
+        self.assertEqual(total, TOTAL_RECORDS)
+        self.assertEqual(len(counter), 1,
+                         "the answer is parsed once; the count reads its tree")
 
 
 class HarvestingGetRecordsTaskTest(TransactionTestCase):
@@ -357,6 +390,41 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
         call_fetch_records.delay(harvesting_job_id=1, start_position=1, recovering=True)
 
         self.assertEqual(send_request.call_count, 1)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_one_answered_page_is_parsed_once(self, mocked_send_request):
+        """the page a run stores is read once: the check of the answer and the storage work on
+        the same tree, where the audit's R3 counted two parses of the same bytes per page
+        (#1412) - and the stored records of the page stay what they were"""
+        counter = []
+        with patch("registry.models.harvest.etree.fromstring", new=counting_parses(counter)):
+            call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(mocked_send_request.call_count, 1)
+        self.assertEqual(len(counter), 1,
+                         "one answered page is one parse")
+        self.assertEqual(TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 10)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_redelivered_page_costs_no_parse(self, mocked_send_request):
+        """the redelivery of a stored page asks nothing and parses nothing: #688's
+        deduplication keeps the answer away from the parser as well as away from the
+        remote service"""
+        call_fetch_records.delay(harvesting_job_id=1, start_position=1)
+
+        counter = []
+        with patch("registry.models.harvest.etree.fromstring", new=counting_parses(counter)):
+            call_fetch_records.delay(harvesting_job_id=1, start_position=1, recovering=True)
+
+        self.assertEqual(mocked_send_request.call_count, 1)
+        self.assertEqual(counter, [],
+                         "a page which is stored is not read again")
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,

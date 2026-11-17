@@ -40,9 +40,11 @@ from celery.exceptions import Retry
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.utils import timezone as dj_timezone
+from lxml import etree
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
-from registry.models.harvest import (HarvestingJob, TemporaryMdMetadataFile)
+from registry.models.harvest import (AnswerOutcome, CheckedResponse,
+                                     HarvestingJob, TemporaryMdMetadataFile)
 from registry.models.metadata import MetadataContact
 from registry.models.service import CatalogueService, WebMapService
 from registry.tasks.harvest import (call_chord_md_metadata_file_to_db,
@@ -513,8 +515,14 @@ class StorePageShapeTest(SqlGuardMixin, TestCase):
     def _page(self, size):
         """Store one answered GetRecords page of ``size`` records."""
         request = SimpleNamespace(url=f'https://example.com/csw?page={size}')
-        response = MockResponse(content=get_records_document(0, size, size))
-        return lambda: self.job._store_page(response, request, 0)
+        content = get_records_document(0, size, size)
+        # the checked answer of #1412: the tree arrives pre-parsed, exactly as
+        # the fetch hands it over after the single hardened parse of the page
+        checked = CheckedResponse(
+            response=MockResponse(content=content),
+            outcome=AnswerOutcome.DOCUMENT,
+            document=etree.fromstring(content.encode('UTF-8')))
+        return lambda: self.job._store_page(checked, request, 0)
 
     def test_a_wider_page_costs_no_more_statements(self):
         """60 and 100 records both fill two INSERT batches of 50 - constant.

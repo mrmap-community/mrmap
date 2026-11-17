@@ -51,11 +51,14 @@ export const AddMemberDialogButton = () => {
     // the notification names the user by the representation the search
     // answer carries; anything but a string falls back to the id rather
     // than reading "[object Object]" in a sentence
-    const userLabel = typeof chosen === "object"
-      ? (typeof chosen.stringRepresentation === "string"
+    let userLabel: string;
+    if (typeof chosen === "object") {
+      userLabel = typeof chosen.stringRepresentation === "string"
         ? chosen.stringRepresentation
-        : String(userId))
-      : String(chosen);
+        : String(userId);
+    } else {
+      userLabel = String(chosen);
+    }
     if (userId === undefined || userId === "" || saving) {
       return;
     }

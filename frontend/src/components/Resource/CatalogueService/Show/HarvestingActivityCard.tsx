@@ -10,6 +10,7 @@ import {
   useTranslate,
 } from "react-admin";
 import { Link } from "react-router-dom";
+import { ReadyState } from "react-use-websocket";
 
 import {
   Alert,
@@ -20,6 +21,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { useHttpClientContext } from "../../../../context/HttpClientContext";
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import useOperation from "../../../../jsonapi/hooks/useOperation";
 import SimpleCard from "../../../MUI/SimpleCard";
@@ -193,6 +195,9 @@ const HarvestingActivityList = () => {
 
 const HarvestingActivityCard = () => {
   const service = useRecordContext();
+  // the bus reports every change of a run, the interval is only the fallback
+  // while it is not connected
+  const { realtimeIsReady } = useHttpClientContext();
   const operation = useOperation(
     "list_related_HarvestingJob_of_CatalogueService",
   );
@@ -201,6 +206,7 @@ const HarvestingActivityCard = () => {
     <ListGuesser
       resource="HarvestingJob"
       relatedResource={{ resource: "CatalogueService", id: service.id }}
+      realtime
       disableSyncWithLocation
       // The card answers "what did this catalogue harvest last", so its three rows
       // have to be the three most recent runs. Ordering by `dateCreated` cannot do
@@ -228,7 +234,7 @@ const HarvestingActivityCard = () => {
       // screen, which is the one place that reads them. With the request in the
       // cheap class #1037 itself measured (progress at 0.13 s), the five second
       // interval is what lets the card follow a run the catalogue is watching.
-      refetchInterval={5000}
+      refetchInterval={realtimeIsReady === ReadyState.OPEN ? false : 5000}
       queryOptions={{
         meta: {
           jsonApiParams: {

@@ -2,7 +2,6 @@ import {
   Button,
   useNotify,
   useRecordContext,
-  useRefresh,
   useResourceContext,
   useUpdate,
 } from "react-admin";
@@ -25,7 +24,6 @@ const ActivateServiceButton = () => {
   const resource = useResourceContext();
   const record = useRecordContext();
   const notify = useNotify();
-  const refresh = useRefresh();
   const [update, { isPending }] = useUpdate();
   // the activation is only adjustable as long as the api offers the update
   const canUpdate = Boolean(useOperation(`partial_update_${resource}`));
@@ -60,7 +58,6 @@ const ActivateServiceButton = () => {
                 { type: "success" },
               );
               // the service and the preview images of it are answered differently now
-              void refresh();
             },
             onError: () =>
               notify("serviceShow.activationFailed", { type: "error" }),

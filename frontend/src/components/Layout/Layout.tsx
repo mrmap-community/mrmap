@@ -12,6 +12,7 @@ import MrMapAppBar from './AppBar';
 import BreadCrump from './BreadCrump';
 import Footer from './Footer';
 import CustomMenu from './Menu';
+import PermissionLostBridge from './PermissionLostBridge';
 
 
 // wraps the Admin layout and mounts the renderless observers: the realtime bus,
@@ -40,6 +41,7 @@ const MyLayout = (
         <RealtimeBus/> 
         <I18Observer/>
         <BackgroundJobBridge />
+        <PermissionLostBridge />
       <Layout
         appBar={MrMapAppBar}
         menu={CustomMenu}

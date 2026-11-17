@@ -1,11 +1,10 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   BasenameContextProvider,
   type RaRecord,
   DateField,
   ShowButton,
   useRecordContext,
-  useRefresh,
   useResourceContext,
   useResourceDefinitions,
   useTranslate,
@@ -159,19 +158,14 @@ const ServiceAlertRecord = ({
  * annotations of the services and not by a resource of their own, which means
  * that this tab reads the record of the service it is shown for. An alert
  * disappears as soon as the state behind it is fixed, and nothing is pushed
- * about a state which no row stores - so this tab asks for the service again
- * from time to time.
+ * about a state which no row stores - the show screen of the service re-reads
+ * its record from time to time (`ATTENTION_REFETCH_INTERVAL`), which is what
+ * refreshes the alerts shown here.
  */
 export const ServiceAttentionTab = (): ReactNode => {
   const record = useRecordContext();
   const service = useResourceContext();
   const translate = useTranslate();
-  const refresh = useRefresh();
-
-  useEffect(() => {
-    const interval = setInterval(refresh, ATTENTION_REFETCH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [refresh]);
 
   const alerts = SERVICE_ALERTS.filter((alert) =>
     Boolean((record as RaRecord | undefined)?.[alert.flag]),

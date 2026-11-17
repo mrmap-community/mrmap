@@ -23,14 +23,40 @@
  * superuser flag alone, and the `getPermissionSnapshot`/`invalidate` seam the
  * administration screens use answers the cached snapshot and re-asks after
  * the caller revoked their own role.
+ *
+ * The final two suites pin #834's session contract: `checkAuth` ends an
+ * expired session with the reason key, `checkError` reads the JSON:API error
+ * code - not just the status, because this deployment answers a dead
+ * credential with 403 too - keeps a valid session on `permission_denied` and
+ * clears credentials exactly when the code says so, and one suite runs that
+ * contract through react-admin's real `useLogoutIfAccessDenied` hook.
  */
-import { AdminContext, TestMemoryRouter, useLogout, useRequireAccess } from 'react-admin';
+import {
+  AdminContext,
+  // The application renders this through react-admin's own Admin; AdminContext
+  // alone has no notification host, so the spec that asserts the toast mounts it.
+  Notification,
+  TestMemoryRouter,
+  useLogoutIfAccessDenied,
+  useLogout,
+  useRequireAccess,
+} from 'react-admin';
 import type { DataProvider } from 'react-admin';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import tokenAuthProvider, { AUTH_TOKEN_LOCAL_STORAGE_NAME, getAuthToken, getPermissionSnapshot, invalidatePermissionSnapshot, setAuthToken } from './authProvider';
+import tokenAuthProvider, {
+  AUTH_TOKEN_LOCAL_STORAGE_NAME,
+  consumeSessionEndReason,
+  getAuthToken,
+  getPermissionSnapshot,
+  getSessionEndReason,
+  invalidatePermissionSnapshot,
+  onPermissionLost,
+  setAuthToken,
+} from './authProvider';
+import i18nProvider from './i18nProvider';
 
 vi.mock('../context/HttpClientContext', () => ({ API_BASE_URL: 'https://mrmap.test' }));
 
@@ -293,7 +319,8 @@ describe('authProvider.canAccess', () => {
     const provider = tokenAuthProvider();
 
     expect(await canAccessOf(provider)({ resource: 'User', action: 'list' })).toBe(true);
-    await expect(provider.checkError?.({ status: 401 })).rejects.toThrow('unauthorized');
+    await expect(provider.checkError?.({ status: 401 }))
+      .rejects.toThrow('auth.sessionRevoked');
 
     storeToken();
     expect(await canAccessOf(provider)({ resource: 'User', action: 'list' })).toBe(true);
@@ -572,5 +599,266 @@ describe('role slug resolution of #736 behind the snapshot', () => {
 
     expect(getPermissionSnapshot()).toBeUndefined();
     expect(() => invalidatePermissionSnapshot()).not.toThrow();
+  });
+});
+
+/**
+ * #834's session lifecycle, provider side: only a session the client's own
+ * (server-issued) expiry outran ends `checkAuth`, and it ends with the reason
+ * as a translation key so react-admin's `useCheckAuth` can notify it in the
+ * user's language while redirecting to /login.
+ */
+describe('authProvider.checkAuth', () => {
+  const provider = tokenAuthProvider();
+
+  beforeEach(() => {
+    localStorage.clear();
+    consumeSessionEndReason();
+    storeToken();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('passes a session whose stored expiry lies ahead', async () => {
+    await expect(provider.checkAuth?.({})).resolves.toBeUndefined();
+    expect(storedToken()).not.toBeNull();
+  });
+
+  it('refuses without a stored session, setting no reason', async () => {
+    setAuthToken(undefined);
+
+    await expect(provider.checkAuth?.({})).rejects.toThrow('not authenticated');
+    expect(getSessionEndReason()).toBeUndefined();
+  });
+
+  it('ends an expired session with the reason, clearing the credential', async () => {
+    const stored = getAuthToken();
+    setAuthToken({ ...stored!, expiry: new Date(Date.now() - 1000).toISOString() });
+
+    await expect(provider.checkAuth?.({})).rejects.toThrow('auth.sessionExpired');
+    expect(storedToken()).toBeNull();
+    expect(getSessionEndReason()).toBe('auth.sessionExpired');
+  });
+});
+
+/**
+ * #834's `checkError` contract (docs/source/administration/authentication.md):
+ * this deployment answers a dead credential with the same 403 as a refused
+ * action, so the JSON:API error code decides. A live session survives every
+ * `permission_denied` and revalidates its rights; credentials are cleared
+ * exactly when the code - or, with no code to read, the server-issued expiry
+ * - says they are gone.
+ */
+describe('authProvider.checkError', () => {
+  const WHO_AM_I_URL = 'https://mrmap.test/api/accounts/who-am-i/';
+
+  /** who-am-i always answers; counts the snapshot fetches it causes. */
+  const mockWhoAmI = () => {
+    const fetchMock = vi.fn(async (request: Request) =>
+      request.url === WHO_AM_I_URL
+        ? new Response(
+            JSON.stringify({
+              data: { id: '1', attributes: { username: 'ada', isSuperuser: true } },
+            }),
+            { status: 200 },
+          )
+        : new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return () =>
+      fetchMock.mock.calls.filter(([request]) => (request as Request).url === WHO_AM_I_URL);
+  };
+
+  type CheckError = (error: unknown) => Promise<unknown>;
+  const checkErrorOf = (provider: ReturnType<typeof tokenAuthProvider>) =>
+    provider.checkError as unknown as CheckError;
+  const canAccessUser = (provider: ReturnType<typeof tokenAuthProvider>) =>
+    (provider.canAccess as unknown as (p: { resource: string; action: string }) =>
+      Promise<boolean>)({ resource: 'User', action: 'list' });
+
+  /** The AxiosError shape of the dataProvider and the HttpError shape both carry the code. */
+  const denied = (code: string) =>
+    code === 'authentication_failed' || code === 'not_authenticated'
+      ? { status: 403, message: 'denied', response: { data: { errors: [{ code }] } } }
+      : { status: 403, message: 'denied', body: { errors: [{ code }] } };
+
+  /** The rejected value of a call: these cases assert on the thrown error,
+   * and a call that resolved instead is itself the failure. */
+  const rejection = async (
+    promise: Promise<unknown>,
+  ): Promise<Error & { logoutUser?: boolean }> => {
+    const error = await promise.then(
+      () => undefined,
+      (reason: Error & { logoutUser?: boolean }) => reason,
+    );
+    if (error === undefined) {
+      throw new Error('expected the call to reject');
+    }
+    return error;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    consumeSessionEndReason();
+    storeToken(); // the locally valid session every case below starts from
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('keeps the session on permission_denied, notifies the key and revalidates', async () => {
+    const whoAmIs = mockWhoAmI();
+    const provider = tokenAuthProvider();
+    expect(await canAccessUser(provider)).toBe(true); // snapshot holds one fetch
+    const permissionLost = vi.fn();
+    const unsubscribe = onPermissionLost(permissionLost);
+
+    const failure = await rejection(checkErrorOf(provider)(denied('permission_denied')));
+
+    expect(failure.message).toBe('auth.forbidden');
+    expect(failure.logoutUser).toBe(false); // react-admin: notify, do NOT log out
+    expect(storedToken()).not.toBeNull();
+    expect(getSessionEndReason()).toBeUndefined();
+    expect(permissionLost).toHaveBeenCalledOnce(); // the bridge's revalidation seam
+    unsubscribe();
+
+    expect(await canAccessUser(provider)).toBe(true);
+    expect(whoAmIs()).toHaveLength(2); // the refused action dropped the snapshot
+  });
+
+  it.each(['authentication_failed', 'not_authenticated'] as const)(
+    'ends the session on %s: credential gone, reason set, snapshot silenced',
+    async code => {
+      const whoAmIs = mockWhoAmI();
+      const provider = tokenAuthProvider();
+      expect(await canAccessUser(provider)).toBe(true);
+
+      const failure = await rejection(checkErrorOf(provider)(denied(code)));
+
+      expect(failure.message).toBe('auth.sessionRevoked'); // still valid locally...
+      expect(storedToken()).toBeNull();
+      expect(getSessionEndReason()).toBe('auth.sessionRevoked');
+      // ...and the gone credential now denies without a stale cached grant
+      expect(await canAccessUser(provider)).toBe(false);
+      expect(whoAmIs()).toHaveLength(1);
+    },
+  );
+
+  it('ends an expired session when the 403 body carries no code to read', async () => {
+    const provider = tokenAuthProvider();
+    const stored = getAuthToken();
+    setAuthToken({ ...stored!, expiry: new Date(Date.now() - 1000).toISOString() });
+
+    const failure = await rejection(checkErrorOf(provider)({ status: 403 }));
+
+    expect(failure.message).toBe('auth.sessionExpired');
+    expect(storedToken()).toBeNull();
+    expect(getSessionEndReason()).toBe('auth.sessionExpired');
+  });
+
+  it('keeps a locally valid session even against a codeless 403', async () => {
+    const provider = tokenAuthProvider();
+
+    const failure = await rejection(checkErrorOf(provider)({ status: 403 }));
+
+    expect(failure.message).toBe('auth.forbidden');
+    expect(failure.logoutUser).toBe(false);
+    expect(storedToken()).not.toBeNull(); // a valid session is never logged out on a guess
+  });
+
+  it('ends the session outright on 401, whatever the code says', async () => {
+    const provider = tokenAuthProvider();
+
+    await expect(checkErrorOf(provider)({ status: 401 })).rejects.toThrow('auth.sessionRevoked');
+    expect(storedToken()).toBeNull();
+    expect(getSessionEndReason()).toBe('auth.sessionRevoked');
+  });
+
+  it('leaves every other status to its caller', async () => {
+    const provider = tokenAuthProvider();
+
+    await expect(checkErrorOf(provider)({ status: 500 })).resolves.toBeUndefined();
+    expect(storedToken()).not.toBeNull();
+  });
+
+  it('answers a guarded-route refusal without a session, setting no reason', async () => {
+    setAuthToken(undefined);
+    const provider = tokenAuthProvider();
+
+    const failure = await rejection(checkErrorOf(provider)({ status: 401 }));
+
+    expect(failure.message).toBe('not authenticated');
+    expect(getSessionEndReason()).toBeUndefined();
+  });
+});
+
+/**
+ * The same contract through react-admin's real hook: `useLogoutIfAccessDenied`
+ * (every dataProvider call runs it) logs out and redirects when the provider
+ * says the credential is gone, and for `permission_denied` shows the
+ * translated key while the session - and the page - stay.
+ */
+describe('checkError through react-admin', () => {
+  const AccessFailure = ({ error }: { error: unknown }) => {
+    const logoutIfAccessDenied = useLogoutIfAccessDenied();
+    return (
+      <button onClick={() => { void logoutIfAccessDenied(error); }}>
+        failed call
+      </button>
+    );
+  };
+
+  const runFailedCall = (error: unknown, initial = '/User') => {
+    let pathname = initial;
+    render(
+      <TestMemoryRouter
+        initialEntries={[initial]}
+        locationCallback={(location) => { pathname = location.pathname; }}
+      >
+        <AdminContext
+          authProvider={tokenAuthProvider()}
+          dataProvider={{} as DataProvider}
+          i18nProvider={i18nProvider}
+        >
+          <Notification />
+          <AccessFailure error={error} />
+        </AdminContext>
+      </TestMemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /failed call/i }));
+    return () => pathname;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    consumeSessionEndReason();
+    storeToken();
+    mockFetch(); // who-am-i, the logout revocation: everything answers 204/ok
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('shows the forbidden message and keeps the session and the page', async () => {
+    runFailedCall({ status: 403, message: 'no', body: { errors: [{ code: 'permission_denied' }] } });
+
+    expect(
+      await screen.findByText('You no longer have the rights for this action.'),
+    ).toBeInTheDocument();
+    expect(storedToken()).not.toBeNull();
+  });
+
+  it('clears the credential and lands on /login on 401', async () => {
+    const pathname = runFailedCall({ status: 401, message: 'gone' });
+
+    await waitFor(() => expect(pathname()).toBe('/login'));
+    expect(storedToken()).toBeNull();
+    expect(getSessionEndReason()).toBe('auth.sessionRevoked');
   });
 });

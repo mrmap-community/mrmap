@@ -107,7 +107,9 @@ describe("ActivateServiceButton", () => {
         type: "success",
       }),
     );
-    expect(state.refresh).toHaveBeenCalled();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
 
   it("asks the api to deactivate an active service", async () => {

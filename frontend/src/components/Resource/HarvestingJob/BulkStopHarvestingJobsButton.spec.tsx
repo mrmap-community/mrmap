@@ -104,7 +104,9 @@ describe("stopping the selected harvesting runs", () => {
       messageArgs: { smart_count: 2, count: 2 },
     });
     expect(state.unselect).toHaveBeenCalledWith(["41", "40"]);
-    expect(state.refresh).toHaveBeenCalledOnce();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
 
   it("names the runs the api refused to stop", async () => {

@@ -185,6 +185,60 @@ export const getAuthToken = (): AuthToken | undefined => {
   }
 }
 
+/**
+ * Why the session ended, as a translation key (#834): `auth.sessionExpired`
+ * when the configured lifetime ran out, `auth.sessionRevoked` when the server
+ * stopped accepting a credential the client still believed in. The login page
+ * reads and consumes it so the user sees the reason in their language; a
+ * deliberate logout sets none.
+ */
+let sessionEndReason: string | undefined
+
+/** Reads the reason without consuming it (specs, second looks). */
+export const getSessionEndReason = (): string | undefined => sessionEndReason
+
+/** Reads and clears the reason; the login page calls this on mount. */
+export const consumeSessionEndReason = (): string | undefined => {
+  const reason = sessionEndReason
+  sessionEndReason = undefined
+  return reason
+}
+
+/**
+ * Subscribers for "the server refused this caller's rights although the
+ * session is valid" (a `permission_denied` answer of #834's contract). The
+ * provider itself cannot reach react-query; the mounted bridge invalidates the
+ * cached access answers and refreshes the open screens through this seam -
+ * the same pair the Members screen applies inline after a self-revocation.
+ */
+const permissionLostListeners = new Set<() => void>()
+
+export const onPermissionLost = (listener: () => void): (() => void) => {
+  permissionLostListeners.add(listener)
+  return () => {
+    permissionLostListeners.delete(listener)
+  }
+}
+
+/**
+ * The JSON:API error code of a failed API call, from either shape a caller
+ * hands `checkError`: an HttpError carrying the parsed body, or the AxiosError
+ * of the dataProvider with `response.data`. The contract of
+ * `docs/source/administration/authentication.md` reads it because this
+ * deployment answers a dead credential and a refused action with the same 403
+ * (the first configured authenticator offers no WWW-Authenticate):
+ * `authentication_failed` / `not_authenticated` say the credential is gone,
+ * `permission_denied` says the session is valid but may not do this.
+ */
+const authErrorCode = (error: unknown): string | undefined => {
+  const withBody = error as {
+    body?: { errors?: { code?: string }[] }
+    response?: { data?: { errors?: { code?: string }[] } }
+  }
+  return withBody?.body?.errors?.[0]?.code
+    ?? withBody?.response?.data?.errors?.[0]?.code
+}
+
 export const setAuthToken = (props: AuthToken | undefined) => {
   if (props === undefined) {
     localStorage.removeItem(AUTH_TOKEN_LOCAL_STORAGE_NAME)
@@ -208,6 +262,16 @@ const tokenAuthProvider = (
   // honoured client-side. The backend stays authoritative either way.
   let snapshotCache: { token: string, permissions: Promise<PermissionSnapshot> } | undefined
   const resetSnapshotCache = () => { snapshotCache = undefined }
+  /**
+   * Ends the session everywhere it is remembered: the credential, the
+   * permission snapshot and - unlike a deliberate logout - the reason the
+   * login page will show (#834).
+   */
+  const endSession = (reasonKey: string | undefined) => {
+    sessionEndReason = reasonKey
+    setAuthToken(undefined)
+    resetSnapshotCache()
+  }
   const permissionSnapshot = (token: string): Promise<PermissionSnapshot> => {
     if (snapshotCache?.token === token) {
       return snapshotCache.permissions
@@ -247,6 +311,8 @@ const tokenAuthProvider = (
         const token = await response.json()
         const { identity: userIdentity, permissions } = await whoAmI(identityUrl, token?.token)
         setAuthToken({...token, ...userIdentity})
+        // a fresh login supersedes any earlier session end
+        sessionEndReason = undefined
         // the who-am-i this login just made is the snapshot's first and only
         // fetch for this session
         snapshotCache = token?.token
@@ -263,6 +329,12 @@ const tokenAuthProvider = (
       throw new Error(error ?? response.statusText)
     },
     logout: async () => {
+      // A forced logout from #834 runs exactly here - react-admin's
+      // `useLogoutIfAccessDenied` ends the session through this method right
+      // after `checkAuth`/`checkError` called `endSession` - so the reason
+      // set that way must survive to the login page. Nothing is cleared on
+      // purpose either: a deliberate logout only happens in a session whose
+      // login already dropped any earlier reason.
       const storedToken = getAuthToken()
       if (storedToken?.token) {
         await revokeToken(logoutUrl, storedToken.token)
@@ -280,19 +352,55 @@ const tokenAuthProvider = (
       }
       const expired = new Date(storedToken.expiry) < new Date()
       if (expired ){
-        resetSnapshotCache()
-        return Promise.reject(new Error(('your session has expired')))
+        // The login handed the client this very expiry moment, so the server
+        // stops accepting the credential at the same instant: end it with the
+        // reason. useCheckAuth turns this message (a translation key) into the
+        // notification and lands the user on /login.
+        endSession('auth.sessionExpired')
+        return Promise.reject(new Error('auth.sessionExpired'))
       }
       return Promise.resolve()
     },
     checkError: error => {
-      const status = error.status
-      if (status === 401) {
-        setAuthToken(undefined)
-        resetSnapshotCache()
-        return Promise.reject(new Error('unauthorized'))
+      const status = error?.status
+      if (status !== 401 && status !== 403) {
+        return Promise.resolve()
       }
-      return Promise.resolve()
+      const storedToken = getAuthToken()
+      if (!storedToken) {
+        // no session to keep and none to lose: leave react-admin's own
+        // handling of an anonymous caller on a guarded route in place
+        resetSnapshotCache()
+        return Promise.reject(new Error('not authenticated'))
+      }
+      const code = authErrorCode(error)
+      const locallyExpired = new Date(storedToken.expiry) < new Date()
+      // The auth-vs-denied contract of #834 (documented in
+      // docs/source/administration/authentication.md, pinned by
+      // tests/django/accounts/test_session_lifetime.py): this stack answers a
+      // dead credential with a 403 too, so the JSON:API error code, not the
+      // status, decides. Without a readable code only the locally expired
+      // copy says dead - a valid session is never logged out on a guess.
+      const credentialDead = status === 401
+        || code === 'not_authenticated'
+        || code === 'authentication_failed'
+        || (code === undefined && locallyExpired)
+      if (credentialDead) {
+        const reason = locallyExpired ? 'auth.sessionExpired' : 'auth.sessionRevoked'
+        endSession(reason)
+        return Promise.reject(new Error(reason))
+      }
+      // A live session whose action was refused: keep the credential, notify,
+      // and force a revalidation - the next canAccess must not answer from
+      // the table the login filled, and the mounted bridge drops the cached
+      // access answers and refreshes the open screens.
+      resetSnapshotCache()
+      permissionLostListeners.forEach(listener => listener())
+      // `logoutUser: false` tells react-admin's logoutIfAccessDenied to
+      // notify this translation key without touching the session.
+      return Promise.reject(
+        Object.assign(new Error('auth.forbidden'), { logoutUser: false }),
+      )
     },
     /* The permission checks of #836 live in canAccess below, which answers
       from the closure snapshot - no query, no per-render fetch. getPermissions

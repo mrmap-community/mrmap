@@ -1,10 +1,12 @@
 import type { PropsWithChildren } from "react";
 import { DateField, useRecordContext, useTranslate } from "react-admin";
+import { ReadyState } from "react-use-websocket";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Alert } from "@mui/material";
 
+import { useHttpClientContext } from "../../../../context/HttpClientContext";
 import CronInput from "../../../Input/CronInput";
 import SchedulePreviewPanel from "../../Generic/Schedule/SchedulePreviewPanel";
 import ServiceAttentionTab from "../../Generic/ServiceShow/ServiceAttentionTab";
@@ -36,12 +38,13 @@ const HarvestingTab = ({ children }: PropsWithChildren) => {
  */
 const HarvestingRunsTab = () => {
   const translate = useTranslate();
+  const { realtimeIsReady } = useHttpClientContext();
   return (
     <HarvestingTab>
       <ServiceRelatedTab
         resource="HarvestingJob"
         realtime
-        refetchInterval={20000}
+        refetchInterval={realtimeIsReady === ReadyState.OPEN ? false : 20000}
         defaultSelectedColumns={["id", "phase", "progress", "dateCreated", "doneAt"]}
         updateFieldDefinitions={[
           {

@@ -24,6 +24,7 @@ import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
+import MrMapLoginPage from './Layout/LoginPage';
 import LoadingOpenApi from './Loading/LoadingOpenApi';
 import MapViewer from './MapViewer/MapViewer';
 import PortalSearch from './PortalSearch/PortalSearch';
@@ -138,6 +139,7 @@ const MrMapFrontend = (): ReactElement => {
         dataProvider={dataProvider}
         authProvider={authProvider}
         i18nProvider={i18nProvider}
+        loginPage={MrMapLoginPage}
         dashboard={Dashboard}
         layout={MyLayout}
         store={store}

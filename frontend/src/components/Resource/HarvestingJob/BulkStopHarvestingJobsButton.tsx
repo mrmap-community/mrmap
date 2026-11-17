@@ -4,7 +4,6 @@ import {
   Button,
   useListContext,
   useNotify,
-  useRefresh,
   useResourceDefinition,
   useTranslate,
   useUnselect,
@@ -31,7 +30,6 @@ const BulkStopHarvestingJobsButton = () => {
   const { hasEdit } = useResourceDefinition({ resource: "HarvestingJob" });
   const translate = useTranslate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const unselect = useUnselect("HarvestingJob");
   const [update] = useUpdate();
   const [open, setOpen] = useState(false);
@@ -74,7 +72,6 @@ const BulkStopHarvestingJobsButton = () => {
     });
     setSaving(false);
     unselect(stopped);
-    refresh();
     if (stopped.length) {
       notify("harvestRun.list.bulkStopped", {
         type: refused.length ? "warning" : "info",

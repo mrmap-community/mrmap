@@ -1,5 +1,4 @@
 import { CreateResult, GetListResult, GetManyResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
-import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
 
 import axios, { AxiosError } from 'axios';
 import jsonpointer from 'jsonpointer';
@@ -74,11 +73,17 @@ export interface CreateJsonApiParams extends CreateParams {
   }
 }
 
+/** The socket surface a realtime bus must offer this provider. Owns the
+ * declaration instead of deep-importing `react-use-websocket/dist/lib/types`
+ * (#1466): that path is internal to the package, and the provider only ever
+ * reads `readyState`, sends frames and attaches `onmessage` on it. */
+export type RealtimeBus = Pick<WebSocket, 'readyState' | 'send' | 'onmessage'>
+
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
   systemTime?: string
-  realtimeBus?: WebSocketLike
+  realtimeBus?: RealtimeBus
 }
 
 // 'delete' is what the backend's post_delete signal puts into the event, the

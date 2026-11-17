@@ -44,6 +44,13 @@ vi.mock('react-admin', async importOriginal => {
       hasShow: false,
       options: definition.options,
     }),
+    // #833: the changelog aside mounts on this check's answer; bare renders
+    // have no QueryClient for the real hook, and these specs assert the
+    // aside itself, so the check answers granted for what it is asked
+    useCanAccessResources: ({ resources }: { resources: string[] }) => ({
+      isPending: false,
+      canAccess: Object.fromEntries(resources.map((resource) => [resource, true])),
+    }),
     useSidebarState: () => [false],
     useStore: () => [[], vi.fn()],
   }

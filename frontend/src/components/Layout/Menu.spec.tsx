@@ -176,7 +176,7 @@ describe("menu entries gated by canAccess", () => {
     ];
     render(<CustomMenu />);
 
-    expect(screen.getByText("WebMapService")).toBeInTheDocument();
+    expect(screen.getByText("Web Map Services")).toBeInTheDocument();
     expect(screen.queryByText("Layer")).not.toBeInTheDocument();
     expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
     expect(screen.queryByText("MapViewer")).not.toBeInTheDocument();

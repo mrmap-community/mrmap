@@ -52,6 +52,48 @@ class MonitoringRunQuerySet(models.QuerySet):
         return queryset.annotate(success=~failing)
 
 
+class ProbeQuerySet(models.QuerySet):
+    """QuerySet for all `Probe` models."""
+
+    def for_probe_execution(self):
+        """Read plan of the ``run_probe_check`` task for one probe.
+
+        The task executes the probe of the given pk; its body reads the
+        probe's own columns, its ``setting`` and the setting's ``service``,
+        because the service's client is what the probe request is built on
+        and sent through — and building that session reads the service's
+        optional ``auth`` row. All of it rides the by-pk fetch (#1393, cf.
+        the monitoring family of ``celery-task-orm-audit``).
+
+        The ``layers`` M2M of a GetMap probe is deliberately not prefetched:
+        its rows are only needed inside ``build_request``, which reads them
+        once through its own scoped CTE plan — a separate worker executing
+        one probe has no use for a wider parent read.
+
+        Cardinality: 1 row (the task selects one probe by pk). Every concrete
+        probe model resolves the join against its own ``setting`` relation,
+        the base model has no ``setting`` field and answers none; the
+        service's ``auth`` is the optional reverse side of a OneToOne, so it
+        left-joins and keeps raising ``ObjectDoesNotExist`` for a service
+        without stored credentials.
+        """
+        return self.select_related("setting__service__auth")
+
+
+class ProbeManager(models.Manager):
+    """Manager for all `Probe` models, which provide the task-specific read
+    plan of the probe execution.
+    """
+
+    def get_queryset(self):
+        return ProbeQuerySet(self.model, using=self._db)
+
+    def for_probe_execution(self):
+        """Queryset of this model's probes with the read plan of the probe
+        execution task (see `ProbeQuerySet.for_probe_execution`)."""
+        return self.get_queryset().for_probe_execution()
+
+
 class MonitoringRunManager(models.Manager):
     """Manager for all `MonitoringRun` models, which provide the annotated
     queries for the success state of the runs.

@@ -50,6 +50,7 @@ From the repository root, on the prebuilt dependency image (see
       django-tests python manage.py test \
       tests.django.registry.tasks.tests_sql_guard_contract \
       tests.django.registry.tasks.tests_task_sql_monitoring \
+      tests.django.registry.tasks.tests_task_sql_update \
       tests.django.registry.tasks.tests_task_sql_harvesting \
       tests.django.registry.tasks.tests_conformity_tasks \
       tests.django.registry.tests_task_sql_alert_refresh \
@@ -144,24 +145,31 @@ assertion was not tightened with it - that is the intent.
      - #1392
    * - monitoring (``run_probe_check``, artifact purge)
      - ``registry/tasks/tests_task_sql_monitoring.py``
-     - probe fetch is the bare by-pk SELECT today (**red**: the lazy
-       ``setting.service`` chain, #1393 carries the FK chain in the fetch);
-       the layers relation is read three times per GetMap probe - two scoped
-       CTE reads plus the plain identifiers read (**red**, #1393 reads
-       once); one result INSERT, one capped progress UPDATE, at most one
-       probe-row write (green); artifact purge: SELECTs constant per result
-       model plus one sliced read per page, and one batched write per page of
-       500 expired rows - shipped with #1394 (green) - and rows keep every
+     - the by-pk probe fetch carries the ``setting__service__auth`` chain in
+       its single SELECT via ``Probe.for_probe_execution()`` and ``layers``
+       is read exactly once per GetMap probe (green since #1393 - both were
+       the documented red baselines, tightened in the PR that moved the
+       plan); one result INSERT, one capped progress UPDATE, no probe-row
+       write (green); artifact purge: SELECTs constant per result model
+       plus one sliced read per page, and one batched write per page of 500
+       expired rows - shipped with #1394 (green) - and rows keep every
        column but ``response_body`` (green)
      - #1393; the purge shipped with #1394
    * - update jobs
-     - not pinned here - see the note below
-     - the checklist item "at least two distinct ``update_config`` fixtures"
-         needs the ``for_update_diff()`` plan first: asserting the current
-         broad read as a baseline would pin the very shape #1393 replaces,
-         and the PR that introduces the scoped plan is where the
-         config-dependent guard belongs
-     - #1392/#1393
+     - ``registry/tasks/tests_task_sql_update.py``
+     - the ``old_service``/``new_service`` plan is config-driven: a narrow
+       config costs the service row plus the layer rows - two reads - and a
+       wide config costs exactly its two configured service relation reads
+       more; no element relation ever rides the service plan (green,
+       #1393); the apply phase of a WMS update over 1/10/100 confirmed
+       layer pairs, and of a WFS update over mapped feature-type pairs,
+       costs one statement per pair and no more - the per-pair one is the
+       history-attribution by-pk service read of every deleted candidate
+       element (predates #1393, named by fingerprint in the guard), and
+       each configured element relation is one IN read per side on the
+       mapping rows (green, #1393; two distinct ``update_config``
+       fixtures per service kind drive the shape)
+     - #1393
    * - alert refresh
      - ``registry/tests_task_sql_alert_refresh.py``
      - one annotation SELECT per kind, never per service (green - the
@@ -304,9 +312,6 @@ guessing:
 Not covered here, and why
 ##########################
 
-- The **update jobs** family: its checklist item is two configs with
-  different scopes, which only becomes assertable once ``for_update_diff()``
-  exists; the PR introducing it carries the guard (see the matrix row).
 - **conformity**: #1394 established that no first-party code dispatches the
   family and that its tasks read the abstract run base, which has no table -
   a query guard would measure a dead path, so the family page carries a

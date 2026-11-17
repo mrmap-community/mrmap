@@ -20,11 +20,13 @@ groups an organization administers and - in ``registry`` - the services.
 from accounts.models.groups import Organization
 from django.contrib.auth.models import Group
 from django.db import models
+from extras.models import GrantMetadataMixin
 
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 
 
-class OrganizationUserObjectPermission(UserObjectPermissionBase):
+class OrganizationUserObjectPermission(GrantMetadataMixin,
+                                       UserObjectPermissionBase):
     # an Organization is a Group, so the reverse accessor of the base class'
     # "user"/"group" key and the one of this key would land on the same model
     # under the same name (fields.E304)
@@ -32,11 +34,21 @@ class OrganizationUserObjectPermission(UserObjectPermissionBase):
         to=Organization, on_delete=models.CASCADE,
         related_name="user_object_permissions")
 
+    # the grant metadata mixin carries a Meta of its own; the concrete table
+    # names the guardian base Meta explicitly, or its unique_together - the
+    # one constraint that keeps a grant row single - would silently vanish
+    class Meta(UserObjectPermissionBase.Meta):
+        pass
 
-class OrganizationGroupObjectPermission(GroupObjectPermissionBase):
+
+class OrganizationGroupObjectPermission(GrantMetadataMixin,
+                                        GroupObjectPermissionBase):
     content_object = models.ForeignKey(
         to=Organization, on_delete=models.CASCADE,
         related_name="group_object_permissions")
+
+    class Meta(GroupObjectPermissionBase.Meta):
+        pass
 
 
 class GroupUserObjectPermission(UserObjectPermissionBase):

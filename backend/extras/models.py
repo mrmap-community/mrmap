@@ -1,8 +1,11 @@
+from django.conf import settings
+from django.db.models import ForeignKey, SET_NULL
 from django.db.models import Model
 from django.db.models.expressions import F, Func
-from django.db.models.fields import (DateField, IntegerField,
+from django.db.models.fields import (DateField, DateTimeField, IntegerField,
                                      PositiveSmallIntegerField)
 from django.db.models.fields.generated import GeneratedField
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -129,3 +132,56 @@ class ChoiceModel(Model):
     def get_label(self):
         choices = getattr(self, "CHOICES", [])
         return dict(choices).get(self.value, _("Unknown"))
+
+
+class GrantMetadataMixin(Model):
+    """Who wrote this object grant, and when (#740).
+
+    Guardian keeps one row per object permission; a deployment which must
+    answer "who granted what to whom" (#741) needs the decision next to the
+    grant rather than in a second store which could disagree with it. The
+    through-models of django-guardian are our own concrete subclasses
+    (``accounts/models/guardian.py``, ``registry/models/guardian.py`` - the
+    performance tables of #735), so the two columns live here and every
+    concrete grant table gains them together.
+
+    ``granted_by`` is the person the write is credited to. ``NULL`` is a
+    meaningful answer, not a gap: the creation bootstrap of
+    ``accounts.signals`` and the migrations of the role work write grants as
+    a mechanical consequence of a creation, where no separate decision
+    exists. Only paths which *are* a decision - a share of #740, an accepted
+    ``PublishRequest`` - name one.
+
+    ``created_at`` is written on every row, including bootstrap rows: when a
+    grant appeared is a fact also of the grants nobody personally decided.
+
+    One trap for the concrete classes: this mixin brings a ``Meta`` into the
+    MRO, and Django takes the options of the FIRST base that has one - the
+    guardian base's ``unique_together`` would silently drop out of the model
+    state (and the next ``makemigrations`` would drop the constraint). Every
+    concrete class therefore names its guardian base Meta explicitly:
+    ``class Meta(UserObjectPermissionBase.Meta): pass``.
+    """
+
+    granted_by = ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=SET_NULL,
+        # the user-table accessor would collide with the through-model's own
+        # "user" key (fields.E304); per-class names keep both readable
+        related_name="%(class)s_granted_object_grants",
+        verbose_name=_("granted by"),
+        help_text=_(
+            "the user who wrote this grant; empty for a grant the creation "
+            "bootstrap or a migration wrote, where no person decided"),
+    )
+    created_at = DateTimeField(
+        default=timezone.now,
+        editable=False,
+        verbose_name=_("created at"),
+        help_text=_("when this grant row was written"),
+    )
+
+    class Meta:
+        abstract = True

@@ -51,13 +51,14 @@ From the repository root, on the prebuilt dependency image (see
       tests.django.registry.tasks.tests_sql_guard_contract \
       tests.django.registry.tasks.tests_task_sql_monitoring \
       tests.django.registry.tasks.tests_task_sql_harvesting \
+      tests.django.registry.tasks.tests_conformity_tasks \
       tests.django.registry.tests_task_sql_alert_refresh \
       tests.django.system.test_task_sql_guards \
       tests.django.notify.test_task_sql_guards \
       tests.django.test_task_sql_singleton_fire \
       --noinput --keepdb
 
-The five family modules plus the contract and the singleton seam run as one
+The family modules plus the contract and the singleton seam run as one
 suite in seconds once the stack is up (``--keepdb`` reuses the created test
 database; drop the flag after changing models or migrations). Each module is
 runnable on its own with the same command and one label.
@@ -149,9 +150,10 @@ assertion was not tightened with it - that is the intent.
        CTE reads plus the plain identifiers read (**red**, #1393 reads
        once); one result INSERT, one capped progress UPDATE, at most one
        probe-row write (green); artifact purge: SELECTs constant per result
-       model while UPDATEs stand one per expired row (**red**, #1394
-       batches) - and rows keep every column but ``response_body`` (green)
-     - #1393, #1394
+       model plus one sliced read per page, and one batched write per page of
+       500 expired rows - shipped with #1394 (green) - and rows keep every
+       column but ``response_body`` (green)
+     - #1393; the purge shipped with #1394
    * - update jobs
      - not pinned here - see the note below
      - the checklist item "at least two distinct ``update_config`` fixtures"
@@ -163,17 +165,20 @@ assertion was not tightened with it - that is the intent.
    * - alert refresh
      - ``registry/tests_task_sql_alert_refresh.py``
      - one annotation SELECT per kind, never per service (green - the
-       #1030 design); the per-service ``storage.exists()`` probe of stored
-       capability backups is captured as the linear shape it is (**red**,
-       #1394 lists per-prefix instead); an open alert keeps its identity
-       across refreshes (green, #1319/#1030)
+       #1030 design); the storage probes for stored capability backups are
+       answered by one listing per named document prefix instead of one
+       probe per flagged record, shipped with #1394 (green); an open alert
+       keeps its identity across refreshes (green, #1319/#1030)
      - #1394
    * - conformity checks
-     - not pinned
-     - the audit's own conclusion: "not enough evidence" - #1394 must first
-       establish whether the family is still wired before any guard is
-       worth its runtime
-     - #1394
+     - ``registry/tasks/tests_conformity_tasks.py``
+     - liveness, not queries: the ``self.task``/``self.job`` result-backend
+       seam is gone from the module and a source guard keeps it out (green,
+       shipped with #1394); no first-party code dispatches the family, and
+       the tasks' base-model fetch could never answer - the family is dead
+       code pending its owners' keep-or-remove decision, so no query guard
+       would have anything to regress
+     - #1394 (verdict), #1393 at most
    * - security log analysis
      - not pinned
      - already optimal as an ORM plan per the audit; its volume question is
@@ -195,8 +200,9 @@ assertion was not tightened with it - that is the intent.
      - the abandon loop grows per PAGE of 500, not per row; the retention
        DELETE is one statement; the hard cap costs the same whatever the
        excess; no sweep writes per attempt (green); the ``recorded_at``
-       index candidate is the audit's, asserted where it lands
-     - #1394
+       index landed with #1394 (``attempt_recorded_idx``) and the retention
+       delete's plan is asserted against it (green)
+     - #1394 (index shipped)
    * - the singleton seam every task pays
      - ``test_task_sql_singleton_fire.py``
      - an acquired fire costs exactly ``pg_try_advisory_lock`` +
@@ -301,10 +307,12 @@ Not covered here, and why
 - The **update jobs** family: its checklist item is two configs with
   different scopes, which only becomes assertable once ``for_update_diff()``
   exists; the PR introducing it carries the guard (see the matrix row).
-- **conformity** and **security-log-analysis**: the audit withheld a verdict
-  on the first and called the second already optimal; a guard would either
-  test a possibly dead code path or re-assert a conclusion that has nothing
-  to regress.
+- **conformity**: #1394 established that no first-party code dispatches the
+  family and that its tasks read the abstract run base, which has no table -
+  a query guard would measure a dead path, so the family page carries a
+  liveness guard instead. **security-log-analysis**: already optimal per the
+  audit; a count guard would re-assert a conclusion that has nothing to
+  regress.
 - **Runtime behavior of any kind** - durations, backpressure, queue drain:
   #1396 owns it, and the singleton guard above is deliberately the pin which
   keeps its drift tables out of the lock seam.

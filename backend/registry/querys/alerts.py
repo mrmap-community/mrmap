@@ -28,7 +28,10 @@ A state is always decided by the newest run or job of a service, because the
 attention of a service is the state it is in *now*: a service whose failing run
 was followed by a passing one does not need attention any more.
 """
+import os
+
 from camel_converter import to_camel
+from django.core.files.storage import FileSystemStorage
 from django.db import transaction
 from django.db.models import (BooleanField, Case, CharField, Exists,
                               ExpressionWrapper, F, IntegerField, OuterRef, Q,
@@ -58,6 +61,10 @@ ABORTED_PHASE = HarvestingPhaseEnum.ABORTED.value
 
 #: the kind of a harvesting log which names records a page did not deliver
 SHORT_PAGE_KIND = LogKindEnum.COUNT_MISSMATCH.value
+
+#: rows per statement of the refresh write: a deployment-wide alert set is
+#: written by bounded statements, never one monster statement (#1394)
+ALERT_ROWS_BATCH_SIZE = 500
 
 #: the attributes which answer the attention of every kind of service. The
 #: attributes which end in `_run` and `_job` answer *which* run or job decided
@@ -595,7 +602,10 @@ def refresh_service_alerts():
     rows += [ServiceAlert(**row) for row in missing_capabilities_rows()]
     with transaction.atomic():
         ServiceAlert.objects.all().delete()
-        ServiceAlert.objects.bulk_create(rows)
+        # a deployment-wide alert set must not become one statement; the
+        # full-replace semantics of the transaction stay untouched (#1394)
+        ServiceAlert.objects.bulk_create(
+            rows, batch_size=ALERT_ROWS_BATCH_SIZE)
     return len(rows)
 
 
@@ -676,35 +686,140 @@ def missing_capabilities_rows():
     the answer as a candidate - and the row exists only while the storage
     misses the file: the refresh after a restoration leaves no row behind.
 
+    The question "does the storage hold this name" is asked once per named
+    *prefix* rather than once per service: the refresh runs on every beat
+    interval and on every invalidation, so a deployment with thousands of
+    services would otherwise pay thousands of storage probes per fire - the
+    dominant cost of the refresh per the audit of #1388 (#1394).
+
     Returns:
         list: the alert row of every active service naming a document the
             storage does not hold, of every kind of service
     """
-    rows = []
+    # the candidates of every kind are collected first because the storage
+    # answers whole prefixes at once: one batch of names per storage, not
+    # one probe per service (#1394)
+    candidates = []
     for model in SERVICE_KIND_OF:
         # candidates are never alerted of their own storage state - they
         # wait for the decision about the service they hang below, which is
         # the same rule `alert_branch()` answers for the annotations
         services = model.objects.filter(
             update_candidate_of__isnull=True).exclude(xml_backup_file='')
-        for service in services:
-            document = service.xml_backup_file
-            if document.storage.exists(document.name):
-                continue
-            rows.append(service_alert(
-                service, 'capabilities_backup_missing', 'error', None,
-                model.__name__ + 'UpdateSetting',
-                # the message names what is missing and how it comes back -
-                # the same answer the integrity error of the read gives
-                message=_(
-                    'The %(type)s service %(pk)s names the capabilities '
-                    'document "%(path)s" which the storage does not hold: '
-                    'restore the original document on the storage or run '
-                    'the update workflow of the service, which fetches the '
-                    'document from the remote and stages it as a candidate.') % {
-                        'type': service.service_type,
-                        'pk': service.pk, 'path': document.name}))
+        candidates.extend((model, service) for service in services)
+
+    names_by_storage = {}
+    for _model, service in candidates:
+        document = service.xml_backup_file
+        names_by_storage.setdefault(document.storage, set()).add(
+            document.name)
+    missing = set()
+    for storage, names in names_by_storage.items():
+        missing |= _missing_document_names(storage, names)
+
+    rows = []
+    for model, service in candidates:
+        document = service.xml_backup_file
+        if document.name not in missing:
+            continue
+        rows.append(service_alert(
+            service, 'capabilities_backup_missing', 'error', None,
+            model.__name__ + 'UpdateSetting',
+            # the message names what is missing and how it comes back -
+            # the same answer the integrity error of the read gives
+            message=_(
+                'The %(type)s service %(pk)s names the capabilities '
+                'document "%(path)s" which the storage does not hold: '
+                'restore the original document on the storage or run '
+                'the update workflow of the service, which fetches the '
+                'document from the remote and stages it as a candidate.') % {
+                    'type': service.service_type,
+                    'pk': service.pk, 'path': document.name}))
     return rows
+
+
+def _missing_document_names(storage, names):
+    """The names ``storage`` does not hold, answered with few round trips.
+
+    The storage is no table the refresh could join, but a filesystem storage
+    answers a whole *prefix* at once: the named documents live below their
+    top-level directory, so listing that prefix once answers every name
+    below it, where ``exists()`` pays one probe per name (#1394). A storage
+    which cannot be walked - any remote backend - keeps the per-name probe:
+    listing a whole bucket would trade a bounded probe for an unbounded
+    read, which is not the deal #1397 asks for.
+
+    Args:
+        storage: the storage behind the ``xml_backup_file`` field
+        names: the distinct names the services of this refresh name
+
+    Returns:
+        set: the names the storage does not hold
+    """
+    walkable = isinstance(storage, FileSystemStorage)
+    prefixes = {}
+    for name in names:
+        # one level of listing answers the whole prefix; a name without a
+        # prefix (or a suspicious one) stays with the per-name probe
+        head, sep, rest = name.partition('/') if name else ('', '', '')
+        if (walkable and sep and rest and head and head != '..'
+                and head != '.'):
+            prefixes.setdefault(head, []).append(name)
+        else:
+            prefixes.setdefault(None, []).append(name)
+
+    missing = set()
+    for prefix, group in prefixes.items():
+        present = (_listed_names_below(storage, prefix)
+                   if prefix is not None else None)
+        if present is None:
+            # no prefix is walkable - or the listing failed; the per-name
+            # probe answers the rest, exactly as the refresh did before
+            missing.update(name for name in group
+                           if not _storage_holds(storage, name))
+        else:
+            missing.update(name for name in group if name not in present)
+    return missing
+
+
+def _listed_names_below(storage, prefix):
+    """Every file name below ``prefix`` of a filesystem storage, or None.
+
+    One recursive listing of one directory of the media root; None answers
+    that the prefix could not be listed at all, which sends its names back
+    to the per-name probe.
+
+    Args:
+        storage: a ``FileSystemStorage`` (the caller has just answered that)
+        prefix: the single path segment every listed name starts with
+
+    Returns:
+        set: the storage-relative names of the files below the prefix, or None
+    """
+    location = storage.location
+    found = set()
+    try:
+        for dirpath, _dirnames, filenames in os.walk(
+                os.path.join(location, prefix)):
+            for filename in filenames:
+                found.add(os.path.relpath(
+                    os.path.join(dirpath, filename),
+                    location).replace(os.sep, '/'))
+    except OSError:
+        # an unreadable media root is decided by the probe which answers a
+        # name at a time - the same tolerance the command of #1150 shows
+        return None
+    return found
+
+
+def _storage_holds(storage, name):
+    """Whether the storage answers that it holds ``name``; a storage which
+    cannot answer the question (a name it rejects, a backend which fails)
+    does not hold it, like the check of the command of #1150."""
+    try:
+        return storage.exists(name)
+    except (OSError, ValueError):
+        return False
 
 
 def service_alert(service, category, severity, occurred_at, target, source=None,

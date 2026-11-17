@@ -40,6 +40,13 @@ else
   NOTE "no node on PATH - playwright/postgres MCP servers will not start on this host"
 fi
 
+# ----------------------------------------------------------------- gh check
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  NOTE "gh CLI authenticated - github MCP server (Docker) will work on this host"
+else
+  NOTE "gh CLI missing or unauthenticated - github MCP server will not start (fix: install gh, then 'gh auth login')"
+fi
+
 # ---------------------------------------------------------------- 1. orm-lens
 if [ ! -x "$VENV/bin/orm-lens-mcp" ]; then
   NOTE "installing orm-lens into $VENV"

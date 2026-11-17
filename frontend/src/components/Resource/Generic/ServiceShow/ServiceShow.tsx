@@ -3,6 +3,7 @@ import {
   BasenameContextProvider,
   Show,
   TabbedShowLayout,
+  useCanAccessResources,
   useLocation,
   useRecordContext,
   useResourceContext,
@@ -14,6 +15,7 @@ import { Badge, Stack } from "@mui/material";
 
 import { useHttpClientContext } from "../../../../context/HttpClientContext";
 import useResourceSchema from "../../../../jsonapi/hooks/useResourceSchema";
+import { PUBLIC_READ_RESOURCES } from "../../../../providers/permissions";
 import { createElementIfDefined } from "../../../../utils";
 import ServiceShowTabs from "./ServiceShowTabs";
 
@@ -21,6 +23,12 @@ export interface ServiceTab {
   path: string;
   label: string;
   resource?: string;
+  /**
+   * The `canAccess` action the tab is opened with - `list` (the default) for
+   * a tab reading a collection, `edit` for a tab that changes the service.
+   * #833: an anonymous visitor is only shown the tabs its check grants.
+   */
+  action?: "list" | "edit";
   countSource?: string;
   icon?: ReactElement;
   operation?: string;
@@ -58,13 +66,44 @@ export default function ServiceShow({ tabs }: Readonly<{ tabs: ServiceTab[] }>) 
   const include = includeAbleResources?.includes("operationUrls")
     ? "operationUrls"
     : undefined;
-  const visibleTabs = tabs.filter(
+  const operationTabs = tabs.filter(
     (tab) => !tab.operation || api?.getOperation(tab.operation),
   );
-  
+  // #833: every tab reads a collection of its own, so the tab is only open
+  // to a visitor whose `canAccess` answers for it - for an anonymous one that
+  // leaves the tabs of the published service itself and hides the management
+  // tabs of alerts, settings, monitoring and the editor. A tab naming no
+  // resource names a collection of its own nowhere and stays as it was.
+  const tabResources = (action: "list" | "edit") =>
+    [
+      ...new Set(
+        operationTabs
+          .filter((tab) => tab.resource && (tab.action ?? "list") === action)
+          .map((tab) => tab.resource!),
+      ),
+    ];
+  const listAccess = useCanAccessResources({
+    action: "list",
+    resources: tabResources("list"),
+  });
+  const editAccess = useCanAccessResources({
+    action: "edit",
+    resources: tabResources("edit"),
+  });
+  const visibleTabs = operationTabs.filter(
+    (tab) =>
+      !tab.resource ||
+      (tab.action === "edit" ? editAccess : listAccess).canAccess?.[
+        tab.resource
+      ] === true,
+  );
+
   return (
     <Show
       actions={false}
+      disableAuthentication={
+        resource !== undefined && PUBLIC_READ_RESOURCES.has(resource)
+      }
       queryOptions={{ meta: { jsonApiParams: include ? { include } : {} } }}
     >
       <TabbedShowLayout tabs={<ServiceShowTabs />}>

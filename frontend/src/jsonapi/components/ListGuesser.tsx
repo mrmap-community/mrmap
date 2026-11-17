@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, useTranslate, WrapperField } from 'react-admin'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useCanAccessResources, useResourceDefinition, useSidebarState, useStore, useTranslate, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 import { Box, Stack } from '@mui/material'
@@ -169,9 +169,19 @@ const ListGuesserContent = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   // the changelog of the records is the aside every screen of a resource with a historical endpoint
-  // shows, so an aside the resource definition names is shown above it instead of replacing it
+  // shows, so an aside the resource definition names is shown above it instead of replacing it.
+  // #833: the changelog is private even beside a public screen, so it only mounts when
+  // `canAccess` grants the historical resource - an anonymous visitor of a published
+  // service sees its rows and nothing of who changed them.
+  const historyResource = hasHistoricalEndpoint && name !== undefined ? `Historical${name}` : undefined
+  const { canAccess: historyAccess } = useCanAccessResources({
+    action: "list",
+    resources: historyResource !== undefined ? [historyResource] : [],
+  })
+  const showHistory = historyResource !== undefined
+    && historyAccess?.[historyResource] === true
   const aside = useMemo(() => {
-    const history = hasHistoricalEndpoint ? (
+    const history = showHistory && historyResource !== undefined ? (
       <AsideCard
         sx={{
           margin: '1em',
@@ -186,7 +196,7 @@ const ListGuesserContent = ({
         <HistoryList
           key={selectedRecord?.id ?? "all"}
           variant="compact"
-          resource={`Historical${name ?? ''}`}
+          resource={historyResource}
           related={name ?? ''}
         />
       </AsideCard>
@@ -196,7 +206,7 @@ const ListGuesserContent = ({
     return history === undefined
       ? chosen
       : <Stack spacing={2} sx={{ margin: '1em', width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})` }}>{chosen}{history}</Stack>
-  }, [hasHistoricalEndpoint, listOptions?.aside, open, selectedRecord?.id, name])
+  }, [showHistory, historyResource, listOptions?.aside, open, selectedRecord?.id, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
   const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey

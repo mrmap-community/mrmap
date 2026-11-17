@@ -37,6 +37,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("react-admin", () => ({
+  useAuthState: () => ({ authenticated: true }),
   useDataProvider: () => ({
     subscribe: (topic: string, handler: Handler) => {
       const handlers = state.subscriptions.get(topic) ?? new Set();

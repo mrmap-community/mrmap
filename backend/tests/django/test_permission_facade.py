@@ -79,6 +79,13 @@ class FacadeTestCaseMixin:
         # it to create the roles.
         from django.core.management import call_command
         call_command("sync_role_definitions", verbosity=0)
+        # guardian maps an AnonymousUser to the database row of that name,
+        # which post_migrate created - a TransactionTestCase running earlier
+        # in the same full-suite process has flushed all tables and the
+        # deferred creation of that flush never fires, so the anonymous
+        # probes below re-create the row, as backend/tests/AGENTS.md
+        # prescribes for every test asserting anonymous access
+        get_user_model().objects.get_or_create(username="AnonymousUser")
         self.organization_a = Organization.objects.create(name="Facade Org A")
         self.organization_b = Organization.objects.create(name="Facade Org B")
         self.template = WebMapService.objects.get(pk=TEMPLATE_WMS)

@@ -51,6 +51,7 @@ from registry.serializers.service import (
     WebFeatureServiceCreateSerializer, WebFeatureServiceSerializer,
     WebMapServiceCreateSerializer, WebMapServiceListSerializer,
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
+from registry.views.shares import ServiceShareViewSetMixin
 from registry.tasks.service import build_ogc_service
 from registry.helper.preview import PreviewError, feature_preview_image, preview
 from rest_framework_json_api.views import ModelViewSet
@@ -231,7 +232,10 @@ class PreviewImageRenderer(JSONRenderer):
         return super().render(data, accepted_media_type, renderer_context)
 
 
-@extend_schema_view(preview=extend_schema(operation_id="preview_WebMapService"))
+@extend_schema_view(
+    preview=extend_schema(operation_id="preview_WebMapService"),
+    share=extend_schema(operation_id="share_WebMapService"),
+    revoke_share=extend_schema(operation_id="revoke_share_WebMapService"))
 class WebMapServiceViewSet(
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
@@ -242,6 +246,7 @@ class WebMapServiceViewSet(
     ExtendedPreloadIncludesMixin,
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
+    ServiceShareViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebMapService`
@@ -568,7 +573,10 @@ class NestedWebMapServiceOperationUrlViewSet(
     """
 
 
-@extend_schema_view(preview=extend_schema(operation_id="preview_WebFeatureService"))
+@extend_schema_view(
+    preview=extend_schema(operation_id="preview_WebFeatureService"),
+    share=extend_schema(operation_id="share_WebFeatureService"),
+    revoke_share=extend_schema(operation_id="revoke_share_WebFeatureService"))
 class WebFeatureServiceViewSet(
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
@@ -578,6 +586,7 @@ class WebFeatureServiceViewSet(
     ObjectPermissionCheckerViewSetMixin,
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
+    ServiceShareViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebFeatureService`

@@ -49,7 +49,7 @@ Hooks can be bypassed, so they do not replace required CI checks.
 Checks run on a temporary export of the index or the actual pushed tree, including when a ref
 other than the checked-out branch is pushed. Partially staged edits and working files are left
 untouched. Existing remote refs are compared with the remote object Git supplies. A new ref uses
-the merge base with the fetched remote default branch (or ``<remote>/master``); without that
+the merge base with the fetched remote default branch (or ``<remote>/develop``); without that
 baseline, its entire tree is checked. Fetch the remote if a comparison object is missing.
 Deleted remote refs need no checks. Each updated ref is checked separately.
 
@@ -101,7 +101,7 @@ updates and remote ref deletions need no scan. Uninstalling the managed hooks cl
 The presence of ``SONAR_TOKEN`` also enables scanning without the persisted requirement.
 
 The defaults are organization ``mrmap-community``, project ``mrmap-community_mrmap`` and target
-branch ``master``. Set ``SONAR_ORGANIZATION``, ``SONAR_PROJECT_KEY`` or ``SONAR_TARGET_BRANCH`` in
+branch ``develop``. Set ``SONAR_ORGANIZATION``, ``SONAR_PROJECT_KEY`` or ``SONAR_TARGET_BRANCH`` in
 the launcher if those differ. These identifiers are public; the token stays in the environment
 and is never saved by the hooks. Setup does not create a token or change project permissions.
 

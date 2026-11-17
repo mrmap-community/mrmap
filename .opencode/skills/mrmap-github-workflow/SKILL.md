@@ -25,7 +25,7 @@ whether an action needs a human.
   or merging (no merge over a live claim). `gh` unauthenticated → say so once and continue
   (root `AGENTS.md`).
 - Branches: `<type>/<short-topic>`; worktrees `git worktree add <dir> -b <type>/issue-<N>-<topic>
-  origin/master` after `git fetch origin`; **no merging `origin/master` into a branch** before the
+  origin/develop` after `git fetch origin`; **no merging `origin/develop` into a branch** before the
   PR (the merge queue tests integration); never force-push/rebase a branch open for review;
   commit messages are short lowercase summaries ("fixes …") (root `AGENTS.md`).
 - A pull request relates to an accepted issue or it is closed (`CONTRIBUTING.md`). Issues are
@@ -39,6 +39,12 @@ whether an action needs a human.
   merge (root `AGENTS.md`, `docs/source/development/decision-requests.rst`).
 - Orchestration is external (Agent Orchestrator); this repository runs no scheduler/daemon/CI
   watcher — do not reintroduce one (root `AGENTS.md`).
+
+
+- Always explicitly specify the PR base: `develop` or the designated epic
+  integration branch. Only the same repository's `develop` branch may target
+  `master`. Never delete, force-push or directly push to either permanent branch.
+- Use merge commits when synchronizing permanent branches.
 
 ## The pre-PR readiness loop (definition_of_done.rst + backend/AGENTS.md)
 

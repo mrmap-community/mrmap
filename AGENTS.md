@@ -59,7 +59,7 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
   removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
   stop reaching the browser.
-  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ master) still
+  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ develop) still
   has one leaf per app (`python3 scripts/migration_graph_smoke.py`; host Python plus the `git`
   CLI, no docker, no `gh`, no network, a fifth of a second). Two branches which each add a
   `0038` are green alone and red in the merge queue, because two leaf nodes of one app is what

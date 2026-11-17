@@ -60,9 +60,10 @@ describe("harvesting run actions", () => {
       expect.objectContaining({ id: 1, data: { phase: 4711 } }),
       expect.anything(),
     );
-    state.update.mock.calls[0][2].onSuccess();
-        // the mutation invalidates the queries of its own resource itself - a
-    // global refresh of every query is not wanted (#1464)
+    // the stop needs no onSuccess override of its own any more - the mutation
+    // invalidates the queries of its resource itself and a global refresh of
+    // every query is not wanted (#1464)
+    expect(state.update.mock.calls[0][2]).not.toHaveProperty("onSuccess");
     expect(state.refresh).not.toHaveBeenCalled();
   });
   it("restarts a terminated run with its existing configuration", () => {

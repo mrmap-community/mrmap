@@ -114,6 +114,82 @@ describe('JSON:API validation errors', () => {
   });
 });
 
+/**
+ * The nested create of the #737 administration screens: adding a member and
+ * assigning a role post into a related collection (`POST
+ * /organizations/{id}/members`, `POST /roles/{id}/memberships`), so the
+ * parent must reach the operation as its path parameter - the plain
+ * `create_User` route would create a user instead of adding one.
+ */
+describe('create into a related collection', () => {
+  const makeCreateProvider = () => {
+    const request = vi.fn().mockResolvedValue({ data: { data: { id: 'u9' } } });
+    const getAxiosConfigForOperation =
+      vi.fn<(operationId: string, args: unknown[]) => unknown>(() => ({}));
+    const getOperation = vi.fn(() => ({}));
+    const httpClient = {
+      getOperation,
+      getAxiosConfigForOperation,
+      axiosConfigDefaults: {},
+      client: { request, api: { getAxiosConfigForOperation } },
+    } as unknown as OpenAPIClientAxios;
+    return { provider: dataProvider({ httpClient }), request, getAxiosConfigForOperation, getOperation };
+  };
+
+  it('posts to the related collection named by the meta parent', async () => {
+    const { provider, getAxiosConfigForOperation } = makeCreateProvider();
+
+    await provider.create('User', {
+      data: { id: 'u9' },
+      meta: { relatedResource: { resource: 'Organization', id: 'o1' } },
+    });
+
+    const [operationId, args] = getAxiosConfigForOperation.mock.calls[0];
+    expect(operationId).toBe('create_related_User_of_Organization');
+    expect(args[0]).toEqual({ OrganizationId: 'o1' });
+    // the body is the user's resource identifier; the mocked capsulate is the identity
+    expect(args[1]).toEqual({ data: { id: 'u9' } });
+  });
+
+  it('names the role parent of a membership assign with its own path parameter', async () => {
+    const { provider, getAxiosConfigForOperation } = makeCreateProvider();
+
+    await provider.create('RoleMembership', {
+      data: { role: { id: 'r2' }, user: { id: 'u9' } },
+      meta: { relatedResource: { resource: 'Role', id: 'r2' } },
+    });
+
+    const [operationId, args] = getAxiosConfigForOperation.mock.calls[0];
+    expect(operationId).toBe('create_related_RoleMembership_of_Role');
+    expect(args[0]).toEqual({ RoleId: 'r2' });
+  });
+
+  it('keeps a create without meta on the plain operation', async () => {
+    const { provider, getAxiosConfigForOperation } = makeCreateProvider();
+
+    await provider.create('User', { data: { username: 'ada' } });
+
+    const [operationId, args] = getAxiosConfigForOperation.mock.calls[0];
+    expect(operationId).toBe('create_User');
+    expect(args[0]).toBeUndefined();
+  });
+
+  it('refuses to write without its parent instead of posting a malformed path', async () => {
+    const { provider, request, getOperation } = makeCreateProvider();
+
+    // the screens can hold an unresolved selection at runtime - the scope of
+    // #737 answers `undefined` until the caller's organizations arrived; the
+    // type names an id, so the runtime case has to be simulated here
+    await expect(provider.create('User', {
+      data: { id: 'u9' },
+      meta: { relatedResource: { resource: 'Organization', id: undefined } as never },
+    })).rejects.toThrow(/unresolved 'Organization' parent/);
+
+    expect(request).not.toHaveBeenCalled();
+    expect(getOperation).not.toHaveBeenCalled();
+  });
+});
+
 describe('realtime subscriptions', () => {
   // the transport contract of issue #1209: the backend only delivers to the
   // connections which subscribed to a topic (notify/consumers.py), so the

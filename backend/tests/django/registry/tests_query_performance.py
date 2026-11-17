@@ -371,14 +371,18 @@ class IncludedServiceQueryPerformance(QueryMeasurementMixin, TestCase):
     def test_include_of_service_adds_a_fixed_number_of_queries(self):
         """An included service costs a fixed number of queries per service.
 
-        The measured twelve are the relations the serializer of the service
+        The measured thirteen are the relations the serializer of the service
         answers: its keywords, languages, layers, operation urls, allowed
         operations, proxy setting, monitoring and update settings, its contacts,
-        its history for ``createdAt`` and ``lastModifiedAt`` and the object
-        permissions of the two services of the fixture.
+        its history for ``createdAt`` and ``lastModifiedAt``, the object
+        permissions of the two services of the fixture and - since the facade
+        of #734 - the one role-membership query the permission hint asks per
+        request. It is memoized on the request's checker, so it stays one
+        query however many services are included; the per-row growth this test
+        guards against is exactly what it is not.
         """
         self.assertIncludeAddsAtMost(
-            12, 'service', '/api/registry/layers')
+            13, 'service', '/api/registry/layers')
 
 
 class CatalogueServiceQueryPerformance(QueryMeasurementMixin, TestCase):

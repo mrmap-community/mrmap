@@ -16,6 +16,13 @@
  * network call, every way this file knows to end or invalidate the session
  * drops that snapshot, and react-admin's own route guard uses the answers to
  * turn a deep link into its standard access-denied state.
+ *
+ * The last suite pins what #737 sits on top of: the role ids `who-am-i`
+ * carries become definition slugs through the two role API reads of #736
+ * before the snapshot is handed out, an unanswered role API degrades to the
+ * superuser flag alone, and the `getPermissionSnapshot`/`invalidate` seam the
+ * administration screens use answers the cached snapshot and re-asks after
+ * the caller revoked their own role.
  */
 import { AdminContext, TestMemoryRouter, useLogout, useRequireAccess } from 'react-admin';
 import type { DataProvider } from 'react-admin';
@@ -23,7 +30,7 @@ import type { DataProvider } from 'react-admin';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import tokenAuthProvider, { AUTH_TOKEN_LOCAL_STORAGE_NAME, getAuthToken, setAuthToken } from './authProvider';
+import tokenAuthProvider, { AUTH_TOKEN_LOCAL_STORAGE_NAME, getAuthToken, getPermissionSnapshot, invalidatePermissionSnapshot, setAuthToken } from './authProvider';
 
 vi.mock('../context/HttpClientContext', () => ({ API_BASE_URL: 'https://mrmap.test' }));
 
@@ -394,5 +401,168 @@ describe('route access through react-admin', () => {
 
     expect(await screen.findByText('opened User')).toBeInTheDocument();
     expect(pathname).toBe('/User');
+  });
+});
+
+/**
+ * What the #737 administration screens sit on: the `who-am-i` answer carries
+ * the caller's role rows as ids, the role API of #736 answers their slugs -
+ * and the snapshot the `canAccess` table judges must already hold the slugs,
+ * never the ids. Both reads ride on the session token; an unanswered one
+ * degrades to the superuser flag instead of failing the login, and the
+ * seam `getPermissionSnapshot`/`invalidatePermissionSnapshot` hands the
+ * screens the same cached snapshot - after a self-revocation invalidates
+ * it, a fresh one.
+ */
+describe('role slug resolution of #736 behind the snapshot', () => {
+  const WHO_AM_I_URL = 'https://mrmap.test/api/accounts/who-am-i/';
+  const ROLES_URL = 'https://mrmap.test/api/accounts/roles/?filter[id.in]=11%2C13';
+  const DEFINITIONS_URL =
+    'https://mrmap.test/api/accounts/roledefinitions/?filter[id.in]=3%2C5';
+
+  const WHO_AM_I = {
+    data: {
+      id: '1',
+      attributes: { username: 'ada' },
+      relationships: {
+        roles: { data: [{ type: 'Role', id: '11' }, { type: 'Role', id: '13' }] },
+      },
+    },
+  };
+  const ROLE_ROWS = {
+    data: [
+      {
+        id: '11',
+        attributes: { isActive: true },
+        relationships: {
+          role_definition: { data: { type: 'RoleDefinition', id: '3' } },
+          organization: { data: { type: 'Organization', id: '7' } },
+        },
+      },
+      {
+        // the platform role row: active, without an organization
+        id: '13',
+        attributes: { isActive: true },
+        relationships: {
+          role_definition: { data: { type: 'RoleDefinition', id: '5' } },
+          organization: { data: null },
+        },
+      },
+    ],
+  };
+  const DEFINITIONS = {
+    data: [
+      { id: '3', attributes: { slug: 'organization_admin' } },
+      { id: '5', attributes: { slug: 'platform_admin' } },
+    ],
+  };
+
+  /** Routes the three reads; a refused step answers the given status. */
+  const mockBackend = (rolesStatus = 200, definitionsStatus = 200) => {
+    const fetchMock = vi.fn(async (request: Request) => {
+      if (request.url === WHO_AM_I_URL) {
+        return new Response(JSON.stringify(WHO_AM_I), { status: 200 });
+      }
+      if (request.url === ROLES_URL) {
+        return rolesStatus === 200
+          ? new Response(JSON.stringify(ROLE_ROWS), { status: 200 })
+          : new Response(null, { status: rolesStatus });
+      }
+      if (request.url === DEFINITIONS_URL) {
+        return definitionsStatus === 200
+          ? new Response(JSON.stringify(DEFINITIONS), { status: 200 })
+          : new Response(null, { status: definitionsStatus });
+      }
+      return new Response(null, { status: 204 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const hits = (url: string) => () =>
+      fetchMock.mock.calls.filter(([request]) => (request as Request).url === url);
+    return {
+      fetchMock,
+      whoAmIs: hits(WHO_AM_I_URL),
+      roleReads: hits(ROLES_URL),
+      definitionReads: hits(DEFINITIONS_URL),
+    };
+  };
+
+  const canAccessUser = async (provider: ReturnType<typeof tokenAuthProvider>) =>
+    (provider.canAccess as unknown as (p: {
+      resource: string; action: string;
+    }) => Promise<boolean>)({ resource: 'User', action: 'list' });
+
+  beforeEach(() => {
+    localStorage.clear();
+    storeToken();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('resolves the who-am-i role ids into slugs through the two role API reads', async () => {
+    const { whoAmIs, roleReads, definitionReads } = mockBackend();
+    const provider = tokenAuthProvider();
+
+    expect(await canAccessUser(provider)).toBe(true);
+
+    expect(whoAmIs()).toHaveLength(1);
+    expect(roleReads()).toHaveLength(1);
+    expect(definitionReads()).toHaveLength(1);
+    const [[roleRequest]] = roleReads();
+    expect((roleRequest as Request).headers.get('authorization')).toBe(`Token ${TOKEN}`);
+
+    expect(await getPermissionSnapshot()).toEqual({
+      roles: ['organization_admin', 'platform_admin'],
+      administeredOrganizationIds: ['7'],
+      isSuperuser: false,
+    });
+    // one resolution per login: the seam answers from the same snapshot
+    await getPermissionSnapshot();
+    expect(whoAmIs()).toHaveLength(1);
+    expect(roleReads()).toHaveLength(1);
+  });
+
+  it('denies administration when the role read is refused - only the flag is left', async () => {
+    mockBackend(403);
+    const provider = tokenAuthProvider();
+
+    expect(await canAccessUser(provider)).toBe(false);
+    expect(await getPermissionSnapshot()).toEqual({
+      roles: [], administeredOrganizationIds: [], isSuperuser: false,
+    });
+  });
+
+  it('degrades to the unresolved snapshot when the definition read is refused', async () => {
+    mockBackend(200, 403);
+    const provider = tokenAuthProvider();
+
+    expect(await canAccessUser(provider)).toBe(false);
+    expect(await getPermissionSnapshot()).toEqual({
+      roles: [], administeredOrganizationIds: [], isSuperuser: false,
+    });
+  });
+
+  it('re-reads everything after the screens invalidated the snapshot', async () => {
+    const { whoAmIs, roleReads } = mockBackend();
+    const provider = tokenAuthProvider();
+    expect(await canAccessUser(provider)).toBe(true);
+
+    // the self-revocation of the Members screen: the next answer must come
+    // from the backend again, not from the token-stable cache
+    invalidatePermissionSnapshot();
+
+    expect(await canAccessUser(provider)).toBe(true);
+    expect(whoAmIs()).toHaveLength(2);
+    expect(roleReads()).toHaveLength(2);
+  });
+
+  it('answers nothing through the seam without a session', async () => {
+    mockBackend();
+    setAuthToken(undefined);
+
+    expect(getPermissionSnapshot()).toBeUndefined();
+    expect(() => invalidatePermissionSnapshot()).not.toThrow();
   });
 });

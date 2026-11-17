@@ -15,6 +15,10 @@ class AccountsConfig(AppConfig):
         # connects the permission bootstrap of this app to post_save, the
         # module has to be imported for any of its receivers to run
         import accounts.signals  # noqa
+        # registers the system checks of #735 on the check registry: a check
+        # has to be registered before the framework runs, and the app being
+        # ready is the documented moment an app may do that
+        import accounts.checks  # noqa
         post_migrate.connect(create_default_user_and_org, sender=self)
 
 

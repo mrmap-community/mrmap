@@ -127,7 +127,8 @@ pattern to copy.
   `extras.permissions.DjangoObjectPermissionsOrAnonReadOnly` (guardian; anonymous read-only,
   record viewsets full `ModelViewSet`). `RecordPermissionsSerializerMixin` answers
   `can_edit`/`can_delete` per object via `ObjectPermissionChecker`. Object-level grants are
-  bootstrapped only for `SECURED_MODELS` (the services); record ownership waits for the role
+  bootstrapped only for the role-managed models of `ROLE_MANAGED_MODELS` (the two service
+  kinds the bootstrap connects itself to); record ownership waits for the role
   work (#727). Audit: `simple_history` `change_log` with `history_user` and `_change_reason`
   (harvest writes name their reason; `keywords_list`/`search_vector` are excluded fields);
   the API answers `created_at/by` and `last_modified_at/by` from history.

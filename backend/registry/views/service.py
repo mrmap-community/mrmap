@@ -8,7 +8,7 @@ from guardian.core import ObjectPermissionChecker
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import JSONRenderer
-from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly, allowed)
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
                              NestedModelViewSet,
@@ -205,9 +205,11 @@ class ServicePreviewMixin:
     def preview(self, request, *args, **kwargs):
         service = self.get_object()
         # DRF's default read-only object permission map is empty; previews also
-        # explicitly require view permission on the registered service.
-        if not ObjectPermissionChecker(request.user).has_perm(
-                f"view_{service.__class__.__name__.lower()}", service):
+        # explicitly require view permission on the registered service -
+        # answered by the facade of #734, the checker is only the loader.
+        if not allowed(request.user,
+                       f"registry.view_{service.__class__.__name__.lower()}",
+                       service, checker=ObjectPermissionChecker(request.user)):
             raise PermissionDenied
         try:
             result = preview(service, request, request.query_params)
@@ -616,7 +618,9 @@ class WebFeatureServiceViewSet(
             renderer_classes=[PreviewImageRenderer, JSONRenderer], filter_backends=[])
     def preview_image(self, request, *args, **kwargs):
         service = self.get_object()
-        if not ObjectPermissionChecker(request.user).has_perm("view_webfeatureservice", service):
+        if not allowed(request.user, "registry.view_webfeatureservice",
+                       service,
+                       checker=ObjectPermissionChecker(request.user)):
             raise PermissionDenied
         try:
             content = feature_preview_image(service, request, request.query_params)

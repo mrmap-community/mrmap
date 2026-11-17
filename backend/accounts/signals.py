@@ -30,15 +30,19 @@ What is exempt and why:
 from logging import Logger
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db.models.signals import post_save
+from django.db.models.signals import m2m_changed
 from django.db.transaction import atomic
 from django.dispatch import receiver
+from extras.permissions import invalidate_permission_caches
 from guardian.shortcuts import assign_perm
 
 from accounts.models.groups import Organization
 from accounts.models.roles import (ORGANIZATION_ADMIN_ROLE, Role,
                                    RoleDefinition, RoleScope)
-from accounts.utils import get_secured_models
+from accounts.utils import get_role_managed_models
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -61,11 +65,12 @@ def handle_organization_creation(instance, created, raw=False, **kwargs):
 
     Two things the old bootstrap did which this one does not:
 
-    * it created one group per entry of ``SECURED_MODELS`` next to the two
-      above, so the group count of an organization grew with the list of
-      models. A role is per definition now, so adding a role-managed model
-        needs no group and no data migration for the organizations which
-        already exist (#727).
+    * it created one group per entry of the retired ``SECURED_MODELS`` list
+      next to the two above, so the group count of an organization grew with
+      the list of models. A role is per definition now, so adding a
+      role-managed model needs no group and no data migration for the
+      organizations which already exist (#727, the list is
+      ``accounts.settings.ROLE_MANAGED_MODELS`` since #735).
     * it granted the administrators group ``view_group`` and ``change_group`` on
       those model groups, because administering them *was* administering the
       membership of a name-coupled group. Administering a role is administering
@@ -149,7 +154,7 @@ def owning_organization(instance):
     return None
 
 
-def handle_secured_model_creation(instance, created, raw=False, **kwargs):
+def handle_role_managed_model_creation(instance, created, raw=False, **kwargs):
     """
     Grant the roles of the owning organization which manage this model.
 
@@ -209,7 +214,90 @@ def handle_secured_model_creation(instance, created, raw=False, **kwargs):
                             obj=instance)
 
 
-for model in get_secured_models():
-    post_save.connect(receiver=handle_secured_model_creation,
+# one connection per role-managed model, read from the setting: the list is
+# the whole statement of which creation grants anything, and
+# ``accounts.checks`` is what keeps its entries equipped (#735)
+for model in get_role_managed_models():
+    post_save.connect(receiver=handle_role_managed_model_creation,
                       sender=model,
-                      dispatch_uid=f"handle_secured_model_creation_for_{model}")
+                      dispatch_uid=f"handle_role_managed_model_creation_for_{model}")
+
+
+# ---------------------------------------------------------------------------
+# Central permission-cache invalidation (#734)
+# ---------------------------------------------------------------------------
+
+#: the attributes Django's ``ModelBackend`` caches on the user instance
+#: with the global permission strings; see
+#: ``extras.permissions.invalidate_permission_caches`` - the list lives
+#: there, this module only decides when to drop it.
+
+_USER_MODEL = get_user_model()
+
+#: the m2m writes which change *what a user may do* without touching the
+#: user row itself: joining or leaving any group (a role group of #732 as
+#: well as a plain one), being granted or stripped a global permission
+#: directly, and a group's own permission set changing for all of its
+#: members. Before #734 each consumer that re-read one of these in the
+#: same process had to pop Django's caches by hand - the test
+#: workarounds named in the issue. Dropping them here is what lets the
+#: "grant or revoke takes effect on the next request" answer hold
+#: without a caller-side workaround.
+#:
+#: ``RoleMembership``'s own ``save()``/``delete()`` invalidate the user
+#: instance at hand (the exact object a caller keeps); these receivers
+#: cover the same facts reached from the other side and every write that
+#: bypasses the membership model, e.g. ``group.user_set.add`` directly.
+_PERMISSION_M2M_SENDERS = (
+    _USER_MODEL.groups.field.remote_field.through,
+    _USER_MODEL.user_permissions.field.remote_field.through,
+    Group.permissions.field.remote_field.through,
+)
+
+
+def handle_permission_cache_invalidation(sender, instance, action, reverse,
+                                         model, pk_set, raw=False,
+                                         **kwargs):
+    """Drop Django's cached permission strings whenever the set of
+    permissions reachable by a user changes.
+
+    A receiver of ``m2m_changed``, i.e. of the writes above; it creates and
+    grants nothing, so unlike the receivers of the bootstrap it does not
+    act on ``created`` and a ``loaddata`` (``raw``) has nothing to invalidate
+    during - the state it writes is exactly the state the caches would be
+    rebuilt to.
+
+    Args:
+        sender: the through model of the changed relation
+        instance: the instance on which the manager was called - a user for
+            ``user.groups``/``user.user_permissions`` and a group for the
+            reverse ``user_set`` and for ``group.permissions``
+        action: the m2m action; only the post_* ones matter
+        reverse: whether the relation was changed from the other side
+        model: the model of the changed set
+        pk_set: the pks of the changed set, when given as pks
+        raw: whether the change comes from a fixture
+    """
+    if raw or action not in ("post_add", "post_remove", "post_clear"):
+        return
+
+    # the instance the manager was called on is a user (forward access,
+    # ``user.groups.add``) or a group (``group.user_set.add`` and the group
+    # permission writes) - both hold state to drop
+    invalidate_permission_caches(instance)
+    if pk_set and model is _USER_MODEL:
+        # the changed set is users - the group side wrote by pks, so the
+        # loaded user instances of the caller are exactly behind them
+        # (the members read back from the group are fresh instances the
+        # pop above could never reach); the ``user_permissions`` writes
+        # name ``Permission`` here and stay out of this branch
+        for user in _USER_MODEL.objects.filter(pk__in=pk_set):
+            invalidate_permission_caches(user)
+
+
+for through in _PERMISSION_M2M_SENDERS:
+    m2m_changed.connect(
+        receiver=handle_permission_cache_invalidation,
+        sender=through,
+        dispatch_uid=(
+            f"handle_permission_cache_invalidation_for_{through._meta.label}"))

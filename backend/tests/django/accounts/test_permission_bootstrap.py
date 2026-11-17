@@ -2,7 +2,7 @@
 
 The bootstrap is the only code which turns a creation into django-guardian
 grants: ``handle_organization_creation`` shall give an organization the roles
-which administer it, ``handle_secured_model_creation`` shall grant the roles of
+which administer it, ``handle_role_managed_model_creation`` shall grant the roles of
 the owning organization which manage the model view, change and delete on a
 newly registered service.
 
@@ -147,14 +147,15 @@ class OrganizationCreationTestCase(TestCase):
             roles.with_definition(
                 RoleDefinition.objects.get(is_default=True).slug).exists())
 
-    def test_the_group_count_does_not_grow_with_the_secured_models(self):
+    def test_the_group_count_does_not_grow_with_the_role_managed_models(self):
         """No per-model administering group is created any more
 
-        The old bootstrap created one group per entry of ``SECURED_MODELS`` and
-        needed a data migration for every organization whenever a model joined
-        the list. A role is per definition now, so a secured model adds no
-        group; the old spellings are asked as literals because the point is
-        that they do not exist.
+        The old bootstrap created one group per entry of the retired
+        ``SECURED_MODELS`` list and needed a data migration for every
+        organization whenever a model joined it. A role is per definition now,
+        so a role-managed model of ``ROLE_MANAGED_MODELS`` adds no group; the
+        old spellings are asked as literals because the point is that they do
+        not exist.
         """
         Organization.objects.create(name=ORGANIZATION_NAME)
 

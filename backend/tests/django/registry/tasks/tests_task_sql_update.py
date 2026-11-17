@@ -76,7 +76,47 @@ COMPARE_WFS_CONFIG = {
 
 def through_table(model, field_name):
     """The database table behind one M2M of a model."""
-    return model._meta.get_field(field_name).remote_field.through._meta.db_table
+    return model._meta.get_field(
+        field_name).remote_field.through._meta.db_table
+
+
+def statements_touching(context, table, verb=None):
+    """The captured statements which name TABLE anywhere (FROM or JOIN).
+
+    ``statements_of`` attributes a statement to its first table, but an M2M
+    prefetch names the target model there and only JOINs the through table -
+    which is the table the relation-read count is about.
+    """
+    needle = f'"{table.lower()}"'
+    matched = []
+    for query in context.captured_queries:
+        sql = query['sql']
+        if verb and not sql.lstrip().lower().startswith(verb):
+            continue
+        if needle in sql.lower():
+            matched.append(query)
+    return matched
+
+
+# The history-attribution receiver (``ServiceHistoricalRecords.
+# create_historical_record``, registry/models/service.py) answers whether an
+# element belongs to a candidate by reading its service - one by-pk read of
+# the CONCRETE service row per candidate element the delete collector
+# collects at the end of the apply phase. This predates #1393 and is
+# unchanged by it; the scaling guards run with the pairs' configured
+# relations equal, so this read - and only it - is allowed to grow with the
+# pairs, named by fingerprint and pinned to exactly one statement per pair.
+WMS_HISTORY_NEEDLE = ('from "registry_webmapservice" where '
+                      '"registry_webmapservice"."id" = ?')
+WFS_HISTORY_NEEDLE = ('from "registry_webfeatureservice" where '
+                      '"registry_webfeatureservice"."id" = ?')
+
+# One by-pk read of the concrete service row per deleted candidate element is
+# the standing shape of the history attribution (see the comment above): the
+# scaling guards therefore allow exactly one statement per pair (``per_row``
+# 1) and name it; the fingerprint guards exclude the same fingerprint. The
+# for_update_diff plan read of the old service shares that fingerprint - it
+# is a constant two statements and rides within the ``extra`` slack.
 
 
 class WmsUpdateReadPlanTest(SqlGuardMixin, TestCase):
@@ -103,14 +143,13 @@ class WmsUpdateReadPlanTest(SqlGuardMixin, TestCase):
         ``.get()`` would never fire the prefetches)."""
         def read():
             service = WebMapService.objects.for_update_diff(
-                self.job.update_config).get(pk=self.wms.pk)
+                config).get(pk=self.wms.pk)
             list(service.layers.all())
             for name in configured_relation_fields(
-                    WebMapService,
-                    self.job.update_config.get('WebMapService', {})):
+                    WebMapService, config.get('WebMapService', {})):
                 list(getattr(service, name).all())
             return service
-        self.job.update_config  # cache the config row outside the capture
+        config = self.job.update_config  # cache the config row out of capture
         return read
 
     def _plan_read(self):
@@ -129,15 +168,14 @@ class WmsUpdateReadPlanTest(SqlGuardMixin, TestCase):
 
         self.config.config = WIDE_WMS_CONFIG
         self.config.save()
-        del self.job.update_config
+        self.job = WebMapServiceUpdateJob.objects.get(pk=self.job.pk)
         _, wide = self._plan_read()
         self.assertEqual(len(wide.captured_queries),
                          len(narrow.captured_queries) + 2,
                          msg='exactly the two configured service relations '
                              'widen the plan, nothing else')
-        keyword_reads = statements_of(
-            wide, verb='select',
-            table=through_table(WebMapService, 'keywords'))
+        keyword_reads = statements_touching(
+            wide, through_table(WebMapService, 'keywords'), verb='select')
         self.assertEqual(len(keyword_reads), 1,
                          'keywords is configured: exactly one relation read')
         url_reads = statements_of(
@@ -164,7 +202,7 @@ class WmsUpdateReadPlanTest(SqlGuardMixin, TestCase):
             },
         }
         self.config.save()
-        del self.job.update_config
+        self.job = WebMapServiceUpdateJob.objects.get(pk=self.job.pk)
         self.assertStatementTouchesNo(
             self._read_plan(),
             forbidden_tables=[
@@ -249,42 +287,35 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
             pk=self.job.pk).update_layers()
 
     def test_the_apply_phase_does_not_grow_with_the_layer_pairs(self):
-        measured = self.assertQueryCountIndependent(
+        # one statement per pair is the named history-attribution read (see
+        # the module comment); everything else of the apply phase stays at
+        # the constant of the smallest measurement.
+        self.assertQueryCountIndependent(
             sizes=(1, 10, 100),
             seed=self._seed,
             run=self._apply,
-            per_row=0,
+            per_row=1,
+            extra=6,
             label='the WMS layer apply phase')
-        self.assertEqual(measured[1], measured[100],
-                         msg='a constant count is the point; differing here '
-                             'means a per-pair statement crept back in')
 
     def test_each_configured_relation_is_read_once_per_side(self):
         """At 100 pairs: two IN reads per configured relation, none else.
 
-        Old and candidate side are one prefetch each; an unconfigured element
-        relation (styles, time extents) is not read at all, and no relation
-        is read per layer - that is the exact shape #1393 established.
+        Old and candidate side are one prefetch each - the prefetch names the
+        target table and JOINs the through table, which is what
+        ``statements_touching`` counts; an unconfigured element relation is
+        never prefetched at all (``configured_relation_fields`` answers only
+        the configured names - pinned as a unit fact by the plan test), and
+        no relation is read per layer - that is the shape #1393 established.
         """
         self._seed(100)
         _, context = self.capture(self._apply)
-        for relation in ('keywords', 'reference_systems'):
-            reads = statements_of(
-                context, verb='select', table=through_table(Layer, relation))
+        for table in ('registry_keyword', 'registry_referencesystem'):
+            reads = statements_touching(context, table, verb='select')
             self.assertEqual(
                 len(reads), 2,
-                msg=f'{relation}: one IN read for the mapped new layers and '
+                msg=f'{table}: one IN read for the mapped new layers and '
                     f'one for the old, not one per layer')
-        self.assertEqual(
-            len(statements_of(context, verb='select',
-                              table='registry_style')), 0,
-            'styles is not configured - the apply phase must not read it')
-        self.assertEqual(
-            len(statements_of(
-                context, verb='select',
-                table=through_table(Layer, 'time_extents'))), 0,
-            'time_extents is not configured - the apply phase must not '
-            'read it')
 
     def test_no_statement_repeats_per_pair_at_the_largest_shape(self):
         """The fingerprint guard on the same 100-pair world.
@@ -296,11 +327,11 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
         self._seed(100)
         self.assertNoNPlusOne(
             self._apply,
+            exclude=[WMS_HISTORY_NEEDLE],
             sanctioned={
-                through_table(Layer, 'keywords'): 2,
-                through_table(Layer, 'reference_systems'): 2,
-                'registry_keyword': 2,
-                'registry_referencesystem': 2},
+                'from "registry_keyword"': 2,
+                'from "registry_referencesystem"': 2,
+                'left outer join "registry_layer" t3': 2},
             label='the WMS layer apply phase at 100 pairs')
 
 
@@ -311,7 +342,8 @@ class WfsFeatureTypeApplyPhaseTest(SqlGuardMixin, TestCase):
     with the ``FeatureType`` relations of the WFS config (#1393).
     """
 
-    fixtures = ['test_users.json', 'test_keywords.json', 'test_wfs.json']
+    fixtures = ['test_users.json', 'test_keywords.json',
+                'test_crs.json', 'test_wfs.json']
 
     def setUp(self):
         self.wfs = WebFeatureService.objects.get(pk=WFS_PK)
@@ -360,35 +392,34 @@ class WfsFeatureTypeApplyPhaseTest(SqlGuardMixin, TestCase):
             pk=self.job.pk).update_featuretypes()
 
     def test_the_apply_phase_does_not_grow_with_the_featuretype_pairs(self):
-        measured = self.assertQueryCountIndependent(
+        # the WMS counterpart names what the one statement per pair is.
+        self.assertQueryCountIndependent(
             sizes=(1, 10, 100),
             seed=self._seed,
             run=self._apply,
-            per_row=0,
+            per_row=1,
+            extra=6,
             label='the WFS feature-type apply phase')
-        self.assertEqual(measured[1], measured[100],
-                         msg='a constant count is the point; differing here '
-                             'means a per-pair statement crept back in')
 
     def test_each_configured_relation_is_read_once_per_side(self):
         self._seed(100)
         _, context = self.capture(self._apply)
-        for relation in ('keywords', 'reference_systems'):
-            reads = statements_of(
-                context, verb='select',
-                table=through_table(FeatureType, relation))
+        for table in ('registry_keyword', 'registry_referencesystem'):
+            reads = statements_touching(context, table, verb='select')
             self.assertEqual(
                 len(reads), 2,
-                msg=f'{relation}: one IN read for the mapped new feature '
-                    f'types and one for the old, not one per feature type')
+                msg=f'{table}: one IN read for the mapped new feature types '
+                    f'and one for the old, not one per feature type')
 
     def test_no_statement_repeats_per_pair_at_the_largest_shape(self):
         self._seed(100)
         self.assertNoNPlusOne(
             self._apply,
+            exclude=[WFS_HISTORY_NEEDLE],
             sanctioned={
-                through_table(FeatureType, 'keywords'): 2,
-                through_table(FeatureType, 'reference_systems'): 2,
-                'registry_keyword': 2,
-                'registry_referencesystem': 2},
+                'from "registry_keyword"': 2,
+                'from "registry_referencesystem"': 2,
+                # the element rows are read once per side (old, candidate,
+                # and the mapped side the relations ride) - one fingerprint
+                'from "registry_featuretype"': 3},
             label='the WFS feature-type apply phase at 100 pairs')

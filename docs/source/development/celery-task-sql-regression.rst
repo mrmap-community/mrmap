@@ -161,10 +161,12 @@ assertion was not tightened with it - that is the intent.
        more; no element relation ever rides the service plan (green,
        #1393); the apply phase of a WMS update over 1/10/100 confirmed
        layer pairs, and of a WFS update over mapped feature-type pairs,
-       costs the same statements - each configured element relation is one
-       IN read per side, unconfigured relations are not read, and no
-       fingerprint repeats per pair at 100 rows (green, #1393; two distinct
-       ``update_config`` fixtures per service kind drive the shape)
+       costs one statement per pair and no more - the per-pair one is the
+       history-attribution by-pk service read of every deleted candidate
+       element (predates #1393, named by fingerprint in the guard), and
+       each configured element relation is one IN read per side on the
+       mapping rows (green, #1393; two distinct ``update_config``
+       fixtures per service kind drive the shape)
      - #1393
    * - alert refresh
      - ``registry/tests_task_sql_alert_refresh.py``

@@ -156,9 +156,11 @@ describe("ServiceDetailsCard labels", () => {
 
   it("tells what the answered visibility means", () => {
     renderDetails(undefined, "en", "public");
-    expect(screen.getByText("Public")).toHaveAttribute(
-      "title",
-      expect.stringContaining("without signing in"),
+    // the hint is the title of the chip itself, not of the label span inside
+    // it, so the locator starts at the title and asserts the state it belongs
+    // to
+    expect(screen.getByTitle(/without signing in/)).toHaveTextContent(
+      "Public",
     );
   });
 

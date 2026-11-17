@@ -789,9 +789,10 @@ const MetadataEditor = ({ type }: MetadataEditorProps): ReactElement => {
         )
         .map((definition: FieldDefinition) => definition.props.source as string),
     ];
+    const uniqueIncludes = [...new Set(wanted)];
     const include = includeAbleResources
-      ? wanted.filter((name) => includeAbleResources.includes(name))
-      : wanted;
+      ? uniqueIncludes.filter((name) => includeAbleResources.includes(name))
+      : uniqueIncludes;
     const jsonApiParams: Record<string, string> = {
       include: include.join(","),
     };

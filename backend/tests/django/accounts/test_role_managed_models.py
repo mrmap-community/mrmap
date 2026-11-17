@@ -50,7 +50,8 @@ from django.contrib.auth.models import Group
 from django.core.checks.registry import registry
 from django.core.management import call_command
 from django.core.management.base import SystemCheckError
-from django.test import TestCase
+from django.db import OperationalError, connection
+from django.test import SimpleTestCase, TestCase
 from django.test.utils import override_settings
 
 from accounts import settings as app_settings
@@ -384,6 +385,32 @@ class DeclarationNeedsNoConnectionTestCase(TestCase):
             sorted({issue.id for issue in issues}),
             [THROUGH_TABLES_ID, OWNERSHIP_ID],
             texts(issues))
+
+
+class UnmigratedRoleGroupCheckTestCase(SimpleTestCase):
+    """Database checks must let migrate create the tables they inspect."""
+
+    def test_a_fresh_database_needs_no_role_tables(self):
+        with patch.object(connection.introspection, "table_names",
+                          return_value=[]):
+            self.assertEqual(
+                check_role_groups_are_managed(databases=["default"]), [])
+
+    def test_a_partly_migrated_database_can_finish_migrating(self):
+        tables = {"auth_group", "accounts_organization", "accounts_role",
+                  "accounts_roledefinition"}
+        for missing in sorted(tables):
+            with self.subTest(missing=missing), patch.object(
+                    connection.introspection, "table_names",
+                    return_value=sorted(tables - {missing})):
+                self.assertEqual(
+                    check_role_groups_are_managed(databases=["default"]), [])
+
+    def test_a_connection_failure_is_not_hidden(self):
+        with patch.object(connection.introspection, "table_names",
+                          side_effect=OperationalError("database unavailable")):
+            with self.assertRaises(OperationalError):
+                check_role_groups_are_managed(databases=["default"])
 
 
 class OrphanRoleGroupTestCase(TestCase):

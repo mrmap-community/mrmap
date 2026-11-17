@@ -51,7 +51,7 @@ reported by every run, because a typo belongs to the setting and has no app.
 from django.apps import apps
 from django.core.checks import Error, Tags, Warning, register
 from django.core.exceptions import FieldDoesNotExist
-from django.db import models
+from django.db import connections, models
 
 from accounts import settings as app_settings
 
@@ -490,8 +490,8 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
             hears nothing about its groups.
         **kwargs: the keyword arguments of the check framework. The check
             answers without a message when ``databases`` names no connection
-            to read: a deployment which was not migrated yet holds no groups,
-            and ``migrate`` is the command writing them.
+            to read, or when the role tables have not been created yet:
+            ``migrate`` runs database checks before creating those tables.
 
     Returns:
         list: one ``accounts.E005`` per group which no role manages
@@ -504,38 +504,48 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
 
     from django.contrib.auth.models import Group
 
-    from accounts.models.roles import (ROLE_GROUP_SEPARATOR, RoleDefinition,
-                                       is_role_group_name)
+    from accounts.models.groups import Organization
+    from accounts.models.roles import (ROLE_GROUP_SEPARATOR, Role,
+                                       RoleDefinition, is_role_group_name)
 
-    # an organization IS a group, and the group of a retired role is still the
-    # group of a role: both are explained, so neither is a candidate
-    candidates = (Group.objects
-                  .exclude(role__isnull=False)
-                  .exclude(organization__isnull=False)
-                  .filter(name__contains=ROLE_GROUP_SEPARATOR)
-                  .order_by("name"))
-    slugs = sorted(RoleDefinition.objects.values_list("slug", flat=True))
-
+    required_tables = {model._meta.db_table for model in
+                       (Group, Organization, Role, RoleDefinition)}
     issues = []
-    for group in candidates:
-        slug = next(
-            (known for known in slugs
-             if is_role_group_name(group.name, known)),
-            None)
-        if slug is None:
+    for alias in kwargs["databases"]:
+        # A fresh or partly migrated database has no role catalogue to audit.
+        # Do not query the models until every table used by the joins exists.
+        if not required_tables.issubset(
+                connections[alias].introspection.table_names()):
             continue
-        issues.append(Error(
-            f"The group {group.name!r} carries the name of the "
-            f"{slug!r} role, but no Role row manages it.",
-            hint="The group is what enforces a role, and it outlives the Role "
-                 "row which was written for it: whatever deleted that row - a "
-                 "deleted role, or a deleted organization taking its roles "
-                 "with it - leaves a group behind which still grants "
-                 "everything it was granted. Give the group its Role or "
-                 "delete the group; silence accounts.E005 only for a "
-                 "deployment which has inspected every one of its groups.",
-            obj=group,
-            id="accounts.E005"))
+
+        # An organization IS a group; retired roles still explain their groups.
+        candidates = (Group.objects.using(alias)
+                      .exclude(role__isnull=False)
+                      .exclude(organization__isnull=False)
+                      .filter(name__contains=ROLE_GROUP_SEPARATOR)
+                      .order_by("name"))
+        slugs = sorted(RoleDefinition.objects.using(alias)
+                       .values_list("slug", flat=True))
+
+        for group in candidates:
+            slug = next(
+                (known for known in slugs
+                 if is_role_group_name(group.name, known)),
+                None)
+            if slug is None:
+                continue
+            issues.append(Error(
+                f"The group {group.name!r} carries the name of the "
+                f"{slug!r} role, but no Role row manages it.",
+                hint="The group is what enforces a role, and it outlives the Role "
+                     "row which was written for it: whatever deleted that row - a "
+                     "deleted role, or a deleted organization taking its roles "
+                     "with it - leaves a group behind which still grants "
+                     "everything it was granted. Give the group its Role or "
+                     "delete the group; silence accounts.E005 only for a "
+                     "deployment which has inspected every one of its groups.",
+                obj=group,
+                id="accounts.E005"))
     return issues
 
 

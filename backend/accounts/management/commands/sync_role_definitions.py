@@ -191,6 +191,24 @@ BUILTIN_ROLES = [
             "registry.change_webfeatureservice",
         ],
     },
+    {
+        "slug": "anonymous_viewer",
+        "label": "Anonymous viewer",
+        "description": (
+            "The visitors without an account. A view grant of a resource "
+            "onto this role's group is what makes the resource public "
+            "(#739); nothing joins it - the guardian anonymous user is its "
+            "only member and publishing stays an explicit act (decision Q2 "
+            "of #727)."),
+        "scope": RoleScope.PLATFORM,
+        "is_default": False,
+        # the member picker of #737 adds people to roles; nobody is the
+        # anonymous viewer by decision, so the role is not offered there
+        "is_assignable": False,
+        "permissions": [
+            *REGISTRY_READ,
+        ],
+    },
 ]
 
 #: the catalogue fields the command reconciles; ``is_builtin`` is not among

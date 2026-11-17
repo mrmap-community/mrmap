@@ -13,9 +13,9 @@ failed, so nobody fixed it.
 What the check is asked here, one failure at a time:
 
 * the shipped state answers nothing - every role-managed model has its pair of
-  through-models, is carried by the performance list and names an owner, and
-  every group the role system wrote is managed by a ``Role`` row
-  (``accounts.E001`` to ``accounts.E005`` and ``accounts.W001`` are silent),
+  through-models, is carried by the performance list, names an owner, and every
+  group the role system wrote is managed by a ``Role`` row
+  (``accounts.E001`` to ``accounts.E006`` and ``accounts.W001`` are silent),
 * a role-managed model which has no ``UserObjectPermission`` /
   ``GroupObjectPermission`` pair, or which the performance list does not carry,
   is ``accounts.E002``,
@@ -27,6 +27,10 @@ What the check is asked here, one failure at a time:
 * the lists themselves are checked against the code: an entry naming no model
   (``accounts.E001``, ``accounts.E004``) and a declared through-pair the list
   does not carry (``accounts.W001``),
+* the rollout switch of #739, ``PERMISSION_FILTERED_LIST_MODELS``, may only
+  name a role-managed model: a list narrowed by the organization-role axis of
+  the #734 facade hides the rows of a model the bootstrap never grants to an
+  organization (``accounts.E006``),
 * a command scoped to some apps (``manage.py check <app_label>``) answers for
   the models of those apps only - while an entry naming no model is still
   reported, because a typo belongs to the setting and has no app to ask.
@@ -48,9 +52,12 @@ from django.core.management import call_command
 from django.core.management.base import SystemCheckError
 from django.db import OperationalError, connection
 from django.test import SimpleTestCase, TestCase
+from django.test.utils import override_settings
 
 from accounts import settings as app_settings
-from accounts.checks import (answers_ownership, check_role_groups_are_managed,
+from accounts.checks import (answers_ownership,
+                             check_permission_filtered_list_models,
+                             check_role_groups_are_managed,
                              check_role_managed_models)
 from accounts.models.groups import Organization
 from accounts.models.roles import Role
@@ -65,6 +72,7 @@ THROUGH_TABLES_ID = "accounts.E002"
 OWNERSHIP_ID = "accounts.E003"
 UNRESOLVED_PERF_ID = "accounts.E004"
 ORPHAN_ROLE_GROUP_ID = "accounts.E005"
+FILTERED_LIST_ID = "accounts.E006"
 UNDECLARED_THROUGH_ID = "accounts.W001"
 
 ORGANIZATION_NAME = "Checked Org"
@@ -163,6 +171,7 @@ class ShippedSettingsTestCase(TestCase):
 
         self.assertIn(check_role_managed_models, registered)
         self.assertIn(check_role_groups_are_managed, registered)
+        self.assertIn(check_permission_filtered_list_models, registered)
         self.assertTrue(registry.tag_exists("accounts"),
                         "the tag which runs the checks of this app alone")
 
@@ -304,6 +313,57 @@ class PerformanceListTestCase(TestCase):
             [issue for issue in issues if issue.is_serious()], [],
             "an undeclared pair is the list falling behind the code, which "
             "grants nothing wrongly and so must not block a command")
+
+
+class PermissionFilteredListTestCase(TestCase):
+    """The rollout switch of #739, whose entries an operator edits.
+
+    ``PERMISSION_FILTERED_LIST_MODELS`` decides per model whether a LIST is
+    narrowed to what the caller may view. The narrowing works on the axis of
+    #734 which asks the owning organization's roles, so it answers only for a
+    model the bootstrap grants to an organization: an entry outside
+    ``ROLE_MANAGED_MODELS`` would hide rows in SQL rather than show them, and
+    nothing but this check says so.
+    """
+
+    @override_settings(PERMISSION_FILTERED_LIST_MODELS=[])
+    def test_the_shipped_rollout_answers_nothing(self):
+        """Empty is today's behaviour kept, and today's behaviour is silent"""
+        self.assertEqual(
+            check_permission_filtered_list_models(databases=None), [])
+
+    @override_settings(
+        PERMISSION_FILTERED_LIST_MODELS=[WebMapService._meta.label])
+    def test_a_role_managed_entry_is_silent(self):
+        """The model the rollout is written for passes the guard"""
+        self.assertEqual(
+            check_permission_filtered_list_models(databases=None), [])
+
+    @override_settings(
+        PERMISSION_FILTERED_LIST_MODELS=[EQUIPPED_UNLISTED_MODEL])
+    def test_a_model_the_bootstrap_does_not_manage_is_reported(self):
+        """A model without an owning organization must not be narrowed
+
+        ``registry.CatalogueService`` is equipped for guardian but is no
+        resource of the role system - which is why the rollout does not carry
+        it either.
+        """
+        issues = check_permission_filtered_list_models(databases=None)
+
+        reported = with_ids(issues, FILTERED_LIST_ID)
+        self.assertEqual(len(reported), 1, texts(issues))
+        self.assertIn(EQUIPPED_UNLISTED_MODEL, reported[0].msg)
+        self.assertTrue(reported[0].is_serious(),
+                        "a rollout which hides rows is not a warning")
+
+    @override_settings(PERMISSION_FILTERED_LIST_MODELS=["registry.Nope"])
+    def test_an_entry_naming_no_model_is_reported(self):
+        """A typo in a deployment list is an answer, not a crash"""
+        issues = check_permission_filtered_list_models(databases=None)
+
+        reported = with_ids(issues, FILTERED_LIST_ID)
+        self.assertEqual(len(reported), 1, texts(issues))
+        self.assertIn("names no model", reported[0].msg)
 
 
 class DeclarationNeedsNoConnectionTestCase(TestCase):

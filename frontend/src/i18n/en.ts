@@ -1306,6 +1306,22 @@ const en = lodashMerge(
       },
       metadata: "Metadata",
       capabilities: "GetCapabilities URL",
+      // the three answers the backend derives from the guardian grants of the
+      // service itself (#739); a service which answers none of them, a
+      // catalogue for instance, shows no visibility at all
+      visibility: "Visibility",
+      visibilityValues: {
+        public: "Public",
+        "organization-internal": "Organization internal",
+        restricted: "Restricted",
+      },
+      visibilityHints: {
+        public: "Anyone may view this service, also without signing in.",
+        "organization-internal":
+          "Only the roles of the organization which owns the service may view it.",
+        restricted:
+          "Only individually named groups or users may view this service.",
+      },
       operationUrls: "Operation URLs",
       layers: "Layers",
       featureTypes: "Feature types",

@@ -74,3 +74,89 @@ def get_guardian_perf_models():
         list: the model classes with dedicated object permission tables
     """
     return models_of(settings.GUARDIAN_PERF_MODELS)
+
+
+def anonymous_viewer_group():
+    """The group which makes a resource public, or ``None`` when absent.
+
+    A ``view_<model>`` object grant onto this group is the statement
+    "anonymous may view this" (#739): guardian maps every anonymous request
+    to its anonymous database user, that user is a member of this group, and
+    the group's grants are therefore answered through the same object-grant
+    axis of the #734 facade which decides the detail endpoint - list, detail
+    and hint cannot disagree about what is public.
+
+    Returns:
+        Group or None: the group of the active ``anonymous_viewer`` role,
+        ``None`` on a database which was not migrated to the role of #739
+    """
+    # late import like everywhere else in this module: app code asks this
+    # question while the models are still importing themselves
+    from accounts.models.roles import ANONYMOUS_VIEWER_ROLE, Role
+
+    role = Role.objects.with_definition(ANONYMOUS_VIEWER_ROLE).first()
+    return role.group if role is not None else None
+
+
+def ensure_anonymous_viewer():
+    """Create the anonymous viewer's role group and its member, idempotently.
+
+    Migration 0009 seeds the role for every migrated database; this is the
+    runtime guard for the rows the migration cannot make durable:
+
+    * guardian 3.x *reads* its anonymous user row and never writes one - the
+      row is created lazily by nothing else here, and a missing row makes
+      every anonymous permission check raise ``User.DoesNotExist`` (the gap
+      ``tests/AGENTS.md`` tells unit tests to paper over by hand);
+    * a deployment which deleted the group of the role, or whose flush of a
+      ``TransactionTestCase`` removed the rows the migration wrote, would
+      silently answer "nothing is public" rather than say so.
+
+    Creates: the ``Role`` and group of the catalogue's ``anonymous_viewer``
+    definition (when absent), the guardian anonymous user row, and its
+    membership in the group - which is all the membership this role ever
+    has: nobody *becomes* the anonymous viewer by a decision.
+
+    Returns:
+        tuple: ``(user, group)`` of the anonymous viewer
+    """
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.hashers import make_password
+    from django.contrib.auth.models import Group
+    from guardian.conf import settings as guardian_settings
+
+    from accounts.models.roles import (ANONYMOUS_VIEWER_ROLE,
+                                       RoleDefinition, free_role_group_name,
+                                       role_group_name)
+
+    definition = RoleDefinition.objects.filter(
+        slug=ANONYMOUS_VIEWER_ROLE).first()
+    if definition is None:
+        raise RuntimeError(
+            "The catalogue holds no 'anonymous_viewer' definition; run the "
+            "migrations of #739 before asking for its role group.")
+
+    role = definition.roles.filter(organization__isnull=True).first()
+    if role is None:
+        # the check-then-create shape of RoleQuerySet.create_for_organization:
+        # a group written before a failed create would stay behind as an orphan
+        # - and a group of exactly the base name which no role manages is
+        # REUSED, the way migration 0009 does, so a truncate and re-seed round
+        # does not stack a second group beside the first
+        base = role_group_name(None, ANONYMOUS_VIEWER_ROLE)
+        group = Group.objects.filter(
+            name=base, role__isnull=True).first()
+        if group is None:
+            group = Group.objects.create(
+                name=free_role_group_name(None, ANONYMOUS_VIEWER_ROLE))
+        role = definition.roles.create(organization=None, group=group)
+
+    user_model = get_user_model()
+    anonymous, _ = user_model.objects.get_or_create(
+        username=guardian_settings.ANONYMOUS_USER_NAME,
+        defaults={"password": make_password(None)})
+    # the membership is direct group membership, not a RoleMembership row:
+    # that model is the human-readable record of a decision, and the
+    # anonymous viewer is nobody's decision - it is the shape of the platform
+    role.group.user_set.add(anonymous)
+    return anonymous, role.group

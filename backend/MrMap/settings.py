@@ -328,6 +328,30 @@ AUTHENTICATION_BACKENDS = (
 
 GUARDIAN_RAISE_403 = True
 
+#: The models whose list endpoints answer permission-filtered (#739), as
+#: ``"<app_label>.<ModelName>"`` names - the same spelling as
+#: ``accounts.settings.ROLE_MANAGED_MODELS``. An entry makes every list,
+#: detail and search over that resource answer exactly the rows which
+#: ``extras.permissions.objects_for_user`` passes: an anonymous visitor
+#: lists only the resources with an explicit grant to the anonymous viewer
+#: role group, a member lists within their roles - in SQL, before the page
+#: and its count are decided. Empty is today's behaviour kept: the list
+#: answers everything and only the detail endpoint decides.
+#:
+#: The rollout is deliberately per model and opt-in (decision Q5=B of #727):
+#: a deployment enables a resource only after it has inventoried which of
+#: its resources were publicly listed under the unfiltered list and has run
+#: the audited legacy-grant migration of #740, because enabling narrows
+#: what anonymous visitors and foreign members see and that transition has
+#: to be reviewed, never an upgrade side effect. Enabling an entry whose
+#: model is not equipped is refused by the system check of
+#: ``accounts/checks.py``; the reading is in
+#: ``docs/source/administration/permissions.md``.
+PERMISSION_FILTERED_LIST_MODELS = [
+    name.strip() for name in
+    os.getenv("MRMAP_PERMISSION_FILTERED_LIST_MODELS", "").split(",")
+    if name.strip()]
+
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases

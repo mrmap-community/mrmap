@@ -50,7 +50,27 @@ class ServiceAlertQuerySetMixin:
         return alert_annotations(self)
 
 
-class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
+class VisibilityQuerySetMixin:
+    """The tri-state answer of #739, as an annotation.
+
+    ``visibility`` reads the guardian grants of every row in the list's own
+    SELECT - two ``EXISTS`` subqueries over the dedicated guardian tables of
+    the model - so the serializer can answer it on a page without one query
+    per row and without one per role.
+    """
+
+    def with_visibility(self):
+        """The queryset annotated with ``visibility`` (#739).
+
+        Returns:
+            the queryset answering ``extras.permissions.Visibility`` per row
+        """
+        from registry.expressions.visibility import visibility_expression
+        return self.annotate(visibility=visibility_expression(self.model))
+
+
+class WebMapServiceQuerySet(ServiceAlertQuerySetMixin,
+                            VisibilityQuerySetMixin, QuerySet):
     def update_candidates(self):
         return self.filter(
             update_candidate_of__isnull=False
@@ -160,7 +180,8 @@ class WebMapServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
         )
 
 
-class WebFeatureServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
+class WebFeatureServiceQuerySet(ServiceAlertQuerySetMixin,
+                                VisibilityQuerySetMixin, QuerySet):
     def prefetch_whole_service(self) -> "WebFeatureServiceQuerySet":
         # the published metadata links of a feature type are rendered out of its remote
         # metadata and its publishable metadata relations, see

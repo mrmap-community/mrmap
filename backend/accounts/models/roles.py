@@ -18,6 +18,15 @@ from extras.permissions import invalidate_permission_caches
 #: onto the role of this definition (see ``accounts.signals``)
 ORGANIZATION_ADMIN_ROLE = "organization_admin"
 
+#: the slug of the builtin definition whose role group is the anonymous viewer
+#: of the platform (#739). A ``view_<model>`` object grant onto this group is
+#: what makes a resource **public**: the guardian anonymous user row is a
+#: member of the group, so the grant reaches every anonymous request through
+#: the same object-grant axis which decides the detail endpoint. Nothing else
+#: is public - decision Q2 of #727: publishing is an explicit act, and the
+#: bootstrap of #732/#733 never grants this group anything.
+ANONYMOUS_VIEWER_ROLE = "anonymous_viewer"
+
 #: the prefix of the group name of a role without an organization; every other
 #: role group is named after its organization, see ``role_group_name``
 PLATFORM_GROUP_PREFIX = "platform"

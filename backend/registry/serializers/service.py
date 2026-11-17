@@ -6,6 +6,7 @@ from accounts.serializers.users import UserSerializer
 from accounts.utils import organizations_of
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
+from extras.permissions import Visibility
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer,
@@ -41,9 +42,10 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            StyleSerializer,
                                            TimeExtentSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.exceptions import ValidationError
-from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
-                                   SerializerMethodField, URLField)
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.fields import (BooleanField, ChoiceField, DateTimeField,
+                                   IntegerField, SerializerMethodField,
+                                   URLField)
 from rest_framework.reverse import reverse
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
@@ -383,6 +385,136 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         abstract = True
 
 
+class VisibilityField(ChoiceField):
+    """The tri-state answer of #739, read from the queryset's annotation.
+
+    The list annotates ``visibility`` over guardian's tables in its own SELECT,
+    so a page answers the field without a query per row. A serializer which
+    gets an object of a queryset that did not annotate it - an included service
+    of a layer list, a future relation - omits the attribute, exactly like
+    :class:`ServiceAlertSerializerMixin` omits an alert state it was not given:
+    the answer belongs to the query which decided to answer it, and a field
+    which asked one query per row there is the growth
+    ``tests/django/registry/tests_query_performance.py`` refuses.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('choices', Visibility.choices)
+        # the answer is derived from the grants of the resource, so a client
+        # never has to know it: only a PATCH which deliberately moves the
+        # resource across the public axis names the field at all
+        kwargs.setdefault('required', False)
+        super().__init__(**kwargs)
+
+
+class VisibilitySerializerMixin(ModelSerializer):
+    """Answers and writes the visibility tri-state of a service (#739).
+
+    The read is the annotation; the write is one axis only: a PATCH which
+    names ``public`` gives the anonymous view grant to the anonymous viewer
+    role group and a PATCH which names ``organization-internal`` takes it
+    back. Publishing is the act of the ``publish_resource`` permission;
+    withdrawing from the public is the same act reversed and additionally
+    allowed for whoever manages the resource's access rules.
+
+    ``restricted`` is never writable: it is the absence of both the public
+    grant and the organization-wide one, and shaping it deliberately is the
+    sharing surface of #740, not a detail of this endpoint.
+
+    The base is ``ModelSerializer`` and not ``object``, like
+    :class:`ServiceAlertSerializerMixin`: DRF collects the declared fields of a
+    class through its metaclass, so a field declared on a plain mixin is never
+    seen - the same lesson #1267 records for the ownership field.
+    """
+
+    visibility = VisibilityField(
+        label=_("visibility"),
+        help_text=_(
+            "who may see this resource: public means anonymous visitors "
+            "hold the view permission, organization-internal means a role of "
+            "the owning organization does - the state every new resource "
+            "starts in - and restricted means neither; only public and "
+            "organization-internal are writable"))
+
+    def update(self, instance, validated_data):
+        """Writes the asked visibility, or nothing at all.
+
+        The request is decided before the first write: the endpoint answers
+        400 or 403 without touching the resource, because there is no
+        transaction around a PATCH which would undo the other attributes of
+        the very same request after the visibility was refused.
+        """
+        requested = validated_data.pop('visibility', None)
+        if requested is not None:
+            self.check_visibility_write(instance, requested)
+        instance = super().update(instance, validated_data)
+        if requested is not None:
+            self.apply_visibility(instance, requested)
+        return instance
+
+    @staticmethod
+    def current_visibility(instance):
+        """The answered state of one resource, asked with the list's own SQL.
+
+        The write path needs the state which is, and the representation of the
+        object it just changed needs the state which now is. Both ask the very
+        expression the list annotates, for exactly one row, so a decision and
+        the answer about it cannot disagree.
+        """
+        return instance.__class__.objects.filter(
+            pk=instance.pk).with_visibility().values_list(
+                'visibility', flat=True).first()
+
+    def check_visibility_write(self, instance, requested):
+        """Refuse a visibility a caller may not write, before anything is sent.
+
+        Raises:
+            ValidationError: ``restricted`` (never writable) or the withdrawal
+                of a resource which is not public
+            PermissionDenied: the caller holds neither the publish permission
+                nor, for the way back, the management of the access rules
+        """
+        from extras.permissions import allowed
+
+        app = instance._meta.app_label
+        user = getattr(self.context.get('request'), 'user', None)
+
+        if requested == Visibility.PUBLIC:
+            if not allowed(user, f'{app}.publish_resource', instance):
+                raise PermissionDenied(
+                    _('The publish permission of this resource is required '
+                      'to make it public.'))
+        elif requested == Visibility.ORGANIZATION_INTERNAL:
+            if self.current_visibility(instance) != Visibility.PUBLIC.value:
+                raise ValidationError({
+                    'visibility': _(
+                        'Only a public resource can be withdrawn from the '
+                        'public; the remaining grants of a resource are '
+                        'managed by the sharing of access rules.')})
+            if not (allowed(user, f'{app}.publish_resource', instance)
+                    or allowed(user, f'{app}.manage_access_rules',
+                               instance)):
+                raise PermissionDenied(
+                    _('The publish permission or the management of the '
+                      'access rules of this resource is required to withdraw '
+                      'it from the public.'))
+        else:
+            raise ValidationError({
+                'visibility': _(
+                    'restricted is answered by the grants a resource does '
+                    'not carry; it is not writable here.')})
+
+    def apply_visibility(self, instance, requested):
+        """Move the resource across the public axis, the request being decided."""
+        from extras.permissions import set_public
+
+        set_public(instance, requested == Visibility.PUBLIC.value)
+        # the annotation the request read is as old as the request; the
+        # representation of the resource which just moved asks its own answer,
+        # so the payload names the new state and not the one before it
+        instance.visibility = self.current_visibility(instance)
+
+
 @extend_schema_field({
     'type': 'object',
     'format': 'geojson',
@@ -457,6 +589,7 @@ OPERATION_URLS_LABEL = _("operation urls")
 
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
+    VisibilitySerializerMixin,
     ExplorerAttributesSerializer,
     StringRepresentationSerializer,
     HistoryInformationSerializer,
@@ -884,6 +1017,7 @@ class FeatureTypeSerializer(
 
 class WebFeatureServiceSerializer(
         ServiceAlertSerializerMixin,
+        VisibilitySerializerMixin,
         ExplorerAttributesSerializer,
         StringRepresentationSerializer,
         HistoryInformationSerializer,

@@ -87,7 +87,11 @@ and `/mcps` shows the server as not connected; the other servers are unaffected.
 writes token material.
 
 The organization is not pinned with `SONARQUBE_ORG`: `list_organizations` answers
-per tool call, so the base config stays valid for other Sonar organizations.
+`mrmap-community` for this account, and the org-aware tools take `organization` as
+an argument — `search_sonar_issues_in_projects` refuses with `Organization is
+required` without it, while `get_project_quality_gate_status` answers from the
+`projectKey` alone. Leaving the header out keeps the base config valid for other
+Sonar organizations.
 `SONARQUBE_READ_ONLY: "true"` keeps the write tools refused server-side
 independent of the token's own permissions. US-region organizations need
 `https://api.sonarqube.us/mcp` — a per-host override in `.opencode/opencode.json`
@@ -211,7 +215,11 @@ by slot 0 (one forwarder can only serve one DB).
   `describe_model`, `find_relations`, `cascade_preview`, `er_diagram`,
   `describe_migration_dependency`, `suggest_indexes`, `signal_graph`,
   `migration_risk`, `blast_radius`, `drift`, `impact`, `nplusone_scan`.
-- `sonarqube`: SonarQube Cloud-hosted tools, `SONARQUBE_READ_ONLY: "true"` so only read-only tools answer (the list itself depends on the Cloud service and the token's account permissions). Needs `~/.config/opencode/sonar-token` on the host — see "SonarQube Cloud token" above. Not yet functionally verified through OpenCode.
+- `sonarqube` (17, read-only through `SONARQUBE_READ_ONLY`): verified live through
+  OpenCode — `list_organizations`, `get_project_quality_gate_status`,
+  `search_sonar_issues_in_projects`. The exact list follows the Cloud service and
+  the token's account permissions. Needs `~/.config/opencode/sonar-token` on the
+  host — see "SonarQube Cloud token" above.
 - `postgres` (23): `pg_readonly` (always read-only), `pg_query` (read-only
   since `ALLOW_WRITES` is unset), `pg_list_schemas/tables/views/functions/
   extensions`, `pg_describe_table`, `pg_search_columns`, `pg_explain`,
@@ -258,8 +266,9 @@ by slot 0 (one forwarder can only serve one DB).
 
 The original seven servers below were verified by **real MCP tool invocations through
 OpenCode** (`opencode run` sessions in this project directory), not by HTTP
-probing or install checks alone. The SonarQube connection was added later and is
-**pending** per-user authentication and a live tool invocation.
+probing or install checks alone. The `sonarqube` row is its 2026-11-17 re-test
+after the authentication switched from OAuth to a user token — see the addendum
+under the table.
 
 | Server | Connected | Functional test via OpenCode | Result |
 |--------|-----------|------------------------------|--------|
@@ -270,11 +279,20 @@ probing or install checks alone. The SonarQube connection was added later and is
 | django-docs | yes (4 tools) | searches for select_related / prefetch_related / Prefetch / QuerySet evaluation all fulfilled (`docs/ref/models/querysets.txt` content); first burst of 4 concurrent calls hit GitMCP rate-limit on 2 queries, sequential retry succeeded → call GitMCP sequentially | **PASS** |
 | orm-lens 1.18.0 | yes (14 tools) | `describe_model("registry.WebMapService")` → real metadata (backend/registry/models/service.py:235); `find_relations` → real inbound FKs; `nplusone_scan` → genuine static finding at `registry/models/service.py:293` (`for layer in self.layers.all(): for style in layer.styles.all()` — a real N+1 loop, self-acknowledged in a code comment) | **PASS** |
 | postgres 0.13.13 | yes (23 tools) | `pg_health` → PostgreSQL 18.6 on dev DB `mrmap`; `pg_list_schemas` → public; `pg_list_tables` → spatial_ref_sys; `pg_describe_table` → column `srid`; `pg_explain` (no ANALYZE) → "Index Only Scan using spatial_ref_sys_pkey" | **PASS** |
-| sonarqube (hosted) | not tested | `opencode mcp auth sonarqube`, followed by live `list_organizations`, quality-gate and issue tool calls | **PENDING — user OAuth authorization + live agent verification** |
+| sonarqube (hosted) | yes (17 tools, token header) | live `opencode run` session: `list_organizations` → the one key `mrmap-community`; `get_project_quality_gate_status(mrmap-community_mrmap, branch develop)` → `status OK`, five conditions OK, `new_violations` 0; `search_sonar_issues_in_projects` → `paging.total` 34 open issues, oldest `python:S125` in `backend/registry/models/metadata.py` (2021-09-30) | **PASS** (2026-11-17, after the switch to token auth — see addendum) |
 | gedaechtnis (pre-existing, OTA) | yes | untouched, still connected | preserved |
 
 Raw JSON traces of the OpenCode test sessions: `/tmp/opencode/mcp-test/`
 (session output format includes the actual tool calls and their results).
+
+**Addendum 2026-11-17 (`sonarqube`, #1493):** the OAuth entry could never reach a
+sign-in — `opencode mcp list` kept answering `needs authentication` and the service
+log showed `401 … requires a login before it can register a client`, because Sonar
+accepts OAuth only from CIMD clients on its allowlist. With the user token in
+`~/.config/opencode/sonar-token` the same worktree connect reports `mcp connected
+server=sonarqube tools=17`, and the row above is the live tool run against the real
+project. `SONARQUBE_READ_ONLY: "true"` held: the session stayed read-only without
+needing any write tool.
 
 Notes:
 

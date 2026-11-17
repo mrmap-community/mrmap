@@ -46,8 +46,16 @@ export const AddMemberDialogButton = () => {
   };
 
   const submit = async (values: Record<string, unknown>) => {
-    const chosen = values.user as { id?: string } | string | undefined;
+    const chosen = values.user as { id?: string, stringRepresentation?: unknown } | string | undefined;
     const userId = typeof chosen === "object" ? chosen?.id : chosen;
+    // the notification names the user by the representation the search
+    // answer carries; anything but a string falls back to the id rather
+    // than reading "[object Object]" in a sentence
+    const userLabel = typeof chosen === "object"
+      ? (typeof chosen.stringRepresentation === "string"
+        ? chosen.stringRepresentation
+        : String(userId))
+      : String(chosen);
     if (userId === undefined || userId === "" || saving) {
       return;
     }
@@ -63,11 +71,7 @@ export const AddMemberDialogButton = () => {
       );
       notify("administration.members.added", {
         type: "success",
-        messageArgs: {
-          user: typeof chosen === "object"
-            ? String((chosen as Record<string, unknown>).stringRepresentation ?? userId)
-            : String(userId),
-        },
+        messageArgs: { user: userLabel },
       });
       refresh();
       setOpen(false);

@@ -86,7 +86,15 @@ class ServiceSharePermissions(DjangoObjectPermissionsOrAnonReadOnly):
 
     def get_required_object_permissions(self, method, model_cls) -> list:
         if method in SAFE_METHODS:
-            return super().get_required_object_permissions(method, model_cls)
+            # spelled out, not delegated: DjangoObjectPermissions' perms_map
+            # answers the empty list for GET - its read axis is the queryset
+            # filter of the read rollout, not the object gate - so the base
+            # answer would let any registered caller read the grant list.
+            # The view permission over the service is the read gate here, and
+            # the base class turns a missing one into the 404 shape of the
+            # detail endpoint.
+            return [f"{model_cls._meta.app_label}.view_"
+                    f"{model_cls._meta.model_name}"]
         return [SHARE_PERMISSION]
 
 

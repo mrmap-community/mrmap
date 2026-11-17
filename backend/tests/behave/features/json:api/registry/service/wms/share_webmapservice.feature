@@ -75,11 +75,11 @@ Feature: WebMapService Share Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.type" with value "WebMapService"
 
-    Scenario: A member of no organization does not see the service
+    Scenario: A member of no organization may not read the shares of a service
         Given the organization "Share Org" owns a web map service "Stranger Blind WMS"
         And the user "Share Stranger" exists
         And I am logged in as Share Stranger with password Share Stranger
-        When I fetch the web map service "Stranger Blind WMS"
+        When I list the shares of the web map service "Stranger Blind WMS"
         Then I expect the response status is 404
         Then I expect that response json has an attribute "errors.[0].code" with value "not_found"
 

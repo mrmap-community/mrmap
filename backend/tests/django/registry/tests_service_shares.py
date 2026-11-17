@@ -70,15 +70,20 @@ class ServiceShareApiTestCase(TestCase):
         self.service.save()
 
         # publisher holds view + share_resource of the owning organization
-        # through its definition; editor holds view but nothing share related
+        # through its definition; editor holds view but nothing share related.
+        # The membership is a RoleMembership, not a bare group addition: the
+        # role axis of the facade reads memberships - a user in the group
+        # without one is nobody's publisher.
         self.publisher = get_user_model().objects.get(username="User2")
-        self.publisher.groups.add(self.publisher_role.group)
+        self.publisher_role.add_member(self.publisher)
         self.editor = get_user_model().objects.get(username="User1")
-        self.editor.groups.add(self.editor_role.group)
+        self.editor_role.add_member(self.editor)
 
     def url(self, suffix=""):
-        tail = f"{suffix}/" if suffix else ""
-        return f"/api/registry/wms/{self.service.pk}/share/" + tail
+        # the registry router registers with trailing_slash=False (#740):
+        # a trailing slash here answers a resolver 404, not the endpoint
+        tail = f"/{suffix}" if suffix else ""
+        return f"/api/registry/wms/{self.service.pk}/share" + tail
 
     def post_share(self, attributes, user):
         client = APIClient()
@@ -86,13 +91,24 @@ class ServiceShareApiTestCase(TestCase):
         document = {
             "data": {"type": "WebMapService", "attributes": attributes}}
         return client.post(self.url(), data=json.dumps(document),
-                           content_type=JSONAPI)
+                           content_type=JSONAPI, HTTP_ACCEPT=JSONAPI)
 
     def get_share(self, user=None):
         client = APIClient()
         if user is not None:
             client.force_authenticate(user=user)
-        return client.get(self.url())
+        return client.get(self.url(), HTTP_ACCEPT=JSONAPI)
+
+    def delete_share(self, user, grant):
+        """Revoke one answered grant id, negotiating JSON.
+
+        The Accept header is not decoration: DRF's browsable renderer
+        "munges" a 204 into a 200 HTML page, so an unnegotiated DELETE
+        asserts a different endpoint than the API has.
+        """
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client.delete(self.url(grant), HTTP_ACCEPT=JSONAPI)
 
     # ------------------------------------------------------------------ gate
 
@@ -172,7 +188,7 @@ class ServiceShareApiTestCase(TestCase):
             # no target named at all
             {"actions": ["view"]},
             # two targets at once
-            dict(shareable, user=self.publisher.pk),
+            dict(shareable, user=str(self.publisher.pk)),
             # an organization without the role it must name (#740 shares
             # with a role, not with everybody in an organization)
             {"organization": self.organization.pk, "actions": ["view"]},
@@ -213,7 +229,7 @@ class ServiceShareApiTestCase(TestCase):
         wfs.save()
         client = APIClient()
         client.force_authenticate(user=self.publisher)
-        url = f"/api/registry/wfs/{FIXTURE_WFS}/share/"
+        url = f"/api/registry/wfs/{FIXTURE_WFS}/share"
         refused = client.post(
             url, data=json.dumps({"data": {"type": "WebFeatureService",
                                            "attributes": {
@@ -221,7 +237,7 @@ class ServiceShareApiTestCase(TestCase):
                                                    self.organization.pk,
                                                "role": "resource_editor",
                                                "actions": ["publish"]}}}),
-            content_type=JSONAPI)
+            content_type=JSONAPI, HTTP_ACCEPT=JSONAPI)
         self.assertEqual(refused.status_code, 400)
 
         granted = client.post(
@@ -231,7 +247,7 @@ class ServiceShareApiTestCase(TestCase):
                                                    self.organization.pk,
                                                "role": "resource_editor",
                                                "actions": ["view"]}}}),
-            content_type=JSONAPI)
+            content_type=JSONAPI, HTTP_ACCEPT=JSONAPI)
         self.assertEqual(granted.status_code, 201)
 
     # ---------------------------------------------------------------- revoke
@@ -245,16 +261,14 @@ class ServiceShareApiTestCase(TestCase):
         keep = [grant for grant in created if grant["action"] == "view"][0]
         drop = [grant for grant in created if grant["action"] == "change"][0]
 
-        client = APIClient()
-        client.force_authenticate(user=self.publisher)
-        response = client.delete(self.url(drop["id"]))
+        response = self.delete_share(self.publisher, drop["id"])
         self.assertEqual(response.status_code, 204)
 
         remaining = self.get_share(self.publisher).json()["grants"]
         self.assertEqual([grant["id"] for grant in remaining], [keep["id"]])
         # the id is gone: revoking it twice says so
-        self.assertEqual(client.delete(self.url(drop["id"])).status_code,
-                         404)
+        self.assertEqual(
+            self.delete_share(self.publisher, drop["id"]).status_code, 404)
 
     def test_a_bootstrap_grant_is_not_revocable_as_a_share(self):
         """The list hides the bootstrap rows; the delete route does too
@@ -264,9 +278,7 @@ class ServiceShareApiTestCase(TestCase):
         """
         bootstrap = WebMapServiceGroupObjectPermission.objects.filter(
             content_object=self.service).first()
-        client = APIClient()
-        client.force_authenticate(user=self.publisher)
-        response = client.delete(self.url(f"group-{bootstrap.pk}"))
+        response = self.delete_share(self.publisher, f"group-{bootstrap.pk}")
         self.assertEqual(response.status_code, 404)
         self.assertTrue(WebMapServiceGroupObjectPermission.objects.filter(
             pk=bootstrap.pk).exists())
@@ -276,10 +288,9 @@ class ServiceShareApiTestCase(TestCase):
             {"organization": self.organization.pk,
              "role": "resource_editor", "actions": ["view"]},
             self.publisher).json()["grants"]
-        client = APIClient()
-        client.force_authenticate(user=self.editor)
-        self.assertEqual(client.delete(
-            self.url(created[0]["id"])).status_code, 403)
+        self.assertEqual(
+            self.delete_share(self.editor, created[0]["id"]).status_code,
+            403)
 
 
 class ShareModelTestCase(TestCase):

@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.db.models.query import QuerySet
@@ -372,6 +372,27 @@ class Role(models.Model):
         return sum(membership.delete()[0] for membership in
                    RoleMembership.objects.filter(role=self, user=user))
 
+    def delete_with_group(self, *args, **kwargs):
+        """Delete this role *and* the group it manages, leaving nothing behind.
+
+        A role without its group is an orphan: guardian's rows would still
+        point at a group no role explains. Deleting the group first is
+        impossible (``Role.group`` PROTECTs it), so the role goes first and
+        the group follows in the same transaction. The cascade reaches
+        everything the group carried: guardian's ``GroupObjectPermission``
+        tables key their rows by a CASCADE foreign key to ``auth.Group``, and
+        so do Django's own ``auth_user_groups`` rows - after this there are no
+        orphan grants and no membership of a group nobody manages.
+
+        Returns:
+            tuple: the ``(count, dict)`` of the ``Role`` deletion
+        """
+        group = self.group
+        with transaction.atomic():
+            deleted = self.delete(*args, **kwargs)
+            group.delete()
+        return deleted
+
 
 class RoleMembership(models.Model):
     """A person holds a role, with a record of who decided it.
@@ -451,10 +472,10 @@ class RoleMembership(models.Model):
         """
         super().clean()
         if self.role_id is not None and not self.role.is_active:
-            raise ValidationError(_(
-                "The role %(role)s is retired and cannot be granted to "
-                "anybody.",
-                {"role": str(self.role)}))
+            raise ValidationError(
+                _("The role %(role)s is retired and cannot be granted to "
+                  "anybody."),
+                code="retired_role", params={"role": str(self.role)})
 
     def save(self, *args, **kwargs):
         """Keep the group of the role in step with the membership.

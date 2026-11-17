@@ -30,7 +30,12 @@ The rows are written directly on the concrete through-models (the dedicated
 performance tables of #735) instead of through ``guardian.shortcuts``: the
 metadata is part of the same ``get_or_create``, and a re-share which finds the
 row already there keeps its original provenance - the earlier decision is on
-record, not the one which changed nothing.
+record, not the one which changed nothing. One existing row does get decided
+by a later write: a bootstrap row of the owning organization's own roles
+carries no ``granted_by``; if somebody explicitly shares exactly that action
+with exactly that role, the share is the decision this row was missing and
+stamps it, so the API never answers 201 for a grant its own listing then
+hides.
 """
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
@@ -183,11 +188,20 @@ def grant_actions(service, target, actions, granted_by=None) -> list:
     with transaction.atomic():
         for action in actions:
             permission = permission_for(service, action)
-            row, _created = model.objects.get_or_create(
+            row, created = model.objects.get_or_create(
                 permission=permission,
                 content_object=service,
                 **{kind: target},
                 defaults={"granted_by": granted_by})
+            if not created and granted_by is not None \
+                    and row.granted_by is None:
+                # The creation bootstrap wrote this row without a decider;
+                # this call IS the decision - stamp it, or the share would
+                # answer 201 and then not appear in its own listing. A row
+                # that already names a decider keeps it: the earlier
+                # decision is on record, not the one which changed nothing.
+                row.granted_by = granted_by
+                row.save(update_fields=["granted_by"])
             grants.append((kind, row))
     return grants
 

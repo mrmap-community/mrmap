@@ -493,12 +493,12 @@ def authorized_public_object_grant(user, perm, obj, checker=None) -> bool:
     group = anonymous_viewer_group()
     result = False
     if group is not None:
-        GroupObjPerm = get_group_obj_perms_model(obj)
-        grants = GroupObjPerm.objects.filter(
+        through_model = get_group_obj_perms_model(obj)
+        grants = through_model.objects.filter(
             group=group,
             permission__codename=codename,
             permission__content_type__app_label=app_label)
-        if GroupObjPerm.objects.is_generic():
+        if through_model.objects.is_generic():
             grants = grants.filter(
                 content_type__app_label=app_label,
                 content_type__model=obj._meta.model_name,
@@ -539,12 +539,12 @@ def public_object_ids(model, perm):
     group = anonymous_viewer_group()
     if group is None:
         return None
-    GroupObjPerm = get_group_obj_perms_model(model)
-    grants = GroupObjPerm.objects.filter(
+    through_model = get_group_obj_perms_model(model)
+    grants = through_model.objects.filter(
         group=group,
         permission__codename=codename,
         permission__content_type__app_label=app_label)
-    if GroupObjPerm.objects.is_generic():
+    if through_model.objects.is_generic():
         return list(grants.filter(
             content_type__app_label=app_label,
             content_type__model=model._meta.model_name).values_list(
@@ -779,6 +779,49 @@ def _as_queryset(klass):
     return klass.objects.all()
 
 
+def _organization_scope_lookup(model):
+    """How the rows of ``model`` are named by their organization, or ``None``.
+
+    The list counterpart of the scoping ``authorized_role_membership_grant``
+    applies per object: an organization is its own organization, exactly as
+    ``object_organization`` answers it on the detail endpoint; every other
+    model which stores an ``owner`` is scoped by it; a model which stores
+    neither is decided by object grants alone, and the caller which gets
+    ``None`` must not widen it by an axis of its own.
+    """
+    from accounts.models.groups import Organization
+
+    if issubclass(model, Organization):
+        return "pk__in"
+    if not any(field.name == "owner" and not field.auto_created
+               for field in model._meta.get_fields()):
+        return None
+    return "owner_id__in"
+
+
+def _organization_scope_ids(user, perms, any_perm):
+    """The organizations whose valid organization-scope roles grant ``perms``.
+
+    ``any_perm`` decides how several permissions are combined - their union or
+    their intersection - exactly as the queryset the caller builds accepts
+    them. ``None`` is the answer when there is nothing to combine, so the
+    caller adds no axis at all.
+    """
+    from accounts.models.roles import RoleScope
+
+    org_ids = None
+    for perm in perms:
+        ids = set(_valid_membership_organization_ids(
+            user, perm, RoleScope.ORGANIZATION))
+        if org_ids is None:
+            org_ids = ids
+        elif any_perm:
+            org_ids |= ids
+        else:
+            org_ids &= ids
+    return org_ids
+
+
 def objects_for_user(user, perm, klass, any_perm=False):
     """The list axis: the rows of ``klass`` which ``allowed()`` will pass.
 
@@ -826,34 +869,14 @@ def objects_for_user(user, perm, klass, any_perm=False):
     # the organization-role axis, so a service which predates the creation
     # bootstrap is listed exactly as far as its editor may open it - one
     # query over the handful of memberships, not one per row
-    from accounts.models.roles import RoleScope
-
     queryset = _as_queryset(klass)
     model = queryset.model
-    from accounts.models.groups import Organization
-
-    if issubclass(model, Organization):
-        # an organization is its own organization, exactly as
-        # ``object_organization`` answers it on the detail endpoint: the
-        # role of an organization shows the organization itself
-        scope_lookup = "pk__in"
-    elif next((f for f in model._meta.get_fields()
-               if f.name == "owner" and not f.auto_created), None) is None:
+    scope_lookup = _organization_scope_lookup(model)
+    if scope_lookup is None:
         # the model stores no organization; its rows stay decided by object
         # grants, as authorized_role_membership_grant answers nothing there
         return granted
-    else:
-        scope_lookup = "owner_id__in"
-    org_ids = None
-    for p in perms:
-        ids = set(_valid_membership_organization_ids(
-            user, p, RoleScope.ORGANIZATION))
-        if org_ids is None:
-            org_ids = ids
-        elif any_perm:
-            org_ids |= ids
-        else:
-            org_ids &= ids
+    org_ids = _organization_scope_ids(user, perms, any_perm)
     if org_ids:
         granted = granted | queryset.filter(**{scope_lookup: list(org_ids)})
     # the public axis of #739: what the anonymous viewer group may view,

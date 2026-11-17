@@ -72,13 +72,13 @@ def _granted_to_view_expr(model, group_condition):
     """
     from guardian.models import GroupObjectPermission
 
-    GroupObjPerm = group_perms_model(model)
-    generic = GroupObjPerm is None
+    through_model = group_perms_model(model)
+    generic = through_model is None
     if generic:
         # no dedicated table: the grants of every model share guardian's
         # generic pair, which names the object by content type and text
-        GroupObjPerm = GroupObjectPermission
-    grants = GroupObjPerm.objects.filter(
+        through_model = GroupObjectPermission
+    grants = through_model.objects.filter(
         permission__codename=f"view_{model._meta.model_name}",
         permission__content_type__app_label=model._meta.app_label,
         **group_condition)

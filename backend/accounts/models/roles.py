@@ -18,6 +18,13 @@ from extras.permissions import invalidate_permission_caches
 #: onto the role of this definition (see ``accounts.signals``)
 ORGANIZATION_ADMIN_ROLE = "organization_admin"
 
+#: the slug of the builtin definition which publishes and shares resources
+#: (#731 catalogue); an accepted ``PublishRequest`` writes its role-scoped
+#: grants onto the role of this definition of the requesting organization
+#: (#740), and the ``resource_publisher`` definition holds
+#: ``registry.share_resource`` which gates the share endpoint
+RESOURCE_PUBLISHER_ROLE = "resource_publisher"
+
 #: the prefix of the group name of a role without an organization; every other
 #: role group is named after its organization, see ``role_group_name``
 PLATFORM_GROUP_PREFIX = "platform"

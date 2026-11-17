@@ -43,7 +43,9 @@ from registry.models.service import (CatalogueService,
                                      WebMapServiceOperationUrl)
 from registry.models.update import WebMapServiceUpdateSetting
 from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
-                                    alerts_requested, has_alert_annotations)
+                                    alerts_requested, answer_page_alerts,
+                                    defer_alert_annotations,
+                                    has_alert_annotations)
 from registry.querys.service import LayerPrefetch
 from registry.querys.explorer import ServiceExplorerMixin, catalogue_records
 from registry.serializers.service import (
@@ -158,15 +160,31 @@ class ServiceAlertAnnotationMixin:
         return super().filter_queryset(queryset)
 
     def paginate_queryset(self, queryset, *args, **kwargs):
-        """Read the rows behind the references of the alerts of a page.
+        """Answer the alerts for the rows of the page alone (#1424).
 
-        The references of the alerts name rows of other resources, and a page
-        of services shares nothing of them with any other page: they are read
-        once for the page, so that no request asks the database per service or
-        per alert it answers.
+        The pagination answers a list with a COUNT and the slice of the
+        page, and both read more rows than the page shows - while the
+        alerts answer a subquery per attribute of every row a statement
+        reads. A page annotated through the whole table therefore paid its
+        derivation for rows the answer never shows, which turned a
+        `page[size]=1` answer into a full-table scan on the live rig. The
+        page is read without the alerts in its SELECT
+        (`defer_alert_annotations` keeps them where they still decide the
+        request: in the filters and the sort), and the attention is
+        answered on exactly the rows of the page afterwards
+        (`answer_page_alerts`), one statement bounded by the page size.
+
+        The rows behind the references of the alerts are read with it: a
+        page of services shares nothing of them with any other page, so
+        they are read once for the page, and no request asks the database
+        per service or per alert it answers.
         """
+        alerts = has_alert_annotations(queryset)
+        if alerts:
+            queryset = defer_alert_annotations(queryset)
         page = super().paginate_queryset(queryset, *args, **kwargs)
-        if page and has_alert_annotations(queryset):
+        if page and alerts:
+            answer_page_alerts(page)
             self.alert_records = alert_records(page)
         return page
 

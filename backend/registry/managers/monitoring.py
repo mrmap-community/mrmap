@@ -68,3 +68,42 @@ class MonitoringRunManager(models.Manager):
     def with_is_successful(self):
         """QuerySet of all runs of this model with annotated success state."""
         return self.get_queryset().with_is_successful()
+
+
+class ProbeResultQuerySet(models.QuerySet):
+    """QuerySet for all `ProbeResult` models which carries the read plan of
+    the retention sweep over the stored response artifacts.
+    """
+
+    def for_cleanup_batch(self):
+        """Read plan of the artifact retention sweep for one result model.
+
+        The projection of ``purge_expired_probe_response_artifacts``: the
+        rows which still name a stored body, answered as
+        ``("pk", "response_body")`` pairs. The sweep needs the name to take
+        the file back and the pk to clear the row - never the check answers
+        or the hydrated row (#1394, cf. the monitoring family of
+        ``celery-task-orm-audit``).
+
+        Cardinality: the expired rows of one model, which the sweep windows
+        with ``[:N]`` as a named call-site operation; the plan stays lazy
+        and chainable, so the sweep still filters its retention cutoff on
+        top. Every concrete result model resolves it against its own table,
+        which carries the inherited ``response_body`` column.
+        """
+        return self.exclude(response_body='').exclude(
+            response_body=None).values_list('pk', 'response_body')
+
+
+class ProbeResultManager(models.Manager):
+    """Manager for all `ProbeResult` models, which provides the read plan of
+    the retention sweep over the stored response artifacts.
+    """
+
+    def get_queryset(self):
+        return ProbeResultQuerySet(self.model, using=self._db)
+
+    def for_cleanup_batch(self):
+        """Queryset of this model's results which still name a stored body
+        (see `ProbeResultQuerySet.for_cleanup_batch`)."""
+        return self.get_queryset().for_cleanup_batch()

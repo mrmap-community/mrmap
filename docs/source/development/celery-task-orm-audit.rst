@@ -410,7 +410,13 @@ probe's ``layers`` M2M into the fetch — the rows are only needed inside
     batches after commit-safe ordering (file first or row first is decided by
     the same reasoning as #1208/#1237: rows are the durable index, the sweep
     tolerates leftovers). Propose the method as ``for_cleanup_batch()`` on a
-    shared manager of the result models (#1397's example name).
+    shared manager of the result models (#1397's example name). **Shipped
+    (#1394):** the projection is ``ProbeResultQuerySet.for_cleanup_batch()``
+    (``registry/managers/monitoring.py``, inherited by every concrete result
+    model from the abstract base); the sweep pages it with a named
+    ``[:N]`` bound, deletes the files and clears each page with one
+    ``update(response_body=None)`` - the file-before-row order of #1208
+    kept. Guarded green in ``tests_task_sql_monitoring``.
 
 Family: update jobs (scoping for #1393)
 #######################################
@@ -768,7 +774,13 @@ Family: the alert refresh (scoping for #1394)
        prefix*: list the per-kind prefixes once and diff against the named
        files, or bound the check to a slower cadence than the alert refresh.
        This is the one scoped storage-vs-SQL change #1394 should take from
-       this audit
+       this audit. **Taken (#1394):** the refresh collects the named
+       documents of every kind and answers them with ONE listing per named
+       prefix - a filesystem storage is walked below the document
+       directory once (the real layout is ``xml_documents/<pk>/``, so the
+       answerable prefix is that directory, not the service kind); a
+       storage which cannot be listed keeps the per-name probe. Guarded
+       green in ``tests/django/registry/tests_task_sql_alert_refresh.py``.
    * - the write
      - ``ServiceAlert.objects.all().delete()`` + ``bulk_create(rows)`` in one
        transaction (line 576)
@@ -776,6 +788,8 @@ Family: the alert refresh (scoping for #1394)
        previous one — #1030); add ``batch_size`` to the ``bulk_create`` so a
        deployment-wide alert set does not become one monster statement, and
        let #1395 assert the row-stability (an open alert keeps its identity)
+       **Shipped (#1394):** ``batch_size=500``; the transaction and the row
+       identities are unchanged.
 
 Family: conformity checks (scoping for #1394)
 ##############################################
@@ -791,11 +805,25 @@ Family: conformity checks (scoping for #1394)
   ``self.job`` resolve to on today's Celery (request attributes, not rows),
   the status/progress/phase writes were SQL statements in the old backend and
   are dead weight or errors on the new one. Verify at test time and retire.
+  **Retired (#1394):** the ``self.task``/``self.job`` reads and writes are
+  gone from the module (``bind=True`` with them); a source guard in
+  ``tests/django/registry/tasks/tests_conformity_tasks.py`` keeps the seam
+  out until the family's owners decide its fate.
 - no first-party caller of ``async_run_conformity_check`` exists on develop
   (no view, serializer, model hook or ``send_task`` names it). The tasks are
   registered and reachable by name only. **Not enough evidence** for an
   optimization verdict of any kind — #1394 should first establish whether the
   family is still wired, and only then touch its SQL.
+  **Established (#1394):** nothing dispatches the family anywhere - backend,
+  fixtures or frontend. And it could not answer even a by-name delivery:
+  the tasks fetch ``ConformityCheckRun.objects``, the ABSTRACT base of the
+  four sibling run tables, so the base read names a relation the migration
+  history never created (pinned by ``tests_conformity_tasks``). The family is
+  dead code, not a query-optimization candidate; the dispatcher read was
+  scoped with ``select_related("config")`` and the worker's second config
+  read now rides the run's own ``config_id``, and the keep-or-remove
+  decision of the whole family - models, managers and tasks - is with its
+  owners, asked on #1394.
 
 ``run_conformity_check_etf`` / ``run_conformity_check_internal``
     (lines 44/88) Run SELECT + concrete-config SELECT (1 each); the checkers
@@ -805,6 +833,9 @@ Family: conformity checks (scoping for #1394)
     ``ConformityCheckRunManager.has_running_check``
     (``registry/managers/conformity.py``) answers ``.count() != 0`` where
     ``.exists()`` suffices — one-line manager fix, in place, no new method.
+    **Done (#1394):** ``exists()``; note that the method's ``metadata=``
+    filter names a field no concrete run model carries either - like the
+    tasks it belongs to the keep-or-remove question, not to a query plan.
 
 Family: security log analysis (scoping for #1394)
 ##################################################
@@ -872,7 +903,11 @@ Family: system housekeeping (scoping for #1394)
      - **index candidate** ``("recorded_at",)`` on ``CeleryTaskAttempt``
        (schema change, small; with it both sweeps become index reads against
        the capped 200 k table). ``for_retention()`` as a named method is
-       optional — the filter is used once
+       optional — the filter is used once.
+       **Shipped (#1394):** the ``attempt_recorded_idx`` migration; the
+       plan guard is in ``system/test_task_sql_guards``. ``for_retention()``
+       was left out on purpose - one consumer of a one-line filter is the
+       trivial #1397 rule 6 refuses to wrap.
    * - abandon page loop
      - ``filter(outcome="", started_at__lt=...)`` — the
        ``started_at``/``(queue,started_at)`` indexes cover it
@@ -993,7 +1028,8 @@ enough evidence).
      - zero SQL
    * - ``bound_task_attempt_samples``
      - **optimize**
-     - ``recorded_at`` index candidate; loop shape already fine
+     - ``recorded_at`` index shipped with #1394 (``attempt_recorded_idx``);
+       loop shape already fine
    * - ``refresh_capacity_snapshot``
      - already optimal
      - cache + budgets + indexed attempt windows (#1326)
@@ -1110,13 +1146,16 @@ Scoping for the follow-up issues
       the first PR).
 
 #1394 — housekeeping, alerts, security, conformity, notify, system
+    (**shipped** — the four items below landed; the keep-or-remove question
+    of the whole conformity family is with its owners, see the family
+    section):
     - ``missing_capabilities_rows``: replace per-service ``storage.exists()``
       with per-prefix listings (or a slower dedicated cadence); add
       ``batch_size`` to the alert ``bulk_create``.
     - probe-artifact purge: paged read + batched ``update`` behind
       ``for_cleanup_batch()``.
     - ``CeleryTaskAttempt``: add the ``recorded_at`` index; optional
-      ``for_retention()``.
+      ``for_retention()`` (left out — one consumer of a one-line filter).
     - conformity: establish whether the tasks are wired at all; retire the
       ``self.task``/``self.job`` task-result seam; ``has_running_check``
       ``count`` → ``exists``.

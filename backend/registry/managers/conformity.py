@@ -22,9 +22,10 @@ class ConformityCheckRunManager(models.Manager):
                 True, if a non-finished ConformityCheckRun was found,
                 false otherwise.
         """
-        running_checks = super().get_queryset().filter(
-            metadata=metadata, passed__isnull=True).count()
-        return running_checks != 0
+        # EXISTS answers the yes/no question with one bounded statement;
+        # COUNT(*) counted rows nobody reads (#1394)
+        return super().get_queryset().filter(
+            metadata=metadata, passed__isnull=True).exists()
 
     def get_latest_check(self, metadata):
         from registry.models import ConformityCheckRun

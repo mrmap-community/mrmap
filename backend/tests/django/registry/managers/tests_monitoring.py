@@ -10,9 +10,11 @@ model — the base model has no ``setting`` field to join.
 from django.test import TestCase
 from django_celery_beat.models import IntervalSchedule
 from registry.managers.monitoring import (MonitoringRunManager,
-                                          MonitoringRunQuerySet)
+                                          MonitoringRunQuerySet,
+                                          ProbeResultManager,
+                                          ProbeResultQuerySet)
 from registry.models.monitoring import (
-    GetCapabilitiesProbe, GetMapProbe,
+    GetCapabilitiesProbe, GetMapProbe, GetMapProbeResult,
     WebFeatureServiceMonitoringRun, WebFeatureServiceMonitoringSetting,
     WebMapServiceMonitoringRun, WebMapServiceMonitoringSetting)
 from registry.models.service import WebFeatureService, WebMapService
@@ -136,3 +138,84 @@ class ForMonitoringTaskTest(QueryPlanMixin, TestCase):
                 WebFeatureServiceMonitoringRun.DoesNotExist):
             WebFeatureServiceMonitoringRun.objects \
                 .for_monitoring_task().get(pk=wms_run.pk)
+
+
+class ForCleanupBatchTest(QueryPlanMixin, TestCase):
+    """The read plan of the artifact retention sweep (#1394).
+
+    ``ProbeResultQuerySet.for_cleanup_batch()`` is what
+    ``purge_expired_probe_response_artifacts`` pages through: the pk and
+    the name of every row still naming a stored body - never the hydrated
+    row, never the check answers. Declared on the abstract ``ProbeResult``
+    base, it is inherited by every concrete result model, which resolves
+    the projection against its own table.
+    """
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_wms.json',
+                'test_crs.json', 'test_wfs.json', 'test_csw.json']
+
+    def setUp(self):
+        interval = IntervalSchedule.objects.create(every=1, period='days')
+        self.run = WebMapServiceMonitoringRun.objects.create(
+            setting=WebMapServiceMonitoringSetting.objects.create(
+                service=WebMapService.objects.get(
+                    pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"),
+                interval=interval))
+
+    def _row(self, body):
+        """One result row naming ``body``, without touching the storage"""
+        result = GetMapProbeResult(
+            run=self.run, monitored_uri='http://x/y', response_body=body)
+        result.save()
+        return result
+
+    def test_plan_is_the_projection_of_the_sweep(self):
+        """before/after: the plan is the read the sweep used inline"""
+        planned = str(GetMapProbeResult.objects.for_cleanup_batch().query)
+        inline = str(GetMapProbeResult.objects
+                     .exclude(response_body='')
+                     .exclude(response_body=None)
+                     .values_list('pk', 'response_body').query)
+        self.assertEqual(planned, inline)
+
+    def test_only_rows_naming_a_body_answer(self):
+        named = self._row('xml_documents/probe/1.xml')
+        self._row('')  # a row whose field is set but empty names nothing
+        GetMapProbeResult(run=self.run, monitored_uri='http://x/y').save()
+        self.assertEqual(
+            [(named.pk, 'xml_documents/probe/1.xml')],
+            list(GetMapProbeResult.objects.for_cleanup_batch()))
+
+    def test_method_is_lazy_and_stays_chainable(self):
+        named = self._row('xml_documents/probe/2.xml')
+
+        def wire():
+            # building, extending and windowing the plan must not hit the
+            # database - the page bound is the sweep's own call site
+            return (GetMapProbeResult.objects.for_cleanup_batch()
+                    .filter(run=self.run).using('default')[:10])
+
+        _, wiring_reads = self.measure(wire)
+        self.assertEqual([], wiring_reads)
+
+        page, reads = self.measure(
+            lambda: list(GetMapProbeResult.objects.for_cleanup_batch()[:10]))
+        self.assertEqual(1, len(reads))
+        self.assertEqual([(named.pk, 'xml_documents/probe/2.xml')], page)
+
+    def test_manager_composition_and_concrete_resolution(self):
+        """the exposure rides the model setup: the concrete result model
+        answers the plan through the inherited manager, against its own
+        table"""
+        manager = GetMapProbeResult._default_manager
+        self.assertIsInstance(manager, ProbeResultManager)
+        self.assertIsInstance(
+            manager.for_cleanup_batch(), ProbeResultQuerySet)
+        named = self._row('xml_documents/probe/3.xml')
+        pairs, reads = self.measure(
+            lambda: list(GetMapProbeResult._default_manager
+                         .for_cleanup_batch()))
+        self.assertEqual(1, len(reads))
+        self.assertEqual([(named.pk, 'xml_documents/probe/3.xml')], pairs)
+        self.assertIn(GetMapProbeResult._meta.db_table,
+                      self.tables_read(reads[0]))

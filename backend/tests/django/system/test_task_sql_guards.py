@@ -5,17 +5,33 @@ system housekeeping"). ``bound_task_attempt_samples`` (#1330) sweeps the
 attempt table three times; the checklist asks: "constant statements per page
 of 500". The abandon loop is page-bound by design - growth per PAGE is fine,
 growth per ROW is the regression. The ``recorded_at`` index the audit names
-as a candidate is #1394's migration; until it lands, the retention sweeps are
-guarded for statement count, not plan.
+as a candidate landed with #1394 (``attempt_recorded_idx``); the retention
+window and the hard-cap order are guarded as plans, below.
 """
 import uuid
-from datetime import timedelta
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 
+from django.db import connection
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from system.models import CeleryTaskAttempt
 from system.tasks import bound_task_attempt_samples
 from tests.django.sql_guard import SqlGuardMixin
+
+
+@contextmanager
+def off_seqscan():
+    """EXPLAIN under ``enable_seqscan = off`` for one assertion block.
+
+    The same pattern ``tests_task_sql_harvesting`` documents: ``SET LOCAL``
+    lives with the test's own atomic block, and the question asked is
+    whether the named index CAN answer this read shape - not the planner's
+    mood on a small fixture.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute('SET LOCAL enable_seqscan = off')
+    yield
 
 
 def seed_attempt(outcome='success', started_ago_seconds=0, quality=None):
@@ -133,3 +149,54 @@ class AttemptRetentionAndCapTest(SqlGuardMixin, TestCase):
                 bound_task_attempt_samples.run,
                 sanctioned={'select': 6, 'update': 3},
                 label='the full bound fire')
+
+
+class AttemptRecordedAtPlanTest(SqlGuardMixin, TestCase):
+    """The two ``recorded_at`` sweeps read through the index of #1394.
+
+    The retention window of the sweep ends in a DELETE and the hard cap
+    orders the whole table, so what these asserts EXPLAIN is the rendered
+    SELECT of the same filter and the same order - the shapes the sweeps
+    pay - with the named index of the migration required, the way #1395
+    asserts plans whenever an index candidate lands.
+    """
+
+    ATTEMPT_TABLE = CeleryTaskAttempt._meta.db_table
+
+    @staticmethod
+    def _explainable(qs):
+        """The queryset's SELECT as literal SQL the planner can be asked.
+
+        ``str(query)`` splices parameters into the text unquoted - integers
+        survive that, timestamps do not (the syntax error PostgreSQL answers
+        at the rendered ``datetime``). Rendering the parameters through
+        quotes keeps the EXPLAINED statement the shape the sweep pays.
+        """
+        sql, params = qs.query.get_compiler('default').as_sql()
+        for param in params:
+            literal = (f"'{param}'"
+                       if isinstance(param, (str, datetime)) else str(param))
+            sql = sql.replace('%s', literal, 1)
+        return sql
+
+    def _retention_shape(self):
+        cutoff = timezone.now() - timedelta(days=7)
+        return self._explainable(CeleryTaskAttempt.objects.filter(
+            recorded_at__lt=cutoff))
+
+    def _cap_order_shape(self):
+        return self._explainable(CeleryTaskAttempt.objects.order_by(
+            'recorded_at'))
+
+    def test_the_recorded_at_reads_are_index_backed(self):
+        for _ in range(10):
+            seed_attempt(outcome='success')
+        with off_seqscan():
+            self.assertPlanUsesIndex(
+                self._retention_shape(), self.ATTEMPT_TABLE,
+                index='attempt_recorded_idx',
+                label='the retention window')
+            self.assertPlanUsesIndex(
+                self._cap_order_shape(), self.ATTEMPT_TABLE,
+                index='attempt_recorded_idx',
+                label='the hard-cap order of the oldest rows')

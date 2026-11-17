@@ -36,11 +36,11 @@ const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
 
 /** the moment a record answers, or nothing when it answers none */
 const asDate = (value: unknown): Date | undefined => {
-  const date = value instanceof Date
-    ? value
-    : typeof value === "string" || typeof value === "number"
-      ? new Date(String(value))
-      : new Date(Number.NaN);
+  let date: Date;
+  if (value instanceof Date) date = value;
+  else if (typeof value === "string" || typeof value === "number")
+    date = new Date(String(value));
+  else date = new Date(Number.NaN);
   return Number.isNaN(date.getTime()) ? undefined : date;
 };
 

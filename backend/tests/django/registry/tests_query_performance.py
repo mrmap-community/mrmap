@@ -300,13 +300,15 @@ class IncludedServiceQueryPerformance(QueryMeasurementMixin, TestCase):
     def test_the_action_hint_stays_one_query_per_request(self):
         """Naming ``allowedActions`` may not turn the include into row work.
 
-        The six actions of #738 ride on the batched role axes: one query per
-        request (the fixture's services have no owner, so no organization
-        query), plus the one object-permission load the shared checker pays
-        per DISTINCT included service - never per row that refers to it. The
-        allowance is the fixture's two services and the one role query with
-        room for the organization axis; growth beyond it means the batch
-        broke apart into per-permission or per-row queries.
+        The six actions of #738 ride on the same loads the single retired
+        hint paid - measured by the re-pinned behave scenarios, the same 5
+        queries on this fixture. The requesting checker is the request's
+        shared one, which has not prefetched the services, so the object
+        axis pays the two guardian object-permission loads per DISTINCT
+        included service (the fixture's two) plus one read resolving the
+        requester - a constant per request. The nine layer rows all refer to
+        those two services: if the batch broke apart into per-row work the
+        delta would be per row instead.
         """
         _status, _body, without = self.request(
             '/api/registry/layers', **{'include': 'service'})
@@ -315,10 +317,11 @@ class IncludedServiceQueryPerformance(QueryMeasurementMixin, TestCase):
             **{'include': 'service', 'fields[WebMapService]':
                'id,title,allowed_actions'})
         self.assertLessEqual(
-            len(with_hint) - len(without), 4,
+            len(with_hint) - len(without), 5,
             msg=(f'the action hint added {len(with_hint) - len(without)} '
-                 'queries; allowed are the two services of the fixture and '
-                 'the role axes once. '
+                 'queries; allowed are the two DISTINCT included services x '
+                 'the two guardian loads each plus one requester read - '
+                 'never anything per layer row. '
                  f'Queries per table: {table_counter(with_hint)}'))
 
     def test_included_service_still_answers_its_relations(self):

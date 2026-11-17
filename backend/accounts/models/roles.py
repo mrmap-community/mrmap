@@ -5,12 +5,13 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from extras.permissions import invalidate_permission_caches
 
 #: the slug of the builtin definition which administers one organization; the
 #: catalogue of #731 seeds it and the grants of a new organization are written
@@ -395,13 +396,40 @@ class Role(models.Model):
         Deleting the membership takes the user out of the group of the role,
         which is what revokes every object grant the group gave them.
 
+        The instances are deleted one by one rather than through the
+        queryset: only ``RoleMembership.delete()`` runs the central cache
+        invalidation of #734, and a revoked membership which left a stale
+        permission cache behind is the split answer this issue retires.
+
         Args:
             user: the user to remove from the role
 
         Returns:
             int: the number of memberships which were removed, 0 or 1
         """
-        return RoleMembership.objects.filter(role=self, user=user).delete()[0]
+        return sum(membership.delete()[0] for membership in
+                   RoleMembership.objects.filter(role=self, user=user))
+
+    def delete_with_group(self, *args, **kwargs):
+        """Delete this role *and* the group it manages, leaving nothing behind.
+
+        A role without its group is an orphan: guardian's rows would still
+        point at a group no role explains. Deleting the group first is
+        impossible (``Role.group`` PROTECTs it), so the role goes first and
+        the group follows in the same transaction. The cascade reaches
+        everything the group carried: guardian's ``GroupObjectPermission``
+        tables key their rows by a CASCADE foreign key to ``auth.Group``, and
+        so do Django's own ``auth_user_groups`` rows - after this there are no
+        orphan grants and no membership of a group nobody manages.
+
+        Returns:
+            tuple: the ``(count, dict)`` of the ``Role`` deletion
+        """
+        group = self.group
+        with transaction.atomic():
+            deleted = self.delete(*args, **kwargs)
+            group.delete()
+        return deleted
 
 
 class RoleMembership(models.Model):
@@ -482,10 +510,10 @@ class RoleMembership(models.Model):
         """
         super().clean()
         if self.role_id is not None and not self.role.is_active:
-            raise ValidationError(_(
-                "The role %(role)s is retired and cannot be granted to "
-                "anybody.",
-                {"role": str(self.role)}))
+            raise ValidationError(
+                _("The role %(role)s is retired and cannot be granted to "
+                  "anybody."),
+                code="retired_role", params={"role": str(self.role)})
 
     def save(self, *args, **kwargs):
         """Keep the group of the role in step with the membership.
@@ -495,13 +523,25 @@ class RoleMembership(models.Model):
         loaded membership would add its user to a group as a side effect of
         reading a dump. A deserializer calls ``save_base``, never ``save()``, so
         this path cannot do that.
+
+        After the add the user's cached permission strings are dropped: the
+        group of the role is where a role grants (#732), so membership of it
+        changes what the global-permission cache of this very instance holds.
+        #734 invalidates centrally, in the write path - no caller may pop
+        Django's caches by hand.
         """
         super().save(*args, **kwargs)
         self.role.group.user_set.add(self.user)
+        invalidate_permission_caches(self.user)
 
     def delete(self, *args, **kwargs):
-        """Leave the group, which revokes everything the role granted."""
+        """Leave the group, which revokes everything the role granted.
+
+        The cached permission strings of the instance are dropped the same
+        way they are on the grant (#734).
+        """
         group = self.role.group
         deleted = super().delete(*args, **kwargs)
         group.user_set.remove(self.user)
+        invalidate_permission_caches(self.user)
         return deleted

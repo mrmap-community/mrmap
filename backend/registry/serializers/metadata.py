@@ -356,16 +356,19 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
         return result
 
     def _can_modify(self, obj, action):
-        user = self.context["request"].user
-        permission = f"{obj._meta.app_label}.{action}_{obj._meta.model_name}"
-        if not user.has_perm(permission):
-            return False
+        # the same question the PATCH endpoint answers, answered by the same
+        # facade (#734): the global-permission half is retired, the checker
+        # of the request stays the loader
+        from extras.permissions import allowed
+
         request = self.context["request"]
         checker = getattr(request, "record_permission_checker", None)
         if checker is None:
-            checker = ObjectPermissionChecker(user)
+            checker = ObjectPermissionChecker(request.user)
             request.record_permission_checker = checker
-        return checker.has_perm(permission, obj)
+        return allowed(request.user,
+                       f"{obj._meta.app_label}.{action}_{obj._meta.model_name}",
+                       obj, checker=checker)
 
     def get_can_edit(self, obj) -> bool:
         if (getattr(self.context.get("view"), "action", None) == "list"

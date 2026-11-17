@@ -15,7 +15,12 @@ class UserViewSetMixin:
     }
     permission_classes = [DjangoObjectPermissions]
     prefetch_for_includes = {
-        '__all__': [],
+        '__all__': [
+            # the UserSerializer answers the roles relation of every user
+            # (#736); this keeps that answer off a query per row
+            'role_memberships__role__role_definition',
+            'role_memberships__role__organization',
+        ],
         'groups': ['groups']
     }
     search_fields = ("id", "username", "first_name", "last_name", "email")

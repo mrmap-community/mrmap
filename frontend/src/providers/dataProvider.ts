@@ -136,10 +136,6 @@ const sendSubscriptionFrame = (topic: string, action: 'subscribe' | 'unsubscribe
 }
 
 
-const handleOperationNotFoundError = (): void => {
-
-}
-
 const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferenceParams) => {
   const parameters: ParamsArray = []
 
@@ -392,8 +388,10 @@ const dataProvider = ({
       try {
         conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       } catch {
-        handleOperationNotFoundError();
-        return  { data: [], }
+        // a resource without a retrieve operation has no record to answer; the
+        // 404 is the answer react-admin knows what to do with, while an array
+        // in place of the record made the screen render as an empty one (#1463)
+        throw new HttpError(`Operation 'retrieve_${resource}' not found.`, 404)
       }
 
       return await httpClient.client.request(conf).then((response: AxiosResponse) => {
@@ -511,7 +509,11 @@ const dataProvider = ({
         const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
         return { data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) }
       }).catch(error => {
-        if (error.response.status === 400) {
+        // only an answered 400 carries the json:api errors to map; a request
+        // which never got an answer - a network error, a timeout - has no
+        // response to read and travels on as it is, like update and custom
+        // already do (#1463)
+        if (axios.isAxiosError(error) && error.status === 400) {
           handleBadRequest(error)
         }
         throw error

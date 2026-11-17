@@ -1431,7 +1431,7 @@ class ServiceDetailAlertScanTest(ServiceAlertsMixin, TestCase):
             queries.captured_queries, "registry_webmapservice", WMS_ONE)
         data = response.json()["data"]
         self.assertTrue(data["attributes"]["hasAlert"])
-        self.assertIn("isAccessible", data["attributes"])
+        self.assertIn("allowedActions", data["attributes"])
 
 
 class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):

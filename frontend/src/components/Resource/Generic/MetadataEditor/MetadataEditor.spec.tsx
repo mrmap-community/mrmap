@@ -94,7 +94,7 @@ const makeRecord = (overrides: object = {}) => ({
   id: "record-1",
   title: "",
   abstract: "",
-  canEdit: true,
+  allowedActions: ["view", "change"],
   isSearchable: false,
   profile: {
     id: "p1",
@@ -200,7 +200,7 @@ describe("the full screen record editor", () => {
   });
 
   it("refuses to edit a record the user may not edit", async () => {
-    setup("DatasetMetadataRecord", makeRecord({ canEdit: false }));
+    setup("DatasetMetadataRecord", makeRecord({ allowedActions: [] }));
     expect(
       await screen.findByText("metadataEditor.noPermission"),
     ).toBeInTheDocument();

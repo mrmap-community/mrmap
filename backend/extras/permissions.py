@@ -25,7 +25,11 @@ Every view, serializer and queryset which decides a permission asks one of
 the three entry points of this module and nothing else:
 
 * ``allowed(user, perm, obj)`` - the decision over one object: the detail
-  endpoint, a write, the ``can_edit`` / ``is_accessible`` hint;
+  endpoint and every write;
+* ``allowed_actions(user, obj, checker)`` - the same decisions as the set of
+  actions the API may offer for one object: the ``allowedActions`` hint of
+  #738, which retires the ``can_edit`` / ``can_delete`` / ``is_accessible``
+  trio that answered it with expressions which could disagree;
 * ``allowed_model_scope(user, perm)`` - the same decision where no object
   exists yet: the ``add`` gate of a create;
 * ``objects_for_user(user, perm, klass)`` - the same answer as a queryset:
@@ -140,6 +144,25 @@ PERMISSION_CACHES = ("_perm_cache", "_user_perm_cache", "_group_perm_cache")
 #: impossible to re-enable under another name without touching this line.
 GLOBAL_GRANTS_EFFECTIVE = False
 
+#: The CRUD actions, in answer order. They are spelled per model: the ``change``
+#: answer of an object asks ``change_<model_name>`` of the object's own model.
+CRUD_ACTIONS = ("view", "change", "delete")
+
+#: The capability actions, in answer order. They are not content-type scoped:
+#: a role holds them as an app-level permission of the object's app, which the
+#: app declares on whatever carrier model it has - see the comment on the
+#: custom permissions of ``registry.models.service.WebMapService``. An app that
+#: declares no capability never answers one, and a model that is not the carrier
+#: still answers through the role axes and through explicit grants, which is
+#: exactly how ``allowed()`` reads ``registry.<codename>`` anyway.
+CAPABILITY_ACTIONS = {
+    "registry": {
+        "publish": "publish_resource",
+        "share": "share_resource",
+        "manage_access_rules": "manage_access_rules",
+    },
+}
+
 
 def _split_perm(perm, obj=None):
     """``(app_label, codename)`` of ``"app.codename"`` or ``"codename"``.
@@ -186,17 +209,20 @@ def audited_break_glass_superuser(user) -> bool:
                 and getattr(user, "is_superuser", False))
 
 
-def _valid_membership_queryset(user, perm, scope):
-    """The currently valid memberships through which a role grants ``perm``.
+def _valid_memberships_queryset(user, app_label, codenames, scope):
+    """The currently valid memberships through which a role grants any of ``codenames``.
 
     Shared by every role axis so "membership" answers identically everywhere:
     an *active* role, a membership whose ``valid_until`` has not passed (an
     expired membership is not valid, even while #741's revoking task has not
-    deleted its row yet), and the definition holds ``perm``.
+    deleted its row yet), and the definition holds the permission. Asked for
+    a list of codenames it is the batched form of the per-permission query -
+    one statement over the handful of memberships (#738).
 
     Args:
         user: the user to ask
-        perm (str): ``"app_label.codename"``
+        app_label (str): the app the codenames belong to
+        codenames (list): permission codenames, e.g. ``["change_webmapservice"]``
         scope: the ``RoleScope`` the role's definition must have
     """
     from accounts.models.roles import RoleMembership
@@ -206,15 +232,23 @@ def _valid_membership_queryset(user, perm, scope):
     if getattr(user, "pk", None) is None:
         return RoleMembership.objects.none()
 
-    app_label, codename = _split_perm(perm)
     now = timezone.now()
     return RoleMembership.objects.filter(
         user=user,
         role__is_active=True,
         role__role_definition__scope=scope,
         role__role_definition__permissions__content_type__app_label=app_label,
-        role__role_definition__permissions__codename=codename,
+        role__role_definition__permissions__codename__in=list(codenames),
     ).filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+
+
+def _valid_membership_queryset(user, perm, scope):
+    """The currently valid memberships through which a role grants ``perm``.
+
+    See ``_valid_memberships_queryset`` for what *currently valid* means.
+    """
+    app_label, codename = _split_perm(perm)
+    return _valid_memberships_queryset(user, app_label, [codename], scope)
 
 
 def _valid_membership_perm_exists(user, perm, scope,
@@ -418,6 +452,139 @@ def allowed_model_scope(user, perm, checker=None) -> bool:
 
     return _valid_membership_queryset(
         user, perm, RoleScope.ORGANIZATION).exists()
+
+
+def _action_permissions(obj):
+    """The ordered ``(action, perm)`` pairs ``obj`` answers its actions through.
+
+    The CRUD actions first, spelled per model (``change_webmapservice``); then
+    the capability actions of the object's app, spelled app-level
+    (``registry.publish_resource``) exactly as the carrier note in
+    ``registry.models.service.WebMapService.Meta`` tells the caller to ask.
+    The order is fixed because it is the answer order of ``allowed_actions``.
+    """
+    app_label = obj._meta.app_label
+    pairs = [(action, f"{app_label}.{action}_{obj._meta.model_name}")
+             for action in CRUD_ACTIONS]
+    pairs += [(action, f"{app_label}.{codename}") for action, codename
+              in CAPABILITY_ACTIONS.get(app_label, {}).items()]
+    return pairs
+
+
+def _seed_action_role_memos(user, obj, checker):
+    """Load both role axes for every action of ``obj`` with two queries.
+
+    The per-permission role queries are correct one at a time, but a whole
+    action batch on every row of a list would pay one query per distinct
+    permission through ``_valid_membership_perm_exists``. So the two axes are
+    asked once per request and app for the whole codename batch - the PLATFORM
+    axis as a set of codenames, the ORGANIZATION axis as
+    ``(organization_id, codename)`` pairs, both over the handful of rows of
+    ``_valid_memberships_queryset`` - and the answers are seeded under the
+    exact memo keys ``authorized_platform_scoped_perm`` and
+    ``authorized_role_membership_grant`` read. A later ``allowed()`` on any of
+    these permissions answers from the same memory; the batched and the single
+    path cannot drift because they share the one memo (#738).
+    """
+    from accounts.models.roles import RoleScope
+
+    memo = _memo_of(checker)
+    app_label = obj._meta.app_label
+    codenames = [perm.split(".", 1)[1] for _, perm in _action_permissions(obj)]
+    batch = (app_label, tuple(codenames))
+
+    platform_key = ("actions_platform", batch)
+    if platform_key not in memo:
+        memo[platform_key] = set(
+            _valid_memberships_queryset(
+                user, app_label, codenames, RoleScope.PLATFORM)
+            .filter(role__organization__isnull=True)
+            .values_list("role__role_definition__permissions__codename",
+                         flat=True).distinct())
+    platform = memo[platform_key]
+    for codename in codenames:
+        memo[("platform", f"{app_label}.{codename}")] = codename in platform
+
+    organization = object_organization(obj)
+    if organization is None:
+        # an object without a known organization answers nothing on the org
+        # axis, exactly as authorized_role_membership_grant does - and no
+        # query is paid for it
+        return
+    org_key = ("actions_org", batch)
+    if org_key not in memo:
+        memo[org_key] = set(
+            _valid_memberships_queryset(
+                user, app_label, codenames, RoleScope.ORGANIZATION)
+            .exclude(role__organization__isnull=True)
+            .values_list("role__organization_id",
+                         "role__role_definition__permissions__codename")
+            .distinct())
+    pairs = memo[org_key]
+    for codename in codenames:
+        memo[("org", f"{app_label}.{codename}", organization.pk)] = \
+            (organization.pk, codename) in pairs
+
+
+def allowed_actions(user, obj, checker=None) -> list:
+    """The actions ``user`` may take on ``obj``, in the fixed answer order.
+
+    The hint of #738: one answer for "what may this caller do here", shipped
+    by the serializers as ``allowedActions`` and gated on by the frontend -
+    replacing the ``can_edit`` / ``can_delete`` / ``is_accessible`` trio whose
+    expressions could disagree with the endpoint. It widens nothing: every
+    returned action is answered by ``allowed()`` for its permission, and an
+    action an app does not declare is never answered (``_action_permissions``).
+
+    The cost mirrors ``allowed()`` rather than adding to it: the object axis
+    is asked first and is free for a prefetched page; the two role axes are
+    only reached for the actions which hold no explicit grant, and then not
+    one query per action but one batch per request and app
+    (``_seed_action_role_memos``). A fully granted user therefore reads zero
+    role queries - the same state the single ``is_accessible`` hint was in -
+    which is what keeps the explorer list inside its pinned query budget
+    (#738, ``tests_query_performance.py``).
+
+    Args:
+        user: the user asking; ``None`` and anonymous answer only the object
+            axis, like ``allowed()``
+        obj: the object the actions are about
+        checker: the request's permission checker, when there is one
+    """
+    actions = _action_permissions(obj)
+    if audited_break_glass_superuser(user):
+        # the break-glass answers every action of the object and asks no query
+        return [action for action, _ in actions]
+    if user is None:
+        return []
+    if getattr(user, "is_authenticated", False) \
+            and not getattr(user, "is_active", False):
+        # an inactive user grants nothing, superuser aside - the rule of
+        # allowed(), checked before the object axis which Django's
+        # AnonymousUser answers False
+        return []
+    decisions = {}
+    missing = []
+    for action, perm in actions:
+        # the object axis first: the checker of the request has usually
+        # loaded it already, so the common grant answers without a query.
+        # For an anonymous user this is the whole decision, exactly as
+        # ``allowed()`` answers it.
+        if authorized_explicit_scoped_object_grant(
+                user, perm, obj, checker=checker):
+            decisions[action] = True
+        else:
+            missing.append((action, perm))
+    if not getattr(user, "is_authenticated", False):
+        missing = []
+    if missing and checker is not None:
+        _seed_action_role_memos(user, obj, checker)
+    for action, perm in missing:
+        decisions[action] = bool(
+            authorized_platform_scoped_perm(user, perm, checker=checker)
+            or authorized_role_membership_grant(user, perm, obj,
+                                                checker=checker))
+    return [action for action, _ in actions if decisions.get(action)]
 
 
 def _as_queryset(klass):

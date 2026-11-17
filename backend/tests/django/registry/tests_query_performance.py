@@ -272,26 +272,57 @@ class IncludedServiceQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertNoSlowObjectPermissions('/api/registry/layers')
         self.assertNoSlowObjectPermissions('/api/registry/wms')
 
-    def test_included_service_is_accessible(self):
-        """An included resource still answers whether the user may see it.
+    def test_included_service_answers_allowed_actions(self):
+        """An included resource still answers which actions the user may take.
 
-        The json:api renderer creates the serializers of included resources with
-        the context of the renderer, which knows the view but not the permission
-        checker that the view added to the serializer context.
-        ``extras.serializers.ObjectPermissionCheckerSerializer`` falls back to a
-        checker that is shared for the whole request. It is still slower than the
-        prefetched checker of the view, because it determines the permissions of
-        every included object once, but it does not repeat the check for every
-        row that refers to the same service.
+        The json:api renderer creates the serializers of included resources
+        with the context of the renderer, which knows the view but not the
+        permission checker that the view added to the serializer context.
+        ``extras.serializers.ObjectPermissionCheckerSerializer`` falls back to
+        a checker that is shared for the whole request. It is still slower
+        than the prefetched checker of the view, because it determines the
+        permissions of every included object once, but it does not repeat the
+        check for every row that refers to the same service. The hint of
+        #738 is opt-in on a list, so the request names it - and the batched
+        role axes stay one query per request however many services answer it.
         """
         status, body, _queries = self.request(
-            '/api/registry/layers', **{'include': 'service'})
+            '/api/registry/layers', **{
+                'include': 'service',
+                'fields[WebMapService]': 'id,title,allowed_actions'})
         self.assertEqual(status, 200)
         included = [resource for resource in body.get('included', [])
                     if resource['type'] == 'WebMapService']
         self.assertTrue(included, msg=f'no included service in {body}')
         for resource in included:
-            self.assertIn('isAccessible', resource['attributes'])
+            self.assertIn('allowedActions', resource['attributes'])
+
+    def test_the_action_hint_stays_one_query_per_request(self):
+        """Naming ``allowedActions`` may not turn the include into row work.
+
+        The six actions of #738 ride on the same loads the single retired
+        hint paid - measured by the re-pinned behave scenarios, the same 5
+        queries on this fixture. The requesting checker is the request's
+        shared one, which has not prefetched the services, so the object
+        axis pays the two guardian object-permission loads per DISTINCT
+        included service (the fixture's two) plus one read resolving the
+        requester - a constant per request. The nine layer rows all refer to
+        those two services: if the batch broke apart into per-row work the
+        delta would be per row instead.
+        """
+        _status, _body, without = self.request(
+            '/api/registry/layers', **{'include': 'service'})
+        _status, _body, with_hint = self.request(
+            '/api/registry/layers',
+            **{'include': 'service', 'fields[WebMapService]':
+               'id,title,allowed_actions'})
+        self.assertLessEqual(
+            len(with_hint) - len(without), 5,
+            msg=(f'the action hint added {len(with_hint) - len(without)} '
+                 'queries; allowed are the two DISTINCT included services x '
+                 'the two guardian loads each plus one requester read - '
+                 'never anything per layer row. '
+                 f'Queries per table: {table_counter(with_hint)}'))
 
     def test_included_service_still_answers_its_relations(self):
         """Narrowing a relation to its ids must not remove it from the answer.

@@ -66,10 +66,11 @@ class ApplicationRecordApiTests(QueryMeasurementMixin, TestCase):
         cls.record.save()
 
     def test_the_list_answers_the_application_resource_type(self):
-        """the list names the application record and keeps its grants out of it
+        """the list names the application record and keeps the hint out of it
 
-        ``RecordPermissionsSerializerMixin`` drops the permission fields of the
-        list, where they would be asserted per row; the detail answers them.
+        ``RecordPermissionsSerializerMixin`` gates the permission hint of the
+        list to a request that names it in the sparse fieldset, where it
+        would be asserted per row; the detail answers it.
         """
         status, body, _ = self.request('/api/registry/application-metadata', user='user')
         self.assertEqual(status, 200, body)
@@ -77,8 +78,7 @@ class ApplicationRecordApiTests(QueryMeasurementMixin, TestCase):
             [row['type'] for row in body['data']],
             ['ApplicationMetadataRecord'] * len(body['data']))
         for row in body['data']:
-            self.assertNotIn('canEdit', row['attributes'])
-            self.assertNotIn('canDelete', row['attributes'])
+            self.assertNotIn('allowedActions', row['attributes'])
 
     def test_anonymous_may_read_the_application_records(self):
         """the endpoint is as open as the endpoints beside it (#830 measured it)"""
@@ -86,8 +86,10 @@ class ApplicationRecordApiTests(QueryMeasurementMixin, TestCase):
         self.assertEqual(status, 200, body)
         status, body, _ = self.request(f'/api/registry/application-metadata/{self.record.pk}')
         self.assertEqual(status, 200, body)
-        self.assertFalse(body['data']['attributes']['canEdit'])
-        self.assertFalse(body['data']['attributes']['canDelete'])
+        self.assertNotIn(
+            'change', body['data']['attributes']['allowedActions'])
+        self.assertNotIn(
+            'delete', body['data']['attributes']['allowedActions'])
 
     def test_detail_includes_the_relations_of_the_record(self):
         """the application record includes what the dataset record includes, with
@@ -118,12 +120,16 @@ class ApplicationRecordApiTests(QueryMeasurementMixin, TestCase):
         path = f'/api/registry/application-metadata/{self.record.pk}'
         status, body, _ = self.request(path, user='user')
         self.assertEqual(status, 200, body)
-        self.assertFalse(body['data']['attributes']['canEdit'])
+        # the retired global grant answers nothing (Q5=B); the hint only
+        # answers "change" once the object grant arrives (#738)
+        self.assertNotIn(
+            'change', body['data']['attributes']['allowedActions'])
         assign_perm('registry.change_applicationmetadatarecord', reader, self.record)
         status, body, _ = self.request(path, user='user')
         self.assertEqual(status, 200, body)
-        self.assertTrue(body['data']['attributes']['canEdit'])
-        self.assertFalse(body['data']['attributes']['canDelete'])
+        self.assertIn('change', body['data']['attributes']['allowedActions'])
+        self.assertNotIn(
+            'delete', body['data']['attributes']['allowedActions'])
 
     def test_nested_record_lists_resolve(self):
         """every relation of the record answers its own nested list"""

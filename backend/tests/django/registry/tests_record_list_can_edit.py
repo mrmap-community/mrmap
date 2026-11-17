@@ -7,12 +7,14 @@ from tests.django.registry.tests_query_performance import QueryMeasurementMixin
 
 
 class RecordListCanEditTests(QueryMeasurementMixin, TestCase):
-    """``canEdit`` on the record list is paid for only by the screen asking.
+    """``allowedActions`` on the record list is paid for only by the asking.
 
     The batch edit (#1249) reads the selection's records over the list
     endpoint and sends only what the user may edit, so the list answers
-    ``can_edit`` when the request names it in the sparse fieldset; every
-    other list answer keeps the per-row permission checks off its cost.
+    ``allowed_actions`` when the request names it in the sparse fieldset;
+    every other list answer keeps the per-row permission checks off its cost.
+    The one field replaced the retired ``canEdit``/``canDelete`` pair of
+    #1243 (#738).
     """
 
     fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
@@ -32,56 +34,57 @@ class RecordListCanEditTests(QueryMeasurementMixin, TestCase):
         assign_perm("registry.change_datasetmetadatarecord", editor)
         return editor
 
-    def test_the_plain_list_answer_holds_no_permission_fields(self):
+    def test_the_plain_list_answer_holds_no_permission_field(self):
         self.user = self._editor("list-plain")
         status, body, _ = self.request(
             "/api/registry/dataset-metadata", user="user")
         self.assertEqual(status, 200, body)
         self.assertTrue(body["data"])
         for row in body["data"]:
-            self.assertNotIn("canEdit", row["attributes"])
-            self.assertNotIn("canDelete", row["attributes"])
+            self.assertNotIn("allowedActions", row["attributes"])
 
-    def test_a_named_sparse_fieldset_answers_can_edit_per_row(self):
+    def test_a_named_sparse_fieldset_answers_the_hint_per_row(self):
         editor = self._editor("list-editor")
         assign_perm(
             "registry.change_datasetmetadatarecord", editor, self.dataset)
         self.user = editor
         status, body, _ = self.request(
             "/api/registry/dataset-metadata", user="user",
-            **{"fields[DatasetMetadataRecord]": "id,title,can_edit"})
+            **{"fields[DatasetMetadataRecord]": "id,title,allowed_actions"})
         self.assertEqual(status, 200, body)
         by_id = {row["id"]: row for row in body["data"]}
         # the permission is answered per record, not per request: the editor
         # may change the granted record and none of the others
-        self.assertTrue(
-            by_id[str(self.dataset.pk)]["attributes"]["canEdit"], body)
-        self.assertFalse(
-            by_id[str(self.other.pk)]["attributes"]["canEdit"], body)
-        # can_delete stays stripped even when named - the list never answers it
+        self.assertIn(
+            "change", by_id[str(self.dataset.pk)]["attributes"][
+                "allowedActions"], body)
+        self.assertNotIn(
+            "change", by_id[str(self.other.pk)]["attributes"][
+                "allowedActions"], body)
+        # every row carries the field once the fieldset names it - the answer
+        # is the empty list, never a missing field (#738)
         status, body, _ = self.request(
             "/api/registry/dataset-metadata", user="user",
-            **{"fields[DatasetMetadataRecord]": "id,can_edit,can_delete"})
+            **{"fields[DatasetMetadataRecord]": "id,allowed_actions"})
         self.assertEqual(status, 200, body)
         for row in body["data"]:
-            self.assertIn("canEdit", row["attributes"])
-            self.assertNotIn("canDelete", row["attributes"])
+            self.assertIn("allowedActions", row["attributes"])
 
-    def test_a_model_grant_alone_is_answered_false_on_every_row(self):
+    def test_a_model_grant_alone_is_answered_on_no_row(self):
         self.user = self._editor("list-model-only")
         status, body, _ = self.request(
             "/api/registry/dataset-metadata", user="user",
-            **{"fields[DatasetMetadataRecord]": "id,can_edit"})
+            **{"fields[DatasetMetadataRecord]": "id,allowed_actions"})
         self.assertEqual(status, 200, body)
         self.assertTrue(body["data"])
         for row in body["data"]:
-            self.assertFalse(row["attributes"]["canEdit"])
+            self.assertNotIn("change", row["attributes"]["allowedActions"])
 
-    def test_the_detail_action_answers_can_edit_unasked(self):
+    def test_the_detail_action_answers_the_hint_unasked(self):
         """The detail screen keeps its answer: only the list gates on the
         sparse fieldset, retrieve stays as it was (#1243's editor form)."""
         self.user = self._editor("list-detail")
         status, body, _ = self.request(
             f"/api/registry/dataset-metadata/{self.dataset.pk}", user="user")
         self.assertEqual(status, 200, body)
-        self.assertIn("canEdit", body["data"]["attributes"])
+        self.assertIn("allowedActions", body["data"]["attributes"])

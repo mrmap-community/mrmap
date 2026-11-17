@@ -659,8 +659,9 @@ const EditorContent = ({
   );
 
   // a record the user may not edit is not edited: the read-only areas stay
-  // readable, exactly as the show screen leaves them (#1241's canEdit rule)
-  if (!record.canEdit)
+  // readable, exactly as the show screen leaves them (#1241's rule, now
+  // answered by #738's one allowedActions hint)
+  if (!record.allowedActions?.includes("change"))
     return (
       <Stack spacing={2}>
         {header}

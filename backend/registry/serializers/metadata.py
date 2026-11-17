@@ -307,8 +307,10 @@ class MetadataRelationSerializer(ModelSerializer):
 
 
 class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
-    can_edit = SerializerMethodField()
-    can_delete = SerializerMethodField()
+    allowed_actions = SerializerMethodField(
+        read_only=True,
+        help_text="the actions the requesting user may take on this record, "
+                  "answered by the permission facade of #734 (#738)")
 
     def create(self, validated_data):
         """A record created without a profile is an iso19139-generic one.
@@ -323,20 +325,14 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
                 validated_data['profile'] = generic
         return super().create(validated_data)
 
-    def get_fields(self):
-        fields = super().get_fields()
-        if getattr(self.context.get("view"), "action", None) == "list":
-            fields.pop("can_delete", None)
-        return fields
-
     def _sparse_fieldset(self):
         """The field names the request asks for with ``fields[<Model>]``.
 
         Empty when the request names none. Same mechanism as
         ``ExplorerAttributesSerializer.explorer_fields`` of the services: a
         permission answer asserted per row is only paid for by the screen
-        that reads it. (#1249: the batch edit needs ``canEdit`` of every
-        record it was handed, to send only what the user may edit.)
+        that reads it. (#1249: the batch edit needs the permission answer of
+        every record it was handed, to send only what the user may edit.)
         """
         request = self.context.get("request")
         if request is None:
@@ -348,38 +344,51 @@ class RecordPermissionsSerializerMixin(HistoryInformationSerializer):
             if name.strip()
         ]
 
-    def to_representation(self, instance):
-        result = super().to_representation(instance)
-        if (getattr(self.context.get("view"), "action", None) == "list"
-                and "can_edit" not in self._sparse_fieldset()):
-            result.pop("can_edit", None)
-        return result
+    def answers_allowed_actions(self) -> bool:
+        """Whether ``allowed_actions`` belongs to this representation.
 
-    def _can_modify(self, obj, action):
-        # the same question the PATCH endpoint answers, answered by the same
-        # facade (#734): the global-permission half is retired, the checker
-        # of the request stays the loader
-        from extras.permissions import allowed
+        The detail endpoint answers the hint unasked; a list pays for it only
+        where the sparse fieldset names it - the opt-in rule #1249
+        established for the retired ``canEdit`` hint, kept for its successor
+        (#738).
+        """
+        if getattr(self.context.get("view"), "action", None) != "list":
+            return True
+        return "allowed_actions" in self._sparse_fieldset()
 
+    def _perm_checker(self):
+        """The record permission checker of the request, built once.
+
+        Records are not the model of a service viewset, so the view's checker
+        does not know them; one checker shared for the whole request still
+        determines the permissions of a record included more than once only
+        once (#734).
+        """
         request = self.context["request"]
         checker = getattr(request, "record_permission_checker", None)
         if checker is None:
             checker = ObjectPermissionChecker(request.user)
             request.record_permission_checker = checker
-        return allowed(request.user,
-                       f"{obj._meta.app_label}.{action}_{obj._meta.model_name}",
-                       obj, checker=checker)
+        return checker
 
-    def get_can_edit(self, obj) -> bool:
-        if (getattr(self.context.get("view"), "action", None) == "list"
-                and "can_edit" not in self._sparse_fieldset()):
+    def get_allowed_actions(self, obj) -> list:
+        if not self.answers_allowed_actions():
             # the value is popped from the list answer anyway (see
             # to_representation): assert it only for the list that asked
-            return False
-        return self._can_modify(obj, "change")
+            return []
+        # the facade answers the whole action batch with the checker of the
+        # request: the role axes once per request and app, the object axis
+        # from the one checker (#734, #738)
+        from extras.permissions import allowed_actions
 
-    def get_can_delete(self, obj) -> bool:
-        return self._can_modify(obj, "delete")
+        return allowed_actions(self.context["request"].user, obj,
+                               checker=self._perm_checker())
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        if not self.answers_allowed_actions():
+            result.pop("allowed_actions", None)
+        return result
 
 
 def _member_form(name):
@@ -1109,8 +1118,8 @@ class ApplicationMetadataRecordSerializer(
 
     A list variant is not declared: like the dataset and the service record this single
     serializer answers both actions and ``RecordPermissionsSerializerMixin`` answers
-    ``can_edit`` on the list only to a request that names it in the sparse fieldset
-    (#1249), where it would otherwise be asserted per row.
+    ``allowed_actions`` on the list only to a request that names it in the sparse fieldset
+    (#1249, #738), where it would otherwise be asserted per row.
     """
 
     url = HyperlinkedIdentityField(view_name="registry:applicationmetadata-detail")

@@ -131,9 +131,10 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
   });
 
   // The current values are read anew for the chosen element - the list rows
-  // are sparse and may be stale, and only this answer names `canEdit`, which
-  // is what keeps the run to the records the user may edit. The server still
-  // enforces the permission per request; this is courtesy, never authority.
+  // are sparse and may be stale, and only this answer names `allowedActions`,
+  // which is what keeps the run to the records the user may edit (#738). The
+  // server still enforces the permission per request; this is courtesy,
+  // never authority.
   const includeRef =
     element?.reference !== undefined &&
     includeAbleResources?.includes(element.source) === true;
@@ -144,7 +145,7 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
           [`fields[${resource}]`]: [
             "id",
             "title",
-            "can_edit",
+            "allowed_actions",
             serializerFieldName(element.source),
           ].join(","),
           ...(includeRef && {
@@ -175,7 +176,9 @@ const BatchEditDialog = ({ resource, ids, onClose }: BatchEditDialogProps) => {
   const rows = useMemo(
     () =>
       records.map((record) => {
-        const editable = record.canEdit !== false;
+        // the same courtesy rule as the retired canEdit: only an explicit
+        // answer without "change" withholds the row (#738)
+        const editable = record.allowedActions?.includes("change") ?? true;
         const unchanged =
           element !== undefined &&
           isSameValue(element, record[element.source], editValue);

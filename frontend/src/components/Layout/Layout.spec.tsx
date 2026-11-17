@@ -27,6 +27,13 @@ const state = vi.hoisted(() => ({
 // without its store joining the bus or notifying in this spec
 const jobCenterMounts = vi.hoisted(() => vi.fn());
 
+// the permission-lost bridge of #834: mounting is what this spec proves, its
+// behavior is the bridge's own spec
+const permissionLostHooks = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  invalidateQueries: vi.fn(),
+}));
+
 // the react-admin surface the layout and the background-job bridge use; the
 // bridge itself and its store run unmocked, so the wiring is the one shipping
 vi.mock('react-admin', () => ({
@@ -34,6 +41,7 @@ vi.mock('react-admin', () => ({
     <div data-testid="layout">{children}</div>
   ),
   useSidebarState: () => [false, vi.fn()],
+  useRefresh: () => permissionLostHooks.refresh,
   useDataProvider: () => ({
     subscribe: (topic: string, callback: (event: CrudEvent) => void) => {
       const set = bus.subs.get(topic) ?? new Set();
@@ -49,6 +57,12 @@ vi.mock('react-admin', () => ({
   useGetList: () => ({ data: state.listData, refetch: state.refetch }),
   useNotify: () => state.notify,
   useTranslate: () => (key: string) => key,
+}));
+
+// the bridge's other hook: only the mount matters here, and no provider
+// instance joins this tree
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: permissionLostHooks.invalidateQueries }),
 }));
 
 // the layout chrome: real enough to prove the mount order, light enough to not

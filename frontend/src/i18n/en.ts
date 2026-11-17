@@ -4,6 +4,14 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    // the session states of #834: why a login page appeared and what a
+    // refused action means for a session that stays valid
+    auth: {
+      sessionExpired: "Your session has expired. Please log in again.",
+      sessionRevoked:
+        "Your login was revoked by the server. Please log in again.",
+      forbidden: "You no longer have the rights for this action.",
+    },
     // the organization administration area of #737: the members and the roles
     // of one selected organization, gated by the permission snapshot of #836
     administration: {

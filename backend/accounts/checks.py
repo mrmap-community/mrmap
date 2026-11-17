@@ -39,7 +39,10 @@ The checks run with every run of the check framework: at the startup of the test
 runner, of ``migrate`` and of ``runserver``. The declaration checks need no
 connection - their answer is in the code, so they also answer on a deployment
 whose tables do not exist yet - while ``E005`` reads the database and stays
-silent whenever the command says no connection may be used.
+silent whenever the command says no connection may be used. Both honour the
+``app_configs`` a scoped command passes: ``manage.py check registry`` hears about
+the models of the apps it names, and an entry which names no model at all is
+reported by every run, because a typo belongs to the setting and has no app.
 """
 from django.apps import apps
 from django.core.checks import Error, Tags, Warning, register
@@ -51,6 +54,11 @@ from accounts import settings as app_settings
 #: the tag of the checks of this module: ``manage.py check -t accounts`` answers
 #: these and nothing else
 CHECK_TAG = "accounts"
+
+#: the app whose role system ``check_role_groups_are_managed`` answers for: the
+#: groups are written by this app's bootstrap, so a command scoped to other apps
+#: does not hear about them
+ROLE_APP_LABEL = "accounts"
 
 #: the field which answers "which organization owns this instance?", read by
 #: ``accounts.signals.owning_organization``
@@ -198,74 +206,166 @@ def no_side_words(missing):
     return " and ".join(f"no {side} of its own" for side in missing)
 
 
-@register(CHECK_TAG, Tags.models)
-def check_role_managed_models(app_configs=None, **kwargs):
-    """Every role-managed model is equipped, and both lists answer what is there.
+def inspected_labels(app_configs):
+    """The app labels a scoped command asked about, None for all of them.
 
-    Compares the two settings of ``accounts.settings`` with what the models
-    declare. No connection is used: the whole answer is in the code, so the
-    check also answers during a ``migrate`` which has not created a table yet.
+    ``manage.py check <app_label>`` and ``makemigrations <app_label>`` pass the
+    apps they were told to inspect, and a check answers for those alone - the
+    convention every check of Django's own apps follows. Answering for all
+    models of the project as well would make a scoped run disagree with the
+    other checks that same run reports.
 
     Args:
-        app_configs: the apps to inspect, None for all of them. The settings
-            name their models by app label, so the list cannot be narrowed.
-        **kwargs: the keyword arguments of the check framework, unused
+        app_configs: the ``AppConfig`` instances of the check framework, None
+            when the command was not scoped
 
     Returns:
-        list: the ``CheckMessage`` instances of the problems found
+        set or None: the labels to report about, None for every app
+    """
+    if app_configs is None:
+        return None
+    return {config.label for config in app_configs}
+
+
+def reports_about(labels, model):
+    """Whether a message about ``model`` belongs to a run over ``labels``.
+
+    Args:
+        labels: the answer of ``inspected_labels``
+        model: the model the message is about, or None for an entry which names
+            no model - a typo is the setting's own fault and has no app to ask,
+            so every run reports it
+
+    Returns:
+        bool: whether this run reports the message
+    """
+    return (labels is None or model is None
+            or model._meta.app_label in labels)
+
+
+def unresolved_entry_issue(name, setting, hint, issue_id):
+    """The message for a list entry which names no model of this project.
+
+    Args:
+        name: the entry as the setting holds it
+        setting (str): the name of the setting which holds the entry
+        hint (str): what to do about it, told by the list it belongs to
+        issue_id (str): the id to report - each list answers for its own
+
+    Returns:
+        Error: the message
+    """
+    return Error(
+        f"The {setting} entry {name!r} names no model of this project.",
+        hint=f"Name the model as '<app_label>.<ModelName>'. {hint}",
+        id=issue_id)
+
+
+def resolved_entries(names, setting, hint, issue_id):
+    """The models a setting names, with a message for every entry naming none.
+
+    A check reports an entry which resolves to nothing rather than raising: a
+    check which raises takes every command of the project down with it, and a
+    setting is exactly what a developer or an operator edits.
+
+    Args:
+        names: the entries of the setting
+        setting (str): the name of the setting, for the message
+        hint (str): what to do about an entry which names no model
+        issue_id (str): the id to report for such an entry
+
+    Returns:
+        tuple: ``(models, issues)`` with ``models`` mapping every resolved
+        model to the entry naming it, and ``issues`` the messages of the rest
+    """
+    models = {}
+    issues = []
+    for name in names:
+        model = model_of(name)
+        if model is None:
+            issues.append(unresolved_entry_issue(
+                name, setting, hint, issue_id))
+            continue
+        models[model] = name
+    return models, issues
+
+
+def uncovered_model_issue(name, missing, declared):
+    """The message for a role-managed model guardian cannot answer quickly.
+
+    Args:
+        name: the entry as the setting holds it
+        missing: the answer of ``missing_sides`` for its pair
+        declared (bool): whether ``GUARDIAN_PERF_MODELS`` carries it
+
+    Returns:
+        Error or None: the message, or None when the model is covered
+    """
+    problems = []
+    if missing:
+        problems.append(no_side_words(missing))
+    if not declared:
+        problems.append("GUARDIAN_PERF_MODELS does not carry it")
+    if not problems:
+        return None
+    return Error(
+        f"The role-managed model {name!r} does not answer its object "
+        f"permissions from tables of its own: {', '.join(problems)}.",
+        hint="Guardian would store the grants of the role work in its "
+             "generic table, and every lookup of a model with a uuid "
+             "primary key would take the cast of that text column - "
+             "the regression the through-models of "
+             "registry/models/guardian.py exist for. Declare the "
+             "missing through-models with their migration and add the "
+             "model to GUARDIAN_PERF_MODELS.",
+        id="accounts.E002")
+
+
+def undeclared_pair_warning(model, pair):
+    """The message for a through-pair written beside the performance list.
+
+    Args:
+        model: the model the pair of tables belongs to
+        pair: the entry of ``dedicated_obj_perm_models`` for that model
+
+    Returns:
+        Warning: the message naming both sides which are there
+    """
+    through = sorted(
+        through_model.__name__
+        for through_model in (pair[side] for side in SIDES)
+        if through_model is not None)
+    return Warning(
+        f"The object permission tables {', '.join(through)} of "
+        f"{model._meta.label} are not declared in GUARDIAN_PERF_MODELS.",
+        hint="The setting is the declaration of the models which answer "
+             "from tables of their own; a pair written beside it is a "
+             "declaration which no longer says what is there. Add the "
+             "model to the list, with the reason it has its tables.",
+        id="accounts.W001")
+
+
+def role_managed_issues(labels, role_managed, perf_models, dedicated):
+    """The messages about the models the permission bootstrap grants on.
+
+    Args:
+        labels: the answer of ``inspected_labels``
+        role_managed: the resolved ``ROLE_MANAGED_MODELS``
+        perf_models: the resolved ``GUARDIAN_PERF_MODELS``
+        dedicated: the answer of ``dedicated_obj_perm_models``
+
+    Returns:
+        list: ``accounts.E002`` for a listed model whose object permissions are
+        not covered, ``accounts.E003`` for one which knows no owner
     """
     issues = []
-    dedicated = dedicated_obj_perm_models()
-
-    perf_models = {}
-    for name in app_settings.GUARDIAN_PERF_MODELS:
-        model = model_of(name)
-        if model is None:
-            issues.append(Error(
-                f"The GUARDIAN_PERF_MODELS entry {name!r} names no model of "
-                f"this project.",
-                hint="Name the model as '<app_label>.<ModelName>'. The list "
-                     "declares which models answer from tables of their own, "
-                     "and an entry which is no model declares nothing.",
-                id="accounts.E004"))
+    for model, name in role_managed.items():
+        if not reports_about(labels, model):
             continue
-        perf_models[model] = name
-
-    role_managed_models = {}
-    for name in app_settings.ROLE_MANAGED_MODELS:
-        model = model_of(name)
-        if model is None:
-            issues.append(Error(
-                f"The ROLE_MANAGED_MODELS entry {name!r} names no model of "
-                f"this project.",
-                hint="Name the model as '<app_label>.<ModelName>'; the "
-                     "permission bootstrap connects the receiver which grants "
-                     "a new resource to what this list resolves.",
-                id="accounts.E001"))
-            continue
-        role_managed_models[model] = name
-
-    for model, name in role_managed_models.items():
-        missing = missing_sides(dedicated.get(model))
-        if missing or model not in perf_models:
-            problems = []
-            if missing:
-                problems.append(no_side_words(missing))
-            if model not in perf_models:
-                problems.append("GUARDIAN_PERF_MODELS does not carry it")
-            issues.append(Error(
-                f"The role-managed model {name!r} does not answer its object "
-                f"permissions from tables of its own: "
-                f"{', '.join(problems)}.",
-                hint="Guardian would store the grants of the role work in its "
-                     "generic table, and every lookup of a model with a uuid "
-                     "primary key would take the cast of that text column - "
-                     "the regression the through-models of "
-                     "registry/models/guardian.py exist for. Declare the "
-                     "missing through-models with their migration and add the "
-                     "model to GUARDIAN_PERF_MODELS.",
-                id="accounts.E002"))
-
+        uncovered = uncovered_model_issue(
+            name, missing_sides(dedicated.get(model)), model in perf_models)
+        if uncovered is not None:
+            issues.append(uncovered)
         if not answers_ownership(model):
             issues.append(Error(
                 f"The role-managed model {name!r} does not know an owner.",
@@ -276,10 +376,24 @@ def check_role_managed_models(app_configs=None, **kwargs):
                      f"accounts.Organization. Declare that field with its "
                      f"migration, or take the model out of the list (#735).",
                 id="accounts.E003"))
+    return issues
 
+
+def perf_model_issues(labels, perf_models, dedicated):
+    """The messages about the performance list claiming tables it lacks.
+
+    Args:
+        labels: the answer of ``inspected_labels``
+        perf_models: the resolved ``GUARDIAN_PERF_MODELS``
+        dedicated: the answer of ``dedicated_obj_perm_models``
+
+    Returns:
+        list: ``accounts.E004`` for every listed model without its pair
+    """
+    issues = []
     for model, name in perf_models.items():
         missing = missing_sides(dedicated.get(model))
-        if missing:
+        if missing and reports_about(labels, model):
             issues.append(Error(
                 f"{name!r} is listed in GUARDIAN_PERF_MODELS but declares "
                 f"{no_side_words(missing)}.",
@@ -289,25 +403,70 @@ def check_role_managed_models(app_configs=None, **kwargs):
                      "list says a lookup of this model never touches the "
                      "generic table, and it does.",
                 id="accounts.E004"))
+    return issues
 
+
+def undeclared_pair_issues(labels, perf_models, dedicated):
+    """The messages about a through-pair written beside the performance list.
+
+    Args:
+        labels: the answer of ``inspected_labels``
+        perf_models: the resolved ``GUARDIAN_PERF_MODELS``
+        dedicated: the answer of ``dedicated_obj_perm_models``
+
+    Returns:
+        list: one ``accounts.W001`` per pair the list does not carry, ordered by
+        the model it belongs to so the answer of a run does not depend on the
+        order the app registry happens to report its models in
+    """
     undeclared = {
         model: pair for model, pair in dedicated.items()
         if model not in perf_models}
-    for model, pair in sorted(undeclared.items(),
-                              key=lambda item: item[0]._meta.label):
-        through = sorted(
-            through_model.__name__
-            for through_model in (pair[side] for side in SIDES)
-            if through_model is not None)
-        issues.append(Warning(
-            f"The object permission tables {', '.join(through)} of "
-            f"{model._meta.label} are not declared in GUARDIAN_PERF_MODELS.",
-            hint="The setting is the declaration of the models which answer "
-                 "from tables of their own; a pair written beside it is a "
-                 "declaration which no longer says what is there. Add the "
-                 "model to the list, with the reason it has its tables.",
-            id="accounts.W001"))
+    return [
+        undeclared_pair_warning(model, pair)
+        for model, pair in sorted(undeclared.items(),
+                                  key=lambda item: item[0]._meta.label)
+        if reports_about(labels, model)]
 
+
+@register(CHECK_TAG, Tags.models)
+def check_role_managed_models(app_configs=None, **kwargs):
+    """Every role-managed model is equipped, and both lists answer what is there.
+
+    Compares the two settings of ``accounts.settings`` with what the models
+    declare. No connection is used: the whole answer is in the code, so the
+    check also answers during a ``migrate`` which has not created a table yet.
+
+    Args:
+        app_configs: the apps to inspect, None for all of them. A scoped
+            ``manage.py check <app_label>`` hears about the models of its apps
+            and nothing else, as every check of Django's own apps answers; the
+            pair of a model is still looked for across all apps, so a scoped
+            run cannot mistake a model for one without tables.
+        **kwargs: the keyword arguments of the check framework, unused
+
+    Returns:
+        list: the ``CheckMessage`` instances of the problems found
+    """
+    labels = inspected_labels(app_configs)
+    dedicated = dedicated_obj_perm_models()
+
+    perf_models, issues = resolved_entries(
+        app_settings.GUARDIAN_PERF_MODELS, "GUARDIAN_PERF_MODELS",
+        "The list declares which models answer from tables of their own, and "
+        "an entry which is no model declares nothing.",
+        "accounts.E004")
+    role_managed, unresolved = resolved_entries(
+        app_settings.ROLE_MANAGED_MODELS, "ROLE_MANAGED_MODELS",
+        "The permission bootstrap connects the receiver which grants a new "
+        "resource to what this list resolves.",
+        "accounts.E001")
+    issues.extend(unresolved)
+
+    issues.extend(role_managed_issues(labels, role_managed, perf_models,
+                                      dedicated))
+    issues.extend(perf_model_issues(labels, perf_models, dedicated))
+    issues.extend(undeclared_pair_issues(labels, perf_models, dedicated))
     return issues
 
 
@@ -321,7 +480,9 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
     name happens to contain a colon is not a role group and is not reported.
 
     Args:
-        app_configs: the apps to inspect, unused
+        app_configs: the apps to inspect. The check answers for the role system
+            of this app, so a scoped command which does not name ``accounts``
+            hears nothing about its groups.
         **kwargs: the keyword arguments of the check framework. The check
             answers without a message when ``databases`` names no connection
             to read: a deployment which was not migrated yet holds no groups,
@@ -331,6 +492,9 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
         list: one ``accounts.E005`` per group which no role manages
     """
     if not kwargs.get("databases"):
+        return []
+    labels = inspected_labels(app_configs)
+    if labels is not None and ROLE_APP_LABEL not in labels:
         return []
 
     from django.contrib.auth.models import Group
@@ -350,7 +514,8 @@ def check_role_groups_are_managed(app_configs=None, **kwargs):
     issues = []
     for group in candidates:
         slug = next(
-            (slug for slug in slugs if is_role_group_name(group.name, slug)),
+            (known for known in slugs
+             if is_role_group_name(group.name, known)),
             None)
         if slug is None:
             continue

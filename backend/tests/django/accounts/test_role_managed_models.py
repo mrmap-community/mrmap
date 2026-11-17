@@ -26,7 +26,10 @@ What the check is asked here, one failure at a time:
   error,
 * the lists themselves are checked against the code: an entry naming no model
   (``accounts.E001``, ``accounts.E004``) and a declared through-pair the list
-  does not carry (``accounts.W001``).
+  does not carry (``accounts.W001``),
+* a command scoped to some apps (``manage.py check <app_label>``) answers for
+  the models of those apps only - while an entry naming no model is still
+  reported, because a typo belongs to the setting and has no app to ask.
 
 The last test of the module answers the question #735's checklist asks: what
 does adding a role-managed model cost? Declaring a model the code already
@@ -38,6 +41,7 @@ is *not* equipped is a different matter, and that is what the check refuses.
 from io import StringIO
 from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth.models import Group
 from django.core.checks.registry import registry
 from django.core.management import call_command
@@ -437,6 +441,52 @@ class ConnectionNeededOnlyForGroupsTestCase(TestCase):
             check_role_groups_are_managed(databases=None), [],
             "a check which read a connection during ``migrate`` would take "
             "the command which creates the tables down with it")
+
+
+class ScopedRunTestCase(TestCase):
+    """A command scoped to some apps answers about those apps and no others."""
+
+    def test_a_model_outside_the_inspected_apps_is_not_reported(self):
+        """``manage.py check accounts`` does not answer for a registry model
+
+        Every other check of the run answers for the apps the command names,
+        and an answer which reaches over all models of the project would make
+        this check disagree with them.
+        """
+        with patch.object(
+                app_settings, "ROLE_MANAGED_MODELS",
+                [*app_settings.ROLE_MANAGED_MODELS, UNEQUIPPED_MODEL]):
+            issues = check_role_managed_models(
+                [apps.get_app_config("accounts")])
+
+        self.assertEqual(texts(issues), [],
+                         "the unequipped model belongs to an app this command "
+                         "did not name")
+
+    def test_an_entry_naming_no_model_is_reported_by_a_scoped_run_too(self):
+        """A typo is the setting's own fault and has no app to ask"""
+        with patch.object(app_settings, "ROLE_MANAGED_MODELS",
+                          ["registry.Nope"]):
+            issues = check_role_managed_models(
+                [apps.get_app_config("accounts")])
+
+        self.assertEqual([issue.id for issue in issues],
+                         [UNRESOLVED_ROLE_MANAGED_ID], texts(issues))
+
+    def test_the_group_check_answers_for_no_other_app(self):
+        """The role system is this app's, so its groups are this app's answer"""
+        organization = Organization.objects.create(name=ORGANIZATION_NAME)
+        Role.objects.for_org(organization).first().delete()
+
+        scoped = check_role_groups_are_managed(
+            [apps.get_app_config("registry")], databases=["default"])
+        self.assertEqual(texts(scoped), [],
+                         "a command about the registry does not audit the "
+                         "groups of the role system")
+
+        named = check_role_groups_are_managed(
+            [apps.get_app_config("accounts")], databases=["default"])
+        self.assertEqual(len(named), 1, texts(named))
 
 
 class AddingARoleManagedModelTestCase(TestCase):

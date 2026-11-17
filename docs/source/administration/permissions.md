@@ -143,8 +143,10 @@ runner, of `migrate` and of `runserver`.
 `E005` is the only message which reads the database; it stays silent for a command which
 allows no connection, because a `migrate` on a fresh deployment has no groups to explain. The
 others answer from the model declarations, so they answer before a deployment has tables.
-`manage.py check -t accounts` runs these checks and nothing else, and
-`SILENCED_SYSTEM_CHECKS` is the escape hatch for a message an operator has inspected.
+`manage.py check -t accounts` runs these checks and nothing else, a command scoped to an app
+(`manage.py check registry`) answers for the models of that app as every check of Django's own
+apps does, and `SILENCED_SYSTEM_CHECKS` is the escape hatch for a message an operator has
+inspected.
 
 What declaring one more role-managed model costs:
 

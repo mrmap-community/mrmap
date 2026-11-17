@@ -39,8 +39,8 @@ Feature: WebMapService Change Permissions
         # these two gates with one resolution rule". The group object grant
         # is exactly the row shape accounts/signals.py writes for an owning
         # organization, and the object-grant axis of the facade answers it
-        # without any global permission - the endpoint and the can_edit hint
-        # now say the same thing (issue #727: the split was the bug).
+        # without any global permission - the endpoint and the allowedActions
+        # hint now say the same thing (issue #727: the split was the bug).
         Given a user "pin-object-only" without any service permissions exists
         Given the user "pin-object-only" is member of a group granted the WMS
         Given I am logged in as pin-object-only with password pin-object-only

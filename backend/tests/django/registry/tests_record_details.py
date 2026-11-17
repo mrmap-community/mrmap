@@ -48,8 +48,10 @@ class RecordDetailsTests(QueryMeasurementMixin, TestCase):
             path = f"/api/registry/{resource}-metadata/{record.pk}"
             status, body, queries = self.request(path, include=include, **{"fields[CatalogueService]": "title,string_representation"})
             self.assertEqual(status, 200, body)
-            self.assertFalse(body["data"]["attributes"]["canEdit"])
-            self.assertFalse(body["data"]["attributes"]["canDelete"])
+            # the detail endpoint answers the one action hint unasked (#738);
+            # this user may open the record but neither change nor delete it
+            self.assertNotIn("change", body["data"]["attributes"]["allowedActions"])
+            self.assertNotIn("delete", body["data"]["attributes"]["allowedActions"])
             types = {row["type"] for row in body["included"]}
             self.assertTrue({"MetadataContact", "Licence", "TimeExtent", "Language"} <= types)
             self.assertLessEqual(len(queries), 25)
@@ -82,8 +84,8 @@ class RecordDetailsTests(QueryMeasurementMixin, TestCase):
         self.user = get_user_model().objects.create_superuser("record-admin", password="test")
         status, body, _ = self.request(f"/api/registry/service-metadata/{self.service.pk}", user="user")
         self.assertEqual(status, 200, body)
-        self.assertTrue(body["data"]["attributes"]["canEdit"])
-        self.assertTrue(body["data"]["attributes"]["canDelete"])
+        self.assertIn("change", body["data"]["attributes"]["allowedActions"])
+        self.assertIn("delete", body["data"]["attributes"]["allowedActions"])
 
     def test_nested_record_lists_resolve(self):
         for resource, record, relations in (
@@ -158,12 +160,14 @@ class RecordDetailsTests(QueryMeasurementMixin, TestCase):
         path = f"/api/registry/dataset-metadata/{self.dataset.pk}"
         status, body, _ = self.request(path, user="user")
         self.assertEqual(status, 200, body)
-        self.assertFalse(body["data"]["attributes"]["canEdit"])
+        # the retired global grant answers nothing (Q5=B); the hint only
+        # answers "change" once the object grant arrives (#738)
+        self.assertNotIn("change", body["data"]["attributes"]["allowedActions"])
         assign_perm("registry.change_datasetmetadatarecord", reader, self.dataset)
         status, body, _ = self.request(path, user="user")
         self.assertEqual(status, 200, body)
-        self.assertTrue(body["data"]["attributes"]["canEdit"])
-        self.assertFalse(body["data"]["attributes"]["canDelete"])
+        self.assertIn("change", body["data"]["attributes"]["allowedActions"])
+        self.assertNotIn("delete", body["data"]["attributes"]["allowedActions"])
 
     def test_history_endpoints_reject_writes(self):
         admin = get_user_model().objects.create_superuser("history-admin", password="test")

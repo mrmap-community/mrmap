@@ -73,7 +73,7 @@ const XmlSourceDocument = () => {
 
   const url =
     typeof record?.xmlBackupFile === "string" ? record.xmlBackupFile : null;
-  const canEdit = record?.canEdit === true;
+  const canEdit = record?.allowedActions?.includes("change") === true;
 
   // the editor shows the stored bytes — the same the download offers; after a
   // save the record answers a new url and the effect loads what serves now

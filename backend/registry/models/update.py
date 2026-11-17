@@ -14,6 +14,7 @@ from django_celery_beat.models import PeriodicTask
 from extras.scheduling import next_run_expected_at
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
+from registry.managers.service import configured_relation_fields
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
@@ -493,7 +494,11 @@ class ServiceUpdateJob(models.Model):
         """Overwrite or merge a m2m or reverse relation field."""
         target = getattr(instance_a, field_name)
         source = getattr(instance_b, field_name)
-        old_ids = set(target.all().values_list("pk", flat=True))
+        # read both sides through ``all()`` so the per-relation prefetches of
+        # ``update_layers``/``update_featuretypes`` answer them: a
+        # ``values_list`` on the related manager would bypass the cache and
+        # pay one read per element and relation (#1393)
+        old_ids = {obj.pk for obj in target.all()}
         new_objects = list(source.all())
         new_ids = {obj.pk for obj in new_objects}
 
@@ -728,11 +733,13 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return WebMapService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return WebMapService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return WebMapService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return WebMapService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def are_all_layers_updateable(self) -> bool:
         """checks if ther are no update conflicts
@@ -798,9 +805,18 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         deleteable_layers = list(
             self.deleteable_layers().values_list("id", flat=True))
+        # the M2M and reverse fields the config names for a Layer are
+        # prefetched per relation onto the mapped elements, so the per-field
+        # comparison below reads them once per relation instead of once per
+        # layer and relation (#1393); the rows only answer for the mapped
+        # elements of this run
+        relations = configured_relation_fields(
+            Layer, self.update_config.get("Layer", {}))
         mappings = list(self.mappings.filter(
             is_confirmed=True, new_layer__isnull=False,
-        ).select_related("new_layer", "old_layer"))
+        ).select_related("new_layer", "old_layer").prefetch_related(
+            *[f"new_layer__{relation}" for relation in relations],
+            *[f"old_layer__{relation}" for relation in relations]))
         # Resolve by candidate ID, so renamed and newly adopted parents both work.
         targets = {
             mapping.new_layer_id: (
@@ -989,11 +1005,13 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return WebFeatureService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return WebFeatureService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return WebFeatureService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return WebFeatureService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def are_all_featuretypes_updateable(self) -> bool:
         """checks if ther are no update conflicts
@@ -1031,9 +1049,18 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         )
         fields = self.get_fields_by_model(FeatureType)
         updateable_featuretypes = []
+        # the configured FeatureType relations ride the mapping read, so the
+        # per-field comparison does not read them per element (#1393)
+        relations = configured_relation_fields(
+            FeatureType, self.update_config.get("FeatureType", {}))
+        prefetches = [
+            f"{side}__{relation}"
+            for relation in relations
+            for side in ("new_featuretype", "old_featuretype")
+        ]
         for mapping in self.mappings.filter(
             is_confirmed=True, new_featuretype__isnull=False,
-        ).select_related("new_featuretype", "old_featuretype"):
+        ).select_related("new_featuretype", "old_featuretype").prefetch_related(*prefetches):
             if mapping.old_featuretype_id is None:
                 mapping.new_featuretype.service = self.service
                 self.adopt_candidate(mapping.new_featuretype)
@@ -1164,11 +1191,13 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return CatalogueService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return CatalogueService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return CatalogueService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return CatalogueService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def update_service(self):
         return self.update_metadata(CatalogueService)

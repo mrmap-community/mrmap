@@ -659,8 +659,9 @@ const EditorContent = ({
   );
 
   // a record the user may not edit is not edited: the read-only areas stay
-  // readable, exactly as the show screen leaves them (#1241's canEdit rule)
-  if (!record.canEdit)
+  // readable, exactly as the show screen leaves them (#1241's rule, now
+  // answered by #738's one allowedActions hint)
+  if (!record.allowedActions?.includes("change"))
     return (
       <Stack spacing={2}>
         {header}
@@ -789,9 +790,10 @@ const MetadataEditor = ({ type }: MetadataEditorProps): ReactElement => {
         )
         .map((definition: FieldDefinition) => definition.props.source as string),
     ];
+    const uniqueIncludes = [...new Set(wanted)];
     const include = includeAbleResources
-      ? wanted.filter((name) => includeAbleResources.includes(name))
-      : wanted;
+      ? uniqueIncludes.filter((name) => includeAbleResources.includes(name))
+      : uniqueIncludes;
     const jsonApiParams: Record<string, string> = {
       include: include.join(","),
     };

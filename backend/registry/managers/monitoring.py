@@ -52,6 +52,48 @@ class MonitoringRunQuerySet(models.QuerySet):
         return queryset.annotate(success=~failing)
 
 
+class ProbeQuerySet(models.QuerySet):
+    """QuerySet for all `Probe` models."""
+
+    def for_probe_execution(self):
+        """Read plan of the ``run_probe_check`` task for one probe.
+
+        The task executes the probe of the given pk; its body reads the
+        probe's own columns, its ``setting`` and the setting's ``service``,
+        because the service's client is what the probe request is built on
+        and sent through — and building that session reads the service's
+        optional ``auth`` row. All of it rides the by-pk fetch (#1393, cf.
+        the monitoring family of ``celery-task-orm-audit``).
+
+        The ``layers`` M2M of a GetMap probe is deliberately not prefetched:
+        its rows are only needed inside ``build_request``, which reads them
+        once through its own scoped CTE plan — a separate worker executing
+        one probe has no use for a wider parent read.
+
+        Cardinality: 1 row (the task selects one probe by pk). Every concrete
+        probe model resolves the join against its own ``setting`` relation,
+        the base model has no ``setting`` field and answers none; the
+        service's ``auth`` is the optional reverse side of a OneToOne, so it
+        left-joins and keeps raising ``ObjectDoesNotExist`` for a service
+        without stored credentials.
+        """
+        return self.select_related("setting__service__auth")
+
+
+class ProbeManager(models.Manager):
+    """Manager for all `Probe` models, which provide the task-specific read
+    plan of the probe execution.
+    """
+
+    def get_queryset(self):
+        return ProbeQuerySet(self.model, using=self._db)
+
+    def for_probe_execution(self):
+        """Queryset of this model's probes with the read plan of the probe
+        execution task (see `ProbeQuerySet.for_probe_execution`)."""
+        return self.get_queryset().for_probe_execution()
+
+
 class MonitoringRunManager(models.Manager):
     """Manager for all `MonitoringRun` models, which provide the annotated
     queries for the success state of the runs.
@@ -68,3 +110,42 @@ class MonitoringRunManager(models.Manager):
     def with_is_successful(self):
         """QuerySet of all runs of this model with annotated success state."""
         return self.get_queryset().with_is_successful()
+
+
+class ProbeResultQuerySet(models.QuerySet):
+    """QuerySet for all `ProbeResult` models which carries the read plan of
+    the retention sweep over the stored response artifacts.
+    """
+
+    def for_cleanup_batch(self):
+        """Read plan of the artifact retention sweep for one result model.
+
+        The projection of ``purge_expired_probe_response_artifacts``: the
+        rows which still name a stored body, answered as
+        ``("pk", "response_body")`` pairs. The sweep needs the name to take
+        the file back and the pk to clear the row - never the check answers
+        or the hydrated row (#1394, cf. the monitoring family of
+        ``celery-task-orm-audit``).
+
+        Cardinality: the expired rows of one model, which the sweep windows
+        with ``[:N]`` as a named call-site operation; the plan stays lazy
+        and chainable, so the sweep still filters its retention cutoff on
+        top. Every concrete result model resolves it against its own table,
+        which carries the inherited ``response_body`` column.
+        """
+        return self.exclude(response_body='').exclude(
+            response_body=None).values_list('pk', 'response_body')
+
+
+class ProbeResultManager(models.Manager):
+    """Manager for all `ProbeResult` models, which provides the read plan of
+    the retention sweep over the stored response artifacts.
+    """
+
+    def get_queryset(self):
+        return ProbeResultQuerySet(self.model, using=self._db)
+
+    def for_cleanup_batch(self):
+        """Queryset of this model's results which still name a stored body
+        (see `ProbeResultQuerySet.for_cleanup_batch`)."""
+        return self.get_queryset().for_cleanup_batch()

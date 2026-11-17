@@ -3,15 +3,13 @@
 Audit page: ``docs/source/development/celery-task-orm-audit.rst`` ("Family:
 monitoring"). What this pins, per the #1395 coverage checklist:
 
-*   ``run_probe_check`` - the current statement shape is captured as the
-    baseline. Two of its findings are the documented RED baselines #1393
-    tightens: the bare by-pk probe fetch whose body then pays the lazy
-    ``setting``/``service`` chain (the fix carries
-    ``select_related("setting__service__auth")`` in the fetch), and the
-    repeated ``layers`` reads of ``GetMapProbe.build_request`` (two scoped CTE
-    reads + plain read; the fix reads once and reuses). Until #1393 lands the
-    guards pin that nothing else entered the shape; when it lands, the
-    baselines here are tightened in the same PR that changes the plan.
+*   ``run_probe_check`` - one check is pinned green: the by-pk probe fetch
+    carries the ``setting__service__auth`` chain in its single SELECT
+    (``Probe.for_probe_execution()``, #1393) and ``GetMapProbe.build_request``
+    reads its scoped ``layers`` exactly once and reuses the loaded rows for
+    the identifiers, the bbox and the styles (three reads before #1393). The
+    check writes the result row, the capped progress step and nothing else -
+    the probe configuration row is never written per check.
 *   ``delete_expired_probe_response_artifacts`` - the SELECT side is constant
     in the number of expired rows (one read per result model); the UPDATE
     side is linear, one per expired row - the documented red baseline #1394
@@ -94,14 +92,13 @@ class ProbeCheckStatementShapeTest(TempMediaMixin, SqlGuardMixin, TestCase):
                 probe_pk=probe.pk,
                 run_pk=monitoring_run.pk))
 
-    def test_one_check_fetches_probe_and_run_without_their_relations(self):
-        """Red baseline (#1393): the probe fetch is a bare by-pk SELECT.
+    def test_one_check_fetches_the_probe_with_its_setting_chain(self):
+        """Green baseline (#1393): the by-pk fetch carries the setting chain.
 
-        The body then dereferences ``setting.service.client`` lazily, so the
-        chain costs its own SELECTs. #1393 introduces
-        ``Probe.for_probe_execution()`` which carries the FK chain in the
-        fetch; until then this asserts the fetch stayed a single narrow
-        statement and nothing wider crept in.
+        ``Probe.for_probe_execution()`` selects ``setting__service__auth``
+        with the probe, so the body's ``setting.service.client`` never pays
+        lazy SELECTs: exactly one statement reads the probe and it JOINs the
+        setting, the service and the optional auth row.
         """
         _, context = self._one_check()
         probe_selects = statements_of(
@@ -109,39 +106,40 @@ class ProbeCheckStatementShapeTest(TempMediaMixin, SqlGuardMixin, TestCase):
         self.assertEqual(len(probe_selects), 1,
                          'exactly one by-pk read of the probe')
         fetch = probe_selects[0]['sql'].lower()
-        self.assertNotIn('join', fetch,
-                         msg='red baseline: the fetch is bare; when #1393 '
-                             'makes it join setting__service, update this '
-                             'assertion to demand the join')
+        setting_table = GetMapProbe._meta.get_field(
+            'setting').related_model._meta.db_table
+        service_table = WebMapService._meta.db_table
+        self.assertIn(setting_table.lower(), fetch,
+                      msg='the fetch JOINs the setting it runs for')
+        self.assertIn(service_table.lower(), fetch,
+                      msg='the fetch JOINs the service whose client sends '
+                          'the request - the lazy chain is gone')
 
-    def test_the_layers_relation_is_read_more_than_once(self):
-        """Red baseline (#1393): layers is read three times per GetMap probe.
+    def test_the_layers_relation_is_read_exactly_once(self):
+        """Green baseline (#1393): one layers read per GetMap probe check.
 
-        ``build_request`` evaluates ``self.layers`` twice - once through the
-        scoped inherited-attributes CTE and once plainly for the identifiers
-        - and resolving ``layers[0].bbox_lat_lon_inherited`` pays a third
-        scoped CTE read (``registry/models/service.py:928-932`` re-reads the
-        row because the scoped M2M read did not carry the annotation onto
-        the instance). #1393 reads once and reuses. This pins that no fourth
-        read of the relation ever entered the shape.
+        ``build_request`` evaluates the scoped inherited-attributes CTE once
+        and reuses the loaded rows for the identifiers, the bbox and the
+        styles count; before #1393 the same relation was read three times
+        per check.
         """
         _, context = self._one_check()
         layer_reads = [
             query for query in context.captured_queries
             if (query['sql'].lstrip().lower().startswith(('select', 'with'))
                 and '"registry_layer"' in query['sql'].lower())]
-        self.assertEqual(len(layer_reads), 3,
-                         msg='red baseline (#1393): scoped CTE read + plain '
-                             'read + bbox CTE read; the fix collapses them '
-                             'to one - tighten then')
+        self.assertEqual(len(layer_reads), 1,
+                         msg='build_request reads its scoped layers once; a '
+                             'second read means the loaded list was dropped '
+                             'and the CTE queryset re-evaluated')
 
     def test_the_result_and_progress_writes_are_one_each(self):
-        """Green baseline: one result INSERT, one capped progress UPDATE, at
-        most one write on the shared probe configuration.
+        """Green baseline: one result INSERT, one capped progress UPDATE and
+        no write on the shared probe configuration.
 
-        The probe-row UPDATE is the per-check write #1393 moves or scopes
-        with ``update_fields`` - until then the guard pins "at most one", so
-        it cannot silently become per-warning.
+        ``Probe.run_checks`` never re-saves the probe row (the vestigial
+        save #1393 removed), so the configuration table is untouched by a
+        check.
         """
         _, context = self._one_check()
         result_inserts = statements_of(
@@ -153,19 +151,20 @@ class ProbeCheckStatementShapeTest(TempMediaMixin, SqlGuardMixin, TestCase):
                          'the step_done report is the one process write')
         probe_updates = statements_of(
             context, verb='update', table=GetMapProbe._meta.db_table)
-        self.assertLessEqual(len(probe_updates), 1,
-                             msg='red baseline (#1393): the probe '
-                                 'configuration row is written once per '
-                                 'check; the fix removes or scopes it')
+        self.assertEqual(len(probe_updates), 0,
+                         msg='a check answers in its result row; it writes '
+                             'nothing to the probe configuration')
 
 
 class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
     """``delete_expired_probe_response_artifacts`` over 0/1/10/100+ rows.
 
     Six result models share the sweep; the checklist asks the SELECT side to
-    stay constant while the sweep's rows grow and pins the per-row UPDATE as
-    the red baseline #1394 batches away. "Rows keep every column except
-    ``response_body``" is the correctness half.
+    stay constant while the sweep's rows grow - and since #1394 so does the
+    WRITE side: the sweep reads through ``for_cleanup_batch()`` in bounded
+    pages and clears a page with one UPDATE, so the statement count is
+    bounded by the models and their pages, never by the rows. "Rows keep
+    every column except ``response_body``" is the correctness half.
     """
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_wms.json',
@@ -213,12 +212,13 @@ class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
         return built
 
     def test_the_sweep_scales_with_pages_of_rows_not_reads(self):
-        """SELECTs constant, UPDATEs exactly one per row - the #1394 baseline.
+        """SELECTs constant, UPDATEs one per PAGE - the shape of #1394.
 
-        The ``per_row=1`` allowance states the CURRENT linear write shape
-        honestly: #1394 replaces the loop with paged reads and a batched
-        UPDATE, and when it lands, this allowance drops to 0 and the same
-        guard turns into the proof of the fix.
+        The ``extra`` allowance states the bounded write side honestly: a
+        fire pays at most one batched UPDATE per result model (the rows of
+        these fixtures fit in one page per model), never one per row. The
+        UPDATE count of the sweep is asserted as a number in
+        ``test_the_clear_rides_pages_not_rows``.
         """
         def seed(size):
             self._expired_rows(size)
@@ -228,11 +228,39 @@ class ArtifactPurgeScalingTest(TempMediaMixin, SqlGuardMixin, TestCase):
                 sizes=(0, 1, 10, 100),
                 seed=seed,
                 run=purge_expired_probe_response_artifacts,
-                per_row=1,
+                per_row=0,
+                extra=len(PROBE_RESULT_MODELS),
                 label='the artifact purge')
 
         # the reads are six: one per result model, never per row
         self.assertEqual(measured[0], len(PROBE_RESULT_MODELS))
+
+    def test_the_clear_rides_pages_not_rows(self):
+        """The green half of the #1394 batching: one UPDATE per model.
+
+        30 expired rows spread over the six result models: the clear is at
+        most six batched UPDATE statements - the per-row ``save`` loop it
+        replaced stood one UPDATE per row, which the fingerprint guard below
+        would report as a repetition.
+        """
+        rows = self._expired_rows(30)
+        with override_settings(**self.PURGE_SETTINGS):
+            summary, context = self.capture(
+                purge_expired_probe_response_artifacts)
+        self.assertEqual(summary['purged'], 30)
+        updates = statements_of(context, verb='update')
+        self.assertLessEqual(
+            len(updates), len(PROBE_RESULT_MODELS),
+            msg='every expired row of a page is cleared by the page\'s '
+                'one UPDATE, never by a statement of its own')
+        self.assertNoNPlusOne(
+            purge_expired_probe_response_artifacts,
+            label='the second fire over the cleared rows')
+        for row in rows:
+            self.assertIsNone(
+                type(row).objects.values_list(
+                    'response_body', flat=True).get(pk=row.pk),
+                'the second fire found nothing left to clear')
 
     def test_expired_bodies_leave_and_rows_keep_their_answers(self):
         """Correctness half: only ``response_body`` goes.

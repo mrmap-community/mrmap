@@ -123,7 +123,7 @@ const definitions: FieldDefinition[] = [
 const record = (id: string, overrides: Partial<RaRecord> = {}): RaRecord => ({
   id,
   title: `Record ${id}`,
-  canEdit: true,
+  allowedActions: ["view", "change"],
   abstract: "old abstract",
   ...overrides,
 });
@@ -199,7 +199,7 @@ beforeEach(() => {
   state.selectedIds = ["r1", "r2", "r3"];
   state.records = [
     record("r1"),
-    record("r2", { canEdit: false }),
+    record("r2", { allowedActions: [] }),
     record("r3", { abstract: "new abstract" }),
   ];
   state.failGetMany = false;
@@ -231,7 +231,7 @@ describe("batch edit", () => {
     expect(within(dialog).getByText("not editable")).toBeInTheDocument();
     expect(within(dialog).getByText("unchanged")).toBeInTheDocument();
     expect(state.recordMeta).toMatchObject({
-      "fields[ApplicationMetadataRecord]": "id,title,can_edit,abstract",
+      "fields[ApplicationMetadataRecord]": "id,title,allowed_actions,abstract",
     });
 
     fireEvent.click(
@@ -296,7 +296,7 @@ describe("batch edit", () => {
     await screen.findByText("Current value");
     expect(state.recordMeta).toMatchObject({
       "fields[ApplicationMetadataRecord]":
-        "id,title,can_edit,metadata_contact",
+        "id,title,allowed_actions,metadata_contact",
       include: "metadata_contact",
       "fields[Contact]": "id,string_representation",
     });

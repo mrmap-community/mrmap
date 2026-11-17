@@ -128,13 +128,14 @@ const serviceRowDetails =
     return rowDetails;
   };
 
-/** the buttons a service row offers next to itself */
+/** the buttons a service row offers next to itself; the edit button asks
+ * the auth provider, which reads the row's `allowedActions` hint (#738) */
 const serviceRowActions =
   (resource: string) => {
-    const rowActions = (record: RaRecord) => (
+    const rowActions = (_record: RaRecord) => (
       <>
         <ShowButton />
-        {record.canEdit && <EditButton />}
+        <EditButton />
         {resource === "WebMapService" && <WmsViewerButtons />}
         {resource === "WebFeatureService" && <WfsViewerButtons />}
         {resource === "CatalogueService" && <HarvestButton />}
@@ -147,7 +148,7 @@ const ServiceExplorer = () => {
   const translate = useTranslate();
   const [resource, setResource] = useState(protocols[0]);
   const fields =
-    "id,title,abstract,extent,element_count,can_edit,is_active,hits,version,date_stamp,service_contact" +
+    "id,title,abstract,extent,element_count,allowed_actions,is_active,hits,version,date_stamp,service_contact" +
     (resource === "CatalogueService"
       ? ",running_harvesting_job,is_harvestable"
       : ",is_secured,is_spatial_secured,xml_backup_file,xml_backup_file_secured");

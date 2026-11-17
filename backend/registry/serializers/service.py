@@ -532,13 +532,6 @@ class ServiceExtentField(GeometryField):
 class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
     extent = ServiceExtentField(read_only=True)
     element_count = IntegerField(read_only=True)
-    can_edit = SerializerMethodField(read_only=True)
-
-    def get_fields(self):
-        fields = super().get_fields()
-        if self.Meta.model is not WebMapService:
-            fields.pop('is_accessible', None)
-        return fields
 
     def explorer_fields(self):
         request = self.context.get('request')
@@ -546,30 +539,43 @@ class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
         return [undo_format_field_name(name.strip()) for name in
                 request.GET.get(f'fields[{self.Meta.model.__name__}]', '').split(',')] if request else []
 
+    def answers_allowed_actions(self) -> bool:
+        """Whether ``allowed_actions`` belongs to this representation.
+
+        A request that narrows this resource type with a sparse fieldset
+        gets the hint exactly when it names it - the opt-in rule of
+        ``extent`` and ``element_count``, kept for the permission hint by
+        #738, which also short-circuits ``get_allowed_actions`` so the value
+        is not computed for a renderer that would drop it. A request without
+        any fieldset for this type answers the hint unasked on the detail
+        endpoint and not on a list: a list of a deployment's services is not
+        paid for by screens that do not read the hint.
+        """
+        request = self.context.get('request')
+        if request is None:
+            return False
+        key = f'fields[{self.Meta.model.__name__}]'
+        if key in request.GET:
+            return 'allowed_actions' in self.explorer_fields()
+        return getattr(self.context.get('view'), 'action', None) != 'list'
+
     def to_representation(self, instance):
         result = super().to_representation(instance)
         requested = self.explorer_fields()
-        for name in ('extent', 'element_count', 'can_edit'):
+        for name in ('extent', 'element_count'):
             if name not in requested:
                 result.pop(name, None)
+        if not self.answers_allowed_actions():
+            result.pop('allowed_actions', None)
         return result
 
-    def get_can_edit(self, obj) -> bool:
-        if 'can_edit' not in self.explorer_fields():
-            return False
-        request = self.context.get('request')
-        user = getattr(request, 'user', None)
-        if not (user and user.is_authenticated):
-            return False
-        # the AND of a global and an object permission was one half of the
-        # split answer #727 lists against this hint: it decided differently
-        # from the PATCH endpoint itself. The facade answers both now.
-        from extras.permissions import allowed
-
-        return allowed(
-            user,
-            f'{obj._meta.app_label}.change_{obj._meta.model_name}', obj,
-            checker=self.get_perm_checker())
+    def get_allowed_actions(self, obj) -> list:
+        if not self.answers_allowed_actions():
+            return []
+        # the facade answers the whole action batch with the checker of the
+        # request: the role axes once per request and app, the object axis
+        # from the page the viewset already prefetched (#734, #738)
+        return super().get_allowed_actions(obj)
 
 
 MONITORING_SETTINGS_HELP_TEXT = _("This are the configured monitoring settings.")

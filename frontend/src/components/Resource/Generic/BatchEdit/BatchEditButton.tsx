@@ -15,7 +15,7 @@ import BatchEditDialog from "./BatchEditDialog";
  *
  * It offers itself only to resources the api answers a PATCH for; which of
  * the selected records may actually be written is decided per request by the
- * server's `canEdit` - the selection is convenience, never authority.
+ * server's `allowedActions` - the selection is convenience, never authority.
  */
 const BatchEditButton = () => {
   const { resource, selectedIds = [] } = useListContext();

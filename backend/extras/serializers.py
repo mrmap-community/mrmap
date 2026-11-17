@@ -25,9 +25,12 @@ class StringRepresentationSerializer(ModelSerializer):
         return str(obj)
 
 
-# FUTURE: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field
+# FUTURE: Split this into two classes one which implements the get_perm_checker function and one which implements the allowed_actions field
 class ObjectPermissionCheckerSerializer(ModelSerializer):
-    is_accessible = SerializerMethodField(read_only=True)
+    allowed_actions = SerializerMethodField(
+        read_only=True,
+        help_text="the actions the requesting user may take on this object, "
+                  "answered by the permission facade of #734 (#738)")
 
     class Meta:
         abstract = True
@@ -89,16 +92,16 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
             return shared_checker
         return None
 
-    def get_is_accessible(self, obj) -> bool:
+    def get_allowed_actions(self, obj) -> list:
         # the hint and the endpoint ask the same question of the same
-        # facade; the checker of the request stays the loader (#734)
-        from extras.permissions import allowed
+        # facade; the checker of the request stays the loader (#734).
+        # The trio of hints it replaces - can_edit, can_delete,
+        # is_accessible - is retired by #738 into this one answer.
+        from extras.permissions import allowed_actions
 
         request = self.context.get('request', None)
         user = getattr(request, 'user', None)
-        return allowed(user,
-                       f'{obj._meta.app_label}.view_{obj._meta.model_name}',
-                       obj, checker=self.get_perm_checker())
+        return allowed_actions(user, obj, checker=self.get_perm_checker())
 
 
 class HistoryInformationSerializer(ModelSerializer):

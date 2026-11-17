@@ -227,8 +227,10 @@ see: the resource endpoints of `backend/registry/views/service.py` query
   global permission.
 
 The per-user view of a single object travels in the payload instead:
-`extras.serializers.ObjectPermissionCheckerSerializer` answers `is_accessible`, which is the
-`view_<model>` object permission of the requesting user for that object. The checker is built
+`extras.serializers.ObjectPermissionCheckerSerializer` answers `allowedActions`, the actions
+the requesting user may take on that object as one answer of the permission facade
+(`view`, `change`, `delete` and the capabilities the app declares), replacing the retired
+`is_accessible` hint (#738). The checker is built
 once per request by `extras.viewsets.ObjectPermissionCheckerViewSetMixin`
 (`backend/extras/viewsets.py`) and prefetched for exactly the objects the answer shows — the
 page of a list action, the one object of a detail action — which the mixin remembers in
@@ -458,7 +460,7 @@ Every name above, with the file it comes from.
 | `ObjectPermissionBackend`, `GUARDIAN_RAISE_403` | `backend/MrMap/settings.py` |
 | `DjangoObjectPermissionsOrAnonReadOnly` | `backend/extras/permissions.py` |
 | `ObjectPermissionCheckerViewSetMixin` | `backend/extras/viewsets.py` |
-| `ObjectPermissionCheckerSerializer` (`is_accessible`) | `backend/extras/serializers.py` |
+| `ObjectPermissionCheckerSerializer` (`allowedActions`) | `backend/extras/serializers.py` |
 | `CanChangeRelatedResource`, `CanRetryRegistrationReference` | `backend/notify/permissions.py` |
 | one `UserObjectPermissionBase` / `GroupObjectPermissionBase` subclass per model with tables of its own, e.g. `WebMapServiceUserObjectPermission`, `MapContextLayerGroupObjectPermission` | `backend/registry/models/guardian.py` |
 | `OrganizationUserObjectPermission`, `OrganizationGroupObjectPermission`, `GroupUserObjectPermission`, `GroupGroupObjectPermission` | `backend/accounts/models/guardian.py` |

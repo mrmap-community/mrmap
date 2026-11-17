@@ -13,7 +13,7 @@ Feature: Application metadata record detail
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.type" with value "ApplicationMetadataRecord"
         Then I expect that response json has an attribute "data.attributes.title" with value "Anwendung Niederschlag"
-        Then I expect that response json has an attribute "data.attributes.canEdit" with value "False"
+        Then I expect that response json has an attribute "data.attributes.allowedActions" with value "[]"
 
     Scenario: Follow the record's keywords
         Given I use the endpoint http://localhost:8000/api/registry/application-metadata/a11c0000-0000-4000-8000-000000000001/keywords

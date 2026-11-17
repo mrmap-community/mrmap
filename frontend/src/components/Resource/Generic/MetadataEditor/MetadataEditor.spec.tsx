@@ -1,5 +1,7 @@
 import {
   AdminContext,
+  EditButton,
+  Resource,
   ResourceDefinitionContextProvider,
   TestMemoryRouter,
   testDataProvider,
@@ -11,35 +13,42 @@ import { Route, Routes } from "react-router-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import RESOURCES from "../../Definition";
 import MetadataEditorRoute from "./MetadataEditorRoute";
 
 // the editor renders whole pages against the schema layer; the specs mock
 // that layer the way RecordShow.spec does and keep the editor logic real
 vi.setConfig({ testTimeout: 20000 });
+const schemaState = vi.hoisted(() => ({ duplicateProfile: false }));
 
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () =>
     [
-      "title",
-      "abstract",
-      "lineStatement",
-      "keywords",
-      "dateType",
-      "origin",
-    ].map((source) => ({
-      component: TextInput,
-      props: {
-        source,
-        label: source,
-        ...(source === "origin" ? { disabled: true } : {}),
-      },
-    })),
+      ...(schemaState.duplicateProfile ? [{ component: SchemaAutocompleteInput, props: { source: "profile", reference: "MetadataProfile" } }] : []),
+      ...[
+        "title",
+        "abstract",
+        "lineStatement",
+        "keywords",
+        "dateType",
+        "origin",
+      ].map((source) => ({
+        component: TextInput,
+        props: {
+          source,
+          label: source,
+          ...(source === "origin" ? { disabled: true } : {}),
+        },
+      })),
+    ],
 }));
-// only the dataset record is a known kind, with a changelog endpoint
+// The three metadata record kinds have retrieval and changelog endpoints.
 vi.mock("../../../../jsonapi/hooks/useOperation", () => ({
   default: (operationId?: string) =>
-    operationId === "retrieve_DatasetMetadataRecord" ||
-    operationId === "list_HistoricalDatasetMetadataRecord"
+    ["DatasetMetadataRecord", "ServiceMetadataRecord", "ApplicationMetadataRecord"]
+      .some((type) => operationId === `retrieve_${type}` ||
+        operationId === `list_Historical${type}`)
       ? {}
       : undefined,
 }));
@@ -94,7 +103,7 @@ const makeRecord = (overrides: object = {}) => ({
   id: "record-1",
   title: "",
   abstract: "",
-  canEdit: true,
+  allowedActions: ["view", "change"],
   isSearchable: false,
   profile: {
     id: "p1",
@@ -125,13 +134,14 @@ const makeRecord = (overrides: object = {}) => ({
   ...overrides,
 });
 
-const setup = (type = "DatasetMetadataRecord", record = makeRecord()) => {
+const setup = (type = "DatasetMetadataRecord", record = makeRecord(), standardEdit = false) => {
+  const getOne = vi.fn(async () => ({ data: record }));
   render(
-    <TestMemoryRouter initialEntries={[`/metadata/${type}/record-1/edit`]}>
+    <TestMemoryRouter initialEntries={[standardEdit ? `/${type}` : `/metadata/${type}/record-1/edit`]}>
       <AdminContext
         dataProvider={
           testDataProvider({
-            getOne: (async () => ({ data: record })) as DataProvider["getOne"],
+            getOne: getOne as DataProvider["getOne"],
           })
         }
       >
@@ -150,18 +160,54 @@ const setup = (type = "DatasetMetadataRecord", record = makeRecord()) => {
         >
           <Routes>
             <Route path="/metadata/:type/:id/edit" element={<MetadataEditorRoute />} />
+            <Route
+              path={`/${type}/*`}
+              element={
+                <Resource
+                  name={type}
+                  edit={RESOURCES.find((resource) => resource.name === type)?.edit}
+                  list={() => <EditButton resource={type} record={record} />}
+                />
+              }
+            />
           </Routes>
         </ResourceDefinitionContextProvider>
       </AdminContext>
     </TestMemoryRouter>,
   );
+  return getOne;
 };
 
 describe("the full screen record editor", () => {
   beforeEach(() => {
+    schemaState.duplicateProfile = false;
     // jsdom has none and the jump-to-field effect calls it
     Element.prototype.scrollIntoView = vi.fn();
   });
+
+  it("requests each included relationship once even when an input needs the profile", async () => {
+    schemaState.duplicateProfile = true;
+    const getOne = setup();
+    await screen.findByRole("heading", { name: "Identification" });
+    const params = getOne.mock.calls[0] as unknown as [string, { meta: { jsonApiParams: { include: string } } }];
+    const includes = params[1].meta.jsonApiParams.include.split(",");
+    expect(includes).toContain("profile");
+    expect(includes).toEqual([...new Set(includes)]);
+  });
+
+  it.each(["DatasetMetadataRecord", "ServiceMetadataRecord", "ApplicationMetadataRecord"])(
+    "opens %s from the standard edit button",
+    async (type) => {
+      setup(type, makeRecord(), true);
+      const edit = await screen.findByRole("link", { name: /edit/i });
+      expect(edit).toHaveAttribute("href", `/${type}/record-1`);
+      fireEvent.click(edit);
+      expect(
+        await screen.findByRole("heading", { name: "Identification" }),
+      ).toBeInTheDocument();
+      expect(await screen.findByText("A title is required.")).toBeInTheDocument();
+    },
+  );
 
   it("shows the profile sections and pre-validates the rules", async () => {
     setup();
@@ -200,7 +246,7 @@ describe("the full screen record editor", () => {
   });
 
   it("refuses to edit a record the user may not edit", async () => {
-    setup("DatasetMetadataRecord", makeRecord({ canEdit: false }));
+    setup("DatasetMetadataRecord", makeRecord({ allowedActions: [] }));
     expect(
       await screen.findByText("metadataEditor.noPermission"),
     ).toBeInTheDocument();

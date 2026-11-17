@@ -20,7 +20,9 @@ from extras.scheduling import next_run_expected_at
 from lxml import etree
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from PIL import Image, UnidentifiedImageError
-from registry.managers.monitoring import MonitoringRunManager
+from registry.managers.monitoring import (MonitoringRunManager,
+                                          ProbeManager,
+                                          ProbeResultManager)
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -443,6 +445,10 @@ class ProbeResult(models.Model):
         help_text=_(
             "an excerpt of the body which answered a failed request"))
 
+    # the sweep over the stored response artifacts reads through this plan;
+    # every concrete result model inherits the manager from the base
+    objects = ProbeResultManager()
+
     class Meta:
         abstract = True
         ordering = ['-date_done', ]
@@ -668,6 +674,8 @@ class Probe(models.Model):
     #: model which stores the result of this kind of probe
     result_model = None
 
+    objects = ProbeManager()
+
     class Meta:
         abstract = True
 
@@ -750,8 +758,11 @@ class Probe(models.Model):
         result = self.result_model.objects.create(
             run=run,
         )
+        # the response checks below write onto the result through this
+        # attribute; nothing is saved here: the result already names its run,
+        # and the probe row is shared configuration which must not be written
+        # once per check (#1393)
         self.result = result
-        self.save()
         try:
             client = self.setting.service.client
             request = self.build_request(client)
@@ -883,13 +894,18 @@ class GetMapProbe(WebMapServiceProbe):
             self.check_does_not_contain(response=response)
 
     def build_request(self, client) -> Request:
-        layers: list[Layer] = self.layers.with_inherited_attributes_cte()
+        # the scoped CTE read happens once and its rows are reused for the
+        # inherited bbox, the identifiers and the styles count (#1393): the
+        # rows are exactly the layers this probe checks and nothing else in
+        # this request reads the relation again
+        layers: list[Layer] = list(
+            self.layers.with_inherited_attributes_cte())
         bbox: Polygon = layers[0].bbox_lat_lon_inherited
         if client.service_version == "1.3.0":
             bbox = adjust_axis_order(bbox)
 
         return client.get_map_request(
-            layers=[layer.identifier for layer in self.layers.all()],
+            layers=[layer.identifier for layer in layers],
             crs=str(self.reference_system),
             # FUTURE: use configured styles instead
             styles=",".join([""] * len(layers)),
@@ -1070,6 +1086,43 @@ PROBE_RESULT_MODELS = (
 PROBE_RESULT_MODELS_BY_NAME = {
     model._meta.model_name: model for model in PROBE_RESULT_MODELS}
 
+#: rows per page of the artifact sweep; the page is also the statement bound
+#: of the sweep's batched clear (#1394)
+PROBE_ARTIFACT_CLEANUP_PAGE_SIZE = 500
+
+
+def _purge_result_model(result_model, cutoff) -> int:
+    """Clears one result model's expired bodies, in bounded pages.
+
+    Returns:
+        int: how many rows of this model were cleared
+    """
+    storage = result_model._meta.get_field('response_body').storage
+    named = result_model.objects.for_cleanup_batch().filter(
+        date_created__lt=cutoff).order_by('pk')
+    purged = 0
+    while True:
+        # what a page clears drops out of the plan's filter, so the
+        # sweep walks forward by clearing - no separate cursor
+        page = list(named[:PROBE_ARTIFACT_CLEANUP_PAGE_SIZE])
+        if not page:
+            break
+        for name in {name for _pk, name in page}:
+            try:
+                storage.delete(name)
+            except OSError:
+                pass  # the storage does not hold it - which is what to clear
+        result_model.objects.filter(
+            pk__in=[pk for pk, _name in page]).update(
+            response_body=None)
+        purged += len(page)
+        if len(page) < PROBE_ARTIFACT_CLEANUP_PAGE_SIZE:
+            # a short page is the last one - reading after it would ask
+            # the table one more SELECT to learn what the LIMIT already
+            # answered
+            break
+    return purged
+
 
 def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
     """Takes back the stored probe responses whose retention has passed.
@@ -1080,6 +1133,14 @@ def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
     whose file the storage does not hold anymore (#1150) is cleared as well -
     the name of a missing file guards nothing worth keeping. A retention of
     0 keeps every artifact until an operator removes it.
+
+    The sweep reads the names of one result model in bounded pages of
+    ``PROBE_ARTIFACT_CLEANUP_PAGE_SIZE`` and clears a page with ONE update,
+    where it once saved every expired row: a purge touching 100 k rows pays
+    pages of statements, not 100 k UPDATEs (#1394). The file goes before the
+    row which names it goes - the rows are the durable index and a file
+    left behind by a crash is found by the next fire, the order #1208
+    established for the process purge.
     """
     days = (settings.MONITORING_PROBE_RESPONSE_RETENTION_DAYS
             if retention_days is None else retention_days)
@@ -1089,14 +1150,5 @@ def purge_expired_probe_response_artifacts(retention_days=None) -> dict:
     cutoff = now() - timedelta(days=days)
     purged = 0
     for result_model in PROBE_RESULT_MODELS:
-        named = result_model.objects.exclude(response_body="").exclude(
-            response_body=None)
-        for result in named.filter(date_created__lt=cutoff):
-            try:
-                result.response_body.delete(save=False)
-            except OSError:
-                pass  # the storage does not hold it - which is what to clear
-            result.response_body = None
-            result.save(update_fields=["response_body"])
-            purged += 1
+        purged += _purge_result_model(result_model, cutoff)
     return {"retention_days": days, "purged": purged}

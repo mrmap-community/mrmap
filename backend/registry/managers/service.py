@@ -16,6 +16,22 @@ SIBLING_INDEX = Coalesce(
 )
 
 
+def configured_relation_fields(model, config_section) -> list:
+    """Names of the relation fields a service update config names for a model.
+
+    Mirrors the field dispatch of ``ServiceUpdateJob.update_field``: scalar
+    fields — plain columns as well as concrete FK ids — are compared out of
+    the row itself and need no read plan; only M2M and reverse fields are
+    read through the relation and must be carried by a plan (#1393).
+    """
+    m2m_fields = {field.name for field in model._meta.many_to_many}
+    reverse_fields = {
+        rel.get_accessor_name() for rel in model._meta.related_objects}
+    return [
+        name for name in (config_section or {})
+        if name in m2m_fields or name in reverse_fields]
+
+
 class ServiceAlertQuerySetMixin:
     """The states of the services of one kind which need attention.
 
@@ -113,6 +129,37 @@ class WebMapServiceQuerySet(ServiceAlertQuerySetMixin,
             layer_prefetch
         )
 
+    def for_update_diff(
+        self, update_config=None
+    ) -> "WebMapServiceQuerySet":
+        """Read plan of the update job which diffs this service against its
+        candidate (#1393).
+
+        The update counterpart of ``prefetch_whole_service``, which stays the
+        API's view plan: an update reads the element rows for its mapping
+        phase (identifiers, tree positions and the parent of an unnamed
+        grouping layer) and, for the service itself, only the relations its
+        ``update_config`` names — ``update_metadata`` compares exactly those
+        against the candidate. The styles, time extents, remote and
+        publishable metadata of every element are not read by the update at
+        all: the element relations the config names for ``Layer`` are read
+        per relation on the mapping rows of ``update_layers``, never on this
+        prefetch.
+        """
+        from registry.models.service import Layer
+
+        config = update_config or {}
+        return self.prefetch_related(
+            Prefetch(
+                "layers",
+                Layer.objects.select_related("mptt_parent")
+            ),
+            *[
+                Prefetch(name) for name in configured_relation_fields(
+                    self.model, config.get(self.model.__name__, {}))
+            ]
+        )
+
     def with_security_information(self) -> "WebMapServiceQuerySet":
         return self.annotate(
             camouflage=Coalesce(
@@ -155,6 +202,25 @@ class WebFeatureServiceQuerySet(ServiceAlertQuerySetMixin,
             "operation_urls__mime_types", "keywords", featuretypes
         )
 
+    def for_update_diff(
+        self, update_config=None
+    ) -> "WebFeatureServiceQuerySet":
+        """Read plan of the update job which diffs this service against its
+        candidate (#1393) — the WFS counterpart of
+        :meth:`WebMapServiceQuerySet.for_update_diff`: the feature type rows
+        for the mapping phase plus only the service relations the update
+        config names; the element relations the config names are read on the
+        mapping rows of ``update_featuretypes``, not here.
+        """
+        config = update_config or {}
+        return self.prefetch_related(
+            "featuretypes",
+            *[
+                Prefetch(name) for name in configured_relation_fields(
+                    self.model, config.get(self.model.__name__, {}))
+            ]
+        )
+
     def with_security_information(self) -> "WebFeatureServiceQuerySet":
         return self.annotate(
             camouflage=Coalesce(
@@ -179,6 +245,23 @@ class CatalogueServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
     def prefetch_whole_service(self) -> "CatalogueServiceQuerySet":
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls__mime_types", "keywords"
+        )
+
+    def for_update_diff(
+        self, update_config=None
+    ) -> "CatalogueServiceQuerySet":
+        """Read plan of the update job which diffs this service against its
+        candidate (#1393) — the CSW counterpart of
+        :meth:`WebMapServiceQuerySet.for_update_diff`: a CSW has no elements
+        to map, so the plan carries exactly the service relations the update
+        config names.
+        """
+        config = update_config or {}
+        return self.prefetch_related(
+            *[
+                Prefetch(name) for name in configured_relation_fields(
+                    self.model, config.get(self.model.__name__, {}))
+            ]
         )
 
 

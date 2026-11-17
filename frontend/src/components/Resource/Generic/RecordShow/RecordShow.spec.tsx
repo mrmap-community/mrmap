@@ -92,8 +92,9 @@ const setup = (
       fileIdentifier: "file-id",
       origin: 5,
       languages: [{ id: 7, value: 7 }],
-      canEdit: permissions,
-      canDelete: permissions,
+      allowedActions: permissions
+        ? ["view", "change", "delete"]
+        : [],
       isBroken: true,
       insufficientQuality: "Missing identifier",
       isSearchable: false,

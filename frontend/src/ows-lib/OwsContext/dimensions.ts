@@ -19,7 +19,7 @@ export type AdvertisedValues =
     | { kind: 'time-range'; start: string; stop: string; step?: string };
 
 /** an amount of an ISO 8601 duration: digits with an optional fraction */
-const durationAmount = '\\d+(?:\\.\\d+)?'
+const durationAmount = String.raw`\d+(?:\.\d+)?`
 /** one amount bound to its unit, absent as a whole */
 const optionalUnit = (unit: string) => `(?:${durationAmount}${unit})?`
 

@@ -13,6 +13,10 @@ role and which actions, and no fixture row can carry the ids of rows a
 ``Given`` step created. ``context.response`` is left exactly as the generic
 send steps leave it, so the generic status and json assertions keep
 working.
+
+Holding a role is NOT a step of this module: ``roles.py`` of #736 already
+answers ``the user "{username}" holds the role "{slug}" of the organization
+"{org}"`` and its assertions - reuse over invention.
 """
 import json
 
@@ -68,7 +72,7 @@ def _send(context, method, url, payload=None):
         context.response = context.client.delete(url, **kwargs)
 
 
-@given('the organization "{name}"')
+@given('the organization "{name}" exists')
 def an_organization(context, name):
     Organization.objects.get_or_create(name=name)
 
@@ -98,15 +102,6 @@ def owned_service(context, org_name, kind, title):
     if not created and service.owner_id != organization.pk:
         service.owner = organization
         service.save()
-
-
-@given('the user "{username}" holds the role "{slug}" of the organization '
-       '"{org_name}"')
-def role_membership(context, username, slug, org_name):
-    organization = Organization.objects.get(name=org_name)
-    role = Role.objects.for_org(organization).with_definition(slug).get()
-    user = get_user_model().objects.get(username=username)
-    user.groups.add(role.group)
 
 
 @when('I share the {kind} "{title}" with the role "{slug}" of the '
@@ -192,9 +187,16 @@ def publish_request_gone(context, from_name, to_name):
 # --------------------------------------------------------------- assertions
 
 @then('the grant list answers the actions "{actions}"')
-def grant_list_actions(context, actions):
+@then('the grant list answers no actions')
+def grant_list_actions(context, actions=None):
+    """The share listing answers exactly these actions.
+
+    ``no actions`` is its own wording because parse's default type needs at
+    least one character - an empty quoted list would match no step at all.
+    """
     expected = sorted(part for part in
-                      (value.strip() for value in actions.split(",")) if part)
+                      (value.strip() for value in
+                       (actions or '').split(",")) if part)
     answered = sorted(grant["action"]
                       for grant in context.response.json()["grants"])
     assert answered == expected, f"answered {answered}, expected {expected}"

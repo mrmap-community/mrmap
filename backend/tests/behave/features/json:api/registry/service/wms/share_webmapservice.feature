@@ -21,7 +21,7 @@ Feature: WebMapService Share Endpoint
         And I am logged in as User2 with password User2
         When I list the shares of the web map service "Pristine WMS"
         Then I expect the response status is 200
-        Then the grant list answers the actions ""
+        Then the grant list answers no actions
 
     Scenario: Publisher shares the service with the editors of the own organization
         Given the user "User1" holds the role "resource_editor" of the organization "Share Org"
@@ -65,7 +65,7 @@ Feature: WebMapService Share Endpoint
 
     Scenario: The publishers of another organization read the service after the share
         Given the organization "Share Org" owns a web map service "Foreign Fetch WMS"
-        And the organization "Foreign Org"
+        And the organization "Foreign Org" exists
         And the user "User1" holds the role "resource_publisher" of the organization "Foreign Org"
         And I am logged in as User2 with password User2
         When I share the web map service "Foreign Fetch WMS" with the role "resource_publisher" of the organization "Foreign Org" for the actions "view, change"
@@ -84,7 +84,7 @@ Feature: WebMapService Share Endpoint
         Then I expect that response json has an attribute "errors.[0].code" with value "not_found"
 
     Scenario: Accepting lets the requesting publisher role publish for the requested organization
-        Given the organization "Publishing Org"
+        Given the organization "Publishing Org" exists
         And the organization "Requested Org" owns a web map service "Published For WMS"
         When the publish request from "Publishing Org" to "Requested Org" is accepted
         Then the organization "Requested Org" answers "Publishing Org" among its publishers

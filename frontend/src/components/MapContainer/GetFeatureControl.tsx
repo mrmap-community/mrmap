@@ -113,7 +113,7 @@ const propertyValue = (value: unknown): ReactNode => {
         {JSON.stringify(value, null, 2)}
       </Box>
     );
-  return String(value);
+  return String(value as string | number | boolean | bigint | symbol);
 };
 
 const FeatureOverlay = ({

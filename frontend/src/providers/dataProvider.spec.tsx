@@ -190,6 +190,84 @@ describe('create into a related collection', () => {
   });
 });
 
+/**
+ * The failures which carry no answer at all: the catch of `create` read
+ * `error.response.status` on every error, so a backend which never answered -
+ * an unreachable host, a timeout - surfaced as a TypeError instead of the
+ * error the screen can name. `update` and `custom` already guard with
+ * `axios.isAxiosError`; `create` does the same now (#1463).
+ */
+describe('a request which never got an answer', () => {
+  const makeRejectingProvider = (error: unknown) => {
+    const request = vi.fn().mockRejectedValue(error);
+    const getAxiosConfigForOperation = vi.fn(() => ({}));
+    const httpClient = {
+      getOperation: vi.fn(() => ({})),
+      getAxiosConfigForOperation,
+      axiosConfigDefaults: {},
+      client: { request, api: { getAxiosConfigForOperation } },
+    } as unknown as OpenAPIClientAxios;
+    return { provider: dataProvider({ httpClient }), request };
+  };
+
+  it.each(['create', 'update'] as const)('lets the error of %s through unharmed', async (method) => {
+    const networkError = new Error('Network Error');
+    const { provider } = makeRejectingProvider(networkError);
+
+    const submission = method === 'create'
+      ? provider.create('HarvestingJob', { data: { title: 'Harvesting run' } })
+      : provider.update('HarvestingJob', { id: 1, data: { title: 'Harvesting run' }, previousData: { id: 1 } });
+
+    await expect(submission).rejects.toBe(networkError);
+  });
+
+  it('does not mistake an axios error without a response for a bad request', async () => {
+    const timeout = new AxiosError('timeout of 5000ms exceeded', 'ECONNABORTED');
+    const { provider } = makeRejectingProvider(timeout);
+
+    await expect(provider.create('HarvestingJob', { data: {} })).rejects.toBe(timeout);
+  });
+});
+
+/**
+ * A resource the schema gives no `retrieve_` operation for has no record to
+ * answer; the call used to swallow that and return `{ data: [] }` - an array
+ * where a record belongs - so the screen showed an empty record instead of
+ * failing (#1463, the family of #948 and #1034).
+ */
+describe('getOne of a resource without a retrieve operation', () => {
+  const makeProvider = (getAxiosConfigForOperation: ReturnType<typeof vi.fn>) => {
+    const request = vi.fn().mockResolvedValue({ data: { data: { id: '7', type: 'HarvestingJob' } } });
+    const httpClient = {
+      getOperation: vi.fn(() => undefined),
+      getAxiosConfigForOperation,
+      axiosConfigDefaults: {},
+      client: { request, api: { getAxiosConfigForOperation } },
+    } as unknown as OpenAPIClientAxios;
+    return { provider: dataProvider({ httpClient }), request };
+  };
+
+  it('answers HttpError 404 instead of an array in place of the record', async () => {
+    const throwing = vi.fn(() => {
+      throw new Error('Operation not found.');
+    });
+    const { provider, request } = makeProvider(throwing);
+
+    const retrieval = provider.getOne('HarvestingJob', { id: '7' });
+    await expect(retrieval).rejects.toBeInstanceOf(HttpError);
+    await expect(retrieval).rejects.toMatchObject({ status: 404 });
+    await expect(retrieval).rejects.toThrow(/retrieve_HarvestingJob/);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('still reads the record while the operation does exist', async () => {
+    const { provider } = makeProvider(vi.fn(() => ({})));
+
+    await expect(provider.getOne('HarvestingJob', { id: '7' }))
+      .resolves.toMatchObject({ data: { id: '7' } });
+  });
+});
+
 describe('realtime subscriptions', () => {
   // the transport contract of issue #1209: the backend only delivers to the
   // connections which subscribed to a topic (notify/consumers.py), so the

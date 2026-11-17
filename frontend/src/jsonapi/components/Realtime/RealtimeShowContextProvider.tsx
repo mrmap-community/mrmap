@@ -64,7 +64,7 @@ const RealtimeShowContextProvider = ({
     if (!isStaleCheckInterval) return
     const interval = setInterval(()=>{
       const { record, isFetching, isStale, refetch } = staleCheckState.current
-      !isFetching && isStale && isStale(timestamp.current, record) && refetch()
+      if (!isFetching && isStale?.(timestamp.current, record)) refetch()
     }, isStaleCheckInterval * 1000)
 
     return () => clearInterval(interval)

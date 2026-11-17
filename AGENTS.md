@@ -411,25 +411,30 @@ identifier itself is not an option — it breaks document matching against upstr
 
 ## Git conventions
 
-- Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
-  `housekeeping/cleanup-frontend-src`.
-- Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
-  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`. Being current
-  matters exactly here: once the branch exists, the merge queue is what tests it together with
-  master.
-- Do not merge `origin/master` into a branch before opening the pull request, and not before every
-  push while it is under review. Bring master in only when the branch actually needs it — a real
-  conflict, a change from master this branch depends on to build or test, or a stated
-  compatibility reason — and name which one in the merge commit. An unconditional pre-push merge
-  re-runs the entire CI set for a commit that changes nothing about the change, and the merge
-  queue already tests the integration of this head with master on a merge commit it builds itself.
-- Never force-push or rebase a branch that is open for review: review comments and inline findings
-  are anchored to commits, and a rewritten branch loses the diff a reviewer is reading. Rebase
-  freely while a branch is still private. When master moves under a reviewed branch, push the new
-  work as ordinary commits on top; if there is a genuine conflict, resolve it with a merge commit
-  and let the queue re-test the combination.
-- Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
-  "implements ...".
+- Branch names are `<type>/<short-topic>`.
+- `develop` is the default development and integration branch.
+- `master` is reserved for stable releases.
+- Base new branches and worktrees on current `origin/develop`.
+- For epic sub-issues, use the designated epic integration
+  branch if applicable.
+- Always explicitly specify the pull request base.
+- Feature, bugfix and housekeeping PRs target `develop`
+  or their designated epic integration branch.
+- Epic integration PRs target `develop`.
+- Only the same repository's `develop` branch may target
+  `master` in a pull request.
+- Maintainer-directed synchronization from `master` back
+  to `develop` is allowed.
+- Use merge commits when synchronizing permanent branches.
+- Never directly push to `master` or `develop`.
+- Never delete, rename or force-push permanent branches.
+- Never delete permanent branches during PR cleanup.
+- Never force-push or rebase a branch open for review.
+- Merge the integration target into a task branch only
+  when needed to resolve conflicts or dependencies.
+- Human approval and merge requirements remain mandatory.
+- These rules also apply to agent skills and orchestration.
+- Commit messages are short lowercase summaries.
 - Keep unrelated formatting or refactoring out of a change.
 
 ### Filing issues

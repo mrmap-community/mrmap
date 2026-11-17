@@ -149,7 +149,8 @@ def dedicated_obj_perm_models():
             # one of the generic tables of guardian: no foreign key, no model
             continue
 
-        pair = dedicated.setdefault(target, {side: None for side in SIDES})
+        # both sides start out None: see the docstring of this function
+        pair = dedicated.setdefault(target, dict.fromkeys(SIDES))
         pair[side] = through_model
     return dedicated
 

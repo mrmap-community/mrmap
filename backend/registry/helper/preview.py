@@ -208,11 +208,11 @@ def selected_configuration(service, selection, client):
     """Negotiate only advertised formats/CRS using the stored capabilities."""
     root = client._capabilities_etree
     if service.service_type == "WMS":
-        return _wms_selected_configuration(service, selection, client, root)
+        return _wms_selected_configuration(service, selection, root)
     return _wfs_selected_configuration(service, selection, client, root)
 
 
-def _wms_selected_configuration(service, selection, client, root):
+def _wms_selected_configuration(service, selection, root):
     """The negotiated GetMap configuration of one advertised layer."""
     element = service.layers.with_inherited_attributes_cte().filter(identifier=selection).first()
     nodes = root.xpath("//*[local-name()='Layer']/*[local-name()='Name' and text()=$name]/..", name=selection)

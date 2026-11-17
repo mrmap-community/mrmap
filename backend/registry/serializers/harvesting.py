@@ -304,35 +304,6 @@ class HarvestingJobSerializer(
         HyperlinkedModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail')
-    # background_process = ResourceRelatedField(
-    #     model=BackgroundProcess,
-    #     label=_("Background Process"),
-    #     help_text=_("the parent of this node"),
-    #     read_only=True,)
-    # temporary_md_metadata_files = HyperlinkedRelatedField(
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-temporarymdmetadatafiles-list',
-    #    related_link_url_kwarg='parent_lookup_job',
-    #    label=_("Temporary Md Metadata File"),
-    #    help_text=_("collected records"),
-    #    read_only=True,)
-    # harvested_dataset_metadata = HyperlinkedRelatedField(
-    #    many=True,
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
-    #    related_link_url_kwarg='parent_lookup_harvesting_job',
-    #    label=_("harvested dataset metadata"),
-    #    help_text=_(
-    #       "all harvested dataset metadata records with collecting state"),
-    #   read_only=True,)
-    # harvested_service_metadata = HyperlinkedRelatedField(
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
-    #    related_link_url_kwarg='parent_lookup_harvesting_job',
-    #    label=_("harvested service metadata"),
-    #    help_text=_(
-    #        "all harvested service metadata records with collecting state"),
-    #    read_only=True,)
 
     new_dataset_metadata_count = IntegerField(read_only=True)
     updated_dataset_metadata_count = IntegerField(read_only=True)

@@ -273,24 +273,26 @@ const tokenAuthProvider = (
       setAuthToken(undefined)
       resetSnapshotCache()
     },
-    checkAuth: async () => {
+    checkAuth: () => {
       const storedToken = getAuthToken()
       if (!storedToken) {
-        throw new Error('not authenticated')
+        return Promise.reject(new Error('not authenticated'))
       }
       const expired = new Date(storedToken.expiry) < new Date()
       if (expired ){
         resetSnapshotCache()
-        throw new Error(('your session has expired'))
+        return Promise.reject(new Error(('your session has expired')))
       }
+      return Promise.resolve()
     },
-    checkError: async error => {
+    checkError: error => {
       const status = error.status
       if (status === 401) {
         setAuthToken(undefined)
         resetSnapshotCache()
-        throw new Error('unauthorized')
+        return Promise.reject(new Error('unauthorized'))
       }
+      return Promise.resolve()
     },
     /* The permission checks of #836 live in canAccess below, which answers
       from the closure snapshot - no query, no per-render fetch. getPermissions
@@ -320,10 +322,10 @@ const tokenAuthProvider = (
       const snapshot = await permissionSnapshot(storedToken.token)
       return canAccessFromSnapshot({ action, resource, record, authenticated: true, snapshot })
     },
-    getIdentity: async () => {
+    getIdentity: () => {
       const storedToken = getAuthToken()
       const { id, fullName, avatar } = storedToken ?? {id: 0, fullName: 'anonymous'};
-      return { id, fullName, avatar };
+      return Promise.resolve({ id, fullName, avatar });
     },
     
   }

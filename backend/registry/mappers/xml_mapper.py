@@ -461,11 +461,11 @@ class XmlMapper:
         elements = self._get_elements(spec, namespaces)
         if "_parser" in spec:
             return self._traverse_with_parser(
-                spec, elements, namespaces, is_many)
+                spec, elements, is_many)
         return self._traverse_model_spec(
             spec, elements, namespaces, is_many)
 
-    def _traverse_with_parser(self, spec, elements, namespaces, is_many):
+    def _traverse_with_parser(self, spec, elements, is_many):
         """Builds the instances through the spec's own _parser function."""
         instances = [] if is_many else None
         parser = load_function(spec.get("_parser"))

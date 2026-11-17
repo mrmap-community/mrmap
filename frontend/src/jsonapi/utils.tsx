@@ -375,7 +375,7 @@ export const getArrayInput = (
     // 1. get all nested fields of this object...
     // 2. create all nested fields...
     // 3. set children prop
-    definition.component = forInput ? TextField: TextInput;
+    definition.component = forInput ? TextInput : TextField;
     console.debug(`nested resoruces are not supported for now. Source: ${source}`);
   } else if (!forInput) {
     // single array of simple typed field
@@ -403,7 +403,7 @@ export const getArrayInput = (
           {createElement(field.component, field.props)}
         </SimpleFormIterator>
       ) */
-      definition.component = forInput ? TextField: TextInput;
+      definition.component = forInput ? TextInput : TextField;
 
   }
   return definition;

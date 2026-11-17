@@ -187,34 +187,40 @@ const isUsableLegacyEntry = (legacy: Authentication): boolean =>
   typeof legacy.username === "string" &&
   typeof legacy.password === "string";
 
+/** the header entry a usable legacy entry turns into, after stamping the
+ *  operations it answers; undefined when the entry must not authorize anything */
+const migrateLegacyEntry = (context: OWSContext, legacy: Authentication): HeaderAuthentication | undefined => {
+  try {
+    const origin = new URL(legacy.getCapabilitiesUrl).origin;
+    const auth: HeaderAuthentication = {
+      id: uuidv4(),
+      type: "header",
+      name: "Authorization",
+      value: legacy.username && legacy.password ? `Basic ${btoa(legacy.username + ":" + legacy.password)}` : "",
+      origin,
+    };
+    for (const feature of context.features) {
+      const operations = featureOperations(feature);
+      if (!answersGetCapabilities(operations, legacy.getCapabilitiesUrl)) continue;
+      stampOperations(operations, auth.id, origin);
+    }
+    return auth;
+  } catch {
+    /* Malformed legacy credentials must never authorize an operation. */
+    return undefined;
+  }
+};
+
 /** Read the former capabilities-only Basic-auth entries without widening their service scope. */
 export const migrateLegacyAuthentications = (context: OWSContext) => {
   const legacyEntries = Array.isArray(context.authentications) ? context.authentications : [];
   const migrated = new Set<(typeof legacyEntries)[number]>();
   for (const legacy of legacyEntries) {
     if (!isUsableLegacyEntry(legacy)) continue;
-    try {
-      const origin = new URL(legacy.getCapabilitiesUrl).origin;
-      const auth: HeaderAuthentication = {
-        id: uuidv4(),
-        type: "header",
-        name: "Authorization",
-        value: legacy.username && legacy.password ? `Basic ${btoa(legacy.username + ":" + legacy.password)}` : "",
-        origin,
-      };
-      context.authenticationHeaders = [
-        ...(context.authenticationHeaders ?? []),
-        auth,
-      ];
-      migrated.add(legacy);
-      for (const feature of context.features) {
-        const operations = featureOperations(feature);
-        if (!answersGetCapabilities(operations, legacy.getCapabilitiesUrl)) continue;
-        stampOperations(operations, auth.id, origin);
-      }
-    } catch {
-      /* Malformed legacy credentials must never authorize an operation. */
-    }
+    const auth = migrateLegacyEntry(context, legacy);
+    if (auth === undefined) continue;
+    context.authenticationHeaders = [...(context.authenticationHeaders ?? []), auth];
+    migrated.add(legacy);
   }
   if (migrated.size > 0) {
     context.authentications = legacyEntries.filter(entry => !migrated.has(entry));

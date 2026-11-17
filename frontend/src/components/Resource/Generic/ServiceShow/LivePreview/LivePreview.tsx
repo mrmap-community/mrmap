@@ -47,6 +47,7 @@ import {
 } from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
 import { validExtent } from "../../../../MapViewer/utils";
 import PreviewMap, { type Viewport } from "./PreviewMap";
+import { propertyText } from "./propertyText";
 import {
   PreviewFailure,
   serviceResource,
@@ -314,18 +315,12 @@ export const FeatureInfoResult = ({
                   {paginate ? (
                     <>
                       <span>{key}</span>
-                      <span>
-                        {typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value ?? "")}
-                      </span>
+                      <span>{propertyText(value)}</span>
                     </>
                   ) : (
                     <>
                       {key}:{" "}
-                      {typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value ?? "")}
+                      {propertyText(value)}
                     </>
                   )}
                 </Typography>
@@ -776,7 +771,7 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
   // operations of the delivered capabilities point back to this origin and the viewer will ask
   // the proxy, which bounds the requests, instead of the upstream service
   const transfer = useCallback(
-    async (selection: string, viewport: Viewport) => {
+    (selection: string, viewport: Viewport) => {
       const wms = protocol === "WMS";
       const url = new URL(
         `/mrmap-proxy/${wms ? "wms" : "wfs"}/${record?.id}`,

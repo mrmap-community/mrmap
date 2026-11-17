@@ -28,10 +28,49 @@ def organizations_of(user):
     return Organization.objects.filter(pk__in=user.groups.all())
 
 
-def get_secured_models():
+def models_of(names):
+    """The model classes behind the ``"<app_label>.<ModelName>"`` names.
+
+    Args:
+        names: iterable of dotted model names as the settings hold them
+
+    Returns:
+        list: the model classes, in the order of ``names``
+
+    Raises:
+        LookupError: a name is not a model of this project - which is what
+            ``accounts.checks`` reports instead of letting a command fail
+    """
     model_list = []
-    for secured_model in settings.SECURED_MODELS:
-        app_label, model_name = secured_model.split('.')
+    for model_name in names:
+        app_label, model_name = model_name.split('.')
         model_list.append(apps.get_model(
             app_label=app_label, model_name=model_name))
     return model_list
+
+
+def get_role_managed_models():
+    """The model classes of ``accounts.settings.ROLE_MANAGED_MODELS``.
+
+    The bootstrap of ``accounts.signals`` connects its creation receiver to
+    exactly these models; the equipment a listed model must bring is told by
+    the setting itself and guarded by ``accounts.checks`` (#735).
+
+    Returns:
+        list: the role-managed model classes, in the order of the setting
+    """
+    return models_of(settings.ROLE_MANAGED_MODELS)
+
+
+def get_guardian_perf_models():
+    """The model classes of ``accounts.settings.GUARDIAN_PERF_MODELS``.
+
+    These are the models which answer their object permissions from a pair of
+    dedicated tables instead of guardian's generic ones (#735). The list
+    itself explains why each model has them; the declarations live in
+    ``accounts/models/guardian.py`` and ``registry/models/guardian.py``.
+
+    Returns:
+        list: the model classes with dedicated object permission tables
+    """
+    return models_of(settings.GUARDIAN_PERF_MODELS)

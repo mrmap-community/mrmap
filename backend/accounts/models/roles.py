@@ -1,3 +1,5 @@
+import re
+
 from accounts.managers.roles import (RoleManager, RoleMembershipManager)
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -19,6 +21,14 @@ ORGANIZATION_ADMIN_ROLE = "organization_admin"
 #: the prefix of the group name of a role without an organization; every other
 #: role group is named after its organization, see ``role_group_name``
 PLATFORM_GROUP_PREFIX = "platform"
+
+#: the separator ``role_group_name`` writes between the organization and the
+#: slug. The name is decoration and nothing looks a role up by it (#732) - but
+#: the name does say what a group was written for, and the system check of
+#: ``accounts.checks`` reads that back to find a group which no ``Role`` row
+#: explains any more (#735). It is named here, next to the writing, because a
+#: second copy of the shape would be the drift the check exists to catch.
+ROLE_GROUP_SEPARATOR = ": "
 
 
 def role_group_name(organization, slug, marker=""):
@@ -44,7 +54,7 @@ def role_group_name(organization, slug, marker=""):
     Returns:
         str: a group name of at most ``auth_group.name`` characters
     """
-    suffix = f": {slug}{marker}"
+    suffix = f"{ROLE_GROUP_SEPARATOR}{slug}{marker}"
     prefix = organization.name if organization else PLATFORM_GROUP_PREFIX
     limit = Group._meta.get_field("name").max_length
     return f"{prefix[:limit - len(suffix)]}{suffix}"
@@ -65,6 +75,34 @@ def free_role_group_name(organization, slug) -> str:
         counter += 1
         name = role_group_name(organization, slug, marker=f" ({counter})")
     return name
+
+
+def is_role_group_name(name, slug) -> bool:
+    """Whether ``name`` has the shape ``role_group_name`` writes for ``slug``.
+
+    Recognition, not lookup: a role is asked for through ``Role.objects``,
+    never through the string in ``auth_group.name`` - the indirection #732
+    removes. The check of ``accounts.checks`` needs the shape the other way
+    round: a group which carries the name of a role group but which no
+    ``Role`` row explains is a set of grants nobody manages any more, and the
+    name is the only trace of what the group was written for. Which slugs are
+    role groups at all is asked of the catalogue, so a hand-made group whose
+    name merely happens to contain a colon is not reported.
+
+    Args:
+        name: the name of the group to recognise
+        slug (str): the definition slug whose name shape is asked
+
+    Returns:
+        bool: whether the name was written for ``slug``, including the
+        numbering ``free_role_group_name`` appends to a colliding name
+    """
+    if not name:
+        return False
+    suffix = f"{ROLE_GROUP_SEPARATOR}{slug}"
+    if name.endswith(suffix):
+        return True
+    return bool(re.search(re.escape(suffix) + r" \(\d+\)$", name))
 
 
 class RoleScope(models.TextChoices):

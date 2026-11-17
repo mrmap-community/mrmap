@@ -42,7 +42,7 @@ const valueText = (value: unknown) => {
   if (value == null) return "—";
   if (typeof value === "string") return value;
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  return String(value as number | boolean | bigint | symbol);
 };
 
 const historyChangeType = (record: LayerHistoryRecord): string => {

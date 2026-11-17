@@ -47,6 +47,7 @@ import {
 } from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
 import { validExtent } from "../../../../MapViewer/utils";
 import PreviewMap, { type Viewport } from "./PreviewMap";
+import { propertyText } from "./propertyText";
 import {
   PreviewFailure,
   serviceResource,
@@ -314,18 +315,12 @@ export const FeatureInfoResult = ({
                   {paginate ? (
                     <>
                       <span>{key}</span>
-                      <span>
-                        {typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value ?? "")}
-                      </span>
+                      <span>{propertyText(value)}</span>
                     </>
                   ) : (
                     <>
                       {key}:{" "}
-                      {typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value ?? "")}
+                      {propertyText(value)}
                     </>
                   )}
                 </Typography>

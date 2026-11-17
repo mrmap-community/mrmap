@@ -611,16 +611,16 @@ def collect_service_alerts(user):
     repeated by every query which uses the queryset - the superuser needs none
     of it, guardian answers without them.
     """
-    from guardian.shortcuts import get_objects_for_user
+    from extras.permissions import objects_for_user
     from registry.models.alerts import ServiceAlert
 
     if user.is_superuser:
         return ServiceAlert.objects.all()
     scope = Q()
     for model in SERVICE_KIND_OF:
-        services = get_objects_for_user(
+        services = objects_for_user(
             user, f'registry.view_{model._meta.model_name}',
-            klass=model.objects.filter(update_candidate_of__isnull=True))
+            model.objects.filter(update_candidate_of__isnull=True))
         ids = list(services.values_list('pk', flat=True))
         scope |= Q(service_type=model.__name__,
                    service__in=[str(pk) for pk in ids])

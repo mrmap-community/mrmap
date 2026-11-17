@@ -90,8 +90,15 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
         return None
 
     def get_is_accessible(self, obj) -> bool:
-        perm_checker = self.get_perm_checker()
-        return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
+        # the hint and the endpoint ask the same question of the same
+        # facade; the checker of the request stays the loader (#734)
+        from extras.permissions import allowed
+
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        return allowed(user,
+                       f'{obj._meta.app_label}.view_{obj._meta.model_name}',
+                       obj, checker=self.get_perm_checker())
 
 
 class HistoryInformationSerializer(ModelSerializer):

@@ -1,6 +1,6 @@
 from accounts.models.groups import Organization
 from django_filters import Filter, FilterSet
-from guardian.shortcuts import get_objects_for_user
+from extras.permissions import objects_for_user
 
 
 class OrganizationFilterSet(FilterSet):
@@ -14,5 +14,10 @@ class OrganizationFilterSet(FilterSet):
         }
 
     def get_user_has_perm(self, queryset, name, value):
+        # the list axis of the one facade (#734): this filter decided with
+        # ``accept_global_perms=False`` while other call sites decided with
+        # ``True``; the policy constant is in ``extras/permissions.py`` now
+        # and a platform role which holds the permission widens the answer,
+        # as it does everywhere else
         perms = value.split(',') if ',' in value else value
-        return get_objects_for_user(user=self.request.user, perms=perms, klass=queryset, accept_global_perms=False)
+        return objects_for_user(self.request.user, perms, queryset)

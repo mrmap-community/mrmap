@@ -78,8 +78,10 @@ class ServiceExplorerTests(QueryMeasurementMixin, TestCase):
         fields = {'fields[CatalogueService]': 'id,title,extent,element_count,can_edit'}
         assign_perm('registry.change_catalogueservice', self.user)
         assign_perm('registry.change_catalogueservice', self.user, catalogue)
-        for cache in ('_perm_cache', '_user_perm_cache', '_group_perm_cache'):
-            self.user.__dict__.pop(cache, None)
+        # no cache pop here on purpose: #734 invalidates Django's cached
+        # permission strings centrally when a permission is written
+        # (accounts.signals), and this request re-reading the same user
+        # instance is exactly the case that used to need the workaround
         status, body, _ = self.request('/api/registry/csw', user='user', **fields)
         self.assertEqual(status, 200)
         attributes = next(row['attributes'] for row in body['data'] if row['id'] == str(catalogue.pk))

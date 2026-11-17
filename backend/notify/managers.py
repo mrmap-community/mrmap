@@ -6,7 +6,7 @@ from django.db.models.fields import FloatField, IntegerField
 from django.db.models.functions import (Coalesce, Greatest, Least, Now, Round)
 from django.db.models.signals import post_save
 from django.utils.timezone import now
-from guardian.shortcuts import get_objects_for_user
+from extras.permissions import objects_for_user
 from notify.enums import (IncidentSeverityEnum, IncidentSourceEnum,
                           IncidentStatusEnum, LogTypeEnum,
                           OperationStateEnum, ProcessStatusEnum)
@@ -459,11 +459,10 @@ class BackgroundProcessManager(models.Manager):
                 # the resource of a process is addressed by its uuid, so a
                 # resource of another kind can never be named by a process
                 continue
-            permitted = get_objects_for_user(
+            permitted = objects_for_user(
                 user,
                 f"{model._meta.app_label}.view_{model._meta.model_name}",
-                klass=model,
-                accept_global_perms=True)
+                model)
             visible |= Q(
                 related_resource_type=content_type,
                 related_id__in=permitted.values("pk"))
@@ -717,12 +716,11 @@ class OperationalIncidentManager(models.Manager):
             if service_model in seen_models:
                 continue
             seen_models.add(service_model)
-            visible[service_model] = get_objects_for_user(
+            visible[service_model] = objects_for_user(
                 user, f'{service_model._meta.app_label}.view_'
                       f'{service_model._meta.model_name}',
-                klass=service_model.objects.filter(
-                    update_candidate_of__isnull=True),
-                accept_global_perms=True)
+                service_model.objects.filter(
+                    update_candidate_of__isnull=True))
         return visible
 
     def _visibility_q(self, visible):

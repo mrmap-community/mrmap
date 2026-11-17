@@ -205,12 +205,21 @@ class SingletonTaskTest(TestCase):
 
         While these tests run, the run of a singleton is the only holder, so what
         answers here is the session which holds the lock the test is about.
+        The scan is scoped to this database: an advisory lock belongs to the
+        database it was taken in, but ``pg_locks`` answers the whole cluster -
+        and the forked unit-test workers hold their own singletons in their own
+        test databases of the same server, which must neither be counted here
+        nor terminated below.
         """
         with connection.cursor() as cursor:
             cursor.execute(
                 """
                 SELECT pid FROM pg_locks
-                WHERE locktype = 'advisory' AND pid <> pg_backend_pid()
+                WHERE locktype = 'advisory'
+                  AND database = (
+                      SELECT oid FROM pg_database
+                      WHERE datname = current_database())
+                  AND pid <> pg_backend_pid()
                 ORDER BY pid
                 """)
             return [row[0] for row in cursor.fetchall()]

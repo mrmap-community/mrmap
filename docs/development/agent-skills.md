@@ -18,7 +18,7 @@ light while making deep, verified guidance available exactly when relevant.
 | --- | --- | --- | --- |
 | `AGENTS.md` (root + per-area) | Global constraints, mandatory architecture rules, security boundaries, environment/Docker ownership, git & claiming workflow | `AGENTS.md`, `backend/AGENTS.md`, `backend/registry/AGENTS.md`, `backend/tests/AGENTS.md`, `backend/tests/behave/AGENTS.md`, `frontend/AGENTS.md`, `frontend/src/components/AGENTS.md`, `frontend/src/jsonapi/AGENTS.md` | The `AGENTS.md` **nearest to the edited files wins** (declared in root `AGENTS.md`). |
 | Skills (this dir) | Task-specific activation, patterns, anti-patterns, verification checklists — each one links to its sources instead of restating them | `.opencode/skills/<id>/SKILL.md` | Skills **never override** `AGENTS.md`; every skill states this and names its authoritative sources. A skill that contradicts `AGENTS.md` is a bug in the skill — fix the skill. |
-| MCP servers | External capabilities only. The repo base config `opencode.json` (committed upstream via PR #1431, on `develop`) defines the doc servers (`django-docs`, `react-admin-docs`, `mui-docs`, `mui-x-docs`, GitMCP pinned to the exact framework versions), `orm-lens`, a `postgres` stub, `playwright` and a `sonarqube` stub; `docs/development/mcp-servers.md` is authoritative | repo `opencode.json` + per-checkout `.opencode/opencode.json` (mode 600, git-ignored, holds the read-only DSN); user `opencode.jsonc` (preserved unchanged) | Skills declare MCP dependencies explicitly; **all eight work without any MCP** and use the configured servers as optional accelerators. `postgres` is role-restricted read-only; `sonarqube` needs a human OAuth sign-in (`/mcps`). |
+| MCP servers | External capabilities only. The repo base config `opencode.json` (committed upstream via PR #1431, on `develop`) defines the doc servers (`django-docs`, `react-admin-docs`, `mui-docs`, `mui-x-docs`, GitMCP pinned to the exact framework versions), `orm-lens`, a `postgres` stub, `playwright` and a `sonarqube` stub; `docs/development/mcp-servers.md` is authoritative | repo `opencode.json` + per-checkout `.opencode/opencode.json` (mode 600, git-ignored, holds the read-only DSN); user `opencode.jsonc` (preserved unchanged) | Skills declare MCP dependencies explicitly; **all eight work without any MCP** and use the configured servers as optional accelerators. `postgres` is role-restricted read-only; `sonarqube` needs a per-host SonarQube Cloud user token file (`~/.config/opencode/sonar-token`). |
 | CI | Deterministic enforcement: flake8/drift/translations, Behave, unit tests, frontend lint/type-check/coverage (combined backend gate 75%), CodeQL security-extended, SonarCloud | `.github/workflows/quality-assurance.yml`, `script-tests.yml`, `codeql.yml` | Skills tell the agent to run CI's commands locally (in a job-local stack); they add no new gates. |
 
 Framework *recommendations* (Django/DRF/react-admin/Celery/lxml/OGC docs) are referenced inside
@@ -112,8 +112,9 @@ the `skill` tool, and a read-only fact-check of every referenced path/command ag
   `.env` files (bug #1434), so the read-only role/forwarder were provisioned by its documented
   manual steps; the DSN lives in the git-ignored `.opencode/opencode.json` (mode 600) as
   `environment.DATABASE_URL` — the stub's `options.url` is inert for stdio servers — and the MCP
-  `timeout` field is **milliseconds** (`15` times out instantly; use `15000`). `sonarqube` stays
-  disabled until a person signs it in through `/mcps` (OAuth, never via a shell `opencode mcp
-  auth`).
+  `timeout` field is **milliseconds** (`15` times out instantly; use `15000`). `sonarqube`
+  connects only where a person placed a SonarQube Cloud user token in
+  `~/.config/opencode/sonar-token` — OAuth is not available to this client (Sonar admits
+  CIMD clients from its own allowlist), so no `/mcps` sign-in can succeed for it.
 * Skill bodies duplicate a single title line for standalone readability; the loader adds its own
   heading — harmless, ~1 line per load.

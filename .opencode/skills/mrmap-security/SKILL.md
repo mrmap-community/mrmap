@@ -92,7 +92,8 @@ None for the work itself. The project's `postgres` MCP is already restricted (re
 `mcp_readonly` role, 127.0.0.1-only forwarder, no write tools) — that restriction is defence in
 depth, not permission: use it for schema introspection, never to dump user, group or credential
 data; reason over fixtures (`accounts/fixtures/test_users.json`, `@fixtures:` sets) and the code
-paths above. `sonarqube` (remote, needs a human OAuth sign-in via `/mcps`) reports security
+paths above. `sonarqube` (remote, needs the per-host user token file
+`~/.config/opencode/sonar-token`) reports security
 findings on open PRs — read them, never work around them (root `AGENTS.md`, SonarCloud).
 
 ## Verification (commands in `backend/AGENTS.md`, `backend/tests/behave/AGENTS.md`)

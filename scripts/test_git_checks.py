@@ -64,12 +64,19 @@ class HookTests(unittest.TestCase):
 
     def test_installer_is_idempotent_and_preserves_tracked_modes(self):
         self.templates()
+        original_modes = {
+            name: (self.root / ".githooks" / name).stat().st_mode & 0o777
+            for name in ("pre-commit", "pre-push")
+        }
         self.commit()
         hooks.install_hooks(self.root)
         hooks.install_hooks(self.root)
         for name in ("pre-commit", "pre-push"):
             self.assertTrue(os.access(self.root / ".git/hooks" / name, os.X_OK))
-            self.assertEqual((self.root / ".githooks" / name).stat().st_mode & 0o777, 0o644)
+            self.assertEqual(
+                (self.root / ".githooks" / name).stat().st_mode & 0o777,
+                original_modes[name],
+            )
         self.assertEqual(self.git("status", "--porcelain"), "")
         hooks.install_hooks(self.root, uninstall=True)
         self.assertFalse((self.root / ".git/hooks/pre-commit").exists())
@@ -147,7 +154,7 @@ class HookTests(unittest.TestCase):
             configuration = hooks.sonar_configuration(self.root)
         self.assertEqual(configuration["organization"], "mrmap-community")
         self.assertEqual(configuration["project"], "mrmap-community_mrmap")
-        self.assertEqual(configuration["target"], "master")
+        self.assertEqual(configuration["target"], "develop")
         self.assertNotIn("test-value", str(configuration))
 
     def test_sonar_setup_refuses_shallow_history(self):
@@ -345,7 +352,7 @@ class HookTests(unittest.TestCase):
     def test_new_documentation_branch_uses_remote_baseline(self):
         self.write("backend/a.py", "existing code\n")
         base = self.commit()
-        self.git("update-ref", "refs/remotes/origin/master", base)
+        self.git("update-ref", "refs/remotes/origin/develop", base)
         self.write("docs/topic.rst", "new docs\n")
         head = self.commit()
         _tree, paths, _ref = next(hooks.push_trees(self.root, [self.update(head)]))

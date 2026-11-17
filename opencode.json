@@ -49,6 +49,15 @@
         ],
         "$comment": "Needs Node >= 18 and a Playwright chromium (~/.cache/ms-playwright, refresh via: npx -y playwright install chromium)."
       },
+      "github": {
+        "type": "local",
+        "command": [
+          "bash",
+          "-lc",
+          "GITHUB_PERSONAL_ACCESS_TOKEN=\"$(gh auth token)\" exec docker run -i --rm --init --memory=256m -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server:v2.2.0 stdio"
+        ],
+        "$comment": "Official GitHub MCP server (github/github-mcp-server), GHCR image tag pinned; stdio in a short-lived Docker container. Needs Docker + an authenticated gh CLI; the token is resolved from the gh keyring at startup and never stored in any config file. Write tools are active; add --read-only after 'stdio' to make it read-only."
+      },
       "postgres": {
         "type": "local",
         "command": [

@@ -49,7 +49,7 @@ def sonar_configuration(root, required=False):
         "scanner": scanner,
         "organization": os.environ.get("SONAR_ORGANIZATION") or "mrmap-community",
         "project": os.environ.get("SONAR_PROJECT_KEY") or "mrmap-community_mrmap",
-        "target": os.environ.get("SONAR_TARGET_BRANCH") or "master",
+        "target": os.environ.get("SONAR_TARGET_BRANCH") or "develop",
     }
 
 
@@ -144,7 +144,7 @@ def push_trees(root, lines, remote="origin"):
                            f"refs/remotes/{remote}/HEAD").decode().strip()
             if not baseline:
                 baseline = git(root, "for-each-ref", "--format=%(refname)",
-                               f"refs/remotes/{remote}/master").decode().strip()
+                               f"refs/remotes/{remote}/develop").decode().strip()
             try:
                 base = git(root, "merge-base", local_oid, baseline).decode().strip() if baseline else None
             except subprocess.CalledProcessError:

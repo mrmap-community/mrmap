@@ -11,11 +11,13 @@ Feature: RoleDefinition List Endpoint
 
     Scenario: Authenticated user lists the catalogue
         # the seeded catalogue of #731/#732 orders by slug; the whole table is
-        # readable, its rows are not a secret of any organization
+        # readable, its rows are not a secret of any organization. #739 added
+        # the anonymous viewer, which sorts before the others: the row is read
+        # as the witness that the list answers, not as a fixed first member
         Given I am logged in as User1 with password User1
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.[0].attributes.slug" with value "harvester"
+        Then I expect that response json has an attribute "data.[0].attributes.slug" with value "anonymous_viewer"
 
     Scenario: Anonymous cannot read the catalogue
         Given I am an anonymous user

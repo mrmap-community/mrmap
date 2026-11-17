@@ -1442,6 +1442,22 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
     metadata: "Metadaten",
     capabilities: "GetCapabilities-URL",
+    // die drei Antworten, die das Backend aus den Guardian-Rechten des Diensts
+    // selbst ableitet (#739); ein Dienst ohne diese Antwort, etwa ein Katalog,
+    // zeigt gar keine Sichtbarkeit
+    visibility: "Sichtbarkeit",
+    visibilityValues: {
+      public: "Öffentlich",
+      "organization-internal": "Organisationsintern",
+      restricted: "Eingeschränkt",
+    },
+    visibilityHints: {
+      public: "Diesen Dienst darf jeder einsehen, auch ohne Anmeldung.",
+      "organization-internal":
+        "Nur die Rollen der Organisation, der der Dienst gehört, dürfen ihn einsehen.",
+      restricted:
+        "Nur einzeln benannte Gruppen oder Personen dürfen diesen Dienst einsehen.",
+    },
     operationUrls: "Operations-URLs",
     layers: "Layer",
     featureTypes: "Feature-Typen",

@@ -8,6 +8,8 @@ from django.db.models.query import Prefetch, QuerySet
 from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
 from drf_spectacular.utils import extend_schema
+from extras.permissions import (list_is_permission_filtered,
+                                objects_for_user)
 from extras.utils import get_sparse_fields
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import BackgroundProcessSerializer
@@ -170,6 +172,41 @@ class HistoryInformationViewSetMixin:
         except LookupError:
             pass
         return qs
+
+
+class PermissionVisibilityMixin:
+    """Answers the visibility tri-state of the resources a viewset reads.
+
+    The annotation is applied always: every screen, list and detail alike,
+    learns whether a resource is public, organization-internal or restricted
+    from one derived value, without a query per object (#739).
+
+    Whether the list itself is filtered by that value is a rollout decision
+    per model, taken in `PERMISSION_FILTERED_LIST_MODELS`: while a model is
+    not named there, the list keeps answering what it answers today and only
+    the detail route is held to the permission boundary. Models whose rows
+    carry an `owner` org are the ones the org-axis of `objects_for_user`
+    understands; `accounts.checks` refuses naming anything else.
+    """
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        if getattr(self, "swagger_fake_view", False):
+            # drf-spectacular builds a throw-away view to read the schema;
+            # it has no user and must not hit the database
+            return qs
+        model = qs.model
+        if list_is_permission_filtered(model):
+            # narrowed first, on the plain queryset: the facade OR-composes
+            # its axes and every axis starts from the queryset it was handed,
+            # which is the shape its own callers pass
+            qs = objects_for_user(
+                self.request.user,
+                f"{model._meta.app_label}.view_{model._meta.model_name}",
+                qs)
+        # annotated last: the answer belongs to the rows which survived, and
+        # it costs no query of its own
+        return qs.with_visibility()
 
 
 class SerializerClassesMixin:

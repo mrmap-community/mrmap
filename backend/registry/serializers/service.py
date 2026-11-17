@@ -427,10 +427,17 @@ class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
             return False
         request = self.context.get('request')
         user = getattr(request, 'user', None)
-        permission = f'change_{obj._meta.model_name}'
-        return bool(user and user.is_authenticated and
-                    (user.has_perm(f'{obj._meta.app_label}.{permission}') and
-                     self.get_perm_checker().has_perm(permission, obj)))
+        if not (user and user.is_authenticated):
+            return False
+        # the AND of a global and an object permission was one half of the
+        # split answer #727 lists against this hint: it decided differently
+        # from the PATCH endpoint itself. The facade answers both now.
+        from extras.permissions import allowed
+
+        return allowed(
+            user,
+            f'{obj._meta.app_label}.change_{obj._meta.model_name}', obj,
+            checker=self.get_perm_checker())
 
 
 MONITORING_SETTINGS_HELP_TEXT = _("This are the configured monitoring settings.")

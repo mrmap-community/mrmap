@@ -1077,7 +1077,6 @@ class CatalogueServiceSerializer(
         model=HarvestingJob,
         many=True,
         read_only=True,
-        # related_link_url_kwarg="parent_lookup_harvested_through",
     )
     running_harvesting_job = SerializerMethodResourceRelatedField(
         model=HarvestingJob,

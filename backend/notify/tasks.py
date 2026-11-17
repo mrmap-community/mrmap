@@ -133,7 +133,6 @@ class BackgroundProcessBased(Task):
 
     def update_state(self, task_id=None, state=None, meta=None, **kwargs):
         pass
-        # return super().update_state(task_id, state, meta, **kwargs)
 
     def update_background_process(
         self,

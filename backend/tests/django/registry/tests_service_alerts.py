@@ -1534,8 +1534,7 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
         its outer SELECT - and the one statement which does answer them
         reads the table narrowed to the identifiers of the page.
         """
-        reads = ServiceDetailAlertScanTest.outer_reads(
-            queries.captured_queries, table)
+        reads = ServiceDetailAlertScanTest.outer_reads(queries, table)
         sliced = [read for read in reads if "LIMIT" in read]
         self.assertEqual(
             len(sliced), 1,
@@ -1556,7 +1555,14 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
             msg=f"the statement answering the alerts is not narrowed to "
                 f"the page: {answers[0][:400]}")
         for resource in page:
-            self.assertIn(resource["id"], answers[0])
+            # psycopg renders a uuid parameter without its dashes:
+            # 'cd16cc1f3abb4625bb96fbe80dbe23e3'::uuid
+            self.assertTrue(
+                resource["id"] in answers[0]
+                or resource["id"].replace("-", "") in answers[0],
+                msg=f"the statement answering the alerts is narrowed to "
+                    f"other rows than the page row {resource['id']}: "
+                    f"{answers[0][:400]}")
 
     def test_the_page_of_a_map_service_list_answers_only_its_own_alerts(self):
         page, queries = self.list_page(

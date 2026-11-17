@@ -67,6 +67,13 @@ export interface GetListJsonApiParams extends GetListParams {
   }
 }
 
+export interface CreateJsonApiParams extends CreateParams {
+  meta?: {
+    /** Post into the related collection, e.g. `POST /organizations/{id}/members`. */
+    relatedResource?: RelatedResource
+  }
+}
+
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
@@ -479,11 +486,25 @@ const dataProvider = ({
       return await handleListRequest(httpClient.client, conf, total, systemTime)
     },
 
-    create: async (resource: string, params: CreateParams): Promise<CreateResult> => {
-      const operationId = `create_${resource}`
+    create: async (resource: string, params: CreateJsonApiParams): Promise<CreateResult> => {
+      const relatedResource = params.meta?.relatedResource
+      if (relatedResource !== undefined && relatedResource.id === undefined) {
+        // a create into a related collection without its parent would post to
+        // a malformed path - unlike a list, which can answer empty while the
+        // parent is unknown, a write has no safe degraded form
+        throw new Error(`create '${resource}' with an unresolved '${relatedResource.resource}' parent`)
+      }
+      const operationId = relatedResource === undefined
+        ? `create_${resource}`
+        : `create_related_${resource}_of_${relatedResource.resource}`
       const operation = checkOperationExists(httpClient, operationId)
 
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [undefined, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
+      // the parent of a nested create travels as the path parameter
+      // drf-spectacular-jsonapi names `${Related}Id` for the collection
+      const parameters = relatedResource === undefined
+        ? undefined
+        : { [`${relatedResource.resource}Id`]: relatedResource.id }
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
 
       return await httpClient.client.request(conf).then((response) => {
         const jsonApiDocument = response.data as JsonApiDocument

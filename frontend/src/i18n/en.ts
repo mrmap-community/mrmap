@@ -4,6 +4,42 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    // the organization administration area of #737: the members and the roles
+    // of one selected organization, gated by the permission snapshot of #836
+    administration: {
+      organization: {
+        label: "Organization",
+        placeholder: "Select an organization",
+        noneForUser: "You do not administrate any organization.",
+      },
+      members: {
+        title: "Members",
+        roles: "Roles",
+        noRoles: "No role in this organization",
+        add: "Add member",
+        addTitle: "Add a member to the organization",
+        user: "User",
+        added: "%{user} was added to the organization",
+        addFailed: "The member could not be added.",
+        assign: "Assign role",
+        assignTitle: "Assign a role to %{user}",
+        role: "Role",
+        assigned: "The role %{role} was assigned.",
+        assignFailed: "The role could not be assigned.",
+        revoke: "Revoke %{role}",
+        revoked: "The role %{role} was revoked.",
+        revokeFailed: "The role could not be revoked.",
+        selfRevoked:
+          "You revoked your own administration role; the administration screens are no longer yours.",
+      },
+      roles: {
+        title: "Roles",
+        members: "Members in organization",
+        permissions: "Permissions",
+        permissionCount:
+          "%{smart_count} permission |||| %{smart_count} permissions",
+      },
+    },
     cronInput: {
       openEditor: "Click to edit the cron schedule.",
       minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",

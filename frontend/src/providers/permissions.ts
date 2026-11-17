@@ -15,27 +15,36 @@
 
 export interface PermissionSnapshot {
   /**
-   * The caller's role names as `who-am-i` will carry them once #736 extends
-   * it; empty while the endpoint does not answer roles yet.
+   * The definition slugs of the roles the caller actively holds - resolved
+   * by the authProvider from `who-am-i`'s role ids through the role API of
+   * #736 (see `resolveAdministrationFromRoles`).
    */
   roles: string[],
   /**
+   * The ids of the organizations whose `organization_admin` role the caller
+   * actively holds; the scope the #737 administration screens offer to an
+   * organization administrator. Empty for everybody else.
+   */
+  administeredOrganizationIds: string[],
+  /**
    * Django's `is_superuser`, which the current `who-am-i` already answers as
-   * `isSuperuser` - the only administration signal available before #736.
+   * `isSuperuser` - the break-glass signal beside the #736 roles.
    */
   isSuperuser: boolean
 }
 
 /** The snapshot a request without a session is judged against. */
-export const ANONYMOUS_SNAPSHOT: PermissionSnapshot = { roles: [], isSuperuser: false }
+export const ANONYMOUS_SNAPSHOT: PermissionSnapshot = {
+  roles: [], administeredOrganizationIds: [], isSuperuser: false
+}
 
 /**
  * The screens that manage the platform, its accounts and its schedule. An
  * entry belongs here when opening it already reveals or lets change something
- * only an administrator may see - #737's Members and Roles screens are the
- * next of them, so the resource names #736 introduces are listed now and
- * cannot ship ungated. Everything not named here stays visible to every
- * logged-in user as today; the backend keeps enforcing the records.
+ * only an administrator may see - the #737 Members and Roles screens are the
+ * `list` of the User and RoleDefinition resources named here, so they are
+ * gated through the very same check. Everything not named here stays visible
+ * to every logged-in user as today; the backend keeps enforcing the records.
  */
 export const ADMINISTRATION_RESOURCES: ReadonlySet<string> = new Set([
   // accounts, as registered by components/Resource/Definition.tsx
@@ -60,11 +69,24 @@ export const ADMINISTRATION_RESOURCES: ReadonlySet<string> = new Set([
 export const PUBLIC_READ_RESOURCES: ReadonlySet<string> = new Set<string>([])
 
 /**
- * The role names that grant administration. Empty until #736 names the
- * builtin catalogue; tests inject their set through `administrationRoles` to
- * pin the wiring, and wiring #736 means filling this one table.
+ * The role slugs that grant administration, named by the builtin catalogue
+ * #736 seeded (`backend/accounts/migrations/0005_the_builtin_role_catalogue_is_seeded.py`).
+ * `organization_admin` administers one organization - through the #836 table
+ * it reaches the administration screens for the organization it holds the
+ * role in, which is where its role rows point; `platform_admin` administers
+ * the whole instance. The backend keeps enforcing every record either way, so
+ * a coarser menu visibility here never opens a screen's data.
  */
-export const ADMINISTRATION_ROLES: ReadonlySet<string> = new Set<string>([])
+export const ADMINISTRATION_ROLES: ReadonlySet<string> = new Set([
+  "organization_admin",
+  "platform_admin",
+])
+
+/** The slug whose role row, held for an organization, administers it. */
+export const ORGANIZATION_ADMINISTRATION_ROLE = "organization_admin"
+
+/** The slug that answers administration of the whole instance (#727 Q6). */
+export const PLATFORM_ADMINISTRATION_ROLE = "platform_admin"
 
 /** The snapshot-level actions; record-scoped refinement is #738's field. */
 const READ_ACTIONS = new Set(["list", "show"])
@@ -88,9 +110,21 @@ export const hasAdministration = (
   snapshot.isSuperuser || snapshot.roles.some(role => administrationRoles.has(role))
 
 /**
- * Reads the permission-relevant members of the `who-am-i` answer, tolerating
- * both shapes #736 may deliver roles in - attributes or a JSON:API
- * relationship - and answers the empty roles list while neither exists.
+ * Whether the caller administers the whole instance rather than one
+ * organization: the superuser flag or the active `platform_admin` role. The
+ * #737 screens use it to offer every organization to the selector instead of
+ * only the ones the caller administrates.
+ */
+export const isPlatformAdministration = (snapshot: PermissionSnapshot): boolean =>
+  snapshot.isSuperuser || snapshot.roles.includes(PLATFORM_ADMINISTRATION_ROLE)
+
+/**
+ * Reads the permission-relevant members of the `who-am-i` answer. Roles
+ * arrive as JSON:API resource identifiers (`relationships.roles.data`) which
+ * carry role "row" ids, not definition slugs - the slugs are what this
+ * module's tables name, and the authProvider resolves them through the role
+ * API of #736 (`resolveAdministrationFromRoles`). Until that resolution ran,
+ * `roles` stays empty and only `isSuperuser` answers administration.
  * `who-am-i` camelizes its member names (settings.py
  * JSON_API_FORMAT_FIELD_NAMES).
  */
@@ -110,7 +144,75 @@ export const permissionSnapshotFromWhoAmI = (body: unknown): PermissionSnapshot 
       )
       .filter((name): name is string => typeof name === "string")
     : []
-  return { roles, isSuperuser: attributes.isSuperuser === true }
+  return {
+    roles,
+    administeredOrganizationIds: [],
+    isSuperuser: attributes.isSuperuser === true
+  }
+}
+
+/**
+ * The ids of the role rows `who-am-i` answers for the caller - the input of
+ * the slug resolution in the authProvider. An empty list means the caller
+ * holds no role at all and the resolution has nothing to ask.
+ */
+export const callerRoleIdsFromWhoAmI = (body: unknown): string[] => {
+  const rawRoles = (body as {
+    data?: { relationships?: { roles?: { data?: unknown } } }
+  } | undefined)?.data?.relationships?.roles?.data
+  if (!Array.isArray(rawRoles)) {
+    return []
+  }
+  return rawRoles
+    .map(role =>
+      typeof role === "string" ? role : (role as { id?: unknown })?.id
+    )
+    .filter((id): id is string => typeof id === "string")
+}
+
+/**
+ * Turns the two documents of the slug resolution - the caller's Role rows
+ * (`GET /roles?filter[id.in]=...`) and their RoleDefinition rows
+ * (`GET /roledefinitions?filter[id.in]=...`) - into the snapshot's role
+ * slugs and administered organizations. Only `is_active` rows count: a
+ * retired role grants nothing, which is the same rule the backend applies.
+ * A Role whose definition is absent from the second answer contributes
+ * nothing - the snapshot is judged by what the API actually answered.
+ */
+export const resolveAdministrationFromRoles = (
+  rolesBody: unknown,
+  definitionsBody: unknown
+): Pick<PermissionSnapshot, "roles" | "administeredOrganizationIds"> => {
+  const readData = (body: unknown): {
+    id?: string
+    attributes?: Record<string, unknown>
+    relationships?: Record<string, { data?: { id?: string } | null }>
+  }[] => {
+    const data = (body as { data?: unknown } | undefined)?.data
+    return Array.isArray(data) ? data as ReturnType<typeof readData> : []
+  }
+  const slugs = new Map<string, string>(
+    readData(definitionsBody)
+      .filter(definition => typeof definition.attributes?.slug === "string")
+      .map(definition => [definition.id!, definition.attributes!.slug as string])
+  )
+  const roles: string[] = []
+  const administeredOrganizationIds: string[] = []
+  for (const role of readData(rolesBody)) {
+    if (role.attributes?.isActive !== true) {
+      continue
+    }
+    const slug = slugs.get(role.relationships?.role_definition?.data?.id ?? "")
+    if (slug === undefined) {
+      continue
+    }
+    roles.push(slug)
+    const organizationId = role.relationships?.organization?.data?.id
+    if (slug === ORGANIZATION_ADMINISTRATION_ROLE && organizationId !== undefined) {
+      administeredOrganizationIds.push(organizationId)
+    }
+  }
+  return { roles, administeredOrganizationIds }
 }
 
 export interface AccessCheck {

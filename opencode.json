@@ -74,10 +74,12 @@
       "sonarqube": {
         "type": "remote",
         "url": "https://api.sonarcloud.io/mcp",
-        "oauth": {
-          "scope": "mcp:tools:read"
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer {file:~/.config/opencode/sonar-token}",
+          "SONARQUBE_READ_ONLY": "true"
         },
-        "$comment": "Official SonarQube Cloud-hosted MCP (EU/global). Read-only OAuth scope; per-user authentication via `opencode mcp auth sonarqube` stored outside Git. US-region installations must use https://api.sonarqube.us/mcp."
+        "$comment": "Official SonarQube Cloud-hosted MCP (EU/global) with a SonarQube Cloud USER token. OAuth is not an option for this client: Sonar accepts it only for CIMD clients on its allowlist (Claude Code, Cursor, VS Code, ...), OpenCode is not listed. The token stays outside Git in ~/.config/opencode/sonar-token (mode 600, single line, no trailing newline); scripts/mcp-setup.sh checks it and names how to create it. SONARQUBE_READ_ONLY refuses write tools server-side, whatever the token may do. US-region installations must override the url to https://api.sonarqube.us/mcp."
       }
     }
   }

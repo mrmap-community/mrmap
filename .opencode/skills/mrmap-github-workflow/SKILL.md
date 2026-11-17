@@ -64,9 +64,11 @@ whether an action needs a human.
 None — the loop runs on `git` and `gh` (authenticated host account) and the offline
 `scripts/test_*.py` suites. `gh` usage here stays read/write within the issue/PR flow the claim
 board defines; creating issues/PRs is a separate human-approved context. **Optional:** the
-`sonarqube` MCP (remote, `api.sonarcloud.io`; a person must sign it in via `/mcps` once per
-machine) gives the findings SonarCloud posts on your PR — read them through it instead of
-scraping the check output, and fix them where reported (root `AGENTS.md`, SonarCloud).
+`sonarqube` MCP (remote, `api.sonarcloud.io`; a person must place a SonarQube Cloud user
+token in `~/.config/opencode/sonar-token` once per host — see
+`docs/development/mcp-servers.md`) gives the findings SonarCloud posts on your PR — read
+them through it instead of scraping the check output, and fix them where reported (root
+`AGENTS.md`, SonarCloud).
 
 ## Anti-patterns
 

@@ -236,6 +236,68 @@ page of a list action, the one object of a detail action — which the mixin rem
 builds one per object and logs "slow handling of object permissions detected"; that warning
 means an endpoint is missing the mixin, not that permissions are broken.
 
+## Who may view a resource (visibility)
+
+Every read of a WMS or WFS answers `visibility` with one of three words, derived
+from the guardian grants of the resource and never stored as a column, so the
+list, the detail route and the permission checks cannot disagree about one and
+the same resource (#727 called the disagreement the bug):
+
+- **public** — the `view_<model>` grant over the resource is held by the
+  *anonymous viewer* role group: a PLATFORM-scope, non-assignable role which
+  migration `0009_the_anonymous_viewer_role_group_is_seeded` writes and the
+  `post_migrate` guard of `accounts/apps.py` keeps; guardian's anonymous user
+  row is its only member and nothing ever joins it. Publishing is the only
+  code path that grants onto it — decision Q2 of #727: public is an explicit
+  grant, never a side effect. A public resource is public for logged-in users
+  too: the facade answers the anonymous group's view grant for every caller
+  (`authorized_public_object_grant` in `backend/extras/permissions.py`),
+  because a logged-in user who saw *less* than an anonymous one would rebuild
+  the split on a new axis.
+- **organization-internal** — a role group of the resource's owning
+  organization holds the view grant. This is the state every newly registered
+  resource starts in: the creation bootstrap grants the managing roles of the
+  owner ([What creation grants today](#what-creation-grants-today)) and never
+  the anonymous group.
+- **restricted** — neither: shared with individually named groups or users
+  (#740's sharing surface) or with nobody. A resource which lost its owner
+  lost its internal scope with it.
+
+The answer travels in the `visibility` attribute of the WMS and WFS serializers
+(`registry/serializers/service.py`, mixin `VisibilitySerializerMixin`); on a
+list it is one `CASE` over two `EXISTS` in the page's own SELECT
+(`registry/expressions/visibility.py`) — no query per row, none per role.
+
+A `PATCH` may move a resource across the public axis only:
+
+- `"visibility": "public"` needs `registry.publish_resource` over the resource
+  — held through the `resource_publisher` role of the owning organization;
+- `"visibility": "organization-internal"` takes the grant back and needs that
+  same permission, or `manage_access_rules`;
+- `"restricted"` is refused (400): it is the shape of the *absence* of grants,
+  and shaping it deliberately is #740, not this endpoint.
+
+### The rollout switch
+
+Whether a *list* is narrowed to what the caller may view is a deployment
+decision per model:
+
+```
+MRMAP_PERMISSION_FILTERED_LIST_MODELS=registry.WebMapService,registry.WebFeatureService
+```
+
+- **empty (the default)**: lists answer what they always answered — every
+  row — while `visibility` is shown everywhere. Nothing published before the
+  switch is affected and no anonymous access widens by itself.
+- **a model named**: the list, the detail route and the pagination count of
+  that model answer the same `objects_for_user` SQL which decides the detail
+  endpoint (#734) — one statement over guardian's tables, not a query per
+  role.
+- The system check `accounts.E006` refuses naming a model which is not
+  role-managed (`ROLE_MANAGED_MODELS`), because without the owner axis the
+  SQL filter would drop the organization-internal rows it exists to keep.
+- Rollback is the empty value: the annotation stays, the filtering leaves.
+
 ## The proxy axis
 
 This axis answers one question: may this OGC client call this operation on this layer? It is
@@ -343,6 +405,16 @@ comments and nothing else.)
 
 ## Roles and memberships
 
+> Updated by #731-#739: the role system the text below describes as missing has
+> since shipped — `RoleDefinition`, `Role` and `RoleMembership` in
+> `backend/accounts/models/roles.py`, the builtin catalogue of
+> `accounts/management/commands/sync_role_definitions.py`, the creation
+> bootstrap of `accounts/signals.py` and the facade of `extras/permissions.py`.
+> The groups named by string concatenation are gone; a role's group is found
+> through its `Role` row (#732). Who may *view* a resource is told by
+> [Who may view a resource](#who-may-view-a-resource-visibility). The rest of
+> this section is kept as the baseline of what was missing and why.
+
 There are none. No role model, no membership model, no role administration screen, and no
 role is applied at creation beyond the groups the bootstrap names above. Who administers
 what is currently derived from group **names** built by string concatenation
@@ -397,6 +469,13 @@ Every name above, with the file it comes from.
 | `get_objects_for_user` scoping of alerts | `backend/registry/querys/alerts.py` |
 | `get_objects_for_user` scoping of background activity | `backend/notify/managers.py` |
 | `filter[user_has_perm]` | `backend/accounts/filters/groups.py` |
+| `Visibility`, `allowed`, `objects_for_user`, `set_public`, `authorized_public_object_grant` | `backend/extras/permissions.py` |
+| the `anonymous_viewer` slug and the platform group prefix | `backend/accounts/models/roles.py` |
+| the seed of the anonymous viewer's role group and member | `backend/accounts/migrations/0009_the_anonymous_viewer_role_group_is_seeded.py`, guarded by `accounts/apps.py` and `accounts.utils.ensure_anonymous_viewer` |
+| `visibility_expression`, `anonymous_viewer_group_ids` | `backend/registry/expressions/visibility.py` |
+| `PermissionVisibilityMixin` | `backend/extras/viewsets.py` |
+| `VisibilitySerializerMixin`, `VisibilityField` | `backend/registry/serializers/service.py` |
+| `PERMISSION_FILTERED_LIST_MODELS` (`MRMAP_PERMISSION_FILTERED_LIST_MODELS`) and the check `accounts.E006` | `backend/MrMap/settings.py`, `backend/accounts/checks.py` |
 | `AllowedOperation`, `AllowedWebMapServiceOperation`, `AllowedWebFeatureServiceOperation`, `ProxySetting`, `WebMapServiceProxySetting`, `WebFeatureServiceProxySetting` | `backend/registry/models/security.py` |
 | `filter_by_request`, `is_spatial_secured`, `allowed_area_union` | `backend/registry/managers/security.py` |
 | `OgcServiceProxyView` (`get_and_post`, `_test_as_user`) | `backend/registry/proxy/mixins.py` |

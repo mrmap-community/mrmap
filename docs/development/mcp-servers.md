@@ -17,7 +17,7 @@ Audit/initial setup: 2026-11-16, OpenCode v2.2.5.
 | `mui-x-docs` | GitMCP, repo pinned `mui/mui-x@v9.16.0` | remote HTTPS | repo base (committed) | MUI X (DataGrid, Charts, TreeView) 9.16.0 docs |
 | `orm-lens` | `orm-lens[mcp]==1.18.0` | stdio (venv) | repo base + local venv | Static Django ORM analysis: models, relations, N+1, indexes — no DB, no Django boot |
 | `postgres` | `@yawlabs/postgres-mcp@0.13.13` | stdio (npx) | local override (DSN) | Dev-database schema inspection, read-only SQL, EXPLAIN, index/health checks |
-| `sonarqube` | SonarQube Cloud hosted service | remote HTTPS (OAuth) | repo base (committed) | Quality gates, issues, rules and measures for MrMap (read-only) |
+| `sonarqube` | SonarQube Cloud hosted service | remote HTTPS (user token header) | repo base (committed) + per-host token file | Quality gates, issues, rules and measures for MrMap (read-only) |
 
 Pinned versions match the installed stack: `backend/.requirements/base.txt`
 (Django 6.0.8) and `frontend/package-lock.json` (react-admin 5.15.5,
@@ -27,7 +27,9 @@ Pinned versions match the installed stack: `backend/.requirements/base.txt`
 ## Configuration locations (two-tier model)
 
 - **Committed base — `opencode.json` (repo root)**: every secret-free server:
-  the four GitMCP doc servers, the hosted `sonarqube` integration, `orm-lens`, `playwright`, and a *disabled*
+  the four GitMCP doc servers, the hosted `sonarqube` integration (its entry
+  only *references* `~/.config/opencode/sonar-token` through `{file:…}`, the
+  token itself is not in the file), `orm-lens`, `playwright`, and a *disabled*
   `postgres` stub that reads `{env:MRMAP_MCP_DATABASE_URL}`. Because it is a
   tracked file, **every clone, worktree and host gets these servers
   automatically** — including AO agents working in worktrees.
@@ -50,7 +52,46 @@ OpenCode merges configs root-down: global `<` repo `opencode.json` `<` repo
 `/reload` in the TUI. Verify with `/mcps` (authoritative; the CLI
 `opencode mcp list` only shows the servers of the *current* directory's
 config layers) or the service log
-(`grep 'mcp connected' ~/.local/share/opencode/log/opencode.log`).
+((`grep 'mcp connected' ~/.local/share/opencode/log/opencode.log`).
+
+### SonarQube Cloud token (per host, outside Git)
+
+The hosted SonarQube MCP server authenticates with a **SonarQube Cloud user
+token** in the `Authorization` header. OAuth is not an option for this client:
+Sonar accepts it only from clients that send a Client ID Metadata Document and
+that are on its own allowlist (ChatGPT, Claude, Claude Code, Codex, Cursor,
+Copilot desktop, VS Code, Zed). OpenCode is not on that list, so every OAuth
+attempt stops before a sign-in is possible:
+
+```text
+WARN mcp http authentication rejected status=401 origin=https://api.sonarcloud.io
+WARN mcp connect failed server=sonarqube status=needs_auth
+     error="MCP server \"https://api.sonarcloud.io/mcp\" requires a login before it can register a client"
+```
+
+Create the token in SonarQube Cloud (user icon → *My Account* → *Security* →
+*Generate New Token*; a **user** token, not a project/analysis token — the
+`SONAR_TOKEN` the pre-push Sonar launcher injects is an analysis token and does
+not work here) and store it as one file per host and user:
+
+```bash
+umask 077 && printf '%s' '<token>' > ~/.config/opencode/sonar-token
+```
+
+`printf '%s'` on purpose: a trailing newline would be sent inside the header.
+`opencode.json` reads the file through `{file:…}`, so the tracked config stays
+secret-free and every worktree and agent on the host shares one token. A missing
+file is harmless — the value substitutes to empty, the endpoint answers `401`
+and `/mcps` shows the server as not connected; the other servers are unaffected.
+`scripts/mcp-setup.sh` reports the file (and a trailing newline in it) but never
+writes token material.
+
+The organization is not pinned with `SONARQUBE_ORG`: `list_organizations` answers
+per tool call, so the base config stays valid for other Sonar organizations.
+`SONARQUBE_READ_ONLY: "true"` keeps the write tools refused server-side
+independent of the token's own permissions. US-region organizations need
+`https://api.sonarqube.us/mcp` — a per-host override in `.opencode/opencode.json`
+(repeat `type` and `url`: a same-named entry replaces the base entry wholesale).
 
 ## Installation / reproduction
 
@@ -61,6 +102,7 @@ cd <checkout> && ./scripts/mcp-setup.sh
 ```
 
 It installs orm-lens (`orm-lens[mcp]==1.18.0` into `~/.venvs/orm-lens`),
+checks node and the SonarQube token file (it never writes token material),
 ensures the read-only DB role, (re)starts the loopback forwarder for the
 slot's postgis container (from `.env`: `COMPOSE_PROJECT_NAME`, `DB_USER`,
 `DB_NAME`) and writes the local override. Idempotent; options:
@@ -124,7 +166,8 @@ srv.listen(5432,"0.0.0.0");'
 
 For git **worktrees** (mrp slots): `opencode.json` is a tracked file, so every
 worktree automatically gets the doc servers, `orm-lens` (resolves its own
-tree from the session cwd) and `playwright` — nothing to copy. Only the
+tree from the session cwd), `playwright` and `sonarqube` (its token file is per
+host, not per checkout) — nothing to copy. Only the
 `postgres` override is per-checkout, because each slot has its own database:
 run `./scripts/mcp-setup.sh` inside the worktree (it reads that slot's `.env`)
 or skip it, or use `MRMAP_MCP_PORT` if the 15432 forwarder is already taken
@@ -168,7 +211,7 @@ by slot 0 (one forwarder can only serve one DB).
   `describe_model`, `find_relations`, `cascade_preview`, `er_diagram`,
   `describe_migration_dependency`, `suggest_indexes`, `signal_graph`,
   `migration_risk`, `blast_radius`, `drift`, `impact`, `nplusone_scan`.
-- `sonarqube`: SonarQube Cloud-hosted read-only OAuth tools (available tool list depends on the Cloud service and account permissions). Requires a per-user login; not yet functionally verified through OpenCode in this PR update.
+- `sonarqube`: SonarQube Cloud-hosted tools, `SONARQUBE_READ_ONLY: "true"` so only read-only tools answer (the list itself depends on the Cloud service and the token's account permissions). Needs `~/.config/opencode/sonar-token` on the host — see "SonarQube Cloud token" above. Not yet functionally verified through OpenCode.
 - `postgres` (23): `pg_readonly` (always read-only), `pg_query` (read-only
   since `ALLOW_WRITES` is unset), `pg_list_schemas/tables/views/functions/
   extensions`, `pg_describe_table`, `pg_search_columns`, `pg_explain`,
@@ -194,6 +237,14 @@ by slot 0 (one forwarder can only serve one DB).
 - **GitMCP (gitmcp.io)** is a GitLab-operated hosted service. It indexes the
   *public* pinned repo tag only; no local code, no credentials, no secrets
   leave the machine except your search queries. Read-only tools.
+- **SonarQube Cloud** is Sonar's hosted service; only the tool calls and their
+  queries leave the machine, no source is uploaded through this connection. It
+  authenticates with a **user** token, so its reach is that user's Cloud
+  permissions — `SONARQUBE_READ_ONLY: "true"` closes the write tools
+  server-side on top of that, and the token itself lives in
+  `~/.config/opencode/sonar-token` (mode 600, outside the repo, outside every
+  tracked config). Revoking the token in SonarQube Cloud ends access without any
+  repository change.
 - **orm-lens** is static, read-only, sandboxable (`ORM_LENS_ALLOWED_ROOTS` is
   set to `/home/ota/git/mrmap`), zero runtime deps. Third-party single-
   maintainer project (MIT, on the MCP registry) — pinned to 1.18.0.
@@ -253,7 +304,7 @@ Cline/AO via its own MCP settings file if you choose to mirror the entries
 | ORM performance | orm-lens, postgres | `orm_lens_*`, `postgres_*` (never set `ALLOW_WRITES`) |
 | UI testing | playwright | `playwright_*` |
 | Integration testing | django-docs, react-admin-docs, playwright | combined allow |
-| Code quality audit | sonarqube, django-docs, react-admin-docs | `sonarqube_*` with read-only OAuth scope |
+| Code quality audit | sonarqube, django-docs, react-admin-docs | `sonarqube_*` (server keeps it read-only via `SONARQUBE_READ_ONLY`) |
 
 Example (add under an entry in `agents` in the respective config):
 

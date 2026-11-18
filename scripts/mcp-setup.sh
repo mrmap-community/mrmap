@@ -81,10 +81,17 @@ fi
 
 # ------------------------------------------------------------ read .env slot
 [ -f .env ] || { ERR ".env missing - run 'mrp init' / configure the slot first"; exit 1; }
-set -a; . ./.env; set +a
+# Read specific keys via grep to avoid issues with ; in values (issue #1434)
 project="${COMPOSE_PROJECT_NAME:-mrmap}"
-dbuser="${DB_USER:?DB_USER missing in .env}"
-dbname="${DB_NAME:?DB_NAME missing in .env}"
+dbuser="$(grep -m1 '^DB_USER=' .env | cut -d= -f2)"
+# Backend uses SQL_DATABASE env var, but .env slot uses DB_NAME for backwards compat
+if grep -q '^SQL_DATABASE=' .env; then
+  dbname="$(grep -m1 '^SQL_DATABASE=' .env | cut -d= -f2)"
+elif grep -q '^DB_NAME=' .env; then
+  dbname="$(grep -m1 '^DB_NAME=' .env | cut -d= -f2)"
+else
+  dbname="mrmap"
+fi
 pg_container="${project}-postgis-1"
 network="${project}_mrmap-internal"
 

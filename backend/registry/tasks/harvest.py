@@ -1623,7 +1623,13 @@ def call_fetch_total_records(*args, **kwargs):
 
     try:
         with transaction.atomic():
-            harvesting_job = HarvestingJob.objects.select_for_update().get(pk=kwargs.get("harvesting_job_id"))
+            # the plan of #1392 reads job, catalogue and auth in one
+            # statement; ``of=("self",)`` keeps the lock exactly on the job
+            # row it was on before the join - a download must not lock the
+            # catalogue of the platform
+            harvesting_job = HarvestingJob.objects.for_client_access() \
+                .select_for_update(of=("self",)) \
+                .get(pk=kwargs.get("harvesting_job_id"))
             if harvesting_job.done_at is not None or harvesting_job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
                 return harvesting_job.total_records
             # Reuse the original snapshot's count when recovering downloads.
@@ -1660,7 +1666,7 @@ def call_fetch_total_records(*args, **kwargs):
 def call_fetch_records(self, *args, **kwargs):
     from registry.models.harvest import HarvestingJob
 
-    harvesting_job = HarvestingJob.objects.select_related("service", "service__auth").get(
+    harvesting_job = HarvestingJob.objects.for_client_access().get(
         pk=kwargs.get("harvesting_job_id"))
     if harvesting_job.done_at is not None or harvesting_job.phase > HarvestingPhaseEnum.DOWNLOAD_RECORDS:
         return 0
@@ -1808,12 +1814,25 @@ def reconcile_import_progress(job, waiting):
         BackgroundProcess.objects.raise_steps(job.background_process_id, target)
 
 
-def import_md_metadata_file(md_metadata_file_id, on_handled=None):
+def import_md_metadata_file(md_metadata_file_id, on_handled=None,
+                            shared_service=None):
     """Write a single stored metadata file to the database and return what it created.
 
     Answers None when there is nothing to import: the row of a successful import is deleted, so
     its absence is the proof that it was imported. The chunk task relies on this to work through
     its ids again after a retry without importing a record twice.
+
+    ``shared_service`` is the chunk's one service instance (#1392): a chunk
+    of a catalogue harvest hands the very same instance to each of its
+    records, so the ``client`` cached_property is built - and with it the
+    stored capabilities document is read and parsed - once per chunk and not
+    once per record. The document going missing mid-run then surfaces at the
+    first build past the boundary rather than at the next record: the run
+    still ends with one loud report and an unflagged backlog (#1044), one
+    chunk later. The file's own ``job`` row stays the freshly locked read, so
+    the abort check of an import keeps its per-record freshness; only the
+    service behind it is shared. ``None`` (the single-file task) keeps
+    today's per-record read.
 
     Only errors of the record itself are terminal and documented on the file. Everything the
     task base of the importing tasks retries is re-raised, so the file is redelivered with the
@@ -1838,6 +1857,12 @@ def import_md_metadata_file(md_metadata_file_id, on_handled=None):
             # Successful imports delete the row. Errors remain for inspection.
             if temporary_md_metadata_file is None or temporary_md_metadata_file.has_import_error:
                 return
+            if (shared_service is not None
+                    and temporary_md_metadata_file.job.service_id == shared_service.pk):
+                # the pk guard keeps a shared instance from ever answering
+                # for another job's row; assigning to the loaded FK replaces
+                # the cache, the instance is never saved
+                temporary_md_metadata_file.job.service = shared_service
             if temporary_md_metadata_file.job.phase in [HarvestingPhaseEnum.ABORT, HarvestingPhaseEnum.ABORTED]:
                 return
             results = temporary_md_metadata_file.md_metadata_file_to_db()
@@ -1901,11 +1926,25 @@ def call_md_metadata_files_to_db(*args, **kwargs):
     """
     imported = []
     progress_pk = import_progress_pk(kwargs)
+    # one service instance for the whole chunk (#1392): its cached client
+    # stands for the capabilities-document read and parse which the per-file
+    # instances each paid on their own; one extra read per chunk bounds it.
+    # The job's own rows stay read per file by the import itself - the abort
+    # check keeps its per-record freshness, only the service is shared.
+    from registry.models.harvest import HarvestingJob
+
+    shared_service = None
+    harvesting_job_id = kwargs.get("harvesting_job_id")
+    if harvesting_job_id:
+        harvesting_job = HarvestingJob.objects.for_client_access().filter(
+            pk=harvesting_job_id).first()
+        shared_service = harvesting_job.service if harvesting_job else None
     try:
         for md_metadata_file_id in kwargs.get("md_metadata_file_ids") or ():
             results = import_md_metadata_file(
                 md_metadata_file_id,
-                on_handled=lambda: credit_import_progress(progress_pk))
+                on_handled=lambda: credit_import_progress(progress_pk),
+                shared_service=shared_service)
             if results:
                 imported.extend(results)
     finally:

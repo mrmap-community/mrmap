@@ -143,6 +143,17 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         """
         return HarvestingJobQuerySet(self.model, using=self._db)
 
+    def for_client_access(self):
+        """The read plan of #1392, forwarded from ``HarvestingJobQuerySet``.
+
+        ``TemporaryMdMetadataFileManager`` is assembled
+        ``from_queryset`` and reaches its plan that way; this manager is a
+        hand-written subclass of the history and CTE managers, so the entry
+        point is forwarded explicitly. The plan itself lives once in
+        ``registry/querys/havesting.py``.
+        """
+        return self.get_queryset().for_client_access()
+
     def with_temporary_file_counts(self, qs=None, **counts):
         """Count only the files of each selected job, including after pagination.
 

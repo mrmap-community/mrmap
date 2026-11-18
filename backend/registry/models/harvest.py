@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
+from django.contrib.postgres.indexes import HashIndex
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
@@ -639,6 +640,12 @@ class HarvestingJob(ProcessingData):
 
             from registry.tasks.harvest import \
                 call_fetch_records  # to avoid circular import errors
+            # The request context is the job's own, decided by nothing the loop
+            # changes: read it ONCE. It answers `change_log.first()` and the
+            # user row of that history per call, and this loop ran it per round
+            # trip - the fan-out of a big catalogue paid two SELECTs per
+            # planned page for a dict which never varied (#1392).
+            http_request = self._http_request()
             task_ids = []
             tasks = []
             for number in range(0, round_trips):
@@ -647,7 +654,7 @@ class HarvestingJob(ProcessingData):
                     harvesting_job_id=self.pk,
                     start_position=number * self.max_step_size + 1,
                     recovering=recovering,
-                    http_request=self._http_request()
+                    http_request=http_request
                 )
                 task.set(task_id=str(task_id))
                 task_ids.append(task_id)
@@ -656,7 +663,7 @@ class HarvestingJob(ProcessingData):
             callback_id = uuid4()
             callback = call_chord_md_metadata_file_to_db.s(
                 harvesting_job_id=str(self.pk),
-                http_request=self._http_request(),
+                http_request=http_request,
             )
             callback.set(task_id=str(callback_id))
 
@@ -1696,6 +1703,24 @@ class TemporaryMdMetadataFile(models.Model):
         indexes = [
             models.Index(
                 fields=["job_id", "-id"]),
+            # the duplicate guard of a stored page (#688) asks how many files
+            # of this job already carry exactly this requested url; without
+            # an index on the url the count reads every file row of the job
+            # per page - the audit row "_store_page" of
+            # celery-task-orm-audit (#1392). The access method is HASH, not
+            # the default btree on purpose, twice over: the guard is a pure
+            # equality (a hash index answers equality only, which is all
+            # this shape asks), and a btree refuses index rows over ~2.7 KB
+            # while this URLField stores 4096 - a GetRecords GET carrying a
+            # big filter XML would break the INSERT of the file itself once
+            # indexed that way (#1263 learned the same lesson for the
+            # registration identity). Postgres hash indexes are
+            # single-column, so the index names the url alone: the url
+            # repeats across jobs at most by page, and the job filter then
+            # reads a handful of rows instead of the whole backlog.
+            HashIndex(
+                fields=["requested_url"],
+                name="tmpmd_page_dedup_idx"),
             # the count of the files of a job which failed to import, which is one
             # of the numbers of the progress of a job, is answered out of this index
             # alone: without it the count reads the entries of every file of the job

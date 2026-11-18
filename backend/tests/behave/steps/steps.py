@@ -12,6 +12,7 @@ from knox.models import AuthToken
 from lxml import etree
 from lxml.etree import fromstring
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient
 
 
 @given('{username} has the model permission "{permission}"')
@@ -51,6 +52,32 @@ def step_impl(context, username):
 @step('I enforce csrf checks')
 def step_impl(context):
     context.client.enforce_csrf_checks = True
+
+
+# The step above only sets an attribute; Django builds the enforcing handler
+# when the client is constructed, so a scenario which really wants the CSRF
+# rules of a browser - the price of the session cookie of #835 - has to ask
+# for a client that enforces. It must be the first step of its scenario: the
+# swap drops the cookies of whatever client stood before it.
+@step('I use a client which enforces CSRF checks')
+def step_impl(context):
+    context.client = APIClient(enforce_csrf_checks=True)
+
+
+# The double-submit a SPA performs (#835): the ``csrftoken`` cookie the server
+# handed out goes into the header Django reads, verbatim. DRF's
+# ``SessionAuthentication`` demands it for every unsafe request the session
+# authenticates - the cookie alone is what makes CSRF protection necessary.
+@step('I repeat the CSRF cookie in the header')
+def step_impl(context):
+    cookie = context.client.cookies.get("csrftoken")
+    if not cookie or not cookie.value:
+        raise AssertionError(
+            "this client was never given a CSRF cookie - Django answers it "
+            "only where somebody asks, e.g. GET api/auth/session")
+    headers = getattr(context, "headers", None) or {}
+    headers["HTTP_X_CSRFTOKEN"] = cookie.value
+    context.headers = headers
 
 
 @step('I use the endpoint {url}')

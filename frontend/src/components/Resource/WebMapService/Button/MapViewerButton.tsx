@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext, useTranslate } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 
 import PublicIcon from '@mui/icons-material/Public';
-import { v4 as uuidv4 } from 'uuid';
 
 import { API_BASE_URL } from '../../../../context/HttpClientContext';
-import { dropUnassignedAuthentication } from '../../../../ows-lib/OwsContext/authentication';
-import { Authentication } from '../../../../ows-lib/OwsContext/contrib';
 import { OWSContext, type OWSResource } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
-import { getAuthToken } from '../../../../providers/authProvider';
 import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/OwsContextBase';
 
 
@@ -50,18 +46,11 @@ const MapViewerButton = (
 
   const [clicked, setClicked] = useState(false)
 
-  const authHeader = useMemo<Authentication | undefined>(()=>(
-    getAuthToken()?.token && getCapaibilitesUrl && (
-      new URL(getCapaibilitesUrl).hostname === window.location.hostname ||
-      new URL(getCapaibilitesUrl).origin === new URL(API_BASE_URL).origin
-    ) ? {
-      id: uuidv4(),
-      type: "header",
-      name: "Authorization",
-      value: `Token ${getAuthToken()?.token}`,
-      origin: new URL(getCapaibilitesUrl).origin,
-    } : undefined
-  ),[getCapaibilitesUrl])
+  // No authentication entry is built for the viewer any more (#835): the
+  // browser session's cookie travels with every same-origin request the viewer
+  // makes on its own, and there is no token left which JavaScript could hand
+  // to it. What the caller may see is decided by the security proxy, which
+  // reads the very same session.
 
   const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
     protocol === 'WFS' ? 'WebFeatureService' : 'WebMapService',
@@ -91,30 +80,12 @@ const MapViewerButton = (
   }, [])
 
   const beforeSetHook = useCallback((context: OWSContext, treeId: number)=>{
-    if (authHeader !== undefined) {
-      const authHeaders = Array.isArray(context.authenticationHeaders) 
-      ? context.authenticationHeaders
-      : []
-      context.authenticationHeaders = authHeaders
-      authHeaders.push(authHeader)
-      if (getCapaibilitesUrl !== undefined)
-        // the registry served this document, so an operation it advertises on another origin is a
-        // public upstream one: the session of the requester is not its credential
-        dropUnassignedAuthentication(context, treeId, getCapaibilitesUrl)
-    }
-    
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
 
     // the layer of the appended tree which is the element the caller named
     let named: OWSResource | undefined
 
     addedFeatures.forEach(feature => {
-      authHeader && feature.properties.offerings?.forEach(offering => {
-        offering.operations?.forEach(operation => {
-          if (new URL(operation.href).origin === new URL(getCapaibilitesUrl).origin)
-            operation["x-authentication-id"] = authHeader?.id
-        })
-      })
       const operation = protocol === 'WFS'
         ? feature.getWfsOperationByCode('GetFeature')
         : feature.getWmsOperationByCode("GetMap")
@@ -148,7 +119,7 @@ const MapViewerButton = (
       })
     }
     return context
-  }, [wmsRecordWithUrl, protocol, authHeader, getCapaibilitesUrl, element])
+  }, [wmsRecordWithUrl, protocol, element])
 
   useEffect(() => {
     if (capabilititesUrl !== undefined) {
@@ -186,9 +157,11 @@ const MapViewerButton = (
       const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, protocol)
       
       const addService = protocol === 'WFS' ? addWFSByUrl : addWMSByUrl;
+      // no header argument: the viewer's request to this origin carries the
+      // session cookie of #835 by itself
       addService(
         url.href, 
-        authHeader && new Headers({"Authorization": authHeader?.value}), 
+        undefined, 
         beforeSetHook
       )
       navigate('/viewer')

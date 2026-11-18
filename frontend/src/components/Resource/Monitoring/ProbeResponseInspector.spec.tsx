@@ -11,9 +11,6 @@ vi.mock("../../../context/HttpClientContext", () => ({
   API_BASE_URL: "https://mrmap.test",
   useHttpClientContext: () => ({ api: { client: { request: state.request } } }),
 }));
-vi.mock("../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
-}));
 vi.mock("react-admin", () => ({
   useTranslate: () => (key: string) => key,
 }));
@@ -107,7 +104,7 @@ describe("probe response inspector", () => {
       url: "https://mrmap.test/api/registry/monitoring/probe-results/getmapproberesult/7/response",
       responseType: "blob",
       signal: expect.any(AbortSignal),
-      headers: { Accept: "*/*", Authorization: "Token mrmap-token" },
+      headers: { Accept: "*/*" },
     });
   });
 

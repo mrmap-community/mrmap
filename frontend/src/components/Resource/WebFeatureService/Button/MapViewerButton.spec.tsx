@@ -42,9 +42,6 @@ vi.mock("react-admin", () => ({
 vi.mock("react-router-dom", () => ({
   useNavigate: () => state.navigate,
 }));
-vi.mock("../../../../providers/authProvider", () => ({
-  getAuthToken: () => undefined,
-}));
 vi.mock("../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
   useOwsContextBase: () => ({
     owsContext: state.context,

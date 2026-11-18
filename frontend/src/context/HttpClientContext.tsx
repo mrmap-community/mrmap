@@ -39,7 +39,15 @@ const AXIOS_DEFAULTS = {
       Accept: JsonApiMimeType,
       'Content-Type': JsonApiMimeType,
     }
-  )
+  ),
+  // The browser session of #835 is the credential of every call this client
+  // makes: the cookie travels with the request (also where the API base URL is
+  // written as its own origin) and axios repeats the CSRF cookie in the header
+  // Django reads for state-changing verbs. The names are the backend's
+  // `CSRF_COOKIE_NAME`/`CSRF_HEADER_NAME`, so they are spelled once, here.
+  withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
 }
 
 

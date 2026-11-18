@@ -11,7 +11,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from accounts.views.auth import LoginView, LogoutView
+from accounts.views.auth import LoginView, LogoutView, SessionView
 from csw.views import CswServiceView
 from django.conf import settings
 from django.conf.urls import include
@@ -66,8 +66,13 @@ urlpatterns = [
     path("mrmap-proxy/ows/<int:pk>",
          OwsContextView.as_view(),
          name="ows-context-detail"),
+    # the machine/API token path (#835): Basic credentials in, a token the
+    # caller keeps itself out; the browser uses the session endpoint below
     path('api/auth/login', LoginView.as_view()),
     path('api/auth/logout', LogoutView.as_view()),
+    # the browser session of the SPA (#835, accepted decision Q8=B): POST opens
+    # it, GET asks whether this browser has one, DELETE closes it server-side
+    path('api/auth/session', SessionView.as_view()),
 
     path("csw",
          CswServiceView.as_view(),

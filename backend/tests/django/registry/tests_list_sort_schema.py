@@ -27,7 +27,11 @@ FORMERLY_HIDDEN = {
     "/api/accounts/groups": ["id", "userSet", "name", "permissions"],
     "/api/accounts/users/{UserId}/groups": ["id", "userSet", "name", "permissions"],
     "/api/registry/security/wms-authentication": [
-        "id", "username", "password", "authType", "keyFile", "service"],
+        # #1446 made `password` write-only and dropped `keyFile` from the
+        # serialization; the OrderingFilter fallback validates `sort` against
+        # the serializer's readable fields, so both left the accepted terms -
+        # the schema documents exactly what the runtime still answers
+        "id", "username", "authType", "service"],
 }
 
 #: the list endpoints whose generic pickers render and sort by the display

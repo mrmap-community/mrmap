@@ -1,0 +1,413 @@
+"""Concurrent deliveries of one GetRecords page ask the catalogue once (#1411).
+
+A scheduled fan-out which fires again while its previous run still works, or a
+broker which redelivers one page task, hands the same page to two workers. The
+stored-page check of #688 keeps the second one from downloading a page whose
+records are already in the backlog, but a page which is *still downloading* is not
+stored yet - and the row count under the lock of the job only settles the two
+after both have asked the catalogue. These tests pin the claim which closes that
+window: the delivery which holds a page's claim asks the catalogue, the other
+joins what it finds out, and everything the answers of #690 and #694 decide about
+a page is decided from the same answer either way.
+
+The concurrent delivery is played by a claim planted in the cache rather than by a
+second worker, because the two differ in nothing the model can tell: what a
+delivery sees is a claimed key, an answer, or neither. The one test which does want
+a holder that answers *while* the other waits runs it in a thread, since that
+path only touches the cache and never the database.
+"""
+
+from threading import Thread
+from time import sleep
+from unittest.mock import patch
+
+from django.core.cache import cache
+from django.test import TransactionTestCase
+from django.test.utils import override_settings
+from extras.locks import SingleFlight
+from registry.enums.harvesting import LogKindEnum, LogLevelEnum
+from registry.exceptions.harvesting import InternalServerError
+from registry.models.harvest import (PAGE_STORED, HarvestingJob, HarvestingLog,
+                                     TemporaryMdMetadataFile)
+from registry.ows_lib.client.core import OgcClient
+from registry.tasks.harvest import call_fetch_records
+from rest_framework import status
+from tests.django.registry.tasks.tests_harvesting import (
+    MAX_RECORDS_PARAM, REFUSED, START_POSITION_PARAM, csw_refusing_everything,
+    get_records_document, logging_response, setup_capabilitites_file)
+
+LOC_MEM = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "harvest-page-coalescing-tests",
+    },
+}
+
+#: records the catalogue holds, enough for more than one page of the step size a
+#: run plans with
+CATALOGUE_RECORDS = 200
+
+#: the size a run without a probe asks with - the max_step_size of the model
+PAGE_SIZE = 50
+
+#: the page of the catalogue: its first PAGE_SIZE records
+FIRST_PAGE = (1, PAGE_SIZE)
+
+#: every size a page of 50 records is halved down to before the floor of #694
+HALVED_SIZES = [(1, 50), (1, 25), (1, 12), (1, 6), (1, 3), (1, 1)]
+
+
+def catalogue(total_records, limit=None):
+    """a catalogue which answers exactly what it is asked for, never more records
+    than it holds; `limit` is the size it refuses with an exception report"""
+    def answer(request, timeout):
+        max_records = MAX_RECORDS_PARAM.search(request.url)
+        start = START_POSITION_PARAM.search(request.url)
+        if max_records is None or start is None:
+            return logging_response(
+                request, get_records_document(1, 0, total=total_records),
+                status.HTTP_200_OK)
+        wanted = int(max_records.group(1))
+        position = int(start.group(1))
+        if limit is not None and wanted > limit:
+            return logging_response(request, REFUSED, status.HTTP_400_BAD_REQUEST)
+        answered = min(wanted, max(0, total_records - position + 1))
+        return logging_response(
+            request,
+            get_records_document(position, answered, total=total_records),
+            status.HTTP_200_OK)
+    return answer
+
+
+def answers_without_records(request, timeout):
+    """a catalogue whose answer is well typed and simply carries no record at all -
+    the answer which costs a request, stores nothing and is not a refusal"""
+    return logging_response(
+        request, get_records_document(1, 0, total=0), status.HTTP_200_OK)
+
+
+def answers_with_a_server_error(request, timeout):
+    """a catalogue which cannot answer at all; the class of answer which raises for
+    a retry instead of being stored or refused (#689)"""
+    return logging_response(
+        request, "<html>the catalogue is gone</html>",
+        status.HTTP_502_BAD_GATEWAY)
+
+
+def page_request(job, start_position, max_records=None):
+    """The GetRecords request a delivery of this page asks with.
+
+    The same request ``HarvestingJob.fetch_records`` builds, because the claim of
+    a page is named after exactly that request - the fingerprint of a differently
+    built one would be a different page.
+    """
+    client = job.service.client
+    return client.get_records_request(
+        max_records=max_records or job.max_step_size,
+        start_position=start_position,
+        result_type="results",
+        xml_constraint=client.get_constraint(record_types=job.get_record_types()))
+
+
+def claim_held_by_another_worker(job, request, lease_seconds=60):
+    """Claim the page of `request` as some other worker would, and return its key.
+
+    Returns:
+        str: the key of the claim, so a test can let it expire or leave an answer
+            below the key next to it
+    """
+    claim = SingleFlight(
+        key=job._page_claim_key(request), lease_seconds=lease_seconds)
+    assert claim.acquire()
+    return claim.key
+
+
+@override_settings(CACHES=LOC_MEM)
+class HarvestPageCoalescingTest(TransactionTestCase):
+    """one page, two deliveries, one request"""
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
+
+    def setUp(self):
+        setup_capabilitites_file()
+        # the claim of a page lives in the cache, which no test run rolls back
+        # with the database
+        cache.clear()
+        self.job = HarvestingJob.objects.get(pk=1)
+        self.job.total_records = CATALOGUE_RECORDS
+        self.job.save()
+
+    @staticmethod
+    def requested_pages(send_request):
+        """the (startPosition, maxRecords) of every request which asked for a page"""
+        pages = []
+        for call in send_request.call_args_list:
+            url = call.kwargs["request"].url
+            size = MAX_RECORDS_PARAM.search(url)
+            position = START_POSITION_PARAM.search(url)
+            if size and position:
+                pages.append((int(position.group(1)), int(size.group(1))))
+        return pages
+
+    def stored_pages(self, job_id):
+        """the records of one run which are in the backlog"""
+        return TemporaryMdMetadataFile.objects.filter(job_id=job_id).count()
+
+    def traces(self):
+        """the traces of records a page did not deliver (#690)"""
+        return HarvestingLog.objects.filter(
+            harvesting_job_id=1, kind=LogKindEnum.COUNT_MISSMATCH.value)
+
+    # -- the coalescing itself -------------------------------------------------
+
+    @patch.object(OgcClient, "send_request")
+    def test_two_deliveries_of_one_page_ask_the_catalogue_once(self, send_request):
+        """the second delivery of a page joins the first instead of asking again:
+        one request for two deliveries, and both count the records the page
+        brought - which is the before/after of this issue, since both deliveries
+        used to download the whole page (#688's remaining window)"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+
+        first = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        second = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
+        self.assertEqual(first, PAGE_SIZE)
+        self.assertEqual(second, PAGE_SIZE,
+                         "the joined page is worth what it brought the other")
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE,
+                         "and it is stored exactly once")
+        self.assertFalse(self.traces().exists(),
+                         "a page which arrived leaves no trace of missing records")
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_page_nobody_claimed_is_asked_again(self, send_request):
+        """without a claim or an answer to join, the page is asked a second time -
+        that is the request the claim removes, and the store of #688 is what makes
+        the duplicate harmless while it happens"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        # nothing of the first delivery is left to join: neither its claim nor its
+        # answer, as if the second delivery had arrived on a run which knows nothing
+        cache.clear()
+        received = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request),
+                         [FIRST_PAGE, FIRST_PAGE])
+        self.assertEqual(received, PAGE_SIZE)
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE,
+                         "the second copy of the page stores nothing")
+
+    @override_settings(HARVESTING_PAGE_WAIT_CAP_SECONDS=3)
+    @patch.object(OgcClient, "send_request")
+    def test_a_delivery_joins_the_page_a_running_delivery_fetches(self, send_request):
+        """a delivery which arrives while the page is being fetched waits for the
+        answer of the one who fetches it, instead of making a parallel request"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        claim = SingleFlight(
+            key=self.job._page_claim_key(page_request(self.job, 1)),
+            lease_seconds=5)
+        self.assertTrue(claim.acquire())
+
+        # the holder finishes its request while this delivery waits for it
+        holder = Thread(target=self.answer_after,
+                        args=(claim, (PAGE_STORED, PAGE_SIZE)), daemon=True)
+        holder.start()
+        self.addCleanup(holder.join)
+
+        received = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), [])
+        self.assertEqual(received, PAGE_SIZE)
+        self.assertEqual(self.stored_pages(1), 0,
+                         "the page is stored by the delivery which fetched it")
+
+    @staticmethod
+    def answer_after(claim, outcome):
+        """the holder of a page comes back from its request a moment later"""
+        sleep(0.05)
+        claim.finish(outcome)
+
+    # -- what must never collide ----------------------------------------------
+
+    @patch.object(OgcClient, "send_request")
+    def test_distinct_pages_of_one_run_never_share_a_claim(self, send_request):
+        """the page after this one is a different question and is asked the moment
+        it is delivered"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(harvesting_job_id=1, start_position=51)
+
+        self.assertEqual(self.requested_pages(send_request),
+                         [(1, PAGE_SIZE), (51, PAGE_SIZE)])
+        self.assertEqual(self.stored_pages(1), 2 * PAGE_SIZE)
+        self.assertFalse(self.traces().exists())
+
+    @patch.object(OgcClient, "send_request")
+    def test_two_runs_of_one_catalogue_never_share_a_page(self, send_request):
+        """two runs of one catalogue are two snapshots: the same page of the same
+        service at the same position is asked for both of them, and what one run
+        downloaded never lands in the backlog of the other"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        other = HarvestingJob.objects.create(
+            service=self.job.service, total_records=CATALOGUE_RECORDS)
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(
+            harvesting_job_id=other.pk, start_position=1)
+
+        self.assertEqual(len(self.requested_pages(send_request)), 2)
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+        self.assertEqual(
+            TemporaryMdMetadataFile.objects.filter(job_id=other.pk).count(),
+            PAGE_SIZE)
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_changed_constraint_is_a_different_page(self, send_request):
+        """the effective query is part of the fingerprint: a run which harvests
+        other record types asks a different question at the same position, so it is
+        never answered from the page of a run which harvests all of them"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        other = HarvestingJob.objects.create(
+            service=self.job.service, total_records=CATALOGUE_RECORDS,
+            harvest_services=False)
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(
+            harvesting_job_id=other.pk, start_position=1)
+
+        self.assertEqual(len(self.requested_pages(send_request)), 2)
+        urls = {call.kwargs["request"].url for call in send_request.call_args_list}
+        self.assertEqual(len(urls), 2, "the two requests really do differ")
+
+    # -- the lease: crash, expiry and giving up -------------------------------
+
+    @override_settings(HARVESTING_PAGE_POLL_SECONDS=0.005,
+                       HARVESTING_PAGE_POLL_MAX_SECONDS=0.02)
+    @patch.object(OgcClient, "send_request")
+    def test_a_claim_whose_holder_died_is_taken_over(self, send_request):
+        """a claim expires with the request it protects, so a worker which died
+        with a page hands it back to the next delivery instead of losing it"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        # a claim nobody works under anymore, about to run out
+        cache.add(self.job._page_claim_key(page_request(self.job, 1)),
+                  "a-worker-which-died", 0.01)
+
+        received = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
+        self.assertEqual(received, PAGE_SIZE)
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+
+    @override_settings(HARVESTING_PAGE_WAIT_CAP_SECONDS=0)
+    @patch.object(OgcClient, "send_request")
+    def test_a_holder_silent_past_the_wait_is_not_waited_for(self, send_request):
+        """a delivery does not park a worker forever for a page it could fetch
+        itself: past its wait it asks for the page, says so in the log and stores
+        the page - the store of #688 settles the two deliveries afterwards"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        claim_held_by_another_worker(self.job, page_request(self.job, 1))
+
+        received = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
+        self.assertEqual(received, PAGE_SIZE)
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+        self.assertTrue(HarvestingLog.objects.filter(
+            harvesting_job_id=1,
+            level=LogLevelEnum.WARNING.value,
+            description="fetched a page another delivery still claims",
+        ).exists(), "the doubled request is not left unexplained")
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_page_whose_request_failed_leaves_no_claim_behind(self, send_request):
+        """the retry of a page which could not be asked at all must not wait out
+        the claim of the attempt which failed (#689)"""
+        send_request.side_effect = answers_with_a_server_error
+        with self.assertRaises(InternalServerError):
+            call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+        received = call_fetch_records.run(
+            harvesting_job_id=1, start_position=1, recovering=True)
+
+        self.assertEqual(self.requested_pages(send_request),
+                         [FIRST_PAGE, FIRST_PAGE])
+        self.assertEqual(received, PAGE_SIZE)
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+
+    # -- the answers of #690 and #694 are unchanged ---------------------------
+
+    @patch.object(OgcClient, "send_request", side_effect=csw_refusing_everything)
+    def test_a_refused_page_is_joined_and_still_halves(self, send_request):
+        """a page the catalogue refuses is halved down to the floor of #694, and a
+        second delivery of that page joins every one of those answers: six requests
+        for the run instead of twelve, with both deliveries reporting the records
+        which stayed missing (#690)"""
+        self.job.total_records = 100
+        self.job.save()
+
+        first = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        second = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), HALVED_SIZES)
+        self.assertEqual((first, second), (0, 0))
+        self.assertEqual(self.stored_pages(1), 0)
+        traces = self.traces()
+        self.assertEqual(traces.count(), 2,
+                         "both deliveries say what this page did not deliver")
+        self.assertEqual({trace.description for trace in traces}, {"0<50"})
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_page_without_records_is_joined_and_still_leaves_the_trace(
+            self, send_request):
+        """an answer which carries no record is not a refusal - the halving names
+        it as it happened, for the delivery which asked and for the one which
+        joined it - and what stays missing is accounted for once per delivery"""
+        send_request.side_effect = answers_without_records
+        self.job.total_records = 100
+        self.job.save()
+
+        first = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        second = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(self.requested_pages(send_request), HALVED_SIZES)
+        self.assertEqual((first, second), (0, 0))
+        descriptions = list(HarvestingLog.objects.filter(
+            harvesting_job_id=1,
+            level=LogLevelEnum.WARNING.value).values_list("description", flat=True))
+        self.assertIn(
+            "GetRecords with maxRecords=50 at startPosition 1 came back without"
+            " records, the missing part is asked with 25", descriptions)
+        self.assertEqual(self.traces().count(), 2)
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_redelivered_page_still_costs_no_request(self, send_request):
+        """the saved-page recovery of #688 is not replaced by the claim: a page
+        whose records are in the backlog is not asked again, recovery or not"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(
+            harvesting_job_id=1, start_position=1, recovering=True)
+        call_fetch_records.run(
+            harvesting_job_id=1, start_position=1, recovering=True)
+
+        self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+
+    @patch.object(OgcClient, "send_request")
+    def test_a_joined_page_keeps_the_progress_of_the_run(self, send_request):
+        """the run does not care which delivery brought which page: two deliveries
+        of every page leave the same backlog and the same progress as one"""
+        send_request.side_effect = catalogue(CATALOGUE_RECORDS)
+
+        solo = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        progress = HarvestingJob.objects.with_process_info().get(pk=1).progress
+        joined = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+
+        self.assertEqual(solo, joined)
+        self.assertEqual(
+            HarvestingJob.objects.with_process_info().get(pk=1).progress, progress)

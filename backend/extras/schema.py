@@ -143,27 +143,35 @@ class CustomOperationId(JsonApiAutoSchema):
             ):
                 del schema["default"]
 
-        # A choices field documents its value space as the enum of values;
-        # the label each value shows under lives only in the description
-        # PROSE drf-spectacular generates ("* `0` - Fatal"). That wording is
-        # the library's, and a consumer parsing choices back out of it loses
-        # them silently on an upstream rewording - which is exactly what the
-        # frontend did until #1487. Emit the same data structured: every
-        # documented enum of a choices field answers its labels next to it.
-        # Blank and null members are excluded: they are no choice a consumer
-        # looks a label up by (spectacular hashes them out of its enum
-        # identity too, and reconstructs them structurally, not as choices).
-        if isinstance(field, ChoiceField):
-            enum_schema = schema if "enum" in schema else (
-                schema.get("items") or {})  # multiple choice: the child node
-            if "enum" in enum_schema:
-                labels = [
-                    {"value": value, "label": str(label)}
-                    for value, label in field.choices.items()
-                    if value not in ("", None)]
-                if labels:
-                    enum_schema[ENUM_LABELS_EXTENSION] = labels
+        self._emit_enum_labels(field, schema)
         return schema
+
+    def _emit_enum_labels(self, field, schema):
+        """Answer the labels of a choices field beside its documented enum.
+
+        A choices field documents its value space as the enum of values; the
+        label each value shows under lives only in the description PROSE
+        drf-spectacular generates ("* `0` - Fatal"). That wording is the
+        library's, and a consumer parsing choices back out of it loses them
+        silently on an upstream rewording - which is exactly what the
+        frontend did until #1487. Emit the same data structured: every
+        documented enum of a choices field answers its labels next to it.
+        Blank and null members are excluded: they are no choice a consumer
+        looks a label up by (spectacular hashes them out of its enum identity
+        too, and reconstructs them structurally, not as choices).
+        """
+        if not isinstance(field, ChoiceField):
+            return
+        # multiple choice: the labels belong to the child node
+        enum_schema = schema if "enum" in schema else (schema.get("items") or {})
+        if "enum" not in enum_schema:
+            return
+        labels = [
+            {"value": value, "label": str(label)}
+            for value, label in field.choices.items()
+            if value not in ("", None)]
+        if labels:
+            enum_schema[ENUM_LABELS_EXTENSION] = labels
 
     def _get_related_fields_of_model(self, model):
         related_fields = _RELATED_FIELDS_MEMO.get(model)
@@ -405,31 +413,49 @@ def _enum_component_of(ref, schemas):
     return None
 
 
+def _all_of_ref(node):
+    """The single ``$ref`` an ``allOf`` composition names, or None — a
+    composition of more (or nothing) has no single enum to join."""
+    refs = {
+        item["$ref"] for item in node.get("allOf") or ()
+        if isinstance(item, dict) and isinstance(item.get("$ref"), str)}
+    if len(refs) != 1:
+        return None
+    return next(iter(refs))
+
+
+def _stamp(component, labels):
+    """Give the component the labels, if it exists and has none yet."""
+    if component is not None:
+        component.setdefault(ENUM_LABELS_EXTENSION, labels)
+
+
+def _join_labels(node, schemas):
+    """Join one object member's labels to the enum they belong to."""
+    ref = node.get("$ref")
+    if isinstance(ref, str):
+        # the illegal shape: a sibling of a $ref — OpenAPI ignores it and
+        # the frontend dereferencer drops the whole object at the $ref, so
+        # it is MOVED into the component
+        _stamp(_enum_component_of(ref, schemas),
+               node.pop(ENUM_LABELS_EXTENSION))
+        return
+    composed = _all_of_ref(node)
+    if composed is None:
+        return  # e.g. a oneOf split: no single enum to join, stay put
+    # spectacular's safe_ref composition: the extension beside the allOf is
+    # a legal member of the property schema — consumers of the property read
+    # it, so it is COPIED and the site keeps its labels
+    _stamp(_enum_component_of(composed, schemas), node[ENUM_LABELS_EXTENSION])
+
+
 def _move_enum_labels_to_refs(node, schemas):
     if isinstance(node, list):
         for item in node:
             _move_enum_labels_to_refs(item, schemas)
     elif isinstance(node, dict):
         if ENUM_LABELS_EXTENSION in node:
-            ref = node.get("$ref")
-            if isinstance(ref, str):
-                # illegal sibling: OpenAPI ignores it, move it into the enum
-                labels = node.pop(ENUM_LABELS_EXTENSION)
-                target = _enum_component_of(ref, schemas)
-                if target is not None:
-                    target.setdefault(ENUM_LABELS_EXTENSION, labels)
-            else:
-                refs = {
-                    item["$ref"] for item in node.get("allOf") or ()
-                    if isinstance(item, dict)
-                    and isinstance(item.get("$ref"), str)}
-                if len(refs) == 1:
-                    # safe_ref composition: the site keeps its labels and the
-                    # component gets the same ones, so both consumers see them
-                    target = _enum_component_of(next(iter(refs)), schemas)
-                    if target is not None:
-                        target.setdefault(ENUM_LABELS_EXTENSION,
-                                          node[ENUM_LABELS_EXTENSION])
+            _join_labels(node, schemas)
         for value in node.values():
             _move_enum_labels_to_refs(value, schemas)
 

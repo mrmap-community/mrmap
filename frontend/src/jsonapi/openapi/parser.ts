@@ -34,17 +34,22 @@ export type EnumLabel = { value: unknown; label: unknown }
  * precedents are `x-iso-path` and the `x-jsonapi-*` family (extras/schema.py). */
 export const ENUM_LABELS_EXTENSION = 'x-enum-labels'
 
+/** The numeric id behind an enum value: the number itself, or the integer of
+ * a digit string; the schema is external input, anything else answers none. */
+const toId = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number.parseInt(value, 10)
+  return undefined
+}
+
 /** The choice contract of this layer is a numeric id: an entry only makes a
  * choice when its value is a non-negative integer (a number or such a string)
  * and it answers a label — the schema is external input, everything else of
  * an entry is dropped as before. */
 const toChoice = (entry?: EnumLabel): { id: number; name: string } | undefined => {
-  const value = entry?.value
-  const label = entry?.label
-  const id = typeof value === 'number' ? value
-    : typeof value === 'string' && /^\d+$/.test(value) ? Number.parseInt(value, 10)
-    : undefined
+  const id = toId(entry?.value)
   if (id === undefined || !Number.isInteger(id) || id < 0) return undefined
+  const label = entry?.label
   if (typeof label !== 'string' || label === '') return undefined
   return { id, name: label }
 }

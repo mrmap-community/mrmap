@@ -1161,14 +1161,16 @@ class HarvestingJob(ProcessingData):
     def _fetch_range_response(self, client, request, position, step_size):
         """Ask the catalogue for one step of the range and store the answer.
 
-        Two deliveries of exactly this step ask the catalogue once (#1411): the one
-        which takes the page's claim makes the request, the other joins what it
-        finds out instead of making a request of its own. What the page is worth to
-        the run does not depend on which of them downloaded it - the records are
-        stored by whoever brought them, and the count of a joined page is the count
-        its holder stored. Which size a refused step is asked next (#694) and what a
-        page which stays without records costs the snapshot (#690) are decided from
-        the same answer either way.
+        Two deliveries of exactly this step which overlap ask the catalogue once
+        (#1411): the one which takes the page's claim makes the request, the other
+        joins what it finds out instead of making a request of its own. What the page
+        is worth to the run does not depend on which of them downloaded it - the
+        records are stored by whoever brought them, and the count of a joined page is
+        the count its holder stored. Which size a refused step is asked next (#694)
+        and what a page which stays without records costs the snapshot (#690) are
+        decided from the same answer either way. A delivery which arrives after the
+        flight is over is not a joiner: it asks, like every attempt before this
+        change.
 
         Answers the number of stored records - 0 when the request was
         refused or came back without records - together with whether it
@@ -1214,7 +1216,7 @@ class HarvestingJob(ProcessingData):
         return stored, False
 
     def _joined_page(self, claim, request):
-        """What this delivery learns about a page another delivery claimed.
+        """What this delivery learns about a page another delivery is fetching.
 
         Answers the records and the refusal of that page - the shape
         ``_fetch_range_response`` answers a page in - or None when this delivery has
@@ -1222,16 +1224,22 @@ class HarvestingJob(ProcessingData):
         gone with its claim, or it stayed silent past the wait this delivery is
         willing to wait for it.
 
+        The claim is taken before anything is read, and an outcome is only read by a
+        delivery which found the claim held. An outcome belongs to the deliveries
+        which overlapped with the request it answers: the next attempt of the run is
+        expected to ask a refusing catalogue again (#694) and to find records an
+        earlier attempt did not store (#690), so answering it from the leftover of a
+        finished flight would silence exactly the retries those answers exist for.
+
         The wait reads the claim and never the backlog: the rows of a page are
         visible only once the transaction which stored them committed, which is the
         moment its holder leaves its outcome behind anyway, and a page whose records
         the import already consumed is gone from the backlog without ever having
         been missing.
         """
-        answer = claim.answered()
-        if answer is not None:
-            return self._page_outcome(answer)
         if claim.acquire():
+            # nobody works under this page's claim, so this delivery is not a waiter
+            # - it is the one which asks the catalogue
             return None
         pause = _setting("HARVESTING_PAGE_POLL_SECONDS", HARVESTING_PAGE_POLL_SECONDS)
         pause_max = max(pause, _setting(

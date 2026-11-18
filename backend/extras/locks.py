@@ -67,12 +67,20 @@ class SingleFlight:
     def acquire(self) -> bool:
         """Take the lease of the work.
 
+        Taking the lease clears the outcome an earlier flight left below the key:
+        an outcome belongs to the flight which published it, and a caller which
+        arrives after that flight is over starts a new one rather than being
+        answered from the leftover of the old one.
+
         Returns:
             bool: whether this caller holds the lease now, and is therefore the
                 one which does the work. False also when the lease belongs to
                 this caller already, so a holder does not join its own flight.
         """
-        return cache.add(self.key, self.token, self.lease_seconds)
+        if not cache.add(self.key, self.token, self.lease_seconds):
+            return False
+        cache.delete(self.answer_key)
+        return True
 
     def held(self) -> bool:
         """Whether the work is claimed - by this caller or by another one."""

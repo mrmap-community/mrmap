@@ -1134,13 +1134,6 @@ class WebFeatureServiceCreateSerializer(
         )
 
 
-class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
-
-    class Meta:
-        model = CatalogueServiceOperationUrl
-        fields = "__all__"
-
-
 class CatalogueServiceCreateSerializer(
         OrganizationOwnerCreateSerializerMixin,
         SystemInfoSerializerMixin,
@@ -1268,7 +1261,10 @@ class CatalogueServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": CatalogueServiceOperationUrlSerializer,
+        # declared below this serializer, so named by path as every other
+        # forward reference here is: one class answers both this include and
+        # the operation-urls endpoint (#1475)
+        "operation_urls": "registry.serializers.service.CatalogueServiceOperationUrlSerializer",
         "owner": OrganizationSerializer,
     }
 

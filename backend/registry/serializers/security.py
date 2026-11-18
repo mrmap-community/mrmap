@@ -200,7 +200,7 @@ class WebFeatureServiceProxySettingSerializer(
         CheckConstraintSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
-        view_name='registry:webmapserviceproxysetting-detail',
+        view_name='registry:webfeatureserviceproxysetting-detail',
     )
 
     class Meta:

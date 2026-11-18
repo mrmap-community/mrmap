@@ -39,6 +39,9 @@ class CrontabScheduleViewSet(
     """
     queryset = CrontabSchedule.objects.all()
     serializer_class = CrontabScheduleSerializer
+    # #1445: the schedule of the deployment's own beat is administration; like
+    # the neighbours below, IsAdminUser is the admin answer until #727 lands
+    permission_classes = [IsAdminUser]
 
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -79,6 +82,9 @@ class PeriodicTaskViewSet(
     """
     queryset = PeriodicTask.objects.all()
     serializer_class = PeriodicTaskSerializer
+    # #1445: creating or retargeting a row schedules registered Celery work
+    # with arbitrary arguments, so no anonymous caller may write here
+    permission_classes = [IsAdminUser]
 
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -104,8 +110,15 @@ class PeriodicTaskViewSet(
 
 
 class SystemView(generics.RetrieveAPIView):
+    """The versions and the database of the deployment, for the SystemInfo
+    screen of an administrator.
+
+    #1445: the answer names Django, Python and PostgreSQL versions and the
+    database's name and size; the neighbours beside it are admin-only too.
+    """
 
     serializer_class = SystemSerializer
+    permission_classes = [IsAdminUser]
 
     def get_object(self):
 

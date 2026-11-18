@@ -11,6 +11,7 @@ list decides on the wire - a foreign Host gets a 400, a listed one is served.
 
 import os
 
+from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from MrMap import settings
@@ -86,6 +87,13 @@ class AllowedHostsRequestTests(TestCase):
     def setUp(self):
         # the client must hand back the 400 response instead of raising
         self.client = Client(raise_request_exception=False)
+        # the probed endpoint /api/system/info answers staff only since
+        # #1445; the host decision is middleware in front of the view, but
+        # the "is served" answer still has to pass the view's permission
+        user = get_user_model().objects.create_user(
+            username='allowed-hosts-admin', password='a-allowed-hosts-password',
+            is_staff=True)
+        self.client.force_login(user)
 
     def test_foreign_host_is_answered_400(self):
         with override_settings(ALLOWED_HOSTS=['localhost']):

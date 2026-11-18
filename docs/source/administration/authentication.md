@@ -22,6 +22,24 @@ the SPA holds none (#835). What survives in `localStorage` is an identity
 marker (`mrmap.session`: user id and name only) — losing it costs a reload, not
 a session.
 
+**Basic is a login-time credential only.** Since #1450 HTTP Basic is declared
+on the two login endpoints themselves (the `authentication_classes` of
+`backend/accounts/views/auth.py`) and dropped from DRF's global
+`DEFAULT_AUTHENTICATION_CLASSES`: with Basic in the global stack, *every*
+endpoint silently accepted the account password beside the credential it
+documents. A machine client that wants to address the API keeps the token of
+`POST /api/auth/login` (#835) and never hands out the password per request.
+
+**Login attempts are budgeted.** The two credential-carrying POSTs answer
+**429** once a client address spends `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+["login"]` attempts (30/min) in one minute — counted *before* the credential is
+read, so refused attempts count too, in the deployment's cache and per client
+address (the edge's `X-Real-IP` behind nginx, `backend/accounts/throttling.py`).
+The password-free verbs — the session probe, the logout — cost nothing. The
+budget is sized from what the application itself does from one address; a
+deployment whose machine clients share one NAT address and log in more often
+raises the setting. (#1450)
+
 ## Browser session lifetime
 
 `POST /api/auth/session` turns the request's Basic credentials into a Django
@@ -110,6 +128,7 @@ answer **403**. The deliberate contract is in the JSON:API error `code`
 | Valid credential, action refused | 403 | `permission_denied` | **Session stays.** Notify, revalidate the caller's roles/identity; open screens drop the lost rights on the next revalidation. |
 | CSRF check failed on a session-authenticated write | 403 | `permission_denied` | The session is alive but the request repeated no CSRF cookie. The SPA always sends it; a client without one must read the cookie first (`GET /api/auth/session`). |
 | Credential rejected with a `401` (possible in other stacks, e.g. Basic against `WWW-Authenticate`) | 401 | `authentication_failed` / `not_authenticated` | Same as the dead-credential row. |
+| Login budget spent by the client address (`POST /api/auth/session`, `POST /api/auth/login`) | 429 | plain JSON `detail` with a `Retry-After` header, like these views' other refusals | Wait the window out; while the budget is spent no credential of this address is even read. The password-free verbs — probe, logout — never cost anything (#1450). |
 
 The frontend (`frontend/src/providers/authProvider.ts`) implements exactly
 this: 401 always ends the session; a 403 ends it **only** when the error code

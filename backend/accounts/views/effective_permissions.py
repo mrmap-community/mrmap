@@ -48,8 +48,10 @@ from rest_framework.views import APIView
 from accounts.permissions import may_audit_permissions_of
 
 #: the verbs an account is normally asked about over one object; a model which
-#: offers fewer simply gets fewer answers
-OBJECT_CODENAMES = ("view", "change", "delete")
+#: offers fewer simply gets fewer answers. These are verbs and not codenames:
+#: django names the permission row of a verb after the model, so
+#: ``_codenames_or_400`` builds ``<verb>_<model_name>`` from them
+OBJECT_VERBS = ("view", "change", "delete")
 
 MODEL_PARAMETER = OpenApiParameter(
     name="model",
@@ -126,12 +128,20 @@ def _codenames_or_400(model, perm) -> list:
     Asked of the ``Permission`` rows and not of the model's ``Meta``: an answer
     must name a permission the instance actually has, and a codename which
     belongs to another model is a bad request rather than an empty answer.
+
+    Without ``perm`` the object permissions of the model are named from the
+    verbs and the model's own name, because that is how the rows are called:
+    ``view_webmapservice``. A custom codename of the model -
+    ``can_publish_for_organization`` - does not follow that shape and is not
+    part of the default answer: a caller who wants to know about such a right
+    names it, which is what ``perm`` is for.
     """
     content_type = ContentType.objects.get_for_model(model)
     wanted = perm.rsplit(".", 1)[-1] if perm else None
+    defaults = [f"{verb}_{model._meta.model_name}" for verb in OBJECT_VERBS]
     codenames = list(
         content_type.permission_set
-        .filter(codename__in=[wanted] if wanted else OBJECT_CODENAMES)
+        .filter(codename__in=[wanted] if wanted else defaults)
         .order_by("codename")
         .values_list("codename", flat=True))
     if codenames:
@@ -141,7 +151,7 @@ def _codenames_or_400(model, perm) -> list:
             f"The model '{model._meta.label}' has no permission '{perm}'.")
     raise ValidationError(
         f"The model '{model._meta.label}' has no object permission among "
-        f"{', '.join(OBJECT_CODENAMES)}.")
+        f"{', '.join(defaults)}.")
 
 
 class EffectivePermissionsView(APIView):
@@ -153,6 +163,12 @@ class EffectivePermissionsView(APIView):
     ``accounts/urls.py`` beside ``who-am-i`` - there is no resource to register
     here, and a list route over every object of a model is exactly what this
     endpoint must never become.
+
+    Plain JSON has one consequence a caller learns here rather than in a 406:
+    a request whose ``Accept`` names the JSON:API media type is refused, the
+    same split ``POST /api/auth/session`` of #738 makes. The shape of an audit
+    answer is not allowed to depend on a header, so the media type is pinned
+    and not negotiated between two renderers.
     """
 
     renderer_classes = [JSONRenderer]

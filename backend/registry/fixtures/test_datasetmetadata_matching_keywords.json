@@ -1,0 +1,68 @@
+[
+ {
+  "model": "registry.metadatacontact",
+  "pk": "1235",
+  "fields": {
+   "name": "Deutscher Wetterdienst (Keyword multiplicativity)",
+   "person_name": "",
+   "email": "info@dwd.de",
+   "phone": "",
+   "facsimile": "",
+   "city": "Offenbach",
+   "postal_code": "63067",
+   "address_type": "",
+   "address": "Frankfurter Strasse 135",
+   "state_or_province": "Hessen",
+   "country": "Germany"
+  }
+ },
+ {
+  "model": "registry.datasetmetadatarecord",
+  "pk": "f1a71477-0000-4000-8000-000000000077",
+  "fields": {
+   "xml_backup_file": "xml_documents/f1a71477-0000-4000-8000-000000000077/md_metadata.xml",
+   "access_constraints": "Zugriffseinschränkungen: Es gelten keine Bedingungen.",
+   "fees": "",
+   "use_limitation": "",
+   "license_source_note": "",
+   "licence": null,
+   "date_stamp": "2021-12-10T13:51:53.839Z",
+   "file_identifier": "de.dwd.geoserver.fach.RBSN_MULTI",
+   "origin": 5,
+   "origin_url": "https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_MULTI",
+   "title": "Niederschlag und Niederschlagsdefizit an RBSN Stationen",
+   "abstract": "Messwerte des Niederschlags an den DWD Stationen im Regional Basic Synoptic Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
+   "is_broken": false,
+   "is_customized": true,
+   "insufficient_quality": "",
+   "is_searchable": false,
+   "hits": 0,
+   "dataset_contact": "1235",
+   "metadata_contact": "1235",
+   "equivalent_scale": null,
+   "ground_res": null,
+   "format": null,
+   "charset": null,
+   "inspire_top_consistence": false,
+   "preview_image": "",
+   "lineage_statement": "",
+   "update_frequency_code": null,
+   "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
+   "code": "de.dwd.geoserver.fach.RBSN_MULTI",
+   "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+   "inspire_interoperability": false,
+   "keywords": [
+    [
+     "Niederschlag"
+    ],
+    [
+     "Niederschlagsdefizit"
+    ]
+   ],
+   "reference_systems": [],
+   "harvested_through": [
+    "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+   ]
+  }
+ }
+]

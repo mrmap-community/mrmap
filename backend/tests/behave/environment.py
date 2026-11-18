@@ -66,6 +66,14 @@ REGISTRATION_REFERENCE_WORK_SERVICE_PK = (
     'cccc1265-0000-4000-8000-00000000000c')
 REGISTRATION_REFERENCE_WORK_CONTACT_PK = 1265001
 
+#: Fixture file with the one dataset record of #1477 which carries TWO
+#: keywords matching one keyword lookup. Its row joins the counts of every
+#: sibling dataset-list feature which runs later, so it leaves with the
+#: feature that asked for it.
+KEYWORD_MULTIPLICITY_FIXTURE = 'test_datasetmetadata_matching_keywords.json'
+KEYWORD_MULTIPLICITY_RECORD_PK = 'f1a71477-0000-4000-8000-000000000077'
+KEYWORD_MULTIPLICITY_CONTACT_PK = '1235'
+
 
 def before_all(context):
     # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
@@ -258,6 +266,13 @@ def after_feature(context, feature):
             id=REGISTRATION_REFERENCE_WORK_SERVICE_PK).delete()
         MetadataContact.objects.filter(
             pk=REGISTRATION_REFERENCE_WORK_CONTACT_PK).delete()
+    if KEYWORD_MULTIPLICITY_FIXTURE in fixtures:
+        # the record of #1477: its keyword and harvest m2m rows cascade with
+        # it, only the contact RESTRICTs the deletion and so goes last
+        DatasetMetadataRecord.objects.filter(
+            pk=KEYWORD_MULTIPLICITY_RECORD_PK).delete()
+        MetadataContact.objects.filter(
+            pk=KEYWORD_MULTIPLICITY_CONTACT_PK).delete()
 
 
 def before_scenario(context, scenario):

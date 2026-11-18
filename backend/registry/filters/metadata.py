@@ -1,4 +1,4 @@
-from django_filters import BooleanFilter, FilterSet
+from django_filters import BooleanFilter, CharFilter, FilterSet
 from rest_framework_gis.filters import GeometryFilter
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord,
@@ -34,7 +34,34 @@ class MetadataQualityFilterSetMixin(FilterSet):
         return queryset.exclude(licence__isnull=True) if value else queryset.filter(licence__isnull=True)
 
 
-class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, FilterSet):
+class MetadataKeywordFilterSetMixin(FilterSet):
+    """The keyword lookups of a record, with the DISTINCT their join needs.
+
+    A keyword filter joins the record's keyword relation and django-filter
+    only answers DISTINCT for a filter which declares `distinct=True`: a
+    record carrying two keywords which match one value answered TWO rows -
+    twice on the page and twice in every facet count answered over the same
+    filtered queryset, which is exactly the rows-and-counts-alike promise the
+    quality mixin above makes (#1477). The three lookups are declared here,
+    not generated from `Meta.fields`, because only the declaration carries
+    the flag; their names keep the query parameters the generated filters
+    answered with (`filter[keywords__keyword]` is django-filter's suffix-free
+    name for the exact lookup). Declared once for all three record filter
+    sets, which expose the same keyword lookups.
+    """
+    keywords__keyword = CharFilter(
+        field_name='keywords__keyword', distinct=True)
+    keywords__keyword__icontains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='icontains',
+        distinct=True)
+    keywords__keyword__contains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='contains',
+        distinct=True)
+
+
+class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin,
+                                            MetadataKeywordFilterSetMixin,
+                                            FilterSet):
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
     bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
     bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
@@ -45,7 +72,6 @@ class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_dataset_metadata_relation__harvesting_job": ["exact"],
             "harvested_dataset_metadata_relation__collecting_state": ["exact"],
             # "harvested_by": ['exact', 'icontains', 'contains', 'in'],
@@ -56,7 +82,9 @@ class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
         }
 
 
-class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, FilterSet):
+class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin,
+                                            MetadataKeywordFilterSetMixin,
+                                            FilterSet):
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
     bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
     bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
@@ -67,13 +95,14 @@ class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_service_metadata_relation__harvesting_job": ["exact"],
             "harvested_service_metadata_relation__collecting_state": ["exact"],
         }
 
 
-class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, FilterSet):
+class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin,
+                                                MetadataKeywordFilterSetMixin,
+                                                FilterSet):
     # see DatasetMetadataRecordSpatialFilterSet; the application record is shaped like the
     # dataset record (#825) and its harvest relation is named alike (#827)
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
@@ -86,7 +115,6 @@ class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, F
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_application_metadata_relation__harvesting_job": ["exact"],
             "harvested_application_metadata_relation__collecting_state": ["exact"],
         }

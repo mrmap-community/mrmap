@@ -64,25 +64,6 @@ HARVESTING_PAGE_POLL_MAX_SECONDS = 2
 REGISTRATION_REQUEST_TIMEOUT_SECONDS = 15
 
 
-# The time budget of one attempt of an external ETF conformity check (#1454).
-# An ETF task waits synchronously for a test run of an external validator:
-# ``QualityEtf.run`` polls the run's progress until the validator itself is
-# done, and no timeout of this application bounds that wait - a full ETF
-# suite over a big service legitimately occupies its worker slot for hours.
-# The global limits would kill exactly these healthy long attempts, so the
-# task declares its own, far above the 900 s harvesting ceiling the global
-# limit is built from. Both bounds stay below CAPACITY_TELEMETRY_ABANDON_-
-# GRACE_HOURS (48 h, MrMap/settings.py) on purpose, so the sweep of #1330
-# never declares a still-waiting ETF attempt abandoned. Past this budget the
-# soft limit ends the attempt through the task's own failure branch, which
-# decides the run row with an error report, and the hard limit behind it
-# releases the slot; before #1454 such a task held a slot without any bound
-# at all.
-CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS = 6 * 60 * 60
-CONFORMITY_ETF_TASK_HARD_TIME_LIMIT_SECONDS = \
-    CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS + 300
-
-
 # The bounds of the registration reference work queue (#1263). A delivery of
 # one reference holds its work row under a lease: long enough that a healthy
 # fetch-and-import is never cut short (one request is itself bounded by

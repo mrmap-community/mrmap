@@ -150,13 +150,17 @@ class CustomOperationId(JsonApiAutoSchema):
         # them silently on an upstream rewording - which is exactly what the
         # frontend did until #1487. Emit the same data structured: every
         # documented enum of a choices field answers its labels next to it.
+        # Blank and null members are excluded: they are no choice a consumer
+        # looks a label up by (spectacular hashes them out of its enum
+        # identity too, and reconstructs them structurally, not as choices).
         if isinstance(field, ChoiceField):
             enum_schema = schema if "enum" in schema else (
                 schema.get("items") or {})  # multiple choice: the child node
             if "enum" in enum_schema:
                 labels = [
                     {"value": value, "label": str(label)}
-                    for value, label in field.choices.items()]
+                    for value, label in field.choices.items()
+                    if value not in ("", None)]
                 if labels:
                     enum_schema[ENUM_LABELS_EXTENSION] = labels
         return schema
@@ -377,10 +381,28 @@ def inject_enum_labels(result, **kwargs):
     so stamping it once is exact. Labels left beside a ``oneOf`` (choice sets
     split into blank/null components) have no single ref to join and stay on
     the property.
+
+    A second shape arrives from spectacular's ``safe_ref``: a property that
+    keeps sibling keys next to a component reference is wrapped as
+    ``{"allOf": [{"$ref": ...}], "description": ..., "x-enum-labels": ...}``.
+    There the extension is a legal member of the composition — consumers of
+    the property read it — so it is COPIED into the component, not moved:
+    the property keeps its labels and the enum answers them too. Only the
+    illegal shape (the extension as a direct sibling of a ``$ref``) is
+    MOVED away from.
     """
     schemas = (result.get("components") or {}).get("schemas") or {}
     _move_enum_labels_to_refs(result, schemas)
     return result
+
+
+def _enum_component_of(ref, schemas):
+    """The enum component a ``$ref`` string names, or None."""
+    if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
+        target = schemas.get(ref.rpartition("/")[2])
+        if isinstance(target, dict) and "enum" in target:
+            return target
+    return None
 
 
 def _move_enum_labels_to_refs(node, schemas):
@@ -388,14 +410,26 @@ def _move_enum_labels_to_refs(node, schemas):
         for item in node:
             _move_enum_labels_to_refs(item, schemas)
     elif isinstance(node, dict):
-        ref = node.get("$ref")
-        if isinstance(ref, str) and ENUM_LABELS_EXTENSION in node:
-            labels = node.pop(ENUM_LABELS_EXTENSION)
-            target = (
-                schemas.get(ref.rpartition("/")[2])
-                if ref.startswith("#/components/schemas/") else None)
-            if isinstance(target, dict) and "enum" in target:
-                target.setdefault(ENUM_LABELS_EXTENSION, labels)
+        if ENUM_LABELS_EXTENSION in node:
+            ref = node.get("$ref")
+            if isinstance(ref, str):
+                # illegal sibling: OpenAPI ignores it, move it into the enum
+                labels = node.pop(ENUM_LABELS_EXTENSION)
+                target = _enum_component_of(ref, schemas)
+                if target is not None:
+                    target.setdefault(ENUM_LABELS_EXTENSION, labels)
+            else:
+                refs = {
+                    item["$ref"] for item in node.get("allOf") or ()
+                    if isinstance(item, dict)
+                    and isinstance(item.get("$ref"), str)}
+                if len(refs) == 1:
+                    # safe_ref composition: the site keeps its labels and the
+                    # component gets the same ones, so both consumers see them
+                    target = _enum_component_of(next(iter(refs)), schemas)
+                    if target is not None:
+                        target.setdefault(ENUM_LABELS_EXTENSION,
+                                          node[ENUM_LABELS_EXTENSION])
         for value in node.values():
             _move_enum_labels_to_refs(value, schemas)
 

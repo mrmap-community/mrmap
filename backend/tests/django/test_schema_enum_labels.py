@@ -15,10 +15,12 @@ These tests pin the served contract:
 
 * every node that documents an enum together with the choices prose also
   answers labels — no enum is left readable from prose only,
-* the label values are exactly the values of that enum, in its order,
+* the label values are exactly the values of that enum minus the blank and
+  null members, which are documented structurally and are no choice,
 * the issue's example: the choice set of ``LogLevelEnum`` answers the
   model's own labels (``0`` -> ``Fatal``),
-* no label sits beside a ``$ref``, where no consumer could see it.
+* no label sits beside a ``$ref``, where no consumer could see it, and an
+  ``allOf`` wrapper site answers the same labels as the component it names.
 """
 from django.test import SimpleTestCase
 from drf_spectacular.generators import SchemaGenerator
@@ -77,8 +79,9 @@ class SchemaEnumLabelsTests(SimpleTestCase):
             if not isinstance(labels, list):
                 missing.append(path)
                 continue
-            # blank and null members are split into separate components and
-            # never carry a choice label — the labels never mention them
+            # blank and null members are no choice: the emission excludes
+            # them (spectacular reconstructs them structurally, the frontend
+            # contract could never use them) — the labels never mention them
             expected = [v for v in node["enum"] if v not in ("", None)]
             if _label_values(node) != expected:
                 mismatched.append(
@@ -108,11 +111,12 @@ class SchemaEnumLabelsTests(SimpleTestCase):
         member answering those values answers the model's labels."""
         expected = [{"value": value, "label": str(label)}
                     for value, label in LogLevelEnum.choices]
+        expected_values = [entry["value"] for entry in expected]
         answers = [
             (path, node[ENUM_LABELS_EXTENSION])
             for path, node in _nodes(self.schema)
             if isinstance(node.get(ENUM_LABELS_EXTENSION), list)
-            and _label_values(node) == [value for value, _ in expected]]
+            and _label_values(node) == expected_values]
         self.assertTrue(
             answers,
             "no documented enum answers the values of LogLevelEnum — the "
@@ -121,3 +125,28 @@ class SchemaEnumLabelsTests(SimpleTestCase):
             any(labels == expected for _path, labels in answers),
             f"no member answers the log level values with "
             f"{expected}: {answers}")
+
+    def test_a_wrapper_site_and_its_component_answer_the_same_labels(self):
+        """A property composed as ``allOf: [ref]`` keeps its labels for the
+        consumer reading the property AND stamps the same ones onto the
+        component — a drifted copy would lie to one of them."""
+        schemas = self.schema["components"]["schemas"]
+        drift = []
+        for path, node in _nodes(self.schema):
+            labels = node.get(ENUM_LABELS_EXTENSION)
+            if not isinstance(labels, list) or "$ref" in node:
+                continue  # direct siblings were moved away (test above)
+            refs = {
+                item["$ref"] for item in node.get("allOf") or ()
+                if isinstance(item, dict)
+                and isinstance(item.get("$ref"), str)}
+            if len(refs) != 1:
+                continue
+            component = schemas.get(next(iter(refs)).rpartition("/")[2])
+            if (isinstance(component, dict)
+                    and component.get(ENUM_LABELS_EXTENSION) != labels):
+                drift.append(path)
+        self.assertEqual(
+            drift, [],
+            f"{len(drift)} allOf wrapper sites answer other labels than the "
+            f"component they reference: {drift}")

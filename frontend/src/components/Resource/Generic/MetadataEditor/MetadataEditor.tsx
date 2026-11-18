@@ -372,7 +372,13 @@ const EditorPanes = ({
   readOnlyPane,
   sourceCard,
 }: EditorPanesProps): ReactElement => {
-  const values = (useWatch() ?? {}) as Record<string, unknown>;
+  const watched = useWatch();
+  // memo so the `?? {}` fallback isn't a fresh object per render: the
+  // findings and completeness memos below key on `values`
+  const values = useMemo(
+    () => (watched ?? {}) as Record<string, unknown>,
+    [watched],
+  );
 
   const findings = useMemo(
     () => mergeFindings(clientFindings(rules, values), server),
@@ -577,9 +583,12 @@ const EditorContent = ({
   );
 
   const profile = (record?.profile ?? undefined) as ProfileData | undefined;
-  const profileSections = Array.isArray(profile?.sections)
-    ? (profile.sections as ProfileSection[])
-    : [];
+  // memo so the `: []` branch isn't a fresh array per render: the sections
+  // memo below keys on it
+  const profileSections = useMemo(
+    () => (Array.isArray(profile?.sections) ? (profile.sections as ProfileSection[]) : []),
+    [profile],
+  );
   const sections = useMemo(
     () =>
       buildEditorSections({

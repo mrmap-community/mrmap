@@ -21,7 +21,9 @@ logging, or any outbound HTTP/XML surface.
 ## Mandatory project rules (sources named)
 
 - Authorization is guardian object permissions per object, enforced per viewset with an explicit
-  `permission_classes` (settings define no global default). Reuse
+  `permission_classes`; since #1444 `DEFAULT_PERMISSION_CLASSES` is the fail-closed floor under a
+  view naming none (anonymous reads, no anonymous writes). The security proxy names none on
+  purpose — OGC's XML POST binding carries a read over POST. Reuse
   `extras.permissions.DjangoObjectPermissionsOrAnonReadOnly` or the existing pattern; keep
   permission checks and queryset visibility rules intact in every refactor
   (`backend/AGENTS.md`).

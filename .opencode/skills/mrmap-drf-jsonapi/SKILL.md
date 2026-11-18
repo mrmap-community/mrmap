@@ -23,7 +23,9 @@ confs under `backend/`, or an OpenAPI-schema effect (the frontend parses `/api/s
   `invalid` carry the reason (`backend/tests/behave/AGENTS.md`).
 - Never change an API contract or behaviour outside the requested scope; if the request implies
   one, explain the implication before proceeding (root `AGENTS.md`).
-- Every viewset declares `permission_classes` explicitly — settings define no global default.
+- Every viewset declares `permission_classes` explicitly; `DEFAULT_PERMISSION_CLASSES` is only
+  the fail-closed floor a view naming none falls back to — anonymous reads, no anonymous writes
+  (#1444).
   Reuse `extras.permissions.DjangoObjectPermissionsOrAnonReadOnly` or an existing pattern
   (see skill `mrmap-security`).
 - Class-based views only; app-specific views in the owning app, generic ones in `extras/`;

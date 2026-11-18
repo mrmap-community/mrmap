@@ -18,12 +18,14 @@ const tabs: ServiceTab[] = [
   {
     path: "",
     label: "serviceShow.overview",
+    resource: "WebMapService",
     icon: <AutoGraphIcon />,
     content: <OverviewTab />,
   },
   {
     path: "alerts",
     label: "serviceShow.attention",
+    resource: "ServiceAlert",
     icon: <WarningAmberIcon />,
     content: <ServiceAttentionTab />,
   },
@@ -31,6 +33,7 @@ const tabs: ServiceTab[] = [
     path: "metadata",
     label: "serviceShow.metadata",
     resource: "WebMapService",
+    action: "edit",
     operation: "partial_update_WebMapService",
     content: <ServiceMetadataTab />,
   },
@@ -57,6 +60,7 @@ const tabs: ServiceTab[] = [
   {
     path: "ProxySetting",
     label: "serviceShow.proxy",
+    resource: "WebMapServiceProxySetting",
     operation: "list_related_WebMapServiceProxySetting_of_WebMapService",
     content: <ProxySettingsTab />,
   },

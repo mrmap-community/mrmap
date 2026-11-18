@@ -18,7 +18,7 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
   ...props
 }: ListBaseProps<RecordType>) => {
   const controller = useListController<RecordType>({ resource, ...props });
-  const { data } = controller;
+  const { data, resource: controllerResource, refetch } = controller;
   const [snapshot, setSnapshot] = useState<{
     source: typeof data;
     resource: string;
@@ -39,7 +39,7 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
       ) {
         // whether a new or removed record shows up on this page at all can only
         // be decided by the server's ordering and filtering
-        void controller.refetch();
+        void refetch();
         return;
       }
       if (event.type !== "updated" || !data) return;
@@ -51,9 +51,9 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
       );
       setSnapshot((previous) => ({
         source: data,
-        resource: controller.resource,
+        resource: controllerResource,
         records: (previous?.source === data &&
-        previous.resource === controller.resource
+        previous.resource === controllerResource
           ? previous.records
           : data
         ).map(
@@ -64,7 +64,7 @@ const RealtimeListBase = <RecordType extends RaRecord = RaRecord>({
         ),
       }));
     },
-    [data, controller.resource, controller.refetch],
+    [data, controllerResource, refetch],
   );
 
   useEffect(() => {

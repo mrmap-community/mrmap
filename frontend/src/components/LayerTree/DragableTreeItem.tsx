@@ -129,7 +129,7 @@ export const DragableTreeItem = ({
         mouseY: event.clientY
       })
 
-    }, [node, setContextMenu])
+    }, [node, setContextMenu, record])
 
     return (
       <TreeItem

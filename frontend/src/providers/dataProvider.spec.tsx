@@ -9,7 +9,6 @@ import { describe, expect, it, vi } from 'vitest';
 import GlobalFormError from '../jsonapi/components/GlobalFormError';
 import dataProvider from './dataProvider';
 
-vi.mock('./authProvider', () => ({ getAuthToken: () => undefined }));
 vi.mock('./i18nProvider', () => ({ default: { getLocale: () => 'en' } }));
 vi.mock('../jsonapi/utils', () => ({
   capsulateJsonApiPrimaryData: (data: unknown) => data,

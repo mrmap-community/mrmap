@@ -1,5 +1,4 @@
 import logging
-import traceback
 from datetime import timedelta
 
 from celery import chord, shared_task
@@ -455,9 +454,9 @@ def sweep_stale_update_jobs(*args, at=None, **kwargs):
             except Exception:
                 # one job which cannot be read must not keep the others
                 # standing; its next fire is the answer
-                logger.error(
+                logger.exception(
                     f"could not sweep the stale {job_model.__name__} "
-                    f"{job_id}: {traceback.format_exc()}")
+                    f"{job_id}")
     if swept:
         logger.info(
             f"the stale update job sweep failed {len(swept)} unfinished "

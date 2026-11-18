@@ -28,6 +28,10 @@ const state = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   notify: vi.fn(),
+  // stable identity: the provider folds `translate` into `ingest` and the
+  // hydrate effects depend on `ingest` - a fresh function per render would
+  // (rightfully) rebuild the store over and over (see the center's own spec)
+  translate: (key: string) => key,
 }));
 
 // the drawer of the Background Job Center (#1206): a counting stand-in proves
@@ -70,7 +74,7 @@ vi.mock('react-admin', () => {
     useGetList: (_resource: string, params: { filter: { status: string } }) =>
       params.filter.status === 'pending,running' ? state.active : state.terminal,
     useNotify: () => state.notify,
-    useTranslate: () => (key: string) => key,
+    useTranslate: () => state.translate,
   };
 });
 

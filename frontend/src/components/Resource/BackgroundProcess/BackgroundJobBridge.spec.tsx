@@ -6,33 +6,36 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import BackgroundJobBridge from './BackgroundJobBridge';
 
 // the center's failure seam (#1461): the spec drives it directly - what the
-// store reports as a live failure is exactly the bridge's input
-const state = vi.hoisted(() => ({
-  listeners: new Set<(records: BackgroundJobRecord[]) => void>(),
-  subscribeFailed: vi.fn(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
-  notify: vi.fn(),
-}));
+// store reports as a live failure is exactly the bridge's input. The
+// subscribe function keeps one identity across renders, as the real
+// provider's does - the bridge's effect is keyed on it
+const state = vi.hoisted(() => {
+  const listeners = new Set<(records: BackgroundJobRecord[]) => void>();
+  return {
+    listeners,
+    subscribeFailed: vi.fn((listener: (records: BackgroundJobRecord[]) => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    }),
+    translate: (key: string) => key,
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    notify: vi.fn(),
+  };
+});
 
 vi.mock('react-admin', () => ({
   useNotify: () => state.notify,
-  useTranslate: () => (key: string) => key,
+  useTranslate: () => state.translate,
   // the bus belongs to the center: a bridge which still reached for the
   // dataProvider would trip the spy below
   useDataProvider: () => ({ subscribe: state.subscribe, unsubscribe: state.unsubscribe }),
 }));
 
 vi.mock('./JobCenter/BackgroundJobCenterContext', () => ({
-  useBackgroundJobCenter: () => ({
-    subscribeFailed: (listener: (records: BackgroundJobRecord[]) => void) => {
-      state.listeners.add(listener);
-      state.subscribeFailed(listener);
-      return () => {
-        state.listeners.delete(listener);
-      };
-    },
-  }),
+  useBackgroundJobCenter: () => ({ subscribeFailed: state.subscribeFailed }),
 }));
 
 const failed = (...ids: number[]): BackgroundJobRecord[] =>

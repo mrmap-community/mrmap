@@ -37,6 +37,16 @@ class Http423(Exception):
     pass
 
 
+# Header names which carry the caller's own credentials: the knox bearer token
+# or the session cookie with which it authenticated against MrMap. They never
+# belong in a persisted request log -- the rows are readable through the log
+# tooling -- so they are stripped before a row is written, the same denylist
+# the upstream call applies in get_remote_response (#1452). Compared against
+# normalized names: META carries underscores where the wire carries dashes.
+CREDENTIAL_HEADER_NAMES = frozenset(
+    {"authorization", "cookie", "x-forwarded-authorization"})
+
+
 def exception_handler(exc, context):
     if hasattr(context["view"], "ogc_request"):
         service_type = context["view"].ogc_request.service_type.lower()
@@ -383,11 +393,16 @@ class OgcServiceProxyView(APIView):
         else:
             user = self.request.user
         regex = re.compile("^HTTP_")
-        headers = {
-            regex.sub("", header): value
-            for (header, value) in self.request.META.items()
-            if header.startswith("HTTP_")
-        }
+        headers = {}
+        for (header, value) in self.request.META.items():
+            if not header.startswith("HTTP_"):
+                continue
+            name = regex.sub("", header)
+            # the logged headers keep the caller's IP and every non-credential
+            # header; the credentials themselves are stripped (#1452)
+            if name.lower().replace("_", "-") in CREDENTIAL_HEADER_NAMES:
+                continue
+            headers[name] = value
 
         # Determine the original user and test user for logging
         is_test_request = self.test_context is not None

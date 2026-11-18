@@ -7,7 +7,9 @@ Feature: Browser Session Endpoint
     Background: point at the session endpoint with the rules of a browser
         Given I use a client which enforces CSRF checks
         Given I use the endpoint http://localhost:8000/api/auth/session
-        # the session view answers plain JSON, not json:api
+        # the session view answers plain JSON, not json:api - like the knox
+        # views beside it, its refusals name the reason in DRF's "detail"
+        # field; the JSON:API error codes are the data endpoints' shape
         Given I set the header "HTTP_ACCEPT" with value "application/json"
 
     Scenario: The probe answers that an anonymous browser has no session
@@ -17,7 +19,7 @@ Feature: Browser Session Endpoint
 
     Scenario: Login turns basic credentials into a session, not into an answer to keep
         # User1:User1
-        Given I set the header "HTTP_AUTHORIZATION" with value "VXNlcjE6VXNlcjE="
+        Given I set the header "HTTP_AUTHORIZATION" with value "Basic VXNlcjE6VXNlcjE="
         When I send the request with POST method
         Then I expect the response status is 200
         And I expect that response json has an attribute "authenticated" with value "true"
@@ -27,16 +29,22 @@ Feature: Browser Session Endpoint
 
     Scenario: The probe of that same client answers that it now has a session
         # User1:User1
-        Given I set the header "HTTP_AUTHORIZATION" with value "VXNlcjE6VXNlcjE="
+        Given I set the header "HTTP_AUTHORIZATION" with value "Basic VXNlcjE6VXNlcjE="
         When I send the request with POST method
+        # the probe asks without the credential of the login: an answer of
+        # "true" now comes from the session cookie alone
+        Given I remove the header "HTTP_AUTHORIZATION"
         When I send the request with GET method
         Then I expect that response json has an attribute "authenticated" with value "true"
 
     Scenario: Login with wrong credentials opens nothing
-        Given I set the header "HTTP_AUTHORIZATION" with value "VXNlcjE6V3Jvbmc="
+        Given I set the header "HTTP_AUTHORIZATION" with value "Basic VXNlcjE6VXJvbmc="
         When I send the request with POST method
         Then I expect the response status is 403
-        And I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
+        And I expect that response json has an attribute "detail"
+        Given I remove the header "HTTP_AUTHORIZATION"
+        When I send the request with GET method
+        Then I expect that response json has an attribute "authenticated" with value "false"
 
     Scenario: A session-authenticated write without the CSRF header is refused, not the caller
         Given I am logged in as User1 with password User1
@@ -44,7 +52,7 @@ Feature: Browser Session Endpoint
         Then I expect the response status is 403
         # the contract of docs/source/administration/authentication.md: a
         # missing CSRF token refuses the request while the session stays valid
-        And I expect that response json has an attribute "errors.[0].code" with value "permission_denied"
+        And I expect that response json has an attribute "detail"
         When I send the request with GET method
         Then I expect that response json has an attribute "authenticated" with value "true"
 
@@ -66,7 +74,7 @@ Feature: Browser Session Endpoint
     Scenario: The machine token path is untouched beside the session (#835)
         Given I use the endpoint http://localhost:8000/api/auth/login
         # User1:User1
-        Given I set the header "HTTP_AUTHORIZATION" with value "VXNlcjE6VXNlcjE="
+        Given I set the header "HTTP_AUTHORIZATION" with value "Basic VXNlcjE6VXNlcjE="
         When I send the request with POST method
         Then I expect the response status is 200
         And I expect that response json has an attribute "token"

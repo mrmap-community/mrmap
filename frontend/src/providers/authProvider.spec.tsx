@@ -773,12 +773,16 @@ describe('role slug resolution of #736 behind the snapshot', () => {
  * language while redirecting to /login. The probe runs once per page load.
  */
 describe('authProvider.checkAuth', () => {
-  const provider = sessionAuthProvider();
+  let provider: ReturnType<typeof sessionAuthProvider>;
 
   beforeEach(() => {
     localStorage.clear();
     consumeSessionEndReason();
     storeSession();
+    // the provider remembers that *this page load* confirmed the session -
+    // as it does in the app, where one page load is one instance - so every
+    // case has to start from a freshly built one
+    provider = sessionAuthProvider();
   });
 
   afterEach(() => {

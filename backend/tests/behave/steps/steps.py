@@ -341,6 +341,17 @@ def step_impl(context, header_name, header_value):
     context.headers.update({header_name: header_value})
 
 
+# The counterpart of the step above. A scenario which logged in with Basic
+# credentials in a header still sends them on every following request, so the
+# probe that wants to pin that the *session* - not that header - now
+# authenticates has to ask without them (#835).
+@given('I remove the header "{header_name}"')
+def step_impl(context, header_name):
+    headers = getattr(context, "headers", None) or {}
+    headers.pop(header_name, None)
+    context.headers = headers
+
+
 @given('I use token based authentication for user "{username}"')
 def step_impl(context, username):
     user = get_user_model().objects.get(username=username)

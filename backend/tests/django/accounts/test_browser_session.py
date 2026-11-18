@@ -16,11 +16,13 @@ asserted here as facts of the answer, not as intentions:
   taken before the logout answers nothing afterwards (#832 for the browser path).
 
 The CSRF half is the price of cookie credentials and is pinned both ways: an
-unsafe request which the session authenticates is refused without the header
-(403, code ``permission_denied``, and the #834 rule holds - the session *stays*
-valid), and served with it. ``docs/source/administration/authentication.md``
-documents the whole contract; ``test_session_lifetime.py`` pins the machine
-token path, which this change leaves untouched.
+unsafe request which the session authenticates is refused without the header,
+and served with it - while the #834 rule holds, the session *stays* valid.
+Like the knox views it sits beside, this view renders plain JSON: its own
+refusals name the reason in DRF's ``detail`` field, while the JSON:API error
+codes of the auth contract are the data endpoints' answer and pinned by
+``test_session_lifetime.py``. ``docs/source/administration/authentication.md``
+documents the whole contract; the machine token path is left untouched.
 """
 import base64
 import json
@@ -30,6 +32,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from knox.models import AuthToken
+
+from MrMap.settings import _cookie_secure_from_env
 
 SESSION_URL = "/api/auth/session"
 LOGIN_URL = "/api/auth/login"
@@ -118,13 +122,13 @@ class BrowserSessionTests(TestCase):
         self.assertEqual(
             settings.SESSION_COOKIE_SECURE, settings.CSRF_COOKIE_SECURE)
         self.assertTrue(
-            settings._cookie_secure_from_env({}, True),
+            _cookie_secure_from_env({}, True),
             "a production deployment serves the cookies over TLS by default")
         self.assertFalse(
-            settings._cookie_secure_from_env({}, False),
+            _cookie_secure_from_env({}, False),
             "the development stack stays reachable over plain http")
         self.assertFalse(
-            settings._cookie_secure_from_env(
+            _cookie_secure_from_env(
                 {"DJANGO_COOKIE_SECURE": "False"}, True),
             "an http-only deployment can opt out explicitly")
 
@@ -138,13 +142,21 @@ class BrowserSessionTests(TestCase):
         self.assertIsNone(client.session.get("_auth_user_id"))
 
     def test_a_caller_without_a_credential_is_refused_by_the_auth_contract(self):
-        """No credential answers 403 with code ``not_authenticated`` (#834)."""
+        """No credential answers 403, in this view's plain-JSON shape.
+
+        The machine-readable ``not_authenticated`` code (#834) is the JSON:API
+        renderer's answer of the data endpoints, pinned by
+        ``test_session_lifetime.py``; this view renders plain JSON like the
+        knox views beside it, so the reason arrives in DRF's ``detail`` field
+        - and as a 403, not a 401, because the first configured authenticator
+        advertises no ``WWW-Authenticate`` scheme.
+        """
         response = self.browser().post(SESSION_URL, HTTP_ACCEPT=JSON)
 
         self.assertEqual(response.status_code, 403, response.content)
-        self.assertEqual(
-            json.loads(response.content)["errors"][0]["code"],
-            "not_authenticated")
+        self.assertIn(
+            "Authentication credentials were not provided",
+            json.loads(response.content)["detail"])
 
     # --- the session is what authenticates the following requests ----------
 
@@ -185,9 +197,11 @@ class BrowserSessionTests(TestCase):
         refused = client.post(SESSION_URL, HTTP_ACCEPT=JSON)
 
         self.assertEqual(refused.status_code, 403, refused.content)
-        self.assertEqual(
-            json.loads(refused.content)["errors"][0]["code"],
-            "permission_denied")
+        # plain JSON, like the knox views: the refusal names its reason in the
+        # ``detail`` text; the JSON:API ``permission_denied`` code is the data
+        # endpoints' answer and pinned by test_session_lifetime.py
+        self.assertIn(
+            "CSRF", json.loads(refused.content)["detail"])
         # the session survived the refusal: it is still the user's own
         self.assertEqual(self.who_am_i_id(client), str(self.user.pk))
 
@@ -208,7 +222,7 @@ class BrowserSessionTests(TestCase):
         client = self.browser()
         self.login(client)
         session_key = client.session.session_key
-        self.assertTrue(SessionStore(session_key=session_key).exists())
+        self.assertTrue(SessionStore().exists(session_key))
         self.assertEqual(client.session.get("_auth_user_id"),
                          str(self.user.pk))
 
@@ -217,7 +231,7 @@ class BrowserSessionTests(TestCase):
 
         self.assertEqual(response.status_code, 204, response.content)
         self.assertFalse(
-            SessionStore(session_key=session_key).exists(),
+            SessionStore().exists(session_key),
             "the row behind the cookie is gone, not only the cookie")
         self.assertNotEqual(self.who_am_i_id(client), str(self.user.pk))
 

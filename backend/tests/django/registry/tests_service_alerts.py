@@ -13,6 +13,8 @@ the beat schedule and the invalidations run in a deployment.
 import json
 import math
 import os
+import re
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from time import perf_counter
 from unittest import skipUnless
@@ -31,7 +33,8 @@ from django_celery_beat.models import CrontabSchedule
 from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
                                        LogKindEnum, LogLevelEnum)
 from registry.enums.update import UpdateJobStatusEnum as JobState
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.harvest import (HarvestingJob, HarvestingLog,
+                                     TemporaryMdMetadataFile)
 from registry.models.monitoring import (GetCapabilitiesProbeResult,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
@@ -42,6 +45,7 @@ from registry.querys.alerts import (ALERT_ATTRIBUTES, alerts_requested,
                                     refresh_service_alerts)
 from rest_framework.request import Request
 from rest_framework.test import APIClient
+from tests.django.sql_guard import SqlGuardMixin
 
 JSONAPI = "application/vnd.api+json"
 WMS_ONE = "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
@@ -350,6 +354,24 @@ class ServiceAlertsQueryTest(ServiceAlertsMixin, TestCase):
     def test_a_harvesting_which_left_nothing_behind_needs_no_attention(self):
         self.harvesting_job()
         self.assertFalse(self.alerts(self.csw).has_alert)
+
+    def test_files_which_imported_and_logs_of_another_kind_are_no_incomplete(self):
+        """Neither of the two existence probes asks "did the job leave any-
+        thing", it asks about failed imports and short pages (#1426)
+
+        A file which stays behind without an import error, and a log line of
+        another kind, belong to the archive of the run and not to its alert.
+        """
+        job = self.harvesting_job()
+        TemporaryMdMetadataFile.objects.create(
+            job=job, md_metadata_file=SimpleUploadedFile(
+                "clean.xml", b"<record/>"))
+        job.log(description="a page the catalogue refused",
+                level=LogLevelEnum.WARNING.value,
+                kind=LogKindEnum.REMOTE_ERROR.value)
+        alerts = self.alerts(self.csw)
+        self.assertFalse(alerts.harvest_incomplete)
+        self.assertFalse(alerts.has_alert)
 
     def test_only_the_newest_harvesting_of_a_catalogue_decides(self):
         self.harvesting_job(phase=Phase.ABORTED, hours_ago=3)
@@ -1432,6 +1454,179 @@ class ServiceDetailAlertScanTest(ServiceAlertsMixin, TestCase):
         data = response.json()["data"]
         self.assertTrue(data["attributes"]["hasAlert"])
         self.assertIn("allowedActions", data["attributes"])
+
+
+@contextmanager
+def off_seqscan():
+    """EXPLAIN under ``enable_seqscan = off`` for one assertion block.
+
+    The pattern ``tests_task_sql_harvesting`` documents: ``SET LOCAL`` lives
+    and dies with the transaction of the test itself, and the question on a
+    small fixture is whether the named index CAN answer this read shape - not
+    the planner's mood on a cold table.
+    """
+    with connections["default"].cursor() as cursor:
+        cursor.execute('SET LOCAL enable_seqscan = off')
+    yield
+
+
+class HarvestAlertJoinFanOutTest(ServiceAlertsMixin, SqlGuardMixin, TestCase):
+    """The incomplete harvest annotation must not join files with logs (#1426).
+
+    The question "did this job leave an incomplete record behind" is answered
+    from the rows of the job over two paths: the files it could not import and
+    the log lines naming a page which stayed short. When both paths are one
+    OR over two joins of multi-valued relations, the database has to
+    multiply them before the condition can apply to their product - on the
+    live rig the newest job of a catalogue which delivered 116k records
+    multiplied 116,150 files with 921 log rows: EXPLAIN walked 106,973,229
+    join rows to answer an existence question and one detail request took
+    24 s. The guards below pin the shape of the answer to it against a newest
+    job with bulk: each path answers as an EXISTS probe, the mass of the files
+    relation is read through the index of its job key, and no statement joins
+    the files of a job with its logs.
+
+    The rows of the fat job are seeded the way `ServiceDetailAlertBenchmark`
+    seeds its population - a set-based SQL copy of the template shape which
+    `harvesting_job()` creates, so the 200 files and 200 log lines stay two
+    statements. Within each relation most rows are the non-matching kind: the
+    probe has to find a matching row among the others, not be handed one.
+    """
+
+    #: rows of each multi-valued relation behind the fat newest job - the old
+    #: shape multiplied these with each other per evaluation of the annotation
+    RELATION_ROWS = 200
+
+    def _fat_harvesting_job(self):
+        """The newest job of the catalogue, shaped like a big harvest left it."""
+        template = self.harvesting_job(hours_ago=0, import_errors=1,
+                                       short_pages=1)
+        template_file = TemporaryMdMetadataFile.objects.filter(
+            job=template).first()
+        template_log = HarvestingLog.objects.filter(
+            harvesting_job=template).first()
+        with connections["default"].cursor() as cursor:
+            # a failed import is one row among many clean files - only every
+            # 25th copy keeps the error flag
+            cursor.execute(
+                """
+                INSERT INTO registry_temporarymdmetadatafile
+                SELECT (jsonb_populate_record(
+                            NULL::registry_temporarymdmetadatafile,
+                            (to_jsonb(t) - 'id'
+                             || jsonb_build_object(
+                                    'id', nextval(
+                                        'registry_temporarymdmetadatafile_id_seq'),
+                                    'job_id', %s,
+                                    'has_import_error', g %% 25 = 0)
+                        ))).*
+                FROM registry_temporarymdmetadatafile t, generate_series(1, %s) g
+                WHERE t.id = %s
+                """,
+                [template.pk, self.RELATION_ROWS, template_file.pk])
+            # and only every 25th log line names a short page, the others are
+            # remote errors the incomplete state does not ask about
+            cursor.execute(
+                """
+                INSERT INTO registry_harvestinglog
+                SELECT (jsonb_populate_record(
+                            NULL::registry_harvestinglog,
+                            (to_jsonb(t) - 'id'
+                             || jsonb_build_object(
+                                    'id', nextval('registry_harvestinglog_id_seq'),
+                                    'harvesting_job_id', %s,
+                                    'kind', CASE WHEN g %% 25 = 0
+                                                 THEN 1 ELSE 0 END)
+                        ))).*
+                FROM registry_harvestinglog t, generate_series(1, %s) g
+                WHERE t.id = %s
+                """,
+                [template.pk, self.RELATION_ROWS, template_log.pk])
+        return template
+
+    def _detail_reads(self):
+        """The admin's detail request, captured; its alert-annotated statements.
+
+        Returns:
+            tuple: the response and the sql of every captured statement which
+                carries the annotation of the incomplete harvest
+        """
+        with CaptureQueriesContext(connections["default"]) as queries:
+            response = self.client.get(
+                reverse("registry:csw-detail", kwargs={"pk": CSW_ONE}),
+                HTTP_ACCEPT=JSONAPI)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response, [
+            query["sql"] for query in queries.captured_queries
+            if '"alert_incomplete_harvest"' in query["sql"]]
+
+    def test_the_detail_never_joins_the_files_of_a_job_with_its_logs(self):
+        """Both paths answer as probes - never as one join over both (#1426)."""
+        self._fat_harvesting_job()
+        response, reads = self._detail_reads()
+        self.assertEqual(
+            len(reads), 1,
+            msg=f"the detail of one catalogue annotates the incomplete "
+                f"harvest in one statement: {len(reads)} carry it")
+        self.assertTrue(
+            response.json()["data"]["attributes"]["harvestIncomplete"],
+            "the job which left a failed file and short pages behind still "
+            "answers its alert once the probes answer where joins answered")
+        tables = (
+            (TemporaryMdMetadataFile._meta.db_table, '"job_id"',
+             'has_import_error'),
+            (HarvestingLog._meta.db_table, '"harvesting_job_id"', '"kind"'),
+        )
+        for sql in reads:
+            for table, key, condition in tables:
+                joined = re.findall(
+                    rf'\bjoin\s+"{table}"', sql, re.IGNORECASE)
+                self.assertEqual(
+                    joined, [],
+                    msg=f"the relation {table} is only ever asked of as an "
+                        f"existence probe - a JOIN of it multiplies the rows "
+                        f"of the job with the rows of the other multi-valued "
+                        f"relation the same condition ORs over: "
+                        f"{sql[:300]}")
+                probes = re.findall(
+                    rf'EXISTS\s*\(SELECT 1 AS "a" FROM "{table}"',
+                    sql, re.IGNORECASE)
+                self.assertTrue(
+                    probes,
+                    msg=f"the annotation asks {table} as an EXISTS probe "
+                        f"correlated to the job")
+                reads_of_table = sql.lower().count(f'from "{table}"')
+                self.assertEqual(
+                    reads_of_table, len(probes),
+                    msg=f"every read of {table} is inside such a probe - "
+                        f"{len(probes)} probes against {reads_of_table} "
+                        f"reads of the table")
+                self.assertIn(key.lower(), sql.lower(),
+                              f"the probe of {table} rides the key of the job")
+                self.assertIn(condition.lower(), sql.lower(),
+                              f"the probe of {table} asks its own condition")
+
+    def test_the_failed_files_are_read_through_the_index_of_the_job_key(self):
+        """The relation with the mass is index-read, not walked per job.
+
+        #886 put a composite index on the job key and the import error of the
+        temporary files for exactly this question, and this asks the planner -
+        seq scan ruled out, as #1395 asks of the task plans - whether the
+        probe of the failed files answers out of it. It is the relation which
+        held 116k rows for the measured catalogue, so it is the one which must
+        never be walked. The log relation is different in kind: small, and its
+        `kind` is covered by no index, so the planner answers that probe with
+        one scan over its own few rows. What that path has to keep is pinned
+        above - the read stays inside the probe and joins neither the files
+        nor anything else.
+        """
+        self._fat_harvesting_job()
+        _response, reads = self._detail_reads()
+        self.assertTrue(reads, "the detail annotates the incomplete harvest")
+        with off_seqscan():
+            self.assertPlanUsesIndex(
+                reads[0], TemporaryMdMetadataFile._meta.db_table,
+                index="job_id", label="the failed-file probe")
 
 
 class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):

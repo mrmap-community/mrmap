@@ -43,21 +43,40 @@ class DefinitionTrailTest(TestCase):
             content_type__app_label=EXTRA_PERM[0], codename=EXTRA_PERM[1])
 
     def test_changing_the_text_of_a_definition_leaves_an_audit_row(self):
-        """The row names the value the definition had before the change.
+        """The row of a rename names the text the definition now has.
 
-        ``diff_against`` of the api compares against the previous row, so the
-        audit is only answerable if that row carried the old text.
+        One save writes one row which carries the state that was just
+        persisted - that is what makes ``diff_against`` of the api answerable
+        at all: it compares a row with its predecessor.
         """
-        before = self.definition.label
         self.definition.label = "Viewer, renamed"
         self.definition.save()
 
-        newest = self.definition.change_logs.first()
-        self.assertEqual(newest.history_type, "~")
-        self.assertEqual(newest.label, "Viewer, renamed")
+        change = self.definition.change_logs.get(history_type="~")
+        self.assertEqual(change.label, "Viewer, renamed")
+
+    def test_the_row_before_a_change_carries_the_value_it_replaced(self):
+        """"What did it say before?" is answered by the older row.
+
+        Rows are told apart by ``history_type`` and not by ``history_date``:
+        two saves of one test can share a timestamp, and while the default
+        ordering of the trail breaks that tie with ``-history_id``, an explicit
+        ``order_by("history_date")`` replaces the ordering and leaves the order
+        of the two rows to the database. The seeded rows of the catalogue carry
+        no ``+`` row at all - see
+        :meth:`test_a_definition_created_now_is_in_the_trail_from_its_start` -
+        so the pair is asked of a definition which begins its trail here.
+        """
+        created = RoleDefinition.objects.create(
+            slug="renamed_afterwards", label="Named once")
+
+        created.label = "Named twice"
+        created.save()
+
         self.assertEqual(
-            self.definition.change_logs.order_by("history_date")[0].label,
-            before)
+            created.change_logs.get(history_type="+").label, "Named once")
+        self.assertEqual(
+            created.change_logs.get(history_type="~").label, "Named twice")
 
     def test_changing_the_permission_set_leaves_an_audit_row(self):
         """The grant an auditor asks about is the set, not the row.
@@ -122,11 +141,15 @@ class MembershipTrailTest(TestCase):
         membership._change_reason = "revoked by hand, for the test"
         membership.delete()
 
-        audit = RoleMembership.change_log.filter(
-            user=user).order_by("-history_date").first()
-        self.assertEqual(audit.history_type, "-")
+        # the type of the row, not its timestamp, is what identifies it: the
+        # grant and its revocation can share a ``history_date``
+        deletions = RoleMembership.change_log.filter(
+            user=user, history_type="-")
         self.assertEqual(
-            audit.history_change_reason, "revoked by hand, for the test")
+            deletions.count(), 1, "deleting a membership wrote no audit row")
+        self.assertEqual(
+            deletions.get().history_change_reason,
+            "revoked by hand, for the test")
 
 
 class DefinitionChangelogAPITest(RoleAPITestCaseMixin, TestCase):

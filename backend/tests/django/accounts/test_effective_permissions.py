@@ -41,6 +41,14 @@ from tests.django.accounts.test_roles_api import (ADMIN_SLUG,
 
 ORGANIZATION_MODEL = "accounts.organization"
 
+#: the answer of this endpoint is plain JSON, not a JSON:API document: it is
+#: one object about the caller, not a collection of resources. So the accept
+#: header of the JSON:API endpoints - which ``RoleAPITestCaseMixin`` sets on
+#: the client, as every screen of the deployment does - is refused here with a
+#: 406, and the test asks with the media type the endpoint promises. The
+#: distinction is the one ``test_browser_session.py`` already draws.
+PLAIN_JSON = "application/json"
+
 #: the permission the ``organization_admin`` definition holds while the
 #: bootstrap writes it onto the *default* role's group only: for the
 #: administrator no object grant of it exists, so only the role axis answers it
@@ -57,12 +65,17 @@ class EffectivePermissionsAPITest(RoleAPITestCaseMixin, TestCase):
     def ask(self, user, model=ORGANIZATION_MODEL, object_pk=None, perm=None):
         """One question of one account, with the defaults an admin uses."""
         self.login(user)
+        self.as_plain_json()
         params = {"model": model,
                   "object": (self.organization.pk if object_pk is None
                              else object_pk)}
         if perm:
             params["perm"] = perm
         return self.api.get(self.url, params)
+
+    def as_plain_json(self):
+        """Ask for the media type this endpoint answers (see ``PLAIN_JSON``)."""
+        self.api.credentials(HTTP_ACCEPT=PLAIN_JSON)
 
     def test_a_direct_object_grant_is_named_with_the_role_behind_it(self):
         """The grant the object axis answers is shown *with* its group.
@@ -145,6 +158,7 @@ class EffectivePermissionsAPITest(RoleAPITestCaseMixin, TestCase):
 
     def test_an_anonymous_caller_is_refused(self):
         self.api.force_authenticate(None)
+        self.as_plain_json()
         response = self.api.get(self.url, {
             "model": ORGANIZATION_MODEL, "object": self.organization.pk})
         self.assertIn(response.status_code, (401, 403))

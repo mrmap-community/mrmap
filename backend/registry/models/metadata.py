@@ -723,14 +723,36 @@ def drop_superseded_relations_for_link(link, describes, created_instance):
     the work row's own url, so the registration keeps closing stale
     couplings after its consumer moved from ``RemoteMetadata`` to the work
     queue.
+
+    The loop this shape replaced loaded every superseded record whole and
+    DELETEd one relation-set per roundtrip; every superseded record shares
+    the class of ``created_instance``, so the relation columns are the same
+    for all of them and one aggregate delete answers the whole pair (#1482).
     """
-    superseded = created_instance.__class__.objects.filter(
-        origin_url=link).exclude(pk=created_instance.pk)
-    for stale_record in superseded:
-        stale_record.remove_metadata_relation(
-            related_object=describes,
-            internal=False,
-            origin=MetadataOriginEnum.CAPABILITIES.value)
+    superseded_ids = list(
+        created_instance.__class__.objects.filter(
+            origin_url=link).exclude(pk=created_instance.pk)
+        .values_list('pk', flat=True))
+    if not superseded_ids:
+        # nothing is taken back here, so nothing can fail either: the loud
+        # answer for a described class without a column stays bound to an
+        # actual removal, exactly as per-record it did
+        return
+    described_field, record_field = MetadataRelation.relation_columns(
+        describes, created_instance)
+    if described_field is None:
+        raise ValueError(
+            "remove_metadata_relation must be cited the described "
+            "element whose coupling is taken back.")
+    kwargs = {
+        described_field: describes,
+        f'{record_field}__in': superseded_ids,
+    }
+    MetadataRelation.objects.select_for_update().filter(
+        is_internal=False,
+        origin=MetadataOriginEnum.CAPABILITIES.value,
+        **kwargs
+    ).delete()
 
 
 FK_TARGET_WMS = "registry.WebMapService"

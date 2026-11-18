@@ -186,6 +186,27 @@ describe('temporal dimension selections and indicators', () => {
         expect(isAllowedDimensionValue({ ...time, values: '2024-01-01T00:00:00Z/2024-01-01T00:00:01Z/PT0.25S' }, '2024-01-01T00:00:00.500Z')).toBe(true);
         expect(isAllowedDimensionValue({ ...time, values: '2024-01-01/2024-01-02' }, '2024-01-01T12:34:56Z')).toBe(true);
     });
+    test('reads the offsets of the zone a service advertises its observations in', () => {
+        // the offset belongs to the service: the observation it names is the UTC instant behind it
+        const offset = { ...time, values: '2025-04-01T00:00:00+02:00/2025-04-03T00:00:00+02:00/P1D' };
+        expect(isAllowedDimensionValue(offset, '2025-03-31T22:00:00Z')).toBe(true);
+        expect(isAllowedDimensionValue(offset, '2025-04-01T22:00:00Z')).toBe(true);
+        expect(isAllowedDimensionValue(offset, '2025-04-02T21:00:00Z')).toBe(false);
+        expect(isAllowedDimensionValue(offset, '2025-04-03T22:00:00Z')).toBe(false);
+    });
+    test('reads a leap second as the end of its minute, which is the moment it names', () => {
+        // no Date holds a second of 60, and the leap second is no new observation either
+        const leapDay = { ...time, values: '2025-06-30T00:00:00Z/2025-07-01T12:00:00Z/PT1H' };
+        expect(isAllowedDimensionValue(leapDay, '2025-06-30T23:59:60Z')).toBe(true);
+        expect(isAllowedDimensionValue(leapDay, '2025-07-01T00:00:00Z')).toBe(true);
+        expect(isAllowedDimensionValue(leapDay, '2025-06-30T23:59:59Z')).toBe(false);
+    });
+    test('keeps a step it cannot walk as the advertised text it is', () => {
+        // a fractional month names no observation to step to, so the text is no interval to step
+        expect(parseAdvertisedValues('2024-01-01/2024-06-01/P1.5M'))
+            .toEqual({ kind: 'list', values: ['2024-01-01/2024-06-01/P1.5M'] });
+        expect(getTimeDimensionAxis({ name: 'time', values: '2024-01-01/2024-06-01/P1.5M' })).toBeUndefined();
+    });
     test('migrates saved DIM_TIME selections, updates both operations and clears the custom indicator on reset', () => {
         const target = offering(); target.dimensions!.push(time);
         target.operations![0].href += '&DIM_TIME=2025-04-02T00:00:00.000Z';
@@ -214,6 +235,13 @@ describe('time slider axis', () => {
         expect(axis.valueAt(index)).toBe('2024-05-21T21:00:00.000Z');
         expect(axis.valueAt(index + 1)).toBe('2024-05-21T21:05:00.000Z');
         expect(axis.indexOf('2024-05-21T21:01:00Z')).toBe(-1);
+    });
+    test('names the UTC instant behind an observation advertised with an offset', () => {
+        // the axis orders by the instant behind the text, but hands the advertised spelling back
+        const offset = getTimeDimensionAxis({ name: 'time', values: '2025-04-01T00:00:00+02:00,2025-04-01T00:00:00Z' })!;
+        expect(offset.count).toBe(2);
+        expect(offset.indexOf('2025-03-31T22:00:00Z')).toBe(0);
+        expect(offset.valueAt(0)).toBe('2025-04-01T00:00:00+02:00');
     });
     test('honors calendar intervals and irregular timestamp lists', () => {
         const months = getTimeDimensionAxis({name:'time',values:'2024-01-31/2024-05-31/P1M'})!;

@@ -25,17 +25,18 @@ PASSWORD = "TestPassw0rt99"
 def user_document(username, password, group=None):
     """A JSON:API creation document for a ``User``.
 
-    ``group`` joins the relationships member; without it the document
-    carries the attributes only, the shape of the smallest valid call.
+    The ``groups`` member is always present: the create serializer declares
+    the relation explicitly, and a declared relation keeps DRF's own
+    ``required=True`` instead of the model's ``blank=True`` - an existing
+    contract of the endpoint, so even the smallest valid call answers the
+    relationship, with an empty set when it names no group.
     """
     data = {
         "type": "User",
         "attributes": {"username": username, "password": password},
+        "relationships": {"groups": {"data": [
+            {"type": "Group", "id": str(group.pk)}] if group else []}},
     }
-    if group is not None:
-        data["relationships"] = {
-            "groups": {
-                "data": [{"type": "Group", "id": str(group.pk)}]}}
     return {"data": data}
 
 
@@ -120,6 +121,11 @@ class UserCreateAPITestCase(TestCase):
         """
         response, queries = self.create_user(password="short")
         self.assertEqual(response.status_code, 400, response.data)
+        # the refusal names the password - not, say, the required groups
+        # relation, whose absence would answer the same status for any body
+        self.assertIn(
+            "/data/attributes/password",
+            [error["source"]["pointer"] for error in response.data])
         self.assertFalse(
             get_user_model().objects.filter(username="newcomer").exists())
         self.assertFalse(

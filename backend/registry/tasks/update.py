@@ -443,7 +443,7 @@ def sweep_stale_update_jobs(*args, at=None, **kwargs):
     for job_model in update_job_models():
         # materialised per kind: the sweep commits decisions while it walks,
         # and it must judge every job by the snapshot the scan took
-        stale_ids = list(job_model.objects.filter(
+        stale_ids = list(job_model.objects.filter(  # orm-lint: ignore MRMAP-ORM-004 -- the loop runs over the three fixed job kinds, not over rows: exactly one bounded scan per kind whatever stands in the tables, pinned constant by the sweep's own shape guard in tests_update_stale_sweep (#1460)
             done_at__isnull=True,
             status__in=STALE_SWEEP_STATUSES,
             date_created__lt=cutoff,

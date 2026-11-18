@@ -15,17 +15,6 @@ services:
     ports:
       - 5556:6379
 
-  inspire-validator:
-    build:
-      context: ./docker/inspire-validator
-    ports:
-      - "5557:8080"
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
-
-
   mapserver:
     image: camptocamp/mapserver:8.6
     hostname: "mrmap-mapserver"

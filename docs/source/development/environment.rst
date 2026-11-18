@@ -51,7 +51,7 @@ Used to configure the allowed hosts from the origin header. The entries are sepa
 ``DJANGO_ALLOWED_HOST_DEFAULTS``
 ********************************
 
-The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the ETF validator answering to ``MRMAP_BASE_URL_FOR_ETF``, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
+The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the deployment's own service address, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
 
 ``DJANGO_TIME_ZONE``
 ********************

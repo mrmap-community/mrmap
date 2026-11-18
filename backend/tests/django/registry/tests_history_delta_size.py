@@ -108,7 +108,7 @@ class HistoryDeltaSizeTest(TestCase):
         """The per-day aggregation, as the dashboard endpoints read it."""
         return [
             (row["history_day"], row["new"], row["updated"], row["deleted"])
-            for row in WebMapService.history.stats_per_day()
+            for row in WebMapService.change_stats.stats_per_day()
         ]
 
     def test_only_changes_of_tracked_fields_count(self):

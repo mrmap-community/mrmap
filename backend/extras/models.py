@@ -11,7 +11,13 @@ from django.utils.translation import gettext_lazy as _
 
 class HistoricalRecordMixin:
 
-    def save(self, without_historical: bool = False, *args, **kwargs):
+    def save(self, *args, without_historical: bool = False, **kwargs):
+        # ``without_historical`` is keyword-only on purpose (#1480): the
+        # positional parameters of ``Model.save`` are ``force_insert`` and
+        # ``force_update``, and a signature reading ``save(self,
+        # without_historical=False, *args)`` silently reinterpreted every
+        # ``save(True)`` of the whole framework - an intended forced INSERT
+        # became a save without an audit row, and the caller heard nothing.
         if without_historical:
             self.skip_history_when_saving = True
         try:

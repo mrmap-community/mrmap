@@ -25,6 +25,16 @@ class UniqueConstraintDefaultValueManager(models.Manager):
 
 
 class DefaultHistoryManager(models.Manager):
+    """Current-side helpers over the ``change_log`` of a historized model.
+
+    It reads ``self.model.change_log`` - the accessor simple_history binds to
+    the name the ``HistoricalRecords`` is declared under - and answers the
+    audit aggregations the statistics endpoints need. Its name of declaration
+    on a model is therefore never ``history``: that attribute belongs to the
+    history rows themselves, and a plain manager declared under it silently
+    answered CURRENT rows to every ``Model.history.filter(...)`` written later
+    (#1480 - the accessor here is called ``change_stats``).
+    """
 
     def with_history(self):
         """Return the last two historical records to diff them"""

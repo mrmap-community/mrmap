@@ -872,7 +872,7 @@ def _decide_shared_fetch_failure(
             LogTypeEnum.WARNING)
     if not mirror:
         return {"data": None, "outcome": None, "error_kind": kind.value}
-    mirrored = 0
+    moment = now()
     with transaction.atomic():
         # the process first, the rows second - the lock order every other
         # decision path of the collection keeps, so the mirror of a shared
@@ -882,38 +882,49 @@ def _decide_shared_fetch_failure(
         if process is None or process.done_at is not None:
             return {"data": None, "outcome": None,
                     "error_kind": kind.value}
-        open_rows = list(TemporaryMdMetadataFile.objects.filter(
+        candidates = list(TemporaryMdMetadataFile.objects.filter(
             acquisition_id=doc.pk,
             state=ReferenceWorkStateEnum.PENDING.value,
-        ).exclude(pk=temporary_md_metadata_file_id).order_by("pk"))
-        for other in open_rows:
-            updated = TemporaryMdMetadataFile.objects.filter(
-                pk=other.pk,
-                state=ReferenceWorkStateEnum.PENDING.value).update(
-                    state=ReferenceWorkStateEnum.FAILED.value,
-                    claim_token=None,
-                    lease_expires_at=None,
-                    error_kind=kind.value,
-                    error_at=now(),
-                    import_error=str(error))
-            if updated:
-                mirrored += 1
-                BackgroundProcess.objects.record_reference_outcome(
-                    background_process_pk, failed_delta=1, step_done=True)
+        ).exclude(pk=temporary_md_metadata_file_id).values_list(
+            "pk", flat=True))
+        if not candidates:
+            return {"data": None, "outcome": None,
+                    "error_kind": kind.value}
+        # one conditional UPDATE for all still-open references of the
+        # identity - the shape #1395 asks of task code. A sibling which
+        # claimed again in the meantime fails the state check and keeps
+        # its own answer: its delivery owns it.
+        TemporaryMdMetadataFile.objects.filter(
+            pk__in=candidates,
+            state=ReferenceWorkStateEnum.PENDING.value).update(
+                state=ReferenceWorkStateEnum.FAILED.value,
+                claim_token=None,
+                lease_expires_at=None,
+                error_kind=kind.value,
+                error_at=moment,
+                import_error=str(error))
+        decided = list(TemporaryMdMetadataFile.objects.filter(
+            pk__in=candidates,
+            state=ReferenceWorkStateEnum.FAILED.value,
+            error_kind=kind.value,
+            error_at=moment).order_by("pk"))
+        if decided:
+            # the stamp above is this statement's alone: a sibling another
+            # path decided in between kept its own error_at and is not
+            # counted or told about twice
+            BackgroundProcess.objects.record_reference_outcome(
+                background_process_pk, failed_delta=len(decided),
+                steps_delta=len(decided))
+            for row in decided:
                 # one warning per decided reference: the polling client
                 # of #1264 learns of every failed step by itself, no
                 # matter which path decided it
                 task.log_process(
                     f"Could not fetch the document of reference "
-                    f"'{other.described_display or other.requested_url}': "
-                    f"{error} Its shared document stayed unanswered; the "
-                    f"reference is kept and can be fetched again.",
+                    f"'{row.requested_url or row.pk}': {error} Its shared "
+                    f"document stayed unanswered; the reference is kept "
+                    f"and can be fetched again.",
                     LogTypeEnum.WARNING)
-    if mirrored:
-        settings.ROOT_LOGGER.warning(
-            f"{mirrored} open reference(s) of the shared registration "
-            f"document {doc.pk} were decided as failed with it.",
-            stack_info=True)
     return {"data": None, "outcome": None, "error_kind": kind.value}
 
 
@@ -1375,21 +1386,45 @@ def recover_registration_reference_work(*args, **kwargs):
     # residue - no reference reads it anymore and the pass takes it, and
     # with it its bytes, away. A FAILED reference keeps its row and keeps
     # pointing at the acquisition, so a retryable failure never drains it.
-    for process in processes:
-        for acquisition in \
-                RegistrationDocumentAcquisition.objects.filter(
-                    background_process_id=process.pk):
-            if TemporaryMdMetadataFile.objects.filter(
-                    acquisition_id=acquisition.pk).exists():
-                continue
-            try:
-                acquisition.delete()
-                summary["drained"] += 1
-            except Exception:
-                settings.ROOT_LOGGER.warning(
-                    f"Could not drain the shared document acquisition "
-                    f"{acquisition.pk} of process {process.pk} - the next "
-                    f"sweep will.", stack_info=True)
+    # Read whole: one selection over every swept process, one bulk delete,
+    # then the bytes (#1395's shape for task code; the reference's FK is
+    # SET_NULL, so the delete can never take a work row - at most it
+    # orphans the acquisition a race just created a reference for, and the
+    # reference still answers from its own row).
+    residue = []
+    acquisitions = list(
+        RegistrationDocumentAcquisition.objects.filter(
+            background_process__in=processes).only(
+                "id", "md_metadata_file"))
+    if acquisitions:
+        referenced = set(
+            TemporaryMdMetadataFile.objects.filter(
+                acquisition__in=[a.pk for a in acquisitions]).values_list(
+                    "acquisition_id", flat=True))
+        residue = [a for a in acquisitions if a.pk not in referenced]
+    if residue:
+        names = [a.md_metadata_file.name for a in residue
+                 if a.md_metadata_file]
+        storage = RegistrationDocumentAcquisition._meta.get_field(
+            "md_metadata_file").storage
+        try:
+            RegistrationDocumentAcquisition.objects.filter(
+                pk__in=[a.pk for a in residue]).delete()
+            summary["drained"] += len(residue)
+        except Exception:
+            # nothing is deleted, nothing is lost: the rows and their
+            # bytes stay and the next pass reads them again
+            settings.ROOT_LOGGER.warning(
+                f"Could not drain "
+                f"{len(residue)} shared document acquisition(s) of the "
+                f"swept registration processes - the next sweep will.",
+                stack_info=True)
+            names = []
+        for name in names:
+            # the bulk delete walks past the row's own file sweep, so the
+            # pass takes the bytes itself - the same helper the orphan
+            # sweep uses, which keeps a failure for the next pass
+            _delete_registration_orphan(storage, name)
 
     for process in processes:
         outstanding = TemporaryMdMetadataFile.objects.filter(

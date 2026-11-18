@@ -139,7 +139,8 @@ const ListGuesserContent = ({
   const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
 
   const { id } = useParams()
-  const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
+  const relatedResourceName = relatedResource?.resource
+  const operationId = useMemo(()=> relatedResourceName !== undefined && relatedResourceName !== '' ?`list_related_${name}_of_${relatedResourceName}`: `list_${name}`, [relatedResourceName, name])
   const { operation } = useResourceSchema(operationId)
   const fieldDefinitions = useFieldsForOperation({operationId: operationId, forInput:false, ignoreId:false})
   const fields = useMemo(
@@ -154,7 +155,7 @@ const ListGuesserContent = ({
         }
       )
     })
-  ,[fieldDefinitions])
+  ,[fieldDefinitions, updateFieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo<ReactElement[]>(() => [
@@ -257,12 +258,21 @@ const ListGuesserContent = ({
       ),[id, jsonApiQuery, onError, props.queryOptions, refetchInterval, relatedResource])
 
 
+  /** The filter the resource definition declares for its list screens
+   *  (`options.list.filter`) with this screen's own filter on top of it.
+   *  React-admin applies the `filter` prop to every query of the list as a
+   *  permanent filter, so a screen narrows or replaces one term here; it does not
+   *  have to repeat what every screen of the resource already asks for. */
+  const filter = listOptions?.filter === undefined
+    ? props.filter
+    : { ...listOptions.filter, ...props.filter }
+
   useEffect(()=>{
     if(!columns && defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
       setInitOmit(true)
     }
-  },[defaultOmit, columns])
+  },[defaultOmit, columns, initOmit, setOmit])
 
 
   if (operation === undefined || (columns ?? fields).length === 0) {
@@ -285,9 +295,7 @@ const ListGuesserContent = ({
       aside={aside}
       {...props}
       queryOptions={queryOptions}
-      filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
-        ? { is_update_candidate: false, ...props.filter }
-        : props.filter}
+      filter={filter}
     >
       {listContent ?? <DatagridConfigurable
         

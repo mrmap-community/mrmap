@@ -475,13 +475,46 @@ CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# One un-acked message per slot at any time (#1454). The long work of this
+# fleet runs with acks_late (HarvestingTask of registry/tasks/harvest.py,
+# the WMS update job of registry/tasks/update.py): its message stays
+# un-acked while the task works, and celery's default prefetch of four per
+# slot lets a worker reserve three further messages beside the one it runs.
+# On every roll or restart those reserved, never-started messages are
+# requeued and their side effects run again from the start - for the
+# harvesting, registration and update tasks that is a second download and
+# import of work nobody had begun. Celery's own configuration docs
+# prescribe 1 for a worker running tasks with side effects; the broker
+# round trip it costs per message is the price of not re-executing work.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# Global bounds of one task attempt (#1454). The longest single request the
+# deployment runs on purpose is a harvesting GetRecords, bounded by
+# HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS (900 s, registry/settings.py); the
+# soft limit at three times that ceiling leaves room for the parse and the
+# persist around a healthy request and cuts the CPU-bound parse/import and
+# mapping recursion which would otherwise pin a slot forever. On the soft
+# limit celery raises SoftTimeLimitExceeded inside the task, so the body's
+# cleanup and the failure paths of its base class still run and a bounded
+# wait like the lease wait of registry/tasks/service.py ends decided; the
+# hard limit SIGKILLs the slot a further five minutes later and the prefork
+# pool replaces it. A hard-killed attempt leaves an open row in the attempt
+# samples of #1330, which the sweep flags abandoned only after
+# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS - the longest deliberate override
+# of a single task (the external ETF conformity check, registry/settings.py)
+# stays below that grace on purpose. Time limits belong to the prefork pool,
+# which is what the celery-worker of docker-compose.yml runs.
+CELERY_TASK_SOFT_TIME_LIMIT = 2700
+CELERY_TASK_TIME_LIMIT = 3000
 # the number of slots a celery worker process runs; docker-compose.yml hands
 # the variable of the same name from the .env of the deployment to
-# celery-worker. Unset keeps celery's own default of one slot per core;
-# "auto" lets celery size the prefork pool by the cgroup quota of the
-# container. It is the knob for a bigger worker, so that changing worker
-# concurrency never makes a deployment restate the queue list of the
-# release and thereby half-install it (#1040).
+# celery-worker. Unset, the compose file of a release now defaults the worker
+# to 4 slots (#1454): an inherited one-slot-per-host-core prefork pool
+# against the memory limit of the container was the OOM path behind stuck
+# jobs. "auto" lets celery size the prefork pool by the cgroup quota of the
+# container; a deployment which really wants celery's own default can still
+# pass an empty value with its own override. It is the knob for a bigger
+# worker, so that changing worker concurrency never makes a deployment
+# restate the queue list of the release and thereby half-install it (#1040).
 _CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
 if _CELERY_WORKER_CONCURRENCY == "auto":
     CELERY_WORKER_CONCURRENCY = "auto"
@@ -1067,6 +1100,15 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF's own default is an empty list, which asks nothing of anybody: a view
+    # class naming no permission of its own answered writes to anonymous clients.
+    # This is the floor such a view falls back to -- reading stays open, a write
+    # needs an identity (#1444). Endpoints deciding access per object still name
+    # their own classes, and the security proxy names none on purpose: OGC's XML
+    # POST binding carries a GetFeature, which is a read, over HTTP POST.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",

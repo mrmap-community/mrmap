@@ -1,5 +1,4 @@
 import { CreateResult, GetListResult, GetManyResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
-import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
 
 import axios, { AxiosError } from 'axios';
 import jsonpointer from 'jsonpointer';
@@ -73,11 +72,17 @@ export interface CreateJsonApiParams extends CreateParams {
   }
 }
 
+/** The socket surface a realtime bus must offer this provider. Owns the
+ * declaration instead of deep-importing `react-use-websocket/dist/lib/types`
+ * (#1466): that path is internal to the package, and the provider only ever
+ * reads `readyState`, sends frames and attaches `onmessage` on it. */
+export type RealtimeBus = Pick<WebSocket, 'readyState' | 'send' | 'onmessage'>
+
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
   systemTime?: string
-  realtimeBus?: WebSocketLike
+  realtimeBus?: RealtimeBus
 }
 
 // 'delete' is what the backend's post_delete signal puts into the event, the
@@ -303,6 +308,13 @@ const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
 const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig =>
   attachLocalHeader(config)
 
+/** The page size `getMany` never asks for less than. It is a floor and not a
+ *  ceiling: the related route inside `getMany` drops `ids` and pages through the
+ *  whole related collection, so a page as small as the few ids one screen asked
+ *  for would walk that collection in steps of a handful. The records a page
+ *  answers that were not asked for are dropped from its result. */
+const GET_MANY_MIN_PAGE_SIZE = 1000
+
 const dataProvider = ({
   total = '/meta/pagination/count',
   systemTime = '/meta/systemTime',
@@ -421,7 +433,7 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-      const pageSize = Math.max(params.ids.length, 1000)
+      const pageSize = Math.max(params.ids.length, GET_MANY_MIN_PAGE_SIZE)
       const gathered: RaRecord[] = []
 
       // the pages must arrive one after the other, because the next one is only

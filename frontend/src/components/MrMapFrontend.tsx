@@ -12,12 +12,11 @@ import {
 import { BrowserRouter, Route } from 'react-router-dom';
 
 import { deepmerge } from '@mui/utils';
-import { type OpenAPIV3 } from 'openapi-client-axios';
 
 import { useHttpClientContext } from '../context/HttpClientContext';
 import ListGuesser from '../jsonapi/components/ListGuesser';
 import ListWithDialogs from '../jsonapi/components/ListWithDialogs';
-import { getResourceSchema, indexRelatedOperations } from '../jsonapi/openapi/parser';
+import { getRelatedResourceType, indexRelatedOperations } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
@@ -60,7 +59,6 @@ const MrMapFrontend = (): ReactElement => {
   const resourceDefinitions = useMemo(() => {
     const relatedOperations = indexRelatedOperations(api?.getOperations() ?? []);
     return RESOURCES.map((resource)=> {
-      const showOperationName = `retreive_${resource.name}`
       const createOperationName = `create_${resource.name}`
       const editOperationName = `partial_update_${resource.name}`
       const listOperationName =`list_${resource.name}`
@@ -72,15 +70,11 @@ const MrMapFrontend = (): ReactElement => {
       const deleteOperation = api?.getOperation(deleteOperationName)
 
       const related_list_operations = relatedOperations.get(resource.name) ?? []
-      const related_list_resources = related_list_operations?.map((schema) => {
-        const resourceSchema = getResourceSchema(schema)
-
-        const properties = resourceSchema?.properties?.data as OpenAPIV3.ArraySchemaObject
-        const items = properties?.items as OpenAPIV3.SchemaObject
-        const jsonApiTypeProperty = items?.properties?.type as OpenAPIV3.NonArraySchemaObject
-        const jsonApiTypeReferences = jsonApiTypeProperty?.allOf as OpenAPIV3.SchemaObject[]
-        return jsonApiTypeReferences?.[0]?.enum?.[0] as string
-      }) ?? []
+      // the parser answers which JSON:API type a nested list carries; a nested
+      // operation without one is no resource to route to
+      const related_list_resources = related_list_operations
+        .map((schema) => getRelatedResourceType(schema))
+        .filter((relatedResourceType): relatedResourceType is string => relatedResourceType !== undefined)
       const related_routes = related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={{resource: resource.name}}> </ListGuesser>}></Route>)
       // "View all history" of the compact feeds navigates to this paginated and filterable changelog.
       const history_routes = api?.getOperation(`list_Historical${resource.name}`)
@@ -98,10 +92,6 @@ const MrMapFrontend = (): ReactElement => {
         recordRepresentation: resource.recordRepresentation ? resource.recordRepresentation : defaultRecordRepresentation,
         ...resource,
         options: {
-              showOperationName: showOperationName,
-              createOperationName: createOperationName,
-              editOperationName: editOperationName,
-              listOperationName: listOperationName,
               hasDelete: !!deleteOperation,
               label: resource.name,
               ...resource.options, 

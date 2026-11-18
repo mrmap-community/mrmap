@@ -34,7 +34,7 @@ const ResourceListCard = (
         sparefields[`fields[${resource}]`] = 'id'
         meta["jsonApiParams"] = sparefields
         return meta
-      },[withList])
+      },[withList, resource])
 
   return (
       <ListBase

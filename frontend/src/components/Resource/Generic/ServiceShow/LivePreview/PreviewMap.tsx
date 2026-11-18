@@ -1,7 +1,7 @@
 import type { LiveRecord } from "./usePreview";
 import type { FeatureCollection } from "geojson";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslate } from "react-admin";
 import {
   GeoJSON,
@@ -93,10 +93,18 @@ const FitSelection = ({
   revision: number;
 }) => {
   const map = useMap();
+  // key the memo by the joined values, not the array identity: the extent
+  // arrives as a fresh array with every preview render, and fitting the map
+  // must only follow the values it carries, not the render which passed it
+  const extentKey = extent?.join(",");
+  const fitExtent = useMemo(
+    () => (extentKey === undefined ? null : extentKey.split(",").map(Number)),
+    [extentKey],
+  );
   useEffect(() => {
-    if (validExtent(extent))
-      map.fitBounds(extentBounds(extent), { padding: [20, 20], maxZoom: 12 });
-  }, [map, extent?.join(","), revision]);
+    if (validExtent(fitExtent))
+      map.fitBounds(extentBounds(fitExtent), { padding: [20, 20], maxZoom: 12 });
+  }, [map, fitExtent, revision]);
   return null;
 };
 

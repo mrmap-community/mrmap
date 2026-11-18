@@ -40,7 +40,7 @@ const RealtimeBus = () => {
       dataProvider.attachRealtimeOnMessage(websocket)
     }
     setRealtimeIsReady(readyState)
-  },[readyState])
+  },[readyState, dataProvider, getWebSocket, setRealtimeIsReady])
 
   return null
 };

@@ -438,12 +438,14 @@ const DataPreview = ({
     );
     setIdentify(undefined);
   }, []);
-  const namedChoices =
-    choices.data?.filter((record) => record.identifier) ?? [];
+  const namedChoices = useMemo(
+    () => choices.data?.filter((record) => record.identifier) ?? [],
+    [choices.data],
+  );
   useEffect(() => {
     if (!selection && namedChoices[0])
       setSelection(String(namedChoices[0].identifier));
-  }, [choices.data]);
+  }, [namedChoices, selection]);
   return (
     <Stack spacing={2}>
       {!discovery.supported && (

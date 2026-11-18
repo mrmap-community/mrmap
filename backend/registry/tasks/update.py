@@ -70,15 +70,42 @@ def create_wfs_update_job(*args, **kwargs):
     return job.pk
 
 
-@shared_task(queue="default")
+@shared_task(
+    queue="default",
+    acks_late=True,
+    reject_on_worker_lost=True,
+    autoretry_for=(RequestException, OperationalError),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
+)
 def run_wfs_update(*args, **kwargs):
+    """Run the update a schedule, a manual request or a review handed over.
+
+    The guards of ``run_wms_update``, ported to the WFS runner (#1453). Without
+    them a message acknowledged before its worker died is gone for good: the job
+    stays unfinished, the one-unfinished-job-per-service constraint makes the
+    next period re-use it without enqueueing anything, and the service is never
+    updated again. With them the broker answers the lost delivery once more -
+    and the read of the job under its row lock is what keeps that redelivery
+    from running the same update twice: a job which decided about itself, and a
+    mapping which still waits for its review, answer without touching the
+    update. A transient failure of the remote or of the database retries
+    instead of ending the run.
+    """
+    from registry.enums.update import UpdateJobStatusEnum
     from registry.models.update import WebFeatureServiceUpdateJob
 
     update_job_id = kwargs.get("update_job_id", None)
     try:
-        update_job = WebFeatureServiceUpdateJob.objects.get(
-            pk=update_job_id)
-        update_job.update()
+        with transaction.atomic():
+            update_job = WebFeatureServiceUpdateJob.objects.select_for_update().get(
+                pk=update_job_id)
+            if update_job.status == UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+                if not update_job.are_all_featuretypes_updateable():
+                    return
+            elif update_job.done_at is not None:
+                return
+            update_job.update()
     except WebFeatureServiceUpdateJob.DoesNotExist:
         logger.error(
             f"Update job with ID {update_job_id} does not exist. Task startet with args: {args} and kwargs: {kwargs}"
@@ -98,15 +125,34 @@ def create_csw_update_job(*args, **kwargs):
     return job.pk
 
 
-@shared_task(queue="default")
+@shared_task(
+    queue="default",
+    acks_late=True,
+    reject_on_worker_lost=True,
+    autoretry_for=(RequestException, OperationalError),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
+)
 def run_csw_update(*args, **kwargs):
+    """Run the update a schedule or a manual request handed over.
+
+    The same guards as for ``run_wfs_update`` (#1453): the redelivery of a
+    delivery whose worker died must not run the update of a service a second
+    time, so the job is read under its row lock and a job which is over answers
+    without fetching anything. A CSW has no elements to map, so its run never
+    stands at a review: the WMS' branch for an unanswered mapping has nothing to
+    answer here, and the guard is the job's own end.
+    """
     from registry.models.update import CatalogueServiceUpdateJob
 
     update_job_id = kwargs.get("update_job_id", None)
     try:
-        update_job = CatalogueServiceUpdateJob.objects.get(
-            pk=update_job_id)
-        update_job.update()
+        with transaction.atomic():
+            update_job = CatalogueServiceUpdateJob.objects.select_for_update().get(
+                pk=update_job_id)
+            if update_job.done_at is not None:
+                return
+            update_job.update()
     except CatalogueServiceUpdateJob.DoesNotExist:
         logger.error(
             f"Update job with ID {update_job_id} does not exist. Task startet with args: {args} and kwargs: {kwargs}"

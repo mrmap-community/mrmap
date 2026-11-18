@@ -29,6 +29,26 @@ HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS = 1.2
 HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS = 900
 
 
+# The bounds of the single flight which keeps concurrent deliveries of one
+# GetRecords page from asking the catalogue twice (#1411). A delivery claims the
+# page it downloads for as long as the request it makes may take plus GRACE, the
+# time the storage of the answer costs beyond the request itself; a delivery
+# which arrives while the page is claimed waits for the outcome of the request
+# instead of making one of its own.
+# WAIT_CAP bounds how long a worker may stand idle for a page it could fetch
+# itself: a deployment which would rather pay the second request than park a
+# worker caps the wait below the lease, and 0 never waits. Nothing is lost by
+# capping it - a delivery which stops waiting fetches the page, and the storage
+# of a page two workers brought in already settles under the lock of the job.
+# POLL and POLL_MAX bound how often a waiting delivery looks at the claim: the
+# wait is as long as a request and the look is a cache read, which is cheaper the
+# less often it is taken.
+HARVESTING_PAGE_LEASE_GRACE_SECONDS = 60
+HARVESTING_PAGE_WAIT_CAP_SECONDS = None
+HARVESTING_PAGE_POLL_SECONDS = 0.25
+HARVESTING_PAGE_POLL_MAX_SECONDS = 2
+
+
 # How long one request of a service registration may wait for its server: the
 # capabilities document and every remote metadata document which that document
 # references. The value is shared on purpose - both requests are asked of the

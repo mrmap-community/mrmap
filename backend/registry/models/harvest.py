@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sys
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum, auto
@@ -12,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
@@ -22,6 +24,7 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
+from extras.locks import SingleFlight
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
 from lxml.etree import XMLParser
@@ -45,7 +48,11 @@ from registry.models.metadata import (ApplicationMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
-from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
+from registry.settings import (HARVESTING_PAGE_LEASE_GRACE_SECONDS,
+                               HARVESTING_PAGE_POLL_MAX_SECONDS,
+                               HARVESTING_PAGE_POLL_SECONDS,
+                               HARVESTING_PAGE_WAIT_CAP_SECONDS,
+                               HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS,
                                MIN_STEP_SIZE, MRMAP_CSW_PK)
@@ -59,6 +66,26 @@ from simple_history.models import HistoricalRecords
 # answer, and a substring of the document cannot know it (#815).
 EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
                           " or local-name()='ServiceExceptionReport']")
+
+#: The prefix of the claim one planned page of one run is fetched under. The key
+#: names the run, its catalogue, its credentials and the exact GetRecords request,
+#: so two pages of two runs cannot share a claim (#1411).
+PAGE_CLAIM_PREFIX = "harvesting/page/"
+
+#: What a delivery which holds a page's claim leaves behind for the deliveries
+#: which joined it, as ``(kind, records)``: the records the page brought, a page
+#: the catalogue refused, or an answer which carried no record at all. A joined
+#: delivery works with these exactly as with its own answer, so the halving of
+#: #694 and the trace of #690 decide about a page whether or not this delivery is
+#: the one that asked for it.
+PAGE_STORED = "stored"
+PAGE_REFUSED = "refused"
+PAGE_EMPTY = "empty"
+
+
+def _setting(name, default):
+    """A harvesting bound the deployment may name, the registry default otherwise."""
+    return getattr(settings, name, default)
 
 
 class AnswerOutcome(Enum):
@@ -1134,19 +1161,166 @@ class HarvestingJob(ProcessingData):
     def _fetch_range_response(self, client, request, position, step_size):
         """Ask the catalogue for one step of the range and store the answer.
 
+        Two deliveries of exactly this step ask the catalogue once (#1411): the one
+        which takes the page's claim makes the request, the other joins what it
+        finds out instead of making a request of its own. What the page is worth to
+        the run does not depend on which of them downloaded it - the records are
+        stored by whoever brought them, and the count of a joined page is the count
+        its holder stored. Which size a refused step is asked next (#694) and what a
+        page which stays without records costs the snapshot (#690) are decided from
+        the same answer either way.
+
         Answers the number of stored records - 0 when the request was
         refused or came back without records - together with whether it
         was refused, and None stored count when the job is not open for
         downloading anymore.
+        """
+        claim = self._page_claim(request, step_size)
+        joined = self._joined_page(claim, request)
+        if joined is not None:
+            return joined
+        try:
+            return self._fetch_page(client, request, position, step_size, claim)
+        except Exception:
+            # the task retries this page, and the retry - like every delivery
+            # waiting for the page - must not wait out a claim nobody works under
+            # anymore; the rows of a page whose storage failed are not stored, so
+            # the claim is the only thing to hand back here
+            claim.release()
+            raise
+
+    def _fetch_page(self, client, request, position, step_size, claim):
+        """Ask the catalogue one step of the range, store its answer and leave
+        behind what the deliveries which joined this page have to know about it.
+
+        The outcome is left after the transaction which stored the page, so a
+        delivery which reads it reads a page whose records are in the backlog.
         """
         response: Response = client.send_request(
             request=request,
             timeout=self.get_request_timeout(step_size))
         checked = self._check_answer(response)
         if not checked.ok:
+            claim.finish((PAGE_REFUSED, 0))
             return 0, True
         stored = self._store_page(checked, request, start_position=position)
+        if stored is None:
+            # the job closed while the page was downloading: nothing is stored and
+            # the page stays unclaimed, so a delivery waiting for it takes it over
+            # and closes the same way
+            claim.release()
+            return None, False
+        claim.finish((PAGE_STORED, stored) if stored else (PAGE_EMPTY, 0))
         return stored, False
+
+    def _joined_page(self, claim, request):
+        """What this delivery learns about a page another delivery claimed.
+
+        Answers the records and the refusal of that page - the shape
+        ``_fetch_range_response`` answers a page in - or None when this delivery has
+        to ask the catalogue itself: nobody held the page, the delivery which did is
+        gone with its claim, or it stayed silent past the wait this delivery is
+        willing to wait for it.
+
+        The wait reads the claim and never the backlog: the rows of a page are
+        visible only once the transaction which stored them committed, which is the
+        moment its holder leaves its outcome behind anyway, and a page whose records
+        the import already consumed is gone from the backlog without ever having
+        been missing.
+        """
+        answer = claim.answered()
+        if answer is not None:
+            return self._page_outcome(answer)
+        if claim.acquire():
+            return None
+        pause = _setting("HARVESTING_PAGE_POLL_SECONDS", HARVESTING_PAGE_POLL_SECONDS)
+        pause_max = max(pause, _setting(
+            "HARVESTING_PAGE_POLL_MAX_SECONDS", HARVESTING_PAGE_POLL_MAX_SECONDS))
+        deadline = time.monotonic() + self._page_wait_seconds(claim)
+        while time.monotonic() < deadline:
+            time.sleep(pause)
+            pause = min(pause * 2, pause_max)
+            answer = claim.answered()
+            if answer is not None:
+                return self._page_outcome(answer)
+            if not claim.held() and claim.acquire():
+                # the delivery which claimed the page is gone: it died, or its
+                # request outlived the claim it took. This one takes the page over
+                # under a claim of its own, which the next delivery joins.
+                return None
+        # the claim is held past everything this delivery was willing to wait for.
+        # Asking for the page anyway is the honest answer: a page which is never
+        # fetched is missing from the snapshot, while two deliveries bringing one
+        # page is a race the storage of the page settles under the job's lock
+        # anyway (#688).
+        self.log(
+            level=LogLevelEnum.WARNING.value,
+            description="fetched a page another delivery still claims",
+            extented_description=(
+                "The GetRecords request was claimed by another delivery which did "
+                f"not answer within the wait this run waits for.\nURL: {request.url}"))
+        return None
+
+    @staticmethod
+    def _page_outcome(answer):
+        """The outcome another delivery left for a page, in the shape this flow
+        answers a page in."""
+        kind, records = answer
+        return records, kind == PAGE_REFUSED
+
+    def _page_claim(self, request, step_size) -> SingleFlight:
+        """The single flight of exactly this page of exactly this run (#1411).
+
+        The claim lasts as long as the request it protects - the timeout this page
+        is asked with, plus the time its answer costs to store - so a healthy
+        delivery is never cut short by the claim it holds, while a delivery which
+        died keeps the page from a second attempt for no longer than one request.
+        """
+        return SingleFlight(
+            key=self._page_claim_key(request),
+            lease_seconds=self.get_request_timeout(step_size)
+            + _setting("HARVESTING_PAGE_LEASE_GRACE_SECONDS",
+                       HARVESTING_PAGE_LEASE_GRACE_SECONDS))
+
+    def _page_claim_key(self, request) -> str:
+        """The fingerprint of one planned page: this run, its catalogue, the
+        credentials the request goes out with and the GetRecords request itself.
+
+        The url carries the effective query - the constraint, the type names, the
+        result type, the size and the position - which is what
+        ``get_stored_page_count`` already treats as the identity of a page. The run
+        and its credentials are what no url tells apart: two runs of one catalogue
+        are two snapshots and never share a page, and the same url asked of a
+        service with someone else's credentials is a different question. A digest
+        because the url of a catalogue is up to 4096 characters long and a cache key
+        wants a fixed size.
+        """
+        auth = None
+        if self.service_id is not None:
+            try:
+                # the client of the service read the credentials to build its
+                # session, so this is the related object it already has
+                auth = self.service.auth
+            except ObjectDoesNotExist:
+                auth = None
+        fingerprint = hashlib.sha256(json.dumps({
+            "job": str(self.pk),
+            "service": str(self.service_id),
+            "auth": None if auth is None else f"{type(auth).__name__}:{auth.pk}",
+            "request": request.url,
+        }, sort_keys=True).encode("utf-8")).hexdigest()
+        return f"{PAGE_CLAIM_PREFIX}{fingerprint}"
+
+    def _page_wait_seconds(self, claim) -> float:
+        """How long this delivery waits for a page it joined.
+
+        Bounded by the claim of the page - a delivery which is healthy answers
+        within the time it asked for - and by what the deployment is willing to
+        stand a waiting worker for.
+        """
+        cap = _setting("HARVESTING_PAGE_WAIT_CAP_SECONDS",
+                       HARVESTING_PAGE_WAIT_CAP_SECONDS)
+        return claim.lease_seconds if cap is None else min(claim.lease_seconds, cap)
 
     def _halved_step_size(self, received, position, step_size, size, refused):
         """What a page without any record means for the size of the next

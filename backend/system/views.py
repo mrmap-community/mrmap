@@ -1,6 +1,7 @@
 import datetime
 import os
 import platform
+import re
 
 from django import __version__ as DJANGO_VERSION
 from django.conf import settings
@@ -168,39 +169,73 @@ class CapacitySnapshotView(generics.RetrieveAPIView):
         return get_capacity_snapshot()
 
 
-class MediaDumpNotFoundView(View):
-    """Answer slow request dump paths like unknown media files.
+#: The subpaths of ``MEDIA_ROOT`` the media route never serves (#1447).
+#:
+#: Every entry holds files some writer of the deployment keeps for itself and
+#: no HTTP consumer reads: the Fernet key files of the external service
+#: authentications (``registry/models/security.py`` reads them through
+#: ``FileField.path``, and nothing else ever opens one), the request and
+#: response bodies the security proxy logged (their rows live in the database;
+#: no serializer, view or screen of the application names their files), the
+#: metadata documents a harvesting run staged (the cleanup command collects
+#: them from the filesystem), and the dumps of the slow request logging
+#: (#888, the first entry of this policy). Everything else below MEDIA_ROOT —
+#: preview images and stored XML documents above all — stays public media:
+#: the map clients and the download links of the frontend open it.
+MEDIA_PRIVATE_SUBPATHS = (
+    SLOW_REQUEST_DUMP_SUBDIR,
+    "ext_auth_keys",
+    "security_proxy/logs",
+    "temporary_md_metadata_file",
+)
 
-    Dumps carry SQL statements and internal request details. Deployments read
-    them on the filesystem, for as long as the cleanup task keeps them (#888).
-    Accept the same verbs as ProtectedServeView so the refusal does not reveal
+
+class PrivateMediaNotFoundView(View):
+    """Answer guarded media paths like unknown media files.
+
+    The private subpaths of the media root carry credentials and logged
+    payloads; deployments read them on the filesystem (#888, #1447). Accept
+    the same verbs as ProtectedServeView so the refusal does not reveal
     guarded paths through a different response to an unsupported verb.
     """
 
     http_method_names = ["get", "head"]
 
     def get(self, request, *args, **kwargs):
-        raise Http404("Slow request dumps are not served.")
+        raise Http404("Guarded media paths are not served.")
 
 
-def _is_media_dump(path, document_root):
-    """Whether the resolved media path leads into the slow request dumps.
+#: The url layer's own rule for the private subpaths, built from the policy
+#: above so the two can never name different sets (MrMap/urls.py binds it
+#: before the media route of either urlconf branch).
+MEDIA_PRIVATE_URL_PATTERN = r"^media/(?:%s)/.+$" % "|".join(
+    re.escape(subpath) for subpath in MEDIA_PRIVATE_SUBPATHS)
+
+
+def _is_private_media(path, document_root):
+    """Whether the resolved media path leads into a private subpath.
 
     Resolve both sides so dot segments, doubled separators and symlinks cannot
-    expose dumps through the media route.
+    expose guarded files through the media route. This is the view layer's
+    own copy of the url rule above: the route is what refuses a request in a
+    deployment, this check is what refuses one whose urlconf bound the media
+    route without it, and a path reached through a symlink.
     """
     root = os.path.realpath(document_root or settings.MEDIA_ROOT)
-    dumps = os.path.join(root, SLOW_REQUEST_DUMP_SUBDIR)
     candidate = os.path.realpath(os.path.join(root, path))
-    return candidate == dumps or candidate.startswith(dumps + os.sep)
+    for subpath in MEDIA_PRIVATE_SUBPATHS:
+        guarded = os.path.join(root, *subpath.split("/"))
+        if candidate == guarded or candidate.startswith(guarded + os.sep):
+            return True
+    return False
 
 
 class ProtectedServeView(View):
-    """Serve uploaded media with read verbs, excluding slow request dumps."""
+    """Serve uploaded media with read verbs, excluding the private subpaths."""
 
     http_method_names = ["get", "head"]
 
     def get(self, request, path, document_root=None, show_indexes=False):
-        if _is_media_dump(path, document_root):
-            raise Http404("Slow request dumps are not served.")
+        if _is_private_media(path, document_root):
+            raise Http404("Guarded media paths are not served.")
         return serve(request, path, document_root, show_indexes)

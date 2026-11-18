@@ -282,7 +282,7 @@ const WebMapServiceControl = () => {
     });
 
     return _tiles;
-  }, [bounds, size, atomicGetMapUrls, selectedCrs, owsContext]);
+  }, [bounds, size, atomicGetMapUrls, selectedCrs, owsContext, bbox, opacityOf]);
 
   const getFeatureInfoUrls = useMemo(() => {
     if (

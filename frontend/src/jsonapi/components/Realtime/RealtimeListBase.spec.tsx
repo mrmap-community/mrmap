@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
     { id: 2, title: "Two" },
   ],
   resource: "Service",
+  /** the controller's refetch: one identity, as react-admin answers it */
+  refetch: vi.fn(),
   callbacks: new Map<string, Set<(event: CrudEvent) => void>>(),
 }));
 const provider = vi.hoisted(() => ({
@@ -24,7 +26,11 @@ const provider = vi.hoisted(() => ({
   ),
 }));
 vi.mock("react-admin", () => ({
-  useListController: () => ({ data: state.data, resource: state.resource }),
+  useListController: () => ({
+    data: state.data,
+    resource: state.resource,
+    refetch: state.refetch,
+  }),
   useDataProvider: () => provider,
   useIsAuthPending: () => false,
   OptionalResourceContextProvider: ({
@@ -67,6 +73,26 @@ describe("RealtimeListBase", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Latest");
     expect(screen.getByRole("status")).toHaveTextContent("Second update");
   });
+  it("asks the server again when a record arrived or went away", () => {
+    render(<RealtimeListBase />);
+    // the resource wide topic is the one carrying creates and deletes
+    const push = (event: CrudEvent) =>
+      act(() => {
+        state.callbacks
+          .get("resource/Service")
+          ?.forEach((callback) => callback(event));
+      });
+
+    // whether the page shows a new row at all is the server's ordering and
+    // filtering to decide, so nothing is rewritten locally (#1466)
+    push({ type: "created", payload: { ids: [3], records: [] } });
+    expect(state.refetch).toHaveBeenCalledTimes(1);
+
+    push({ type: "deleted", payload: { ids: [1], records: [] } });
+    expect(state.refetch).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("One");
+  });
+
   it("replaces subscriptions on refresh and cleans up when the resource changes or unmounts", () => {
     const { rerender, unmount } = render(<RealtimeListBase />);
     state.data = [{ id: 1, title: "Refetched" }];

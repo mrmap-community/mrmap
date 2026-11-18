@@ -117,7 +117,7 @@ export const HttpClientBase = ({ children }: import("react").PropsWithChildren):
     if (document === undefined && error === undefined) {     
       initialize()
     }
-  }, [document, error])
+  }, [document, error, initialize])
 
   useEffect(()=>{
     if(error?.code !== 'ERR_NETWORK'){

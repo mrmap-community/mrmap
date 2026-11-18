@@ -2,6 +2,7 @@ from accounts.models.roles import Role
 from accounts.models.users import User
 from accounts.serializers.groups import GroupSerializer
 from accounts.serializers.roles import RoleSerializer
+from django.contrib.auth import password_validation
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
@@ -127,8 +128,32 @@ class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
         model = User
         fields = ("username", "password", "url", "groups")
 
-    def save(self, **kwargs):
-        user = super().save(**kwargs)
-        # set the correct password
-        user.set_password(self.validated_data['password'])
+    def validate_password(self, password):
+        # ``create`` hands this value to ``set_password`` and the save after
+        # it runs Django's AUTH_PASSWORD_VALIDATORS over the stored raw
+        # value; a password which breaks that policy is refused here, with
+        # the 400 of a rejected field, and never reaches the write (#1451)
+        password_validation.validate_password(password)
+        return password
+
+    def create(self, validated_data):
+        """Build the user, hash its password, then write it exactly once.
+
+        The generic ``ModelSerializer`` would hand ``validated_data`` to
+        ``User.objects.create`` as it is and INSERT the password column
+        with the raw value: the row would carry the plaintext credential,
+        and since ``check_password`` only ever matches a hash, the created
+        user could never log in (#1451). So the password leaves the write
+        data, the instance is built unsaved, ``set_password`` hashes it
+        onto that instance and only then does the single INSERT happen.
+        The group join needs a saved row, so - like the generic
+        ``create()`` - it follows the save.
+        """
+        password = validated_data.pop("password")
+        groups = validated_data.pop("groups", None)
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        if groups:
+            user.groups.set(groups)
         return user

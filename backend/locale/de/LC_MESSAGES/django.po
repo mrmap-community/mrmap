@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 01:49+0100\n"
+"POT-Creation-Date: 2026-11-18 06:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,97 +30,107 @@ msgstr "Deutsch"
 msgid "Accounts"
 msgstr "Account"
 
-#: accounts/models/groups.py:25 registry/models/metadata.py:398
+#: accounts/models/groups.py:26 registry/models/metadata.py:398
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
-#: accounts/models/groups.py:28 registry/models/metadata.py:404
+#: accounts/models/groups.py:29 registry/models/metadata.py:404
 msgid "E-Mail"
 msgstr "E-Mail"
 
-#: accounts/models/groups.py:31 registry/models/metadata.py:407
+#: accounts/models/groups.py:32 registry/models/metadata.py:407
 msgid "Phone"
 msgstr "Telefon"
 
-#: accounts/models/groups.py:34 registry/models/metadata.py:410
+#: accounts/models/groups.py:35 registry/models/metadata.py:410
 msgid "Facsimile"
 msgstr "Fax"
 
-#: accounts/models/groups.py:37 registry/models/metadata.py:413
+#: accounts/models/groups.py:38 registry/models/metadata.py:413
 msgid "City"
 msgstr "Stadt"
 
-#: accounts/models/groups.py:40 registry/models/metadata.py:416
+#: accounts/models/groups.py:41 registry/models/metadata.py:416
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: accounts/models/groups.py:46 registry/models/metadata.py:419
+#: accounts/models/groups.py:47 registry/models/metadata.py:419
 msgid "Address type"
 msgstr "Adresse"
 
-#: accounts/models/groups.py:49 registry/models/metadata.py:422
+#: accounts/models/groups.py:50 registry/models/metadata.py:422
 msgid "Address"
 msgstr "Adresse"
 
-#: accounts/models/groups.py:55 registry/models/metadata.py:425
+#: accounts/models/groups.py:56 registry/models/metadata.py:425
 msgid "State or province"
 msgstr "Bundesland"
 
-#: accounts/models/groups.py:58 registry/models/metadata.py:428
+#: accounts/models/groups.py:59 registry/models/metadata.py:428
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:92 accounts/models/roles.py:172
+#: accounts/models/groups.py:97 accounts/models/roles.py:179
 #: notify/models.py:100 registry/models/mapcontext.py:324
 #: registry/models/security.py:249
 msgid "description"
 msgstr "Beschreibung"
 
-#: accounts/models/groups.py:93
+#: accounts/models/groups.py:98
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
-#: accounts/models/groups.py:101 accounts/models/roles.py:127
+#: accounts/models/groups.py:106 accounts/models/roles.py:134
 msgid "Organization"
 msgstr "Organisation"
 
-#: accounts/models/groups.py:102
+#: accounts/models/groups.py:107
 msgid "Organizations"
 msgstr "Organisationen"
 
-#: accounts/models/groups.py:165
+#: accounts/models/groups.py:279
 msgid "requesting organization"
 msgstr "Neue Organisation"
 
-#: accounts/models/groups.py:171
+#: accounts/models/groups.py:285
 msgid "requested organization"
 msgstr "Organisation entfernen"
 
-#: accounts/models/groups.py:176
+#: accounts/models/groups.py:290
 msgid "accepted"
 msgstr "Akzeptieren"
 
-#: accounts/models/groups.py:185
+#: accounts/models/groups.py:299
 msgid "Pending publish request"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:186
+#: accounts/models/groups.py:300
 msgid "Pending publish requests"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:200
+#: accounts/models/groups.py:314
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
-#: accounts/models/roles.py:126
+#: accounts/models/groups.py:381
+#, python-format
+msgid ""
+"The requesting organization %(from_organization)s has no active publisher "
+"role to accept the publishing request of %(to_organization)s with."
+msgstr ""
+"Die anfragende Organisation %(from_organization)s hat keine aktive Publisher-"
+"Rolle, mit der sie die Veröffentlichungsanfrage von %(to_organization)s "
+"annehmen könnte."
+
+#: accounts/models/roles.py:133
 msgid "Platform"
 msgstr "Plattform"
 
-#: accounts/models/roles.py:159
+#: accounts/models/roles.py:166
 msgid "slug"
 msgstr "Kurzname"
 
-#: accounts/models/roles.py:161
+#: accounts/models/roles.py:168
 msgid ""
 "the machine name of the role, such as 'resource_editor'; code and later "
 "issues refer to a role by this name"
@@ -128,24 +138,24 @@ msgstr ""
 "der maschinenlesbare Name der Rolle, zum Beispiel 'resource_editor'; Code "
 "und spätere Ausgaben beziehen die Rolle über diesen Namen"
 
-#: accounts/models/roles.py:166 registry/models/metadata.py:850
+#: accounts/models/roles.py:173 registry/models/metadata.py:850
 msgid "label"
 msgstr "Anzeigename"
 
-#: accounts/models/roles.py:167
+#: accounts/models/roles.py:174
 msgid "the display name of the role"
 msgstr "der Anzeigename der Rolle"
 
-#: accounts/models/roles.py:174
+#: accounts/models/roles.py:181
 msgid "what the role is for, for the operator reading the role list"
 msgstr ""
 "wofür die Rolle da ist, für die Betreiber, welche die Rollenliste lesen"
 
-#: accounts/models/roles.py:180 notify/serializers.py:239
+#: accounts/models/roles.py:187 notify/serializers.py:239
 msgid "scope"
 msgstr "Geltungsbereich"
 
-#: accounts/models/roles.py:182
+#: accounts/models/roles.py:189
 msgid ""
 "PLATFORM for roles which reach over all organizations, ORGANIZATION for the "
 "roles a member of one organization gets"
@@ -153,11 +163,11 @@ msgstr ""
 "PLATFORM für Rollen, die über alle Organisationen hinweg gelten, "
 "ORGANIZATION für die Rollen, die ein Mitglied einer Organisation erhält"
 
-#: accounts/models/roles.py:188
+#: accounts/models/roles.py:195
 msgid "is builtin"
 msgstr "Eingebaut"
 
-#: accounts/models/roles.py:190
+#: accounts/models/roles.py:197
 msgid ""
 "shipped with MrMap: the row is seeded by migration, kept by manage.py "
 "sync_role_definitions and cannot be deleted"
@@ -165,11 +175,11 @@ msgstr ""
 "wird mit MrMap ausgeliefert: die Zeile wird durch eine Migration angelegt, "
 "von manage.py sync_role_definitions gepflegt und kann nicht gelöscht werden"
 
-#: accounts/models/roles.py:195
+#: accounts/models/roles.py:202
 msgid "is default"
 msgstr "Voreingestellt"
 
-#: accounts/models/roles.py:197
+#: accounts/models/roles.py:204
 msgid ""
 "membership grants this role automatically, once #732 applies roles to "
 "memberships"
@@ -177,11 +187,11 @@ msgstr ""
 "die Mitgliedschaft gewährt diese Rolle automatisch, sobald #732 Rollen auf "
 "Mitgliedschaften anwendet"
 
-#: accounts/models/roles.py:202
+#: accounts/models/roles.py:209
 msgid "is assignable"
 msgstr "Zuweisbar"
 
-#: accounts/models/roles.py:204
+#: accounts/models/roles.py:211
 msgid ""
 "the role is offered in the member picker; platform_admin is not, because "
 "holding it is not an ordinary membership"
@@ -189,11 +199,11 @@ msgstr ""
 "die Rolle wird in der Mitglieder-Auswahl angeboten; platform_admin nicht, "
 "denn sie zu halten ist keine gewöhnliche Mitgliedschaft"
 
-#: accounts/models/roles.py:211 accounts/serializers/roles.py:140
+#: accounts/models/roles.py:218 accounts/serializers/roles.py:140
 msgid "permissions"
 msgstr "Berechtigungen"
 
-#: accounts/models/roles.py:213 accounts/serializers/roles.py:142
+#: accounts/models/roles.py:220 accounts/serializers/roles.py:142
 msgid ""
 "the global permissions which make up the role; object grants stay the work "
 "of django-guardian"
@@ -201,26 +211,26 @@ msgstr ""
 "die globalen Berechtigungen, aus denen die Rolle besteht; Objekt-Gewährungen "
 "bleiben Sache von django-guardian"
 
-#: accounts/models/roles.py:219 accounts/models/roles.py:282
+#: accounts/models/roles.py:226 accounts/models/roles.py:289
 #: accounts/serializers/roles.py:187 accounts/serializers/roles.py:248
 msgid "role definition"
 msgstr "Rollendefinition"
 
-#: accounts/models/roles.py:220
+#: accounts/models/roles.py:227
 msgid "role definitions"
 msgstr "Rollendefinitionen"
 
-#: accounts/models/roles.py:284 accounts/serializers/roles.py:188
+#: accounts/models/roles.py:291 accounts/serializers/roles.py:188
 #: accounts/serializers/roles.py:249
 msgid "what this role means, from the catalogue of #731"
 msgstr "was diese Rolle bedeutet, aus dem Katalog von #731"
 
-#: accounts/models/roles.py:292 accounts/serializers/roles.py:193
+#: accounts/models/roles.py:299 accounts/serializers/roles.py:193
 #: accounts/serializers/roles.py:253
 msgid "organization"
 msgstr "Organisation"
 
-#: accounts/models/roles.py:294
+#: accounts/models/roles.py:301
 msgid ""
 "the organization this role belongs to; empty only for a role of PLATFORM "
 "scope, which reaches over all organizations"
@@ -228,11 +238,11 @@ msgstr ""
 "die Organisation, zu der diese Rolle gehört; nur für eine Rolle "
 "mitGeltungsbereich PLATFORM leer, die alle Organisationen übergreift"
 
-#: accounts/models/roles.py:301 accounts/serializers/roles.py:201
+#: accounts/models/roles.py:308 accounts/serializers/roles.py:201
 msgid "group"
 msgstr "Gruppe"
 
-#: accounts/models/roles.py:303
+#: accounts/models/roles.py:310
 msgid ""
 "the group whose members hold this role; django-guardian and Django resolve "
 "its permissions, so nothing else enforces a role"
@@ -240,11 +250,11 @@ msgstr ""
 "die Gruppe, deren Mitglieder diese Rolle innehaben; django-guardian "
 "undDjango setzen ihre Berechtigungen durch, nichts anderes erzwingt eineRolle"
 
-#: accounts/models/roles.py:308
+#: accounts/models/roles.py:315
 msgid "is active"
 msgstr "Aktiv"
 
-#: accounts/models/roles.py:310
+#: accounts/models/roles.py:317
 msgid ""
 "false for a legacy group which is retired by #741; a retired role grants "
 "through its group until it is gone, but takes no new membership"
@@ -253,11 +263,11 @@ msgstr ""
 "einepensionierte Rolle gewährt über ihre Gruppe weiter, bis diese "
 "entferntist, nimmt aber keine neue Mitgliedschaft auf"
 
-#: accounts/models/roles.py:320 accounts/serializers/roles.py:209
+#: accounts/models/roles.py:327 accounts/serializers/roles.py:209
 msgid "created by"
 msgstr "Erstellt von"
 
-#: accounts/models/roles.py:322
+#: accounts/models/roles.py:329
 msgid ""
 "who created this role; empty when a migration or the bootstrap of a new "
 "organization created it"
@@ -265,20 +275,20 @@ msgstr ""
 "wer diese Rolle erstellt hat; leer, wenn eine Migration oder derBootstrap "
 "einer neuen Organisation sie erstellt hat"
 
-#: accounts/models/roles.py:328
+#: accounts/models/roles.py:335 extras/models.py:182
 msgid "created at"
 msgstr "Erstellt am"
 
-#: accounts/models/roles.py:335 accounts/models/roles.py:463
+#: accounts/models/roles.py:342 accounts/models/roles.py:470
 #: accounts/serializers/roles.py:344
 msgid "role"
 msgstr "Rolle"
 
-#: accounts/models/roles.py:336 accounts/serializers/users.py:38
+#: accounts/models/roles.py:343 accounts/serializers/users.py:38
 msgid "roles"
 msgstr "Rollen"
 
-#: accounts/models/roles.py:373
+#: accounts/models/roles.py:380
 msgid ""
 "A role of PLATFORM scope belongs to no organization; it reaches over all of "
 "them."
@@ -286,22 +296,23 @@ msgstr ""
 "Eine Rolle mit Geltungsbereich PLATFORM gehört zu keiner Organisation;sie "
 "übergreift alle Organisationen."
 
-#: accounts/models/roles.py:378
+#: accounts/models/roles.py:385
 msgid "A role of ORGANIZATION scope needs the organization it belongs to."
 msgstr ""
 "Eine Rolle mit Geltungsbereich ORGANIZATION braucht die Organisation, zuder "
 "sie gehört."
 
-#: accounts/models/roles.py:469 accounts/serializers/roles.py:349
+#: accounts/models/roles.py:476 accounts/serializers/roles.py:349
 #: accounts/serializers/users.py:75
 msgid "user"
 msgstr "Nutzer"
 
-#: accounts/models/roles.py:477 accounts/serializers/roles.py:354
+#: accounts/models/roles.py:484 accounts/serializers/roles.py:354
+#: extras/models.py:174
 msgid "granted by"
 msgstr "Erteilt von"
 
-#: accounts/models/roles.py:479
+#: accounts/models/roles.py:486
 msgid ""
 "who added the user to the role; empty for a membership a migration or a "
 "bootstrap took over, where no decision is known"
@@ -310,30 +321,30 @@ msgstr ""
 "eine Migration oder ein Bootstrap übernommen hat, wo keineEntscheidung "
 "bekannt ist"
 
-#: accounts/models/roles.py:485
+#: accounts/models/roles.py:492
 msgid "granted at"
 msgstr "Erteilt am"
 
-#: accounts/models/roles.py:491
+#: accounts/models/roles.py:498
 msgid "valid until"
 msgstr "Gültig bis"
 
-#: accounts/models/roles.py:493
+#: accounts/models/roles.py:500
 msgid ""
 "when the membership stops being valid; revoked by the periodic task of #741"
 msgstr ""
 "wann die Mitgliedschaft ihre Gültigkeit verliert; widerrufen durch "
 "dieperiodische Aufgabe von #741"
 
-#: accounts/models/roles.py:501
+#: accounts/models/roles.py:508
 msgid "role membership"
 msgstr "Rollenmitgliedschaft"
 
-#: accounts/models/roles.py:502
+#: accounts/models/roles.py:509
 msgid "role memberships"
 msgstr "Rollenmitgliedschaften"
 
-#: accounts/models/roles.py:523
+#: accounts/models/roles.py:530
 #, python-format
 msgid "The role %(role)s is retired and cannot be granted to anybody."
 msgstr "Die Rolle %(role)s ist pensioniert und kann niemandem erteilt werden."
@@ -495,11 +506,11 @@ msgstr ""
 msgid "csw"
 msgstr "CSW"
 
-#: extras/models.py:105
+#: extras/models.py:108
 msgid "delta size"
 msgstr "Delta-Größe"
 
-#: extras/models.py:106
+#: extras/models.py:109
 msgid ""
 "how many tracked fields this record differs in from the record which "
 "precedes it, empty without a predecessor"
@@ -507,13 +518,26 @@ msgstr ""
 "Anzahl der Felder, in denen sich dieser Datensatz vom vorangehenden "
 "Datensatz unterscheidet, ohne Vorgänger leer"
 
-#: extras/models.py:119
+#: extras/models.py:122
 msgid "value"
 msgstr "Wert"
 
-#: extras/models.py:131
+#: extras/models.py:134
 msgid "Unknown"
 msgstr "Unbekannt"
+
+#: extras/models.py:176
+msgid ""
+"the user who wrote this grant; empty for a grant the creation bootstrap or a "
+"migration wrote, where no person decided"
+msgstr ""
+"wer diesen Grant geschrieben hat; leer für einen Grant, den der Bootstrap "
+"der Anlage oder eine Migration geschrieben hat, wo keine Person entschieden "
+"hat"
+
+#: extras/models.py:183
+msgid "when this grant row was written"
+msgstr "wann diese Grant-Zeile geschrieben wurde"
 
 #: extras/schema.py:17
 msgid "is exactly"
@@ -653,7 +677,7 @@ msgid "state"
 msgstr "Zustand"
 
 #: notify/filters.py:138 registry/models/conformity.py:141
-#: registry/models/harvest.py:288 registry/models/security.py:446
+#: registry/models/harvest.py:294 registry/models/security.py:446
 #: registry/models/security.py:457 registry/models/service.py:803
 #: registry/models/service.py:1056 registry/models/update.py:125
 #: registry/models/update.py:168 registry/models/update.py:211
@@ -681,12 +705,12 @@ msgid "Datetime field when the process was completed in UTC"
 msgstr "Der Zeitpunkt des Abschlusses des Prozesses in UTC"
 
 #: notify/models.py:82 registry/models/harvest.py:99
-#: registry/models/harvest.py:334
+#: registry/models/harvest.py:340
 msgid "phase"
 msgstr "Phase"
 
 #: notify/models.py:83 registry/models/harvest.py:100
-#: registry/models/harvest.py:335
+#: registry/models/harvest.py:341
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
@@ -847,20 +871,20 @@ msgstr "Hintergrundprozess"
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
-#: notify/models.py:415 registry/models/harvest.py:2362
+#: notify/models.py:415 registry/models/harvest.py:2368
 msgid "Description"
 msgstr "Beschreibung"
 
-#: notify/models.py:427 registry/models/harvest.py:2347
+#: notify/models.py:427 registry/models/harvest.py:2353
 #: registry/models/monitoring.py:403
 msgid "Datetime field when the task result was created in UTC"
 msgstr "Der Zeitpunkt der Erstellung des Task-Ergebnisses in UTC"
 
-#: notify/models.py:431 registry/models/harvest.py:2367
+#: notify/models.py:431 registry/models/harvest.py:2373
 msgid "Extented Description"
 msgstr "Erweiterte Beschreibung"
 
-#: notify/models.py:432 registry/models/harvest.py:2368
+#: notify/models.py:432 registry/models/harvest.py:2374
 msgid "this can be the response content for example"
 msgstr "dies kann beispielsweise der Inhalt der Antwort sein"
 
@@ -1870,7 +1894,7 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:162 registry/models/harvest.py:1379
+#: registry/models/harvest.py:162 registry/models/harvest.py:1385
 msgid "download duration"
 msgstr "Download-Dauer"
 
@@ -1902,15 +1926,15 @@ msgstr ""
 msgid "Datetime field when the relation was created"
 msgstr "Der Zeitpunkt der Erstellung der Relation"
 
-#: registry/models/harvest.py:289
+#: registry/models/harvest.py:295
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/harvest.py:293 registry/models/service.py:515
+#: registry/models/harvest.py:299 registry/models/service.py:515
 msgid "max step size"
 msgstr "maximale Schrittgröße"
 
-#: registry/models/harvest.py:295
+#: registry/models/harvest.py:301
 msgid ""
 "the step size this job asks the catalogue with by a single GetRecords "
 "request. A job which is started without one takes the step size the "
@@ -1920,29 +1944,29 @@ msgstr ""
 "GetRecords-Anfrage fragt. Ein Lauf, der ohne eigene Schrittgröße startet, "
 "übernimmt die Schrittgröße, die der Katalog nachweislich beantwortet."
 
-#: registry/models/harvest.py:310
+#: registry/models/harvest.py:316
 msgid "total records"
 msgstr "Postleitzahl"
 
-#: registry/models/harvest.py:311
+#: registry/models/harvest.py:317
 msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
-#: registry/models/harvest.py:352 registry/models/harvest.py:1332
-#: registry/models/harvest.py:2066 registry/models/monitoring.py:183
+#: registry/models/harvest.py:358 registry/models/harvest.py:1338
+#: registry/models/harvest.py:2072 registry/models/monitoring.py:183
 #: registry/models/update.py:237 registry/serializers/harvesting.py:138
 msgid "background process"
 msgstr "Hintergrundprozess"
 
-#: registry/models/harvest.py:353 registry/models/update.py:238
+#: registry/models/harvest.py:359 registry/models/update.py:238
 msgid "the background process which reports this job"
 msgstr "der Hintergrundprozess, der diese Aufgabe meldet"
 
-#: registry/models/harvest.py:364
+#: registry/models/harvest.py:370
 msgid "import backlog seen"
 msgstr "gezählte Import-Rückstände"
 
-#: registry/models/harvest.py:366
+#: registry/models/harvest.py:372
 msgid ""
 "how many records of this job the import watchdog last counted as waiting for "
 "their import"
@@ -1950,11 +1974,11 @@ msgstr ""
 "wie viele Datensätze dieser Ernteaufgabe der Import-Watchdog zuletzt als auf "
 "ihren Import wartend gezählt hat"
 
-#: registry/models/harvest.py:372
+#: registry/models/harvest.py:378
 msgid "import backlog seen at"
 msgstr "Zeitpunkt der letzten Rückstandszählung"
 
-#: registry/models/harvest.py:374
+#: registry/models/harvest.py:380
 msgid ""
 "the moment the import watchdog counted that many records waiting; the same "
 "count at the next look is a backlog which did not move"
@@ -1963,11 +1987,11 @@ msgstr ""
 "hat; dieselbe Anzahl beim nächsten Blick ist ein Rückstand, der sich nicht "
 "bewegt hat"
 
-#: registry/models/harvest.py:381 registry/serializers/harvesting.py:377
+#: registry/models/harvest.py:387 registry/serializers/harvesting.py:377
 msgid "import stalled at"
 msgstr "Import steht still seit"
 
-#: registry/models/harvest.py:383
+#: registry/models/harvest.py:389
 msgid ""
 "since when the import watchdog sees the import backlog of this job "
 "untouched; the run is not waiting on work which somebody is doing. What the "
@@ -1977,52 +2001,52 @@ msgstr ""
 "unberührt sieht; der Lauf wartet nicht auf Arbeit, die jemand verrichtet. "
 "Was der Watchdog dagegen tun konnte, steht in seinem Ernteprotokoll"
 
-#: registry/models/harvest.py:395
+#: registry/models/harvest.py:401
 msgid "Harvesting Job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:396
+#: registry/models/harvest.py:402
 msgid "Harvesting Jobs"
 msgstr "Ernteaufgaben"
 
-#: registry/models/harvest.py:420 registry/models/update.py:275
+#: registry/models/harvest.py:426 registry/models/update.py:275
 #: registry/serializers/update.py:135 registry/serializers/update.py:155
 msgid "There is an existing noncompleted job for this service."
 msgstr "Für diesen Dienst existiert eine nicht abgeschlossene Aufgabe."
 
-#: registry/models/harvest.py:1320
+#: registry/models/harvest.py:1326
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:1351
+#: registry/models/harvest.py:1357
 msgid "document acquisition"
 msgstr "Dokumentabruf"
 
-#: registry/models/harvest.py:1355 registry/models/harvest.py:2132
+#: registry/models/harvest.py:1361 registry/models/harvest.py:2138
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:1357 registry/models/harvest.py:2134
+#: registry/models/harvest.py:1363 registry/models/harvest.py:2140
 msgid "the content of the http response, or of the imported file"
 msgstr "der Inhalt der HTTP-Antwort oder der importierten Datei"
 
-#: registry/models/harvest.py:1361
+#: registry/models/harvest.py:1367
 msgid "to re run to db task"
 msgstr "zum erneuten Ausführen der Datenbank-Aufgabe"
 
-#: registry/models/harvest.py:1365
+#: registry/models/harvest.py:1371
 msgid "signals if this object can't be imported"
 msgstr "zeigt an, ob dieses Objekt nicht importiert werden kann"
 
-#: registry/models/harvest.py:1368
+#: registry/models/harvest.py:1374
 msgid "import error"
 msgstr "Importfehler"
 
-#: registry/models/harvest.py:1369
+#: registry/models/harvest.py:1375
 msgid "raised error while importing"
 msgstr "beim Import aufgetretener Fehler"
 
-#: registry/models/harvest.py:1380
+#: registry/models/harvest.py:1386
 msgid ""
 "This is the duration it tooked proportionately to download this record. This "
 "means if the GetRecords response contains 50 records for example, the "
@@ -2032,11 +2056,11 @@ msgstr ""
 "enthält die GetRecords-Antwort beispielsweise 50 Datensätze, betrug die "
 "Anfragedauer 50 * self.download_duration"
 
-#: registry/models/harvest.py:1395
+#: registry/models/harvest.py:1401
 msgid "reference key"
 msgstr "Referenzschlüssel"
 
-#: registry/models/harvest.py:1397
+#: registry/models/harvest.py:1403
 msgid ""
 "sha-256 digest of the described resource and the advertised url of this "
 "reference; set only on registration work rows"
@@ -2044,11 +2068,11 @@ msgstr ""
 "SHA-256-Wert der beschriebenen Ressource und der angebotenen URL dieser "
 "Referenz; nur bei Arbeitszeilen der Registrierung gesetzt"
 
-#: registry/models/harvest.py:1443 registry/serializers/harvesting.py:171
+#: registry/models/harvest.py:1449 registry/serializers/harvesting.py:171
 msgid "described resource"
 msgstr "beschriebene Ressource"
 
-#: registry/models/harvest.py:1445 registry/serializers/harvesting.py:173
+#: registry/models/harvest.py:1451 registry/serializers/harvesting.py:173
 msgid ""
 "the readable name the described element carried at planning time; kept when "
 "the element was removed since"
@@ -2056,12 +2080,12 @@ msgstr ""
 "der lesbare Name, den das beschriebene Element zum Zeitpunkt der Planung "
 "hatte; bleibt erhalten, wenn das Element seitdem entfernt wurde"
 
-#: registry/models/harvest.py:1456 registry/models/harvest.py:2097
+#: registry/models/harvest.py:1462 registry/models/harvest.py:2103
 #: registry/serializers/harvesting.py:145
 msgid "work state"
 msgstr "Arbeitszustand"
 
-#: registry/models/harvest.py:1458 registry/serializers/harvesting.py:147
+#: registry/models/harvest.py:1464 registry/serializers/harvesting.py:147
 msgid ""
 "pending, leased or failed state of a registration reference; harvesting rows "
 "never move it"
@@ -2069,11 +2093,11 @@ msgstr ""
 "Zustand einer Registrierungsreferenz: ausstehend, geleast oder "
 "fehlgeschlagen; Zeilen einer Ernte ändern ihn nie"
 
-#: registry/models/harvest.py:1466 registry/models/harvest.py:2109
+#: registry/models/harvest.py:1472 registry/models/harvest.py:2115
 msgid "claim token"
 msgstr "Anspruchsmarke"
 
-#: registry/models/harvest.py:1468 registry/models/harvest.py:2111
+#: registry/models/harvest.py:1474 registry/models/harvest.py:2117
 msgid ""
 "token of the delivery which currently leases this row; an outcome reported "
 "under another token is discarded"
@@ -2081,11 +2105,11 @@ msgstr ""
 "Marke der Zustellung, die diese Zeile derzeit least; ein Ergebnis, das unter "
 "einer anderen Marke gemeldet wird, wird verworfen"
 
-#: registry/models/harvest.py:1474 registry/models/harvest.py:2117
+#: registry/models/harvest.py:1480 registry/models/harvest.py:2123
 msgid "lease expires at"
 msgstr "Lease läuft ab"
 
-#: registry/models/harvest.py:1476 registry/models/harvest.py:2119
+#: registry/models/harvest.py:1482 registry/models/harvest.py:2125
 msgid ""
 "until when the current claim may work; a row whose lease ran out is eligible "
 "for a new claim and for recovery"
@@ -2093,12 +2117,12 @@ msgstr ""
 "bis wann die aktuelle Anspruchsmarke arbeiten darf; eine Zeile, deren Lease "
 "abgelaufen ist, kann erneut beansprucht und wiederhergestellt werden"
 
-#: registry/models/harvest.py:1481 registry/models/harvest.py:2124
+#: registry/models/harvest.py:1487 registry/models/harvest.py:2130
 #: registry/serializers/harvesting.py:166
 msgid "attempt count"
 msgstr "Anzahl der Versuche"
 
-#: registry/models/harvest.py:1483
+#: registry/models/harvest.py:1489
 msgid ""
 "how many deliveries have claimed this row; retries included, and an attempt "
 "which never decided the row leaves the process counters untouched"
@@ -2107,11 +2131,11 @@ msgstr ""
 "Wiederholungen; ein Versuch, der die Zeile nie entschieden hat, lässt die "
 "Zähler des Prozesses unberührt"
 
-#: registry/models/harvest.py:1492 registry/serializers/harvesting.py:154
+#: registry/models/harvest.py:1498 registry/serializers/harvesting.py:154
 msgid "error kind"
 msgstr "Fehlerart"
 
-#: registry/models/harvest.py:1494 registry/serializers/harvesting.py:156
+#: registry/models/harvest.py:1500 registry/serializers/harvesting.py:156
 msgid ""
 "machine-readable kind of the last failed decision of this reference; empty "
 "while it never failed"
@@ -2119,21 +2143,21 @@ msgstr ""
 "maschinell lesbare Art der letzten fehlgeschlagenen Entscheidung über diese "
 "Referenz; leer, solange sie nie fehlgeschlagen ist"
 
-#: registry/models/harvest.py:1500 registry/serializers/harvesting.py:160
+#: registry/models/harvest.py:1506 registry/serializers/harvesting.py:160
 msgid "error at"
 msgstr "Fehlerzeitpunkt"
 
-#: registry/models/harvest.py:1502 registry/serializers/harvesting.py:162
+#: registry/models/harvest.py:1508 registry/serializers/harvesting.py:162
 msgid "the moment the last failed decision of this reference was recorded"
 msgstr ""
 "der Zeitpunkt, an dem die letzte fehlgeschlagene Entscheidung über diese "
 "Referenz gespeichert wurde"
 
-#: registry/models/harvest.py:2077
+#: registry/models/harvest.py:2083
 msgid "acquisition key"
 msgstr "Schlüssel des Dokumentabrufs"
 
-#: registry/models/harvest.py:2079
+#: registry/models/harvest.py:2085
 msgid ""
 "sha-256 digest of the advertised url and the auth scope of this acquisition; "
 "set only on shared document work rows"
@@ -2141,15 +2165,15 @@ msgstr ""
 "SHA-256-Wert der angebotenen URL und des Authentifizierungsbereichs dieses "
 "Dokumentabrufs; nur bei gemeinsamen Dokument-Arbeitszeilen gesetzt"
 
-#: registry/models/harvest.py:2084 registry/models/metadata.py:595
+#: registry/models/harvest.py:2090 registry/models/metadata.py:595
 msgid "download link"
 msgstr "Download"
 
-#: registry/models/harvest.py:2086 registry/models/metadata.py:596
+#: registry/models/harvest.py:2092 registry/models/metadata.py:596
 msgid "the url where the metadata could be downloaded from."
 msgstr "Die URL von der der Metadatensatz heruntergeladen werden kann."
 
-#: registry/models/harvest.py:2099
+#: registry/models/harvest.py:2105
 msgid ""
 "pending, leased or stored state of a shared document acquisition; draining "
 "takes a decided row away"
@@ -2157,28 +2181,28 @@ msgstr ""
 "Zustand ausstehend, geleast oder gespeichert eines gemeinsamen "
 "Dokumentabrufs; das Entleeren entfernt eine entschiedene Zeile"
 
-#: registry/models/harvest.py:2126 registry/serializers/harvesting.py:168
+#: registry/models/harvest.py:2132 registry/serializers/harvesting.py:168
 msgid "how many deliveries have claimed this row; retries included"
 msgstr ""
 "wie viele Zustellungen diese Zeile beansprucht haben, einschließlich "
 "Wiederholungen"
 
-#: registry/models/harvest.py:2388 registry/models/metadata.py:784
+#: registry/models/harvest.py:2394 registry/models/metadata.py:784
 #: registry/models/monitoring.py:134 registry/models/service.py:534
 #: registry/models/update.py:188 registry/serializers/monitoring.py:569
 #: registry/serializers/service.py:1291 registry/serializers/update.py:112
 msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/harvest.py:2389
+#: registry/models/harvest.py:2395
 msgid "this is the service which shall be harvested"
 msgstr "dies ist der Dienst, der geerntet werden soll"
 
-#: registry/models/harvest.py:2416
+#: registry/models/harvest.py:2422
 msgid "Periodic Harvesting Job"
 msgstr "Periodische Ernteaufgabe"
 
-#: registry/models/harvest.py:2417
+#: registry/models/harvest.py:2423
 msgid "Periodic Harvesting Jobs"
 msgstr "Periodische Ernteaufgaben"
 
@@ -4711,6 +4735,46 @@ msgstr "dies sind die zugehörigen Ernteaufgaben."
 #: registry/serializers/service.py:1293
 msgid "the catalogue service, where this operation url is part of."
 msgstr "der Katalogdienst, zu dem diese Operations-URL gehört."
+
+#: registry/serializers/shares.py:160
+#, python-format
+msgid ""
+"Actions this service cannot share: %(actions)s. Shareable: %(shareable)s."
+msgstr ""
+"Aktionen, die dieser Dienst nicht freigeben kann: %(actions)s. Freigebbar: "
+"%(shareable)s."
+
+#: registry/serializers/shares.py:173
+msgid "A share names one target: a user, or an organization with a role."
+msgstr ""
+"Eine Freigabe nennt genau ein Ziel: einen Nutzer, oder eine Organisation mit "
+"einer Rolle."
+
+#: registry/serializers/shares.py:178
+msgid "A share names a target: a user, or an organization with a role."
+msgstr ""
+"Eine Freigabe nennt ein Ziel: einen Nutzer, oder eine Organisation mit einer "
+"Rolle."
+
+#: registry/serializers/shares.py:183
+msgid ""
+"Sharing with an organization shares with one of its roles; name the role "
+"definition slug."
+msgstr ""
+"Eine Freigabe für eine Organisation teilt mit einer ihrer Rollen; geben Sie "
+"den Slug der Rollendefinition an."
+
+#: registry/serializers/shares.py:196
+msgid "No user with this id."
+msgstr "Kein Nutzer mit dieser ID."
+
+#: registry/serializers/shares.py:206
+msgid "No organization with this id."
+msgstr "Keine Organisation mit dieser ID."
+
+#: registry/serializers/shares.py:212
+msgid "The organization has no active role of this definition."
+msgstr "Die Organisation hat keine aktive Rolle dieser Definition."
 
 #: registry/serializers/update.py:130
 msgid "You may not update this service."

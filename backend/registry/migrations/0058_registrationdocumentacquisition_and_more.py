@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('notify', '0010_operationalincident'),
-        ('registry', '0056_merge_20261116_1221'),
+        ('registry', '0057_webfeatureservicegroupobjectpermission_created_at_and_more'),
     ]
 
     operations = [

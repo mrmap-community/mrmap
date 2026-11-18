@@ -20,6 +20,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/harvesting.py` | Two runs of one catalogue with known starts, for the ordering and the time range of the harvesting job list; rolled back like `statistical.py` does |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
+| `steps/shares.py` | Registry shares of #740: organizations, role memberships and owned services as setup, share/revoke/list requests of one service, publish-request acceptance and the grant-row assertions |
 | `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set and of the #1080 harvesting set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |

@@ -213,6 +213,23 @@ def handle_role_managed_model_creation(instance, created, raw=False, **kwargs):
                             user_or_group=role.group,
                             obj=instance)
 
+        # #740: the organizations which have been accepted as publishers *for*
+        # the owning organization reach the new resource from the moment it
+        # exists - the same grants an accepted ``PublishRequest`` wrote onto
+        # the resources registered at acceptance time. Without this the
+        # promise "these publishers publish for us" would silently hold only
+        # for the stock which existed at acceptance. The own groups are not
+        # among these targets (their grants are the ``managing`` answer
+        # above) and a model the share machinery of #740 does not know takes
+        # no publisher grants - a receiver must not break the registration it
+        # protects.
+        from registry.models.shares import (grant_actions, is_shareable,
+                                            publisher_actions)
+        if is_shareable(instance):
+            for publisher_role in organization.publisher_role_groups():
+                grant_actions(instance, publisher_role.group,
+                              publisher_actions(instance), granted_by=None)
+
 
 # one connection per role-managed model, read from the setting: the list is
 # the whole statement of which creation grants anything, and

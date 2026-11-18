@@ -1032,6 +1032,20 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
+# How many hours an unfinished service-update job may stand undriven before the
+# sweep of ``registry/tasks/update.py`` fails it (#1460). The guards of #1453
+# redeliver a lost message, but a delivery which is gone for good - a broker
+# recreated with the database kept, a purge, a discard - or a run whose retries
+# died without the job deciding leaves it unfinished, and the constraint of one
+# unfinished job per service then blocks every later update of that service.
+# The sweep only fails unfinished jobs aged beyond this horizon; no legitimate
+# update run takes so long, which is what makes the horizon the line that
+# protects a job which still works. It fires hourly (see registry/apps.py).
+# A horizon below one hour is raised to one: a busy queue is #1320's verdict,
+# not this sweep's work
+UPDATE_JOB_STALE_HORIZON_HOURS = int(
+    os.getenv("MRMAP_UPDATE_JOB_STALE_HORIZON_HOURS", "24"))
+
 # The activation gate of the metadata editor's record writes (#1241, opened
 # by #1244). The create/update endpoints of the metadata records answer the
 # default json:api CRUD contract; a committed write regenerates the ISO

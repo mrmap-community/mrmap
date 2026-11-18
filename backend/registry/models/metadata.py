@@ -477,9 +477,10 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
-        indexes = [
-            models.Index(fields=["keyword"])
-        ]
+        # no plain index over the column: the UNIQUE constraint below is a
+        # btree index over exactly it, and a second, non-unique twin on a
+        # Text column only doubled the insert cost of every new keyword
+        # (#1481)
         constraints = [
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_keywords",

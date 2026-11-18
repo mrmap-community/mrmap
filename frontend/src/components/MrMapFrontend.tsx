@@ -2,6 +2,7 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   Admin,
+  Authenticated,
   CustomRoutes,
   defaultDarkTheme,
   defaultLightTheme,
@@ -12,12 +13,11 @@ import {
 import { BrowserRouter, Route } from 'react-router-dom';
 
 import { deepmerge } from '@mui/utils';
-import { type OpenAPIV3 } from 'openapi-client-axios';
 
 import { useHttpClientContext } from '../context/HttpClientContext';
 import ListGuesser from '../jsonapi/components/ListGuesser';
 import ListWithDialogs from '../jsonapi/components/ListWithDialogs';
-import { getResourceSchema, indexRelatedOperations } from '../jsonapi/openapi/parser';
+import { getRelatedResourceType, indexRelatedOperations } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
@@ -60,7 +60,6 @@ const MrMapFrontend = (): ReactElement => {
   const resourceDefinitions = useMemo(() => {
     const relatedOperations = indexRelatedOperations(api?.getOperations() ?? []);
     return RESOURCES.map((resource)=> {
-      const showOperationName = `retreive_${resource.name}`
       const createOperationName = `create_${resource.name}`
       const editOperationName = `partial_update_${resource.name}`
       const listOperationName =`list_${resource.name}`
@@ -72,15 +71,11 @@ const MrMapFrontend = (): ReactElement => {
       const deleteOperation = api?.getOperation(deleteOperationName)
 
       const related_list_operations = relatedOperations.get(resource.name) ?? []
-      const related_list_resources = related_list_operations?.map((schema) => {
-        const resourceSchema = getResourceSchema(schema)
-
-        const properties = resourceSchema?.properties?.data as OpenAPIV3.ArraySchemaObject
-        const items = properties?.items as OpenAPIV3.SchemaObject
-        const jsonApiTypeProperty = items?.properties?.type as OpenAPIV3.NonArraySchemaObject
-        const jsonApiTypeReferences = jsonApiTypeProperty?.allOf as OpenAPIV3.SchemaObject[]
-        return jsonApiTypeReferences?.[0]?.enum?.[0] as string
-      }) ?? []
+      // the parser answers which JSON:API type a nested list carries; a nested
+      // operation without one is no resource to route to
+      const related_list_resources = related_list_operations
+        .map((schema) => getRelatedResourceType(schema))
+        .filter((relatedResourceType): relatedResourceType is string => relatedResourceType !== undefined)
       const related_routes = related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={{resource: resource.name}}> </ListGuesser>}></Route>)
       // "View all history" of the compact feeds navigates to this paginated and filterable changelog.
       const history_routes = api?.getOperation(`list_Historical${resource.name}`)
@@ -98,10 +93,6 @@ const MrMapFrontend = (): ReactElement => {
         recordRepresentation: resource.recordRepresentation ? resource.recordRepresentation : defaultRecordRepresentation,
         ...resource,
         options: {
-              showOperationName: showOperationName,
-              createOperationName: createOperationName,
-              editOperationName: editOperationName,
-              listOperationName: listOperationName,
               hasDelete: !!deleteOperation,
               label: resource.name,
               ...resource.options, 
@@ -143,20 +134,25 @@ const MrMapFrontend = (): ReactElement => {
         layout={MyLayout}
         store={store}
         disableTelemetry
-        requireAuth
       >
         {resources}
 
-        {/* ows context based mapviewer */}
+        {/* the screens of #833: the resource routes above answer the public
+            read-only list and show of published services to an anonymous
+            visitor, so the Admin no longer guards every route with
+            `requireAuth`. Everything behind a session - the dashboard, the
+            explorer, the viewer, the search and the metadata editor - guards
+            itself here with <Authenticated> or in its controller, and the
+            backend keeps enforcing every record either way. */}
         {
           <CustomRoutes >
-            <Route path="/viewer" element={<MapViewer />} />
-            <Route path="/service-explorer" element={<ServiceExplorer />} />
-            <Route path="/search" element={<PortalSearch />} />
+            <Route path="/viewer" element={<Authenticated><MapViewer /></Authenticated>} />
+            <Route path="/service-explorer" element={<Authenticated><ServiceExplorer /></Authenticated>} />
+            <Route path="/search" element={<Authenticated><PortalSearch /></Authenticated>} />
             {/* full screen record editor (#1245); :type is the JSON:API name */}
             <Route
               path="/metadata/:type/:id/edit"
-              element={<MetadataEditorRoute />}
+              element={<Authenticated><MetadataEditorRoute /></Authenticated>}
             />
           </CustomRoutes>
         } 

@@ -21,7 +21,7 @@ const ActivateLayerItem = () => {
       refetch()
       close()
     }
-  },[isSuccess])
+  },[isSuccess, refetch, close])
 
   return (
     <ContextMenuItem

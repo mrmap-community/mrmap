@@ -13,6 +13,16 @@ vi.mock("react-admin", () => ({
   useGetList: vi.fn(),
 }));
 
+/**
+ * The bus and the two windows the hook is built on, kept as spies of the spec
+ * so a test can push a bus event through and see which window answered.
+ */
+const state = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  unsubscribe: vi.fn(),
+  refetch: { active: vi.fn(), resolved: vi.fn() },
+}));
+
 const incident = (
   overrides: Partial<OperationalIncidentRecord> & { id: string | number },
 ): OperationalIncidentRecord => ({
@@ -34,8 +44,8 @@ const windows = (
   resolved: OperationalIncidentRecord[],
 ) => {
   vi.mocked(useDataProvider).mockReturnValue({
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
+    subscribe: state.subscribe,
+    unsubscribe: state.unsubscribe,
   } as unknown as ReturnType<typeof useDataProvider>);
   vi.mocked(useGetList).mockImplementation((_resource, params) => {
     const filter = (
@@ -47,7 +57,11 @@ const windows = (
       total: rows.length,
       isPending: false,
       error: null,
-      refetch: vi.fn(),
+      // the spy of its own window, so a bus event is traceable to the query
+      refetch:
+        filter.state === "resolved"
+          ? state.refetch.resolved
+          : state.refetch.active,
     } as unknown as ReturnType<typeof useGetList>;
   });
 };
@@ -209,5 +223,26 @@ describe("useContextualIncidents", () => {
     );
     expect(result.current.active).toEqual([]);
     expect(result.current.error).toBeInstanceOf(Error);
+  });
+
+  it("asks both windows again when the bus says an incident moved", () => {
+    windows([], []);
+    state.subscribe.mockClear();
+    state.refetch.active.mockClear();
+    state.refetch.resolved.mockClear();
+    renderHook(() =>
+      useContextualIncidents({ resource: "HarvestingJob", id: 42 }),
+    );
+    expect(state.subscribe).toHaveBeenCalledWith(
+      "resource/OperationalIncident",
+      expect.any(Function),
+    );
+    // the bus says that something moved, it never carries the state: both
+    // windows go back to the api, which is what the stable refetch of each
+    // window is named for (#1466)
+    const [, refresh] = state.subscribe.mock.calls[0] as [string, () => void];
+    refresh();
+    expect(state.refetch.active).toHaveBeenCalledTimes(1);
+    expect(state.refetch.resolved).toHaveBeenCalledTimes(1);
   });
 });

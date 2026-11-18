@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch
+from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import PreloadNotIncludesMixin, SerializerClassesMixin
 from mptt2.models import Tree
 from registry.filters.historical import (
@@ -30,7 +31,15 @@ from simple_history.utils import (get_app_model_primary_key_name,
 class HistoricalViewSetMixin:
     # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
     # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    http_method_names = ["get", "patch", "head", "options"]
+    # #1449: patch is gone as well. No flow edits an audit row — the frontend only
+    # reads the changelog — and leaving the verb open let any authenticated caller
+    # rewrite the compliance record the history exists to prove (#741).
+    http_method_names = ["get", "head", "options"]
+    # reads stay open the way list_historical_webmapservices.feature pins them;
+    # the gate answers per object, so a write could only ever be answered by an
+    # object grant over the audit row — and since patch left http_method_names,
+    # no request reaches that decision anymore.
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     select_for_includes = {
         "historyUser": ["history_user"],
         # "historyRelation": ["history_relation"]
@@ -333,7 +342,6 @@ class DatasetMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSe
         "history_type": ["exact", "in"],
         "history_date": ["gte", "lte"],
     }
-    http_method_names = ["get", "head", "options"]
 
 
 class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
@@ -344,4 +352,3 @@ class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSe
         "history_type": ["exact", "in"],
         "history_date": ["gte", "lte"],
     }
-    http_method_names = ["get", "head", "options"]

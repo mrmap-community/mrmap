@@ -74,7 +74,7 @@ describe('viewer layer settings drawer', () => {
     fireEvent.click(within(tree).getByText('Radar A'));
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     expect(within(panel).getByRole('combobox', { name: 'viewerStyles.style' })).toHaveValue('outline');
-    fireEvent.click(screen.getByRole('tab', { name: 'Map Settings' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'viewerControls.mapSettings' }));
     fireEvent.click(within(tree).getByText('Radar A'));
     expect(screen.getByRole('button', { name: 'drawer.closeBottom' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'viewerControls.title' })).toHaveAttribute('aria-selected', 'true');

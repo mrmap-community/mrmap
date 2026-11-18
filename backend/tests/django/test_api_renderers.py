@@ -34,8 +34,16 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 #: Separates the probe's report from the log output of the deployment.
 REPORT_MARKER = "MRMAP_RENDERERS_PROBE "
 
-#: Read only endpoints which answer without a fixture of their own.
-PUBLIC_ENDPOINT = "/api/system/info"
+#: Endpoints the negotiation probes ask. Both refuse an anonymous caller
+#: on their own, and both answer that refusal without touching the
+#: database - which the probe needs, because its fresh interpreter runs
+#: against the deployment's *un-migrated* database. The info endpoint was
+#: the anonymous arm until #1445 made it admin only like its neighbours;
+#: the negotiation is asserted on the refusal now, which travels the very
+#: same content-negotiation path: an Accept the registered renderers
+#: cannot serve is answered with 406 before any permission question is
+#: even reached.
+REFUSED_ENDPOINT = "/api/system/info"
 ADMINISTRATOR_ENDPOINT = "/api/system/status/current"
 
 DEPLOYMENT_PROBE = '''
@@ -59,7 +67,7 @@ from rest_framework.settings import api_settings  # noqa: E402
 from system.views import SystemStatusView  # noqa: E402
 
 MARKER = "%(marker)s"
-PUBLIC = "%(public)s"
+REFUSED = "%(refused)s"
 ADMINISTRATOR = "%(administrator)s"
 JSONAPI_ACCEPT = "application/vnd.api+json"
 
@@ -79,11 +87,11 @@ report = {
     "debug": bool(settings.DEBUG),
     "renderer_classes": [r.__name__ for r in api_settings.DEFAULT_RENDERER_CLASSES],
     "view_renderer_classes": [r.__name__ for r in SystemStatusView.renderer_classes],
-    "jsonapi": ask(PUBLIC, HTTP_ACCEPT=JSONAPI_ACCEPT),
-    "any": ask(PUBLIC, HTTP_ACCEPT="*/*"),
-    "no_accept": ask(PUBLIC),
-    "html": ask(PUBLIC, HTTP_ACCEPT="text/html"),
-    "browsable_format": ask(PUBLIC + "?format=api"),
+    "jsonapi": ask(REFUSED, HTTP_ACCEPT=JSONAPI_ACCEPT),
+    "any": ask(REFUSED, HTTP_ACCEPT="*/*"),
+    "no_accept": ask(REFUSED),
+    "html": ask(REFUSED, HTTP_ACCEPT="text/html"),
+    "browsable_format": ask(REFUSED + "?format=api"),
     "anonymous_json": ask(ADMINISTRATOR, HTTP_ACCEPT=JSONAPI_ACCEPT),
     "anonymous_html": ask(ADMINISTRATOR, HTTP_ACCEPT="text/html"),
 }
@@ -103,7 +111,7 @@ def run_deployment_probe(production, debug=True):
     environment["DJANGO_DEBUG"] = "1" if debug else "0"
     script = DEPLOYMENT_PROBE % {
         "marker": REPORT_MARKER,
-        "public": PUBLIC_ENDPOINT,
+        "refused": REFUSED_ENDPOINT,
         "administrator": ADMINISTRATOR_ENDPOINT}
     descriptor, script_path = tempfile.mkstemp(
         suffix=".py", dir=BACKEND_DIR, text=True)
@@ -161,19 +169,19 @@ class ProductionDeploymentTests(SimpleTestCase):
         # the endpoints of that deployment actually answer with.
         self.assertEqual(self.report["view_renderer_classes"], [JSON_RENDERER])
 
-    def test_jsonapi_accept_header_is_answered_as_before(self):
+    def test_jsonapi_accept_still_answers_in_jsonapi_on_the_refusal(self):
         answered = self.report["jsonapi"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertEqual(answered["content_type"], "application/vnd.api+json")
 
-    def test_any_accept_is_answered_with_the_api_representation(self):
+    def test_any_accept_never_renders_html_in_production(self):
         answered = self.report["any"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertFalse(answered["is_html"])
 
-    def test_request_without_accept_header_is_answered_in_json(self):
+    def test_request_without_accept_header_never_renders_html(self):
         answered = self.report["no_accept"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertFalse(answered["is_html"])
 
     def test_html_only_request_is_rejected_instead_of_browsed(self):
@@ -215,16 +223,17 @@ class DevelopmentDeploymentTests(SimpleTestCase):
             [BROWSABLE_RENDERER, JSON_RENDERER])
 
     def test_an_html_request_still_browses_the_api(self):
+        """The browsable renderer answers even the refusal - that is the point."""
         answered = self.report["html"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertTrue(answered["is_html"])
 
     def test_the_browsable_format_override_still_browses_the_api(self):
         answered = self.report["browsable_format"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertTrue(answered["is_html"])
 
     def test_the_api_representation_is_reachable_as_before(self):
         answered = self.report["jsonapi"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertEqual(answered["content_type"], "application/vnd.api+json")

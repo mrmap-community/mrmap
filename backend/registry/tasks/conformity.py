@@ -15,6 +15,8 @@ from registry.helper.plugins.etf import EtfClient, QualityEtf
 from registry.helper.plugins.internal import QualityInternal
 from registry.models import (ConformityCheckConfigurationExternal,
                              ConformityCheckRun)
+from registry.settings import (CONFORMITY_ETF_TASK_HARD_TIME_LIMIT_SECONDS,
+                               CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS)
 
 logger = get_task_logger(__name__)
 
@@ -45,7 +47,17 @@ def run_conformity_check(run_id: int, **kwargs):
     return run.pk
 
 
-@shared_task(name='async_run_conformity_check_etf')
+@shared_task(
+    name='async_run_conformity_check_etf',
+    # the only task of MrMap which waits on a third party for hours on
+    # purpose: QualityEtf.run polls the external validator until its test
+    # run ends, so it declares its budget instead of inheriting the global
+    # task time limits (#1454, registry/settings.py); the soft one fires
+    # inside the loop and the run row is decided with an error report by the
+    # except branch below
+    soft_time_limit=CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS,
+    time_limit=CONFORMITY_ETF_TASK_HARD_TIME_LIMIT_SECONDS,
+)
 def run_conformity_check_etf(run_id: int, **kwargs):
     """Run one ETF-based conformity check and decide the run row.
 

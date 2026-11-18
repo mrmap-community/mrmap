@@ -24,6 +24,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    outbound-ogc-request-audit
    queryset-manager-conventions
    celery-task-sql-regression
+   etf-conformity-retirement
    orm-static-analysis
    capacity-snapshot
    background-notifications

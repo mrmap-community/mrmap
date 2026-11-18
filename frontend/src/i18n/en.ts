@@ -156,6 +156,8 @@ const en = lodashMerge(
       selectLayer: "Select a layer in the tree to edit its opacity, style and dimensions.",
       edit: "Edit %{layer}",
       title: "Layer settings",
+      mapSettings: "Map Settings",
+      wmsList: "WMS List",
       opacity: "Opacity",
       opacityValue: "%{percent}%",
       pin: "Pin timeline",
@@ -1404,6 +1406,14 @@ const en = lodashMerge(
       },
       list: {
         actions: "Actions"
+      },
+      page: {
+        // #833: the standard forbidden state an anonymous deep link into a
+        // private screen lands on; the keys mirror the de catalog
+        access_denied: "Access denied",
+      },
+      message: {
+        access_denied: "You do not have permission for this page.",
       },
       notification: {
         updated_with_errors: "Element updated, but some related items could not be saved |||| %{smart_count} elements updated, but some related items could not be saved",

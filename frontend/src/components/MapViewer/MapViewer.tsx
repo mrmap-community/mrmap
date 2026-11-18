@@ -114,22 +114,17 @@ export const MapViewerCore = (): ReactNode => {
             <Tabs scrollable
               defaultTabs={
                 [{
-                  tab: { label: 'Map Settings' },
+                  tab: { label: translate('viewerControls.mapSettings') },
                   tabPanel: {
                     value: 'settings',
                     children: <MapSettingsEditor/>
                   },
                   closeable: false
                 }, {
-                  tab: { label: 'WMS List' },
+                  tab: { label: translate('viewerControls.wmsList') },
                   tabPanel: {
                     value: 'wms-list',
-                    children: <ListGuesser
-                      resource='WebMapService'
-                      onRowClick={(resource) => {
-                        console.log('clicked: ',resource)
-                      }}
-                    />
+                    children: <ListGuesser resource='WebMapService' />
                   },
                   closeable: false
                 }, {

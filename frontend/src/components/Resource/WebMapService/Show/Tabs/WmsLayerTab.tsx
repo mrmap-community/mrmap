@@ -43,7 +43,7 @@ export const WmsLayers = () => {
         }
         jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,is_active,is_searchable'
         return _meta
-    },[])
+    },[record?.id])
 
 
   const {data, refetch} = useGetMany("Layer", {ids:record?.layers.map((layer: RaRecord) => layer.id), meta: meta});
@@ -92,7 +92,7 @@ export const WmsLayers = () => {
             </Stack>
       }
       return <Container>{inspection}</Container>
-  }, [selectedLayer])
+  }, [selectedLayer, onSuccess, record])
     
   return (
     <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >

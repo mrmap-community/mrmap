@@ -22,9 +22,6 @@ vi.mock("../../../../context/HttpClientContext", () => ({
     },
   }),
 }));
-vi.mock("../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
-}));
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () =>
     ["id", "title", "abstract", "version"].map((source) => ({

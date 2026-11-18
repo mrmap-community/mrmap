@@ -69,6 +69,9 @@ vi.mock('react-admin', () => {
       <div data-testid="layout">{children}</div>
     ),
     useSidebarState: () => [false, vi.fn()],
+    // the center only hydrates with a session (#833) - the unmocked provider
+    // below would otherwise never fire its two hydrate reads
+    useAuthState: () => ({ authenticated: true }),
     useRefresh: () => permissionLostHooks.refresh,
     useDataProvider: () => provider,
     useGetList: (_resource: string, params: { filter: { status: string } }) =>

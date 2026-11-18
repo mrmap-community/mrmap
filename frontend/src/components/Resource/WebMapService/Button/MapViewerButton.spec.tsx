@@ -18,7 +18,6 @@ const state = vi.hoisted(() => ({
   addWMSByUrl: vi.fn(),
   addWFSByUrl: vi.fn(),
   getOne: vi.fn(),
-  token: undefined as string | undefined,
   resetContext: vi.fn(),
   navigate: vi.fn(),
 }));
@@ -50,9 +49,6 @@ vi.mock("react-admin", () => ({
 vi.mock("react-router-dom", () => ({
   useNavigate: () => state.navigate,
 }));
-vi.mock("../../../../providers/authProvider", () => ({
-  getAuthToken: () => state.token ? { token: state.token } : undefined,
-}));
 vi.mock("../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
   useOwsContextBase: () => ({
     owsContext: state.context,
@@ -78,7 +74,6 @@ beforeEach(() => {
   state.query.data = undefined;
   state.query.isLoading = false;
   state.context = { features: [] };
-  state.token = undefined;
 });
 
 describe("map viewer button", () => {
@@ -86,7 +81,6 @@ describe("map viewer button", () => {
     const featureType = { id: 'feature-type', identifier: 'demo:roads' };
     state.query.data = { id: 'wfs-service', featuretypes: [featureType] };
     state.record = { id: 'wfs-service' };
-    state.token = 'session-token';
     render(<MapViewerButton protocol="WFS" />);
     expect(state.addWFSByUrl).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button'));
@@ -102,7 +96,9 @@ describe("map viewer button", () => {
     expect(url.pathname).toBe('/mrmap-proxy/wfs/wfs-service');
     expect(url.searchParams.get('SERVICE')).toBe('WFS');
     expect(url.searchParams.get('VERSION')).toBe('2.0.0');
-    expect(state.addWFSByUrl.mock.calls[0][1].get('Authorization')).toBe('Token session-token');
+    // no header argument (#835): the viewer's request to this origin carries
+    // the browser session's cookie by itself
+    expect(state.addWFSByUrl.mock.calls[0][1]).toBeUndefined();
     const operation = { href: 'https://mrmap.example.test/mrmap-proxy/wfs/wfs-service?TYPENAME=demo:roads' };
     const context = {
       features: [{ properties: { folder: '/1/roads' }, getWfsOperationByCode: () => operation }],
@@ -258,36 +254,45 @@ describe("map viewer button", () => {
     });
   });
 
-  it("asks a service upstream of the registry document without the session", () => {
-    state.token = "session-token";
+  it("hands the proxy service over without any credential (#835)", () => {
     state.query.data = service;
     const proxyUrl = "https://mrmap.example.test/mrmap-proxy/wms/service";
     render(<MapViewerButton capabilititesUrl={proxyUrl} />);
     fireEvent.click(screen.getByRole("button"));
 
-    const secured: Record<string, unknown> = { href: proxyUrl };
-    const upstream: Record<string, unknown> = {
+    // the operations as the freshly parsed document holds them: since #835 the
+    // button passes no headers to the viewer, so the placeholder mechanism of
+    // `assignServiceAuthentication` never marks this tree at all
+    const proxyOperation: Record<string, unknown> = { href: proxyUrl };
+    const upstreamOperation: Record<string, unknown> = {
       href: "https://upstream.example/ows?LAYERS=roads",
-      "x-authentication-id": "missing:any",
     };
     const context = {
       features: [
         {
-          properties: { folder: "/1", offerings: [{ operations: [secured] }] },
-          getWmsOperationByCode: () => secured,
+          properties: { folder: "/1", offerings: [{ operations: [proxyOperation] }] },
+          getWmsOperationByCode: () => proxyOperation,
         },
         {
-          properties: { folder: "/1/roads", offerings: [{ operations: [upstream] }] },
-          getWmsOperationByCode: () => upstream,
+          properties: { folder: "/1/roads", offerings: [{ operations: [upstreamOperation] }] },
+          getWmsOperationByCode: () => upstreamOperation,
         },
       ],
     };
     state.addWMSByUrl.mock.calls[0][2](context, 1);
 
-    // the document of the registry is asked with the session, its upstream service is not
-    expect(secured["x-authentication-id"]).toBe(
-      (context as unknown as { authenticationHeaders: { id: string }[] }).authenticationHeaders[0].id,
-    );
-    expect(upstream).not.toHaveProperty("x-authentication-id");
+    // nothing hands a credential to the viewer any more: the proxy operation is
+    // asked with the session cookie the browser attaches itself, and an
+    // operation of another origin gets no credential from us at all - so no
+    // operation carries an authentication id and no header is registered
+    expect(state.addWMSByUrl.mock.calls[0][1]).toBeUndefined();
+    expect(proxyOperation).not.toHaveProperty("x-authentication-id");
+    expect(upstreamOperation).not.toHaveProperty("x-authentication-id");
+    // the identity markers the proxy reads are not credentials and stay
+    expect(proxyOperation).toHaveProperty("x-mrmap-service-id");
+    expect(
+      (context as unknown as { authenticationHeaders?: unknown[] })
+        .authenticationHeaders,
+    ).toBeUndefined();
   });
 });

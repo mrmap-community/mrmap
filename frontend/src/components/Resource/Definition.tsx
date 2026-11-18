@@ -94,6 +94,10 @@ const RESOURCES: Array<ResourceProps> = [
     options: { 
       menu: { group: "WMS", order: 10 },
       list: { 
+        // every screen of a service resource lists the services themselves, not
+        // the update candidates the backend keeps beside them; declared here, so
+        // no screen has to repeat it - and a screen's own filter still wins
+        filter: { is_update_candidate: false },
         perPage: 25,
         sort: { field: 'title', order: 'ASC' },
         defaultSelectedColumns: ["id", "title", "abstract", "username", "actions", ],
@@ -105,12 +109,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { filter: { is_update_candidate: false }, aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
-  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
+  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { filter: { is_update_candidate: false }, additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { filter: { is_update_candidate: false }, aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {

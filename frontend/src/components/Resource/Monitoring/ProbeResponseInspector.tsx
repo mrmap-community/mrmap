@@ -16,7 +16,6 @@ import {
   API_BASE_URL,
   useHttpClientContext,
 } from "../../../context/HttpClientContext";
-import { getAuthToken } from "../../../providers/authProvider";
 import { PreviewImage } from "../Generic/ServiceShow/ServicePreviewImage";
 
 /** The execution summary of one probe, as the result serializers answer it
@@ -200,7 +199,8 @@ const ResponseArtifact = ({
       const endpoint = new URL(url, API_BASE_URL);
       if (endpoint.origin !== new URL(API_BASE_URL).origin)
         throw new Error("Artifact must use the MrMap API");
-      const token = getAuthToken()?.token;
+      // same-origin of the guard above: the session cookie is on this request
+      // by itself, no credential is spelled out for it any more (#835)
       return (
         await api.client.request<Blob>({
           url: endpoint.href,
@@ -208,7 +208,6 @@ const ResponseArtifact = ({
           signal,
           headers: {
             Accept: "*/*",
-            ...(token ? { Authorization: `Token ${token}` } : {}),
           },
         })
       ).data;

@@ -8,7 +8,6 @@ import {
   API_BASE_URL,
   useHttpClientContext,
 } from "../../../../context/HttpClientContext";
-import { getAuthToken } from "../../../../providers/authProvider";
 
 export const PreviewImage = ({
   src,
@@ -112,14 +111,14 @@ const AuthenticatedPreviewImage = ({
       const endpoint = new URL(src, API_BASE_URL);
       if (endpoint.origin !== new URL(API_BASE_URL).origin)
         throw new Error("Preview must use the MrMap API");
-      const token = getAuthToken()?.token;
       const response = await api.client.request<Blob>({
         url: endpoint.href,
         responseType: "blob",
         signal,
+        // same-origin of the guard above, so the browser session's cookie is
+        // on the request already (#835)
         headers: {
           Accept: "image/png",
-          ...(token ? { Authorization: `Token ${token}` } : {}),
         },
       });
       if (!response.data.type.startsWith("image/"))

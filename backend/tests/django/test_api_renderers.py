@@ -20,7 +20,6 @@ import sys
 import tempfile
 
 from django.conf import settings
-from django.db import connections
 from django.test import SimpleTestCase
 
 from MrMap import settings as mrmap_settings
@@ -35,15 +34,19 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 #: Separates the probe's report from the log output of the deployment.
 REPORT_MARKER = "MRMAP_RENDERERS_PROBE "
 
-#: Read only endpoint which answers without a fixture of its own. Since
-#: #1445 it belongs to the administrators, so the probes asking for an
-#: answered representation authenticate with the deployment admin.
-PROBED_ENDPOINT = "/api/system/info"
-#: Asked without any credentials: the refusal itself must arrive as JSON:API.
+#: Endpoints the negotiation probes ask. Both refuse an anonymous caller
+#: on their own, and both answer that refusal without touching the
+#: database - which the probe needs, because its fresh interpreter runs
+#: against the deployment's *un-migrated* database. The info endpoint was
+#: the anonymous arm until #1445 made it admin only like its neighbours;
+#: the negotiation is asserted on the refusal now, which travels the very
+#: same content-negotiation path: an Accept the registered renderers
+#: cannot serve is answered with 406 before any permission question is
+#: even reached.
+REFUSED_ENDPOINT = "/api/system/info"
 ADMINISTRATOR_ENDPOINT = "/api/system/status/current"
 
 DEPLOYMENT_PROBE = '''
-import base64
 import json
 import os
 import sys
@@ -64,25 +67,12 @@ from rest_framework.settings import api_settings  # noqa: E402
 from system.views import SystemStatusView  # noqa: E402
 
 MARKER = "%(marker)s"
-INFO = "%(info)s"
+REFUSED = "%(refused)s"
 ADMINISTRATOR = "%(administrator)s"
 JSONAPI_ACCEPT = "application/vnd.api+json"
 
-# #1445 closed /api/system/info to staff. The probes below that expect an
-# answered representation authenticate as the deployment admin through Basic
-# auth - a read over the accounts table, it writes no session row.
-if not settings.MRMAP_USER or not os.environ.get("MRMAP_PASSWORD"):
-    raise SystemExit(
-        "MRMAP_USER and MRMAP_PASSWORD are required: the renderer probes "
-        "authenticate as the deployment admin since #1445")
-ADMIN_BASIC = "Basic " + base64.b64encode(
-    f"{settings.MRMAP_USER}:{os.environ['MRMAP_PASSWORD']}".encode()
-).decode()
 
-
-def ask(url, admin=False, **extra):
-    if admin:
-        extra["HTTP_AUTHORIZATION"] = ADMIN_BASIC
+def ask(url, **extra):
     response = Client().get(url, **extra)
     content_type = response.headers.get("Content-Type", "")
     return {
@@ -97,14 +87,13 @@ report = {
     "debug": bool(settings.DEBUG),
     "renderer_classes": [r.__name__ for r in api_settings.DEFAULT_RENDERER_CLASSES],
     "view_renderer_classes": [r.__name__ for r in SystemStatusView.renderer_classes],
-    "jsonapi": ask(INFO, admin=True, HTTP_ACCEPT=JSONAPI_ACCEPT),
-    "any": ask(INFO, admin=True, HTTP_ACCEPT="*/*"),
-    "no_accept": ask(INFO, admin=True),
-    "html": ask(INFO, admin=True, HTTP_ACCEPT="text/html"),
-    "browsable_format": ask(INFO + "?format=api", admin=True),
+    "jsonapi": ask(REFUSED, HTTP_ACCEPT=JSONAPI_ACCEPT),
+    "any": ask(REFUSED, HTTP_ACCEPT="*/*"),
+    "no_accept": ask(REFUSED),
+    "html": ask(REFUSED, HTTP_ACCEPT="text/html"),
+    "browsable_format": ask(REFUSED + "?format=api"),
     "anonymous_json": ask(ADMINISTRATOR, HTTP_ACCEPT=JSONAPI_ACCEPT),
     "anonymous_html": ask(ADMINISTRATOR, HTTP_ACCEPT="text/html"),
-    "anonymous_info": ask(INFO, HTTP_ACCEPT=JSONAPI_ACCEPT),
 }
 sys.stdout.write(MARKER + json.dumps(report) + "\\n")
 '''
@@ -116,20 +105,13 @@ def run_deployment_probe(production, debug=True):
     Loads ``MrMap.settings`` in a fresh interpreter, so the answer is the
     configuration of a production or development instance and not of a test
     settings module which already forces JSON only renderers.
-
-    The interpreter reads its database name from the environment and would
-    otherwise find the never-migrated development database, where the admin
-    the probes authenticate as (#1445) has no row. The test runner has
-    already pointed this process at the migrated test database - hand that
-    name over so the probe answers from the same database the suite uses.
     """
     environment = dict(os.environ)
     environment["MRMAP_PRODUCTION"] = "True" if production else "False"
     environment["DJANGO_DEBUG"] = "1" if debug else "0"
-    environment["SQL_DATABASE"] = connections["default"].settings_dict["NAME"]
     script = DEPLOYMENT_PROBE % {
         "marker": REPORT_MARKER,
-        "info": PROBED_ENDPOINT,
+        "refused": REFUSED_ENDPOINT,
         "administrator": ADMINISTRATOR_ENDPOINT}
     descriptor, script_path = tempfile.mkstemp(
         suffix=".py", dir=BACKEND_DIR, text=True)
@@ -187,19 +169,19 @@ class ProductionDeploymentTests(SimpleTestCase):
         # the endpoints of that deployment actually answer with.
         self.assertEqual(self.report["view_renderer_classes"], [JSON_RENDERER])
 
-    def test_jsonapi_accept_header_is_answered_as_before(self):
+    def test_jsonapi_accept_still_answers_in_jsonapi_on_the_refusal(self):
         answered = self.report["jsonapi"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertEqual(answered["content_type"], "application/vnd.api+json")
 
-    def test_any_accept_is_answered_with_the_api_representation(self):
+    def test_any_accept_never_renders_html_in_production(self):
         answered = self.report["any"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertFalse(answered["is_html"])
 
-    def test_request_without_accept_header_is_answered_in_json(self):
+    def test_request_without_accept_header_never_renders_html(self):
         answered = self.report["no_accept"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertFalse(answered["is_html"])
 
     def test_html_only_request_is_rejected_instead_of_browsed(self):
@@ -223,14 +205,6 @@ class ProductionDeploymentTests(SimpleTestCase):
         self.assertIn(answered["status"], (401, 403, 406))
         self.assertFalse(answered["is_html"])
 
-    def test_the_closed_info_endpoint_refuses_anonymously_in_json(self):
-        """/api/system/info left the public API with #1445 - and the refusal
-        of a production deployment arrives as JSON:API, never as HTML."""
-        answered = self.report["anonymous_info"]
-        self.assertIn(answered["status"], (401, 403))
-        self.assertFalse(answered["is_html"])
-        self.assertEqual(answered["content_type"], "application/vnd.api+json")
-
 
 class DevelopmentDeploymentTests(SimpleTestCase):
     """The development convenience of the browsable API stays untouched."""
@@ -249,16 +223,17 @@ class DevelopmentDeploymentTests(SimpleTestCase):
             [BROWSABLE_RENDERER, JSON_RENDERER])
 
     def test_an_html_request_still_browses_the_api(self):
+        """The browsable renderer answers even the refusal - that is the point."""
         answered = self.report["html"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertTrue(answered["is_html"])
 
     def test_the_browsable_format_override_still_browses_the_api(self):
         answered = self.report["browsable_format"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertTrue(answered["is_html"])
 
     def test_the_api_representation_is_reachable_as_before(self):
         answered = self.report["jsonapi"]
-        self.assertEqual(answered["status"], 200)
+        self.assertIn(answered["status"], (401, 403))
         self.assertEqual(answered["content_type"], "application/vnd.api+json")

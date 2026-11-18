@@ -552,6 +552,12 @@ class HttpResponseLog(models.Model):
             # alone does not say which table the row is in (#1153). Nothing else
             # is carried -- a task which had to look a user up here would fail
             # the commit which answers the proxied request.
+            #
+            # One message for this row, and this row only (#1459): the analysis
+            # counts the content of the one response which is stored here, so
+            # the commit which made the row visible is the moment it has to run
+            # at, and no collected pending set is needed for that. The intent,
+            # and what a task over a pending set would cost, are on the task.
             transaction.on_commit(
                 lambda: async_analyze_log.apply_async(
                     args=(self.pk, self._meta.label_lower),

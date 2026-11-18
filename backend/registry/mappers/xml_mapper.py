@@ -138,6 +138,15 @@ class XmlMapper:
         self.cache.set(unique_key, value)
         self.cache.add_to_list(self.uuid, unique_key)
 
+    def release_cache(self):
+        """Drop the cache entries this mapper stored, uuid and all.
+
+        Only this mapper's own traversal and persistence read its parsed
+        instances - they are keyed by its fresh uuid - so once its import
+        is through, the entries are nothing to hold on to across runs.
+        """
+        self.cache.release(self.uuid)
+
     def read_from_cache(self, key):
         return self.cache.get(f"{self.uuid}:{key}")
 

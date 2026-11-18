@@ -95,9 +95,17 @@ class OrganizationSortTest(TestCase):
         cls.beta = Organization.objects.create(name="Beta Behörde")
         cls.alpha = Organization.objects.create(name="Alpha Amt")
         cls.gamma = Organization.objects.create(name="Gamma Gemeinde")
+        # the endpoint asks an identity since #1448 - it answers the contact
+        # fields of a person - so the sort is read as the users test above
+        # reads theirs: with a session
+        cls.admin = User.objects.create_superuser(
+            username="orgsortadmin", password="test")
+        cls.api = APIClient()
+        cls.api.force_authenticate(cls.admin)
+        cls.api.credentials(HTTP_ACCEPT=JSONAPI)
 
     def _document(self, **query):
-        response = self.client.get(
+        response = self.api.get(
             reverse("accounts:organization-list"), query, HTTP_ACCEPT=JSONAPI)
         self.assertEqual(response.status_code, 200, response.content)
         return response.json()
@@ -140,7 +148,7 @@ class OrganizationSortTest(TestCase):
             [row["id"] for row in document["data"]], self._expected("name"))
 
     def test_an_unknown_sort_is_still_rejected(self):
-        response = self.client.get(
+        response = self.api.get(
             reverse("accounts:organization-list"),
             {"sort": "not_a_field"}, HTTP_ACCEPT=JSONAPI)
         self.assertEqual(response.status_code, 400, response.content)

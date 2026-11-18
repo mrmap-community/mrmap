@@ -468,20 +468,50 @@ CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
-CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
 CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# One un-acked message per slot at any time (#1454). The long work of this
+# fleet runs with acks_late (HarvestingTask of registry/tasks/harvest.py,
+# the WMS update job of registry/tasks/update.py): its message stays
+# un-acked while the task works, and celery's default prefetch of four per
+# slot lets a worker reserve three further messages beside the one it runs.
+# On every roll or restart those reserved, never-started messages are
+# requeued and their side effects run again from the start - for the
+# harvesting, registration and update tasks that is a second download and
+# import of work nobody had begun. Celery's own configuration docs
+# prescribe 1 for a worker running tasks with side effects; the broker
+# round trip it costs per message is the price of not re-executing work.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# Global bounds of one task attempt (#1454). The longest single request the
+# deployment runs on purpose is a harvesting GetRecords, bounded by
+# HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS (900 s, registry/settings.py); the
+# soft limit at three times that ceiling leaves room for the parse and the
+# persist around a healthy request and cuts the CPU-bound parse/import and
+# mapping recursion which would otherwise pin a slot forever. On the soft
+# limit celery raises SoftTimeLimitExceeded inside the task, so the body's
+# cleanup and the failure paths of its base class still run and a bounded
+# wait like the lease wait of registry/tasks/service.py ends decided; the
+# hard limit SIGKILLs the slot a further five minutes later and the prefork
+# pool replaces it. A hard-killed attempt leaves an open row in the attempt
+# samples of #1330, which the sweep flags abandoned only after
+# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS. Time limits belong to the prefork
+# pool, which is what the celery-worker of docker-compose.yml runs.
+CELERY_TASK_SOFT_TIME_LIMIT = 2700
+CELERY_TASK_TIME_LIMIT = 3000
 # the number of slots a celery worker process runs; docker-compose.yml hands
 # the variable of the same name from the .env of the deployment to
-# celery-worker. Unset keeps celery's own default of one slot per core;
-# "auto" lets celery size the prefork pool by the cgroup quota of the
-# container. It is the knob for a bigger worker, so that changing worker
-# concurrency never makes a deployment restate the queue list of the
-# release and thereby half-install it (#1040).
+# celery-worker. Unset, the compose file of a release now defaults the worker
+# to 4 slots (#1454): an inherited one-slot-per-host-core prefork pool
+# against the memory limit of the container was the OOM path behind stuck
+# jobs. "auto" lets celery size the prefork pool by the cgroup quota of the
+# container; a deployment which really wants celery's own default can still
+# pass an empty value with its own override. It is the knob for a bigger
+# worker, so that changing worker concurrency never makes a deployment
+# restate the queue list of the release and thereby half-install it (#1040).
 _CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
 if _CELERY_WORKER_CONCURRENCY == "auto":
     CELERY_WORKER_CONCURRENCY = "auto"
@@ -671,6 +701,58 @@ SESSION_COOKIE_AGE = 30 * 60
 
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
+
+# Cookie policy of the browser session (#835, accepted decision Q8=B). The SPA
+# authenticates with the session cookie ``api/auth/session`` opens; it is
+# deliberately not readable by JavaScript (``HttpOnly``), so an injected script
+# cannot copy it the way it could copy the knox token out of ``localStorage``.
+# ``SameSite=Lax`` is enough here and is what the same-origin topology allows:
+# nginx serves the SPA and proxies ``/api``, ``/csw`` and ``/ws`` on the very
+# host and port the SPA is loaded from (``docker/nginx/mrmap.conf``), so every
+# request which has to carry the credential is a same-site one anyway. A
+# cross-site subresource which Lax blocks is therefore not a request which
+# needs the session.
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# The CSRF cookie is the one cookie the browser *must* hand to JavaScript: the
+# SPA reads it and repeats its value in the ``X-CSRFToken`` header of every
+# state-changing request, which is what DRF's ``SessionAuthentication`` demands
+# for a request it authenticates through the session (see the contract in
+# docs/source/administration/authentication.md). That value grants nothing on
+# its own - without the session cookie it identifies no caller - so ``HttpOnly``
+# stays off for it on purpose, and ``SameSite=Lax`` matches the session cookie.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Both cookies are only sent (and only stored) over TLS when the deployment is
+# served over HTTPS. The default follows ``MRMAP_PRODUCTION`` because that is
+# the deployment this repository ships behind nginx and TLS
+# (``SECURE_PROXY_SSL_HEADER`` above reads the proxy's protocol); an http-only
+# deployment must set ``DJANGO_COOKIE_SECURE=False``, or the browser refuses to
+# store the session and no login ever sticks. Conversely an omitted flag would
+# let the session cross the wire in clear text on a https deployment, which is
+# why this is not left to the framework default of ``False``. Both cookies move
+# together on purpose: a session stored over http without its CSRF partner, or
+# the other way round, is not a working arrangement.
+
+
+def _cookie_secure_from_env(environ, production: bool) -> bool:
+    """Whether the session and CSRF cookies are TLS-only for one environment.
+
+    The explicit ``DJANGO_COOKIE_SECURE`` wins over the deployment-mode default,
+    so an http-only deployment can opt out and a https staging deployment which
+    is not flagged as production can opt in.
+    """
+    override = environ.get("DJANGO_COOKIE_SECURE")
+    if override is not None:
+        return override == "True"
+    return production
+
+
+COOKIE_SECURE = _cookie_secure_from_env(os.environ, MRMAP_PRODUCTION)
+SESSION_COOKIE_SECURE = COOKIE_SECURE
+CSRF_COOKIE_SECURE = COOKIE_SECURE
 
 ################################################################
 # DJANGO DEBUG TOOLBAR
@@ -947,6 +1029,20 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
+# How many hours an unfinished service-update job may stand undriven before the
+# sweep of ``registry/tasks/update.py`` fails it (#1460). The guards of #1453
+# redeliver a lost message, but a delivery which is gone for good - a broker
+# recreated with the database kept, a purge, a discard - or a run whose retries
+# died without the job deciding leaves it unfinished, and the constraint of one
+# unfinished job per service then blocks every later update of that service.
+# The sweep only fails unfinished jobs aged beyond this horizon; no legitimate
+# update run takes so long, which is what makes the horizon the line that
+# protects a job which still works. It fires hourly (see registry/apps.py).
+# A horizon below one hour is raised to one: a busy queue is #1320's verdict,
+# not this sweep's work
+UPDATE_JOB_STALE_HORIZON_HOURS = int(
+    os.getenv("MRMAP_UPDATE_JOB_STALE_HORIZON_HOURS", "24"))
+
 # The activation gate of the metadata editor's record writes (#1241, opened
 # by #1244). The create/update endpoints of the metadata records answer the
 # default json:api CRUD contract; a committed write regenerates the ISO
@@ -987,19 +1083,20 @@ def default_renderer_classes(production: bool):
     return renderers
 
 
-# Browser session lifetime (#834, decision Q8=B). Until browser authentication
-# migrates to Django SessionAuthentication + CSRF (#835), the browser keeps its
-# credential as the knox token that ``api/auth/login`` issues. Its validity is a
-# deployment decision, configured here explicitly instead of silently inherited
-# from the knox package default: one working day, enforced server-side on every
-# request against the ``AuthToken.expires`` row - not a client-side notion.
-# ``AUTO_REFRESH`` stays off: a rolling extension would make the lifetime
-# unpredictable, the client caches the expiry the login answered and the token
-# model has no refresh concept; expiry then lands the user on the login page
-# with the reason (frontend contract of #834, policy in
-# ``docs/source/administration/authentication.md``). When #835 replaces this
-# mechanism, this block retires with it; the machine/API token policy documented
-# there stays a separate, explicit decision.
+# Machine / API token lifetime (#835, accepted decision Q8=B). Since the browser
+# authenticates with the Django session ``api/auth/session`` opens, the knox
+# token this endpoint still issues is a *machine* credential only: scripts and
+# CLI clients which authenticate with HTTP Basic and keep the answer. Its
+# validity stays an explicit deployment decision instead of a package default:
+# one working day, enforced server-side on every request against the
+# ``AuthToken.expires`` row - not a client-side notion. ``AUTO_REFRESH`` stays
+# off: a rolling extension would make the lifetime unpredictable and the token
+# model has no refresh concept. Revocation is per token (#832). A dedicated
+# machine-token policy - longer or unbounded lifetime, per-purpose scopes,
+# admin-issued tokens - is the open decision documented in
+# docs/source/administration/authentication.md and is deliberately not decided
+# by this block; the browser session's own lifetime is ``SESSION_COOKIE_AGE``
+# above and shares nothing with this one.
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
     "AUTO_REFRESH": False,
@@ -1009,11 +1106,42 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
     "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    # The stack every view authenticates with unless it names its own. Basic
+    # is deliberately NOT in it (#1450): Basic carries the account password,
+    # and with this stack global, every endpoint of the API silently accepted
+    # the password in place of the credential it documents - the machine token
+    # of #835 exists exactly so that a caller does not hand out the password to
+    # each request. The two endpoints the password is documented for,
+    # ``api/auth/session`` and ``api/auth/login``, declare Basic on the view
+    # now (``accounts/views/auth.py``), and they are the only ones.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF 3.15 ships this empty, which throttles nothing: a scope only exists
+    # once a rate is named here. The one scope is the login attempt budget of
+    # #1450 - the POSTs of ``api/auth/session`` and ``api/auth/login``, the
+    # two endpoints which read a password, counted per client address before
+    # the credential is looked at (``accounts/throttling.py``).
+    # ``30/min`` is sized from what the application itself does on one address:
+    # the whole unit suite logs in about 25 times and the acceptance features
+    # about 8, spread over minutes, and a browser or a script with a 10-hour
+    # token re-logs in when a person types a password - nobody reaches 30 in a
+    # minute by hand. A credential guessing tool loses over 99% of its rate.
+    # A deployment whose machine clients all share one NAT address and log in
+    # more often than this raises the number there.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "30/min",
+    },
+    # DRF's own default is an empty list, which asks nothing of anybody: a view
+    # class naming no permission of its own answered writes to anonymous clients.
+    # This is the floor such a view falls back to -- reading stays open, a write
+    # needs an identity (#1444). Endpoints deciding access per object still name
+    # their own classes, and the security proxy names none on purpose: OGC's XML
+    # POST binding carries a GetFeature, which is a read, over HTTP POST.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",
@@ -1057,11 +1185,13 @@ SPECTACULAR_SETTINGS = {
     # endpoint documentation; see extras.schema.get_lib_doc_excludes
     "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
     # the enum hook is spectacular's own default and must be named again
-    # once the setting is overridden; the second hook stamps the ISO 19139
-    # element paths of the writable record fields into the schema, read
-    # from the mapper configs (#1240)
+    # once the setting is overridden; the second hook moves the structured
+    # enum labels (#1487) into the enum components the first hook extracts;
+    # the last stamps the ISO 19139 element paths of the writable record
+    # fields into the schema, read from the mapper configs (#1240)
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
+        "extras.schema.inject_enum_labels",
         "registry.schema.inject_iso_paths",
     ],
 }

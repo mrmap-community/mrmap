@@ -13,6 +13,7 @@ from django.db.models.query_utils import Q
 from django.test import SimpleTestCase, TestCase
 from epsg_cache.models import Origin, SpatialReference
 from epsg_cache.registry import Registry
+from knox.models import AuthToken
 from lxml import etree
 from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
@@ -434,6 +435,51 @@ class WebMapServiceProxyTest(TestCase):
         # the row is in the table of the service which was requested, not in the
         # one of another service type
         self.assertEqual(0, WebFeatureServiceHttpRequestLog.objects.count())
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=remote_effect,
+    )
+    @patch.object(
+        target=Registry,
+        attribute="_fetch_coord_ref_system",
+        side_effect=epsg_side_effect,
+    )
+    def test_a_logged_request_row_never_carries_the_callers_credentials(
+            self, mocked_proxy, mocked_registry):
+        # the caller authenticates against MrMap with a knox token and brings a
+        # session cookie along. Both belong to MrMap, not to the logged
+        # exchange: the rows are readable through the log tooling, so the
+        # credentials are stripped before the row is written (#1452). IP and
+        # non-credential headers stay.
+        self.use_own_media_root()
+        self.ask_for_response_logging()
+        _, key = AuthToken.objects.create(User.objects.get(username="User1"))
+        self.query_params.update({"LAYERS": "node1"})
+
+        response = self.client.get(
+            self.wms_url,
+            self.query_params,
+            HTTP_AUTHORIZATION=f"Token {key}",
+            HTTP_COOKIE="sessionid=a-session-cookie",
+            HTTP_X_FORWARDED_AUTHORIZATION=f"Token {key}",
+            HTTP_REFERER="https://editor.example.de/map",
+        )
+
+        self.assertEqual(200, response.status_code, response.content)
+
+        headers = WebMapServiceHttpRequestLog.objects.get().headers
+        logged_names = {
+            name.lower().replace("_", "-") for name in headers}
+        self.assertNotIn("authorization", logged_names)
+        self.assertNotIn("cookie", logged_names)
+        self.assertNotIn("x-forwarded-authorization", logged_names)
+        # the token value itself is in no remaining header either
+        self.assertNotIn(key, "".join(headers.values()))
+        # a non-credential header of the same request is kept
+        self.assertEqual(
+            "https://editor.example.de/map", headers.get("REFERER"))
 
     @patch.object(
         target=WebMapServiceProxy,

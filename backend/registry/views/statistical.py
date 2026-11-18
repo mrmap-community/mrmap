@@ -39,49 +39,49 @@ class StatisticalListView(generics.ListAPIView):
 
 
 class StatisticalDatasetMetadataRecordListView(StatisticalListView):
-    queryset = DatasetMetadataRecord.history.stats_per_day()
+    queryset = DatasetMetadataRecord.change_stats.stats_per_day()
     serializer_class = StatisticalDatasetMetadataRecordSerializer
 
 
 class StatisticalServiceMetadataRecordListView(StatisticalListView):
-    queryset = ServiceMetadataRecord.history.stats_per_day()
+    queryset = ServiceMetadataRecord.change_stats.stats_per_day()
     serializer_class = StatisticalServiceMetadataRecordSerializer
 
 
 class StatisticalWebMapServiceListView(StatisticalListView):
-    queryset = WebMapService.history.stats_per_day()
+    queryset = WebMapService.change_stats.stats_per_day()
     serializer_class = StatisticalWebMapServiceSerializer
 
 
 class StatisticalLayerListView(StatisticalListView):
-    queryset = Layer.history.stats_per_day()
+    queryset = Layer.change_stats.stats_per_day()
     serializer_class = StatisticalLayerSerializer
 
 
 class StatisticalLayerPerServiceListView(StatisticalListView):
-    queryset = Layer.history.stats_per_day_per_service()
+    queryset = Layer.change_stats.stats_per_day_per_service()
     serializer_class = StatisticalLayerPerServiceSerializer
     filterset_class = StatisticalLayerPerServiceFilterSet
 
 
 class StatisticalWebFeatureServiceListView(StatisticalListView):
-    queryset = WebFeatureService.history.stats_per_day()
+    queryset = WebFeatureService.change_stats.stats_per_day()
     serializer_class = StatisticalWebFeatureServiceSerializer
 
 
 class StatisticalFeatureTypeListView(StatisticalListView):
-    queryset = FeatureType.history.stats_per_day()
+    queryset = FeatureType.change_stats.stats_per_day()
     serializer_class = StatisticalFeatureTypeSerializer
 
 
 class StatisticalFeatureTypePerServiceListView(StatisticalListView):
-    queryset = FeatureType.history.stats_per_day_per_service()
+    queryset = FeatureType.change_stats.stats_per_day_per_service()
     serializer_class = StatisticalFeatureTypePerServiceSerializer
     filterset_class = StatisticalFeatureTypePerServiceFilterSet
 
 
 class StatisticalCatalogueServiceListView(StatisticalListView):
-    queryset = CatalogueService.history.stats_per_day()
+    queryset = CatalogueService.change_stats.stats_per_day()
     serializer_class = StatisticalCatalogueServiceSerializer
 
 

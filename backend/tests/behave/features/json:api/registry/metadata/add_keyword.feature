@@ -24,6 +24,14 @@ Feature: Keyword Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 201
 
+    Scenario: Can't add as anonymous user
+        # the metadata lookups answer a read without an identity, but they are not
+        # open to writes: that is the floor of DEFAULT_PERMISSION_CLASSES (#1444)
+        Given I am an anonymous user
+        When I send the request with POST method
+        Then I expect the response status is 403
+        Then I expect that response json has an attribute "errors.[0].code" with value "not_authenticated"
+
     Scenario: Can add a keyword which is longer than a column
         Given I am logged in as User1 with password User1
         Given I set the request payload to:

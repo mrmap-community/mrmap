@@ -12,9 +12,6 @@ vi.mock("../../../../context/HttpClientContext", () => ({
   API_BASE_URL: "https://mrmap.test",
   useHttpClientContext: () => ({ api: { client: { request: state.request } } }),
 }));
-vi.mock("../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
-}));
 vi.mock("react-admin", () => ({
   useRecordContext: vi.fn(),
   useTranslate: () => (key: string, options?: { title?: string }) =>
@@ -142,7 +139,7 @@ describe("authenticated service preview image", () => {
       url: `https://mrmap.test${wfsRecord.previewUrl}`,
       responseType: "blob",
       signal: expect.any(AbortSignal),
-      headers: { Accept: "image/png", Authorization: "Token mrmap-token" },
+      headers: { Accept: "image/png" },
     });
     fireEvent.load(image);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();

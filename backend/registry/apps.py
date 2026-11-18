@@ -29,6 +29,11 @@ PROBE_RESPONSE_ARTIFACT_CLEANUP_TASK_NAME = (
 HARVEST_TEMP_FILE_CLEANUP_TASK_NAME = (
     "delete stored metadata files of ended harvesting jobs")
 
+#: the name the sweep of stale unfinished service-update jobs has in the
+#: schedule of beat; the tests look the row up by it
+STALE_UPDATE_JOB_SWEEP_TASK_NAME = (
+    "sweep stale unfinished service-update jobs")
+
 
 def create_choice_model_entries(sender, **kwargs):
     """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
@@ -207,6 +212,37 @@ def create_harvest_temp_file_cleanup_task(sender, **kwargs):
     )
 
 
+def create_stale_update_job_sweep_task(sender, **kwargs):
+    """Creates the periodic task which fails stale unfinished update jobs.
+
+    The guards of #1453 redeliver a lost message, but a delivery which is gone
+    for good leaves its update job unfinished, and nothing but this sweep takes
+    such a run back: the constraint of one unfinished job per service would
+    block the service's schedule forever (#1460). Beat reads its schedule out of
+    the database, so the sweep needs a row of ``PeriodicTask`` like the other
+    housekeeping does. Keyed by its name: a deployment which re-scheduled the
+    row over the api keeps what it chose.
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at fifty past the hour: a housekeeping sweep, out of the way of the five
+    # minute metadata import, the hourly dump sweep at five past, the hourly
+    # probe artifact sweep at twenty past and the hourly harvest cleanup at
+    # twenty to. Asked by its whole shape and not by the minute alone, for the
+    # reason #1273 states at the probe artifact sweep
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="50", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
+
+    PeriodicTask.objects.get_or_create(
+        name=STALE_UPDATE_JOB_SWEEP_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "registry.tasks.update.sweep_stale_update_jobs",
+        }
+    )
+
+
 def find_orphan_metadata_objects(sender, **kwargs):
     import logging
     logger = logging.getLogger(__name__)
@@ -254,6 +290,10 @@ class RegistryConfig(AppConfig):
         )
         post_migrate.connect(
             create_harvest_temp_file_cleanup_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_stale_update_job_sweep_task,
             sender=self
         )
         post_migrate.connect(

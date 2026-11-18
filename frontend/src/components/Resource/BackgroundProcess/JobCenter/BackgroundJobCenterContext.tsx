@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  useAuthState,
   useDataProvider,
   useGetList,
   useNotify,
@@ -36,6 +37,13 @@ import {
  *  bounded store after a reload, newest first */
 const HYDRATE_PAGE_SIZE = Math.ceil(MAX_TRACKED_JOBS / 2);
 
+/** the resource wide topic carries the created and deleted messages */
+export const RESOURCE_TOPIC = "resource/BackgroundProcess";
+
+/** the per process topic carries every progress update */
+export const processTopic = (id: string | number): string =>
+  `resource/BackgroundProcess/${id}`;
+
 /** the newest active processes which get a per-id topic of their own; older
  *  active ones stay visible but only refresh with a page of the api */
 const MAX_ID_TOPICS = 100;
@@ -56,6 +64,14 @@ export interface BackgroundJobCenterContextValue {
   setOpen: (open: boolean) => void;
   /** drops the completed processes from the view; the server keeps them */
   clearCompleted: () => void;
+  /**
+   * registers a listener for the processes which moved into `failed` through
+   * a live bus event - never through a hydration or reconnect replay, which
+   * is history the user did not watch happen; returns the unregistration.
+   * This is the seam the notification bridge of #1205 subscribes to (#1461):
+   * the store owns the subscriptions, a subscriber only reads its transitions.
+   */
+  subscribeFailed: (listener: (records: BackgroundJobRecord[]) => void) => () => void;
 }
 
 const BackgroundJobCenterContext = createContext<
@@ -95,19 +111,41 @@ export const BackgroundJobCenterProvider = ({
   notifications = true,
 }: {
   children: ReactNode;
-  /** whether this provider speaks its transitions through `useNotify`; a
-   *  deployment which mounts another notification bridge for the same
-   *  processes (the `BackgroundJobBridge` of #1205 in the Layout) passes
-   *  false, so one failure never becomes two toasts */
+  /** whether this provider speaks its transitions through `useNotify`; the
+   *  layout mounts the thin notification bridge of #1205 on the store's
+   *  failure seam below and passes false, so one failure never becomes two
+   *  toasts (the bridge aggregates them; #1461 converged the old second
+   *  store, which had its own subscriptions and its own toasts) */
   notifications?: boolean;
 }): ReactNode => {
   const dataProvider = useDataProvider();
   const notify = useNotify();
   const translate = useTranslate();
   const { realtimeIsReady } = useHttpClientContext();
+  // #833: the job center is an operator screen - its processes stay behind
+  // the session. An anonymous visitor must never fire these reads, because a
+  // 401 from any mounted query runs the authProvider's checkError and would
+  // log out a visitor who never logged in.
+  const { authenticated } = useAuthState();
 
   const [state, setState] = useState<JobStoreState>(initialJobStoreState);
   const [open, setOpen] = useState(false);
+
+  // the live transitions a notification subscriber is told about; a Set
+  // behind a stable callback so a subscriber's identity never rebuilds the
+  // provider (the pattern documented below `commit`)
+  const failedListeners = useRef(
+    new Set<(records: BackgroundJobRecord[]) => void>(),
+  );
+  const subscribeFailed = useCallback(
+    (listener: (records: BackgroundJobRecord[]) => void) => {
+      failedListeners.current.add(listener);
+      return () => {
+        failedListeners.current.delete(listener);
+      };
+    },
+    [],
+  );
 
   // the completions which wait for their aggregated announcement
   const pendingCompletions = useRef(0);
@@ -122,12 +160,12 @@ export const BackgroundJobCenterProvider = ({
     filter: { status: "pending,running" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   const recentTerminal = useGetList<BackgroundJobRecord>("BackgroundProcess", {
     filter: { status: "failed,aborted,completed" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   // react-query rebuilds its result wrapper every render, so the effects
   // below name the refetch functions instead of calling through the wrapper
   const { refetch: refetchActiveProcesses } = activeProcesses;
@@ -151,6 +189,15 @@ export const BackgroundJobCenterProvider = ({
         stateRef.current,
         records,
       );
+      // a live failure is reported to the subscribers whether or not this
+      // provider speaks with its own voice - the mounted notification path
+      // of the layout is the thin bridge on this seam (#1461); a hydration
+      // replay (announce false) is history and stays silent
+      if (announce && transitions.failed.length > 0) {
+        failedListeners.current.forEach((listener) =>
+          listener(transitions.failed),
+        );
+      }
       if (announce && notifications) {
         transitions.failed.forEach((record) => {
           // once per process: the terminal state is written once and the
@@ -238,15 +285,9 @@ export const BackgroundJobCenterProvider = ({
         );
       }
     };
-    void dataProvider.subscribe(
-      "resource/BackgroundProcess",
-      handleResourceEvent,
-    );
+    void dataProvider.subscribe(RESOURCE_TOPIC, handleResourceEvent);
     return () => {
-      void dataProvider.unsubscribe(
-        "resource/BackgroundProcess",
-        handleResourceEvent,
-      );
+      void dataProvider.unsubscribe(RESOURCE_TOPIC, handleResourceEvent);
     };
   }, [dataProvider, ingest, commit]);
 
@@ -303,9 +344,7 @@ export const BackgroundJobCenterProvider = ({
     const wanted = new Set(
       watchKey === ""
         ? []
-        : watchKey
-            .split(",")
-            .map((id) => `resource/BackgroundProcess/${id}`),
+        : watchKey.split(",").map((id) => processTopic(id)),
     );
     wanted.forEach((topic) => {
       if (!watchedTopics.current.has(topic)) {
@@ -359,8 +398,9 @@ export const BackgroundJobCenterProvider = ({
       open,
       setOpen,
       clearCompleted,
+      subscribeFailed,
     }),
-    [state, open, clearCompleted],
+    [state, open, clearCompleted, subscribeFailed],
   );
 
   return (

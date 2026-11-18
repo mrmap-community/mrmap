@@ -7,7 +7,6 @@ import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, O
 
 import { type JsonApiDocument, type JsonApiPrimaryData, type JsonApiQueryParams } from '../jsonapi/types/jsonapi';
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils';
-import { getAuthToken } from './authProvider';
 import i18nProvider from './i18nProvider';
 import { updateSystemTime } from './systemTimeProvider';
 
@@ -288,14 +287,6 @@ const handleBadRequest = (error: AxiosError) => {
 }
 
 
-const attachAuthenticationIfExists = (config: AxiosRequestConfig): AxiosRequestConfig => {
-  const storedAuthToken = getAuthToken();
-  if (storedAuthToken?.token && config.headers){
-    config.headers = { ...config.headers, Authorization: `Token ${storedAuthToken?.token}` }
-  }
-  return config
-}
-
 const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
   if (config.headers){
     config.headers = { ...config.headers, "Accept-Language": i18nProvider.getLocale() }
@@ -303,10 +294,26 @@ const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
   return config
 }
 
-const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig => {
-  const cfg = attachAuthenticationIfExists(config)
-  return attachLocalHeader(cfg)
-}
+/**
+ * The request headers of a data call (#835).
+ *
+ * Authentication is not one of them any more: the browser session's cookie
+ * travels with the request on its own (`withCredentials` in
+ * `HttpClientContext`), and the CSRF header of the state-changing ones comes
+ * from axios' own `xsrfCookieName`/`xsrfHeaderName` defaults, which read the
+ * cookie Django answers. Nothing here may put a credential into a header: what
+ * JavaScript can write, JavaScript - or a script injected into this page - can
+ * also read.
+ */
+const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig =>
+  attachLocalHeader(config)
+
+/** The page size `getMany` never asks for less than. It is a floor and not a
+ *  ceiling: the related route inside `getMany` drops `ids` and pages through the
+ *  whole related collection, so a page as small as the few ids one screen asked
+ *  for would walk that collection in steps of a handful. The records a page
+ *  answers that were not asked for are dropped from its result. */
+const GET_MANY_MIN_PAGE_SIZE = 1000
 
 const dataProvider = ({
   total = '/meta/pagination/count',
@@ -426,7 +433,7 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-      const pageSize = Math.max(params.ids.length, 1000)
+      const pageSize = Math.max(params.ids.length, GET_MANY_MIN_PAGE_SIZE)
       const gathered: RaRecord[] = []
 
       // the pages must arrive one after the other, because the next one is only

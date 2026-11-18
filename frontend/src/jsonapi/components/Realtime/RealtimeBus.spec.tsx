@@ -35,9 +35,6 @@ vi.mock("../../../context/HttpClientContext", () => ({
     setRealtimeIsReady: state.setRealtimeIsReady,
   }),
 }));
-vi.mock("../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "tok123" }),
-}));
 vi.mock("react-use-websocket", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   default: (
@@ -66,9 +63,12 @@ beforeEach(() => {
 });
 
 describe("RealtimeBus", () => {
-  it("connects an authenticated user to the default endpoint with its token", () => {
+  it("connects without a credential in the URL (#835)", () => {
     render(<RealtimeBus />);
-    expect(state.url).toBe("ws://localhost:8001/ws/default/?token=tok123");
+    // the session cookie of the same-origin handshake is the identity; a token
+    // here would put a live credential into logs and history
+    expect(state.url).toBe("ws://localhost:8001/ws/default/");
+    expect(state.url).not.toContain("token");
   });
 
   it("reconnects every drop, bounded with a capped backoff", () => {

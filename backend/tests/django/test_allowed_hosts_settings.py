@@ -82,18 +82,19 @@ class AllowedHostsEnvTests(SimpleTestCase):
 
 
 class AllowedHostsRequestTests(TestCase):
-    """The merged list decides on the wire: foreign Host 400, listed host served."""
+    """The merged list decides on the wire: foreign Host 400, listed host served.
+
+    The probe endpoint is ``/api/system/info``, which is admin only since
+    #1445 - a refusal would prove nothing about the host list, so the
+    served-answer assertions ride an admin session while the host check
+    itself still decides before any view runs.
+    """
 
     def setUp(self):
         # the client must hand back the 400 response instead of raising
         self.client = Client(raise_request_exception=False)
-        # the probed endpoint /api/system/info answers staff only since
-        # #1445; the host decision is middleware in front of the view, but
-        # the "is served" answer still has to pass the view's permission
-        user = get_user_model().objects.create_user(
-            username='allowed-hosts-admin', password='a-allowed-hosts-password',
-            is_staff=True)
-        self.client.force_login(user)
+        self.client.force_login(get_user_model().objects.create_user(
+            username="host-probe-admin", password="x", is_staff=True))
 
     def test_foreign_host_is_answered_400(self):
         with override_settings(ALLOWED_HOSTS=['localhost']):

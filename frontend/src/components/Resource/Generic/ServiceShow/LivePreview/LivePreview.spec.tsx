@@ -41,9 +41,6 @@ vi.mock("../../../../../context/HttpClientContext", () => ({
     },
   }),
 }));
-vi.mock("../../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
-}));
 vi.mock("../../../../../react-ows-lib/ContextProvider/OwsContextBase", () => ({
   OwsContextBase: ({ children }: PropsWithChildren) => (
     <div data-testid="isolated-context">{children}</div>
@@ -177,9 +174,10 @@ describe("live overview previews", () => {
     expect(params.get("J")).toBe("200");
     expect(params.get("X")).toBe("300");
     expect(params.get("Y")).toBe("200");
+    // #835: the identity of this caller is the session cookie the browser
+    // attaches itself - no credential is spelled out in a header
     expect(options.headers).toEqual({
       Accept: "text/plain",
-      Authorization: "Token mrmap-token",
     });
     expect(
       state.request.mock.calls.every(
@@ -298,9 +296,9 @@ describe("live overview previews", () => {
     expect(state.transfer).not.toHaveBeenCalled();
     expect(state.request).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        // same-origin, so the session cookie of #835 is the whole credential
         headers: {
           Accept: "application/json",
-          Authorization: "Token mrmap-token",
         },
         params: expect.objectContaining({
           selection: "roads",
@@ -362,7 +360,9 @@ describe("live overview previews", () => {
     expect(new URL(href).pathname).toBe("/mrmap-proxy/wfs/service");
     expect(new URL(href).searchParams.get("SERVICE")).toBe("WFS");
     expect(new URL(href).searchParams.get("REQUEST")).toBe("GetCapabilities");
-    expect(headers?.get("Authorization")).toBe("Token mrmap-token");
+    // no header argument any more (#835): the viewer's request to this origin
+    // carries the session cookie by itself, and nothing hands a token over
+    expect(headers).toBeUndefined();
   });
   it("shows a retryable failure without replacing stored overview content", async () => {
     state.request.mockRejectedValue({

@@ -37,10 +37,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { v4 as uuidv4 } from "uuid";
 
 import { API_BASE_URL } from "../../../../../context/HttpClientContext";
-import { getAuthToken } from "../../../../../providers/authProvider";
 import {
   OwsContextBase,
   useOwsContextBase,
@@ -717,25 +715,25 @@ const CataloguePreview = ({ serviceId }: { serviceId: string }) => {
 
 /**
  * Marks the operations of the features below the new tree that serve exactly
- * the previewed layer as active, and stamps the operations delivered from this
- * origin with the authentication id the viewer sends the stored token with.
+ * the previewed layer as active.
+ *
+ * Nothing stamps an authentication id any more (#835): the operations of a
+ * previewed service are delivered by this origin's security proxy, and a
+ * request to this origin carries the browser session's cookie by itself. A
+ * credential the viewer would have to attach by hand does not exist, and
+ * advertising one which is absent would only make the viewer report the
+ * operations as lacking credentials.
  */
 const activateSelectedLayer = ({
   features,
   treeId,
   selection,
   wms,
-  token,
-  origin,
-  authenticationId,
 }: {
   features: OWSContext["features"];
   treeId: number;
   selection: string;
   wms: boolean;
-  token?: string;
-  origin: string;
-  authenticationId: string;
 }) => {
   features
     .filter((feature) => feature.properties.folder?.startsWith(`/${treeId}`))
@@ -754,8 +752,6 @@ const activateSelectedLayer = ({
       feature.properties.offerings?.forEach((offering) =>
         offering.operations?.forEach((item) => {
           item.active = active;
-          if (token && new URL(item.href).origin === origin)
-            item["x-authentication-id"] = authenticationId;
         }),
       );
     });
@@ -782,49 +778,27 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
       url.search = wms
         ? "SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0"
         : "SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0";
-      const token = getAuthToken()?.token;
-      const authenticationId = uuidv4();
+      // The proxy answers on this very origin, so the viewer's requests carry
+      // the browser session's cookie on their own (#835): no credential is
+      // handed over, because there is none to hand over any more.
       const appendService = wms
         ? globalContext.addWMSByUrl
         : globalContext.addWFSByUrl;
-      appendService(
-        url.href,
-        token ? new Headers({ Authorization: `Token ${token}` }) : undefined,
-        (context, treeId) => {
-          const authenticationHeaders = Array.isArray(
-            context.authenticationHeaders,
-          )
-            ? context.authenticationHeaders
-            : [];
-          if (token)
-            context.authenticationHeaders = [
-              ...authenticationHeaders,
-              {
-                id: authenticationId,
-                type: "header",
-                name: "Authorization",
-                value: `Token ${token}`,
-                origin: url.origin,
-              },
-            ];
-          activateSelectedLayer({
-            features: context.features,
-            treeId,
-            selection,
-            wms,
-            token,
-            origin: url.origin,
-            authenticationId,
-          });
-          context.bbox = viewport.bbox.split(",").map(Number) as [
-            number,
-            number,
-            number,
-            number,
-          ];
-          return context;
-        },
-      );
+      appendService(url.href, undefined, (context, treeId) => {
+        activateSelectedLayer({
+          features: context.features,
+          treeId,
+          selection,
+          wms,
+        });
+        context.bbox = viewport.bbox.split(",").map(Number) as [
+          number,
+          number,
+          number,
+          number,
+        ];
+        return context;
+      });
       navigate("/viewer", {
         state: { previewExtent: viewport.bbox.split(",").map(Number) },
       });

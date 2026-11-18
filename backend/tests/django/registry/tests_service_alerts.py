@@ -1554,15 +1554,26 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
             f'"{table}"."id" IN', answers[0],
             msg=f"the statement answering the alerts is not narrowed to "
                 f"the page: {answers[0][:400]}")
+        # the outer read is the text without its parentheses - the page
+        # identifiers of the IN list are rendered within them, so they are
+        # compared against the whole statement answering the attention
+        answered = [
+            query["sql"] for query in queries
+            if 'AS "has_alert"' in query["sql"]
+            and f'"{table}"."id" IN' in query["sql"]]
+        self.assertEqual(
+            len(answered), 1,
+            msg=f"exactly the statement answering the alerts narrows "
+                f"{table} to the page, {len(answered)} carry both marks")
         for resource in page:
             # psycopg renders a uuid parameter without its dashes:
             # 'cd16cc1f3abb4625bb96fbe80dbe23e3'::uuid
             self.assertTrue(
-                resource["id"] in answers[0]
-                or resource["id"].replace("-", "") in answers[0],
+                resource["id"] in answered[0]
+                or resource["id"].replace("-", "") in answered[0],
                 msg=f"the statement answering the alerts is narrowed to "
                     f"other rows than the page row {resource['id']}: "
-                    f"{answers[0][:400]}")
+                    f"{answered[0][:400]}")
 
     def test_the_page_of_a_map_service_list_answers_only_its_own_alerts(self):
         page, queries = self.list_page(

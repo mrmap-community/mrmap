@@ -41,6 +41,8 @@ Name the method for the **intent of the consumer**, not for the ORM mechanics:
 
 - ``for_monitoring_task()`` — the plan of the ``run_*_monitoring`` tasks;
 - ``for_harvest_import()`` — the plan of one stored file's import;
+- ``for_client_access()`` — the plan of the tasks which build a harvest
+  job's catalogue client (#1392, shipped with the download reads);
 - ``for_probe_execution()``, ``for_update_diff()``, ``for_cleanup_batch()`` —
   the proposals of #1398's follow-ups, named after who asks.
 

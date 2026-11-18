@@ -132,11 +132,22 @@ assertion was not tightened with it - that is the intent.
        locked read per record, coalesced progress (#958/#895), flagged row
        pays one UPDATE and the chunk continues (green, allowances named);
        ``_store_page``: job lock + duplicate count + bulk batches of 50,
-       redelivery writes nothing (green, #688); ``watch_import_backlogs``:
-       per open job - locked read, index-backed waiting-count, baseline
-       write - and nothing per backlog row (green)
-     - #1392 (scoped ``for_harvest_import`` plans); duplicate-guard index
-       candidate for ``requested_url`` belongs to #1397, not to these tests
+       redelivery writes nothing (green, #688) and, since #1392, the
+       duplicate count's plan is pinned THROUGH the hash index
+       ``tmpmd_page_dedup_idx`` - catalog definition and executed plan;
+       ``watch_import_backlogs``: per open job - locked read, index-backed
+       waiting-count, baseline write - and nothing per backlog row (green);
+       tightened by #1392: the ``call_fetch_total_records`` fan-out costs
+       the same statements for 1 as for 100 round trips and keeps exactly
+       one read for the hoisted request context
+       (``TotalRecordsFanOutShapeTest``); a real import chunk reads the
+       catalogue's stored capabilities document ONCE for all its records
+       while the #895 per-record locked reads stay per record and the
+       #1044 end-of-run on a gone document holds at the chunk boundary
+       (``CapabilitiesDocumentReadShapeTest``)
+     - shipped by #1392: the download read plan with its own
+       ``ForClientAccessTest`` in ``registry/managers/tests_harvesting.py``,
+       the dedup index and the per-chunk capabilities cache
    * - registration metadata collection
      - same module, ``ReferenceClaimLockOrderTest``
      - the claim path locks process before row before any lease write

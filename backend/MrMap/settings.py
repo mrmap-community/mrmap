@@ -1003,6 +1003,16 @@ def default_renderer_classes(production: bool):
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
     "AUTO_REFRESH": False,
+    # Concurrency cap, not a lifetime (#1450): knox's stock default is None —
+    # unlimited parallel tokens per user — so one credential seen by an
+    # attacker could farm tokens without bound while a refusal to *issue* one
+    # never leaks anything about the account. The login endpoint refuses with
+    # 403 once the user already holds this many not-yet-expired rows; a logout
+    # (or expiry) frees a slot, guessing at passwords cannot. Five covers one
+    # human's browsers and devices across a working day; every login from
+    # here issues browser-session rows and machine rows alike (see
+    # ``docs/source/administration/authentication.md``).
+    "TOKEN_LIMIT_PER_USER": 5,
 }
 
 REST_FRAMEWORK = {
@@ -1011,9 +1021,30 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
+        # Basic stays (#1450 evaluation): it is the credential *exchange* of
+        # POST /api/auth/login itself — knox's LoginView carries no
+        # authenticator of its own and uses this very list, and the login
+        # feature and the frontend's login answer it. Dropping it from the
+        # stack changes the credential surface of every endpoint, not just
+        # login: that needs the full behave T3 run and an admin decision,
+        # and is tracked as the follow-up of #1450, not silently folded in.
         "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # Scopes of the login throttle (#1450, audit SEC-8). Only views naming a
+    # ``throttle_scope`` are throttled; the sole one is
+    # ``accounts.views.auth.LoginView``, which counts refused attempts under
+    # ``login_anon`` (per client IP) and accepted ones under ``login`` (per
+    # user). DRF's rate throttling stores its window in the ``default`` cache
+    # — redis here — so all workers of a deployment share one counter.
+    "DEFAULT_THROTTLE_RATES": {
+        # no or wrong credential: 10 guesses per minute per address stops
+        # scripted guessing without punishing a typo
+        "login_anon": "10/min",
+        # valid credential, counted per user: far above any interactive
+        # login pattern, it bounds token-row creation by an accepted caller
+        "login": "30/min",
+    },
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",

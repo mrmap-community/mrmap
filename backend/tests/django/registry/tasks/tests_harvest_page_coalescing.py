@@ -399,15 +399,17 @@ class HarvestPageCoalescingTest(TransactionTestCase):
         self.assertEqual(self.stored_pages(1), PAGE_SIZE)
 
     @patch.object(OgcClient, "send_request")
-    def test_a_joined_page_keeps_the_progress_of_the_run(self, send_request):
-        """the run does not care which delivery brought which page: two deliveries
-        of every page leave the same backlog and the same progress as one"""
+    def test_a_joined_page_is_not_stored_twice(self, send_request):
+        """the delivery which joins brings no rows of its own: the page is in the
+        backlog exactly once, which is what the count both deliveries answer is
+        about - the holder's rows, not a second copy of them"""
         send_request.side_effect = catalogue(CATALOGUE_RECORDS)
 
-        solo = call_fetch_records.run(harvesting_job_id=1, start_position=1)
-        progress = HarvestingJob.objects.with_process_info().get(pk=1).progress
-        joined = call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
+        call_fetch_records.run(harvesting_job_id=1, start_position=1)
 
-        self.assertEqual(solo, joined)
-        self.assertEqual(
-            HarvestingJob.objects.with_process_info().get(pk=1).progress, progress)
+        self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
+        self.assertEqual(self.stored_pages(1), PAGE_SIZE)
+        urls = TemporaryMdMetadataFile.objects.filter(
+            job_id=1).values_list("requested_url", flat=True)
+        self.assertEqual(len(set(urls)), 1, "one page, one request url")

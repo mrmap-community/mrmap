@@ -362,13 +362,14 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
     # a log line naming a page which stayed short - a run which never got all
     # its pages is as little a complete snapshot as a run whose records broke
     # on import (#690). Both are asked as the existence question they are,
-    # each probe correlated to the job and riding the index of the foreign key
-    # of its relation. They must not be asked as one OR over the two join
-    # paths: both relations are multi-valued, and an OR over two joined
-    # multi-valued relations is answered on their *product* - the newest job
-    # of a catalogue whose harvest delivered 116k records multiplied 116,150
-    # files with 921 log rows, 106,973,229 join rows walked before the LIMIT
-    # saw its row, 24 s for one detail request (#1426)
+    # each probe correlated to the job. They must not be asked as one OR over
+    # the two join paths: both relations are multi-valued, and an OR over two
+    # joined multi-valued relations is answered on their *product* - the
+    # newest job of a catalogue whose harvest delivered 116k records multiplied
+    # 116,150 files with 921 log rows, 106,973,229 join rows walked before the
+    # LIMIT saw its row, 24 s for one detail request (#1426). The files of the
+    # job are read out of the composite index of #886, its log rows are read
+    # once - never multiplied with each other
     incomplete_harvest = newest_job(
         kind.harvesting_job,
         Q(Exists(TemporaryMdMetadataFile.objects.filter(
@@ -397,6 +398,81 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
             When(aborted | incomplete, then=F('alert_newest_harvest')),
             output_field=IntegerField()),
     )
+
+
+def alert_annotation_names(queryset) -> frozenset:
+    """The names of the annotations which `alert_annotations()` answers.
+
+    The convention which makes them findable: every annotation of the
+    attention either is an attribute the kind answers with
+    `ServiceKind.attributes` or carries the `alert_` prefix of the helper
+    rows which decide them. An annotation added outside both halves would
+    simply stay selected: the consequence of breaking the convention is the
+    cost of #1424 for that one name, never a wrong answer, and the scan
+    test of the list names it in the tests.
+
+    Args:
+        queryset: an annotated queryset of one kind of service
+
+    Returns:
+        frozenset: the names of the annotations of the attention
+    """
+    kind = SERVICE_KIND_OF[queryset.model]
+    return frozenset(
+        name for name in queryset.query.annotations
+        if name in kind.attributes or name.startswith('alert_'))
+
+
+def defer_alert_annotations(queryset):
+    """Keep the attention selectable without paying it per selected row.
+
+    The filters and the sort of a request name the annotations of the
+    attention, so those have to stay part of the query which answers the
+    page. What they must not be is part of its SELECT clause: an annotation
+    answers a subquery per attribute of every row the statement reads, and
+    the statement of a page reads every row which the filters keep - not
+    only the rows it shows - so a one-row page paid the derivation of the
+    whole service table (#1424). The count of the page already drops the
+    SELECT clause the way Django's own aggregation does; the page itself
+    masks the attention out of its SELECT here, and `answer_page_alerts()`
+    answers the attention for the rows of the page afterwards.
+
+    Args:
+        queryset: the annotated queryset of one kind of service to narrow
+
+    Returns:
+        QuerySet: the queryset without the attention in its SELECT clause
+    """
+    deferred = queryset.all()
+    deferred.query.set_annotation_mask(
+        set(queryset.query.annotations) - alert_annotation_names(queryset))
+    return deferred
+
+
+def answer_page_alerts(services: list):
+    """Answer the attention on the rows of a page which were read without it.
+
+    The counterpart of `defer_alert_annotations()`: the statement of the
+    page read its rows without the annotations of the attention, because
+    those answer a subquery per attribute of every row the statement reads
+    (#1424). Here the same annotations answer the attributes of exactly the
+    services of the page - one statement over their identifiers, bounded by
+    the page size instead of by the service table - and the answers land on
+    the rows the page already holds, so the serializers and
+    `alert_records()` read the very attributes they always read.
+
+    Args:
+        services (list): the services of a page, read without their alerts
+    """
+    kind = SERVICE_KIND_OF[type(services[0])]
+    answers = {
+        row.pk: row for row in alert_annotations(
+            kind.service.objects.filter(
+                pk__in=[service.pk for service in services]))}
+    for service in services:
+        answer = answers[service.pk]
+        for name in kind.attributes:
+            setattr(service, name, getattr(answer, name, None))
 
 
 def alert_records(services: list) -> dict:

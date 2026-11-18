@@ -9,6 +9,7 @@ from django.test.utils import CaptureQueriesContext
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
 from notify.models import BackgroundProcess
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.service import CatalogueService, WebFeatureService
 from registry.models.update import (
@@ -197,12 +198,22 @@ class UpdateRunnerDeliveryTest(TestCase):
     def stored_service(self, case):
         """A service of the fixture which stores the document its remote answers.
 
+        A run asks the GetCapabilities url of its service, so this is the first
+        service which answers one - not simply the first of the fixture: the
+        WFS2 of it carries only a GetFeature url, so an update of that service
+        could never ask its remote for anything at all.
+
         Returns:
             OGCService: a service whose stored capabilities are exactly what the
                 case's mocked remote answers, so an update which fetches them
                 decides that there is nothing to do
         """
-        service = case["service"].objects.first()
+        service = case["service"].objects.filter(
+            operation_url__operation=OGCOperationEnum.GET_CAPABILITIES.value,
+            operation_url__method=HttpMethodEnum.GET.value,
+        ).first()
+        self.assertIsNotNone(
+            service, "the fixture has to hold a service its update can ask")
         service.xml_backup_file = SimpleUploadedFile(
             "capabilities.xml", case["remote"].content)
         service.save()

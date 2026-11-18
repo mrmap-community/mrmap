@@ -468,7 +468,6 @@ CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
-CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
 CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
@@ -499,10 +498,8 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # hard limit SIGKILLs the slot a further five minutes later and the prefork
 # pool replaces it. A hard-killed attempt leaves an open row in the attempt
 # samples of #1330, which the sweep flags abandoned only after
-# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS - the longest deliberate override
-# of a single task (the external ETF conformity check, registry/settings.py)
-# stays below that grace on purpose. Time limits belong to the prefork pool,
-# which is what the celery-worker of docker-compose.yml runs.
+# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS. Time limits belong to the prefork
+# pool, which is what the celery-worker of docker-compose.yml runs.
 CELERY_TASK_SOFT_TIME_LIMIT = 2700
 CELERY_TASK_TIME_LIMIT = 3000
 # the number of slots a celery worker process runs; docker-compose.yml hands

@@ -1,6 +1,6 @@
 """The worker configuration the deployment actually runs with (#1454).
 
-Three numbers of the celery fleet were never set, and every one of them
+Two numbers of the celery fleet were never set, and every one of them
 costs the project work it does not want:
 
 * ``worker_prefetch_multiplier`` unset kept celery's four, so a worker of
@@ -10,10 +10,7 @@ costs the project work it does not want:
 * no ``task_time_limit``/``soft_time_limit`` anywhere meant the CPU-bound
   parse, import and mapping recursion could pin a slot forever (the
   comment of registry/settings.py on the registration request timeouts
-  knew);
-* the ETF conformity check waits on an external validator for as long as
-  that validator likes, so it must keep a budget of its own above the
-  global one - and below the abandon grace of the #1330 samples.
+  knew).
 
 The tests read the configuration off the real app the way the worker does:
 ``app.conf`` answers what ``MrMap/settings.py`` configured under the
@@ -23,8 +20,7 @@ with, the same values the worker's request reads into its prefork
 ``soft_timeout``/``timeout``. An artificial slow task stands in for the
 runaway attempt the limits are meant to cut: without an override of its own
 it must inherit the global bounds, a declared override must survive
-binding. For the ETF task both are asserted, because that task is exactly
-the deliberate long wait the global limit must not kill.
+binding.
 
 Enforcing a limit (SIGKILL of a pool slot, SoftTimeLimitExceeded inside a
 running body) is the prefork pool's own machinery and celery tests it; what
@@ -36,14 +32,7 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 from MrMap.celery import app
-from registry.settings import (CONFORMITY_ETF_TASK_HARD_TIME_LIMIT_SECONDS,
-                               CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS,
-                               HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS)
-
-# registers the conformity tasks of the real app, the way importing an
-# app's tasks module registers them; the ETF task carries the only
-# per-task time budget of the fleet
-from registry.tasks import conformity  # noqa: F401
+from registry.settings import HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS
 
 
 class PrefetchTests(SimpleTestCase):
@@ -111,30 +100,3 @@ class TaskTimeLimitResolutionTests(SimpleTestCase):
                              soft_time_limit=42)
         self.assertEqual(task.soft_time_limit, 42)
         self.assertEqual(task.time_limit, settings.CELERY_TASK_TIME_LIMIT)
-
-
-class EtfConformityTimeBudgetTests(SimpleTestCase):
-    """The external ETF check keeps its own budget above the global one."""
-
-    def setUp(self):
-        self.task = conformity.run_conformity_check_etf
-        self.task.bind(app)  # idempotent; proves the override is not conf-drifted
-
-    def test_etf_task_declares_the_per_task_budget(self):
-        self.assertEqual(self.task.soft_time_limit,
-                         CONFORMITY_ETF_TASK_SOFT_TIME_LIMIT_SECONDS)
-        self.assertEqual(self.task.time_limit,
-                         CONFORMITY_ETF_TASK_HARD_TIME_LIMIT_SECONDS)
-
-    def test_budget_is_ordered_and_above_the_global_soft_limit(self):
-        self.assertGreater(self.task.soft_time_limit,
-                           settings.CELERY_TASK_SOFT_TIME_LIMIT)
-        self.assertGreater(self.task.time_limit, self.task.soft_time_limit)
-
-    def test_budget_stays_under_the_abandon_grace_of_the_samples(self):
-        # an attempt held past CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS is
-        # declared abandoned by the sweep of #1330; a still-waiting ETF
-        # attempt must never be one
-        self.assertLess(
-            self.task.time_limit,
-            settings.CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS * 3600)

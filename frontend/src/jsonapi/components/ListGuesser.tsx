@@ -139,7 +139,8 @@ const ListGuesserContent = ({
   const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
 
   const { id } = useParams()
-  const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
+  const relatedResourceName = relatedResource?.resource
+  const operationId = useMemo(()=> relatedResourceName !== undefined && relatedResourceName !== '' ?`list_related_${name}_of_${relatedResourceName}`: `list_${name}`, [relatedResourceName, name])
   const { operation } = useResourceSchema(operationId)
   const fieldDefinitions = useFieldsForOperation({operationId: operationId, forInput:false, ignoreId:false})
   const fields = useMemo(
@@ -154,7 +155,7 @@ const ListGuesserContent = ({
         }
       )
     })
-  ,[fieldDefinitions])
+  ,[fieldDefinitions, updateFieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo<ReactElement[]>(() => [
@@ -272,7 +273,7 @@ const ListGuesserContent = ({
       setOmit(defaultOmit)
       setInitOmit(true)
     }
-  },[defaultOmit, columns])
+  },[defaultOmit, columns, initOmit, setOmit])
 
 
   if (operation === undefined || (columns ?? fields).length === 0) {

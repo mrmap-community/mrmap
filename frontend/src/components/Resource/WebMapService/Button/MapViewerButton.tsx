@@ -162,7 +162,7 @@ const MapViewerButton = (
       if (url !== undefined && getCapaibilitesUrl === undefined){
         setGetCapaibilitesUrl(url)
       }
-  },[wmsRecordWithUrl])
+  },[wmsRecordWithUrl, capabilititesUrl, getCapaibilitesUrl])
 
   useEffect(() => {
     if (!clicked) {
@@ -194,7 +194,7 @@ const MapViewerButton = (
       navigate('/viewer')
       setClicked(false)
     }
-  }, [clicked, owsContext, getCapaibilitesUrl, wmsRecordWithUrl])
+  }, [clicked, owsContext, getCapaibilitesUrl, wmsRecordWithUrl, addWFSByUrl, addWMSByUrl, authHeader, beforeSetHook, navigate, protocol])
 
   return (
     <Button

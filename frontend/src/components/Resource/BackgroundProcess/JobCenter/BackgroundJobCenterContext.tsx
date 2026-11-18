@@ -134,6 +134,10 @@ export const BackgroundJobCenterProvider = ({
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
   }, { enabled: !!authenticated });
+  // react-query rebuilds its result wrapper every render, so the effects
+  // below name the refetch functions instead of calling through the wrapper
+  const { refetch: refetchActiveProcesses } = activeProcesses;
+  const { refetch: refetchRecentTerminal } = recentTerminal;
 
   // the store is mirrored in a ref so that the announcements of a batch are
   // made next to the state write and never inside a state updater, which
@@ -204,14 +208,14 @@ export const BackgroundJobCenterProvider = ({
   useEffect(() => {
     const isUp = realtimeIsReady === ReadyState.OPEN;
     if (isUp && !wasOpen.current) {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }
     wasOpen.current = isUp;
   }, [
     realtimeIsReady,
-    activeProcesses.refetch,
-    recentTerminal.refetch,
+    refetchActiveProcesses,
+    refetchRecentTerminal,
   ]);
 
   // fallback: while the bus is not up, the pages are read periodically
@@ -220,11 +224,11 @@ export const BackgroundJobCenterProvider = ({
       return;
     }
     const interval = setInterval(() => {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }, FALLBACK_POLL_MILLISECONDS);
     return () => clearInterval(interval);
-  }, [realtimeIsReady, activeProcesses.refetch, recentTerminal.refetch]);
+  }, [realtimeIsReady, refetchActiveProcesses, refetchRecentTerminal]);
 
   // the resource-wide topic: creates arrive with their record, deletes ask
   // for the row to disappear from the view

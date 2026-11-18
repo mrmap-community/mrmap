@@ -116,7 +116,7 @@ const TreeItemLabel = memo(
       if (hasError) {
         return mapLoading.errors.find(error => error.features?.some(feature => feature.properties.folder === node.properties.folder))?.message || ''
       }
-    }, [mapLoading.errors, node.properties.folder])
+    }, [mapLoading.errors, mapLoading.failedFeatures, node.properties.folder])
 
     // what the viewer cannot use about this resource; a group answers through its children and
     // carries no offerings of its own, so only childless nodes are asked
@@ -428,7 +428,7 @@ const TreeViews = (
     event?.stopPropagation()
     const feature = owsContext.findResourceByFolder(itemId)
     feature && setFeatureActive(itemId, isSelected)
-  }, [owsContext])
+  }, [owsContext, setFeatureActive])
 
   const renderTree = useCallback((node?: OWSResource): ReactNode => {
     const itemId = node?.properties.folder ?? uuidv4();
@@ -472,7 +472,7 @@ const TreeViews = (
           </DragableTreeItem >
         </RecordContextProvider>
       ) : null
-  },[layers])
+  },[layers, featureTypes])
 
   return trees?.map(tree => {
       return (

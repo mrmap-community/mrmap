@@ -36,14 +36,14 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = RaRecord>
     const { data, total } = useListContextWithProps(props);
     const [visibleData, setVisibleData] = useState<RaRecord[]>()
     
-    const hiddenCount = useMemo(()=> ((total ?? 0) - visibleCount), [total])
+    const hiddenCount = useMemo(()=> ((total ?? 0) - visibleCount), [total, visibleCount])
     const resource = useResourceContext()
 
     useEffect(()=>{
         if (data !== undefined && visibleData === undefined){
             setVisibleData(data.slice(0, visibleCount))
         }
-    },[data, visibleData])
+    },[data, visibleData, visibleCount])
 
     return (
         <Fragment>

@@ -18,6 +18,13 @@ from extras.permissions import invalidate_permission_caches
 #: onto the role of this definition (see ``accounts.signals``)
 ORGANIZATION_ADMIN_ROLE = "organization_admin"
 
+#: the slug of the builtin definition which publishes and shares resources
+#: (#731 catalogue); an accepted ``PublishRequest`` writes its role-scoped
+#: grants onto the role of this definition of the requesting organization
+#: (#740), and the ``resource_publisher`` definition holds
+#: ``registry.share_resource`` which gates the share endpoint
+RESOURCE_PUBLISHER_ROLE = "resource_publisher"
+
 #: the slug of the builtin definition whose role group is the anonymous viewer
 #: of the platform (#739). A ``view_<model>`` object grant onto this group is
 #: what makes a resource **public**: the guardian anonymous user row is a

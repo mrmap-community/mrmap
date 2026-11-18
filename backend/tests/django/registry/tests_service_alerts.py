@@ -38,7 +38,8 @@ from registry.models.monitoring import (GetCapabilitiesProbeResult,
 from registry.models.service import CatalogueService, WebMapService
 from registry.models.update import (CatalogueServiceUpdateJob,
                                     WebMapServiceUpdateJob)
-from registry.querys.alerts import (ALERT_ATTRIBUTES, alerts_requested,
+from registry.querys.alerts import (ALERT_ATTRIBUTES,
+                                    alert_annotation_names, alerts_requested,
                                     refresh_service_alerts)
 from rest_framework.request import Request
 from rest_framework.test import APIClient
@@ -1432,6 +1433,293 @@ class ServiceDetailAlertScanTest(ServiceAlertsMixin, TestCase):
         data = response.json()["data"]
         self.assertTrue(data["attributes"]["hasAlert"])
         self.assertIn("allowedActions", data["attributes"])
+
+
+class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
+    """A list request must answer the alerts of its page alone (#1424).
+
+    #1345 kept the alerts of a detail on the requested service; the list
+    path still read them over the whole service table: the annotations
+    answer a subquery per attribute of every row the statement reads, and
+    the statement of a page reads every row which its filters keep - so a
+    `page[size]=1` answer paid the derivation of the whole table, 22-29 s
+    per request at 21.7k services on the live rig. The tests below seed a
+    population which answers alerts of its own and ask the list with small
+    pages: the statement which slices the page may not answer the
+    attention, the statement which does answer it has to be narrowed to
+    the identifiers of the page, and the COUNT of the page may not ask for
+    the attention at all unless the request filters by it. The answer of
+    the endpoint has to stay what a plain read of the annotations answers.
+    """
+
+    #: services beyond the fixture, each with runs and jobs of its own, so
+    #: that a full-table derivation in the page statement costs rows which
+    #: the narrowed answer of the page does not need
+    SEED_COUNT = 6
+
+    #: the attributes of a WMS page compared against the row which the
+    #: plain annotations answer, named as the api names them
+    WMS_ALERT_FIELDS = (
+        ("hasAlert", "has_alert"),
+        ("monitoringFailed", "monitoring_failed"),
+        ("updateFailed", "update_failed"),
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.wms_population = [self.wms_one, self.wms_two]
+        for number in range(self.SEED_COUNT):
+            self.wms_population.append(WebMapService.objects.create(
+                title=f"Seeded WMS {number}",
+                service_url=f"https://www.example.de/wms/seeded/{number}",
+                version=self.wms_one.version, origin=self.wms_one.origin,
+                metadata_contact=self.wms_one.metadata_contact,
+                service_contact=self.wms_one.service_contact))
+        # every map service answers one of two shapes: the even ones of the
+        # population need attention - their newest run failed and their
+        # newest update came back broken - while the odd ones only ever
+        # passed; both halves keep one shape however often the page turns
+        self.alerted = []
+        for index, service in enumerate(self.wms_population):
+            setting = self.monitoring_setting(service)
+            self.monitoring_run(setting, True, hours_ago=12)
+            if index % 2 == 0:
+                # the failing run is the newest, and its moment orders the
+                # alerted services apart for the sort test below
+                self.monitoring_run(setting, False,
+                                    hours_ago=1 + index // 2)
+                self.update_job(service, JobState.ERROR, done_at=now())
+                self.alerted.append(service)
+        self.csw_population = [self.csw]
+        for number in range(2):
+            self.csw_population.append(CatalogueService.objects.create(
+                title=f"Seeded CSW {number}",
+                service_url=f"https://www.example.de/csw/seeded/{number}",
+                version=self.csw.version, origin=self.csw.origin,
+                metadata_contact=self.csw.metadata_contact,
+                service_contact=self.csw.service_contact))
+        self.harvesting_job(service=self.csw, phase=Phase.ABORTED)
+        self.harvesting_job(service=self.csw_population[1], import_errors=1)
+        self.harvesting_job(service=self.csw_population[2])
+
+    def list_page(self, route, fields, resource, **query):
+        """One small page of a list which names the alerts among its fields.
+
+        Args:
+            route (str): the name of the list route to ask
+            fields (str): the sparse fields of the request
+            resource (str): the resource the fields are named for
+            **query: further query parameters, which win over the defaults
+
+        Returns:
+            tuple: the answered resources and the captured statements
+        """
+        params = {
+            "page[size]": "1",
+            "sort": "-id",
+            f"fields[{resource}]": fields,
+        }
+        params.update(query)
+        with CaptureQueriesContext(connections["default"]) as queries:
+            response = self.client.get(
+                reverse(route), params, HTTP_ACCEPT=JSONAPI)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()["data"], queries
+
+    def assertAlertsNarrowedToPage(self, queries, table, page):
+        """Only the rows of the page may pay for the attention.
+
+        The statement which slices the page reads the table without the
+        annotations of the attention - their aliases would name them in
+        its outer SELECT - and the one statement which does answer them
+        reads the table narrowed to the identifiers of the page.
+        """
+        reads = ServiceDetailAlertScanTest.outer_reads(queries, table)
+        sliced = [read for read in reads if "LIMIT" in read]
+        self.assertEqual(
+            len(sliced), 1,
+            msg=f"the page statement is not identifiable among "
+                f"the reads of {table}: {reads}")
+        self.assertNotIn(
+            'AS "has_alert"', sliced[0],
+            msg=f"the page statement answers the attention over every row "
+                f"it reads instead of over its page: {sliced[0][:400]}")
+        answers = [read for read in reads if 'AS "has_alert"' in read]
+        self.assertEqual(
+            len(answers), 1,
+            msg=f"the alerts of a page must be answered by exactly one "
+                f"statement, {len(answers)} read {table} with them: "
+                f"{[read[:200] for read in answers]}")
+        self.assertIn(
+            f'"{table}"."id" IN', answers[0],
+            msg=f"the statement answering the alerts is not narrowed to "
+                f"the page: {answers[0][:400]}")
+        # the outer read is the text without its parentheses - the page
+        # identifiers of the IN list are rendered within them, so they are
+        # compared against the whole statement answering the attention
+        answered = [
+            query["sql"] for query in queries
+            if 'AS "has_alert"' in query["sql"]
+            and f'"{table}"."id" IN' in query["sql"]]
+        self.assertEqual(
+            len(answered), 1,
+            msg=f"exactly the statement answering the alerts narrows "
+                f"{table} to the page, {len(answered)} carry both marks")
+        for resource in page:
+            # psycopg renders a uuid parameter without its dashes:
+            # 'cd16cc1f3abb4625bb96fbe80dbe23e3'::uuid
+            self.assertTrue(
+                resource["id"] in answered[0]
+                or resource["id"].replace("-", "") in answered[0],
+                msg=f"the statement answering the alerts is narrowed to "
+                    f"other rows than the page row {resource['id']}: "
+                    f"{answered[0][:400]}")
+
+    def test_the_page_of_a_map_service_list_answers_only_its_own_alerts(self):
+        page, queries = self.list_page(
+            "registry:wms-list",
+            "title,has_alert,monitoring_failed,monitoring_failed_at,"
+            "update_failed", "WebMapService")
+        self.assertEqual(len(page), 1)
+        self.assertAlertsNarrowedToPage(
+            queries.captured_queries, "registry_webmapservice", page)
+        truth = self.alerts(WebMapService.objects.get(pk=page[0]["id"]))
+        for answered, annotated in self.WMS_ALERT_FIELDS:
+            self.assertEqual(page[0]["attributes"][answered],
+                             getattr(truth, annotated))
+        self.assertEqual(
+            page[0]["attributes"]["monitoringFailedAt"] is not None,
+            truth.monitoring_failed_at is not None)
+
+    def test_the_count_of_a_list_answers_no_alerts_it_was_not_asked(self):
+        """A request which merely names the alerts must not count them.
+
+        The COUNT of the pagination narrows nothing by the attention here,
+        so none of its subqueries may become part of that statement; the
+        4.1 s the live rig measured in its COUNT belonged to a request
+        which does filter by an alert, while naming alone must stay free.
+        """
+        _page, queries = self.list_page(
+            "registry:wms-list",
+            "title,has_alert,monitoring_failed", "WebMapService")
+        counts = [
+            query["sql"] for query in queries.captured_queries
+            if "COUNT(*)" in query["sql"]
+            and 'FROM "registry_webmapservice"' in query["sql"]]
+        self.assertEqual(
+            len(counts), 1,
+            msg=f"the pagination must ask exactly one COUNT of the "
+                f"service table: {counts}")
+        for name in ALERT_ATTRIBUTES:
+            self.assertNotIn(
+                f'"{name}"', counts[0],
+                msg=f"the COUNT evaluates the attention although no "
+                    f"filter of the request names it: {counts[0][:400]}")
+
+    def test_an_alert_filter_still_decides_the_page(self):
+        """The mask keeps the attention selectable where it was applied.
+
+        The filters of the request name the annotations, so the statement
+        of the page still evaluates them as its WHERE clause - only its
+        SELECT is narrowed - and the page answers the services which the
+        plain annotations answer.
+        """
+        page, _queries = self.list_page(
+            "registry:wms-list", "title,has_alert", "WebMapService",
+            **{"page[size]": str(len(self.wms_population)),
+               "filter[hasAlert]": "true"})
+        expected = {str(service.pk) for service in self.wms_population
+                    if self.alerts(service).has_alert}
+        self.assertEqual({resource["id"] for resource in page}, expected)
+        for resource in page:
+            self.assertTrue(resource["attributes"]["hasAlert"])
+
+    def test_an_alert_sort_still_decides_the_page(self):
+        page, _queries = self.list_page(
+            "registry:wms-list", "title,monitoring_failed_at",
+            "WebMapService",
+            **{"page[size]": str(len(self.alerted)),
+               "filter[hasAlert]": "true",
+               "sort": "monitoringFailedAt"})
+        expected = sorted(
+            self.alerted,
+            key=lambda service: self.alerts(service).monitoring_failed_at)
+        self.assertEqual(
+            [resource["id"] for resource in page],
+            [str(service.pk) for service in expected])
+
+    def test_the_page_of_a_catalogue_list_answers_only_its_own_alerts(self):
+        """The harvest half of the attention is deferred as well."""
+        page, queries = self.list_page(
+            "registry:csw-list",
+            "title,has_alert,harvest_aborted,harvest_incomplete",
+            "CatalogueService")
+        self.assertEqual(len(page), 1)
+        self.assertAlertsNarrowedToPage(
+            queries.captured_queries, "registry_catalogueservice", page)
+        truth = self.alerts(
+            CatalogueService.objects.get(pk=page[0]["id"]))
+        self.assertEqual(
+            page[0]["attributes"]["harvestAborted"], truth.harvest_aborted)
+        self.assertEqual(
+            page[0]["attributes"]["harvestIncomplete"],
+            truth.harvest_incomplete)
+
+    def test_the_page_needs_the_same_statements_when_more_services_exist(self):
+        """The cost of a page belongs to its rows - not to the table.
+
+        The same assertion which guards the detail (#1308), asked of the
+        list: more services of the kind may not grow the statements which
+        one small page of the kind answers.
+        """
+        fields = ("title,has_alert,monitoring_failed,update_failed")
+        _page, before = self.list_page(
+            "registry:wms-list", fields, "WebMapService",
+            **{"filter[hasAlert]": "true"})
+        for number in range(4):
+            extra = WebMapService.objects.create(
+                title=f"Grown WMS {number}",
+                service_url=f"https://www.example.de/wms/grown/{number}",
+                version=self.wms_one.version, origin=self.wms_one.origin,
+                metadata_contact=self.wms_one.metadata_contact,
+                service_contact=self.wms_one.service_contact)
+            setting = self.monitoring_setting(extra)
+            self.monitoring_run(setting, True, hours_ago=12)
+            self.monitoring_run(setting, False, hours_ago=1)
+            self.update_job(extra, JobState.ERROR, done_at=now())
+        page, after = self.list_page(
+            "registry:wms-list", fields, "WebMapService",
+            **{"filter[hasAlert]": "true"})
+        self.assertEqual(
+            len(after.captured_queries), len(before.captured_queries),
+            msg=f"one small page asked {len(before.captured_queries)} "
+                f"statements before the table grew and "
+                f"{len(after.captured_queries)} after it: "
+                f"{[q['sql'][:80] for q in after.captured_queries]}")
+        self.assertAlertsNarrowedToPage(
+            after.captured_queries, "registry_webmapservice", page)
+
+    def test_every_annotation_of_the_attention_can_be_deferred(self):
+        """`defer_alert_annotations()` finds the attention by its names.
+
+        The helpers which decide the alerts are named with the `alert_`
+        prefix, the attributes of a kind by the kind itself; an annotation
+        added outside both halves would silently stay in the SELECT of
+        every page statement - the cost of #1424 for that name. This names
+        the violation instead of letting it degrade the pages unnoticed.
+        """
+        for model in (WebMapService, CatalogueService):
+            annotated = model.objects.with_alert_information()
+            added = (set(annotated.query.annotations)
+                     - set(model.objects.all().query.annotations))
+            self.assertTrue(added)
+            deferred = set(alert_annotation_names(annotated))
+            self.assertEqual(
+                added, deferred,
+                msg=f"{sorted(added - deferred)} are annotated by "
+                    f"`alert_annotations()` of {model.__name__} but "
+                    f"`alert_annotation_names()` does not find them - the "
+                    f"pages of the kind keep paying their derivation")
 
 
 class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):

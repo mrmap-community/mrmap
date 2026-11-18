@@ -36,7 +36,7 @@ const ProgressField = (
       return getColor?.(record) ?? 'info'
     }
     return 'info'
-  },[record])
+  },[record, getColor])
 
   if (indeterminate) {
     return (

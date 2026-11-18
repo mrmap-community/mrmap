@@ -27,8 +27,8 @@ from registry.proxy.resource_capabilities import \
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
-from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
-from system.views import MediaDumpNotFoundView, ProtectedServeView
+from system.views import (MEDIA_PRIVATE_URL_PATTERN,
+                          PrivateMediaNotFoundView, ProtectedServeView)
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -84,13 +84,15 @@ urlpatterns = [
 
 ]
 
-# the dumps are refused by a rule of their own and before the media route below, so
-# that the development route which static() adds answers them the same way
+# the private subpaths of the media root are refused by a rule of their own and
+# before the media route below, so that the development route which static()
+# adds answers them the same way; the pattern is built from the policy in
+# system.views so route and view can never name different sets (#888, #1447)
 urlpatterns.append(
     re_path(
-        rf'^media/{SLOW_REQUEST_DUMP_SUBDIR}/.+$',
-        MediaDumpNotFoundView.as_view(),
-        name="media-dump-not-served",
+        MEDIA_PRIVATE_URL_PATTERN,
+        PrivateMediaNotFoundView.as_view(),
+        name="media-private-not-served",
     )
 )
 

@@ -851,6 +851,41 @@ Family: security log analysis (scoping for #1394)
     this the most frequent task in the deployment, but V1 does not change the
     architecture; record it for whoever eventually owns the sampling story.
 
+    **The per-row dispatch is the intent (#1459).** #1459 (CEL-14) asked whether
+    one message per logged response is deliberate or a batch task waiting to
+    happen; the answer is stated on the task and on its hand-off now. What this
+    task computes belongs to one row: the pixels of the map which that one
+    response returned, stored in the analyzed row which is a OneToOne of that
+    same response. A task over a pending set would still do this work row by row
+    inside itself, while adding the two things the present hand-off needs neither
+    of — a query collecting the rows without an analyzed row yet, and a schedule
+    running that query — and would put every pending response of a busy service
+    into one slot, so that one picture which cannot be decoded costs the whole
+    set instead of one message. The hand-off being ``HttpResponseLog.save`` on
+    commit means a message exists exactly for a row which is visible, and the
+    volume stays the operator's decision: only a service whose
+    ``ProxySetting.log_response`` is on logs responses at all.
+
+    Two claims of the audit's premise did not hold, which is recorded so nobody
+    re-audits against them: an exchange spawns **one** task, not "2-3 (start +
+    one per row + finish)", and there is no start task, no finish task and no
+    SQL ``exists`` check anywhere in this path — neither now nor at ``6e66bcb6c``,
+    the commit #1440 re-verified against. One ``apply_async`` in
+    ``registry/models/security.py`` and none in ``registry/proxy/`` is the whole
+    dispatch, and
+    ``tests/django/registry/tasks/tests_security_log_analysis.py`` pins the count
+    per logged row.
+
+    What the issue leaves with a person, because both are scope beyond
+    documenting an intent: the two files an exchange writes below
+    ``MEDIA_ROOT/security_proxy/logs/`` (the request body and the response
+    content) are taken back by **no** sweep — while the other file stores of the
+    deployment each have one (probe artifacts, the background-process files of
+    #1208, the incidents of #1319, the slow-request dumps, the harvest temporary
+    files of #1295), the proxy log has neither a retention setting nor a sweeper;
+    and the task publishes to ``default``, which is the queue question #1455
+    owns.
+
 Family: notify housekeeping (scoping for #1394)
 ###############################################
 
@@ -1015,7 +1050,7 @@ enough evidence).
        establish liveness first, plus the ``has_running_check`` exists fix
    * - ``async_analyze_log``
      - already optimal
-     - 1 SELECT + ≤1 INSERT; volume is architecture (per logged response)
+     - 1 SELECT + ≤1 INSERT; the per-row volume is the intent, confirmed (#1459)
    * - ``delete_expired_background_processes`` /
        ``delete_expired_operational_incidents``
      - already optimal

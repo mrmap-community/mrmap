@@ -2,6 +2,7 @@ from accounts.models.roles import Role
 from accounts.models.users import User
 from accounts.serializers.groups import GroupSerializer
 from accounts.serializers.roles import RoleSerializer
+from django.contrib.auth import password_validation
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
@@ -126,6 +127,14 @@ class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
         resource_name = 'User'
         model = User
         fields = ("username", "password", "url", "groups")
+
+    def validate_password(self, password):
+        # ``create`` hands this value to ``set_password`` and the save after
+        # it runs Django's AUTH_PASSWORD_VALIDATORS over the stored raw
+        # value; a password which breaks that policy is refused here, with
+        # the 400 of a rejected field, and never reaches the write (#1451)
+        password_validation.validate_password(password)
+        return password
 
     def create(self, validated_data):
         """Hashes the password before the row is ever written (#1451).

@@ -5,6 +5,21 @@ from celery import shared_task
 def async_analyze_log(http_response_log_id, response_log_model, **kwargs):
     """Analyze the content of one response the security proxy logged.
 
+    One message per logged response is the intent and not an oversight (#1459).
+    Everything this task does belongs to a single row: what it counts are the
+    pixels of the map which that one response returned, and the row it may
+    write is the analyzed log which is a one-to-one of that same response.
+    There is no statement across responses to compute, so a task for a pending
+    set would still do this work row by row inside itself, while adding the two
+    things the present hand-off needs neither of: a query collecting the rows
+    which are not analyzed yet, and a schedule running it. It would also trade
+    the isolation of one message per response -- the picture which cannot be
+    decoded costs one message today -- for one slot holding the whole pending
+    set. The hand-off is ``HttpResponseLog.save`` on commit, so the message
+    exists exactly for a row which is visible, and the volume is bounded by the
+    operator: only a service whose proxy setting asks for its responses to be
+    logged produces these messages at all.
+
     Args:
         http_response_log_id (int): primary key of the logged response
         response_log_model (str): label of the response log model the row belongs

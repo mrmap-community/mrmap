@@ -174,16 +174,16 @@ CASES = [
     # #1110 is about. While the asset rule of #942 sat nested inside `location /`
     # it was judged at that deeper level, before the proxy regex below was
     # consulted at all, and answered every one of them with nginx's own 404. The
-    # two media names are the ones a deployment really answers: a stored
+    # media names here are the ones a deployment really answers: a stored
     # preview_image (registry/models/mapcontext.py names it
-    # preview_images/<pk>/<filename>) and the body of one security proxy log row,
-    # which an operator opens through the link of that row. They are the two 200
+    # preview_images/<pk>/<filename>) and a stored XML document
+    # (registry/models/document.py names it xml_documents/<pk>/<filename>) - the
+    # targets of the frontend's image and download links. They are the 200
     # cases of backend/tests/django/test_media_serving.py, and that suite runs
     # behind this nginx with django's own test client - which is why it never
     # noticed what the edge in front of it answered.
     (BACKEND, "/media/preview_images/42/logo.png"),
-    (BACKEND, "/media/security_proxy/logs/requests/"
-              "1b4d0e0a-2c3d-4e5f-8a9b-000000000000.json"),
+    (BACKEND, "/media/xml_documents/4/record.xml"),
     # The other mounts carry the same shape, and none of them is about media:
     # whatever a mount answers, an asset extension on the last segment belongs
     # to that mount and not to the asset rule.
@@ -196,6 +196,15 @@ CASES = [
     # Answered by nginx itself, before both of the two above.
     (DENY, "/api/system/error", 204),   # the error beacon of #942, exact match
     (DENY, "/media/logs/a-dump.sql", 404),   # slow request dumps, #888
+    # The private media prefixes of #1447: key files of the external service
+    # authentications, the bodies the security proxy logged, the staged
+    # harvesting documents. The edge refuses them and so does the backend
+    # behind it (system.views.MEDIA_PRIVATE_SUBPATHS).
+    (DENY, "/media/ext_auth_keys/7/service.key", 404),
+    (DENY, "/media/security_proxy/logs/requests/"
+           "1b4d0e0a-2c3d-4e5f-8a9b-000000000000.json", 404),
+    (DENY, "/media/temporary_md_metadata_file/"
+           "2b4d0e0a-2c3d-4e5f-8a9b-111111111111/record.xml", 404),
     (DENY, "/assets/does-not-exist.js", 404),  # hashed bundles, #942
 
     # A missing file with an asset extension below the SPA root stays a real 404

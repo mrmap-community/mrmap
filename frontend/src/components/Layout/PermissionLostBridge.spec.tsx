@@ -8,7 +8,7 @@
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import tokenAuthProvider, { setAuthToken } from '../../providers/authProvider';
+import sessionAuthProvider, { setSession } from '../../providers/authProvider';
 import PermissionLostBridge from './PermissionLostBridge';
 
 const mocks = vi.hoisted(() => ({
@@ -28,16 +28,16 @@ const REFUSAL = { status: 403, message: 'no', body: { errors: [{ code: 'permissi
 
 /** The refusal of a live session, as a dataProvider error reaches the app. */
 const refuseAction = async () => {
-  await tokenAuthProvider().checkError?.(REFUSAL).catch(() => undefined);
+  await sessionAuthProvider().checkError?.(REFUSAL).catch(() => undefined);
 };
 
 beforeEach(() => {
   localStorage.clear();
-  setAuthToken({
-    token: 'a-live-knox-token',
-    expiry: new Date(Date.now() + 60_000).toISOString(),
+  // the marker of a live browser session (#835) - identity only, no credential
+  setSession({
     id: 1,
     fullName: 'Ada Lovelace',
+    openedAt: new Date().toISOString(),
   });
   mocks.invalidateQueries.mockClear();
   mocks.refresh.mockClear();

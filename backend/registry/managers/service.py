@@ -265,7 +265,7 @@ class CatalogueServiceQuerySet(ServiceAlertQuerySetMixin, QuerySet):
         )
 
 
-class CatalogueServiceManager(Manager.from_queryset(CatalogueServiceQuerySet), Manager.from_queryset(DefaultHistoryManager)):
+class CatalogueServiceManager(Manager.from_queryset(CatalogueServiceQuerySet), DefaultHistoryManager):
     pass
 
 

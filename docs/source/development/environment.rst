@@ -154,7 +154,7 @@ Used to configure how many days the metadata records a harvesting run stored bel
 ``CELERY_WORKER_CONCURRENCY``
 *****************************
 
-Used to configure how many slots a celery worker process runs with. docker-compose.yml passes it to ``celery-worker``; empty keeps celery's own default of one slot per CPU core and ``auto`` sizes the prefork pool by the cgroup quota of the container. It is the knob for a bigger worker, so that changing worker concurrency never makes a deployment override the worker command and thereby restate - and freeze - the queue list of the release the override was written for; see :ref:`celery-queues` (#1040).
+Used to configure how many slots a celery worker process runs with. docker-compose.yml passes it to ``celery-worker``; unset or empty, the compose file defaults the worker to 4 slots (#1454 - celery's own default of one slot per CPU core counts the host's cores, not the container's share, and that mismatch was the OOM path behind stuck jobs), and ``auto`` sizes the prefork pool by the cgroup quota of the container. It is the knob for a bigger worker, so that changing worker concurrency never makes a deployment override the worker command and thereby restate - and freeze - the queue list of the release the override was written for; see :ref:`celery-queues` (#1040). What the slots imply for redelivery (one prefetched message per slot) and for long attempts (the global task time limits and the one per-task budget) is documented with the worker configuration in :ref:`celery-queues`.
 
 
 The web tier

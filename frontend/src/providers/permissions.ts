@@ -63,10 +63,17 @@ export const ADMINISTRATION_RESOURCES: ReadonlySet<string> = new Set([
 
 /**
  * The public read-only seam of #833: anonymously reachable `list`/`show`
- * resources. Empty until #833 chooses the published set; until then every
- * anonymous check is denied, which is what `requireAuth` enforces anyway.
+ * resources - the kinds of service the backend answers for the anonymous
+ * `anonymous_viewer` role once a record is explicitly published (#739's
+ * `ROLE_MANAGED_MODELS`: WMS and WFS; catalogues stay private). The screen
+ * itself only ever renders what the api answers, so this table names the
+ * screens the frontend may open without a session; the deployment switch
+ * `MRMAP_PERMISSION_FILTERED_LIST_MODELS` decides what those screens contain.
  */
-export const PUBLIC_READ_RESOURCES: ReadonlySet<string> = new Set<string>([])
+export const PUBLIC_READ_RESOURCES: ReadonlySet<string> = new Set<string>([
+  "WebMapService",
+  "WebFeatureService",
+])
 
 /**
  * The role slugs that grant administration, named by the builtin catalogue

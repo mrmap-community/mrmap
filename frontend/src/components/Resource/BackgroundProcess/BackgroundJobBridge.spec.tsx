@@ -35,6 +35,7 @@ vi.mock('../../../context/HttpClientContext', () => ({
 }));
 
 vi.mock('react-admin', () => ({
+  useAuthState: () => ({ authenticated: true }),
   useDataProvider: () => ({
     subscribe: (topic: string, callback: (event: CrudEvent) => void) => {
       bus.subscribe(topic, callback);

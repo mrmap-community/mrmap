@@ -40,7 +40,8 @@ from django.db.models.functions import Cast, Coalesce, Concat
 from django.utils.translation import gettext_lazy as _
 from registry.enums.harvesting import HarvestingPhaseEnum, LogKindEnum
 from registry.enums.update import UpdateJobStatusEnum
-from registry.models.harvest import HarvestingJob
+from registry.models.harvest import (HarvestingJob, HarvestingLog,
+                                     TemporaryMdMetadataFile)
 from registry.models.monitoring import (CatalogueServiceMonitoringRun,
                                         WebFeatureServiceMonitoringRun,
                                         WebMapServiceMonitoringRun)
@@ -356,15 +357,25 @@ def annotate_harvest_alerts(queryset, kind: ServiceKind):
     """
     newest_harvest = newest_job(kind.harvesting_job)
     aborted_harvest = newest_job(kind.harvesting_job, phase=ABORTED_PHASE)
-    # the name of the first query is the one of the reverse relation which stores
-    # a record which the job could not import into the registry, the second one
-    # asks the logs of the job which records its pages did not deliver; a run
-    # which never got all its pages is as little a complete snapshot as a run
-    # whose records broke on import (#690)
+    # a run which did not leave a complete snapshot is decided by two things
+    # the job owns: a record which it could not import into the registry, and
+    # a log line naming a page which stayed short - a run which never got all
+    # its pages is as little a complete snapshot as a run whose records broke
+    # on import (#690). Both are asked as the existence question they are,
+    # each probe correlated to the job. They must not be asked as one OR over
+    # the two join paths: both relations are multi-valued, and an OR over two
+    # joined multi-valued relations is answered on their *product* - the
+    # newest job of a catalogue whose harvest delivered 116k records multiplied
+    # 116,150 files with 921 log rows, 106,973,229 join rows walked before the
+    # LIMIT saw its row, 24 s for one detail request (#1426). The files of the
+    # job are read out of the composite index of #886, its log rows are read
+    # once - never multiplied with each other
     incomplete_harvest = newest_job(
         kind.harvesting_job,
-        Q(temporary_md_metadata_file__has_import_error=True) |
-        Q(log__kind=SHORT_PAGE_KIND))
+        Q(Exists(TemporaryMdMetadataFile.objects.filter(
+            job_id=OuterRef('pk'), has_import_error=True))) |
+        Q(Exists(HarvestingLog.objects.filter(
+            harvesting_job_id=OuterRef('pk'), kind=SHORT_PAGE_KIND))))
 
     queryset = queryset.annotate(
         alert_newest_harvest=Subquery(newest_harvest.values('pk')[:1]),

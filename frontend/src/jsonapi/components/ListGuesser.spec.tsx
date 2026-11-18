@@ -44,6 +44,13 @@ vi.mock('react-admin', async importOriginal => {
       hasShow: false,
       options: definition.options,
     }),
+    // #833: the changelog aside mounts on this check's answer; bare renders
+    // have no QueryClient for the real hook, and these specs assert the
+    // aside itself, so the check answers granted for what it is asked
+    useCanAccessResources: ({ resources }: { resources: string[] }) => ({
+      isPending: false,
+      canAccess: Object.fromEntries(resources.map((resource) => [resource, true])),
+    }),
     useSidebarState: () => [false],
     useStore: () => [[], vi.fn()],
   }
@@ -197,6 +204,49 @@ describe('ListGuesser columns', () => {
   })
 })
 
+describe('ListGuesser filter of the resource definition', () => {
+  it('asks with the filter the definition declares and lets the screen replace a term', async () => {
+    definition.options = { list: { filter: { is_update_candidate: false, search: 'from the definition' } } }
+    const getList = vi.fn().mockResolvedValue({ data: [record], total: 1 })
+    render(
+      <AdminContext dataProvider={testDataProvider({ getList })}>
+        <ListGuesser
+          resource="Layer"
+          filter={{ search: 'from the screen' }}
+          actions={false}
+          pagination={false}
+          disableSyncWithLocation
+          disableAuthentication
+        />
+      </AdminContext>
+    )
+
+    await waitFor(() => expect(getList).toHaveBeenLastCalledWith('Layer', expect.objectContaining({
+      filter: { is_update_candidate: false, search: 'from the screen' },
+    })))
+  })
+
+  it('keeps its own filter where the definition declares none', async () => {
+    const getList = vi.fn().mockResolvedValue({ data: [record], total: 1 })
+    render(
+      <AdminContext dataProvider={testDataProvider({ getList })}>
+        <ListGuesser
+          resource="Layer"
+          filter={{ search: 'only the screen' }}
+          actions={false}
+          pagination={false}
+          disableSyncWithLocation
+          disableAuthentication
+        />
+      </AdminContext>
+    )
+
+    await waitFor(() => expect(getList).toHaveBeenLastCalledWith('Layer', expect.objectContaining({
+      filter: { search: 'only the screen' },
+    })))
+  })
+})
+
 const ListHeader = () => {
   const { total, setFilters } = useListContext()
   return (
@@ -259,6 +309,7 @@ describe('ListGuesser related queries', () => {
 
 describe('ListGuesser header', () => {
   it.each([false, true])('shares list state and filters with the header (realtime=%s)', async realtime => {
+    definition.options = { list: { filter: { is_update_candidate: false } } }
     const getList = vi.fn().mockResolvedValue({ data: [record], total: 1 })
     render(
       <AdminContext dataProvider={testDataProvider({ getList, subscribe: vi.fn().mockResolvedValue(undefined), unsubscribe: vi.fn().mockResolvedValue(undefined) })}>

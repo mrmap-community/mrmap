@@ -150,6 +150,16 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   // the area of interest of a document on such a bump and not on the changes the document gets
   // while it is shown, which include the viewports the map itself publishes
   const [documentRevision, setDocumentRevision] = useState(0)
+
+  // the context that is actually shown is mirrored in a ref (the pattern documented in
+  // BackgroundJobCenterContext.tsx): the loader below appends its service to those
+  // trees, and it cannot take the current context from its own closure - the callback
+  // is built once. Reading it inside a state updater is no option either: React may
+  // invoke an updater twice, and the append is a side effect (#1467)
+  const owsContextRef = useRef(owsContext)
+  useEffect(() => {
+    owsContextRef.current = owsContext
+  })
   
   const trees = useMemo(() => {
     return owsContext.treeify()
@@ -317,41 +327,32 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('parsing')
       setLoadingMessage(`Parsing ${serviceLabel} capabilities...`)
 
-      let parseError: Error | undefined
-      setOwsContext((prev) => {
-        try {
-          const fromPlainObjectStart = performance.now()
-          let newContext = OWSContext.fromPlainObject(prev)
-          timings.fromPlainObject = performance.now() - fromPlainObjectStart
-          setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
+      // the parse and the append run outside the state write, on the context the
+      // ref mirror names: an updater may be invoked twice, and appending a service
+      // tree is a side effect a second invocation would repeat. A failing parse
+      // reaches the catch below, which reports it and leaves the trees untouched.
+      const fromPlainObjectStart = performance.now()
+      let newContext = OWSContext.fromPlainObject(owsContextRef.current)
+      timings.fromPlainObject = performance.now() - fromPlainObjectStart
+      setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
 
-          const appendServiceStart = performance.now()
-          const treeId = appendService(newContext, url, xmlString)
-          assignServiceAuthentication(newContext, treeId, url, headers)
-          timings.appendService = performance.now() - appendServiceStart
-          setLoadingTimings((previous) => ({ ...previous, appendService: timings.appendService }))
+      const appendServiceStart = performance.now()
+      const treeId = appendService(newContext, url, xmlString)
+      assignServiceAuthentication(newContext, treeId, url, headers)
+      timings.appendService = performance.now() - appendServiceStart
+      setLoadingTimings((previous) => ({ ...previous, appendService: timings.appendService }))
 
-          if (beforeSetHook !== undefined) {
-            const beforeSetHookStart = performance.now()
-            newContext = beforeSetHook(newContext, treeId)
-            timings.beforeSetHook = performance.now() - beforeSetHookStart
-            setLoadingTimings((previous) => ({ ...previous, beforeSetHook: timings.beforeSetHook }))
-          }
-
-          return newContext
-        } catch (error) {
-          parseError = error instanceof Error ? error : new Error(String(error))
-          const message = parseError.message
-          setLoadingStatus('error')
-          setLoadingMessage(message)
-          setErrorMessage(message)
-          return prev
-        }
-      })
-
-      if (parseError) {
-        return
+      if (beforeSetHook !== undefined) {
+        const beforeSetHookStart = performance.now()
+        newContext = beforeSetHook(newContext, treeId)
+        timings.beforeSetHook = performance.now() - beforeSetHookStart
+        setLoadingTimings((previous) => ({ ...previous, beforeSetHook: timings.beforeSetHook }))
       }
+
+      // the mirror is written with the state, so a second append that starts before
+      // this one rendered already appends to the trees this one added
+      owsContextRef.current = newContext
+      setOwsContext(newContext)
 
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))

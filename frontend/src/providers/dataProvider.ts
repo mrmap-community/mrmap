@@ -308,6 +308,13 @@ const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig => {
   return attachLocalHeader(cfg)
 }
 
+/** The page size `getMany` never asks for less than. It is a floor and not a
+ *  ceiling: the related route inside `getMany` drops `ids` and pages through the
+ *  whole related collection, so a page as small as the few ids one screen asked
+ *  for would walk that collection in steps of a handful. The records a page
+ *  answers that were not asked for are dropped from its result. */
+const GET_MANY_MIN_PAGE_SIZE = 1000
+
 const dataProvider = ({
   total = '/meta/pagination/count',
   systemTime = '/meta/systemTime',
@@ -426,7 +433,7 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-      const pageSize = Math.max(params.ids.length, 1000)
+      const pageSize = Math.max(params.ids.length, GET_MANY_MIN_PAGE_SIZE)
       const gathered: RaRecord[] = []
 
       // the pages must arrive one after the other, because the next one is only

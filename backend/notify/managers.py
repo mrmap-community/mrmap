@@ -218,7 +218,7 @@ class BackgroundProcessManager(models.Manager):
             Coalesce(F("done_steps"), 0), max(int(done_steps), 0))})
 
     def record_reference_outcome(self, pk, stored_delta=0, failed_delta=0,
-                                 step_done=False):
+                                 step_done=False, steps_delta=0):
         """Transition the per-reference outcome counters of a collection exactly once.
 
         The outcome of one registration reference (#1263) moves the stored
@@ -250,6 +250,11 @@ class BackgroundProcessManager(models.Manager):
             failed_delta (int): +/-1 on the failed counter
             step_done (bool): whether this outcome decides a reference for
                 the first time and mirrors into ``done_steps``
+            steps_delta (int): amount of references this call decides for
+                the first time, for the reporter which mirrors a whole
+                batch of first decisions in one write instead of one write
+                per reference (#1410); adds to what ``step_done`` mirrors,
+                like the ``steps_done`` of ``update_background_process`` (#958)
 
         Returns:
             int: amount of processes which were updated
@@ -263,8 +268,9 @@ class BackgroundProcessManager(models.Manager):
         if failed_delta:
             values["references_failed"] = Greatest(
                 Coalesce(F("references_failed"), 0) + failed_delta, 0)
-        if step_done:
-            values["done_steps"] = capped_done_steps(1)
+        steps = (1 if step_done else 0) + max(int(steps_delta or 0), 0)
+        if steps:
+            values["done_steps"] = capped_done_steps(steps)
         if not values:
             return 0
 
